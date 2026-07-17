@@ -1,0 +1,146 @@
+﻿@model Padelizou.Models.Torneio
+@{
+    ViewData["Title"] = "Criar Novo Torneio";
+    var catalogo = ViewBag.CatalogoCategorias as List<padelizou.Models.CategoriaPadrao>;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-blue);">
+        <div class="card-body p-4 p-md-5">
+            <h2 class="fw-bold mb-4" style="color: var(--padel-blue);"><i class="bi bi-trophy-fill"></i> Criar Novo Torneio</h2>
+
+            <form asp-action="Create" method="post">
+
+                <!-- DADOS BÁSICOS DO TORNEIO -->
+                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3">1. Informações Gerais</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Nome do Torneio</label>
+                        <input type="text" asp-for="Nome" class="form-control bg-light" required placeholder="Ex: Padel Garden Open" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Local / Clube</label>
+                        <input type="text" asp-for="LocalTorneio" class="form-control bg-light" required placeholder="Ex: Padel Garden - Gravataí" />
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Preço da Inscrição (Por Dupla)</label>
+                        <input type="number" asp-for="PrecoInscricao" step="0.01" class="form-control bg-light" required placeholder="Ex: 150,00" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Qtd. de Quadras Disponíveis</label>
+                        <input type="number" asp-for="QuantidadeQuadras" class="form-control bg-light" required placeholder="Ex: 3" />
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentos" id="impSwitch" style="transform: scale(1.3); margin-right: 10px;">
+                            <label class="form-check-label fw-bold text-muted" for="impSwitch">Permitir Impedimentos de Horário?</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REGRAS DE SETS E GAMES -->
+                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">2. Formato das Partidas</h5>
+
+                <div class="form-check form-switch mb-3 p-3 rounded" style="background-color: #f8f9fa;">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" asp-for="FormatoUnico" id="formatoUnico" checked onchange="toggleFases()" style="transform: scale(1.3);">
+                    <label class="form-check-label fw-bold ms-2" for="formatoUnico" style="color: var(--padel-blue);">
+                        Formato Único (Todas as partidas do torneio terão a mesma regra)
+                    </label>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card bg-light border-0 p-3 h-100">
+                            <h6 class="fw-bold" style="color: var(--padel-blue);">Fase de Grupos (ou Geral)</h6>
+                            <label class="small text-muted mt-2">Quantidade de Sets</label>
+                            <input type="number" asp-for="SetsFaseGrupos" class="form-control mb-2" value="1" required />
+                            <label class="small text-muted">Games por Set</label>
+                            <input type="number" asp-for="GamesFaseGrupos" class="form-control" value="9" required />
+                        </div>
+                    </div>
+
+                    <!-- Fases Finais (Escondidas por padrão pelo JS) -->
+                    <div class="col-md-4 fase-extra" style="display: none;">
+                        <div class="card bg-light border-0 p-3 h-100">
+                            <h6 class="fw-bold text-secondary">Fases Eliminatórias (Mata-Mata)</h6>
+                            <label class="small text-muted mt-2">Quantidade de Sets</label>
+                            <input type="number" asp-for="SetsFaseMataMata" class="form-control mb-2" value="1" />
+                            <label class="small text-muted">Games por Set</label>
+                            <input type="number" asp-for="GamesFaseMataMata" class="form-control" value="9" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 fase-extra" style="display: none;">
+                        <div class="card bg-light border-0 p-3 h-100">
+                            <h6 class="fw-bold text-danger">A Grande Final</h6>
+                            <label class="small text-muted mt-2">Quantidade de Sets</label>
+                            <input type="number" asp-for="SetsFaseFinal" class="form-control mb-2" value="3" />
+                            <label class="small text-muted">Games por Set</label>
+                            <input type="number" asp-for="GamesFaseFinal" class="form-control" value="6" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CATEGORIAS (O CATÁLOGO) -->
+                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">3. Categorias Disponíveis neste Torneio</h5>
+
+                <div class="row">
+                    <!-- Coluna Masculina -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="fw-bold mb-3" style="color: var(--padel-blue);"><i class="bi bi-gender-male"></i> Masculinas</h6>
+                        @foreach (var cat in catalogo.Where(c => c.Tipo == "Masculina"))
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Coluna Feminina -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="fw-bold mb-3" style="color: var(--padel-green);"><i class="bi bi-gender-female"></i> Femininas</h6>
+                        @foreach (var cat in catalogo.Where(c => c.Tipo == "Feminina"))
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Coluna Mista -->
+                    <div class="col-md-4 mb-4">
+                        <h6 class="fw-bold mb-3 text-warning"><i class="bi bi-people-fill"></i> Mistas</h6>
+                        @foreach (var cat in catalogo.Where(c => c.Tipo == "Mista"))
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+                <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill"></i> Publicar Torneio e Abrir Inscrições
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT PARA ESCONDER/MOSTRAR AS FASES FINAIS -->
+<script>
+    function toggleFases() {
+        var isUnico = document.getElementById('formatoUnico').checked;
+        var fasesExtras = document.querySelectorAll('.fase-extra');
+
+        fasesExtras.forEach(function(el) {
+            el.style.display = isUnico ? 'none' : 'block';
+        });
+    }
+</script>

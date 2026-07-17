@@ -1,0 +1,38 @@
+﻿@{
+    ViewData["Title"] = "Inscrever Dupla";
+}
+
+<h2>Inscrever Dupla na Categoria</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-controller="Duplas" asp-action="Create" method="post">
+
+            <!-- Para simplificar o teste, vamos digitar o ID da categoria manualmente por enquanto -->
+            <div class="form-group mb-4">
+                <label class="control-label fw-bold">ID da Categoria</label>
+                <input type="number" name="categoriaId" class="form-control" required placeholder="Ex: 1 (Para a Open Masc)" />
+                <small class="text-muted">No futuro isso será um menu Dropdown bonitinho.</small>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">Jogador 1</div>
+                <div class="card-body">
+                    <input type="text" name="nome1" class="form-control mb-2" placeholder="Nome do Jogador 1" required />
+                    <input type="text" name="cpf1" class="form-control" placeholder="CPF (Apenas números)" required />
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">Jogador 2</div>
+                <div class="card-body">
+                    <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome do Jogador 2" required />
+                    <input type="text" name="cpf2" class="form-control" placeholder="CPF (Apenas números)" required />
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-dark w-100 py-2">Confirmar Inscrição</button>
+        </form>
+    </div>
+</div>

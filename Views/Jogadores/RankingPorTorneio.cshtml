@@ -1,0 +1,30 @@
+﻿@model IEnumerable<Padelizou.Models.Dupla>
+
+<div class="container mt-4">
+    <h3 class="fw-bold mb-4">Ranking do Torneio</h3>
+
+    <div class="card shadow-sm">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dupla</th>
+                    <th>Desempenho</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dupla in Model)
+                {
+                    <tr>
+                        <td>
+                            @dupla.Jogador1.Nome <br>
+                            <small class="text-muted">@dupla.Jogador2.Nome</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">@dupla.UltimaFase</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

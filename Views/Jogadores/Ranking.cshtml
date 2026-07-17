@@ -1,0 +1,69 @@
+﻿@model IEnumerable<Padelizou.Models.Jogador>
+@{
+    ViewData["Title"] = "Ranking Global";
+    int posicao = 1;
+}
+<div class="mb-4">
+    <label class="form-label text-muted">Filtrar Ranking:</label>
+    <select class="form-select" onchange="window.location.href='/Jogadores/Ranking?torneioId=' + this.value">
+        <option value="">-- Ranking Global --</option>
+        @foreach (var torneio in ViewBag.TorneiosList as List<Padelizou.Models.Torneio>)
+        {
+            <option value="@torneio.Id">@torneio.Nome</option>
+        }
+    </select>
+</div>
+<div class="container mt-4 mb-5">
+    <h3 class="fw-bold mb-4 text-center" style="color: var(--padel-blue);">
+        <i class="bi bi-award-fill text-warning"></i> Ranking Global
+    </h3>
+
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th>Jogador</th>
+                        <th class="text-end pe-3">Pontos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var jogador in Model)
+                    {
+                        <tr>
+                            <td class="text-center fw-bold">
+                                @if (posicao == 1)
+                                {
+                                    <span class="badge bg-warning text-dark fs-6">1º</span>
+                                }
+                                else if (posicao == 2)
+                                {
+
+                                    <span class="badge bg-secondary fs-6">2º</span>
+                                }
+                                else if (posicao == 3)
+                                {
+
+                                    <span class="badge bg-danger fs-6">3º</span>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">@(posicao)º</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="Perfil" asp-route-id="@jogador.Id" class="text-decoration-none text-dark fw-bold">
+                                    @jogador.Nome
+                                </a>
+                            </td>
+                            <td class="text-end fw-bold pe-3 text-primary">@jogador.PontuacaoGlobal</td>
+                        </tr>
+                        posicao++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,38 @@
+﻿@model (Padelizou.Models.Jogador jogador, List<Padelizou.Models.Dupla> historico)
+@{
+    ViewData["Title"] = "Perfil de " + Model.jogador.Nome;
+}
+
+<div class="container mt-4">
+    <!-- HEADER DO PERFIL -->
+    <div class="text-center mb-4">
+        <img src="@(string.IsNullOrEmpty(Model.jogador.FotoPerfil) ? "/img/default-avatar.png" : Model.jogador.FotoPerfil)"
+             class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
+        <h3 class="fw-bold mt-3">@Model.jogador.Nome</h3>
+        <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+    </div>
+
+    <!-- CARDS DE ESTATÍSTICA (GRID MOBILE) -->
+    <div class="row g-2 mb-4">
+        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Títulos</small><h5 class="fw-bold text-warning">@ViewBag.Titulos</h5></div></div>
+        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Finais</small><h5 class="fw-bold text-primary">@ViewBag.Finais</h5></div></div>
+        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Semis</small><h5 class="fw-bold text-info">@ViewBag.Semis</h5></div></div>
+    </div>
+
+    <!-- LISTA DE TORNEIOS -->
+    <h5 class="fw-bold mb-3">Histórico de Torneios</h5>
+    <div class="list-group shadow-sm">
+        @foreach (var dupla in Model.historico)
+        {
+            <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h6 class="fw-bold mb-0">@dupla.Torneio.Nome</h6>
+                    <small class="text-muted">@dupla.Torneio.DataInicio?.ToString("dd/MM/yyyy")</small>
+                </div>
+                <span class="badge rounded-pill @(dupla.UltimaFase == "Campeao" ? "bg-warning text-dark" : "bg-light text-dark border")">
+                    @dupla.UltimaFase
+                </span>
+            </div>
+        }
+    </div>
+</div>

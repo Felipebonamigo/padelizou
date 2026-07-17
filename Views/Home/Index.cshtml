@@ -1,0 +1,56 @@
+﻿@model IEnumerable<Padelizou.Models.Torneio>
+@{
+    ViewData["Title"] = "Torneios de Padel";
+}
+
+<!-- Banner Hero -->
+<div class="text-center py-5 mb-5 rounded-3 shadow-sm" style="background-color: #f8f9fa; border-top: 4px solid var(--padel-green);">
+    <h1 class="display-4 fw-bold" style="color: var(--padel-blue);">Encontre seu próximo desafio.</h1>
+    <p class="lead text-muted">Inscreva sua dupla, acompanhe as chaves e suba no ranking.</p>
+</div>
+
+<!-- Grid de Torneios -->
+<div class="container">
+    <h3 class="mb-4" style="color: var(--padel-blue); border-bottom: 2px solid var(--padel-green); padding-bottom: 10px; display: inline-block;">
+        Torneios com Inscrições Abertas
+    </h3>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        @if (Model != null && Model.Any())
+        {
+            foreach (var torneio in Model)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <!-- Imagem Genérica para o card (depois podemos colocar o cartaz do torneio) -->
+                        <div style="height: 140px; background-color: var(--padel-blue); display:flex; align-items:center; justify-content:center; border-top-left-radius: 6px; border-top-right-radius: 6px;">
+                            <img src="~/images/logoPadelizou.png" style="height: 60px; filter: grayscale(100%) brightness(200%); opacity: 0.2;" />
+                        </div>
+
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold" style="color: var(--padel-blue);">@torneio.Nome</h5>
+                            <p class="card-text text-muted small mb-1">
+                                <i class="bi bi-geo-alt-fill"></i> Local: @(string.IsNullOrEmpty(torneio.LocalTorneio) ? "A definir" : torneio.LocalTorneio)
+                            </p>
+                            <p class="card-text text-muted small">
+                                <i class="bi bi-cash"></i> Inscrição: @torneio.PrecoInscricao.ToString("C")
+                            </p>
+                        </div>
+                        <div class="card-footer bg-white border-0 pb-3 text-center">
+                            <!-- Esse botão vai levar para a nossa futura página de Detalhes/Abas -->
+                            <a asp-controller="Torneios" asp-action="Details" asp-route-id="@torneio.Id" class="btn btn-padel w-100 rounded-pill">
+                                <i class="bi bi-card-checklist me-2"></i> Ver Torneio e Inscrever-se
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center text-muted mt-4">
+                <p>Nenhum torneio aberto no momento.</p>
+            </div>
+        }
+    </div>
+</div>

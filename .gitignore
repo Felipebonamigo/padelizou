@@ -1,0 +1,4 @@
+.vs/
+bin/
+obj/
+appsettings.json # Cuidado: Só suba se tiver certeza que não há senhas nele!

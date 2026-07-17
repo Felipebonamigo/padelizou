@@ -1,0 +1,157 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+:root {
+    --padel-blue: #1C2742; /* Azul escuro da logo */
+    --padel-green: #A3D827; /* Verde vibrante da logo */
+}
+
+/* Forçando os botões principais a usarem o verde da sua marca */
+.btn-padel {
+    background-color: var(--padel-green);
+    color: var(--padel-blue);
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+
+    .btn-padel:hover {
+        background-color: #8cbd20;
+        color: #1C2742;
+        transform: scale(1.02);
+    }
+
+/* 1. TRAVA O ZOOM INDESEJADO NO CELULAR */
+/* Quando o ajudante apertar rápido várias vezes no +1 Game, a tela não vai dar zoom */
+button, a, input, select {
+    touch-action: manipulation;
+}
+
+/* 2. A REGRA DO DEDÃO PARA A MESA DE CONTROLE */
+/* Garante que os botões de placar fiquem grandes e fáceis de apertar na correria */
+.btn-group .btn {
+    min-height: 44px; /* Altura mínima recomendada pela Apple e Google para toques */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 3. SCROLL HORIZONTAL PARA TABELAS FUTURAS */
+/* Se criarmos chaves ou tabelas muito largas, elas ganham uma barra de rolagem suave com o dedo */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+}
+
+/* 4. AJUSTE DE FONTES PARA TELAS PEQUENAS */
+@media (max-width: 767px) {
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+    }
+
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    /* Na mesa de controle, os botões ficam 100% da largura se faltar espaço */
+    .btn-group {
+        width: 100%;
+    }
+}
+
+/* =========================================
+   ESTRUTURA DA ÁRVORE MATA-MATA (BRACKET)
+   ========================================= */
+.bracket-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Rolagem suave no iPhone/Android */
+    padding: 10px 0 30px 0;
+    margin-top: 20px;
+}
+
+.bracket-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-width: 280px; /* Largura perfeita para a tela do celular */
+    margin-right: 25px;
+    position: relative;
+}
+
+/* O título da coluna (Ex: Quartas, Semis) */
+.bracket-header {
+    text-align: center;
+    font-weight: bold;
+    color: var(--padel-blue);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+/* O Card do Confronto */
+.bracket-match {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    border: 1px solid #eaeaea;
+    overflow: hidden;
+}
+
+/* A linha de cada dupla dentro do card */
+.bracket-team {
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+    .bracket-team:last-child {
+        border-bottom: none;
+    }
+
+    /* Destaque visual se a dupla for a Vencedora */
+    .bracket-team.winner {
+        background-color: #f4fff8; /* Fundo levemente verde */
+        border-left: 4px solid var(--padel-green);
+    }
+
+        .bracket-team.winner .team-name {
+            font-weight: 800 !important;
+        }

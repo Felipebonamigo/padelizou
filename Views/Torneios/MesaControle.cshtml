@@ -1,0 +1,120 @@
+﻿@model IEnumerable<Padelizou.Models.Partida>
+@{
+    ViewData["Title"] = "Mesa de Controle";
+    Layout = "_Layout"; // Mantém o layout padrão
+}
+
+<div class="container mt-3 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-danger"><i class="bi bi-broadcast"></i> Mesa de Controle (Ao Vivo)</h3>
+        <a asp-action="Details" asp-route-id="@ViewBag.TorneioId" class="btn btn-outline-secondary">Voltar</a>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row">
+            @foreach (var partida in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow border-0" style="border-top: 5px solid red;">
+                        <div class="card-header bg-white text-center fw-bold text-danger">
+                            <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
+                        </div>
+                        <div class="card-body p-2">
+
+                            <!-- DUPLA A -->
+                            <div class="p-3 mb-2 rounded bg-light border">
+                                <h6 class="fw-bold text-truncate">@partida.Dupla1.Jogador1.Nome / @partida.Dupla1.Jogador2.Nome</h6>
+
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div class="text-center">
+                                        <small class="text-muted d-block fw-bold">SETS</small>
+                                        <div class="btn-group">
+                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Set', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <span class="btn btn-sm btn-light fw-bold fs-5 px-3" id="setsA_@partida.Id">@partida.SetsDupla1</span>
+                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Set', 1)" class="btn btn-sm btn-success">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="text-center">
+                                        <small class="text-muted d-block fw-bold">GAMES</small>
+                                        <div class="btn-group">
+                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Game', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesA_@partida.Id">@partida.GamesDupla1</span>
+                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Game', 1)" class="btn btn-sm btn-primary">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DUPLA B -->
+                            <div class="p-3 rounded bg-light border">
+                                <h6 class="fw-bold text-truncate">@partida.Dupla2.Jogador1.Nome / @partida.Dupla2.Jogador2.Nome</h6>
+
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div class="text-center">
+                                        <div class="btn-group">
+                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Set', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <span class="btn btn-sm btn-light fw-bold fs-5 px-3" id="setsB_@partida.Id">@partida.SetsDupla2</span>
+                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Set', 1)" class="btn btn-sm btn-success">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="btn-group">
+                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Game', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesB_@partida.Id">@partida.GamesDupla2</span>
+                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Game', 1)" class="btn btn-sm btn-primary">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <form asp-action="FinalizarPartida" method="post" class="mt-3">
+                                <input type="hidden" name="partidaId" value="@partida.Id" />
+                                <button type="submit" class="btn btn-dark w-100 fw-bold" id="btnFim_@partida.Id">
+                                    <i class="bi bi-flag-fill"></i> Finalizar Partida
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-secondary text-center py-5">
+            <i class="bi bi-info-circle display-4 d-block mb-3"></i>
+            Nenhuma partida marcada como "Em Andamento" neste torneio.
+        </div>
+    }
+</div>
+
+<!-- SCRIPT DE ALTA PERFORMANCE (AJAX) -->
+<script>
+    // Pegando a regra do torneio (Ex: 9 games)
+    // OBS: Você precisa passar o Torneio na ViewBag lá no Controller para isso funcionar dinamicamente
+    // const limiteGames = @(ViewBag.Torneio?.GamesFaseGrupos ?? 9);
+    const limiteGames = 9;
+
+    async function atualizarPlacar(partidaId, equipe, tipo, valor) {
+        const response = await fetch('/Torneios/AtualizarPlacarAoVivo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `partidaId=${partidaId}&equipe=${equipe}&tipo=${tipo}&valor=${valor}`
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById(`games1_${partidaId}`).innerText = data.games1;
+            document.getElementById(`games2_${partidaId}`).innerText = data.games2;
+            document.getElementById(`sets1_${partidaId}`).innerText = data.sets1;
+            document.getElementById(`sets2_${partidaId}`).innerText = data.sets2;
+
+            // INTELIGÊNCIA DA REGRA DE JOGO
+            if (data.games1 >= limiteGames || data.games2 >= limiteGames) {
+                document.getElementById(`btnFim_${partidaId}`).classList.replace('btn-dark', 'btn-success');
+                document.getElementById(`btnFim_${partidaId}`).classList.add('shadow-lg');
+                alert("Atenção: O limite de games configurado para esta fase foi atingido! Você já pode finalizar a partida.");
+            }
+        }
+    }
+</script>

@@ -1,0 +1,461 @@
+﻿@model Padelizou.Models.Torneio
+@{
+    ViewData["Title"] = Model.Nome;
+}
+
+<!-- Cabeçalho do Torneio -->
+<div class="mb-4">
+    <h2 class="fw-bold" style="color: var(--padel-blue);">@Model.Nome</h2>
+    <p class="text-muted">
+        <i class="bi bi-geo-alt-fill text-danger"></i> @(string.IsNullOrEmpty(Model.LocalTorneio) ? "A definir" : Model.LocalTorneio) |
+        <i class="bi bi-cash text-success"></i> @Model.PrecoInscricao.ToString("C")
+    </p>
+</div>
+
+<!-- Navegação das Abas -->
+<ul class="nav nav-tabs" id="torneioTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="inscritos-tab" data-bs-toggle="tab" data-bs-target="#inscritos" type="button" role="tab" style="color: var(--padel-blue);">
+            <i class="bi bi-people-fill"></i> Inscritos
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold" id="inscricao-tab" data-bs-toggle="tab" data-bs-target="#inscricao" type="button" role="tab" style="color: var(--padel-green); background-color: var(--padel-blue);">
+            <i class="bi bi-pencil-square"></i> Inscreva-se
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold" id="inscritos-tab" data-bs-toggle="tab" data-bs-target="#inscritos" type="button" role="tab" style="color: var(--padel-blue);">
+            <i class="bi bi-people-fill"></i> Inscritos
+        </button>
+    </li>
+
+    <!-- Só mostra a aba de Inscrição se o status permitir -->
+    @if (Model.Status == "Inscrições Abertas")
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="inscricao-tab" data-bs-toggle="tab" data-bs-target="#inscricao" type="button" role="tab" style="color: var(--padel-green); background-color: var(--padel-blue);">
+                <i class="bi bi-pencil-square"></i> Inscreva-se
+            </button>
+        </li>
+    }
+
+    <!-- Aba Exclusiva do Organizador -->
+    <li class="nav-item ms-auto" role="presentation">
+        <button class="nav-link fw-bold text-danger" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab">
+            <i class="bi bi-gear-fill"></i> Gerenciar Torneio
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-danger" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
+            <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
+        </button>
+    </li>
+    <!-- Adicione isso logo após a aba "Ao Vivo" -->
+    @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado")
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="grupos-tab" data-bs-toggle="tab" data-bs-target="#grupos" type="button" role="tab" style="color: var(--padel-blue);">
+                <i class="bi bi-layout-split"></i> Chaves e Grupos
+            </button>
+        </li>
+    }
+</ul>
+
+<!-- Conteúdo das Abas -->
+<div class="tab-content border border-top-0 p-4 bg-white shadow-sm" id="torneioTabsContent" style="border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+
+    <!-- ABA 1: LISTA DE INSCRITOS -->
+    <div class="tab-pane fade show active" id="inscritos" role="tabpanel">
+        <h4 class="mb-3" style="color: var(--padel-blue);">Duplas Confirmadas</h4>
+
+        <div class="accordion" id="accordionCategorias">
+            @foreach (var cat in Model.Categorias)
+            {
+                var collapseId = "collapse" + cat.Id;
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                            @cat.Nome <span class="badge ms-2" style="background-color: var(--padel-blue);">@cat.Duplas.Count() duplas</span>
+                        </button>
+                    </h2>
+                    <div id="@collapseId" class="accordion-collapse collapse" data-bs-parent="#accordionCategorias">
+                        <div class="accordion-body">
+                            @if (cat.Duplas.Any())
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var dupla in cat.Duplas)
+                                    {
+                                        <li class="list-group-item">
+                                            <i class="bi bi-person-fill"></i> @dupla.Jogador1.Nome <span class="text-muted mx-2">/</span> <i class="bi bi-person-fill"></i> @dupla.Jogador2.Nome
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Nenhuma dupla inscrita nesta categoria ainda.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ABA 2: FORMULÁRIO DE INSCRIÇÃO -->
+    <div class="tab-pane fade" id="inscricao" role="tabpanel">
+        <h4 class="mb-3" style="color: var(--padel-blue);">Formulário de Inscrição</h4>
+
+        <form asp-controller="Duplas" asp-action="Create" method="post">
+            <input type="hidden" name="torneioId" value="@Model.Id" />
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Selecione a Categoria</label>
+                <select name="categoriaId" class="form-select" required>
+                    <option value="">-- Escolha uma categoria --</option>
+                    @foreach (var cat in Model.Categorias)
+                    {
+                        <option value="@cat.Id">@cat.Nome</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Dados dos Jogadores -->
+            <div class="row">
+                <!-- JOGADOR 1 -->
+                <div class="col-md-6">
+                    <div class="card mb-3 border-0 bg-light">
+                        <div class="card-header fw-bold text-white" style="background-color: var(--padel-blue);">Jogador 1</div>
+                        <div class="card-body">
+                            <input type="text" name="nome1" class="form-control mb-2" placeholder="Nome Completo" required />
+                            <input type="text" name="cpf1" class="form-control mb-2" placeholder="CPF (Apenas números)" required />
+                            <input type="text" name="celular1" class="form-control mb-2" placeholder="Celular (WhatsApp)" required />
+                            <div class="row g-2">
+                                <div class="col-8"><input type="text" name="cidade1" class="form-control" placeholder="Cidade" required /></div>
+                                <div class="col-4"><input type="text" name="estado1" class="form-control" placeholder="UF" required /></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JOGADOR 2 -->
+                <div class="col-md-6">
+                    <div class="card mb-3 border-0 bg-light">
+                        <div class="card-header fw-bold text-white" style="background-color: var(--padel-blue);">Jogador 2</div>
+                        <div class="card-body">
+                            <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome Completo" required />
+                            <input type="text" name="cpf2" class="form-control mb-2" placeholder="CPF (Apenas números)" required />
+                            <input type="text" name="celular2" class="form-control mb-2" placeholder="Celular (WhatsApp)" required />
+                            <div class="row g-2">
+                                <div class="col-8"><input type="text" name="cidade2" class="form-control" placeholder="Cidade" required /></div>
+                                <div class="col-4"><input type="text" name="estado2" class="form-control" placeholder="UF" required /></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regras de Impedimento Dinâmicas -->
+            @if (Model.PermiteImpedimentos)
+            {
+                <div class="alert alert-warning mt-2 border-warning">
+                    <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
+                    <p class="mb-3 text-muted small">Marque abaixo apenas se a dupla for <strong>absolutamente incapaz</strong> de jogar nestes turnos. O excesso de impedimentos dificulta o chaveamento.</p>
+
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="impSextaNoite" value="true" id="impSexta">
+                        <label class="form-check-label" for="impSexta">Não podemos jogar na <strong>Sexta à noite</strong></label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="impSabadoManha" value="true" id="impSabManha">
+                        <label class="form-check-label" for="impSabManha">Não podemos jogar no <strong>Sábado de manhã</strong></label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="impSabadoTarde" value="true" id="impSabTarde">
+                        <label class="form-check-label" for="impSabTarde">Não podemos jogar no <strong>Sábado à tarde</strong></label>
+                    </div>
+                </div>
+            }
+
+            <button type="submit" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
+                <i class="bi bi-check2-circle"></i> Confirmar Inscrição da Dupla
+            </button>
+        </form>
+    </div>
+    <!-- ABA 3: PAINEL DO ORGANIZADOR -->
+    <div class="tab-pane fade" id="admin" role="tabpanel">
+        <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
+
+        <div class="card bg-light border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Model.Status</span></h6>
+                <hr />
+
+                @if (Model.Status == "Inscrições Abertas")
+                {
+                    <div class="alert alert-warning border-warning">
+                        <strong>Atenção:</strong> Ao encerrar as inscrições, o formulário será bloqueado para o público e você poderá gerar as chaves e os grupos.
+                    </div>
+                    <form asp-controller="Torneios" asp-action="GerarChaves" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+                            <i class="bi bi-diagram-3-fill"></i> Gerar Fases de Grupo e Chaves
+                        </button>
+                    </form>
+                }
+                else if (Model.Status == "Chaves em Sorteio")
+                {
+                    <div class="alert alert-info border-info">
+                        <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
+                    </div>
+                    <button class="btn btn-primary fw-bold shadow-sm">
+                        <i class="bi bi-diagram-3-fill"></i> Gerar Fases de Grupo e Chaves
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+    <!-- ABA: AO VIVO -->
+    <div class="tab-pane fade" id="aovivo" role="tabpanel">
+        <h4 class="mb-3 text-danger fw-bold"><i class="bi bi-broadcast"></i> Partidas em Andamento</h4>
+
+        <!-- Esta DIV será preenchida automaticamente pelo JavaScript -->
+        <div class="row" id="containerPlacaresAoVivo">
+            <div class="col-12 text-center text-muted py-4">
+                <i class="bi bi-arrow-clockwise mb-2 fs-2 d-block"></i> Buscando jogos na quadra...
+            </div>
+        </div>
+    </div>
+    <!-- ABA: CHAVES E GRUPOS -->
+    <div class="tab-pane fade" id="grupos" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0 fw-bold" style="color: var(--padel-blue);">
+                <i class="bi bi-layout-split"></i> Fase de Grupos
+            </h4>
+        </div>
+
+        <!-- MENU DE CATEGORIAS (Rolagem Horizontal para Celular) -->
+        <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-4" id="categoriaPills" role="tablist" style="-webkit-overflow-scrolling: touch; white-space: nowrap;">
+            @{
+                var primeiraCat = true;
+            }
+            @foreach (var categoria in Model.Categorias)
+            {
+                // Só mostra categorias que tenham grupos sorteados
+                if (categoria.GruposTorneio != null && categoria.GruposTorneio.Any())
+                {
+                    <li class="nav-item me-2" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold border @(primeiraCat ? "active" : "")"
+                                id="cat-@(categoria.Id)-tab" data-bs-toggle="pill" data-bs-target="#cat-@(categoria.Id)"
+                                type="button" role="tab">
+                            @categoria.Nome
+                        </button>
+                    </li>
+                    primeiraCat = false;
+                }
+            }
+        </ul>
+
+        <!-- CONTEÚDO DOS GRUPOS POR CATEGORIA -->
+        <div class="tab-content" id="categoriaPillsContent">
+            @{
+                var primeiraCatContent = true;
+            }
+            <!-- DENTRO DA ABA CHAVES E GRUPOS, ANTES DE LISTAR OS GRUPOS -->
+            <div class="mb-4 text-end">
+                @* <!-- No futuro, envolva isso em um @if para só o Admin ver --> *@
+                <form asp-controller="Torneios" asp-action="GerarMataMata" method="post" class="d-inline">
+                    <!-- Você precisaria passar o CategoriaId aqui de forma dinâmica se o torneio tiver várias.
+             Para testes, use o ID de uma categoria fixa, ou crie o botão dentro do foreach da Categoria -->
+                    <input type="hidden" name="torneioId" value="@Model.Id" />
+                    <input type="hidden" name="categoriaId" value="1" /> <!-- Substitua pelo ID real -->
+                    <button type="submit" class="btn btn-danger btn-sm fw-bold shadow-sm rounded-pill">
+                        <i class="bi bi-diagram-3-fill"></i> Gerar Cruzamento Mata-Mata
+                    </button>
+                </form>
+            </div>
+            @foreach (var categoria in Model.Categorias)
+            {
+                if (categoria.GruposTorneio != null && categoria.GruposTorneio.Any())
+                {
+                    <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
+                        <div class="row">
+                            @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
+                            {
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card shadow-sm border-0 h-100" style="border-top: 4px solid var(--padel-green);">
+                                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                                            <h5 class="fw-bold mb-0 text-center" style="color: var(--padel-blue);">@grupo.Nome</h5>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover table-borderless mb-0 text-center align-middle">
+                                                    <thead class="table-light text-muted small">
+                                                        <tr>
+                                                            <th class="text-start ps-3" style="width: 50%;">Dupla</th>
+                                                            <th title="Jogos">J</th>
+                                                            <th title="Vitórias" class="text-success">V</th>
+                                                            <th title="Derrotas" class="text-danger">D</th>
+                                                            <th title="Saldo de Games">SG</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <!-- Por enquanto listamos as duplas, a matemática do SG faremos no próximo passo -->
+                                                        <!-- Dentro do tbody da tabela da fase de grupos, atualize estas colunas: -->
+                                                        @foreach (var dupla in grupo.Duplas)
+                                                        {
+                                                            <tr style="border-bottom: 1px solid #f0f0f0;">
+                                                                <td class="text-start ps-3 py-3">
+                                                                    <div class="fw-bold text-truncate" style="max-width: 140px; font-size: 0.9rem;">
+                                                                        @dupla.Jogador1.Nome.Split(' ')[0]
+                                                                    </div>
+                                                                    <div class="fw-bold text-truncate text-muted" style="max-width: 140px; font-size: 0.9rem;">
+                                                                        @dupla.Jogador2.Nome.Split(' ')[0]
+                                                                    </div>
+                                                                </td>
+
+                                                                <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
+                                                                <td class="fw-bold text-secondary">@dupla.Jogos</td>
+                                                                <td class="fw-bold text-success">@dupla.Vitorias</td>
+                                                                <td class="fw-bold text-danger">@dupla.Derrotas</td>
+
+                                                                <!-- Saldo de games ganha cor inteligente (Verde se +, Vermelho se -) -->
+                                                                @if (dupla.SaldoGames > 0)
+                                                                {
+                                                                    <td class="fw-bold text-success">+@dupla.SaldoGames</td>
+                                                                }
+                                                                else if (dupla.SaldoGames < 0)
+                                                                {
+                                                                    <td class="fw-bold text-danger">@dupla.SaldoGames</td>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <td class="fw-bold text-muted">0</td>
+                                                                }
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mt-5 pt-3 border-top">
+                            <h4 class="fw-bold mb-2" style="color: var(--padel-blue);">
+                                <i class="bi bi-diagram-3-fill text-danger me-2"></i> Fase Final (Mata-Mata)
+                            </h4>
+                            <p class="text-muted small mb-4">Deslize para o lado para ver o chaveamento completo.</p>
+
+                            <div class="bracket-container">
+
+                                <!-- COLUNA: SEMIFINAIS -->
+                                <div class="bracket-column">
+                                    <div class="bracket-header">Semifinais</div>
+
+                                    <!-- Confronto 1 -->
+                                    <div class="bracket-match">
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">1º Colocado Grupo A</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">2º Colocado Grupo B</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Confronto 2 -->
+                                    <div class="bracket-match">
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">1º Colocado Grupo B</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">2º Colocado Grupo A</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- COLUNA: GRANDE FINAL -->
+                                <div class="bracket-column" style="justify-content: center;">
+                                    <div class="bracket-header text-danger"><i class="bi bi-trophy-fill"></i> Final</div>
+
+                                    <div class="bracket-match" style="border: 2px solid var(--padel-blue);">
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">Vencedor Semi 1</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                        <div class="bracket-team">
+                                            <span class="team-name fw-bold text-muted text-truncate" style="max-width: 150px; font-size: 0.95rem;">Vencedor Semi 2</span>
+                                            <span class="fw-bold fs-5 text-secondary">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- COLUNA: CAMPEÃO -->
+                                <div class="bracket-column" style="justify-content: center; min-width: 200px;">
+                                    <div class="text-center">
+                                        <i class="bi bi-award-fill text-warning" style="font-size: 4rem; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));"></i>
+                                        <h5 class="fw-bold mt-2" style="color: var(--padel-blue);">Campeão</h5>
+                                        <p class="text-muted small">Aguardando...</p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    primeiraCatContent = false;
+                }
+            }
+        </div>
+    </div>
+    <!-- SCRIPT DE ATUALIZAÇÃO AUTOMÁTICA (Coloque no final do arquivo Details.cshtml) -->
+    <script>
+            function carregarAoVivo() {
+                fetch('/Torneios/ObterPlacaresAoVivo?torneioId=@Model.Id')
+                    .then(response => response.json())
+                    .then(partidas => {
+                        const container = document.getElementById('containerPlacaresAoVivo');
+                        if (partidas.length === 0) {
+                            container.innerHTML = '<div class="alert alert-light text-center border w-100">Nenhum jogo rolando no momento.</div>';
+                            return;
+                        }
+
+                        let html = '';
+                        partidas.forEach(p => {
+                            html += `
+                                                            <div class="col-md-6 mb-3">
+                                                                <div class="card border-0 shadow-sm" style="border-top: 4px solid red;">
+                                                                    <div class="card-body bg-dark text-light rounded-bottom p-3">
+                                                                        <!-- DUPLA 1 -->
+                                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                            <span class="fw-bold text-truncate w-75">${p.nomeD1}</span>
+                                                                            <div class="fs-4 fw-bold">
+                                                                                <span class="text-secondary fs-6 me-2">${p.setsD1}</span><span class="text-warning">${p.gamesD1}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <!-- DUPLA 2 -->
+                                                                        <div class="d-flex justify-content-between align-items-center">
+                                                                            <span class="fw-bold text-truncate w-75">${p.nomeD2}</span>
+                                                                            <div class="fs-4 fw-bold">
+                                                                                <span class="text-secondary fs-6 me-2">${p.setsD2}</span><span class="text-warning">${p.gamesD2}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>`;
+                        });
+                        container.innerHTML = html;
+                    });
+            }
+
+            // Carrega a primeira vez e depois roda a cada 5 segundos
+            carregarAoVivo();
+            setInterval(carregarAoVivo, 5000);
+    </script>
+</div>

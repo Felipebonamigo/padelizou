@@ -1,0 +1,86 @@
+﻿@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>@ViewData["Title"] - Padelizou</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" /><!-- Biblioteca de Ícones do Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark border-bottom box-shadow mb-3" style="background-color: var(--padel-blue);">
+            <div class="container-fluid">
+                <!-- Sua Logo Aqui -->
+                <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/logoPadelizou.png" alt="Padelizou" style="height: 40px; border-radius: 8px; margin-right: 10px;" />
+                    <span style="font-weight: 700; letter-spacing: 1px;">padelizou</span>
+                </a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door me-1"></i> Início
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-area="" asp-controller="Torneios" asp-action="Create">
+                                <i class="bi bi-trophy me-1"></i> Novo Torneio
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-area="" asp-controller="Aulas" asp-action="Create">
+                                <i class="bi bi-calendar-plus me-1"></i> Marcar Aula
+                            </a>
+                        </li>
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            // Recupera o ID do usuário logado para montar o link automaticamente
+                            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@userId">
+                                    <i class="bi bi-person-circle me-1"></i> Meu Perfil
+                                </a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-controller="Jogadores" asp-action="Ranking">
+                                <i class="bi bi-graph-up-arrow me-1"></i> Ranking
+                            </a>
+                        </li>
+                    </ul>
+                    <!-- Área de Login -->
+                    <span class="navbar-text text-light" style="cursor: pointer;">
+                        <i class="bi bi-person-circle fs-5 me-1"></i> Área do Organizador
+                    </span>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - Padelizou - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

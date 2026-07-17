@@ -1,0 +1,72 @@
+﻿@model IEnumerable<padelizou.Models.Aula>
+@{
+    ViewData["Title"] = "Minhas Aulas - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Minhas Aulas</h2>
+            <p class="text-muted mb-0">Seu histórico de treinos e aulas futuras.</p>
+        </div>
+        <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+    </div>
+
+    <div class="row">
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var aula in Model)
+            {
+                // Define a cor da etiqueta
+                var badgeClass = aula.Status == "Agendada" ? "bg-primary" :
+                                 (aula.Status == "Realizada" ? "bg-success" : "bg-danger");
+
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-blue);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge @badgeClass text-uppercase shadow-sm">@aula.Status</span>
+                                <span class="text-muted fw-bold small"><i class="bi bi-clock-history"></i> @aula.DataHora.ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+
+                            <h5 class="fw-bold mb-1" style="color: var(--padel-blue);">
+                                <!-- Mostra a foto do Professor se ele tiver, ou o ícone genérico -->
+                                @if (!string.IsNullOrEmpty(aula.Professor.FotoPerfil))
+                                {
+                                    <img src="@aula.Professor.FotoPerfil" alt="Prof" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-video3 text-muted me-1"></i>
+                                }
+                                Prof. @aula.Professor.Nome
+                            </h5>
+
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @aula.Local
+                            </p>
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-cash text-success"></i> @aula.Preco.ToString("C")
+                            </p>
+
+                            <!-- Botão para o Aluno avisar que vai se atrasar, tirar dúvida, etc -->
+                            <a href="https://wa.me/55@(aula.Professor.Celular?.Replace("-", "").Replace(" ", ""))?text=Olá, Prof. @(aula.Professor.Nome)! Tudo certo para o nosso treino dia @(aula.DataHora.ToString("dd/MM"))?"
+                               target="_blank" class="btn btn-sm btn-outline-success rounded-pill w-100 fw-bold">
+                                <i class="bi bi-whatsapp"></i> Falar com o Professor
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <i class="bi bi-calendar2-minus display-4 text-muted mb-3"></i>
+                <h4 class="fw-bold text-secondary">Nenhuma aula encontrada</h4>
+                <p class="text-muted">Você ainda não agendou nenhum treino com nossos professores.</p>
+                <a asp-controller="Aulas" asp-action="Create" class="btn btn-padel rounded-pill mt-2">Agendar Primeira Aula</a>
+            </div>
+        }
+    </div>
+</div>
