@@ -1,0 +1,12 @@
+padelizou.com.br, www.padelizou.com.br {
+	# Caddy cuida do certificado HTTPS automaticamente (Let's Encrypt) e redireciona
+	# http:// -> https:// sozinho.
+	reverse_proxy localhost:5000
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/padelizou.log
+		format json
+	}
+}

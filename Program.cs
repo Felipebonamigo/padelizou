@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
@@ -30,6 +31,18 @@ builder.Services.AddControllersWithViews();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Em produção o Kestrel fica atrás do Caddy (proxy reverso na mesma máquina, que termina o
+// HTTPS). Sem isso, o app acha que toda requisição chegou em HTTP puro e o UseHttpsRedirection
+// entra num loop de redirecionamento.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

@@ -1,0 +1,33 @@
+[Unit]
+Description=Padelizou - App de torneios e aulas de padel
+After=network.target mssql-server.service
+
+[Service]
+Type=notify
+WorkingDirectory=/opt/padelizou
+ExecStart=/usr/bin/dotnet /opt/padelizou/Padelizou.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=padelizou
+User=www-data
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://localhost:5000
+
+# Preencher os valores reais antes de "systemctl daemon-reload" — ver DEPLOY.md seção 1.
+Environment="ConnectionStrings__DefaultConnection=REPLACE_ME"
+Environment="EmailSettings__SmtpHost=smtp.gmail.com"
+Environment="EmailSettings__SmtpPort=587"
+Environment="EmailSettings__RemetenteEmail=REPLACE_ME"
+Environment="EmailSettings__RemetenteSenhaApp=REPLACE_ME"
+Environment="EmailSettings__RemetenteNome=Padelizou"
+Environment="GoogleCalendar__ClientId=REPLACE_ME"
+Environment="GoogleCalendar__ClientSecret=REPLACE_ME"
+Environment="GoogleCalendar__RedirectUri=https://padelizou.com.br/GoogleAuth/Callback"
+Environment="AcessoAntecipado__Habilitado=true"
+Environment="AcessoAntecipado__Usuario=padelizou"
+Environment="AcessoAntecipado__Senha=REPLACE_ME"
+
+[Install]
+WantedBy=multi-user.target
