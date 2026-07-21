@@ -1,0 +1,46 @@
+@model List<Padelizou.Models.Jogador>
+@{
+    ViewData["Title"] = "Buscar Jogadores";
+    string q = ViewBag.Query as string ?? "";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 640px;">
+    <h3 class="fw-bold mb-4 text-center" style="color: var(--padel-blue);">
+        <i class="bi bi-search"></i> Buscar Jogadores
+    </h3>
+
+    <form method="get" asp-action="Buscar" class="mb-4">
+        <div class="input-group shadow-sm">
+            <input type="text" name="q" value="@q" class="form-control form-control-lg" placeholder="Digite o nome do jogador..." autofocus />
+            <button type="submit" class="btn btn-padel px-4"><i class="bi bi-search"></i></button>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrWhiteSpace(q))
+    {
+        if (Model.Any())
+        {
+            <div class="list-group shadow-sm">
+                @foreach (var jogador in Model)
+                {
+                    <a asp-action="Perfil" asp-route-id="@jogador.Id" class="list-group-item list-group-item-action d-flex align-items-center gap-3 p-3">
+                        <img src="@(string.IsNullOrEmpty(jogador.FotoPerfil) ? "/img/default-avatar.png" : jogador.FotoPerfil)"
+                             class="rounded-circle" style="width: 48px; height: 48px; object-fit: cover;" />
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">@jogador.Nome</h6>
+                            <small class="text-muted">@jogador.PontuacaoGlobal pts</small>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted text-center"><i class="bi bi-emoji-neutral"></i> Nenhum jogador encontrado com "@q".</p>
+        }
+    }
+    else
+    {
+        <p class="text-muted text-center small">Digite um nome para ver o histórico de torneios, títulos e confrontos de qualquer jogador.</p>
+    }
+</div>

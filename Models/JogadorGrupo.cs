@@ -11,6 +11,9 @@ public partial class JogadorGrupo
     public int PontuacaoInterna { get; set; }
 
     // Relacionamentos
+    [ForeignKey("JogadorId")]
     public virtual Jogador Jogador { get; set; } = null!;
+
+    [ForeignKey("GrupoId")]
     public virtual GrupoPrivado GrupoPrivado { get; set; } = null!;
 }

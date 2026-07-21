@@ -1,0 +1,236 @@
+@using Padelizou.ViewModels
+@{
+    ViewData["Title"] = "Jogos do Torneio";
+    var torneio = ViewBag.Torneio as Torneio;
+    var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
+    int? meuId = ViewBag.MeuId as int?;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🏆 @torneio.Nome - Partidas</h2>
+
+    <!-- Filtro de Times -->
+    <form asp-action="Jogos" method="get" class="d-flex gap-2">
+        <input type="hidden" name="id" value="@torneio.Id" />
+        <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" onchange="this.form.submit()">
+            <option value="">Todos os Times</option>
+        </select>
+    </form>
+</div>
+
+<!-- Navegação das Abas -->
+<ul class="nav nav-tabs" id="jogosTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active text-danger fw-bold" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
+            🔴 Ao Vivo (@ViewBag.AoVivo.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="agendadas-tab" data-bs-toggle="tab" data-bs-target="#agendadas" type="button" role="tab">
+            📅 Agendadas (@ViewBag.Agendadas.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="finalizadas-tab" data-bs-toggle="tab" data-bs-target="#finalizadas" type="button" role="tab">
+            ✅ Finalizadas (@ViewBag.Finalizadas.Count)
+        </button>
+    </li>
+</ul>
+
+<!-- Conteúdo das Abas -->
+<div class="tab-content mt-4" id="jogosTabsContent">
+
+    <!-- ABA: AO VIVO -->
+    <div class="tab-pane fade show active" id="aovivo" role="tabpanel">
+        @if (ViewBag.AoVivo.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo rolando no momento.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogoDyn in ViewBag.AoVivo)
+            {
+                Partida jogo = jogoDyn;
+                <div class="col-md-6 mb-3">
+                    <!-- Aqui vai entrar o "Card" desenhado do jogo com cronômetro -->
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <!-- Cabeçalho do Card: Quadra e Cronômetro -->
+                            <!-- Coloque isso dentro da div do Card, no canto superior ou inferior -->
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra não definida" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-danger blink">
+                                    ⏱️ <span class="cronometro" data-inicio="@jogo.HorarioInicioReal?.ToString("O")">@jogo.MinutosDecorridos min</span>
+                                </span>
+                            </div>
+
+                            <!-- Nomes e Placar -->
+                            <h6 class="text-truncate" title="@jogo.Dupla1.Jogador1.Nome / @jogo.Dupla1.Jogador2.Nome">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
+                            </h6>
+
+                            <h3 class="my-2 fw-bold text-dark">
+                                @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0)
+                            </h3>
+
+                            <h6 class="text-truncate" title="@jogo.Dupla2.Jogador1.Nome / @jogo.Dupla2.Jogador2.Nome">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
+                            </h6>
+
+                            <hr class="my-2">
+
+                            <!-- Rodapé: Categoria, Fase e Botão Ao Vivo -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+
+                                <!-- A mágica acontece aqui: O botão só aparece se tiver link! -->
+                                @if (!string.IsNullOrEmpty(jogo.LinkTransmissao))
+                                {
+                                    <a href="@jogo.LinkTransmissao" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm">
+                                        🎥 Ver ao vivo
+                                    </a>
+                                }
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ABA: AGENDADAS -->
+    <div class="tab-pane fade" id="agendadas" role="tabpanel">
+        @if (ViewBag.Agendadas.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo agendado no momento.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogoDyn in ViewBag.Agendadas)
+            {
+                Partida jogo = jogoDyn;
+                <div class="col-md-6 mb-3">
+                    <div class="card border-primary shadow-sm">
+                        <div class="card-body text-center">
+                            <!-- Cabeçalho: Quadra e Horário Previsto -->
+                            <!-- Coloque isso dentro da div do Card, no canto superior ou inferior -->
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra a definir" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-primary">
+                                    📅 @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "Horário a definir")
+                                </span>
+                            </div>
+
+                            <!-- Nomes (Sem Placar) -->
+                            <h6 class="text-truncate">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
+                            </h6>
+                            <h5 class="my-2 text-muted fw-bold">VS</h5>
+                            <h6 class="text-truncate">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
+                            </h6>
+
+                            <hr class="my-2">
+
+                            <!-- Rodapé -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ABA: FINALIZADAS -->
+    <div class="tab-pane fade" id="finalizadas" role="tabpanel">
+        @if (ViewBag.Finalizadas.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo finalizado ainda.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogoDyn in ViewBag.Finalizadas)
+            {
+                Partida jogo = jogoDyn;
+                // Lógica rápida para descobrir quem ganhou e destacar em verde
+                var games1 = jogo.GamesDupla1 ?? 0;
+                var games2 = jogo.GamesDupla2 ?? 0;
+                var classeDupla1 = games1 > games2 ? "text-success fw-bold" : "text-muted";
+                var classeDupla2 = games2 > games1 ? "text-success fw-bold" : "text-muted";
+
+                <div class="col-md-6 mb-3">
+                    <div class="card border-success shadow-sm">
+                        <div class="card-body text-center">
+                            <!-- Cabeçalho: Quadra e Status -->
+                            <!-- Coloque isso dentro da div do Card, no canto superior ou inferior -->
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Não informada" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-success">✅ Finalizado</span>
+                            </div>
+
+                            <!-- Nomes e Placar Final -->
+                            <h6 class="text-truncate @classeDupla1">
+                                <a class="@classeDupla1" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
+                                <a class="@classeDupla1" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
+                            </h6>
+
+                            <h3 class="my-2 fw-bold text-dark">
+                                @games1 x @games2
+                            </h3>
+
+                            <h6 class="text-truncate @classeDupla2">
+                                <a class="@classeDupla2" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
+                                <a class="@classeDupla2" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
+                            </h6>
+
+                            <hr class="my-2">
+
+                            <!-- Rodapé com Link do Gravado (VT) -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+
+                                @if (!string.IsNullOrEmpty(jogo.LinkTransmissao))
+                                {
+                                    <a href="@jogo.LinkTransmissao" target="_blank" class="btn btn-sm btn-outline-secondary shadow-sm">
+                                        📼 Assistir VT
+                                    </a>
+                                }
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/cronometro-jogos.js"></script>
+    <script src="~/js/palpitrometro.js"></script>
+}

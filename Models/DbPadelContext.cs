@@ -32,6 +32,18 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
+    public DbSet<LocalAula> LocaisAula { get; set; }
+    public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
+    public DbSet<JogadorCategoria> JogadorCategorias { get; set; }
+    public DbSet<JogadorClube> JogadorClubes { get; set; }
+    public DbSet<JogadorDiaHorario> JogadorDiasHorarios { get; set; }
+    public DbSet<AvisoJogo> AvisosJogo { get; set; }
+    public DbSet<AvisoParceiro> AvisosParceiro { get; set; }
+    public DbSet<CandidaturaParceiro> CandidaturasParceiro { get; set; }
+    public DbSet<JogoSemanal> JogosSemanais { get; set; }
+    public DbSet<GrupoPrivado> GruposPrivados { get; set; }
+    public DbSet<JogadorGrupo> JogadoresGrupo { get; set; }
+    public DbSet<PalpitePartida> PalpitesPartida { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -185,6 +197,165 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(d => d.OrganizadorId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Torneio__Organiz__4E88ABD4");
+        });
+
+        modelBuilder.Entity<Aula>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+            entity.HasIndex(e => e.TokenConfirmacao).IsUnique();
+
+            entity.HasOne(a => a.LocalAula)
+                .WithMany()
+                .HasForeignKey(a => a.LocalAulaId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<LocalAula>(entity =>
+        {
+            entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
+            entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
+
+            entity.HasOne(l => l.Professor)
+                .WithMany()
+                .HasForeignKey(l => l.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<HorarioDisponivel>(entity =>
+        {
+            // Restrict aqui porque LocalAula já faz cascade a partir de Jogador — dois caminhos de
+            // cascade até a mesma tabela não são permitidos pelo SQL Server.
+            entity.HasOne(h => h.Professor)
+                .WithMany()
+                .HasForeignKey(h => h.ProfessorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(h => h.LocalAula)
+                .WithMany(l => l.Horarios)
+                .HasForeignKey(h => h.LocalAulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<JogadorCategoria>(entity =>
+        {
+            entity.HasKey(e => new { e.JogadorId, e.CategoriaPadraoId });
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany(j => j.JogadorCategorias)
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CategoriaPadrao)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<JogadorClube>(entity =>
+        {
+            entity.HasKey(e => new { e.JogadorId, e.ClubeId });
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany(j => j.JogadorClubes)
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<JogadorDiaHorario>(entity =>
+        {
+            entity.HasKey(e => new { e.JogadorId, e.DiaSemana, e.Periodo });
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany(j => j.JogadorDiasHorarios)
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AvisoJogo>(entity =>
+        {
+            entity.HasOne(e => e.Criador)
+                .WithMany()
+                .HasForeignKey(e => e.CriadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.CategoriaPadrao)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AvisoParceiro>(entity =>
+        {
+            entity.HasOne(e => e.Criador)
+                .WithMany()
+                .HasForeignKey(e => e.CriadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CandidaturaParceiro>(entity =>
+        {
+            entity.HasOne(e => e.AvisoParceiro)
+                .WithMany(a => a.Candidaturas)
+                .HasForeignKey(e => e.AvisoParceiroId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict aqui porque AvisoParceiro já faz cascade a partir de Jogador (Criador) —
+            // um segundo caminho direto de Jogador até CandidaturaParceiro causaria o mesmo
+            // conflito de múltiplos caminhos de cascade que já vimos em HorarioDisponivel.
+            entity.HasOne(e => e.Candidato)
+                .WithMany()
+                .HasForeignKey(e => e.CandidatoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<JogoSemanal>(entity =>
+        {
+            entity.HasOne(e => e.Grupo)
+                .WithMany()
+                .HasForeignKey(e => e.GrupoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict nos 5 FKs de Jogador: GrupoPrivado já faz cascade a partir de Jogador
+            // (Administrador), então um caminho direto Jogador -> JogoSemanal causaria o mesmo
+            // conflito de múltiplos caminhos de cascade já visto antes.
+            entity.HasOne(e => e.Dupla1Jogador1).WithMany().HasForeignKey(e => e.Dupla1Jogador1Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Dupla1Jogador2).WithMany().HasForeignKey(e => e.Dupla1Jogador2Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Dupla2Jogador1).WithMany().HasForeignKey(e => e.Dupla2Jogador1Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Dupla2Jogador2).WithMany().HasForeignKey(e => e.Dupla2Jogador2Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.RegistradoPor).WithMany().HasForeignKey(e => e.RegistradoPorId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PalpitePartida>(entity =>
+        {
+            entity.HasIndex(e => new { e.PartidaId, e.JogadorId }).IsUnique();
+
+            entity.HasOne(e => e.Partida)
+                .WithMany()
+                .HasForeignKey(e => e.PartidaId);
+
+            // Restrict em Jogador e DuplaEscolhida: Partida já cascadeia até Categoria/Torneio, e
+            // Dupla também chega no mesmo Torneio por outro caminho — deixar as 3 FKs cascateando
+            // ao mesmo tempo dispara o erro de "multiple cascade paths" do SQL Server (mesma regra
+            // já usada em JogoSemanal/CandidaturaParceiro acima).
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DuplaEscolhida)
+                .WithMany()
+                .HasForeignKey(e => e.DuplaEscolhidaId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         OnModelCreatingPartial(modelBuilder);

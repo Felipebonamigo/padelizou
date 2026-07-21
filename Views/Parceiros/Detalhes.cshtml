@@ -1,0 +1,108 @@
+@model AvisoParceiro
+@{
+    ViewData["Title"] = "Vaga de Parceiro - Padelizou";
+    bool ehCriador = ViewBag.EhCriador == true;
+    bool jaCandidatou = ViewBag.JaCandidatou == true;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <a asp-controller="Parceiros" asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill mb-3">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+            @if (TempData["WhatsAppLink"] != null)
+            {
+                <div class="alert alert-light border d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                    <span>Quer combinar tudo pelo WhatsApp também?</span>
+                    <a href="@TempData["WhatsAppLink"]" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold align-self-start align-self-sm-auto">
+                        <i class="bi bi-whatsapp"></i> Chamar no WhatsApp
+                    </a>
+                </div>
+            }
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <span class="badge bg-primary">@Model.NomeTorneio</span>
+                        <span class="badge @(Model.Status == "Ativo" ? "bg-warning text-dark" : Model.Status == "Preenchida" ? "bg-success" : "bg-danger")">@Model.Status</span>
+                    </div>
+                    <h4 class="fw-bold mt-2" style="color: var(--padel-blue);"><i class="bi bi-geo-alt-fill text-danger"></i> @Model.Local</h4>
+                    <p class="text-muted mb-1"><i class="bi bi-clock-history"></i> @Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</p>
+                    <p class="text-muted mb-3"><i class="bi bi-person-circle"></i> Criado por @Model.Criador.Nome</p>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Observacoes))
+                    {
+                        <p class="fst-italic">"@Model.Observacoes"</p>
+                    }
+
+                    @if (!ehCriador && Model.Status == "Ativo")
+                    {
+                        @if (jaCandidatou)
+                        {
+                            <div class="alert alert-info mb-0">Você já se candidatou a essa vaga. Aguarde o criador responder.</div>
+                        }
+                        else
+                        {
+                            <form asp-controller="Parceiros" asp-action="Candidatar" method="post">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-padel rounded-pill w-100">
+                                    <i class="bi bi-hand-index-thumb"></i> Quero ser seu parceiro
+                                </button>
+                            </form>
+                        }
+                    }
+
+                    @if (ehCriador)
+                    {
+                        <form asp-controller="Parceiros" asp-action="Cancelar" method="post" class="mt-2">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill">
+                                <i class="bi bi-x-circle"></i> Cancelar vaga
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            @if (ehCriador)
+            {
+                <h5 class="fw-bold text-muted mb-3">Candidatos</h5>
+                @if (Model.Candidaturas.Any())
+                {
+                    @foreach (var candidatura in Model.Candidaturas.OrderByDescending(c => c.CriadoEm))
+                    {
+                        <div class="card border-0 bg-light mb-2 p-3 d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <strong>@candidatura.Candidato.Nome</strong>
+                                <span class="badge ms-2 @(candidatura.Status == "Pendente" ? "bg-warning text-dark" : candidatura.Status == "Aceito" ? "bg-success" : "bg-secondary")">@candidatura.Status</span>
+                            </div>
+                            @if (candidatura.Status == "Pendente")
+                            {
+                                <div class="d-flex gap-2">
+                                    <form asp-controller="Parceiros" asp-action="Aceitar" method="post">
+                                        <input type="hidden" name="candidaturaId" value="@candidatura.Id" />
+                                        <button type="submit" class="btn btn-sm btn-success">Aceitar</button>
+                                    </form>
+                                    <form asp-controller="Parceiros" asp-action="Recusar" method="post">
+                                        <input type="hidden" name="candidaturaId" value="@candidatura.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Recusar</button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">Ninguém se candidatou ainda.</p>
+                }
+            }
+        </div>
+    </div>
+</div>

@@ -28,6 +28,21 @@ public partial class Jogador
     public int PontuacaoGlobal { get; set; }
     public bool IsProfessor { get; set; } // <- A nova Flag!
 
+    // "Esquerda" / "Direita" / "Ambos"
+    public string? LadoQuadra { get; set; }
+    public bool NotificarEmail { get; set; }
+    public bool NotificarWhatsApp { get; set; }
+
+    public virtual ICollection<JogadorCategoria> JogadorCategorias { get; set; } = new List<JogadorCategoria>();
+    public virtual ICollection<JogadorClube> JogadorClubes { get; set; } = new List<JogadorClube>();
+    public virtual ICollection<JogadorDiaHorario> JogadorDiasHorarios { get; set; } = new List<JogadorDiaHorario>();
+
+    // Quais categorias aparecem na Minha Agenda unificada
+    public bool AgendaMostrarJogosSemanais { get; set; } = true;
+    public bool AgendaMostrarTorneios { get; set; } = true;
+    public bool AgendaMostrarAulas { get; set; } = true;
+    public bool AgendaMostrarAlunos { get; set; } = true;
+
     // Lista de aulas onde ele é o PROFESSOR
     [InverseProperty("Professor")]
     public virtual ICollection<Aula> AulasDadas { get; set; } = new List<Aula>();

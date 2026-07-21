@@ -1,0 +1,75 @@
+﻿@model Padelizou.Models.Partida
+@{
+    ViewData["Title"] = "Controle de Partida";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">⚙️ Controle da Partida</h5>
+                    <span class="badge bg-secondary">@Model.Categoria.Nome - @Model.Fase</span>
+                </div>
+
+                <div class="card-body">
+                    <form asp-action="ControlePlacar" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <!-- Linha 1: Status e Quadra -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Status do Jogo</label>
+                                <select name="status" class="form-select border-primary">
+                                    <option value="Agendada" selected="@(Model.Status == "Agendada")">📅 Agendada</option>
+                                    <option value="AoVivo" selected="@(Model.Status == "AoVivo")">🔴 Ao Vivo (Inicia Cronômetro)</option>
+                                    <option value="Finalizada" selected="@(Model.Status == "Finalizada")">✅ Finalizada (Para Cronômetro)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Quadra</label>
+                                <input type="text" name="nomeQuadra" value="@Model.NomeQuadra" class="form-control" placeholder="Ex: Quadra Central" />
+                            </div>
+                        </div>
+
+                        <hr class="text-muted" />
+
+                        <!-- Linha 2: O Placar (Bem grande para facilitar o toque no celular) -->
+                        <div class="row text-center mb-4 align-items-center">
+                            <div class="col-5">
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador1Id" class="text-decoration-none">@Model.Dupla1.Jogador1.Nome</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador2Id" class="text-decoration-none">@Model.Dupla1.Jogador2.Nome</a></h6>
+                                <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" />
+                            </div>
+
+                            <div class="col-2">
+                                <h3 class="text-muted mt-4">X</h3>
+                            </div>
+
+                            <div class="col-5">
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador1Id" class="text-decoration-none">@Model.Dupla2.Jogador1.Nome</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador2Id" class="text-decoration-none">@Model.Dupla2.Jogador2.Nome</a></h6>
+                                <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" />
+                            </div>
+                        </div>
+
+                        <hr class="text-muted" />
+
+                        <!-- Linha 3: Link de Transmissão -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">🎥 Link de Transmissão (YouTube/Twitch)</label>
+                            <input type="url" name="linkTransmissao" value="@Model.LinkTransmissao" class="form-control" placeholder="https://..." />
+                            <small class="text-muted">Se preenchido, o botão "Ver Ao Vivo" aparecerá na tela do público.</small>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-controller="Torneios" asp-action="Jogos" asp-route-id="@Model.TorneioId" class="btn btn-outline-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-success fw-bold px-5">💾 Salvar Alterações</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

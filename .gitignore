@@ -1,4 +1,6 @@
 .vs/
 bin/
 obj/
-appsettings.json # Cuidado: Só suba se tiver certeza que não há senhas nele!
+# Cuidado: Só suba se tiver certeza que não há senhas nele!
+appsettings.json
+App_Data/GoogleTokens/

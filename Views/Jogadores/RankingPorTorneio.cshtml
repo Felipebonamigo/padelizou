@@ -16,8 +16,8 @@
                 {
                     <tr>
                         <td>
-                            @dupla.Jogador1.Nome <br>
-                            <small class="text-muted">@dupla.Jogador2.Nome</small>
+                            <a asp-action="Perfil" asp-route-id="@dupla.Jogador1Id" class="text-decoration-none text-dark">@dupla.Jogador1.Nome</a> <br>
+                            <small class="text-muted"><a asp-action="Perfil" asp-route-id="@dupla.Jogador2Id" class="text-decoration-none text-muted">@dupla.Jogador2.Nome</a></small>
                         </td>
                         <td>
                             <span class="badge bg-primary">@dupla.UltimaFase</span>

@@ -1,0 +1,41 @@
+@model Jogador
+@{
+    ViewData["Title"] = "Minhas Preferências - Padelizou";
+    var preferencias = new Padelizou.ViewModels.PreferenciasViewModel
+    {
+        LadoQuadra = Model.LadoQuadra,
+        NotificarEmail = Model.NotificarEmail,
+        NotificarWhatsApp = Model.NotificarWhatsApp,
+        CategoriasSelecionadas = Model.JogadorCategorias.Select(c => c.CategoriaPadraoId).ToHashSet(),
+        ClubesSelecionados = Model.JogadorClubes.Select(c => c.ClubeId).ToHashSet(),
+        DiasHorariosSelecionados = Model.JogadorDiasHorarios.Select(d => $"{d.DiaSemana}|{d.Periodo}").ToHashSet()
+    };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold" style="color: var(--padel-blue);">Minhas Preferências</h2>
+                    <p class="text-muted mb-0">Isso controla os avisos de jogo que você recebe.</p>
+                </div>
+                <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form asp-controller="Auth" asp-action="Preferencias" method="post">
+                        <partial name="_PreferenciasFields" model="preferencias" />
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-3">Salvar Preferências</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,17 @@
+@model Padelizou.ViewModels.HistoricoCategoriaVM
+@* Selo com a melhor colocação histórica do jogador na mesma categoria (título = troféu + nº). *@
+@if (Model != null && (Model.Titulos > 0 || Model.MelhorFase != "Grupos"))
+{
+    @if (Model.Titulos > 0)
+    {
+        <span class="badge rounded-pill ms-1 align-middle" style="background:#fff6df;color:#8a6d00;font-weight:600;" title="Campeão @Model.Titulos vez(es) nesta categoria">
+            <i class="bi bi-trophy-fill"></i> @Model.Titulos×
+        </span>
+    }
+    else
+    {
+        <span class="badge rounded-pill ms-1 align-middle" style="background:#eef2f8;color:var(--padel-blue);font-weight:600;" title="Melhor campanha nesta categoria">
+            @Padelizou.Services.EstatisticasService.RotuloFase(Model.MelhorFase)
+        </span>
+    }
+}

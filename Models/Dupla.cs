@@ -32,8 +32,7 @@ public partial class Dupla
     public bool ImpedimentoSabadoTarde { get; set; }
     public int? GrupoTorneioId { get; set; }
     public virtual GrupoTorneio? GrupoTorneio { get; set; }
-    public virtual Torneio? Torneio { get; set; }
-    public virtual int? TorneioId { get; set; }
+
     [NotMapped]
     public int Jogos { get; set; }
 
@@ -46,4 +45,5 @@ public partial class Dupla
     [NotMapped]
     public int SaldoGames { get; set; }
     public string UltimaFase { get; set; } = "Grupos";
+    public string? Grupo { get; set; } // Vai receber "A", "B", etc.
 }

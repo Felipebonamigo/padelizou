@@ -1,0 +1,119 @@
+@model List<Padelizou.ViewModels.RankingCategoriaVM>
+@{
+    ViewData["Title"] = "Ranking por Categoria";
+    var selecionada = ViewBag.CategoriaSelecionada as string;
+    var idxInicial = 0;
+    if (!string.IsNullOrEmpty(selecionada))
+    {
+        var found = Model.FindIndex(r => r.Categoria == selecionada);
+        if (found >= 0) idxInicial = found;
+    }
+}
+
+<div class="container mt-2 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="pdz-section-title mb-1"><i class="bi bi-award-fill text-warning"></i> Ranking por Categoria</h2>
+            <p class="text-muted mb-0">Pontuação acumulada pelos resultados em torneios de cada categoria.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Buscar" class="btn btn-outline-secondary rounded-pill btn-sm">
+                <i class="bi bi-search"></i> Buscar Jogador
+            </a>
+            <a asp-action="Ranking" class="btn btn-outline-secondary rounded-pill btn-sm">
+                <i class="bi bi-graph-up-arrow"></i> Ranking Global
+            </a>
+        </div>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <i class="bi bi-trophy display-4 text-muted mb-3"></i>
+            <h4 class="fw-bold text-secondary">Ainda não há resultados de torneio</h4>
+            <p class="text-muted">Quando os torneios forem finalizados, o ranking por categoria aparece aqui.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-4" role="tablist" style="white-space: nowrap;">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                <li class="nav-item me-2" role="presentation">
+                    <button class="nav-link rounded-pill fw-semibold @(i == idxInicial ? "active" : "")"
+                            data-bs-toggle="pill" data-bs-target="#cat-@i" type="button" role="tab">
+                        @Model[i].Categoria
+                    </button>
+                </li>
+            }
+        </ul>
+
+        <div class="tab-content">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                var cat = Model[i];
+                <div class="tab-pane fade @(i == idxInicial ? "show active" : "")" id="cat-@i" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 60px;">#</th>
+                                        <th>Jogador</th>
+                                        <th class="text-center">Títulos</th>
+                                        <th class="text-center">Torneios</th>
+                                        <th class="text-end pe-3">Pontos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{ var pos = 1; }
+                                    @foreach (var linha in cat.Linhas)
+                                    {
+                                        <tr>
+                                            <td class="text-center fw-bold">
+                                                @if (pos == 1)
+                                                {
+                                                    <span class="badge bg-warning text-dark">1º</span>
+                                                }
+                                                else if (pos == 2)
+                                                {
+                                                    <span class="badge bg-secondary">2º</span>
+                                                }
+                                                else if (pos == 3)
+                                                {
+                                                    <span class="badge" style="background:#cd7f32;">3º</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">@(pos)º</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-action="Perfil" asp-route-id="@linha.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--padel-blue);">
+                                                    @linha.Jogador.Nome
+                                                </a>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (linha.Titulos > 0)
+                                                {
+                                                    <span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @linha.Titulos</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">—</span>
+                                                }
+                                            </td>
+                                            <td class="text-center text-muted">@linha.Torneios</td>
+                                            <td class="text-end pe-3 fw-bold" style="color: var(--padel-blue);">@linha.Pontos</td>
+                                        </tr>
+                                        pos++;
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

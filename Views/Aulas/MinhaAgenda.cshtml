@@ -1,25 +1,72 @@
-﻿@model IEnumerable<padelizou.Models.Aula>
+@model IEnumerable<Aula>
 @{
     ViewData["Title"] = "Minha Agenda - Padelizou";
+    bool googleConectado = ViewBag.GoogleConectado == true;
 }
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="fw-bold" style="color: var(--padel-blue);">Minha Agenda</h2>
-            <p class="text-muted mb-0">Gerencie seus treinos e alunos marcados.</p>
+            <p class="text-muted mb-0">Gerencie seus locais, horários e alunos marcados.</p>
         </div>
-        <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm">
+                <i class="bi bi-geo-alt"></i> Meus Locais
+            </a>
+            <a asp-controller="Aulas" asp-action="MeusHorarios" class="btn btn-outline-primary rounded-pill btn-sm">
+                <i class="bi bi-clock"></i> Meus Horários
+            </a>
+            <a asp-controller="Aulas" asp-action="Relatorio" class="btn btn-outline-primary rounded-pill btn-sm">
+                <i class="bi bi-graph-up"></i> Relatório
+            </a>
+            @if (googleConectado)
+            {
+                <span class="btn btn-sm btn-success rounded-pill disabled"><i class="bi bi-check-circle"></i> Google Agenda conectada</span>
+            }
+            else
+            {
+                <a asp-controller="GoogleAuth" asp-action="Conectar" class="btn btn-sm btn-outline-danger rounded-pill">
+                    <i class="bi bi-google"></i> Conectar Google Agenda
+                </a>
+            }
+            <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill btn-sm">Voltar ao Perfil</a>
+        </div>
     </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+    @if (TempData["WhatsAppLink"] != null)
+    {
+        <div class="alert alert-light border d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+            <span>Quer avisar o aluno pelo WhatsApp também?</span>
+            <a href="@TempData["WhatsAppLink"]" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold align-self-start align-self-sm-auto">
+                <i class="bi bi-whatsapp"></i> Avisar aluno
+            </a>
+        </div>
+    }
 
     <div class="row">
         @if (Model != null && Model.Any())
         {
             @foreach (var aula in Model)
             {
-                // Define a cor da etiqueta dependendo do status da aula
-                var badgeClass = aula.Status == "Agendada" ? "bg-primary" :
-                                 (aula.Status == "Realizada" ? "bg-success" : "bg-danger");
+                var badgeClass = aula.Status switch
+                {
+                    "Pendente" => "bg-warning text-dark",
+                    "Confirmada" => "bg-primary",
+                    "Realizada" => "bg-success",
+                    _ => "bg-danger"
+                };
+
+                var mensagemWhats = $"Olá, {aula.Aluno.Nome}! Tudo certo para a nossa aula de Padel dia {aula.DataHora:dd/MM}?";
+                var linkWhatsApp = WhatsAppLinkHelper.GerarLink(aula.Aluno.Celular, mensagemWhats);
 
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
@@ -34,22 +81,36 @@
                             </h5>
 
                             <p class="text-muted small mb-1">
-                                <i class="bi bi-geo-alt-fill text-danger"></i> @aula.Local
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @aula.LocalAula.Nome
                             </p>
                             <p class="text-muted small mb-3">
                                 <i class="bi bi-cash text-success"></i> @aula.Preco.ToString("C")
                             </p>
 
-                            <!-- Botões de Ação do Professor -->
                             <div class="d-grid gap-2">
-                                <!-- Botão de WhatsApp (Substitua os espaços e traços do celular no C# futuramente) -->
-                                <a href="https://wa.me/55@(aula.Aluno.Celular?.Replace("-", "").Replace(" ", ""))?text=Olá, @(aula.Aluno.Nome)! Tudo certo para a nossa aula de Padel dia @(aula.DataHora.ToString("dd/MM"))?"
-                                   target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold">
-                                    <i class="bi bi-whatsapp"></i> Chamar Aluno
-                                </a>
+                                @if (aula.Status == "Pendente")
+                                {
+                                    <div class="d-flex gap-2">
+                                        <form asp-action="ConfirmarSolicitacao" method="post" class="w-50">
+                                            <input type="hidden" name="aulaId" value="@aula.Id" />
+                                            <input type="hidden" name="aceitar" value="true" />
+                                            <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check2"></i> Aceitar</button>
+                                        </form>
+                                        <form asp-action="ConfirmarSolicitacao" method="post" class="w-50">
+                                            <input type="hidden" name="aulaId" value="@aula.Id" />
+                                            <input type="hidden" name="aceitar" value="false" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x"></i> Recusar</button>
+                                        </form>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <a href="@linkWhatsApp" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold">
+                                        <i class="bi bi-whatsapp"></i> Chamar Aluno
+                                    </a>
+                                }
 
-                                <!-- Só mostra a opção de Mudar Status se a aula ainda estiver "Agendada" -->
-                                @if (aula.Status == "Agendada")
+                                @if (aula.Status == "Confirmada")
                                 {
                                     <div class="d-flex gap-2 mt-2">
                                         <form asp-action="AtualizarStatus" method="post" class="w-50">

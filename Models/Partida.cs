@@ -31,10 +31,26 @@ public partial class Partida
 
     public virtual Dupla Dupla2 { get; set; } = null!;
     public int? TorneioId { get; set; } = null!;
-    public bool? SendoTransmitida { get; set; }
+    public bool SendoTransmitida { get; set; } = false;
     public string Status { get; set; } = null!;
     public int? VencedorId { get; set; }
     public string Fase { get; set; } = "Fase de Grupos";
 
+    public DateTime? HorarioPrevisto { get; set; }
+    public DateTime? HorarioInicioReal { get; set; }
+    public DateTime? HorarioFimReal { get; set; }
+
+    [NotMapped]
+    public int MinutosDecorridos
+    {
+        get
+        {
+            if (HorarioInicioReal == null) return 0;
+            if (HorarioFimReal != null) return (int)(HorarioFimReal.Value - HorarioInicioReal.Value).TotalMinutes;
+            return (int)(DateTime.Now - HorarioInicioReal.Value).TotalMinutes;
+        }
+    }
+    public string? NomeQuadra { get; set; } // Ex: "Quadra Central", "Quadra 1"
+    public string? LinkTransmissao { get; set; } // Ex: "https://youtube.com/live/..."
 
 }

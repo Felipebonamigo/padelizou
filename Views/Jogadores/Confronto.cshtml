@@ -1,0 +1,67 @@
+@model Padelizou.ViewModels.HeadToHeadVM
+@{
+    ViewData["Title"] = $"Confronto: {Model.Eu.Nome} x {Model.Oponente.Nome}";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+    <div class="mb-3">
+        <a asp-action="Perfil" asp-route-id="@Model.Oponente.Id" class="text-decoration-none small text-muted">
+            <i class="bi bi-arrow-left"></i> Voltar ao perfil de @Model.Oponente.Nome
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--padel-blue), #1b3a6b); color: #fff;">
+        <div class="card-body text-center py-4">
+            <div class="row align-items-center">
+                <div class="col-5">
+                    <h5 class="fw-bold mb-0 text-truncate">@Model.Eu.Nome</h5>
+                    <small class="opacity-75">Você</small>
+                </div>
+                <div class="col-2">
+                    <span class="fs-4 fw-bold">×</span>
+                </div>
+                <div class="col-5">
+                    <h5 class="fw-bold mb-0 text-truncate">@Model.Oponente.Nome</h5>
+                    <small class="opacity-75">Adversário</small>
+                </div>
+            </div>
+            <hr class="opacity-25" />
+            <div class="row text-center g-2">
+                <div class="col-4"><h3 class="fw-bold mb-0">@Model.Jogos</h3><small class="opacity-75">Jogos</small></div>
+                <div class="col-4"><h3 class="fw-bold mb-0 text-success">@Model.Vitorias</h3><small class="opacity-75">Suas vitórias</small></div>
+                <div class="col-4"><h3 class="fw-bold mb-0 text-warning">@Model.Derrotas</h3><small class="opacity-75">Suas derrotas</small></div>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="fw-bold mb-3" style="color: var(--padel-blue);">Histórico de Partidas</h5>
+
+    @if (!Model.Partidas.Any())
+    {
+        <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhuma partida registrada entre vocês ainda.</p>
+    }
+    else
+    {
+        <div class="list-group shadow-sm">
+            @foreach (var p in Model.Partidas)
+            {
+                <div class="list-group-item p-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <h6 class="fw-bold mb-0">@p.Torneio</h6>
+                            <small class="text-muted">@p.Categoria · @p.Fase @(p.Data.HasValue ? "· " + p.Data.Value.ToString("dd/MM/yyyy") : "")</small>
+                        </div>
+                        <span class="badge rounded-pill @(p.EuVenci ? "bg-success" : "bg-danger")">
+                            @(p.EuVenci ? "Vitória" : "Derrota")
+                        </span>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <div><i class="bi bi-person-fill"></i> @p.MinhaDupla</div>
+                        <div><i class="bi bi-person-x-fill"></i> @p.DuplaOponente</div>
+                        <div class="fw-bold text-dark mt-1"><i class="bi bi-trophy"></i> Placar: @p.Placar</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

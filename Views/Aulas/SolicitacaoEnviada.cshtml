@@ -1,0 +1,31 @@
+@model Aula
+@{
+    ViewData["Title"] = "Solicitação Enviada - Padelizou";
+    var mensagem = $"Olá Prof. {Model.Professor.Nome}! Acabei de solicitar uma aula com você em {Model.LocalAula.Nome} no dia {Model.DataHora:dd/MM 'às' HH:mm} pelo Padelizou. Pode confirmar?";
+    var linkWhatsApp = WhatsAppLinkHelper.GerarLink(Model.Professor.Celular, mensagem);
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 text-center p-4 p-md-5">
+                <i class="bi bi-envelope-check display-3 text-success mb-3"></i>
+                <h3 class="fw-bold" style="color: var(--padel-blue);">Solicitação enviada!</h3>
+                <p class="text-muted">
+                    Enviamos um e-mail para o Prof. @Model.Professor.Nome com os detalhes da aula em
+                    <strong>@Model.LocalAula.Nome</strong> no dia
+                    <strong>@Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
+                    Assim que ele confirmar, você recebe um aviso por e-mail.
+                </p>
+
+                <a href="@linkWhatsApp" target="_blank" class="btn btn-success rounded-pill fw-bold mt-3">
+                    <i class="bi bi-whatsapp"></i> Avisar o professor por WhatsApp também
+                </a>
+
+                <a asp-controller="Aulas" asp-action="MinhasAulas" class="btn btn-outline-secondary rounded-pill mt-3">
+                    Ver minhas aulas
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

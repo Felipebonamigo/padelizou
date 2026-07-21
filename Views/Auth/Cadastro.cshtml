@@ -1,10 +1,12 @@
 ﻿@{
     ViewData["Title"] = "Cadastro - Padelizou";
+    var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
 }
 
 <div class="container mt-5 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-7">
             <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
                 <div class="card-body p-4 p-md-5">
                     <div class="text-center mb-4">
@@ -57,7 +59,16 @@
                             <small class="text-muted d-block mt-1">Formatos aceitos: JPG ou PNG.</small>
                         </div>
 
-                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Finalizar Cadastro</button>
+                        <hr class="my-4" />
+                        <h5 class="fw-bold text-muted mb-3">Preferências de jogo</h5>
+                        <p class="small text-muted mt-n2 mb-3">
+                            Usamos isso pra te avisar de jogos que combinam com você. Pode deixar em branco
+                            (ou usar os botões "qualquer") e mudar tudo depois em "Minhas Preferências".
+                        </p>
+
+                        <partial name="_PreferenciasFields" model="@(new Padelizou.ViewModels.PreferenciasViewModel())" />
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">Finalizar Cadastro</button>
                     </form>
 
                     <div class="text-center mt-4">

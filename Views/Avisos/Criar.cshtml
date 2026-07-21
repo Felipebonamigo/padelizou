@@ -1,0 +1,105 @@
+@{
+    ViewData["Title"] = "Criar Aviso de Jogo - Padelizou";
+    var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-megaphone-fill display-4" style="color: var(--padel-green);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Procurando Jogadores</h3>
+                        <p class="text-muted">Diga o local, a categoria e o horário — a gente avisa quem topa.</p>
+                    </div>
+
+                    <form asp-controller="Avisos" asp-action="Criar" method="post">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Local do jogo</label>
+                            <select name="clubeId" id="selectClube" class="form-select bg-light" required>
+                                <option value="">-- Escolha um local --</option>
+                                @foreach (var clube in catalogoClubes)
+                                {
+                                    <option value="@clube.Id">@clube.Nome</option>
+                                }
+                            </select>
+                            <div class="mt-2 d-flex gap-2">
+                                <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Não achou? Cadastre um local novo" />
+                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" onclick="adicionarClubeSelect()">
+                                    <i class="bi bi-plus-circle"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Categoria do jogo</label>
+                            <select name="categoriaPadraoId" class="form-select bg-light" required>
+                                <option value="">-- Escolha a categoria --</option>
+                                <optgroup label="Masculina">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Masculina"))
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Feminina">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Feminina"))
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Mista">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Mista"))
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Data e horário</label>
+                            <input type="datetime-local" name="dataHora" class="form-control bg-light" required />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Observações (opcional)</label>
+                            <textarea name="observacoes" class="form-control bg-light" rows="2" placeholder="Ex: falta 1 dupla, nível intermediário"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">
+                            <i class="bi bi-send-fill me-1"></i> Publicar e Avisar Jogadores
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function adicionarClubeSelect() {
+            var input = document.getElementById('novoClubeNome');
+            var nome = input.value.trim();
+            if (!nome) return;
+
+            fetch('/Clubes/Criar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'nome=' + encodeURIComponent(nome)
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (clube) {
+                    var select = document.getElementById('selectClube');
+                    var option = document.createElement('option');
+                    option.value = clube.id;
+                    option.text = clube.nome;
+                    option.selected = true;
+                    select.appendChild(option);
+                    input.value = '';
+                });
+        }
+    </script>
+}

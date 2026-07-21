@@ -1,0 +1,68 @@
+@using System.Security.Claims
+@model IEnumerable<AvisoJogo>
+@{
+    ViewData["Title"] = "Buscar Jogo - Padelizou";
+    var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Buscar Jogo</h2>
+            <p class="text-muted mb-0">Avisos de quem está procurando jogadores.</p>
+        </div>
+        <a asp-controller="Avisos" asp-action="Criar" class="btn btn-padel rounded-pill">
+            <i class="bi bi-plus-circle"></i> Criar Aviso
+        </a>
+    </div>
+
+    <div class="row">
+        @if (Model != null && Model.Any())
+        {
+            @foreach (var aviso in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-primary">@aviso.CategoriaPadrao.Nome</span>
+                                <span class="text-muted fw-bold small"><i class="bi bi-clock-history"></i> @aviso.DataHora.ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+
+                            <h5 class="fw-bold mb-1" style="color: var(--padel-blue);">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @aviso.Clube.Nome
+                            </h5>
+
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-person-circle"></i> Criado por @aviso.Criador.Nome
+                            </p>
+
+                            @if (!string.IsNullOrWhiteSpace(aviso.Observacoes))
+                            {
+                                <p class="small fst-italic">"@aviso.Observacoes"</p>
+                            }
+
+                            @if (aviso.CriadorId == userId)
+                            {
+                                <form asp-controller="Avisos" asp-action="Cancelar" method="post">
+                                    <input type="hidden" name="id" value="@aviso.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100 mt-2">
+                                        <i class="bi bi-x-circle"></i> Cancelar meu aviso
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <i class="bi bi-megaphone display-4 text-muted mb-3"></i>
+                <h4 class="fw-bold text-secondary">Nenhum aviso ativo no momento</h4>
+                <p class="text-muted">Seja o primeiro a avisar que está procurando jogadores!</p>
+            </div>
+        }
+    </div>
+</div>

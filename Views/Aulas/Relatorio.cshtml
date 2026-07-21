@@ -1,0 +1,89 @@
+@model Padelizou.ViewModels.RelatorioAulasViewModel
+@{
+    ViewData["Title"] = "Relatório de Aulas - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Relatório de Aulas</h2>
+            <p class="text-muted mb-0">Aulas marcadas como "Realizada" no período selecionado.</p>
+        </div>
+        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill">Voltar à Agenda</a>
+    </div>
+
+    <form asp-controller="Aulas" asp-action="Relatorio" method="get" class="row g-2 mb-4 align-items-end">
+        <div class="col-auto">
+            <label class="form-label small fw-bold text-muted">De</label>
+            <input type="date" name="dataInicio" class="form-control" value="@Model.DataInicio.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label small fw-bold text-muted">Até</label>
+            <input type="date" name="dataFim" class="form-control" value="@Model.DataFim.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-padel rounded-pill px-4">Filtrar</button>
+        </div>
+    </form>
+
+    <div class="row mb-4">
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 bg-light p-3 text-center h-100">
+                <div class="fs-3 fw-bold" style="color: var(--padel-blue);">@Model.TotalAulas</div>
+                <div class="small text-muted">Aulas realizadas</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 bg-light p-3 text-center h-100">
+                <div class="fs-3 fw-bold" style="color: var(--padel-blue);">@Model.TotalAlunosDiferentes</div>
+                <div class="small text-muted">Alunos diferentes</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 p-3 text-center h-100" style="background-color: #e9f7ef;">
+                <div class="fs-3 fw-bold text-success">@Model.TotalRecebido.ToString("C")</div>
+                <div class="small text-muted">Total recebido</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 p-3 text-center h-100" style="background-color: #fdecea;">
+                <div class="fs-3 fw-bold text-danger">@(Model.TotalGasto.HasValue ? Model.TotalGasto.Value.ToString("C") : "—")</div>
+                <div class="small text-muted">Total gasto com locais</div>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="fw-bold text-muted mb-3">Por local</h5>
+    @if (Model.PorLocal.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle bg-white shadow-sm rounded">
+                <thead>
+                    <tr>
+                        <th>Local</th>
+                        <th class="text-center">Aulas</th>
+                        <th class="text-end">Recebido</th>
+                        <th class="text-end">Gasto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var local in Model.PorLocal)
+                    {
+                        <tr>
+                            <td>@local.NomeLocal</td>
+                            <td class="text-center">@local.QuantidadeAulas</td>
+                            <td class="text-end text-success">@local.Recebido.ToString("C")</td>
+                            <td class="text-end text-danger">@(local.Gasto.HasValue ? local.Gasto.Value.ToString("C") : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <p class="text-muted mb-0">Nenhuma aula realizada nesse período.</p>
+        </div>
+    }
+</div>

@@ -1,33 +1,120 @@
-﻿@model (Padelizou.Models.Jogador jogador, List<Padelizou.Models.Dupla> historico)
+@model (Padelizou.Models.Jogador jogador, List<Padelizou.Models.Dupla> historico)
+@using Padelizou.ViewModels
 @{
     ViewData["Title"] = "Perfil de " + Model.jogador.Nome;
+    var meuConfronto = ViewBag.MeuConfronto as HeadToHeadVM;
+    var maisEnfrentou = ViewBag.MaisEnfrentou as ConfrontoResumoVM;
+    var maisVenceu = ViewBag.MaisVenceu as ConfrontoResumoVM;
+    var maisPerdeu = ViewBag.MaisPerdeu as ConfrontoResumoVM;
 }
 
 <div class="container mt-4">
     <!-- HEADER DO PERFIL -->
     <div class="text-center mb-4">
+        <div class="mb-2">
+            <a asp-action="Buscar" class="text-decoration-none small text-muted">
+                <i class="bi bi-search"></i> Buscar outro jogador
+            </a>
+        </div>
         <img src="@(string.IsNullOrEmpty(Model.jogador.FotoPerfil) ? "/img/default-avatar.png" : Model.jogador.FotoPerfil)"
              class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
         <h3 class="fw-bold mt-3">@Model.jogador.Nome</h3>
         <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
     </div>
 
+    <!-- CONFRONTO COM VOCÊ (ao ver o perfil de outra pessoa, estando logado) -->
+    @if (meuConfronto != null)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--padel-blue), #1b3a6b); color: #fff;">
+            <div class="card-body">
+                @if (meuConfronto.Jogos > 0)
+                {
+                    <h6 class="fw-bold text-uppercase small mb-3 opacity-75">
+                        <i class="bi bi-people-fill"></i> Seu confronto com @Model.jogador.Nome.Split(' ')[0]
+                    </h6>
+                    <div class="row text-center g-2">
+                        <div class="col-4"><h4 class="fw-bold mb-0">@meuConfronto.Jogos</h4><small class="opacity-75">Jogos</small></div>
+                        <div class="col-4"><h4 class="fw-bold mb-0 text-success">@meuConfronto.Vitorias</h4><small class="opacity-75">Vitórias</small></div>
+                        <div class="col-4"><h4 class="fw-bold mb-0 text-warning">@meuConfronto.Derrotas</h4><small class="opacity-75">Derrotas</small></div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a asp-action="Confronto" asp-route-oponenteId="@Model.jogador.Id" class="btn btn-sm btn-light rounded-pill fw-bold">
+                            Ver histórico completo
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p class="mb-0 text-center"><i class="bi bi-info-circle"></i> Vocês ainda não se enfrentaram em nenhuma partida registrada.</p>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- RIVAIS (visível apenas no próprio perfil) -->
+    @if (maisEnfrentou != null || maisVenceu != null || maisPerdeu != null)
+    {
+        <div class="row g-2 mb-4">
+            @if (maisEnfrentou != null)
+            {
+                <div class="col-md-4">
+                    <div class="card p-3 shadow-sm h-100 border-0">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-people-fill"></i> Rival de sempre</small>
+                        <a asp-action="Confronto" asp-route-oponenteId="@maisEnfrentou.Oponente.Id" class="text-decoration-none">
+                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisEnfrentou.Oponente.Nome</h6>
+                        </a>
+                        <small class="text-muted">@maisEnfrentou.Jogos jogo(s) · @maisEnfrentou.Vitorias V / @maisEnfrentou.Derrotas D</small>
+                    </div>
+                </div>
+            }
+            @if (maisVenceu != null)
+            {
+                <div class="col-md-4">
+                    <div class="card p-3 shadow-sm h-100 border-0">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-emoji-sunglasses-fill text-success"></i> Mais venceu</small>
+                        <a asp-action="Confronto" asp-route-oponenteId="@maisVenceu.Oponente.Id" class="text-decoration-none">
+                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisVenceu.Oponente.Nome</h6>
+                        </a>
+                        <small class="text-muted">@maisVenceu.Vitorias vitória(s) em @maisVenceu.Jogos</small>
+                    </div>
+                </div>
+            }
+            @if (maisPerdeu != null)
+            {
+                <div class="col-md-4">
+                    <div class="card p-3 shadow-sm h-100 border-0">
+                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-emoji-frown-fill text-danger"></i> Mais perdeu</small>
+                        <a asp-action="Confronto" asp-route-oponenteId="@maisPerdeu.Oponente.Id" class="text-decoration-none">
+                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisPerdeu.Oponente.Nome</h6>
+                        </a>
+                        <small class="text-muted">@maisPerdeu.Derrotas derrota(s) em @maisPerdeu.Jogos</small>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
     <!-- CARDS DE ESTATÍSTICA (GRID MOBILE) -->
     <div class="row g-2 mb-4">
-        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Títulos</small><h5 class="fw-bold text-warning">@ViewBag.Titulos</h5></div></div>
-        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Finais</small><h5 class="fw-bold text-primary">@ViewBag.Finais</h5></div></div>
-        <div class="col-4"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Semis</small><h5 class="fw-bold text-info">@ViewBag.Semis</h5></div></div>
+        <div class="col-3"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Títulos</small><h5 class="fw-bold text-warning mb-0">@ViewBag.Titulos</h5></div></div>
+        <div class="col-3"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Finais</small><h5 class="fw-bold text-primary mb-0">@ViewBag.Finais</h5></div></div>
+        <div class="col-3"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Semis</small><h5 class="fw-bold text-info mb-0">@ViewBag.Semis</h5></div></div>
+        <div class="col-3"><div class="card p-2 text-center shadow-sm"><small class="text-muted" style="font-size: 0.7rem;">Caiu na Chave</small><h5 class="fw-bold text-secondary mb-0">@ViewBag.CaiuNaChave</h5></div></div>
     </div>
 
     <!-- LISTA DE TORNEIOS -->
     <h5 class="fw-bold mb-3">Histórico de Torneios</h5>
-    <div class="list-group shadow-sm">
+    <div class="list-group shadow-sm mb-4">
+        @if (!Model.historico.Any())
+        {
+            <p class="text-muted small mb-0"><i class="bi bi-info-circle"></i> Nenhum torneio registrado ainda.</p>
+        }
         @foreach (var dupla in Model.historico)
         {
             <div class="list-group-item d-flex justify-content-between align-items-center p-3">
                 <div>
-                    <h6 class="fw-bold mb-0">@dupla.Torneio.Nome</h6>
-                    <small class="text-muted">@dupla.Torneio.DataInicio?.ToString("dd/MM/yyyy")</small>
+                    <h6 class="fw-bold mb-0">@dupla.Categoria.Torneio.Nome</h6>
+                    <small class="text-muted">@dupla.Categoria.Nome · @dupla.Categoria.Torneio.DataInicio?.ToString("dd/MM/yyyy")</small>
                 </div>
                 <span class="badge rounded-pill @(dupla.UltimaFase == "Campeao" ? "bg-warning text-dark" : "bg-light text-dark border")">
                     @dupla.UltimaFase

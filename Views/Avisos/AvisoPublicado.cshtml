@@ -1,0 +1,58 @@
+@model AvisoJogo
+@{
+    ViewData["Title"] = "Aviso Publicado - Padelizou";
+    int totalEmail = ViewBag.TotalEmail;
+    var jogadoresWhatsApp = (List<(string Nome, string Link)>)ViewBag.JogadoresWhatsApp;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 text-center p-4 p-md-5">
+                <i class="bi bi-megaphone-fill display-3 text-success mb-3"></i>
+                <h3 class="fw-bold" style="color: var(--padel-blue);">Aviso publicado!</h3>
+                <p class="text-muted">
+                    <strong>@Model.CategoriaPadrao.Nome</strong> em <strong>@Model.Clube.Nome</strong>
+                    no dia <strong>@Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
+                </p>
+
+                @if (totalEmail > 0)
+                {
+                    <div class="alert alert-success">
+                        <i class="bi bi-envelope-check"></i> E-mail enviado para @totalEmail jogador(es) que combinam com esse jogo.
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light border">
+                        Nenhum jogador com e-mail ativado combina com esse aviso ainda.
+                    </div>
+                }
+
+                <a asp-controller="Avisos" asp-action="Index" class="btn btn-outline-secondary rounded-pill mt-2">Ver todos os avisos</a>
+            </div>
+
+            @if (jogadoresWhatsApp.Any())
+            {
+                <div class="card shadow-sm border-0 mt-4">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-muted mb-3">
+                            <i class="bi bi-whatsapp text-success"></i> Avisar também por WhatsApp
+                        </h6>
+                        <p class="small text-muted">
+                            Esses jogadores também topam avisos por WhatsApp — clique pra chamar cada um (não é automático).
+                        </p>
+                        <div class="d-grid gap-2">
+                            @foreach (var jogador in jogadoresWhatsApp)
+                            {
+                                <a href="@jogador.Link" target="_blank" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-whatsapp"></i> Chamar @jogador.Nome
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

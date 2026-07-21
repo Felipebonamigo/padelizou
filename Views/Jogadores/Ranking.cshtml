@@ -3,15 +3,30 @@
     ViewData["Title"] = "Ranking Global";
     int posicao = 1;
 }
-<div class="mb-4">
-    <label class="form-label text-muted">Filtrar Ranking:</label>
-    <select class="form-select" onchange="window.location.href='/Jogadores/Ranking?torneioId=' + this.value">
-        <option value="">-- Ranking Global --</option>
-        @foreach (var torneio in ViewBag.TorneiosList as List<Padelizou.Models.Torneio>)
-        {
-            <option value="@torneio.Id">@torneio.Nome</option>
-        }
-    </select>
+@{
+    var torneiosList = ViewBag.TorneiosList as List<Padelizou.Models.Torneio> ?? new List<Padelizou.Models.Torneio>();
+}
+<div class="container mt-2">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4">
+        <div style="min-width: 240px; flex: 1;">
+            <label class="form-label text-muted">Filtrar Ranking:</label>
+            <select class="form-select" onchange="window.location.href='/Jogadores/Ranking?torneioId=' + this.value">
+                <option value="">-- Ranking Global --</option>
+                @foreach (var torneio in torneiosList)
+                {
+                    <option value="@torneio.Id">@torneio.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Buscar" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-search me-1"></i> Buscar Jogador
+            </a>
+            <a asp-action="RankingCategorias" class="btn btn-padel rounded-pill">
+                <i class="bi bi-diagram-3-fill me-1"></i> Ver ranking por categoria
+            </a>
+        </div>
+    </div>
 </div>
 <div class="container mt-4 mb-5">
     <h3 class="fw-bold mb-4 text-center" style="color: var(--padel-blue);">

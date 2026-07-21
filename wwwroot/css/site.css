@@ -1,157 +1,529 @@
+/* =========================================================
+   PADELIZOU — DESIGN SYSTEM
+   Navy (#1C2742) + Lime (#A3D827) · Poppins + Inter
+   ========================================================= */
+
+:root {
+    /* Brand (mantém os nomes antigos p/ estilos inline já existentes) */
+    --padel-blue: #1C2742;
+    --padel-green: #A3D827;
+
+    /* Escala */
+    --pdz-navy-900: #141d33;
+    --pdz-navy: #1C2742;
+    --pdz-navy-600: #33456e;
+    --pdz-lime: #A3D827;
+    --pdz-lime-600: #8cbd20;
+    --pdz-lime-300: #c9ee6b;
+
+    --pdz-ink: #1b2540;
+    --pdz-muted: #6a7891;
+    --pdz-surface: #ffffff;
+    --pdz-border: rgba(28, 39, 66, .09);
+
+    --pdz-shadow-sm: 0 1px 2px rgba(20, 29, 51, .06), 0 4px 14px rgba(20, 29, 51, .06);
+    --pdz-shadow-md: 0 6px 18px rgba(20, 29, 51, .10), 0 2px 6px rgba(20, 29, 51, .06);
+    --pdz-shadow-lg: 0 18px 40px rgba(20, 29, 51, .16);
+    --pdz-glow: 0 8px 22px rgba(163, 216, 39, .45);
+
+    --radius: 16px;
+    --radius-lg: 22px;
+
+    --font-display: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+    --bs-primary: #1C2742;
+    --bs-primary-rgb: 28, 39, 66;
+    --bs-link-color: var(--pdz-navy-600);
+    --bs-link-hover-color: var(--pdz-lime-600);
+}
+
 html {
-  font-size: 14px;
+    font-size: 15px;
+    position: relative;
+    min-height: 100%;
+    scroll-behavior: smooth;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    html { font-size: 16px; }
 }
 
 body {
-  margin-bottom: 60px;
+    font-family: var(--font-body);
+    color: var(--pdz-ink);
+    background-color: #eef2f8;
+    background-image:
+        radial-gradient(1100px 480px at 100% -8%, rgba(163, 216, 39, .10), transparent 60%),
+        radial-gradient(900px 420px at -10% 0%, rgba(28, 39, 66, .07), transparent 55%),
+        linear-gradient(180deg, #f6f8fc 0%, #eef2f8 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6,
+.display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+    color: var(--pdz-navy);
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
-}
-:root {
-    --padel-blue: #1C2742; /* Azul escuro da logo */
-    --padel-green: #A3D827; /* Verde vibrante da logo */
+a { color: var(--pdz-navy-600); text-decoration: none; transition: color .18s ease; }
+a:hover { color: var(--pdz-lime-600); }
+
+.text-muted { color: var(--pdz-muted) !important; }
+
+/* =========================================================
+   LAYOUT
+   ========================================================= */
+.pdz-main {
+    flex: 1 0 auto;
+    padding: 2rem 0 3rem;
+    animation: pdzFadeUp .5s ease both;
 }
 
-/* Forçando os botões principais a usarem o verde da sua marca */
+@keyframes pdzFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+.pdz-footer {
+    flex-shrink: 0;
+    background: #fff;
+    border-top: 1px solid var(--pdz-border);
+    padding: 1.4rem 0;
+    margin-top: auto;
+}
+.pdz-footer .fw-semibold { font-family: var(--font-display); color: var(--pdz-navy); }
+.pdz-footer a { color: var(--pdz-muted); }
+.pdz-footer a:hover { color: var(--pdz-lime-600); }
+
+/* =========================================================
+   NAVBAR
+   ========================================================= */
+.pdz-navbar {
+    background: linear-gradient(120deg, var(--pdz-navy-900) 0%, var(--pdz-navy) 55%, #24325a 100%);
+    box-shadow: 0 6px 24px rgba(20, 29, 51, .22);
+    border-bottom: 1px solid rgba(163, 216, 39, .22);
+    padding-top: .6rem;
+    padding-bottom: .6rem;
+    z-index: 1030;
+}
+
+.pdz-brand-logo {
+    height: 38px;
+    width: 38px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .25);
+}
+
+.pdz-wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.32rem;
+    letter-spacing: .2px;
+    color: #fff;
+    line-height: 1;
+}
+.pdz-wordmark::after {
+    content: "";
+    display: inline-block;
+    width: 7px; height: 7px;
+    margin-left: 3px;
+    border-radius: 50%;
+    background: var(--pdz-lime);
+    box-shadow: 0 0 10px rgba(163, 216, 39, .8);
+}
+
+.pdz-navbar .navbar-nav { gap: .15rem; }
+
+.pdz-navbar .nav-link {
+    color: rgba(255, 255, 255, .80);
+    font-weight: 500;
+    font-size: .95rem;
+    padding: .5rem .85rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    transition: background-color .18s ease, color .18s ease;
+    white-space: nowrap;
+}
+.pdz-navbar .nav-link i { font-size: 1rem; opacity: .9; }
+.pdz-navbar .nav-link:hover,
+.pdz-navbar .nav-link:focus {
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
+}
+.pdz-navbar .nav-link.active {
+    color: var(--pdz-navy);
+    background: var(--pdz-lime);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(163, 216, 39, .35);
+}
+.pdz-navbar .nav-link.active i { opacity: 1; }
+
+.navbar-toggler { padding: .35rem .5rem; }
+.navbar-toggler:focus { box-shadow: 0 0 0 .2rem rgba(163, 216, 39, .4); }
+
+.pdz-user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    max-width: 190px;
+    padding: .4rem .85rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .14);
+    color: #fff;
+    font-weight: 500;
+    font-size: .9rem;
+}
+.pdz-user-chip:hover { background: rgba(255, 255, 255, .16); color: #fff; }
+.pdz-user-chip i { color: var(--pdz-lime-300); font-size: 1.15rem; }
+
+.pdz-btn-ghost {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .28);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.pdz-btn-ghost:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+
+@media (max-width: 991.98px) {
+    .navbar-collapse { margin-top: .75rem; }
+    .pdz-navbar .nav-link { padding: .6rem .9rem; }
+    .pdz-authbar { margin-top: .5rem; }
+}
+
+/* =========================================================
+   HERO
+   ========================================================= */
+.pdz-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 5vw, 4rem);
+    color: #fff;
+    background: linear-gradient(125deg, var(--pdz-navy-900) 0%, var(--pdz-navy) 55%, #29396a 100%);
+    box-shadow: var(--pdz-shadow-lg);
+}
+.pdz-hero::before {
+    content: "";
+    position: absolute;
+    top: -30%; right: -8%;
+    width: 460px; height: 460px;
+    background: radial-gradient(circle, rgba(163, 216, 39, .55), transparent 62%);
+    filter: blur(10px);
+    pointer-events: none;
+}
+.pdz-hero::after {
+    content: "";
+    position: absolute;
+    bottom: -40%; left: -12%;
+    width: 380px; height: 380px;
+    background: radial-gradient(circle, rgba(90, 130, 255, .28), transparent 60%);
+    pointer-events: none;
+}
+.pdz-hero > * { position: relative; z-index: 1; }
+.pdz-hero h1, .pdz-hero .display-4 { color: #fff; }
+.pdz-hero .lead { color: rgba(255, 255, 255, .82); }
+.pdz-hero .pdz-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .35rem .9rem;
+    border-radius: 999px;
+    background: rgba(163, 216, 39, .16);
+    border: 1px solid rgba(163, 216, 39, .35);
+    color: var(--pdz-lime-300);
+    font-weight: 600;
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+}
+
+/* Título de seção com traço lime */
+.pdz-section-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--pdz-navy);
+    position: relative;
+    padding-bottom: .6rem;
+    display: inline-block;
+}
+.pdz-section-title::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 46px; height: 3px;
+    border-radius: 3px;
+    background: var(--pdz-lime);
+}
+
+/* =========================================================
+   BOTÕES
+   ========================================================= */
+.btn {
+    font-family: var(--font-display);
+    font-weight: 600;
+    border-radius: 12px;
+    padding: .5rem 1.1rem;
+    transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, color .16s ease;
+}
+.btn-lg { padding: .7rem 1.4rem; }
+.btn-sm { border-radius: 10px; }
+.rounded-pill { border-radius: 999px !important; }
+
 .btn-padel {
-    background-color: var(--padel-green);
-    color: var(--padel-blue);
-    font-weight: bold;
+    background: linear-gradient(120deg, var(--pdz-lime) 0%, #b6e23f 100%);
+    color: var(--pdz-navy);
+    font-weight: 700;
     border: none;
-    transition: 0.3s;
+    box-shadow: 0 6px 16px rgba(163, 216, 39, .35);
+}
+.btn-padel:hover,
+.btn-padel:focus {
+    background: linear-gradient(120deg, var(--pdz-lime-600) 0%, #a6d233 100%);
+    color: var(--pdz-navy);
+    transform: translateY(-2px);
+    box-shadow: var(--pdz-glow);
+}
+.btn-padel:active { transform: translateY(0); }
+
+.btn-primary {
+    --bs-btn-bg: var(--pdz-navy);
+    --bs-btn-border-color: var(--pdz-navy);
+    --bs-btn-hover-bg: var(--pdz-navy-900);
+    --bs-btn-hover-border-color: var(--pdz-navy-900);
+    --bs-btn-active-bg: var(--pdz-navy-900);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--pdz-navy);
+    --bs-btn-border-color: rgba(28, 39, 66, .35);
+    --bs-btn-hover-bg: var(--pdz-navy);
+    --bs-btn-hover-border-color: var(--pdz-navy);
+    --bs-btn-active-bg: var(--pdz-navy);
+}
+.btn-outline-secondary {
+    --bs-btn-color: var(--pdz-muted);
+    --bs-btn-border-color: rgba(28, 39, 66, .18);
+    --bs-btn-hover-bg: var(--pdz-navy);
+    --bs-btn-hover-border-color: var(--pdz-navy);
+    --bs-btn-hover-color: #fff;
+}
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 .22rem rgba(163, 216, 39, .45); }
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+.card {
+    background: var(--pdz-surface);
+    border: 1px solid var(--pdz-border);
+    border-radius: var(--radius);
+    box-shadow: var(--pdz-shadow-sm);
+}
+.card.border-0 { border: 1px solid var(--pdz-border) !important; }
+.shadow-sm { box-shadow: var(--pdz-shadow-sm) !important; }
+
+.card.h-100 { transition: transform .2s ease, box-shadow .2s ease; }
+.card.h-100:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--pdz-shadow-lg);
 }
 
-    .btn-padel:hover {
-        background-color: #8cbd20;
-        color: #1C2742;
-        transform: scale(1.02);
-    }
+.card-footer { background: transparent; border-top: 1px solid var(--pdz-border); }
 
-/* 1. TRAVA O ZOOM INDESEJADO NO CELULAR */
-/* Quando o ajudante apertar rápido várias vezes no +1 Game, a tela não vai dar zoom */
-button, a, input, select {
-    touch-action: manipulation;
+/* Fundo suave usado em vários cards utilitários */
+.bg-light { background-color: #f4f7fc !important; }
+
+/* =========================================================
+   FORMULÁRIOS
+   ========================================================= */
+.form-label { color: var(--pdz-ink); font-weight: 600; }
+.form-control, .form-select {
+    border-radius: 12px;
+    border: 1.5px solid var(--pdz-border);
+    padding: .6rem .85rem;
+    color: var(--pdz-ink);
+    background-color: #fff;
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.form-control.form-control-lg, .form-select.form-select-lg { padding: .8rem 1rem; }
+.form-control.bg-light, .form-select.bg-light { background-color: #f4f7fc !important; }
+.form-control::placeholder { color: #9aa7ba; }
+.form-control:focus, .form-select:focus {
+    border-color: var(--pdz-lime);
+    background-color: #fff;
+    box-shadow: 0 0 0 .22rem rgba(163, 216, 39, .22);
+}
+textarea.form-control { border-radius: 14px; }
+
+.form-check-input { border: 1.5px solid rgba(28, 39, 66, .3); cursor: pointer; }
+.form-check-input:checked {
+    background-color: var(--pdz-navy);
+    border-color: var(--pdz-navy);
+}
+.form-check-input:focus {
+    border-color: var(--pdz-lime);
+    box-shadow: 0 0 0 .22rem rgba(163, 216, 39, .25);
+}
+.form-switch .form-check-input:checked {
+    background-color: var(--pdz-lime-600);
+    border-color: var(--pdz-lime-600);
 }
 
-/* 2. A REGRA DO DEDÃO PARA A MESA DE CONTROLE */
-/* Garante que os botões de placar fiquem grandes e fáceis de apertar na correria */
+.btn-check:checked + .btn-outline-primary {
+    background: var(--pdz-navy);
+    border-color: var(--pdz-navy);
+    color: #fff;
+}
+
+/* =========================================================
+   BADGES · ALERTAS · LISTAS · TABELAS
+   ========================================================= */
+.badge {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: .42em .72em;
+    border-radius: 8px;
+}
+.bg-primary { background-color: var(--pdz-navy) !important; }
+.text-primary { color: var(--pdz-navy) !important; }
+
+.alert { border: none; border-radius: 14px; box-shadow: var(--pdz-shadow-sm); }
+.alert-success { background: #eaf7e0; color: #3f6212; }
+.alert-danger { background: #fdecef; color: #9f1239; }
+.alert-warning { background: #fff6e0; color: #92600a; }
+.alert-info { background: #e6f4fb; color: #0b5c86; }
+
+.list-group-item {
+    border-color: var(--pdz-border);
+    padding: .8rem 1rem;
+}
+.list-group-item:first-child { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
+.list-group-item:last-child { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.list-group-numbered > .list-group-item::before { color: var(--pdz-navy); font-weight: 700; }
+
+.table { color: var(--pdz-ink); }
+.table > thead {
+    --bs-table-color: var(--pdz-muted);
+}
+.table > thead th {
+    text-transform: uppercase;
+    font-size: .74rem;
+    letter-spacing: .04em;
+    color: var(--pdz-muted);
+    font-weight: 700;
+    border-bottom: 1.5px solid var(--pdz-border);
+}
+.table > tbody > tr { border-color: var(--pdz-border); }
+.table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .06); }
+
+code {
+    background: rgba(28, 39, 66, .06);
+    color: var(--pdz-navy);
+    padding: .12rem .45rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+hr { color: var(--pdz-border); opacity: 1; }
+
+::selection { background: rgba(163, 216, 39, .35); }
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* =========================================================
+   FUNCIONAIS (mantidos da versão anterior)
+   ========================================================= */
+button, a, input, select { touch-action: manipulation; }
+
 .btn-group .btn {
-    min-height: 44px; /* Altura mínima recomendada pela Apple e Google para toques */
+    min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* 3. SCROLL HORIZONTAL PARA TABELAS FUTURAS */
-/* Se criarmos chaves ou tabelas muito largas, elas ganham uma barra de rolagem suave com o dedo */
 .table-responsive {
     -webkit-overflow-scrolling: touch;
     overflow-x: auto;
 }
 
-/* 4. AJUSTE DE FONTES PARA TELAS PEQUENAS */
 @media (max-width: 767px) {
-    h2 {
-        font-size: 1.5rem;
-    }
-
-    h3 {
-        font-size: 1.25rem;
-    }
-
-    .card-body {
-        padding: 1rem !important;
-    }
-
-    /* Na mesa de controle, os botões ficam 100% da largura se faltar espaço */
-    .btn-group {
-        width: 100%;
-    }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
+    .card-body { padding: 1.15rem !important; }
+    .btn-group { width: 100%; }
+    .pdz-main { padding: 1.25rem 0 2.5rem; }
 }
 
-/* =========================================
-   ESTRUTURA DA ÁRVORE MATA-MATA (BRACKET)
-   ========================================= */
+/* ===== Árvore mata-mata (bracket) ===== */
 .bracket-container {
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* Rolagem suave no iPhone/Android */
+    -webkit-overflow-scrolling: touch;
     padding: 10px 0 30px 0;
     margin-top: 20px;
 }
-
 .bracket-column {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    min-width: 280px; /* Largura perfeita para a tela do celular */
+    min-width: 280px;
     margin-right: 25px;
     position: relative;
 }
-
-/* O título da coluna (Ex: Quartas, Semis) */
 .bracket-header {
     text-align: center;
     font-weight: bold;
-    color: var(--padel-blue);
+    color: var(--pdz-navy);
     margin-bottom: 20px;
     text-transform: uppercase;
     font-size: 0.9rem;
     letter-spacing: 1px;
 }
-
-/* O Card do Confronto */
 .bracket-match {
     background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    box-shadow: var(--pdz-shadow-sm);
     margin-bottom: 20px;
-    border: 1px solid #eaeaea;
+    border: 1px solid var(--pdz-border);
     overflow: hidden;
 }
-
-/* A linha de cada dupla dentro do card */
 .bracket-team {
     padding: 12px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #f8f9fa;
+    border-bottom: 1px solid #f1f4f8;
 }
+.bracket-team:last-child { border-bottom: none; }
+.bracket-team.winner {
+    background-color: #f4fff8;
+    border-left: 4px solid var(--pdz-lime);
+}
+.bracket-team.winner .team-name { font-weight: 800 !important; }
 
-    .bracket-team:last-child {
-        border-bottom: none;
-    }
-
-    /* Destaque visual se a dupla for a Vencedora */
-    .bracket-team.winner {
-        background-color: #f4fff8; /* Fundo levemente verde */
-        border-left: 4px solid var(--padel-green);
-    }
-
-        .bracket-team.winner .team-name {
-            font-weight: 800 !important;
-        }
+/* Palpitrômetro */
+.palpite-opcao.votavel {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    transition: background-color .15s ease;
+}
+.palpite-opcao.votavel:hover { background-color: var(--pdz-navy-50, #eef2f8); }
+.pdz-palpitrometro .progress-bar { transition: width .3s ease; }

@@ -1,0 +1,124 @@
+@model IEnumerable<Jogador>
+@{
+    ViewData["Title"] = "Marcar Aula - Padelizou";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-blue);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-calendar-check display-4" style="color: var(--padel-blue);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Marcar Aula</h3>
+                        <p class="text-muted">Escolha o professor, o local e um horário disponível.</p>
+                    </div>
+
+                    @if (TempData["Erro"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Erro"]</div>
+                    }
+
+                    <form asp-controller="Aulas" asp-action="Solicitar" method="post" id="form-solicitar">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">1. Professor</label>
+                            <select id="select-professor" name="professorId" class="form-select bg-light" required>
+                                <option value="">-- Escolha um professor --</option>
+                                @foreach (var prof in Model)
+                                {
+                                    <option value="@prof.Id">@prof.Nome</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">2. Local</label>
+                            <select id="select-local" name="localId" class="form-select bg-light" required disabled>
+                                <option value="">-- Escolha um professor primeiro --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">3. Horário disponível</label>
+                            <select id="select-horario" name="dataHora" class="form-select bg-light" required disabled>
+                                <option value="">-- Escolha um local primeiro --</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill" id="btn-solicitar" disabled>
+                            <i class="bi bi-check-circle-fill me-1"></i> Solicitar Aula
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            var $professor = $('#select-professor');
+            var $local = $('#select-local');
+            var $horario = $('#select-horario');
+            var $btn = $('#btn-solicitar');
+
+            $professor.on('change', function () {
+                var professorId = $(this).val();
+                $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
+                $btn.prop('disabled', true);
+
+                if (!professorId) {
+                    $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
+                    return;
+                }
+
+                $local.html('<option value="">Carregando...</option>').prop('disabled', true);
+
+                $.getJSON('/Aulas/ObterLocais', { professorId: professorId }, function (locais) {
+                    if (!locais.length) {
+                        $local.html('<option value="">Nenhum local cadastrado para este professor</option>');
+                        return;
+                    }
+                    var options = '<option value="">-- Escolha um local --</option>';
+                    $.each(locais, function (i, l) {
+                        options += '<option value="' + l.id + '">' + l.nome + ' (R$ ' + l.precoPadrao.toFixed(2) + ')</option>';
+                    });
+                    $local.html(options).prop('disabled', false);
+                });
+            });
+
+            $local.on('change', function () {
+                var professorId = $professor.val();
+                var localId = $(this).val();
+                $btn.prop('disabled', true);
+
+                if (!localId) {
+                    $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
+                    return;
+                }
+
+                $horario.html('<option value="">Carregando...</option>').prop('disabled', true);
+
+                $.getJSON('/Aulas/ObterHorarios', { professorId: professorId, localId: localId }, function (horarios) {
+                    if (!horarios.length) {
+                        $horario.html('<option value="">Nenhum horário disponível nos próximos 14 dias</option>');
+                        return;
+                    }
+                    var options = '<option value="">-- Escolha um horário --</option>';
+                    $.each(horarios, function (i, h) {
+                        var data = new Date(h.valor);
+                        var texto = data.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }) +
+                            ' às ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        options += '<option value="' + h.valor + '">' + texto + '</option>';
+                    });
+                    $horario.html(options).prop('disabled', false);
+                });
+            });
+
+            $horario.on('change', function () {
+                $btn.prop('disabled', !$(this).val());
+            });
+        });
+    </script>
+}

@@ -1,0 +1,54 @@
+@model Aula
+@{
+    ViewData["Title"] = "Confirmação de Aula - Padelizou";
+    bool jaProcessada = ViewBag.JaProcessada == true;
+    bool? aceitou = ViewBag.Aceitou as bool?;
+    string? linkWhatsApp = ViewBag.WhatsAppLink as string;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 text-center p-4 p-md-5">
+                @if (jaProcessada)
+                {
+                    <i class="bi bi-info-circle display-3 text-muted mb-3"></i>
+                    <h3 class="fw-bold">Esta solicitação já foi respondida</h3>
+                    <p class="text-muted">Status atual: <strong>@Model.Status</strong></p>
+                }
+                else if (aceitou == true)
+                {
+                    <i class="bi bi-check-circle-fill display-3 text-success mb-3"></i>
+                    <h3 class="fw-bold" style="color: var(--padel-blue);">Aula confirmada!</h3>
+                    <p class="text-muted">
+                        Você confirmou a aula com <strong>@Model.Aluno.Nome</strong> em
+                        <strong>@Model.LocalAula.Nome</strong> no dia
+                        <strong>@Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
+                        Um e-mail de confirmação já foi enviado ao aluno.
+                    </p>
+                    @if (!string.IsNullOrEmpty(linkWhatsApp))
+                    {
+                        <a href="@linkWhatsApp" target="_blank" class="btn btn-success rounded-pill fw-bold mt-3">
+                            <i class="bi bi-whatsapp"></i> Avisar o aluno por WhatsApp também
+                        </a>
+                    }
+                }
+                else
+                {
+                    <i class="bi bi-x-circle-fill display-3 text-danger mb-3"></i>
+                    <h3 class="fw-bold">Solicitação recusada</h3>
+                    <p class="text-muted">
+                        Avisamos <strong>@Model.Aluno.Nome</strong> por e-mail que essa aula não vai poder
+                        acontecer no horário solicitado.
+                    </p>
+                    @if (!string.IsNullOrEmpty(linkWhatsApp))
+                    {
+                        <a href="@linkWhatsApp" target="_blank" class="btn btn-outline-success rounded-pill fw-bold mt-3">
+                            <i class="bi bi-whatsapp"></i> Avisar o aluno por WhatsApp também
+                        </a>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

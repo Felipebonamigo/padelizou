@@ -1,0 +1,60 @@
+﻿@model Dictionary<string, List<Padelizou.ViewModels.ClassificacaoGrupoViewModel>>
+@{
+    ViewData["Title"] = "Classificação";
+    var torneio = ViewBag.Torneio;
+    int classificadosPorGrupo = ViewBag.RegraClassificados;
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">🏆 Classificação - @torneio.Nome</h2>
+
+    <div class="row">
+        @foreach (var grupo in Model)
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-secondary">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        Grupo @grupo.Key
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered mb-0 text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">Pos</th>
+                                    <th class="text-start">Dupla</th>
+                                    <th title="Jogos" style="width: 40px;">J</th>
+                                    <th title="Vitórias" style="width: 40px;">V</th>
+                                    <th title="Derrotas" style="width: 40px;">D</th>
+                                    <th title="Saldo de Games" style="width: 50px;">SG</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int posicao = 1;
+                                }
+                                @foreach (var stats in grupo.Value)
+                                {
+                                    // Pinta a linha de um verde bem claro se a dupla estiver na zona de classificação
+                                    string classeLinha = posicao <= classificadosPorGrupo ? "table-success" : "";
+
+                                    <tr class="@classeLinha">
+                                        <td class="fw-bold">@(posicao)º</td>
+                                        <td class="text-start text-truncate" style="max-width: 150px;">
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador1Id" class="text-decoration-none text-dark">@stats.Dupla.Jogador1.Nome</a> <br />
+                                            <small class="text-muted"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador2Id" class="text-decoration-none text-muted">@stats.Dupla.Jogador2.Nome</a></small>
+                                        </td>
+                                        <td>@stats.JogosJogados</td>
+                                        <td class="text-success fw-bold">@stats.Vitorias</td>
+                                        <td class="text-danger">@stats.Derrotas</td>
+                                        <td class="fw-bold">@stats.SaldoGames</td>
+                                    </tr>
+                                    posicao++;
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

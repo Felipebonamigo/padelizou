@@ -1,0 +1,55 @@
+@model (Padelizou.Models.Partida partida, Padelizou.ViewModels.PalpiteResumoVM? resumo, int? meuId)
+@{
+    var r = Model.resumo ?? new Padelizou.ViewModels.PalpiteResumoVM { PartidaId = Model.partida.Id };
+    bool finalizada = Model.partida.Status == "Finalizada";
+    bool logado = Model.meuId.HasValue;
+    bool votavel = !finalizada && logado;
+    int? meuVoto = r.MeuVotoDuplaId;
+    string nome1 = $"{Model.partida.Dupla1?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla1?.Jogador2?.Nome?.Split(' ')[0]}";
+    string nome2 = $"{Model.partida.Dupla2?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla2?.Jogador2?.Nome?.Split(' ')[0]}";
+    bool galeraAcertou = finalizada && r.TotalVotos > 0
+        && ((r.VotosDupla1 >= r.VotosDupla2 && Model.partida.VencedorId == Model.partida.Dupla1Id)
+         || (r.VotosDupla2 > r.VotosDupla1 && Model.partida.VencedorId == Model.partida.Dupla2Id));
+}
+<div class="pdz-palpitrometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitrômetro</small>
+        @if (finalizada && r.TotalVotos > 0)
+        {
+            <small class="@(galeraAcertou ? "text-success" : "text-danger") fw-bold">
+                <i class="bi @(galeraAcertou ? "bi-check-circle-fill" : "bi-x-circle-fill")"></i> Galera @(galeraAcertou ? "acertou" : "errou")
+            </small>
+        }
+    </div>
+
+    <div class="palpite-opcao @(votavel ? "votavel" : "")" data-dupla-id="@Model.partida.Dupla1Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
+        <div class="d-flex justify-content-between small">
+            <span class="text-truncate @(meuVoto == Model.partida.Dupla1Id ? "fw-bold" : "")">@(meuVoto == Model.partida.Dupla1Id ? "✓ " : "")@nome1</span>
+            <span class="fw-bold ms-2" data-pct="1">@r.PercentualDupla1%</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-primary" data-bar="1" style="width: @(r.PercentualDupla1.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+        </div>
+    </div>
+
+    <div class="palpite-opcao mt-1 @(votavel ? "votavel" : "")" data-dupla-id="@Model.partida.Dupla2Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
+        <div class="d-flex justify-content-between small">
+            <span class="text-truncate @(meuVoto == Model.partida.Dupla2Id ? "fw-bold" : "")">@(meuVoto == Model.partida.Dupla2Id ? "✓ " : "")@nome2</span>
+            <span class="fw-bold ms-2" data-pct="2">@r.PercentualDupla2%</span>
+        </div>
+        <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-danger" data-bar="2" style="width: @(r.PercentualDupla2.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+        </div>
+    </div>
+
+    <div class="text-center mt-1">
+        @if (!logado)
+        {
+            <small class="text-muted"><a asp-controller="Auth" asp-action="Login">Entre para palpitar</a> · <span class="pdz-total-votos">@r.TotalVotos voto(s)</span></small>
+        }
+        else
+        {
+            <small class="text-muted pdz-total-votos">@r.TotalVotos voto(s)</small>
+        }
+    </div>
+</div>

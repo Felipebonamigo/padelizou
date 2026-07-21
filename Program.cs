@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
+using Padelizou.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,7 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DbPadelContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
+builder.Services.Configure<AcessoAntecipadoSettings>(builder.Configuration.GetSection("AcessoAntecipado"));
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
+builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
+builder.Services.AddScoped<IPalpiteService, PalpiteService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -30,6 +38,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<AcessoAntecipadoMiddleware>();
 app.UseRouting();
 
 app.UseAuthorization();

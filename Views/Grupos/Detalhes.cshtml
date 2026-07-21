@@ -1,0 +1,141 @@
+@model GrupoPrivado
+@{
+    ViewData["Title"] = $"{Model.Nome} - Padelizou";
+    var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
+    var rankingMes = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingMes;
+    int mesConsulta = ViewBag.MesConsulta;
+    int anoConsulta = ViewBag.AnoConsulta;
+    var jogosRecentes = (List<JogoSemanal>)ViewBag.JogosRecentes;
+    bool ehAdmin = ViewBag.EhAdmin == true;
+    string[] nomesMeses = { "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro" };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);"><i class="bi bi-shield-lock-fill text-success"></i> @Model.Nome</h2>
+            @if (ehAdmin)
+            {
+                <p class="text-muted mb-0">Código de convite: <code>@Model.CodigoConvite</code></p>
+            }
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@Model.Id" class="btn btn-padel rounded-pill">
+                <i class="bi bi-plus-circle"></i> Registrar Jogo
+            </a>
+            <a asp-controller="Grupos" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3" style="color: var(--padel-blue);">Ranking Geral</h5>
+                    @if (ranking.Any())
+                    {
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var item in ranking)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.JogadorId" class="text-decoration-none text-dark">@item.Jogador.Nome</a>
+                                    <span class="badge bg-primary rounded-pill">@item.PontuacaoInterna pts</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Nenhum membro ainda.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h5 class="fw-bold mb-0" style="color: var(--padel-blue);">Ranking do Mês</h5>
+                        <form asp-controller="Grupos" asp-action="Detalhes" method="get" class="d-flex gap-2">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <select name="mes" class="form-select form-select-sm" onchange="this.form.submit()">
+                                @for (int m = 1; m <= 12; m++)
+                                {
+                                    <option value="@m" selected="@(m == mesConsulta)">@nomesMeses[m]</option>
+                                }
+                            </select>
+                            <select name="ano" class="form-select form-select-sm" onchange="this.form.submit()">
+                                @for (int a = DateTime.Today.Year - 1; a <= DateTime.Today.Year + 1; a++)
+                                {
+                                    <option value="@a" selected="@(a == anoConsulta)">@a</option>
+                                }
+                            </select>
+                        </form>
+                    </div>
+                    @if (rankingMes.Any(r => r.Pontos > 0))
+                    {
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var item in rankingMes.Where(r => r.Pontos > 0))
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@item.Jogador.Id" class="text-decoration-none text-dark">@item.Jogador.Nome</a>
+                                    <span class="badge bg-success rounded-pill">@item.Pontos pts</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Nenhum jogo registrado em @nomesMeses[mesConsulta]/@anoConsulta.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="fw-bold text-muted mb-3">Jogos recentes</h5>
+    @if (jogosRecentes.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle bg-white shadow-sm rounded text-nowrap">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Dupla 1</th>
+                        <th class="text-center">Placar</th>
+                        <th>Dupla 2</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var jogo in jogosRecentes)
+                    {
+                        <tr>
+                            <td>@jogo.DataJogo.ToString("dd/MM/yyyy")</td>
+                            <td class="@(jogo.VencedorLado == 1 ? "fw-bold text-success" : "")">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla1Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla1Jogador2.Nome</a>
+                            </td>
+                            <td class="text-center fw-bold">@jogo.GamesDupla1 x @jogo.GamesDupla2</td>
+                            <td class="@(jogo.VencedorLado == 2 ? "fw-bold text-success" : "")">
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador1.Nome</a> /
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador2.Nome</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <p class="text-muted mb-0">Nenhum jogo registrado ainda.</p>
+        </div>
+    }
+</div>

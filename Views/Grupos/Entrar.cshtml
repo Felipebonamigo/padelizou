@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Entrar em Grupo - Padelizou";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-blue);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-box-arrow-in-right display-4" style="color: var(--padel-blue);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Entrar em um Grupo</h3>
+                        <p class="text-muted">Peça o código de convite pra quem criou o grupo.</p>
+                    </div>
+
+                    @if (TempData["Erro"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Erro"]</div>
+                    }
+
+                    <form asp-controller="Grupos" asp-action="Entrar" method="post">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Código de convite</label>
+                            <input type="text" name="codigo" class="form-control bg-light text-uppercase" required placeholder="Ex: AB12CD" style="letter-spacing: 2px;" />
+                        </div>
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Entrar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,83 +1,129 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    string NavActive(params string[] controllers) => controllers.Contains(currentController) ? "active" : "";
+    var nomeUsuario = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.Name) : null;
+    var meuId = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Padelizou</title>
-    <script type="importmap"></script>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" /><!-- Biblioteca de Ícones do Bootstrap -->
+    <meta name="theme-color" content="#141d33" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />
+    <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark border-bottom box-shadow mb-3" style="background-color: var(--padel-blue);">
-            <div class="container-fluid">
-                <!-- Sua Logo Aqui -->
-                <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/images/logoPadelizou.png" alt="Padelizou" style="height: 40px; border-radius: 8px; margin-right: 10px;" />
-                    <span style="font-weight: 700; letter-spacing: 1px;">padelizou</span>
+        <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="~/image/logo-icon.png" alt="Padelizou" class="pdz-brand-logo" />
+                    <span class="pdz-wordmark">Padelizou</span>
                 </a>
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#pdzNav"
+                        aria-controls="pdzNav" aria-expanded="false" aria-label="Abrir menu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-area="" asp-controller="Home" asp-action="Index">
-                                <i class="bi bi-house-door me-1"></i> Início
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-area="" asp-controller="Torneios" asp-action="Create">
-                                <i class="bi bi-trophy me-1"></i> Novo Torneio
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-area="" asp-controller="Aulas" asp-action="Create">
-                                <i class="bi bi-calendar-plus me-1"></i> Marcar Aula
-                            </a>
-                        </li>
-                        @if (User.Identity.IsAuthenticated)
-                        {
-                            // Recupera o ID do usuário logado para montar o link automaticamente
-                            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+                <div class="navbar-collapse collapse" id="pdzNav">
+                    <ul class="navbar-nav mx-lg-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Home")" asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door"></i> Início
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Create">
+                                <i class="bi bi-trophy"></i> Torneio
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Aulas")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
+                                <i class="bi bi-calendar-plus"></i> Aula
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Avisos")" asp-area="" asp-controller="Avisos" asp-action="Index">
+                                <i class="bi bi-megaphone"></i> Buscar Jogo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Parceiros")" asp-area="" asp-controller="Parceiros" asp-action="Index">
+                                <i class="bi bi-person-plus"></i> Parceiro
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Grupos")" asp-area="" asp-controller="Grupos" asp-action="Index">
+                                <i class="bi bi-shield-lock"></i> Grupos
+                            </a>
+                        </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@userId">
-                                    <i class="bi bi-person-circle me-1"></i> Meu Perfil
+                                <a class="nav-link @NavActive("Agenda")" asp-controller="Agenda" asp-action="Index">
+                                    <i class="bi bi-calendar3"></i> Agenda
                                 </a>
                             </li>
                         }
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Jogadores" asp-action="Ranking">
-                                <i class="bi bi-graph-up-arrow me-1"></i> Ranking
+                            <a class="nav-link @NavActive("Jogadores")" asp-controller="Jogadores" asp-action="Ranking">
+                                <i class="bi bi-graph-up-arrow"></i> Ranking
                             </a>
                         </li>
                     </ul>
-                    <!-- Área de Login -->
-                    <span class="navbar-text text-light" style="cursor: pointer;">
-                        <i class="bi bi-person-circle fs-5 me-1"></i> Área do Organizador
-                    </span>
+
+                    <div class="d-flex align-items-center gap-2 pdz-authbar">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil">
+                                <i class="bi bi-person-circle"></i>
+                                <span class="text-truncate">@nomeUsuario</span>
+                            </a>
+                            <a class="btn btn-sm pdz-btn-ghost rounded-pill" asp-controller="Auth" asp-action="Logout" title="Sair">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="btn btn-sm btn-padel rounded-pill px-3" asp-controller="Auth" asp-action="Login">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+                            </a>
+                        }
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
+    <main role="main" class="pdz-main">
         <div class="container">
-            &copy; 2026 - Padelizou - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="pdz-footer">
+        <div class="container">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <img src="~/image/logo-icon.png" alt="Padelizou" style="height: 26px; width: 26px;" />
+                    <span class="fw-semibold">Padelizou</span>
+                </div>
+                <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidade</a></span>
+            </div>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

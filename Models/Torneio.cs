@@ -17,7 +17,6 @@ public partial class Torneio
     public string Codigo { get; set; } = null!;
 
     public virtual ICollection<Categoria> Categorias { get; set; } = new List<Categoria>();
-    public virtual ICollection<GrupoTorneio> GruposTorneio { get; set; } = new List<GrupoTorneio>();
 
     public virtual Organizador Organizador { get; set; } = null!; 
     public DateTime? DataInicio{ get; set; } 
@@ -35,4 +34,7 @@ public partial class Torneio
     public int GamesFaseFinal { get; set; }
     public int ClubeId { get; set; }
     public Clube Clube { get; set; }
+    public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
+    public int TamanhoGrupo { get; set; } = 3;
+    public int ClassificadosPorGrupo { get; set; } = 2;
 }

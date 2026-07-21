@@ -1,15 +1,22 @@
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
+using Padelizou.Services;
+using Padelizou.ViewModels;
+using System.Security.Claims;
 
 public class JogadoresController : Controller
 {
     private readonly DbPadelContext _context;
+    private readonly IEstatisticasService _estatisticas;
 
-    public JogadoresController(DbPadelContext context)
+    public JogadoresController(DbPadelContext context, IEstatisticasService estatisticas)
     {
         _context = context;
+        _estatisticas = estatisticas;
     }
 
     // GET: JOGADORS
@@ -58,7 +65,7 @@ public class JogadoresController : Controller
         return View(jogador);
     }
 
-    // GET: JOGADORS/Edit/5
+    // GET: Jogadores/Edit/5
     public async Task<IActionResult> Edit(int? id)
     {
         if (id == null)
@@ -71,12 +78,43 @@ public class JogadoresController : Controller
         {
             return NotFound();
         }
+
+        // Carrega todos os times do banco para preencher o select na tela
+        // Passamos: a lista de times, qual campo é o valor (Id), qual campo é o texto (Nome), 
+        // e qual é o time atual do jogador para já vir selecionado.
+        ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
+
         return View(jogador);
     }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    // Certifique-se de que "TimeId" está dentro do atributo [Bind]
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,PontuacaoGlobal,TimeId")] Jogador jogador)
+    {
+        if (id != jogador.Id)
+        {
+            return NotFound();
+        }
 
-    // POST: JOGADORS/Edit/5
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        if (ModelState.IsValid)
+        {
+            try
+            {
+                _context.Update(jogador);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!JogadorExists(jogador.Id)) return NotFound();
+                else throw;
+            }
+            return RedirectToAction(nameof(Index)); // Ou redirecione para o Perfil
+        }
+
+        // Se der erro de validação e a tela recarregar, a lista de times precisa ser enviada de novo!
+        ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", jogador.TimeId);
+        return View(jogador);
+    }
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int? id, [Bind("Id,Nome,Cpf,Codigo,DuplaJogador1s,DuplaJogador2s")] Jogador jogador)
@@ -155,29 +193,71 @@ public class JogadoresController : Controller
 
         // Busca todas as duplas em que este jogador participou
         var historicoDuplas = await _context.Duplas
-            .Include(d => d.Torneio)
+            .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
             .Where(d => d.Jogador1Id == id || d.Jogador2Id == id)
-            .OrderByDescending(d => d.Torneio.DataInicio)
+            .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
             .ToListAsync();
 
-        // Cálculos de Estatísticas
-        ViewBag.TotalTorneios = historicoDuplas.Count;
-        ViewBag.Titulos = historicoDuplas.Count(d => d.UltimaFase == "Campeao");
-        ViewBag.Finais = historicoDuplas.Count(d => d.UltimaFase == "Final");
-        ViewBag.Semis = historicoDuplas.Count(d => d.UltimaFase == "Semifinal");
-        ViewBag.Quartas = historicoDuplas.Count(d => d.UltimaFase == "Quartas de Final");
+        // Cálculos de Estatísticas (via serviço central, inclui "caiu na chave")
+        var resumo = await _estatisticas.ObterResumoJogadorAsync(id);
+        ViewBag.TotalTorneios = resumo.TotalTorneios;
+        ViewBag.Titulos = resumo.Titulos;
+        ViewBag.Finais = resumo.Finais;
+        ViewBag.Semis = resumo.Semis;
+        ViewBag.Quartas = resumo.Quartas;
+        ViewBag.CaiuNaChave = resumo.CaiuNaChave;
+
+        // Se tem alguém logado, monta o contexto de confronto (H2H)
+        int? meuId = User.Identity?.IsAuthenticated == true
+            ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
+            : null;
+        ViewBag.MeuId = meuId;
+
+        if (meuId.HasValue && meuId.Value == id)
+        {
+            // É o próprio perfil: mostra os rivais (mais enfrentado / mais vencido / mais perdido)
+            var confrontos = await _estatisticas.ObterConfrontosAsync(id);
+            ViewBag.MaisEnfrentou = confrontos.OrderByDescending(c => c.Jogos).FirstOrDefault();
+            ViewBag.MaisVenceu = confrontos.Where(c => c.Vitorias > 0).OrderByDescending(c => c.Vitorias).FirstOrDefault();
+            ViewBag.MaisPerdeu = confrontos.Where(c => c.Derrotas > 0).OrderByDescending(c => c.Derrotas).FirstOrDefault();
+        }
+        else if (meuId.HasValue)
+        {
+            // É o perfil de outra pessoa: mostra o confronto entre eu e ela
+            ViewBag.MeuConfronto = await _estatisticas.ObterHeadToHeadAsync(meuId.Value, id);
+        }
 
         return View((jogador, historicoDuplas));
     }
-    [HttpGet]
-    public async Task<IActionResult> Ranking()
-    {
-        // Usando _context.Jogadores (Plural)
-        var ranking = await _context.Jogadores
-            .OrderByDescending(j => j.PontuacaoGlobal)
-            .ToListAsync();
 
-        return View(ranking);
+    // Busca de jogadores por nome (para ver histórico/H2H de qualquer um).
+    [HttpGet]
+    public async Task<IActionResult> Buscar(string? q)
+    {
+        var resultados = string.IsNullOrWhiteSpace(q)
+            ? new List<Jogador>()
+            : await _context.Jogadores
+                .Where(j => j.Nome.Contains(q))
+                .OrderBy(j => j.Nome)
+                .Take(50)
+                .ToListAsync();
+
+        ViewBag.Query = q;
+        return View(resultados);
+    }
+
+    // Histórico completo de confrontos entre o jogador logado e um adversário.
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> Confronto(int oponenteId)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (meuId == oponenteId) return RedirectToAction(nameof(Perfil), new { id = meuId });
+
+        if (!await _context.Jogadores.AnyAsync(j => j.Id == oponenteId)) return NotFound();
+
+        var h2h = await _estatisticas.ObterHeadToHeadAsync(meuId, oponenteId);
+        return View(h2h);
     }
     [HttpGet]
     public async Task<IActionResult> Ranking(int? clubeId, int? torneioId)
@@ -186,10 +266,10 @@ public class JogadoresController : Controller
         if (clubeId.HasValue)
         {
             var duplasDoClube = await _context.Duplas
-                .Include(d => d.Torneio)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
                 .Include(d => d.Jogador1)
                 .Include(d => d.Jogador2)
-                .Where(d => d.Torneio.ClubeId == clubeId)
+                .Where(d => d.Categoria.Torneio.ClubeId == clubeId)
                 .ToListAsync();
 
             // Se quiser ver por clube, a View deve ser "RankingPorClube"
@@ -202,7 +282,7 @@ public class JogadoresController : Controller
             var rankingPorTorneio = await _context.Duplas
                 .Include(d => d.Jogador1)
                 .Include(d => d.Jogador2)
-                .Where(d => d.TorneioId == torneioId)
+                .Where(d => d.Categoria.TorneioId == torneioId)
                 .OrderByDescending(d => d.UltimaFase == "Campeao" ? 4 :
                                        d.UltimaFase == "Final" ? 3 :
                                        d.UltimaFase == "Semifinal" ? 2 : 1)
@@ -214,10 +294,23 @@ public class JogadoresController : Controller
         }
 
         // 3. RANKING GLOBAL (Fallback se nada for selecionado)
+        ViewBag.TorneiosList = await _context.Torneios
+            .OrderByDescending(t => t.DataInicio)
+            .ToListAsync();
+
         var rankingGlobal = await _context.Jogadores
             .OrderByDescending(j => j.PontuacaoGlobal)
             .ToListAsync();
 
         return View("Ranking", rankingGlobal);
+    }
+
+    // Ranking por categoria (agrupado por Categoria.Nome), pontuado pelos resultados em torneios.
+    [HttpGet]
+    public async Task<IActionResult> RankingCategorias(string? categoria)
+    {
+        var rankings = await _estatisticas.ObterRankingPorCategoriaAsync();
+        ViewBag.CategoriaSelecionada = categoria;
+        return View(rankings);
     }
 }

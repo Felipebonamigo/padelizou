@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +12,7 @@ namespace padelizou.Controllers
     public class AuthController : Controller
     {
         private readonly DbPadelContext _context;
-        private readonly IWebHostEnvironment _env; 
+        private readonly IWebHostEnvironment _env;
 
         public AuthController(DbPadelContext context, IWebHostEnvironment env)
         {
@@ -66,6 +66,12 @@ namespace padelizou.Controllers
 
             if (jogador == null) return NotFound();
 
+            ViewBag.MeusGrupos = await _context.JogadoresGrupo
+                .Include(jg => jg.GrupoPrivado)
+                .Where(jg => jg.JogadorId == jogadorId)
+                .OrderByDescending(jg => jg.PontuacaoInterna)
+                .ToListAsync();
+
             return View(jogador);
         }
 
@@ -77,14 +83,19 @@ namespace padelizou.Controllers
         }
         // 5. TELA DE CADASTRO (Abre o formulário)
         [HttpGet]
-        public IActionResult Cadastro()
+        public async Task<IActionResult> Cadastro()
         {
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             return View();
         }
 
-        // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO E A FOTO
+        // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
         [HttpPost]
-        public async Task<IActionResult> Cadastro(string nome, string cpf, string email, string senha, bool isProfessor, IFormFile foto)
+        public async Task<IActionResult> Cadastro(
+            string nome, string cpf, string email, string senha, bool isProfessor, IFormFile foto,
+            string? ladoQuadra, bool notificarEmail, bool notificarWhatsApp,
+            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
             string caminhoDaFotoParaBanco = "";
 
@@ -140,7 +151,12 @@ namespace padelizou.Controllers
                 _context.Jogadores.Add(jogador);
             }
 
+            jogador.LadoQuadra = ladoQuadra;
+            jogador.NotificarEmail = notificarEmail;
+            jogador.NotificarWhatsApp = notificarWhatsApp;
+
             await _context.SaveChangesAsync();
+            await AtualizarPreferenciasAsync(jogador.Id, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados);
 
             // 3. Loga o usuário automaticamente e manda pro Perfil
             var claims = new List<Claim>
@@ -153,6 +169,78 @@ namespace padelizou.Controllers
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 
             return RedirectToAction("Perfil");
+        }
+
+        // 7. TELA DE PREFERÊNCIAS (editar depois do cadastro, sem precisar recadastrar tudo)
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> Preferencias()
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var jogador = await _context.Jogadores
+                .Include(j => j.JogadorCategorias)
+                .Include(j => j.JogadorClubes)
+                .Include(j => j.JogadorDiasHorarios)
+                .FirstOrDefaultAsync(j => j.Id == jogadorId);
+
+            if (jogador == null) return NotFound();
+
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+
+            return View(jogador);
+        }
+
+        [Authorize]
+        [HttpPost]
+        public async Task<IActionResult> Preferencias(
+            string? ladoQuadra, bool notificarEmail, bool notificarWhatsApp,
+            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            jogador.LadoQuadra = ladoQuadra;
+            jogador.NotificarEmail = notificarEmail;
+            jogador.NotificarWhatsApp = notificarWhatsApp;
+            await _context.SaveChangesAsync();
+
+            await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados);
+
+            TempData["Sucesso"] = "Preferências atualizadas!";
+            return RedirectToAction("Preferencias");
+        }
+
+        // Substitui (limpa e recria) as preferências de categoria/clube/dia-horário do jogador.
+        private async Task AtualizarPreferenciasAsync(
+            int jogadorId, int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
+        {
+            _context.JogadorCategorias.RemoveRange(_context.JogadorCategorias.Where(c => c.JogadorId == jogadorId));
+            _context.JogadorClubes.RemoveRange(_context.JogadorClubes.Where(c => c.JogadorId == jogadorId));
+            _context.JogadorDiasHorarios.RemoveRange(_context.JogadorDiasHorarios.Where(c => c.JogadorId == jogadorId));
+
+            foreach (var categoriaId in categoriasSelecionadas ?? Array.Empty<int>())
+            {
+                _context.JogadorCategorias.Add(new JogadorCategoria { JogadorId = jogadorId, CategoriaPadraoId = categoriaId });
+            }
+
+            foreach (var clubeId in clubesSelecionados ?? Array.Empty<int>())
+            {
+                _context.JogadorClubes.Add(new JogadorClube { JogadorId = jogadorId, ClubeId = clubeId });
+            }
+
+            foreach (var diaHorario in diasHorariosSelecionados ?? Array.Empty<string>())
+            {
+                var partes = diaHorario.Split('|');
+                if (partes.Length == 2 && int.TryParse(partes[0], out var dia))
+                {
+                    _context.JogadorDiasHorarios.Add(new JogadorDiaHorario { JogadorId = jogadorId, DiaSemana = dia, Periodo = partes[1] });
+                }
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }

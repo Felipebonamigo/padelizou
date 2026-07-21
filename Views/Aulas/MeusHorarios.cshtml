@@ -1,0 +1,107 @@
+@model IEnumerable<HorarioDisponivel>
+@{
+    ViewData["Title"] = "Meus Horários - Padelizou";
+    var locais = (IEnumerable<LocalAula>)ViewBag.Locais;
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Meus Horários</h2>
+            <p class="text-muted mb-0">Defina sua disponibilidade semanal recorrente por local.</p>
+        </div>
+        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill">Voltar à Agenda</a>
+    </div>
+
+    @if (!locais.Any())
+    {
+        <div class="alert alert-warning">
+            Cadastre pelo menos um <a asp-controller="Aulas" asp-action="MeusLocais">local</a> antes de definir horários.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-3">Novo horário</h6>
+                <form asp-controller="Aulas" asp-action="CriarHorario" method="post" class="row g-2">
+                    <div class="col-md-3">
+                        <select name="localAulaId" class="form-select" required>
+                            @foreach (var local in locais)
+                            {
+                                <option value="@local.Id">@local.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="diaSemana" class="form-select" required>
+                            @for (int i = 0; i < diasSemana.Length; i++)
+                            {
+                                <option value="@i">@diasSemana[i]</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="time" name="horaInicio" class="form-control" required />
+                    </div>
+                    <div class="col-md-2">
+                        <input type="time" name="horaFim" class="form-control" required />
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="duracaoMinutos" class="form-control" value="60" min="15" step="15" required />
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-padel w-100 rounded-pill">+</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle bg-white shadow-sm rounded text-nowrap">
+                <thead>
+                    <tr>
+                        <th>Dia</th>
+                        <th>Local</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th>Duração</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        @foreach (var h in Model)
+                        {
+                            <tr class="@(h.Ativo ? "" : "text-muted")">
+                                <td>@diasSemana[h.DiaSemana]</td>
+                                <td>@h.LocalAula.Nome</td>
+                                <td>@h.HoraInicio.ToString(@"hh\:mm")</td>
+                                <td>@h.HoraFim.ToString(@"hh\:mm")</td>
+                                <td>@h.DuracaoMinutos min</td>
+                                <td>
+                                    <span class="badge @(h.Ativo ? "bg-success" : "bg-secondary")">@(h.Ativo ? "Ativo" : "Inativo")</span>
+                                </td>
+                                <td>
+                                    <form asp-controller="Aulas" asp-action="AlternarHorario" method="post">
+                                        <input type="hidden" name="id" value="@h.Id" />
+                                        <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")">
+                                            @(h.Ativo ? "Desativar" : "Reativar")
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="7" class="text-center text-muted py-4">Nenhum horário cadastrado.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

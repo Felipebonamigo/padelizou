@@ -24,7 +24,10 @@
 
                             <!-- DUPLA A -->
                             <div class="p-3 mb-2 rounded bg-light border">
-                                <h6 class="fw-bold text-truncate">@partida.Dupla1.Jogador1.Nome / @partida.Dupla1.Jogador2.Nome</h6>
+                                <h6 class="fw-bold text-truncate">
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@partida.Dupla1.Jogador1Id" class="text-decoration-none text-dark">@partida.Dupla1.Jogador1.Nome</a> /
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@partida.Dupla1.Jogador2Id" class="text-decoration-none text-dark">@partida.Dupla1.Jogador2.Nome</a>
+                                </h6>
 
                                 <div class="d-flex justify-content-between align-items-center mt-3">
                                     <div class="text-center">
@@ -48,7 +51,10 @@
 
                             <!-- DUPLA B -->
                             <div class="p-3 rounded bg-light border">
-                                <h6 class="fw-bold text-truncate">@partida.Dupla2.Jogador1.Nome / @partida.Dupla2.Jogador2.Nome</h6>
+                                <h6 class="fw-bold text-truncate">
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@partida.Dupla2.Jogador1Id" class="text-decoration-none text-dark">@partida.Dupla2.Jogador1.Nome</a> /
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@partida.Dupla2.Jogador2Id" class="text-decoration-none text-dark">@partida.Dupla2.Jogador2.Nome</a>
+                                </h6>
 
                                 <div class="d-flex justify-content-between align-items-center mt-3">
                                     <div class="text-center">

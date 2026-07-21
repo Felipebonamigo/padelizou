@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
+using Padelizou.Services;
+using Padelizou.ViewModels;
 using System.Security.Claims;
 
 namespace Padelizou.Controllers
@@ -10,11 +13,15 @@ namespace Padelizou.Controllers
     public class TorneiosController : Controller
     {
         private readonly DbPadelContext _context;
+        private readonly IEstatisticasService _estatisticas;
+        private readonly IPalpiteService _palpites;
 
         // Injeta o banco de dados
-        public TorneiosController(DbPadelContext context)
+        public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites)
         {
             _context = context;
+            _estatisticas = estatisticas;
+            _palpites = palpites;
         }
 
         // 1. ABRE A TELA DE CRIAÇÃO (Carrega o Catálogo)
@@ -134,6 +141,11 @@ namespace Padelizou.Controllers
                         .ToList();
                 }
             }
+
+            // SELOS HISTÓRICOS: melhor colocação + títulos de cada jogador nas mesmas categorias
+            // (por Categoria.Nome), considerando torneios anteriores a este.
+            var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();
+            ViewBag.HistoricoJogadores = await _estatisticas.ObterMelhoresColocacoesAsync(nomesCategorias, excluirTorneioId: id);
 
             return View(torneio);
         }
@@ -433,94 +445,322 @@ namespace Padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> ObterPlacaresAoVivo(int torneioId)
         {
+            // Títulos históricos por jogador nas categorias deste torneio (exceto este torneio).
+            var nomes = await _context.Categorias
+                .Where(c => c.TorneioId == torneioId)
+                .Select(c => c.Nome).Distinct().ToListAsync();
+            var hist = await _estatisticas.ObterMelhoresColocacoesAsync(nomes, excluirTorneioId: torneioId);
+            int Titulos(int jogadorId) => hist.TryGetValue(jogadorId, out var h) ? h.Titulos : 0;
+
             var partidas = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
                 .Where(p => p.TorneioId == torneioId && p.SendoTransmitida == true)
-                .Select(p => new {
-                    id = p.Id,
-                    nomeD1 = $"{p.Dupla1.Jogador1.Nome} / {p.Dupla1.Jogador2.Nome}",
-                    nomeD2 = $"{p.Dupla2.Jogador1.Nome} / {p.Dupla2.Jogador2.Nome}",
-                    setsD1 = p.SetsDupla1,
-                    gamesD1 = p.GamesDupla1,
-                    setsD2 = p.SetsDupla2,
-                    gamesD2 = p.GamesDupla2
-                }).ToListAsync();
+                .ToListAsync();
 
-            return Json(partidas);
+            var resultado = partidas.Select(p => new {
+                id = p.Id,
+                jogador1IdD1 = p.Dupla1.Jogador1Id,
+                jogador1NomeD1 = p.Dupla1.Jogador1.Nome,
+                jogador2IdD1 = p.Dupla1.Jogador2Id,
+                jogador2NomeD1 = p.Dupla1.Jogador2.Nome,
+                jogador1IdD2 = p.Dupla2.Jogador1Id,
+                jogador1NomeD2 = p.Dupla2.Jogador1.Nome,
+                jogador2IdD2 = p.Dupla2.Jogador2Id,
+                jogador2NomeD2 = p.Dupla2.Jogador2.Nome,
+                setsD1 = p.SetsDupla1,
+                gamesD1 = p.GamesDupla1,
+                setsD2 = p.SetsDupla2,
+                gamesD2 = p.GamesDupla2,
+                titulosD1 = Titulos(p.Dupla1.Jogador1Id) + Titulos(p.Dupla1.Jogador2Id),
+                titulosD2 = Titulos(p.Dupla2.Jogador1Id) + Titulos(p.Dupla2.Jogador2Id)
+            }).ToList();
+
+            return Json(resultado);
+        }
+        public async Task<IActionResult> Jogos(int id, int? timeFiltroId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            // 1. Busca todas as partidas deste torneio e TRAZ JUNTO as Duplas, Jogadores e Times
+            var query = _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
+                .Where(p => p.TorneioId == id);
+
+            // 2. O Filtro Mágico: Se o usuário selecionou um time (ex: Nata Padel), mostra só os jogos deles
+            if (timeFiltroId.HasValue)
+            {
+                query = query.Where(p =>
+                    (p.Dupla1.Jogador1.TimeId == timeFiltroId || p.Dupla1.Jogador2.TimeId == timeFiltroId) ||
+                    (p.Dupla2.Jogador1.TimeId == timeFiltroId || p.Dupla2.Jogador2.TimeId == timeFiltroId)
+                );
+            }
+
+            var partidas = await query.ToListAsync();
+
+            // 3. Separando os jogos para as 3 abas na View
+            ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
+            ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada").OrderByDescending(p => p.HorarioFimReal).ToList();
+            ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
+
+            // 4. Mandando os times para o Dropdown de filtro na tela
+            ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeFiltroId);
+            ViewBag.Torneio = torneio;
+            ViewBag.TimeAtual = timeFiltroId; // Para manter o select preenchido após filtrar
+
+            // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
+            int? meuId = User.Identity?.IsAuthenticated == true
+                ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
+                : null;
+            ViewBag.MeuId = meuId;
+            ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
+
+            return View();
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GerarFaseGrupos(int torneioId, int categoriaId, DateTime dataHoraInicio)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            var duplasInscritas = await _context.Duplas
+                .Where(d => d.CategoriaId == categoriaId && d.Categoria.TorneioId == torneioId)
+                .ToListAsync();
+
+            if (duplasInscritas.Count < torneio.TamanhoGrupo)
+            {
+                TempData["Erro"] = "Número de duplas insuficiente para formar um grupo.";
+                return RedirectToAction("Detalhes", new { id = torneioId });
+            }
+
+            // 1. Embaralha as duplas para o sorteio
+            var rng = new Random();
+            var duplasSorteadas = duplasInscritas.OrderBy(d => rng.Next()).ToList();
+
+            // 2. Separa em Grupos (A, B, C...)
+            int numGrupos = (int)Math.Ceiling((double)duplasSorteadas.Count / torneio.TamanhoGrupo);
+            string alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            var novasPartidas = new List<Partida>();
+            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+
+            // Controle básico de horário (simulando 1 quadra para simplificar a leitura agora)
+            DateTime horarioAtual = dataHoraInicio;
+
+            for (int g = 0; g < numGrupos; g++)
+            {
+                string nomeGrupo = alfabeto[g].ToString();
+
+                // Pega as duplas deste grupo (ex: as 3 primeiras, depois as próximas 3...)
+                var duplasDoGrupo = duplasSorteadas.Skip(g * torneio.TamanhoGrupo).Take(torneio.TamanhoGrupo).ToList();
+
+                // Salva a letra do grupo na Dupla para a Tabela de Classificação depois
+                foreach (var dupla in duplasDoGrupo)
+                {
+                    dupla.Grupo = nomeGrupo;
+                    _context.Update(dupla);
+                }
+
+                // 3. Gera os jogos (Todos contra Todos dentro do grupo)
+                // Se for grupo de 3, gera: 1x2, 1x3, 2x3
+                for (int i = 0; i < duplasDoGrupo.Count; i++)
+                {
+                    for (int j = i + 1; j < duplasDoGrupo.Count; j++)
+                    {
+                        var partida = new Partida
+                        {
+                            TorneioId = torneioId,
+                            CategoriaId = categoriaId,
+                            Dupla1Id = duplasDoGrupo[i].Id,
+                            Dupla2Id = duplasDoGrupo[j].Id,
+                            Fase = $"Grupo {nomeGrupo}", // Salva como "Grupo A", "Grupo B"
+                            Status = "Agendada",
+                            HorarioPrevisto = horarioAtual,
+                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                        };
+
+                        novasPartidas.Add(partida);
+                        horarioAtual = horarioAtual.AddMinutes(tempoPartida); // Avança o relógio
+                    }
+                }
+            }
+
+            _context.Partidas.AddRange(novasPartidas);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Fase de Grupos gerada! {numGrupos} grupos criados e {novasPartidas.Count} partidas agendadas.";
+            return RedirectToAction("Jogos", new { id = torneioId });
+        }
+        // GET: Torneios/Classificacao/5?categoriaId=1
+        public async Task<IActionResult> Classificacao(int id, int categoriaId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            // 1. Busca as duplas desta categoria que já têm um Grupo definido
+            var duplas = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .Where(d => d.Categoria.TorneioId == id && d.CategoriaId == categoriaId && d.Grupo != null)
+                .ToListAsync();
+
+            // 2. Busca todas as partidas finalizadas desta fase de grupos
+            var partidas = await _context.Partidas
+                .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId && p.Status == "Finalizada" && p.Fase.StartsWith("Grupo"))
+                .ToListAsync();
+
+            var listaClassificacao = new List<ClassificacaoGrupoViewModel>();
+
+            // 3. O Cálculo Matemático para cada dupla
+            foreach (var dupla in duplas)
+            {
+                var stats = new ClassificacaoGrupoViewModel { Dupla = dupla, Grupo = dupla.Grupo! };
+
+                // Pega só os jogos onde essa dupla jogou
+                var jogosDaDupla = partidas.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
+                stats.JogosJogados = jogosDaDupla.Count;
+
+                foreach (var jogo in jogosDaDupla)
+                {
+                    // Descobre se a dupla atual é a Dupla1 ou Dupla2 no registro da partida
+                    bool ehDupla1 = jogo.Dupla1Id == dupla.Id;
+
+                    int meusGames = ehDupla1 ? (jogo.GamesDupla1 ?? 0) : (jogo.GamesDupla2 ?? 0);
+                    int gamesAdversario = ehDupla1 ? (jogo.GamesDupla2 ?? 0) : (jogo.GamesDupla1 ?? 0);
+
+                    stats.GamesPro += meusGames;
+                    stats.GamesContra += gamesAdversario;
+
+                    if (meusGames > gamesAdversario) stats.Vitorias++;
+                    else if (gamesAdversario > meusGames) stats.Derrotas++;
+                }
+
+                listaClassificacao.Add(stats);
+            }
+
+            // 4. O Agrupamento e a Regra de Desempate (Muito importante!)
+            // Agrupamos por Letra do Grupo e ordenamos primeiro por Vitória e depois por Saldo de Games
+            var classificacaoFinal = listaClassificacao
+                .GroupBy(c => c.Grupo)
+                .OrderBy(g => g.Key)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.SaldoGames).ToList()
+                );
+
+            ViewBag.Torneio = torneio;
+            ViewBag.RegraClassificados = torneio.ClassificadosPorGrupo; // Para pintar de verde quem passa de fase
+
+            return View(classificacaoFinal);
         }
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> GerarMataMata(int categoriaId, int torneioId)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GerarMataMata(int torneioId, int categoriaId, DateTime dataHoraInicio)
         {
-            var categoria = await _context.Categorias
-                .Include(c => c.GruposTorneio)
-                    .ThenInclude(g => g.Duplas)
-                .FirstOrDefaultAsync(c => c.Id == categoriaId);
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
 
-            if (categoria == null) return NotFound();
-
-            // 1. Puxa as partidas do grupo para calcular quem passou
-            var partidasFinalizadas = await _context.Partidas
-                .Where(p => p.CategoriaId == categoriaId && p.Status == "Finalizada")
+            // 1. Busca todas as duplas e jogos finalizados dos Grupos para calcular quem passou
+            var duplas = await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == torneioId && d.CategoriaId == categoriaId && d.Grupo != null)
                 .ToListAsync();
+
+            var partidasGrupos = await _context.Partidas
+                .Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Status == "Finalizada" && p.Fase.StartsWith("Grupo"))
+                .ToListAsync();
+
+            // 2. Calcula a classificação em memória (O mesmo motor da tela visual)
+            var classificacao = duplas.Select(dupla =>
+            {
+                var jogos = partidasGrupos.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
+                int vitorias = 0, saldo = 0;
+
+                foreach (var jogo in jogos)
+                {
+                    bool ehDupla1 = jogo.Dupla1Id == dupla.Id;
+                    int pro = ehDupla1 ? (jogo.GamesDupla1 ?? 0) : (jogo.GamesDupla2 ?? 0);
+                    int contra = ehDupla1 ? (jogo.GamesDupla2 ?? 0) : (jogo.GamesDupla1 ?? 0);
+
+                    saldo += (pro - contra);
+                    if (pro > contra) vitorias++;
+                }
+                return new { Dupla = dupla, Vitorias = vitorias, Saldo = saldo, Grupo = dupla.Grupo };
+            })
+            .GroupBy(c => c.Grupo)
+            .OrderBy(g => g.Key) // Ordena os grupos: A, B, C, D...
+            .ToList();
 
             var primeirosColocados = new List<Dupla>();
             var segundosColocados = new List<Dupla>();
 
-            // Garante a ordem alfabética dos grupos (A, B, C, D...)
-            var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
-
-            // 2. Calcula o Ranking de cada grupo (Igual fizemos na tela do celular)
-            foreach (var grupo in grupos)
+            // 3. Extrai os 1º e 2º colocados de cada grupo
+            foreach (var grupo in classificacao)
             {
-                foreach (var dupla in grupo.Duplas)
-                {
-                    var meusJogos = partidasFinalizadas.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
-                    dupla.Vitorias = meusJogos.Count(p => p.VencedorId == dupla.Id);
+                var rankingDoGrupo = grupo.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ToList();
 
-                    int gf = meusJogos.Where(p => p.Dupla1Id == dupla.Id).Sum(p => p.GamesDupla1 ?? 0) +
-                             meusJogos.Where(p => p.Dupla2Id == dupla.Id).Sum(p => p.GamesDupla2 ?? 0);
-                    int gc = meusJogos.Where(p => p.Dupla1Id == dupla.Id).Sum(p => p.GamesDupla2 ?? 0) +
-                             meusJogos.Where(p => p.Dupla2Id == dupla.Id).Sum(p => p.GamesDupla1 ?? 0);
-                    dupla.SaldoGames = gf - gc;
-                }
-
-                var ranking = grupo.Duplas.OrderByDescending(d => d.Vitorias).ThenByDescending(d => d.SaldoGames).ToList();
-
-                // Separa a elite!
-                if (ranking.Count >= 1) primeirosColocados.Add(ranking[0]);
-                if (ranking.Count >= 2) segundosColocados.Add(ranking[1]);
+                if (rankingDoGrupo.Count > 0) primeirosColocados.Add(rankingDoGrupo[0].Dupla);
+                if (rankingDoGrupo.Count > 1) segundosColocados.Add(rankingDoGrupo[1].Dupla);
             }
 
-            // 3. O CRUZAMENTO OLÍMPICO (1º do Início x 2º do Fim)
-            int totalGrupos = grupos.Count;
-            string nomeFase = totalGrupos > 2 ? "Quartas de Final" : "Semifinal"; // Inteligência de nomenclatura
+            if (primeirosColocados.Count != segundosColocados.Count || primeirosColocados.Count == 0)
+            {
+                TempData["Erro"] = "Não foi possível gerar o Mata-Mata. Verifique se todos os jogos da fase de grupos foram finalizados e se há duplas suficientes.";
+                return RedirectToAction("Jogos", new { id = torneioId });
+            }
 
-            for (int i = 0; i < primeirosColocados.Count; i++)
+            // 4. Define o nome da Fase baseado na quantidade de jogos
+            int totalJogosMataMata = primeirosColocados.Count;
+            string nomeFase = totalJogosMataMata switch
+            {
+                1 => "Final",
+                2 => "Semifinal",
+                4 => "Quartas de Final",
+                8 => "Oitavas de Final",
+                _ => $"Mata-Mata ({totalJogosMataMata} jogos)"
+            };
+
+            var novasPartidas = new List<Partida>();
+            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            DateTime horarioAtual = dataHoraInicio;
+            int numeroGrupos = primeirosColocados.Count;
+
+            // 5. O CRUZAMENTO MÁGICO EM "X" (1º do Grupo I contra o 2º do Último Grupo - I)
+            for (int i = 0; i < numeroGrupos; i++)
             {
                 var dupla1 = primeirosColocados[i];
+                // Pega o 2º colocado de trás pra frente (Ex: Se i=0 (Grupo A), pega N-1-0 (Último Grupo))
+                var dupla2 = segundosColocados[numeroGrupos - 1 - i];
 
-                // A Matemática do cruzamento: O 1º do Index [i] pega o 2º do Index [Oposto]
-                var duplaOposta = segundosColocados[totalGrupos - 1 - i];
-
-                var novaPartida = new Partida
+                novasPartidas.Add(new Partida
                 {
                     TorneioId = torneioId,
                     CategoriaId = categoriaId,
                     Dupla1Id = dupla1.Id,
-                    Dupla2Id = duplaOposta.Id,
+                    Dupla2Id = dupla2.Id,
+                    Fase = nomeFase,
                     Status = "Agendada",
-                    Fase = nomeFase // Grava se é Quartas ou Semis no banco
-                };
-                _context.Partidas.Add(novaPartida);
+                    HorarioPrevisto = horarioAtual,
+                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                });
+
+                horarioAtual = horarioAtual.AddMinutes(tempoPartida);
             }
 
+            _context.Partidas.AddRange(novasPartidas);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("Details", new { id = torneioId });
+            TempData["Sucesso"] = $"Fase {nomeFase} gerada com sucesso! {novasPartidas.Count} partidas agendadas.";
+            return RedirectToAction("Jogos", new { id = torneioId });
         }
+        
     }
 }
