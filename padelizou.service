@@ -1,6 +1,8 @@
 [Unit]
 Description=Padelizou - App de torneios e aulas de padel
-After=network.target mssql-server.service
+# O banco fica no Azure SQL (remoto) - só precisa da rede local, não de um SQL Server na mesma máquina.
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=notify
@@ -15,7 +17,8 @@ User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
 
-# Preencher os valores reais antes de "systemctl daemon-reload" — ver DEPLOY.md seção 1.
+# Preencher os valores reais antes de "systemctl daemon-reload" — ver DEPLOY.md seção 3.
+# Formato esperado: Server=tcp:SEUSERVIDOR.database.windows.net,1433;Database=DB_PADEL;User Id=...;Password=...;Encrypt=True;
 Environment="ConnectionStrings__DefaultConnection=REPLACE_ME"
 Environment="EmailSettings__SmtpHost=smtp.gmail.com"
 Environment="EmailSettings__SmtpPort=587"
