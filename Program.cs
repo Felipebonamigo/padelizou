@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
+using padelizou.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +36,48 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
+
+// Garante que o catálogo fixo de categorias existe no banco (idempotente, casa pelo Nome — é o
+// que decide se aparece duplicado pro usuário; Codigo é só um identificador interno, sem
+// constraint de unicidade, e diverge entre ambientes que foram semeados em momentos diferentes).
+// Evita depender de rodar um script manual toda vez que um ambiente novo é provisionado.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
+    var catalogoCategorias = new (string Nome, string Codigo, string Tipo)[]
+    {
+        ("Categoria Open Masculino", "1CatM", "Masculina"),
+        ("2ª Categoria Masculina", "2CM", "Masculina"),
+        ("3ª Categoria Masculina", "3CatM", "Masculina"),
+        ("4ª Categoria Masculina", "4CatM", "Masculina"),
+        ("5ª Categoria Masculina", "5CatM", "Masculina"),
+        ("6ª Categoria Masculina", "6CatM", "Masculina"),
+        ("7ª Categoria Masculina", "7CatM", "Masculina"),
+        ("Categoria Iniciantes Masculina", "ICatM", "Masculina"),
+        ("Categoria Open Feminina", "1CatF", "Feminina"),
+        ("2ª Categoria Feminina", "2CatF", "Feminina"),
+        ("3ª Categoria Feminina", "3CatF", "Feminina"),
+        ("4ª Categoria Feminina", "4CatF", "Feminina"),
+        ("5ª Categoria Feminina", "5CatF", "Feminina"),
+        ("6ª Categoria Feminina", "6CatF", "Feminina"),
+        ("7ª Categoria Feminina", "7CatF", "Feminina"),
+        ("Categoria Iniciantes Feminina", "ICatF", "Feminina"),
+        ("Categoria Mista A", "MISTA-A", "Mista"),
+        ("Categoria Mista B", "MISTA-B", "Mista"),
+        ("Categoria Mista C", "MISTA-C", "Mista"),
+        ("Categoria Mista D", "MISTA-D", "Mista"),
+    };
+
+    var nomesExistentes = db.CategoriasPadrao.Select(c => c.Nome).ToHashSet();
+    foreach (var (nome, codigo, tipo) in catalogoCategorias)
+    {
+        if (!nomesExistentes.Contains(nome))
+        {
+            db.CategoriasPadrao.Add(new CategoriaPadrao { Nome = nome, Codigo = codigo, Tipo = tipo });
+        }
+    }
+    db.SaveChanges();
+}
 
 // Configure the HTTP request pipeline.
 
