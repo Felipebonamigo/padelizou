@@ -66,6 +66,8 @@ public class ResumoJogadorVM
     public int Semis { get; set; }
     public int Quartas { get; set; }
     public int CaiuNaChave { get; set; }
+    public int Vitorias { get; set; }
+    public int Derrotas { get; set; }
 }
 
 // Parceiro de dupla mais frequente ("joga sempre com")

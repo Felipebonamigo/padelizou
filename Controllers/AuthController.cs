@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
+using Padelizou.Services;
 using System.Security.Claims;
 
 namespace padelizou.Controllers
@@ -15,12 +16,14 @@ namespace padelizou.Controllers
         private readonly DbPadelContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly IPasswordHasher<Jogador> _passwordHasher;
+        private readonly IEstatisticasService _estatisticas;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas)
         {
             _context = context;
             _env = env;
             _passwordHasher = passwordHasher;
+            _estatisticas = estatisticas;
         }
 
         [HttpGet]
@@ -74,6 +77,16 @@ namespace padelizou.Controllers
                 .Include(jg => jg.GrupoPrivado)
                 .Where(jg => jg.JogadorId == jogadorId)
                 .OrderByDescending(jg => jg.PontuacaoInterna)
+                .ToListAsync();
+
+            // Resumo de torneios (vitórias/derrotas/vezes campeão) pro dashboard não depender de
+            // ir até Jogadores/Perfil só pra ver esses números.
+            ViewBag.Resumo = await _estatisticas.ObterResumoJogadorAsync(jogadorId);
+            ViewBag.HistoricoTorneios = await _context.Duplas
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+                .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
+                .Take(5)
                 .ToListAsync();
 
             return View(jogador);

@@ -291,6 +291,16 @@ public class EstatisticasService : IEstatisticasService
             .Select(d => d.UltimaFase)
             .ToListAsync();
 
+        int vitorias = 0, derrotas = 0;
+        var partidas = await CarregarPartidasFinalizadasAsync();
+        foreach (var p in partidas)
+        {
+            var (minhaDupla, oppDupla) = LocalizarDuplas(p, jogadorId);
+            if (minhaDupla == null || oppDupla == null) continue;
+
+            if (p.VencedorId == minhaDupla.Id) vitorias++; else derrotas++;
+        }
+
         return new ResumoJogadorVM
         {
             TotalTorneios = fases.Count,
@@ -298,7 +308,9 @@ public class EstatisticasService : IEstatisticasService
             Finais = fases.Count(f => f == "Final"),
             Semis = fases.Count(f => f == "Semifinal"),
             Quartas = fases.Count(f => f == "Quartas de Final"),
-            CaiuNaChave = fases.Count(f => f == "Quartas de Final" || f == "Semifinal" || f == "Final")
+            CaiuNaChave = fases.Count(f => f == "Quartas de Final" || f == "Semifinal" || f == "Final"),
+            Vitorias = vitorias,
+            Derrotas = derrotas
         };
     }
 
