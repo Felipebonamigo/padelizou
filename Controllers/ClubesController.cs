@@ -17,6 +17,7 @@ namespace padelizou.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> Criar(string nome, string? endereco)
         {
             if (string.IsNullOrWhiteSpace(nome))
