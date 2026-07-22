@@ -1,0 +1,187 @@
+@model Padelizou.ViewModels.PainelProfessorViewModel
+@{
+    ViewData["Title"] = "Painel do Professor - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Painel do Professor</h2>
+            <p class="text-muted mb-0">Sua visão geral: alunos, locais, agenda e financeiro.</p>
+        </div>
+        <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 bg-light p-3 text-center h-100">
+                <div class="fs-3 fw-bold" style="color: var(--padel-blue);">@Model.TotalAlunosAtivos</div>
+                <div class="small text-muted">Alunos</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 bg-light p-3 text-center h-100">
+                <div class="fs-3 fw-bold" style="color: var(--padel-blue);">@Model.AulasEstaSemana</div>
+                <div class="small text-muted">Aulas essa semana</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 p-3 text-center h-100" style="background-color:#fff8e1;">
+                <div class="fs-3 fw-bold text-warning">@Model.AulasPendentes</div>
+                <div class="small text-muted">Aguardando aceite</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+            <div class="card border-0 p-3 text-center h-100" style="background-color:#e9f7ef;">
+                <div class="fs-3 fw-bold text-success">@Model.FinanceiroMesAtual.TotalRecebido.ToString("C")</div>
+                <div class="small text-muted">
+                    Ganho no mês
+                    @if (Model.FinanceiroMesAtual.TotalGasto.HasValue)
+                    {
+                        <span class="text-danger d-block">Gasto: @Model.FinanceiroMesAtual.TotalGasto.Value.ToString("C")</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-padel rounded-pill btn-sm">
+            <i class="bi bi-calendar3"></i> Minha Agenda
+        </a>
+        <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-geo-alt"></i> Meus Locais
+        </a>
+        <a asp-controller="Aulas" asp-action="MeusHorarios" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-clock"></i> Meus Horários
+        </a>
+        <a asp-controller="Aulas" asp-action="MinhasCidades" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-pin-map"></i> Minhas Cidades
+        </a>
+        <a asp-controller="Aulas" asp-action="Relatorio" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-graph-up"></i> Relatório completo
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold text-muted mb-3"><i class="bi bi-people"></i> Alunos</h5>
+                    @if (Model.Alunos.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th class="text-center">Aulas</th>
+                                        <th>Última aula</th>
+                                        <th>Próxima</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var aluno in Model.Alunos)
+                                    {
+                                        <tr>
+                                            <td>@aluno.Nome</td>
+                                            <td class="text-center">@aluno.TotalAulas</td>
+                                            <td class="small text-muted">@aluno.UltimaAula.ToString("dd/MM/yyyy")</td>
+                                            <td class="small text-muted">@(aluno.ProximaAula.HasValue ? aluno.ProximaAula.Value.ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Nenhum aluno ainda.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold text-muted mb-3"><i class="bi bi-calendar-check"></i> Próximas aulas</h5>
+                    @if (Model.ProximasAulas.Any())
+                    {
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var aula in Model.ProximasAulas)
+                            {
+                                var nomeAluno = aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno avulso";
+                                var badgeClass = aula.Status == "Pendente" ? "bg-warning text-dark" : "bg-primary";
+                                <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div>
+                                        <div class="fw-bold small">@nomeAluno</div>
+                                        <div class="text-muted small">@aula.LocalAula.Nome — @aula.DataHora.ToString("dd/MM/yyyy HH:mm")</div>
+                                    </div>
+                                    <span class="badge @badgeClass">@aula.Status</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Nenhuma aula marcada nos próximos dias.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold text-muted mb-3"><i class="bi bi-geo-alt"></i> Meus locais</h5>
+                    @if (Model.Locais.Any())
+                    {
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var local in Model.Locais)
+                            {
+                                <li class="d-flex justify-content-between align-items-center py-2 border-bottom @(local.Ativo ? "" : "opacity-50")">
+                                    <div>
+                                        <div class="fw-bold small">@local.Nome</div>
+                                        <div class="text-muted small">@local.Endereco</div>
+                                    </div>
+                                    <span class="small text-success fw-bold">@local.PrecoPadrao.ToString("C")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Nenhum local cadastrado ainda.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold text-muted mb-3"><i class="bi bi-pin-map"></i> Minhas cidades</h5>
+                    @if (Model.MinhasCidades.Any())
+                    {
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var cidade in Model.MinhasCidades)
+                            {
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-3 py-2">
+                                    @cidade.Nome@(string.IsNullOrEmpty(cidade.Estado) ? "" : $" - {cidade.Estado}")
+                                </span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">
+                            Você ainda não cadastrou cidades.
+                            <a asp-controller="Aulas" asp-action="MinhasCidades">Cadastrar agora</a>.
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

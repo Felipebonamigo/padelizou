@@ -1,11 +1,21 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
 using padelizou.Models;
+using System.Globalization;
+
+// No Windows o processo herda a cultura pt-BR do SO, mas no Linux (produção) não há esse
+// fallback e ele cai na invariant culture — daí o "¤" no lugar de "R$" em .ToString("C").
+// Fixamos a cultura padrão da thread/processo aqui para que valha também fora de requests
+// HTTP (ex: o LembreteJogoBackgroundService).
+var culturaPadrao = new CultureInfo("pt-BR");
+CultureInfo.DefaultThreadCurrentCulture = culturaPadrao;
+CultureInfo.DefaultThreadCurrentUICulture = culturaPadrao;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +27,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.Configure<AcessoAntecipadoSettings>(builder.Configuration.GetSection("AcessoAntecipado"));
 builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
+builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
@@ -24,6 +35,7 @@ builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
 builder.Services.AddScoped<ISessaoGrupoService, SessaoGrupoService>();
 builder.Services.AddHttpClient<IWhatsAppService, WhatsAppApiService>();
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -92,6 +104,13 @@ forwardedHeadersOptions.KnownNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
+app.UseRequestLocalization(new RequestLocalizationOptions
+{
+    DefaultRequestCulture = new RequestCulture(culturaPadrao),
+    SupportedCultures = new[] { culturaPadrao },
+    SupportedUICultures = new[] { culturaPadrao }
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -100,6 +119,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// MapStaticAssets() (abaixo) só serve os arquivos que já existiam em wwwroot no momento do
+// publish (manifest gerado em build) — uploads feitos em runtime (foto de perfil, etc.) não
+// entram nesse manifest e voltavam 404. UseStaticFiles cobre esse caso (serve wwwroot direto do
+// disco, sem manifest), então mantemos os dois.
+app.UseStaticFiles();
 app.UseMiddleware<AcessoAntecipadoMiddleware>();
 app.UseRouting();
 

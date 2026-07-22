@@ -1,0 +1,61 @@
+@model IEnumerable<Padelizou.ViewModels.MinhaCidadeItem>
+@{
+    ViewData["Title"] = "Minhas Cidades - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);">Minhas Cidades</h2>
+            <p class="text-muted mb-0">Escolha em quais cidades você atende. Isso ajuda o aluno a te encontrar por região.</p>
+        </div>
+        <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">Voltar ao Painel</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <form asp-controller="Aulas" asp-action="AtualizarCidades" method="post">
+                <h6 class="fw-bold text-muted mb-3">Cidades cadastradas</h6>
+
+                @if (Model != null && Model.Any())
+                {
+                    <div class="row mb-4">
+                        @foreach (var item in Model)
+                        {
+                            <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="cidade-@item.CidadeId"
+                                           name="cidadeIds" value="@item.CidadeId" @(item.Vinculada ? "checked" : "") />
+                                    <label class="form-check-label" for="cidade-@item.CidadeId">
+                                        @item.Nome@(string.IsNullOrEmpty(item.Estado) ? "" : $" - {item.Estado}")
+                                    </label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">Nenhuma cidade cadastrada ainda. Adicione a sua abaixo.</p>
+                }
+
+                <h6 class="fw-bold text-muted mb-2">Não encontrou sua cidade?</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <input type="text" name="novaCidadeNome" class="form-control" placeholder="Nome da cidade" />
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="novaCidadeUf" class="form-control" placeholder="UF" maxlength="2" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-padel rounded-pill">Salvar</button>
+            </form>
+        </div>
+    </div>
+</div>

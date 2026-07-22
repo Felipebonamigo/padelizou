@@ -11,3 +11,16 @@ public class PalpiteResumoVM
     public double PercentualDupla2 => TotalVotos == 0 ? 0 : Math.Round(VotosDupla2 * 100.0 / TotalVotos, 1);
     public int? MeuVotoDuplaId { get; set; }
 }
+
+// Lista de quem votou em quem, pro botão "ver quem votou" do palpitrômetro.
+public class VotantesPartidaVM
+{
+    public List<VotanteVM> VotantesDupla1 { get; set; } = new();
+    public List<VotanteVM> VotantesDupla2 { get; set; } = new();
+}
+
+public class VotanteVM
+{
+    public string Nome { get; set; } = null!;
+    public string? FotoPerfil { get; set; }
+}

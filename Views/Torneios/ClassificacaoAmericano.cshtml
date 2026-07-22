@@ -1,0 +1,47 @@
+@model List<Padelizou.ViewModels.ClassificacaoAmericanoItemVM>
+@{
+    var torneio = ViewBag.Torneio as Padelizou.Models.Torneio;
+    ViewData["Title"] = "Classificação - " + torneio?.Nome;
+}
+
+<div class="container mt-4 mb-5">
+    <h3 class="fw-bold mb-4" style="color: var(--padel-blue);">
+        <i class="bi bi-list-ol"></i> Classificação Individual — @torneio?.Nome
+    </h3>
+
+    @if (!Model.Any())
+    {
+        <p class="text-muted">Nenhuma partida finalizada ainda nesta categoria.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle bg-white shadow-sm rounded">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Jogador</th>
+                        <th class="text-end">Total de Games</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Count; i++)
+                    {
+                        <tr>
+                            <td class="fw-bold">@(i + 1)@(i < 4 ? " 🏅" : "")</td>
+                            <td>
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model[i].Jogador.Id" class="text-decoration-none text-dark d-flex align-items-center gap-2">
+                                    <img src="@(string.IsNullOrEmpty(Model[i].Jogador.FotoPerfil) ? "/img/default-avatar.png" : Model[i].Jogador.FotoPerfil)"
+                                         class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
+                                    @Model[i].Jogador.Nome
+                                </a>
+                            </td>
+                            <td class="text-end fw-bold">@Model[i].TotalGames</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted small">🏅 Os 4 primeiros colocados disputam a final automática (1º+4º x 2º+3º) assim que todas as rodadas forem finalizadas.</p>
+    }
+</div>

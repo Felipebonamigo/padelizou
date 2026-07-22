@@ -15,7 +15,8 @@ public class AcessoAntecipadoMiddleware
 
     private static readonly string[] PrefixosLiberados =
     {
-        "/AcessoAntecipado", "/lib", "/css", "/js", "/image", "/uploads", "/favicon", "/Agenda/Feed"
+        "/AcessoAntecipado", "/lib", "/css", "/js", "/image", "/uploads", "/favicon", "/Agenda/Feed",
+        "/manifest.json", "/sw.js"
     };
 
     private readonly RequestDelegate _next;

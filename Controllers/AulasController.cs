@@ -34,15 +34,30 @@ namespace padelizou.Controllers
 
         // ===================== BUSCA E SOLICITAÇÃO (ALUNO) =====================
 
-        // 1. TELA DE BUSCA (professor -> local -> horário)
+        // 1. TELA DE BUSCA (cidade -> professor -> local -> horário)
         [HttpGet]
         public async Task<IActionResult> Solicitar()
         {
-            var professores = await _context.Jogadores
-                .Where(j => j.IsProfessor)
+            var cidadesComProfessor = await _context.ProfessorCidades
+                .Where(pc => pc.Professor.IsProfessor)
+                .Select(pc => pc.Cidade)
+                .Distinct()
+                .OrderBy(c => c.Nome)
                 .ToListAsync();
 
-            return View(professores);
+            return View(new SolicitarViewModel { Cidades = cidadesComProfessor });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ObterProfessoresPorCidade(int cidadeId)
+        {
+            var professores = await _context.ProfessorCidades
+                .Where(pc => pc.CidadeId == cidadeId && pc.Professor.IsProfessor)
+                .Select(pc => new { pc.Professor.Id, pc.Professor.Nome })
+                .OrderBy(p => p.Nome)
+                .ToListAsync();
+
+            return Json(professores);
         }
 
         [HttpGet]
@@ -113,9 +128,11 @@ namespace padelizou.Controllers
             return Json(slots.Select(s => new { valor = s.ToString("yyyy-MM-ddTHH:mm:ss") }));
         }
 
-        // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar)
+        // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar) — pode gerar uma aula
+        // avulsa, uma série de pacote (quantidade fixa do local) ou uma série fixa semanal.
         [HttpPost]
-        public async Task<IActionResult> Solicitar(int professorId, int localId, DateTime dataHora)
+        public async Task<IActionResult> Solicitar(int professorId, int localId, DateTime dataHora,
+            bool ehPacote, bool recorrente, int semanasRecorrencia)
         {
             var alunoIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(alunoIdValue, out var alunoId))
@@ -130,70 +147,144 @@ namespace padelizou.Controllers
                 return RedirectToAction("Solicitar");
             }
 
-            bool horarioOcupado = await _context.Aulas
-                .AnyAsync(a => a.ProfessorId == professorId &&
-                               a.DataHora == dataHora &&
-                               (a.Status == "Pendente" || a.Status == "Confirmada"));
+            int quantidade;
+            decimal precoPorAula;
+            var pacoteValido = ehPacote && local.PacoteAtivo && local.PacoteQuantidadeAulas is > 0 && local.PacotePreco.HasValue;
 
-            if (horarioOcupado)
+            if (pacoteValido)
             {
-                TempData["Erro"] = "Este horário acabou de ser reservado. Escolha outro.";
+                quantidade = local.PacoteQuantidadeAulas!.Value;
+                precoPorAula = Math.Round(local.PacotePreco!.Value / quantidade, 2);
+            }
+            else if (recorrente)
+            {
+                quantidade = Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia);
+                precoPorAula = local.PrecoPadrao;
+            }
+            else
+            {
+                quantidade = 1;
+                precoPorAula = local.PrecoPadrao;
+            }
+
+            var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
+            var novasAulas = new List<Aula>();
+            var puladas = 0;
+
+            for (var i = 0; i < quantidade; i++)
+            {
+                var horario = dataHora.AddDays(7 * i);
+
+                var ocupado = await _context.Aulas.AnyAsync(a =>
+                    a.ProfessorId == professorId &&
+                    a.DataHora == horario &&
+                    (a.Status == "Pendente" || a.Status == "Confirmada"));
+
+                if (ocupado)
+                {
+                    puladas++;
+                    continue;
+                }
+
+                // Ajusta o resto da divisão do pacote na última aula, pra fechar exatamente com PacotePreco
+                var preco = pacoteValido && i == quantidade - 1
+                    ? local.PacotePreco!.Value - precoPorAula * (quantidade - 1)
+                    : precoPorAula;
+
+                novasAulas.Add(new Aula
+                {
+                    ProfessorId = professorId,
+                    AlunoId = alunoId,
+                    LocalAulaId = localId,
+                    DataHora = horario,
+                    Preco = preco,
+                    Status = "Pendente",
+                    RecorrenciaId = recorrenciaId
+                });
+            }
+
+            if (novasAulas.Count == 0)
+            {
+                TempData["Erro"] = "Todos os horários dessa série já estão ocupados. Escolha outro horário.";
                 return RedirectToAction("Solicitar");
             }
 
-            var novaAula = new Aula
-            {
-                ProfessorId = professorId,
-                AlunoId = alunoId,
-                LocalAulaId = localId,
-                DataHora = dataHora,
-                Preco = local.PrecoPadrao,
-                Status = "Pendente"
-            };
-
-            _context.Aulas.Add(novaAula);
+            _context.Aulas.AddRange(novasAulas);
             await _context.SaveChangesAsync();
 
             var professor = await _context.Jogadores.FindAsync(professorId);
             var aluno = await _context.Jogadores.FindAsync(alunoId);
 
-            var linkAceitar = Url.Action("ConfirmarPorEmail", "Aulas",
-                new { aulaId = novaAula.Id, token = novaAula.TokenConfirmacao, aceitar = true }, Request.Scheme);
-            var linkRecusar = Url.Action("ConfirmarPorEmail", "Aulas",
-                new { aulaId = novaAula.Id, token = novaAula.TokenConfirmacao, aceitar = false }, Request.Scheme);
-
             try
             {
-                await _emailService.EnviarAsync(professor!.Email!, professor.Nome,
-                    "Nova solicitação de aula - Padelizou",
-                    $@"<p>Olá {professor.Nome},</p>
-                       <p><strong>{aluno!.Nome}</strong> solicitou uma aula em <strong>{local.Nome}</strong>
-                       no dia <strong>{dataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>
-                       <p>
-                         <a href=""{linkAceitar}"" style=""padding:10px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;"">Aceitar</a>
-                         &nbsp;
-                         <a href=""{linkRecusar}"" style=""padding:10px 20px;background:#dc3545;color:#fff;text-decoration:none;border-radius:6px;"">Recusar</a>
-                       </p>");
+                if (novasAulas.Count == 1)
+                {
+                    var aula = novasAulas[0];
+                    var linkAceitar = Url.Action("ConfirmarPorEmail", "Aulas",
+                        new { aulaId = aula.Id, token = aula.TokenConfirmacao, aceitar = true }, Request.Scheme);
+                    var linkRecusar = Url.Action("ConfirmarPorEmail", "Aulas",
+                        new { aulaId = aula.Id, token = aula.TokenConfirmacao, aceitar = false }, Request.Scheme);
+
+                    await _emailService.EnviarAsync(professor!.Email!, professor.Nome,
+                        "Nova solicitação de aula - Padelizou",
+                        $@"<p>Olá {professor.Nome},</p>
+                           <p><strong>{aluno!.Nome}</strong> solicitou uma aula em <strong>{local.Nome}</strong>
+                           no dia <strong>{aula.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>
+                           <p>
+                             <a href=""{linkAceitar}"" style=""padding:10px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;"">Aceitar</a>
+                             &nbsp;
+                             <a href=""{linkRecusar}"" style=""padding:10px 20px;background:#dc3545;color:#fff;text-decoration:none;border-radius:6px;"">Recusar</a>
+                           </p>");
+                }
+                else
+                {
+                    var linkAgenda = Url.Action("MinhaAgenda", "Aulas", null, Request.Scheme);
+                    var tipoSerie = pacoteValido ? "pacote" : "série fixa semanal";
+                    var listaDatas = string.Join("", novasAulas.Select(a => $"<li>{a.DataHora:dd/MM/yyyy 'às' HH:mm}</li>"));
+
+                    await _emailService.EnviarAsync(professor!.Email!, professor.Nome,
+                        "Nova solicitação de aulas (série) - Padelizou",
+                        $@"<p>Olá {professor.Nome},</p>
+                           <p><strong>{aluno!.Nome}</strong> solicitou um {tipoSerie} de {novasAulas.Count} aula(s) em <strong>{local.Nome}</strong>:</p>
+                           <ul>{listaDatas}</ul>
+                           <p>Acesse sua <a href=""{linkAgenda}"">Minha Agenda</a> para aceitar tudo de uma vez ou aula por aula.</p>");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Falha ao enviar e-mail de solicitação para a aula {AulaId}", novaAula.Id);
+                _logger.LogWarning(ex, "Falha ao enviar e-mail de solicitação para a série de aulas do professor {ProfessorId}", professorId);
             }
 
-            return RedirectToAction("SolicitacaoEnviada", new { id = novaAula.Id });
+            return RedirectToAction("SolicitacaoEnviada", new { recorrenciaId, id = novasAulas[0].Id, puladas });
         }
 
         [HttpGet]
-        public async Task<IActionResult> SolicitacaoEnviada(int id)
+        public async Task<IActionResult> SolicitacaoEnviada(int id, Guid? recorrenciaId, int puladas = 0)
         {
-            var aula = await _context.Aulas
-                .Include(a => a.Professor)
-                .Include(a => a.LocalAula)
-                .FirstOrDefaultAsync(a => a.Id == id);
+            List<Aula> aulas;
 
-            if (aula == null) return NotFound();
+            if (recorrenciaId.HasValue)
+            {
+                aulas = await _context.Aulas
+                    .Include(a => a.Professor)
+                    .Include(a => a.LocalAula)
+                    .Where(a => a.RecorrenciaId == recorrenciaId)
+                    .OrderBy(a => a.DataHora)
+                    .ToListAsync();
+            }
+            else
+            {
+                var aula = await _context.Aulas
+                    .Include(a => a.Professor)
+                    .Include(a => a.LocalAula)
+                    .FirstOrDefaultAsync(a => a.Id == id);
+                aulas = aula != null ? new List<Aula> { aula } : new List<Aula>();
+            }
 
-            return View(aula);
+            if (aulas.Count == 0) return NotFound();
+
+            ViewBag.AulasPuladas = puladas;
+            return View(aulas);
         }
 
         // ===================== CONFIRMAÇÃO (PROFESSOR) =====================
@@ -221,6 +312,38 @@ namespace padelizou.Controllers
 
             var linkWhatsApp = await ProcessarDecisaoAsync(aula, aceitar);
             TempData["Sucesso"] = aceitar ? "Aula confirmada!" : "Solicitação recusada.";
+            TempData["WhatsAppLink"] = linkWhatsApp;
+
+            return RedirectToAction("MinhaAgenda");
+        }
+
+        // Aceita ou recusa de uma vez todas as aulas Pendentes de uma série (pacote ou fixa
+        // semanal) — alternativa ao aceite aula a aula que já existe em ConfirmarSolicitacao.
+        [HttpPost]
+        public async Task<IActionResult> ConfirmarSerie(Guid recorrenciaId, bool aceitar)
+        {
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdValue, out var professorId))
+            {
+                return RedirectToAction("Perfil", "Auth");
+            }
+
+            var aulas = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.Professor)
+                .Include(a => a.LocalAula)
+                .Where(a => a.RecorrenciaId == recorrenciaId && a.ProfessorId == professorId && a.Status == "Pendente")
+                .ToListAsync();
+
+            string? linkWhatsApp = null;
+            foreach (var aula in aulas)
+            {
+                linkWhatsApp = await ProcessarDecisaoAsync(aula, aceitar);
+            }
+
+            TempData["Sucesso"] = aceitar
+                ? $"{aulas.Count} aula(s) da série confirmada(s)!"
+                : $"{aulas.Count} aula(s) da série recusada(s).";
             TempData["WhatsAppLink"] = linkWhatsApp;
 
             return RedirectToAction("MinhaAgenda");
@@ -317,6 +440,76 @@ namespace padelizou.Controllers
             return WhatsAppLinkHelper.GerarLink(aula.Aluno!.Celular, mensagem);
         }
 
+        // ===================== PAINEL DO PROFESSOR =====================
+
+        [HttpGet]
+        public async Task<IActionResult> Dashboard()
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var todasAulas = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId)
+                .ToListAsync();
+
+            var hoje = DateTime.Today;
+            var inicioSemana = hoje.AddDays(-(int)hoje.DayOfWeek);
+            var fimSemana = inicioSemana.AddDays(7);
+
+            var alunos = todasAulas
+                .GroupBy(a => a.AlunoId.HasValue ? $"aluno-{a.AlunoId}" : $"avulso-{(a.NomeAlunoAvulso ?? "").Trim().ToLower()}")
+                .Select(g => new AlunoResumo
+                {
+                    Nome = g.First().Aluno?.Nome ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
+                    Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
+                    TotalAulas = g.Count(a => a.Status != "Cancelada" && a.Status != "Recusada"),
+                    UltimaAula = g.Max(a => a.DataHora),
+                    ProximaAula = g.Where(a => a.DataHora >= hoje && (a.Status == "Pendente" || a.Status == "Confirmada"))
+                                    .OrderBy(a => a.DataHora)
+                                    .Select(a => (DateTime?)a.DataHora)
+                                    .FirstOrDefault()
+                })
+                .OrderByDescending(a => a.UltimaAula)
+                .ToList();
+
+            var locais = await _context.LocaisAula
+                .Where(l => l.ProfessorId == professorId)
+                .OrderByDescending(l => l.Ativo)
+                .ThenBy(l => l.Nome)
+                .ToListAsync();
+
+            var cidades = await _context.ProfessorCidades
+                .Where(pc => pc.ProfessorId == professorId)
+                .Select(pc => pc.Cidade)
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            var inicioMes = new DateTime(hoje.Year, hoje.Month, 1);
+            var fimMes = inicioMes.AddMonths(1).AddSeconds(-1);
+            var financeiro = await CalcularRelatorioAsync(professorId.Value, inicioMes, fimMes);
+
+            var painel = new PainelProfessorViewModel
+            {
+                TotalAlunosAtivos = alunos.Count,
+                AulasEstaSemana = todasAulas.Count(a => a.DataHora >= inicioSemana && a.DataHora < fimSemana &&
+                                                         (a.Status == "Pendente" || a.Status == "Confirmada")),
+                AulasPendentes = todasAulas.Count(a => a.Status == "Pendente"),
+                FinanceiroMesAtual = financeiro,
+                Alunos = alunos,
+                Locais = locais,
+                ProximasAulas = todasAulas
+                    .Where(a => a.DataHora >= hoje && (a.Status == "Pendente" || a.Status == "Confirmada"))
+                    .OrderBy(a => a.DataHora)
+                    .Take(10)
+                    .ToList(),
+                MinhasCidades = cidades
+            };
+
+            return View(painel);
+        }
+
         // ===================== GESTÃO DO PROFESSOR =====================
 
         [HttpGet]
@@ -404,6 +597,79 @@ namespace padelizou.Controllers
             }
 
             return RedirectToAction("MeusLocais");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> MinhasCidades()
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var vinculadas = (await _context.ProfessorCidades
+                .Where(pc => pc.ProfessorId == professorId)
+                .Select(pc => pc.CidadeId)
+                .ToListAsync())
+                .ToHashSet();
+
+            var itens = await _context.Cidades
+                .OrderBy(c => c.Nome)
+                .Select(c => new MinhaCidadeItem
+                {
+                    CidadeId = c.Id,
+                    Nome = c.Nome,
+                    Estado = c.Estado,
+                    Vinculada = vinculadas.Contains(c.Id)
+                })
+                .ToListAsync();
+
+            return View(itens);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AtualizarCidades(List<int>? cidadeIds, string? novaCidadeNome, string? novaCidadeUf)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var idsSelecionados = (cidadeIds ?? new List<int>()).ToHashSet();
+
+            if (!string.IsNullOrWhiteSpace(novaCidadeNome))
+            {
+                var nomeNormalizado = novaCidadeNome.Trim();
+                var cidadeExistente = await _context.Cidades
+                    .FirstOrDefaultAsync(c => c.Nome.ToLower() == nomeNormalizado.ToLower());
+
+                if (cidadeExistente == null)
+                {
+                    cidadeExistente = new Cidade
+                    {
+                        Nome = nomeNormalizado,
+                        Estado = string.IsNullOrWhiteSpace(novaCidadeUf) ? null : novaCidadeUf.Trim()
+                    };
+                    _context.Cidades.Add(cidadeExistente);
+                    await _context.SaveChangesAsync();
+                }
+
+                idsSelecionados.Add(cidadeExistente.Id);
+            }
+
+            var vinculosAtuais = await _context.ProfessorCidades
+                .Where(pc => pc.ProfessorId == professorId)
+                .ToListAsync();
+
+            var vinculosParaRemover = vinculosAtuais.Where(v => !idsSelecionados.Contains(v.CidadeId));
+            _context.ProfessorCidades.RemoveRange(vinculosParaRemover);
+
+            var idsJaVinculados = vinculosAtuais.Select(v => v.CidadeId).ToHashSet();
+            foreach (var cidadeId in idsSelecionados.Where(id => !idsJaVinculados.Contains(id)))
+            {
+                _context.ProfessorCidades.Add(new ProfessorCidade { ProfessorId = professorId.Value, CidadeId = cidadeId });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Cidades atualizadas com sucesso.";
+            return RedirectToAction("MinhasCidades");
         }
 
         [HttpGet]
@@ -647,6 +913,15 @@ namespace padelizou.Controllers
             var inicio = (dataInicio ?? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)).Date;
             var fim = (dataFim ?? DateTime.Today).Date.AddDays(1).AddSeconds(-1);
 
+            var relatorio = await CalcularRelatorioAsync(professorId.Value, inicio, fim);
+
+            return View(relatorio);
+        }
+
+        // Reaproveitado pela tela de Relatório (período escolhido pelo professor) e pelo
+        // Painel do Professor (sempre o mês corrente).
+        private async Task<RelatorioAulasViewModel> CalcularRelatorioAsync(int professorId, DateTime inicio, DateTime fim)
+        {
             var aulas = await _context.Aulas
                 .Include(a => a.LocalAula)
                 .Where(a => a.ProfessorId == professorId &&
@@ -677,7 +952,7 @@ namespace padelizou.Controllers
                 ? relatorio.PorLocal.Sum(l => l.Gasto ?? 0)
                 : null;
 
-            return View(relatorio);
+            return relatorio;
         }
 
         private async Task<int?> ObterProfessorLogadoAsync()

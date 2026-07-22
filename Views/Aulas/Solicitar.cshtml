@@ -1,4 +1,4 @@
-@model IEnumerable<Jogador>
+@model Padelizou.ViewModels.SolicitarViewModel
 @{
     ViewData["Title"] = "Marcar Aula - Padelizou";
 }
@@ -11,7 +11,7 @@
                     <div class="text-center mb-4">
                         <i class="bi bi-calendar-check display-4" style="color: var(--padel-blue);"></i>
                         <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Marcar Aula</h3>
-                        <p class="text-muted">Escolha o professor, o local e um horário disponível.</p>
+                        <p class="text-muted">Escolha a cidade, o professor, o local e um horário disponível.</p>
                     </div>
 
                     @if (TempData["Erro"] != null)
@@ -21,28 +21,68 @@
 
                     <form asp-controller="Aulas" asp-action="Solicitar" method="post" id="form-solicitar">
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">1. Professor</label>
-                            <select id="select-professor" name="professorId" class="form-select bg-light" required>
-                                <option value="">-- Escolha um professor --</option>
-                                @foreach (var prof in Model)
+                            <label class="form-label fw-bold text-muted small">1. Cidade</label>
+                            <select id="select-cidade" name="cidadeId" class="form-select bg-light" required>
+                                <option value="">-- Escolha uma cidade --</option>
+                                @foreach (var cidade in Model.Cidades)
                                 {
-                                    <option value="@prof.Id">@prof.Nome</option>
+                                    <option value="@cidade.Id">@cidade.Nome@(string.IsNullOrEmpty(cidade.Estado) ? "" : $" - {cidade.Estado}")</option>
                                 }
+                            </select>
+                            @if (!Model.Cidades.Any())
+                            {
+                                <div class="form-text text-warning">Nenhum professor com cidade cadastrada ainda.</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">2. Professor</label>
+                            <select id="select-professor" name="professorId" class="form-select bg-light" required disabled>
+                                <option value="">-- Escolha uma cidade primeiro --</option>
                             </select>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">2. Local</label>
+                            <label class="form-label fw-bold text-muted small">3. Local</label>
                             <select id="select-local" name="localId" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um professor primeiro --</option>
                             </select>
-                            <div id="info-pacote" class="small text-primary mt-1" style="display:none;">
-                                <i class="bi bi-box-seam"></i> <span id="info-pacote-texto"></span>
+                        </div>
+
+                        <div id="opcoes-tipo" class="mb-3" style="display:none;">
+                            <label class="form-label fw-bold text-muted small">4. Tipo de aula</label>
+
+                            <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:#f8f9fa; display:none;">
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" id="tipo-avulsa" name="tipoAula" value="avulsa" checked />
+                                    <label class="form-check-label" for="tipo-avulsa">Aula avulsa</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="radio" class="form-check-input" id="tipo-pacote" name="tipoAula" value="pacote" />
+                                    <label class="form-check-label" for="tipo-pacote">
+                                        <span id="info-pacote-texto"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="opcao-recorrencia" class="p-2 rounded" style="background:#f8f9fa;">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input" id="check-recorrente" name="recorrenteCheck" />
+                                    <label class="form-check-label small" for="check-recorrente">Fixar esse horário toda semana</label>
+                                </div>
+                                <div id="campo-semanas" style="display:none;">
+                                    <label class="form-label small text-muted">Repetir por quantas semanas?</label>
+                                    <input type="number" min="2" max="26" value="4" id="input-semanas" class="form-control form-control-sm" style="max-width:120px;" />
+                                </div>
                             </div>
                         </div>
 
+                        <input type="hidden" name="ehPacote" id="hidden-eh-pacote" value="false" />
+                        <input type="hidden" name="recorrente" id="hidden-recorrente" value="false" />
+                        <input type="hidden" name="semanasRecorrencia" id="hidden-semanas" value="1" />
+
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">3. Horário disponível</label>
+                            <label class="form-label fw-bold text-muted small">5. Horário disponível</label>
                             <select id="select-horario" name="dataHora" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um local primeiro --</option>
                             </select>
@@ -67,15 +107,53 @@
 @section Scripts {
     <script>
         $(function () {
+            var $cidade = $('#select-cidade');
             var $professor = $('#select-professor');
             var $local = $('#select-local');
             var $horario = $('#select-horario');
             var $btn = $('#btn-solicitar');
+            var $opcoesTipo = $('#opcoes-tipo');
+            var $opcaoPacote = $('#opcao-pacote');
+            var $infoPacoteTexto = $('#info-pacote-texto');
+            var $checkRecorrente = $('#check-recorrente');
+            var $campoSemanas = $('#campo-semanas');
+            var $inputSemanas = $('#input-semanas');
+
+            function resetAPartirDoProfessor() {
+                $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
+                $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
+                $opcoesTipo.hide();
+                $opcaoPacote.hide();
+                $btn.prop('disabled', true);
+            }
+
+            $cidade.on('change', function () {
+                var cidadeId = $(this).val();
+                resetAPartirDoProfessor();
+
+                if (!cidadeId) {
+                    $professor.html('<option value="">-- Escolha uma cidade primeiro --</option>').prop('disabled', true);
+                    return;
+                }
+
+                $professor.html('<option value="">Carregando...</option>').prop('disabled', true);
+
+                $.getJSON('/Aulas/ObterProfessoresPorCidade', { cidadeId: cidadeId }, function (professores) {
+                    if (!professores.length) {
+                        $professor.html('<option value="">Nenhum professor nessa cidade</option>');
+                        return;
+                    }
+                    var options = '<option value="">-- Escolha um professor --</option>';
+                    $.each(professores, function (i, p) {
+                        options += '<option value="' + p.id + '">' + p.nome + '</option>';
+                    });
+                    $professor.html(options).prop('disabled', false);
+                });
+            });
 
             $professor.on('change', function () {
                 var professorId = $(this).val();
-                $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
-                $btn.prop('disabled', true);
+                resetAPartirDoProfessor();
 
                 if (!professorId) {
                     $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
@@ -98,7 +176,6 @@
                             '>' + l.nome + ' (R$ ' + l.precoPadrao.toFixed(2) + ')</option>';
                     });
                     $local.html(options).prop('disabled', false);
-                    $('#info-pacote').hide();
                 });
             });
 
@@ -106,16 +183,17 @@
                 var professorId = $professor.val();
                 var localId = $(this).val();
                 $btn.prop('disabled', true);
+                $opcoesTipo.hide();
+                $opcaoPacote.hide();
+                $('input[name="tipoAula"][value="avulsa"]').prop('checked', true);
 
                 var $selected = $(this).find(':selected');
                 if (localId && $selected.data('pacote-ativo') == '1' && $selected.data('pacote-preco')) {
                     var qtd = $selected.data('pacote-qtd');
                     var preco = Number($selected.data('pacote-preco'));
-                    $('#info-pacote-texto').text('Esse professor também oferece pacote de ' + qtd + ' aulas por R$ ' +
-                        preco.toFixed(2) + ' (combinado direto com ele, ex: Pix).');
-                    $('#info-pacote').show();
-                } else {
-                    $('#info-pacote').hide();
+                    $infoPacoteTexto.text('Pacote de ' + qtd + ' aulas por R$ ' + preco.toFixed(2) +
+                        ' (aulas semanais, combinado direto com o professor, ex: Pix)');
+                    $opcaoPacote.show();
                 }
 
                 if (!localId) {
@@ -123,6 +201,7 @@
                     return;
                 }
 
+                $opcoesTipo.show();
                 $horario.html('<option value="">Carregando...</option>').prop('disabled', true);
 
                 $.getJSON('/Aulas/ObterHorarios', { professorId: professorId, localId: localId }, function (horarios) {
@@ -141,8 +220,30 @@
                 });
             });
 
+            $(document).on('change', 'input[name="tipoAula"]', function () {
+                var ehPacote = $('input[name="tipoAula"]:checked').val() === 'pacote';
+                $('#opcao-recorrencia').toggle(!ehPacote);
+                if (ehPacote) {
+                    $checkRecorrente.prop('checked', false);
+                    $campoSemanas.hide();
+                }
+            });
+
+            $checkRecorrente.on('change', function () {
+                $campoSemanas.toggle($(this).is(':checked'));
+            });
+
             $horario.on('change', function () {
                 $btn.prop('disabled', !$(this).val());
+            });
+
+            $('#form-solicitar').on('submit', function () {
+                var ehPacote = $('input[name="tipoAula"]:checked').val() === 'pacote';
+                var recorrente = !ehPacote && $checkRecorrente.is(':checked');
+
+                $('#hidden-eh-pacote').val(ehPacote ? 'true' : 'false');
+                $('#hidden-recorrente').val(recorrente ? 'true' : 'false');
+                $('#hidden-semanas').val(recorrente ? ($inputSemanas.val() || 4) : 1);
             });
         });
     </script>

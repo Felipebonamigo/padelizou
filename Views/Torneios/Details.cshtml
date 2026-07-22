@@ -2,7 +2,8 @@
 @using Padelizou.ViewModels
 @{
     ViewData["Title"] = Model.Nome;
-    var historico = ViewBag.HistoricoJogadores as Dictionary<int, HistoricoCategoriaVM> ?? new Dictionary<int, HistoricoCategoriaVM>();
+    var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
+    ViewData["Historico"] = historico;
 }
 
 <!-- Cabeçalho do Torneio -->
@@ -13,6 +14,15 @@
         <i class="bi bi-cash text-success"></i> @Model.PrecoInscricao.ToString("C")
     </p>
 </div>
+
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success">@TempData["Sucesso"]</div>
+}
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger">@TempData["Erro"]</div>
+}
 
 <!-- Navegação das Abas -->
 <ul class="nav nav-tabs" id="torneioTabs" role="tablist">
@@ -33,16 +43,22 @@
     }
 
     <!-- Aba Exclusiva do Organizador -->
-    <li class="nav-item ms-auto" role="presentation">
-        <button class="nav-link fw-bold text-danger" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab">
-            <i class="bi bi-gear-fill"></i> Gerenciar Torneio
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link fw-bold text-danger" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
-            <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
-        </button>
-    </li>
+    @if (ViewBag.PodeGerenciar == true)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-danger" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab">
+                <i class="bi bi-gear-fill"></i> Gerenciar Torneio
+            </button>
+        </li>
+    }
+    @if (Model.Status != "Inscrições Abertas" && Model.Status != "Finalizado")
+    {
+        <li class="nav-item ms-auto" role="presentation">
+            <button class="nav-link fw-bold text-danger" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
+                <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
+            </button>
+        </li>
+    }
     <!-- Adicione isso logo após a aba "Ao Vivo" -->
     @if (Model.Status == "Fase de Grupos" || Model.Status == "Mata-Mata" || Model.Status == "Finalizado")
     {
@@ -59,54 +75,118 @@
 
     <!-- ABA 1: LISTA DE INSCRITOS -->
     <div class="tab-pane fade show active" id="inscritos" role="tabpanel">
-        <h4 class="mb-3" style="color: var(--padel-blue);">Duplas Confirmadas</h4>
+        <h4 class="mb-3" style="color: var(--padel-blue);">@(Model.Formato == "Americano" ? "Inscritos" : "Duplas Confirmadas")</h4>
+        @{
+            var inscricoesAmericanas = ViewBag.InscricoesAmericanas as List<Padelizou.Models.InscricaoAmericana> ?? new();
+        }
 
-        <div class="accordion" id="accordionCategorias">
-            @foreach (var cat in Model.Categorias)
-            {
-                var collapseId = "collapse" + cat.Id;
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId">
-                            @cat.Nome <span class="badge ms-2" style="background-color: var(--padel-blue);">@cat.Duplas.Count() duplas</span>
-                        </button>
-                    </h2>
-                    <div id="@collapseId" class="accordion-collapse collapse" data-bs-parent="#accordionCategorias">
-                        <div class="accordion-body">
-                            @if (cat.Duplas.Any())
+        @{
+            int categoriaSelecionadaId = ViewBag.CategoriaSelecionadaId is int csid ? csid : 0;
+        }
+        <div class="mb-3">
+            <label class="form-label fw-bold small">Categoria</label>
+            <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
+                @foreach (var cat in Model.Categorias)
+                {
+                    <option value="@cat.Id" selected="@(cat.Id == categoriaSelecionadaId)">@cat.Nome</option>
+                }
+            </select>
+        </div>
+
+        @foreach (var cat in Model.Categorias)
+        {
+            var inscritosAmericano = inscricoesAmericanas.Where(i => i.CategoriaId == cat.Id).ToList();
+            ViewData["CategoriaAtual"] = cat.Nome;
+            <div class="categoria-inscritos-conteudo" data-categoria-id="@cat.Id" style="display: @(cat.Id == categoriaSelecionadaId ? "block" : "none");">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    @if (Model.Formato == "Americano")
+                    {
+                        <span class="badge" style="background-color: var(--padel-blue);">@inscritosAmericano.Count inscritos</span>
+                        <a asp-controller="Torneios" asp-action="ClassificacaoAmericano" asp-route-id="@Model.Id" asp-route-categoriaId="@cat.Id" class="btn btn-sm btn-outline-primary rounded-pill">
+                            <i class="bi bi-list-ol"></i> Ver Classificação Individual
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="badge" style="background-color: var(--padel-blue);">@cat.Duplas.Count() duplas</span>
+                    }
+                </div>
+                @if (Model.Formato == "Americano")
+                {
+                    @if (inscritosAmericano.Any())
+                    {
+                        <div class="row row-cols-1 row-cols-md-2 g-3">
+                            @foreach (var inscricao in inscritosAmericano)
                             {
-                                <ul class="list-group list-group-flush">
-                                    @foreach (var dupla in cat.Duplas)
-                                    {
-                                        <li class="list-group-item">
-                                            <i class="bi bi-person-fill"></i>
-                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@dupla.Jogador1Id" class="text-decoration-none">@dupla.Jogador1.Nome</a>
-                                            @{ historico.TryGetValue(dupla.Jogador1Id, out var h1); }
-                                            <partial name="_SeloHistorico" model="h1" />
-                                            <span class="text-muted mx-2">/</span>
-                                            <i class="bi bi-person-fill"></i>
-                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@dupla.Jogador2Id" class="text-decoration-none">@dupla.Jogador2.Nome</a>
-                                            @{ historico.TryGetValue(dupla.Jogador2Id, out var h2); }
-                                            <partial name="_SeloHistorico" model="h2" />
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                            else
-                            {
-                                <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Nenhuma dupla inscrita nesta categoria ainda.</p>
+                                <div class="col">
+                                    <div class="border rounded p-3 h-100">
+                                        <partial name="_JogadorChip" model="inscricao.Jogador" />
+                                    </div>
+                                </div>
                             }
                         </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Nenhum jogador inscrito nesta categoria ainda.</p>
+                    }
+                }
+                else if (cat.Duplas.Any())
+                {
+                    <div class="row row-cols-1 row-cols-md-2 g-3">
+                        @foreach (var dupla in cat.Duplas)
+                        {
+                            <div class="col">
+                                <div class="border rounded p-3 h-100">
+                                    <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                    <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                </div>
+                            </div>
+                        }
                     </div>
-                </div>
-            }
-        </div>
+                }
+                else
+                {
+                    <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Nenhuma dupla inscrita nesta categoria ainda.</p>
+                }
+            </div>
+        }
     </div>
 
     <!-- ABA 2: FORMULÁRIO DE INSCRIÇÃO -->
     <div class="tab-pane fade" id="inscricao" role="tabpanel">
         <h4 class="mb-3" style="color: var(--padel-blue);">Formulário de Inscrição</h4>
 
+        @if (Model.Formato == "Americano")
+        {
+            <form asp-controller="Torneios" asp-action="InscreverIndividual" method="post">
+                <input type="hidden" name="torneioId" value="@Model.Id" />
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Selecione a Categoria</label>
+                    <select name="categoriaId" class="form-select" required>
+                        <option value="">-- Escolha uma categoria --</option>
+                        @foreach (var cat in Model.Categorias)
+                        {
+                            <option value="@cat.Id">@cat.Nome</option>
+                        }
+                    </select>
+                </div>
+
+                <p class="text-muted small">No Torneio Americano a inscrição é individual — o sistema sorteia os parceiros a cada rodada.</p>
+
+                <div class="mb-3">
+                    <input type="text" name="nome" class="form-control mb-2" placeholder="Nome Completo" required />
+                    <input type="text" name="cpf" class="form-control" placeholder="CPF (Apenas números)" required />
+                </div>
+
+                <button type="submit" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
+                    <i class="bi bi-check2-circle"></i> Confirmar Inscrição Individual
+                </button>
+            </form>
+        }
+        else
+        {
         <form asp-controller="Duplas" asp-action="Create" method="post">
             <input type="hidden" name="torneioId" value="@Model.Id" />
 
@@ -163,18 +243,27 @@
                     <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
                     <p class="mb-3 text-muted small">Marque abaixo apenas se a dupla for <strong>absolutamente incapaz</strong> de jogar nestes turnos. O excesso de impedimentos dificulta o chaveamento.</p>
 
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="impSextaNoite" value="true" id="impSexta">
-                        <label class="form-check-label" for="impSexta">Não podemos jogar na <strong>Sexta à noite</strong></label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="impSabadoManha" value="true" id="impSabManha">
-                        <label class="form-check-label" for="impSabManha">Não podemos jogar no <strong>Sábado de manhã</strong></label>
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="impSabadoTarde" value="true" id="impSabTarde">
-                        <label class="form-check-label" for="impSabTarde">Não podemos jogar no <strong>Sábado à tarde</strong></label>
-                    </div>
+                    @if (Model.PermiteImpedimentoSextaNoite)
+                    {
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="impSextaNoite" value="true" id="impSexta">
+                            <label class="form-check-label" for="impSexta">Não podemos jogar na <strong>Sexta à noite</strong></label>
+                        </div>
+                    }
+                    @if (Model.PermiteImpedimentoSabadoManha)
+                    {
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="impSabadoManha" value="true" id="impSabManha">
+                            <label class="form-check-label" for="impSabManha">Não podemos jogar no <strong>Sábado de manhã</strong></label>
+                        </div>
+                    }
+                    @if (Model.PermiteImpedimentoSabadoTarde)
+                    {
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="impSabadoTarde" value="true" id="impSabTarde">
+                            <label class="form-check-label" for="impSabTarde">Não podemos jogar no <strong>Sábado à tarde</strong></label>
+                        </div>
+                    }
                 </div>
             }
 
@@ -182,51 +271,219 @@
                 <i class="bi bi-check2-circle"></i> Confirmar Inscrição da Dupla
             </button>
         </form>
+        }
     </div>
     <!-- ABA 3: PAINEL DO ORGANIZADOR -->
-    <div class="tab-pane fade" id="admin" role="tabpanel">
-        <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
+    @if (ViewBag.PodeGerenciar == true)
+    {
+        <div class="tab-pane fade" id="admin" role="tabpanel">
+            <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
 
-        <div class="card bg-light border-0 shadow-sm mb-4">
-            <div class="card-body">
-                <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Model.Status</span></h6>
-                <hr />
+            <div class="card bg-light border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Model.Status</span></h6>
+                    <hr />
 
-                @if (Model.Status == "Inscrições Abertas")
-                {
-                    <div class="alert alert-warning border-warning">
-                        <strong>Atenção:</strong> Ao encerrar as inscrições, o formulário será bloqueado para o público e você poderá gerar as chaves e os grupos.
-                    </div>
-                    <form asp-controller="Torneios" asp-action="GerarChaves" method="post">
-                        <input type="hidden" name="id" value="@Model.Id" />
-                        <button type="submit" class="btn btn-primary fw-bold shadow-sm">
-                            <i class="bi bi-diagram-3-fill"></i> Gerar Fases de Grupo e Chaves
-                        </button>
-                    </form>
-                }
-                else if (Model.Status == "Chaves em Sorteio")
-                {
-                    <div class="alert alert-info border-info">
-                        <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
-                    </div>
-                    <button class="btn btn-primary fw-bold shadow-sm">
-                        <i class="bi bi-diagram-3-fill"></i> Gerar Fases de Grupo e Chaves
+                    @if (Model.Status == "Inscrições Abertas")
+                    {
+                        <div class="alert alert-warning border-warning">
+                            <strong>Atenção:</strong> Ao encerrar as inscrições, o formulário será bloqueado para o público e você poderá gerar as chaves e os grupos.
+                        </div>
+                        <form asp-controller="Torneios" asp-action="EncerrarInscricoes" method="post">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-warning fw-bold shadow-sm">
+                                <i class="bi bi-lock-fill"></i> Encerrar Inscrições
+                            </button>
+                        </form>
+                    }
+                    else if (Model.Status == "Chaves em Sorteio" && Model.Formato == "Americano")
+                    {
+                        <div class="alert alert-info border-info">
+                            <strong>Inscrições Encerradas!</strong> Agora você pode sortear as rodadas — os parceiros vão trocar a cada rodada.
+                        </div>
+                        <form asp-controller="Torneios" asp-action="GerarRodadasAmericano" method="post" class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="hidden" name="torneioId" value="@Model.Id" />
+                            <input type="datetime-local" name="dataHoraInicio" class="form-control form-control-sm" style="width: auto;"
+                                   value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
+                            <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+                                <i class="bi bi-shuffle"></i> Sortear Rodadas do Americano
+                            </button>
+                        </form>
+                    }
+                    else if (Model.Status == "Chaves em Sorteio")
+                    {
+                        <div class="alert alert-info border-info">
+                            <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
+                        </div>
+                        <form asp-controller="Torneios" asp-action="GerarChaves" method="post">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+                                <i class="bi bi-diagram-3-fill"></i> Sortear Grupos e Gerar Chaves
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            <!-- ORGANIZADORES DO TORNEIO -->
+            <div class="card bg-light border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3">Organizadores deste Torneio</h6>
+
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var org in (ViewBag.Organizadores as List<Padelizou.Models.TorneioOrganizador>) ?? new())
+                        {
+                            <li class="list-group-item bg-transparent d-flex align-items-center gap-2 px-0">
+                                <img src="@(string.IsNullOrEmpty(org.Jogador.FotoPerfil) ? "/img/default-avatar.png" : org.Jogador.FotoPerfil)"
+                                     class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
+                                <span class="fw-bold">@org.Jogador.Nome</span>
+                                <span class="badge bg-secondary ms-2">@org.NivelAcesso</span>
+                            </li>
+                        }
+                    </ul>
+
+                    <label class="form-label fw-bold small">Adicionar novo organizador</label>
+                    @{ ViewData["BuscaOrgTorneioId"] = Model.Id; }
+                    <partial name="_BuscaOrganizador" />
+                    @{ ViewData["BuscaOrgTorneioId"] = null; }
+                </div>
+            </div>
+
+            <!-- EDITAR DADOS DO TORNEIO -->
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#editarTorneioForm">
+                        <i class="bi bi-pencil-square"></i> Editar Dados do Torneio
                     </button>
-                }
-            </div>
-        </div>
-    </div>
-    <!-- ABA: AO VIVO -->
-    <div class="tab-pane fade" id="aovivo" role="tabpanel">
-        <h4 class="mb-3 text-danger fw-bold"><i class="bi bi-broadcast"></i> Partidas em Andamento</h4>
+                    <div class="collapse" id="editarTorneioForm">
+                        <form asp-controller="Torneios" asp-action="Editar" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="id" value="@Model.Id" />
 
-        <!-- Esta DIV será preenchida automaticamente pelo JavaScript -->
-        <div class="row" id="containerPlacaresAoVivo">
-            <div class="col-12 text-center text-muted py-4">
-                <i class="bi bi-arrow-clockwise mb-2 fs-2 d-block"></i> Buscando jogos na quadra...
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Nome do Torneio</label>
+                                    <input type="text" name="nome" class="form-control" value="@Model.Nome" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Local</label>
+                                    <input type="text" name="localTorneio" class="form-control" value="@Model.LocalTorneio" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Clube</label>
+                                    <select name="clubeId" class="form-select" required>
+                                        @foreach (var clube in (ViewBag.CatalogoClubes as List<Padelizou.Models.Clube>) ?? new())
+                                        {
+                                            <option value="@clube.Id" selected="@(clube.Id == Model.ClubeId)">@clube.Nome</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Data de Início</label>
+                                    <input type="date" name="dataInicio" class="form-control" value="@Model.DataInicio?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Preço da Inscrição</label>
+                                    <input type="number" step="0.01" name="precoInscricao" class="form-control" value="@Model.PrecoInscricao" required />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Qtd. de Quadras</label>
+                                    <input type="number" id="editQuantidadeQuadras" name="quantidadeQuadras" class="form-control" value="@Model.QuantidadeQuadras" required oninput="gerarCamposQuadraEdicao()" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Nome de cada Quadra</label>
+                                    <div id="editCamposNomesQuadras" class="row g-2" data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'></div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Trocar Imagem de Capa</label>
+                                    <input type="file" name="capa" class="form-control" accept="image/*" />
+                                    @if (!string.IsNullOrEmpty(Model.ImagemCapa))
+                                    {
+                                        <img src="@Model.ImagemCapa" class="mt-2 rounded" style="max-height: 80px;" />
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="permiteImpedimentos" value="true" id="editImpSwitch" onchange="toggleImpedimentosEdicao()" @(Model.PermiteImpedimentos ? "checked" : "")>
+                                <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
+                            </div>
+                            <div id="editTurnosImpedimento" class="ps-4 mb-3" style="display: @(Model.PermiteImpedimentos ? "block" : "none");">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="permiteImpedimentoSextaNoite" value="true" @(Model.PermiteImpedimentoSextaNoite ? "checked" : "")>
+                                    <label class="form-check-label">Sexta à noite</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="permiteImpedimentoSabadoManha" value="true" @(Model.PermiteImpedimentoSabadoManha ? "checked" : "")>
+                                    <label class="form-check-label">Sábado de manhã</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="permiteImpedimentoSabadoTarde" value="true" @(Model.PermiteImpedimentoSabadoTarde ? "checked" : "")>
+                                    <label class="form-check-label">Sábado à tarde</label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-padel fw-bold shadow-sm">
+                                <i class="bi bi-check-circle-fill"></i> Salvar Alterações
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GERENCIAR INSCRITOS -->
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3">Gerenciar Inscritos</h6>
+                    @if (Model.Status == "Inscrições Abertas")
+                    {
+                        <p class="small text-muted">Pra adicionar um novo inscrito, use a aba <strong>Inscreva-se</strong>.</p>
+                    }
+                    @foreach (var cat in Model.Categorias)
+                    {
+                        <p class="fw-bold small mb-2 mt-3">@cat.Nome</p>
+                        @if (cat.Duplas.Any())
+                        {
+                            <ul class="list-group list-group-flush mb-2">
+                                @foreach (var dupla in cat.Duplas)
+                                {
+                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                        <span>@dupla.Jogador1.Nome / @dupla.Jogador2.Nome</span>
+                                        @if (Model.Status == "Inscrições Abertas")
+                                        {
+                                            <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i> Remover
+                                                </button>
+                                            </form>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="small text-muted">Nenhuma dupla inscrita ainda.</p>
+                        }
+                    }
+                </div>
             </div>
         </div>
-    </div>
+    }
+    <!-- ABA: AO VIVO -->
+    @if (Model.Status != "Inscrições Abertas" && Model.Status != "Finalizado")
+    {
+        <div class="tab-pane fade" id="aovivo" role="tabpanel">
+            <h4 class="mb-3 text-danger fw-bold"><i class="bi bi-broadcast"></i> Partidas em Andamento</h4>
+
+            <!-- Esta DIV será preenchida automaticamente pelo JavaScript -->
+            <div class="row" id="containerPlacaresAoVivo">
+                <div class="col-12 text-center text-muted py-4">
+                    <i class="bi bi-arrow-clockwise mb-2 fs-2 d-block"></i> Buscando jogos na quadra...
+                </div>
+            </div>
+        </div>
+    }
     <!-- ABA: CHAVES E GRUPOS -->
     <div class="tab-pane fade" id="grupos" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -266,20 +523,10 @@
             {
                 if (categoria.GruposTorneio != null && categoria.GruposTorneio.Any())
                 {
+                    ViewData["CategoriaAtual"] = categoria.Nome;
                     <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
-                        <!-- Gera o cruzamento mata-mata desta categoria a partir da classificação dos grupos -->
-                        <div class="mb-4 text-end">
-                            <form asp-controller="Torneios" asp-action="GerarMataMata" method="post"
-                                  class="d-inline-flex align-items-center gap-2 flex-wrap justify-content-end">
-                                <input type="hidden" name="torneioId" value="@Model.Id" />
-                                <input type="hidden" name="categoriaId" value="@categoria.Id" />
-                                <input type="datetime-local" name="dataHoraInicio" class="form-control form-control-sm" style="width: auto;"
-                                       value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
-                                <button type="submit" class="btn btn-danger btn-sm fw-bold shadow-sm rounded-pill">
-                                    <i class="bi bi-diagram-3-fill"></i> Gerar Cruzamento Mata-Mata
-                                </button>
-                            </form>
-                        </div>
+                        <!-- O cruzamento mata-mata é gerado automaticamente (TorneiosController.ProcessarMataMataAutomatico)
+                             assim que a última partida da Fase de Grupos dessa categoria é finalizada — sem botão manual. -->
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -306,17 +553,9 @@
                                                         @foreach (var dupla in grupo.Duplas)
                                                         {
                                                             <tr style="border-bottom: 1px solid #f0f0f0;">
-                                                                <td class="text-start ps-3 py-3">
-                                                                    <div class="fw-bold text-truncate" style="max-width: 140px; font-size: 0.9rem;">
-                                                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@dupla.Jogador1Id" class="text-decoration-none text-dark">@dupla.Jogador1.Nome.Split(' ')[0]</a>
-                                                                    </div>
-                                                                    @{ historico.TryGetValue(dupla.Jogador1Id, out var g1); }
-                                                                    <partial name="_SeloHistorico" model="g1" />
-                                                                    <div class="fw-bold text-truncate text-muted" style="max-width: 140px; font-size: 0.9rem;">
-                                                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@dupla.Jogador2Id" class="text-decoration-none text-muted">@dupla.Jogador2.Nome.Split(' ')[0]</a>
-                                                                    </div>
-                                                                    @{ historico.TryGetValue(dupla.Jogador2Id, out var g2); }
-                                                                    <partial name="_SeloHistorico" model="g2" />
+                                                                <td class="text-start ps-3 py-3" style="max-width: 180px;">
+                                                                    <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                                                    <partial name="_JogadorChip" model="dupla.Jogador2" />
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
@@ -421,6 +660,7 @@
     <!-- SCRIPT DE ATUALIZAÇÃO AUTOMÁTICA (Coloque no final do arquivo Details.cshtml) -->
     <script>
             function carregarAoVivo() {
+                if (!document.getElementById('containerPlacaresAoVivo')) return;
                 fetch('/Torneios/ObterPlacaresAoVivo?torneioId=@Model.Id')
                     .then(response => response.json())
                     .then(partidas => {
@@ -465,5 +705,39 @@
             // Carrega a primeira vez e depois roda a cada 5 segundos
             carregarAoVivo();
             setInterval(carregarAoVivo, 5000);
+
+            function mostrarCategoriaInscritos(categoriaId) {
+                document.querySelectorAll('.categoria-inscritos-conteudo').forEach(function (el) {
+                    el.style.display = (el.getAttribute('data-categoria-id') === String(categoriaId)) ? 'block' : 'none';
+                });
+            }
+
+            function toggleImpedimentosEdicao() {
+                var ligado = document.getElementById('editImpSwitch').checked;
+                document.getElementById('editTurnosImpedimento').style.display = ligado ? 'block' : 'none';
+            }
+
+            function gerarCamposQuadraEdicao() {
+                var container = document.getElementById('editCamposNomesQuadras');
+                var quantidade = Math.max(0, Math.min(26, parseInt(document.getElementById('editQuantidadeQuadras').value, 10) || 0));
+                var nomesAtuais = JSON.parse(container.getAttribute('data-nomes-atuais') || '[]');
+                var valoresAtuais = Array.from(container.querySelectorAll('input')).map(function (i) { return i.value; });
+                var valores = valoresAtuais.length > 0 ? valoresAtuais : nomesAtuais;
+
+                container.innerHTML = '';
+                for (var i = 0; i < quantidade; i++) {
+                    var col = document.createElement('div');
+                    col.className = 'col-md-3 col-6';
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.name = 'nomesQuadras';
+                    input.className = 'form-control form-control-sm';
+                    input.placeholder = 'Quadra ' + String.fromCharCode(65 + i);
+                    input.value = valores[i] || '';
+                    col.appendChild(input);
+                    container.appendChild(col);
+                }
+            }
+            gerarCamposQuadraEdicao();
     </script>
 </div>

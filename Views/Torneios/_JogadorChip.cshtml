@@ -1,0 +1,24 @@
+@model Padelizou.Models.Jogador
+@using Padelizou.ViewModels
+@{
+    var historico = ViewData["Historico"] as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>;
+    var categoriaAtual = ViewData["CategoriaAtual"] as string;
+    HistoricoCategoriaVM? h = null;
+    if (historico != null && categoriaAtual != null && historico.TryGetValue(Model.Id, out var porTier))
+    {
+        var tier = Padelizou.Services.EstatisticasService.TierDaCategoria(categoriaAtual).Chave;
+        porTier.TryGetValue(tier, out h);
+    }
+}
+<a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Id" class="d-flex align-items-center gap-2 text-decoration-none text-dark mb-1">
+    <img src="@(string.IsNullOrEmpty(Model.FotoPerfil) ? "/img/default-avatar.png" : Model.FotoPerfil)"
+         class="rounded-circle flex-shrink-0" style="width: 36px; height: 36px; object-fit: cover;" />
+    <span>
+        <span class="fw-bold d-block" style="line-height: 1.1;">@Model.Nome</span>
+        @if (Model.Time != null)
+        {
+            <small class="text-muted d-block" style="line-height: 1.1;">@Model.Time.Nome</small>
+        }
+    </span>
+    <partial name="_SeloHistorico" model="h" />
+</a>

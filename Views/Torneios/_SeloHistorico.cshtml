@@ -4,8 +4,8 @@
 {
     @if (Model.Titulos > 0)
     {
-        <span class="badge rounded-pill ms-1 align-middle" style="background:#fff6df;color:#8a6d00;font-weight:600;" title="Campeão @Model.Titulos vez(es) nesta categoria">
-            <i class="bi bi-trophy-fill"></i> @Model.Titulos×
+        <span class="badge rounded-pill ms-1 align-middle" style="background:@Model.CorFundoTier;color:@Model.CorTextoTier;font-weight:600;" title="Campeão @Model.Titulos vez(es) na categoria @Model.TierNome">
+            <i class="bi @Model.IconeTier"></i> @Model.Titulos×
         </span>
     }
     else

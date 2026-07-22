@@ -41,6 +41,21 @@ public class EstatisticasService : IEstatisticasService
         _ => "Fase de Grupos"
     };
 
+    // Decide o "material" do troféu só pelo texto do nome da categoria (mesma convenção do
+    // catálogo padrão em Program.cs — "2ª Categoria Masculina/Feminina", "Categoria Open ...", etc).
+    public static (string Chave, string Nome, string Icone, string CorFundo, string CorTexto) TierDaCategoria(string? nomeCategoria)
+    {
+        string n = nomeCategoria ?? "";
+        if (n.Contains("Open")) return ("Diamante", "Diamante", "bi-gem", "#e0f7fa", "#00838f");
+        if (n.Contains("2ª")) return ("Ouro", "Ouro", "bi-trophy-fill", "#fff6df", "#8a6d00");
+        if (n.Contains("3ª")) return ("Prata", "Prata", "bi-trophy-fill", "#f1f1f1", "#6c757d");
+        if (n.Contains("4ª")) return ("Bronze", "Bronze", "bi-trophy-fill", "#fbe7d4", "#8a4b08");
+        if (n.Contains("5ª")) return ("Ferro", "Ferro", "bi-trophy-fill", "#e8eaed", "#495057");
+        if (n.Contains("6ª")) return ("Madeira", "Madeira", "bi-trophy-fill", "#f0e0c9", "#6b4423");
+        if (n.Contains("7ª") || n.Contains("Iniciantes")) return ("Plastico", "Plástico", "bi-trophy-fill", "#eef2f8", "#6c757d");
+        return ("Geral", "Geral", "bi-trophy-fill", "#eef2f8", "#6c757d");
+    }
+
     public async Task<List<RankingCategoriaVM>> ObterRankingPorCategoriaAsync(string? categoriaNome = null)
     {
         var duplas = await _context.Duplas
@@ -92,27 +107,43 @@ public class EstatisticasService : IEstatisticasService
         return resultado.OrderBy(r => r.Categoria).ToList();
     }
 
-    public async Task<Dictionary<int, HistoricoCategoriaVM>> ObterMelhoresColocacoesAsync(
+    public async Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterMelhoresColocacoesAsync(
         IEnumerable<string> categoriaNomes, int? excluirTorneioId = null)
     {
         var nomes = categoriaNomes.ToHashSet();
-        if (nomes.Count == 0) return new Dictionary<int, HistoricoCategoriaVM>();
+        if (nomes.Count == 0) return new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
 
         var registros = await _context.Duplas
             .Include(d => d.Categoria)
             .Where(d => nomes.Contains(d.Categoria.Nome)
                      && (excluirTorneioId == null || d.Categoria.TorneioId != excluirTorneioId))
-            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, CategoriaNome = d.Categoria.Nome })
             .ToListAsync();
 
-        var mapa = new Dictionary<int, HistoricoCategoriaVM>();
+        var mapa = new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
 
-        void Aplicar(int jogadorId, string? fase)
+        void Aplicar(int jogadorId, string? fase, string categoriaNome)
         {
-            if (!mapa.TryGetValue(jogadorId, out var hist))
+            var (tierChave, tierNome, icone, corFundo, corTexto) = TierDaCategoria(categoriaNome);
+
+            if (!mapa.TryGetValue(jogadorId, out var porTier))
             {
-                hist = new HistoricoCategoriaVM { MelhorFase = "Grupos", Titulos = 0 };
-                mapa[jogadorId] = hist;
+                porTier = new Dictionary<string, HistoricoCategoriaVM>();
+                mapa[jogadorId] = porTier;
+            }
+            if (!porTier.TryGetValue(tierChave, out var hist))
+            {
+                hist = new HistoricoCategoriaVM
+                {
+                    MelhorFase = "Grupos",
+                    Titulos = 0,
+                    Tier = tierChave,
+                    TierNome = tierNome,
+                    IconeTier = icone,
+                    CorFundoTier = corFundo,
+                    CorTextoTier = corTexto
+                };
+                porTier[tierChave] = hist;
             }
             if (RankFase(fase) > RankFase(hist.MelhorFase)) hist.MelhorFase = fase ?? "Grupos";
             if (fase == "Campeao") hist.Titulos += 1;
@@ -120,8 +151,8 @@ public class EstatisticasService : IEstatisticasService
 
         foreach (var r in registros)
         {
-            Aplicar(r.Jogador1Id, r.UltimaFase);
-            Aplicar(r.Jogador2Id, r.UltimaFase);
+            Aplicar(r.Jogador1Id, r.UltimaFase, r.CategoriaNome);
+            Aplicar(r.Jogador2Id, r.UltimaFase, r.CategoriaNome);
         }
 
         return mapa;

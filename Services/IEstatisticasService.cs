@@ -10,9 +10,10 @@ public interface IEstatisticasService
     // Leaderboards por Categoria.Nome. Se categoriaNome != null, filtra só aquela.
     Task<List<RankingCategoriaVM>> ObterRankingPorCategoriaAsync(string? categoriaNome = null);
 
-    // Para os selos das abas do torneio: por JogadorId, melhor fase histórica + títulos nas
-    // categorias informadas (opcionalmente excluindo o torneio atual).
-    Task<Dictionary<int, HistoricoCategoriaVM>> ObterMelhoresColocacoesAsync(
+    // Para os selos das abas do torneio: por JogadorId e por tier de categoria (Diamante/Ouro/
+    // Prata/Bronze/Ferro/Madeira/Plástico), melhor fase histórica + títulos (opcionalmente
+    // excluindo o torneio atual).
+    Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterMelhoresColocacoesAsync(
         IEnumerable<string> categoriaNomes, int? excluirTorneioId = null);
 
     // Adversários do jogador agregados (jogos, vitórias, derrotas), ordenados por mais jogos.

@@ -15,13 +15,62 @@ namespace Padelizou.Controllers
         private readonly DbPadelContext _context;
         private readonly IEstatisticasService _estatisticas;
         private readonly IPalpiteService _palpites;
+        private readonly IWebHostEnvironment _env;
 
         // Injeta o banco de dados
-        public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites)
+        public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites, IWebHostEnvironment env)
         {
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
+            _env = env;
+        }
+
+        // Salva um IFormFile de imagem numa subpasta de wwwroot/uploads e devolve o caminho relativo
+        // pra gravar no banco (mesmo padrão usado em AuthController.Cadastro/EditarPerfil).
+        private async Task<string> SalvarImagemAsync(IFormFile arquivo, string subpasta)
+        {
+            string pastaUploads = Path.Combine(_env.WebRootPath, "uploads", subpasta);
+            if (!Directory.Exists(pastaUploads))
+            {
+                Directory.CreateDirectory(pastaUploads);
+            }
+
+            string nomeArquivoUnico = Guid.NewGuid().ToString() + "_" + arquivo.FileName;
+            string caminhoFisicoCompleto = Path.Combine(pastaUploads, nomeArquivoUnico);
+
+            using (var stream = new FileStream(caminhoFisicoCompleto, FileMode.Create))
+            {
+                await arquivo.CopyToAsync(stream);
+            }
+
+            return "/uploads/" + subpasta + "/" + nomeArquivoUnico;
+        }
+
+        // Confere se o jogador logado é organizador (criador ou adicionado) deste torneio específico
+        private async Task<bool> EhOrganizadorAsync(int torneioId, int jogadorId)
+        {
+            return await _context.TorneioOrganizadores
+                .AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId);
+        }
+
+        private int? ObterJogadorIdLogado()
+        {
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return claim != null ? int.Parse(claim) : (int?)null;
+        }
+
+        // TELA INICIAL DA ABA "TORNEIO": lista tudo, separado por status
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var torneios = await _context.Torneios.OrderByDescending(t => t.DataInicio).ToListAsync();
+
+            ViewBag.Abertos = torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
+            ViewBag.EmAndamento = torneios.Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado").ToList();
+            ViewBag.Finalizados = torneios.Where(t => t.Status == "Finalizado").ToList();
+
+            return View();
         }
 
         // 1. ABRE A TELA DE CRIAÇÃO (Carrega o Catálogo)
@@ -32,6 +81,7 @@ namespace Padelizou.Controllers
             // Busca todas as categorias do banco para montar os Checkboxes na tela
             var catalogo = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoCategorias = catalogo;
+            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
             return View();
         }
@@ -39,7 +89,7 @@ namespace Padelizou.Controllers
         // 2. RECEBE OS DADOS E SALVA O TORNEIO
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas)
+        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa)
         {
             // Validação de Segurança: Se for formato único, iguala todas as fases à Fase de Grupos
             if (torneio.FormatoUnico)
@@ -52,9 +102,53 @@ namespace Padelizou.Controllers
 
             // O Torneio nasce com Inscrições Abertas
             torneio.Status = "Inscrições Abertas";
+            torneio.OrganizadorId = null;
+            torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+
+            if (capa != null && capa.Length > 0)
+            {
+                torneio.ImagemCapa = await SalvarImagemAsync(capa, "capas-torneio");
+            }
 
             // Salva o Torneio primeiro para gerar o ID dele
             _context.Torneios.Add(torneio);
+            await _context.SaveChangesAsync();
+
+            // Cria as quadras do torneio a partir da quantidade informada, usando o nome que o
+            // organizador deu a cada uma (ou "Quadra A/B..." como fallback se deixou em branco).
+            string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            int quantidadeQuadras = Math.Max(1, torneio.QuantidadeQuadras);
+            for (int q = 0; q < quantidadeQuadras && q < alfabetoQuadras.Length; q++)
+            {
+                string? nomeInformado = nomesQuadras != null && q < nomesQuadras.Length ? nomesQuadras[q]?.Trim() : null;
+                string nomeQuadra = string.IsNullOrWhiteSpace(nomeInformado) ? $"Quadra {alfabetoQuadras[q]}" : nomeInformado;
+                _context.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = nomeQuadra });
+            }
+            await _context.SaveChangesAsync();
+
+            // Quem criou o torneio já entra como organizador dele
+            var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            _context.TorneioOrganizadores.Add(new TorneioOrganizador
+            {
+                TorneioId = torneio.Id,
+                JogadorId = criadorId,
+                NivelAcesso = "Criador"
+            });
+
+            // Co-organizadores escolhidos por CPF/Login na tela de criação
+            if (organizadoresSelecionados != null)
+            {
+                foreach (var jogadorId in organizadoresSelecionados.Distinct())
+                {
+                    if (jogadorId == criadorId) continue;
+                    _context.TorneioOrganizadores.Add(new TorneioOrganizador
+                    {
+                        TorneioId = torneio.Id,
+                        JogadorId = jogadorId,
+                        NivelAcesso = "Organizador"
+                    });
+                }
+            }
             await _context.SaveChangesAsync();
 
             // Pega as categorias que o organizador marcou e salva na tabela Categoria do Torneio
@@ -79,6 +173,175 @@ namespace Padelizou.Controllers
 
             return RedirectToAction("Details", new { id = torneio.Id });
         }
+
+        // Autocomplete usado na criação/gerenciamento do torneio pra achar um Jogador por CPF ou Login
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> BuscarJogadorParaOrganizador(string termo)
+        {
+            if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 3) return Json(Array.Empty<object>());
+
+            termo = termo.Trim();
+            var resultados = await _context.Jogadores
+                .Where(j => j.Cpf.StartsWith(termo) || (j.Login != null && j.Login.Contains(termo)))
+                .OrderBy(j => j.Nome)
+                .Take(8)
+                .Select(j => new { j.Id, j.Nome, j.FotoPerfil, j.Login })
+                .ToListAsync();
+
+            return Json(resultados);
+        }
+
+        // Adiciona um co-organizador já cadastrado (achado por CPF/Login) na aba "Gerenciar Torneio"
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarOrganizador(int torneioId, int jogadorId)
+        {
+            var chamadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, chamadorId)) return Forbid();
+
+            if (!await EhOrganizadorAsync(torneioId, jogadorId))
+            {
+                _context.TorneioOrganizadores.Add(new TorneioOrganizador
+                {
+                    TorneioId = torneioId,
+                    JogadorId = jogadorId,
+                    NivelAcesso = "Organizador"
+                });
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+        // Inscrição individual (Torneio Americano) — achar-ou-criar Jogador por CPF, mesmo
+        // padrão de DuplasController.Create, só que sem parceiro fixo.
+        [HttpPost]
+        public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf)
+        {
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            if (categoria == null || categoria.TorneioId != torneioId)
+            {
+                TempData["Erro"] = "Categoria inválida para este torneio.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null || torneio.Status != "Inscrições Abertas")
+            {
+                TempData["Erro"] = "As inscrições deste torneio não estão mais abertas.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
+            if (jogador == null)
+            {
+                jogador = new Jogador { Nome = nome, Cpf = cpf };
+                _context.Jogadores.Add(jogador);
+                await _context.SaveChangesAsync();
+            }
+
+            bool jaInscrito = await _context.InscricoesAmericanas
+                .AnyAsync(i => i.CategoriaId == categoriaId && i.JogadorId == jogador.Id);
+            if (!jaInscrito)
+            {
+                _context.InscricoesAmericanas.Add(new InscricaoAmericana { CategoriaId = categoriaId, JogadorId = jogador.Id });
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = "Inscrição individual confirmada!";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // Aba "Gerenciar Torneio": edita os dados do torneio já criado (inclusive trocar a capa)
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Editar(
+            int id, string nome, string? localTorneio, DateTime? dataInicio, decimal precoInscricao, int clubeId,
+            int quantidadeQuadras, string[]? nomesQuadras,
+            bool permiteImpedimentos, bool permiteImpedimentoSextaNoite, bool permiteImpedimentoSabadoManha, bool permiteImpedimentoSabadoTarde,
+            IFormFile? capa)
+        {
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            torneio.Nome = nome;
+            torneio.LocalTorneio = localTorneio;
+            torneio.DataInicio = dataInicio;
+            torneio.PrecoInscricao = precoInscricao;
+            torneio.ClubeId = clubeId;
+            torneio.QuantidadeQuadras = quantidadeQuadras;
+            torneio.PermiteImpedimentos = permiteImpedimentos;
+            torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
+            torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;
+            torneio.PermiteImpedimentoSabadoTarde = permiteImpedimentoSabadoTarde;
+
+            if (capa != null && capa.Length > 0)
+            {
+                torneio.ImagemCapa = await SalvarImagemAsync(capa, "capas-torneio");
+            }
+
+            // Reconcilia a lista de Quadras com a nova quantidade/nomes (por posição)
+            var quadrasAtuais = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+            string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            int quantidade = Math.Max(1, quantidadeQuadras);
+            for (int i = 0; i < quantidade && i < alfabetoQuadras.Length; i++)
+            {
+                string? nomeInformado = nomesQuadras != null && i < nomesQuadras.Length ? nomesQuadras[i]?.Trim() : null;
+                string nomeQuadra = string.IsNullOrWhiteSpace(nomeInformado) ? $"Quadra {alfabetoQuadras[i]}" : nomeInformado;
+                if (i < quadrasAtuais.Count)
+                {
+                    quadrasAtuais[i].Nome = nomeQuadra;
+                }
+                else
+                {
+                    _context.Quadras.Add(new Quadra { TorneioId = id, Nome = nomeQuadra });
+                }
+            }
+            if (quadrasAtuais.Count > quantidade)
+            {
+                _context.Quadras.RemoveRange(quadrasAtuais.Skip(quantidade));
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Dados do torneio atualizados!";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // Aba "Gerenciar Torneio": remove um inscrito (só enquanto as inscrições estiverem abertas —
+        // depois disso já pode existir Partida referenciando a dupla)
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverDupla(int duplaId)
+        {
+            var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, jogadorId)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            if (torneio.Status != "Inscrições Abertas")
+            {
+                TempData["Erro"] = "Só é possível remover inscritos enquanto as inscrições estiverem abertas.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            _context.Duplas.Remove(dupla);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Inscrito removido do torneio.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
         // Exemplo de como deve ficar o seu método Details
         [HttpGet]
         public async Task<IActionResult> Details(int id)
@@ -87,9 +350,11 @@ namespace Padelizou.Controllers
                 .Include(t => t.Categorias)
                     .ThenInclude(c => c.Duplas)
                         .ThenInclude(d => d.Jogador1)
+                            .ThenInclude(j => j.Time)
                 .Include(t => t.Categorias)
                     .ThenInclude(c => c.Duplas)
                         .ThenInclude(d => d.Jogador2)
+                            .ThenInclude(j => j.Time)
                 // NOVOS INCLUDES: Puxando os Grupos que o algoritmo sorteou!
                 .Include(t => t.Categorias)
                     .ThenInclude(c => c.GruposTorneio)
@@ -147,6 +412,50 @@ namespace Padelizou.Controllers
             var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();
             ViewBag.HistoricoJogadores = await _estatisticas.ObterMelhoresColocacoesAsync(nomesCategorias, excluirTorneioId: id);
 
+            if (torneio.Formato == "Americano")
+            {
+                ViewBag.InscricoesAmericanas = await _context.InscricoesAmericanas
+                    .Include(i => i.Jogador)
+                    .Where(i => i.Categoria.TorneioId == id)
+                    .ToListAsync();
+            }
+
+            // Só quem está em TorneioOrganizadores deste torneio pode ver/usar a aba "Gerenciar Torneio"
+            var jogadorLogadoId = ObterJogadorIdLogado();
+
+            // Aba Inscritos: abre direto na categoria em que o usuário logado já está inscrito
+            // neste torneio (se estiver); senão cai pra primeira categoria do torneio.
+            int? categoriaDoUsuario = null;
+            if (jogadorLogadoId.HasValue)
+            {
+                if (torneio.Formato == "Americano")
+                {
+                    categoriaDoUsuario = await _context.InscricoesAmericanas
+                        .Where(i => i.Categoria.TorneioId == id && i.JogadorId == jogadorLogadoId.Value)
+                        .Select(i => (int?)i.CategoriaId)
+                        .FirstOrDefaultAsync();
+                }
+                else
+                {
+                    categoriaDoUsuario = await _context.Duplas
+                        .Where(d => d.Categoria.TorneioId == id && (d.Jogador1Id == jogadorLogadoId.Value || d.Jogador2Id == jogadorLogadoId.Value))
+                        .Select(d => (int?)d.CategoriaId)
+                        .FirstOrDefaultAsync();
+                }
+            }
+            ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? torneio.Categorias.Select(c => c.Id).FirstOrDefault();
+
+            ViewBag.PodeGerenciar = jogadorLogadoId.HasValue && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
+            if (ViewBag.PodeGerenciar == true)
+            {
+                ViewBag.Organizadores = await _context.TorneioOrganizadores
+                    .Include(o => o.Jogador)
+                    .Where(o => o.TorneioId == id)
+                    .ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+            }
+
             return View(torneio);
         }
         [HttpPost]
@@ -158,8 +467,7 @@ namespace Padelizou.Controllers
             // Verifica se o torneio existe
             if (torneio == null) return NotFound();
 
-            // No futuro, podemos adicionar uma trava de segurança aqui:
-            // if (torneio.OrganizadorId.ToString() != User.FindFirstValue(ClaimTypes.NameIdentifier)) return Unauthorized();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             torneio.Status = "Chaves em Sorteio";
             await _context.SaveChangesAsync();
@@ -180,6 +488,7 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (torneio == null || torneio.Status != "Chaves em Sorteio") return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             foreach (var categoria in torneio.Categorias)
             {
@@ -194,8 +503,8 @@ namespace Padelizou.Controllers
                     .OrderByDescending(d => d.Jogador1.PontuacaoGlobal + d.Jogador2.PontuacaoGlobal)
                     .ToList();
 
-                // O SISTEMA DE DIVISÃO POR 3 (Garante chaves de 3, ou subdivide em 2 se necessário)
-                int numGrupos = (int)Math.Ceiling(duplasOrdenadas.Count / 3.0);
+                // Grupos do tamanho configurado no torneio (Torneio.TamanhoGrupo, normalmente 3 duplas)
+                int numGrupos = (int)Math.Ceiling((double)duplasOrdenadas.Count / torneio.TamanhoGrupo);
                 var gruposCriados = new List<GrupoTorneio>();
 
                 for (int i = 0; i < numGrupos; i++)
@@ -242,11 +551,8 @@ namespace Padelizou.Controllers
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            // SEGURANÇA: Verifica se o usuário é o Dono do Torneio ou um Ajudante
-            var temPermissao = await _context.TorneioOrganizadores
-                .AnyAsync(to => to.TorneioId == id && to.JogadorId == userId);
-
-            // (Para o MVP, vamos assumir que se chegou aqui tem permissão, mas a trava de segurança está montada acima)
+            // SEGURANÇA: Só o Dono do Torneio ou um Ajudante (TorneioOrganizador) pode acessar a Mesa de Controle
+            if (!await EhOrganizadorAsync(id, userId)) return Forbid();
 
             var partidasEmAndamento = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
@@ -267,6 +573,7 @@ namespace Padelizou.Controllers
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
+            if (partida.TorneioId == null || !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             if (equipe == 1)
             {
@@ -299,6 +606,11 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla1)
                 .Include(p => p.Dupla2)
                 .FirstOrDefaultAsync(p => p.Id == partidaId);
+
+            if (partida != null && partida.TorneioId != null && !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
+            {
+                return Forbid();
+            }
 
             if (partida != null)
             {
@@ -450,7 +762,7 @@ namespace Padelizou.Controllers
                 .Where(c => c.TorneioId == torneioId)
                 .Select(c => c.Nome).Distinct().ToListAsync();
             var hist = await _estatisticas.ObterMelhoresColocacoesAsync(nomes, excluirTorneioId: torneioId);
-            int Titulos(int jogadorId) => hist.TryGetValue(jogadorId, out var h) ? h.Titulos : 0;
+            int Titulos(int jogadorId) => hist.TryGetValue(jogadorId, out var porTier) ? porTier.Values.Sum(v => v.Titulos) : 0;
 
             var partidas = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
@@ -480,7 +792,7 @@ namespace Padelizou.Controllers
 
             return Json(resultado);
         }
-        public async Task<IActionResult> Jogos(int id, int? timeFiltroId)
+        public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds)
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
@@ -503,6 +815,12 @@ namespace Padelizou.Controllers
                 );
             }
 
+            // 2.1 Filtro por 1 ou mais Categorias
+            if (categoriaFiltroIds != null && categoriaFiltroIds.Length > 0)
+            {
+                query = query.Where(p => categoriaFiltroIds.Contains(p.CategoriaId));
+            }
+
             var partidas = await query.ToListAsync();
 
             // 3. Separando os jogos para as 3 abas na View
@@ -514,6 +832,8 @@ namespace Padelizou.Controllers
             ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeFiltroId);
             ViewBag.Torneio = torneio;
             ViewBag.TimeAtual = timeFiltroId; // Para manter o select preenchido após filtrar
+            ViewBag.CategoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == id).OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CategoriaFiltroAtual = categoriaFiltroIds ?? Array.Empty<int>();
 
             // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
             int? meuId = User.Identity?.IsAuthenticated == true
@@ -524,12 +844,152 @@ namespace Padelizou.Controllers
 
             return View();
         }
+        // Torneio Americano: sorteia as rodadas de todas as categorias do torneio, trocando os
+        // parceiros a cada rodada. Heurística gulosa (não é uma escalação matematicamente perfeita
+        // de round-robin) — pra cada rodada, embaralha os jogadores, agrupa de 4 em 4 e escolhe,
+        // entre as 3 formas possíveis de dividir o quarteto em duplas, a que menos repete parceiros
+        // já usados antes.
         [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GerarRodadasAmericano(int torneioId, DateTime dataHoraInicio)
+        {
+            var torneio = await _context.Torneios.Include(t => t.Categorias).FirstOrDefaultAsync(t => t.Id == torneioId);
+            if (torneio == null || torneio.Formato != "Americano") return NotFound();
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var rng = new Random();
+            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            DateTime horarioAtual = dataHoraInicio;
+            int totalPartidasGeradas = 0;
+            int totalDeFora = 0;
+
+            foreach (var categoria in torneio.Categorias)
+            {
+                var inscritos = await _context.InscricoesAmericanas
+                    .Where(i => i.CategoriaId == categoria.Id)
+                    .Select(i => i.JogadorId)
+                    .ToListAsync();
+
+                int usaveis = inscritos.Count - (inscritos.Count % 4);
+                if (usaveis < 4) continue; // categoria sem jogadores suficientes pra fechar um grupo de 4
+
+                var jogadoresEmbaralhados = inscritos.OrderBy(_ => rng.Next()).ToList();
+                var jogadoresUsados = jogadoresEmbaralhados.Take(usaveis).ToList();
+                totalDeFora += jogadoresEmbaralhados.Count - usaveis;
+
+                var jaParceiros = new HashSet<(int, int)>();
+                (int, int) NormalizarPar(int a, int b) => a < b ? (a, b) : (b, a);
+
+                int numRodadas = usaveis - 1;
+
+                for (int rodada = 1; rodada <= numRodadas; rodada++)
+                {
+                    var ordemRodada = jogadoresUsados.OrderBy(_ => rng.Next()).ToList();
+
+                    for (int g = 0; g + 4 <= ordemRodada.Count; g += 4)
+                    {
+                        var quarteto = ordemRodada.GetRange(g, 4);
+                        var opcoes = new[]
+                        {
+                            (D1: (quarteto[0], quarteto[1]), D2: (quarteto[2], quarteto[3])),
+                            (D1: (quarteto[0], quarteto[2]), D2: (quarteto[1], quarteto[3])),
+                            (D1: (quarteto[0], quarteto[3]), D2: (quarteto[1], quarteto[2]))
+                        };
+
+                        var melhorOpcao = opcoes
+                            .OrderBy(o => (jaParceiros.Contains(NormalizarPar(o.D1.Item1, o.D1.Item2)) ? 1 : 0)
+                                        + (jaParceiros.Contains(NormalizarPar(o.D2.Item1, o.D2.Item2)) ? 1 : 0))
+                            .First();
+
+                        jaParceiros.Add(NormalizarPar(melhorOpcao.D1.Item1, melhorOpcao.D1.Item2));
+                        jaParceiros.Add(NormalizarPar(melhorOpcao.D2.Item1, melhorOpcao.D2.Item2));
+
+                        var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = melhorOpcao.D1.Item1, Jogador2Id = melhorOpcao.D1.Item2 };
+                        var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = melhorOpcao.D2.Item1, Jogador2Id = melhorOpcao.D2.Item2 };
+                        _context.Duplas.Add(dupla1);
+                        _context.Duplas.Add(dupla2);
+                        await _context.SaveChangesAsync(); // precisa dos Ids gerados antes de criar a Partida
+
+                        _context.Partidas.Add(new Partida
+                        {
+                            TorneioId = torneioId,
+                            CategoriaId = categoria.Id,
+                            Dupla1Id = dupla1.Id,
+                            Dupla2Id = dupla2.Id,
+                            Fase = $"Americano Rodada {rodada}",
+                            Status = "Agendada",
+                            HorarioPrevisto = horarioAtual,
+                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                        });
+                        horarioAtual = horarioAtual.AddMinutes(tempoPartida);
+                        totalPartidasGeradas++;
+                    }
+                }
+            }
+
+            torneio.Status = "Fase de Grupos"; // reaproveita o mesmo status de "torneio em andamento"
+            await _context.SaveChangesAsync();
+
+            string avisoDeFora = totalDeFora > 0 ? $" {totalDeFora} jogador(es) ficaram de fora por não fechar grupos de 4." : "";
+            TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDeFora}";
+            return RedirectToAction("Jogos", new { id = torneioId });
+        }
+
+        // GET: Torneios/ClassificacaoAmericano/5?categoriaId=1 — soma de games por jogador
+        // (não por dupla, já que o parceiro muda a cada rodada no formato Americano)
+        public async Task<IActionResult> ClassificacaoAmericano(int id, int categoriaId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var partidas = await _context.Partidas
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status == "Finalizada")
+                .ToListAsync();
+
+            var pontosPorJogador = new Dictionary<int, (Jogador Jogador, int TotalGames)>();
+            void Somar(Jogador jogador, int games)
+            {
+                if (pontosPorJogador.TryGetValue(jogador.Id, out var atual))
+                {
+                    pontosPorJogador[jogador.Id] = (atual.Jogador, atual.TotalGames + games);
+                }
+                else
+                {
+                    pontosPorJogador[jogador.Id] = (jogador, games);
+                }
+            }
+
+            foreach (var p in partidas)
+            {
+                Somar(p.Dupla1.Jogador1, p.GamesDupla1 ?? 0);
+                Somar(p.Dupla1.Jogador2, p.GamesDupla1 ?? 0);
+                Somar(p.Dupla2.Jogador1, p.GamesDupla2 ?? 0);
+                Somar(p.Dupla2.Jogador2, p.GamesDupla2 ?? 0);
+            }
+
+            var classificacao = pontosPorJogador.Values
+                .OrderByDescending(v => v.TotalGames)
+                .Select(v => new ClassificacaoAmericanoItemVM { Jogador = v.Jogador, TotalGames = v.TotalGames })
+                .ToList();
+
+            ViewBag.Torneio = torneio;
+            ViewBag.CategoriaId = categoriaId;
+            return View(classificacao);
+        }
+
+        [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> GerarFaseGrupos(int torneioId, int categoriaId, DateTime dataHoraInicio)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return NotFound();
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var duplasInscritas = await _context.Duplas
                 .Where(d => d.CategoriaId == categoriaId && d.Categoria.TorneioId == torneioId)
@@ -661,106 +1121,9 @@ namespace Padelizou.Controllers
 
             return View(classificacaoFinal);
         }
-        [HttpPost]
-        [Authorize]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> GerarMataMata(int torneioId, int categoriaId, DateTime dataHoraInicio)
-        {
-            var torneio = await _context.Torneios.FindAsync(torneioId);
-            if (torneio == null) return NotFound();
-
-            // 1. Busca todas as duplas e jogos finalizados dos Grupos para calcular quem passou
-            var duplas = await _context.Duplas
-                .Where(d => d.Categoria.TorneioId == torneioId && d.CategoriaId == categoriaId && d.Grupo != null)
-                .ToListAsync();
-
-            var partidasGrupos = await _context.Partidas
-                .Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Status == "Finalizada" && p.Fase.StartsWith("Grupo"))
-                .ToListAsync();
-
-            // 2. Calcula a classificação em memória (O mesmo motor da tela visual)
-            var classificacao = duplas.Select(dupla =>
-            {
-                var jogos = partidasGrupos.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
-                int vitorias = 0, saldo = 0;
-
-                foreach (var jogo in jogos)
-                {
-                    bool ehDupla1 = jogo.Dupla1Id == dupla.Id;
-                    int pro = ehDupla1 ? (jogo.GamesDupla1 ?? 0) : (jogo.GamesDupla2 ?? 0);
-                    int contra = ehDupla1 ? (jogo.GamesDupla2 ?? 0) : (jogo.GamesDupla1 ?? 0);
-
-                    saldo += (pro - contra);
-                    if (pro > contra) vitorias++;
-                }
-                return new { Dupla = dupla, Vitorias = vitorias, Saldo = saldo, Grupo = dupla.Grupo };
-            })
-            .GroupBy(c => c.Grupo)
-            .OrderBy(g => g.Key) // Ordena os grupos: A, B, C, D...
-            .ToList();
-
-            var primeirosColocados = new List<Dupla>();
-            var segundosColocados = new List<Dupla>();
-
-            // 3. Extrai os 1º e 2º colocados de cada grupo
-            foreach (var grupo in classificacao)
-            {
-                var rankingDoGrupo = grupo.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ToList();
-
-                if (rankingDoGrupo.Count > 0) primeirosColocados.Add(rankingDoGrupo[0].Dupla);
-                if (rankingDoGrupo.Count > 1) segundosColocados.Add(rankingDoGrupo[1].Dupla);
-            }
-
-            if (primeirosColocados.Count != segundosColocados.Count || primeirosColocados.Count == 0)
-            {
-                TempData["Erro"] = "Não foi possível gerar o Mata-Mata. Verifique se todos os jogos da fase de grupos foram finalizados e se há duplas suficientes.";
-                return RedirectToAction("Jogos", new { id = torneioId });
-            }
-
-            // 4. Define o nome da Fase baseado na quantidade de jogos
-            int totalJogosMataMata = primeirosColocados.Count;
-            string nomeFase = totalJogosMataMata switch
-            {
-                1 => "Final",
-                2 => "Semifinal",
-                4 => "Quartas de Final",
-                8 => "Oitavas de Final",
-                _ => $"Mata-Mata ({totalJogosMataMata} jogos)"
-            };
-
-            var novasPartidas = new List<Partida>();
-            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
-            DateTime horarioAtual = dataHoraInicio;
-            int numeroGrupos = primeirosColocados.Count;
-
-            // 5. O CRUZAMENTO MÁGICO EM "X" (1º do Grupo I contra o 2º do Último Grupo - I)
-            for (int i = 0; i < numeroGrupos; i++)
-            {
-                var dupla1 = primeirosColocados[i];
-                // Pega o 2º colocado de trás pra frente (Ex: Se i=0 (Grupo A), pega N-1-0 (Último Grupo))
-                var dupla2 = segundosColocados[numeroGrupos - 1 - i];
-
-                novasPartidas.Add(new Partida
-                {
-                    TorneioId = torneioId,
-                    CategoriaId = categoriaId,
-                    Dupla1Id = dupla1.Id,
-                    Dupla2Id = dupla2.Id,
-                    Fase = nomeFase,
-                    Status = "Agendada",
-                    HorarioPrevisto = horarioAtual,
-                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                });
-
-                horarioAtual = horarioAtual.AddMinutes(tempoPartida);
-            }
-
-            _context.Partidas.AddRange(novasPartidas);
-            await _context.SaveChangesAsync();
-
-            TempData["Sucesso"] = $"Fase {nomeFase} gerada com sucesso! {novasPartidas.Count} partidas agendadas.";
-            return RedirectToAction("Jogos", new { id = torneioId });
-        }
+        // GerarMataMata (manual) foi removida: o cruzamento agora é sempre automático, via
+        // ProcessarMataMataAutomatico (disparado por FinalizarPartida assim que a última partida
+        // da Fase de Grupos de uma categoria termina).
         
     }
 }

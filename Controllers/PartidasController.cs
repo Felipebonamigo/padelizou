@@ -44,6 +44,14 @@ namespace Padelizou.Controllers
             }
         }
 
+        // GET: Partidas/VerVotos — quem votou em quem no palpitrômetro (público, qualquer logado)
+        [HttpGet]
+        public async Task<IActionResult> VerVotos(int partidaId)
+        {
+            var votantes = await _palpites.ObterVotantesAsync(partidaId);
+            return Json(votantes);
+        }
+
         public IActionResult Index()
         {
             return View();
@@ -61,6 +69,11 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (partida == null) return NotFound();
+
+            ViewBag.Quadras = await _context.Quadras
+                .Where(q => q.TorneioId == partida.TorneioId)
+                .OrderBy(q => q.Nome)
+                .ToListAsync();
 
             return View(partida);
         }
@@ -131,6 +144,12 @@ namespace Padelizou.Controllers
                 {
                     // Fim de um jogo de Mata-Mata -> Empurra o vencedor pra próxima fase
                     await ProcessarAvancoMataMataAutomatico(partida.CategoriaId, partida.TorneioId.Value, partida.Fase);
+                }
+                else if (partida.Fase.StartsWith("Americano"))
+                {
+                    // Fim de uma rodada do Torneio Americano -> se todas as rodadas da categoria
+                    // já acabaram, gera a final automática com os 4 melhores individualmente
+                    await VerificarEGerarFinalAmericano(partida.TorneioId.Value, partida.CategoriaId);
                 }
                 else if (partida.Fase == "Final")
                 {
@@ -252,6 +271,57 @@ namespace Padelizou.Controllers
                     _context.Partidas.Add(new Partida { TorneioId = torneioId, CategoriaId = categoriaId, Fase = "Final", Status = "Agendada", Dupla1Id = vencedores[0], Dupla2Id = vencedores[1], HorarioPrevisto = DateTime.Now.AddHours(2), Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() });
                 }
             }
+            await _context.SaveChangesAsync();
+        }
+
+        // --- ROBÔ 3: TORNEIO AMERICANO — gera a final automática assim que todas as rodadas acabam ---
+        private async Task VerificarEGerarFinalAmericano(int torneioId, int categoriaId)
+        {
+            bool temRodadaPendente = await _context.Partidas.AnyAsync(p =>
+                p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status != "Finalizada");
+            if (temRodadaPendente) return;
+
+            bool finalJaGerada = await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == "Final");
+            if (finalJaGerada) return;
+
+            var partidas = await _context.Partidas
+                .Include(p => p.Dupla1).Include(p => p.Dupla2)
+                .Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano"))
+                .ToListAsync();
+
+            if (partidas.Count == 0) return;
+
+            var pontos = new Dictionary<int, int>();
+            void Somar(int jogadorId, int games) => pontos[jogadorId] = pontos.GetValueOrDefault(jogadorId) + games;
+            foreach (var p in partidas)
+            {
+                Somar(p.Dupla1.Jogador1Id, p.GamesDupla1 ?? 0);
+                Somar(p.Dupla1.Jogador2Id, p.GamesDupla1 ?? 0);
+                Somar(p.Dupla2.Jogador1Id, p.GamesDupla2 ?? 0);
+                Somar(p.Dupla2.Jogador2Id, p.GamesDupla2 ?? 0);
+            }
+
+            var top4 = pontos.OrderByDescending(kv => kv.Value).Take(4).Select(kv => kv.Key).ToList();
+            if (top4.Count < 4) return; // não tem jogadores suficientes pra formar a final
+
+            // Cruzamento: 1º colocado + 4º colocado x 2º colocado + 3º colocado
+            var duplaFinal1 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[0], Jogador2Id = top4[3] };
+            var duplaFinal2 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[1], Jogador2Id = top4[2] };
+            _context.Duplas.Add(duplaFinal1);
+            _context.Duplas.Add(duplaFinal2);
+            await _context.SaveChangesAsync();
+
+            _context.Partidas.Add(new Partida
+            {
+                TorneioId = torneioId,
+                CategoriaId = categoriaId,
+                Dupla1Id = duplaFinal1.Id,
+                Dupla2Id = duplaFinal2.Id,
+                Fase = "Final",
+                Status = "Agendada",
+                HorarioPrevisto = DateTime.Now.AddHours(2),
+                Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+            });
             await _context.SaveChangesAsync();
         }
     }

@@ -7,6 +7,7 @@
     var parceiros = ViewBag.Parceiros as List<ParceiroResumoVM> ?? new();
     var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+    bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
 }
 
 <div class="container mt-4">
@@ -21,36 +22,70 @@
              class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
         <h3 class="fw-bold mt-3">
             @Model.jogador.Nome
-            @if ((int)ViewBag.Titulos > 0)
+            @if (!perfilBloqueado && (int)ViewBag.Titulos > 0)
             {
                 <span class="badge rounded-pill ms-1 align-middle" style="background:#fff6df;color:#8a6d00;font-weight:600;" title="Campeão @ViewBag.Titulos vez(es)">
                     <i class="bi bi-trophy-fill"></i> @ViewBag.Titulos×
                 </span>
             }
         </h3>
-        <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
 
-        @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
+        @if (perfilBloqueado)
         {
-            <div class="d-flex justify-content-center gap-2 flex-wrap">
-                @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))
-                {
-                    <a href="https://instagram.com/@(Model.jogador.Instagram.TrimStart('@'))" target="_blank" rel="noopener"
-                       class="btn btn-sm btn-outline-secondary rounded-pill">
-                        <i class="bi bi-instagram"></i> @@@(Model.jogador.Instagram.TrimStart('@'))
-                    </a>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.jogador.Celular))
-                {
-                    var numeroLimpo = new string(Model.jogador.Celular.Where(char.IsDigit).ToArray());
-                    <a href="https://wa.me/55@(numeroLimpo)" target="_blank" rel="noopener"
-                       class="btn btn-sm btn-outline-success rounded-pill">
-                        <i class="bi bi-whatsapp"></i> WhatsApp
-                    </a>
-                }
-            </div>
+            <p class="text-muted small"><i class="bi bi-lock-fill"></i> Este perfil é privado.</p>
+        }
+        else
+        {
+            <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+
+            @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
+            {
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))
+                    {
+                        <a href="https://instagram.com/@(Model.jogador.Instagram.TrimStart('@'))" target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-secondary rounded-pill">
+                            <i class="bi bi-instagram"></i> @@@(Model.jogador.Instagram.TrimStart('@'))
+                        </a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.jogador.Celular))
+                    {
+                        var numeroLimpo = new string(Model.jogador.Celular.Where(char.IsDigit).ToArray());
+                        <a href="https://wa.me/55@(numeroLimpo)" target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-success rounded-pill">
+                            <i class="bi bi-whatsapp"></i> WhatsApp
+                        </a>
+                    }
+                </div>
+            }
         }
     </div>
+
+    @if (!perfilBloqueado)
+    {
+    <!-- PERFIL DE JOGO (lado preferido / lateralidade) -->
+    @if (!string.IsNullOrWhiteSpace(Model.jogador.LadoQuadra) || !string.IsNullOrWhiteSpace(Model.jogador.Lateralidade))
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-2"><i class="bi bi-person-badge"></i> Perfil de jogo</h6>
+            <div class="row g-2">
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.LadoQuadra))
+                {
+                    <div class="col-6">
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Lado preferido</small>
+                        <span class="fw-bold">@Model.jogador.LadoQuadra</span>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.Lateralidade))
+                {
+                    <div class="col-6">
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Lateralidade</small>
+                        <span class="fw-bold">@Model.jogador.Lateralidade</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     <!-- CLUBES E HORÁRIOS -->
     @if (Model.jogador.JogadorClubes.Any() || Model.jogador.JogadorDiasHorarios.Any())
@@ -223,4 +258,5 @@
             </div>
         }
     </div>
+    }
 </div>

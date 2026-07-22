@@ -1,6 +1,7 @@
 ﻿@model Padelizou.Models.Partida
 @{
     ViewData["Title"] = "Controle de Partida";
+    var quadras = ViewBag.Quadras as List<Padelizou.Models.Quadra> ?? new List<Padelizou.Models.Quadra>();
 }
 
 <div class="container mt-4">
@@ -28,7 +29,21 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Quadra</label>
-                                <input type="text" name="nomeQuadra" value="@Model.NomeQuadra" class="form-control" placeholder="Ex: Quadra Central" />
+                                @if (quadras.Count > 0)
+                                {
+                                    <select name="nomeQuadra" class="form-select">
+                                        <option value="">-- Escolha a quadra --</option>
+                                        @foreach (var quadra in quadras)
+                                        {
+                                            <option value="@quadra.Nome" selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <input type="text" name="nomeQuadra" value="@Model.NomeQuadra" class="form-control" placeholder="Ex: Quadra Central" />
+                                    <small class="text-muted">Esse torneio não tem quadras cadastradas — texto livre por enquanto.</small>
+                                }
                             </div>
                         </div>
 

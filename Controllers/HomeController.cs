@@ -16,8 +16,8 @@ namespace Padelizou.Controllers
 
         public IActionResult Index()
         {
-            // Busca todos os torneios no banco de dados para montar a vitrine
-            var torneios = _context.Torneios.ToList();
+            // Busca os torneios com inscrições abertas para montar a vitrine
+            var torneios = _context.Torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
             return View(torneios);
         }
 

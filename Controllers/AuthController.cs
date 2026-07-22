@@ -17,13 +17,52 @@ namespace padelizou.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IPasswordHasher<Jogador> _passwordHasher;
         private readonly IEstatisticasService _estatisticas;
+        private readonly IEmailService _email;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email)
         {
             _context = context;
             _env = env;
             _passwordHasher = passwordHasher;
             _estatisticas = estatisticas;
+            _email = email;
+        }
+
+        // Reportar Problema: qualquer jogador logado pode mandar um relato pra equipe do Padelizou.
+        private const string EmailSuporte = "Padelizou@gmail.com";
+
+        [Authorize]
+        [HttpGet]
+        public IActionResult ReportarProblema()
+        {
+            return View();
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReportarProblema(string mensagem)
+        {
+            if (string.IsNullOrWhiteSpace(mensagem))
+            {
+                ViewBag.Erro = "Descreva o problema antes de enviar.";
+                return View();
+            }
+
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            var corpo = $@"
+                <p><strong>Jogador:</strong> {jogador.Nome} (Id {jogador.Id})</p>
+                <p><strong>E-mail:</strong> {jogador.Email}</p>
+                <p><strong>Problema relatado:</strong></p>
+                <p>{System.Net.WebUtility.HtmlEncode(mensagem).Replace("\n", "<br/>")}</p>";
+
+            await _email.EnviarAsync(EmailSuporte, "Padelizou", $"Problema reportado por {jogador.Nome}", corpo);
+
+            TempData["Sucesso"] = "Problema reportado! Nossa equipe vai dar uma olhada.";
+            return RedirectToAction("Perfil");
         }
 
         [HttpGet]
@@ -49,7 +88,8 @@ namespace padelizou.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email)
+                new Claim(ClaimTypes.Email, jogador.Email),
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
             };
 
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -151,7 +191,8 @@ namespace padelizou.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email)
+                new Claim(ClaimTypes.Email, jogador.Email),
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
             };
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
@@ -178,14 +219,26 @@ namespace padelizou.Controllers
         // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
         [HttpPost]
         public async Task<IActionResult> Cadastro(
-            string nome, string cpf, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
-            string? ladoQuadra, string? instagram, bool notificarEmail, bool notificarWhatsApp,
+            string nome, string cpf, string login, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
+            string? ladoQuadra, string? lateralidade, string? instagram, bool notificarEmail, bool notificarWhatsApp,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
-                string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
+                string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
             {
-                ViewBag.Erro = "Preencha nome, CPF, e-mail e senha pra finalizar o cadastro.";
+                ViewBag.Erro = "Preencha nome, CPF, login, e-mail e senha pra finalizar o cadastro.";
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                return View();
+            }
+
+            login = login.Trim();
+
+            // Login precisa ser único (usado depois pra buscar organizadores de torneio)
+            var loginEmUso = await _context.Jogadores.AnyAsync(j => j.Login == login && j.Cpf != cpf);
+            if (loginEmUso)
+            {
+                ViewBag.Erro = "Esse login já está em uso. Escolha outro.";
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 return View();
@@ -245,7 +298,9 @@ namespace padelizou.Controllers
                 _context.Jogadores.Add(jogador);
             }
 
+            jogador.Login = login;
             jogador.LadoQuadra = ladoQuadra;
+            jogador.Lateralidade = lateralidade;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.Celular = string.IsNullOrWhiteSpace(celular) ? null : celular.Trim();
             jogador.NotificarEmail = notificarEmail;
@@ -259,7 +314,8 @@ namespace padelizou.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email)
+                new Claim(ClaimTypes.Email, jogador.Email),
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
             };
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
@@ -291,7 +347,7 @@ namespace padelizou.Controllers
         [Authorize]
         [HttpPost]
         public async Task<IActionResult> Preferencias(
-            string? ladoQuadra, string? instagram, bool notificarEmail, bool notificarWhatsApp, bool aceitaConvitesJogo,
+            string? ladoQuadra, string? lateralidade, string? instagram, bool perfilPrivado, bool notificarEmail, bool notificarWhatsApp, bool aceitaConvitesJogo,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -299,7 +355,9 @@ namespace padelizou.Controllers
             if (jogador == null) return NotFound();
 
             jogador.LadoQuadra = ladoQuadra;
+            jogador.Lateralidade = lateralidade;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
+            jogador.PerfilPrivado = perfilPrivado;
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
             jogador.AceitaConvitesJogo = aceitaConvitesJogo;

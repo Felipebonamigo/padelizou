@@ -4,17 +4,36 @@
     var torneio = ViewBag.Torneio as Torneio;
     var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
     int? meuId = ViewBag.MeuId as int?;
+    var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
+    var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <h2>🏆 @torneio.Nome - Partidas</h2>
 
-    <!-- Filtro de Times -->
-    <form asp-action="Jogos" method="get" class="d-flex gap-2">
+    <!-- Filtro de Times e Categorias -->
+    <form asp-action="Jogos" method="get" class="d-flex align-items-center gap-2 flex-wrap">
         <input type="hidden" name="id" value="@torneio.Id" />
-        <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" onchange="this.form.submit()">
+        <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;">
             <option value="">Todos os Times</option>
         </select>
+
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
+            </button>
+            <ul class="dropdown-menu p-2" style="min-width: 220px;">
+                @foreach (var cat in categoriasDoTorneio)
+                {
+                    <li class="form-check ms-1">
+                        <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
+                        <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <button type="submit" class="btn btn-padel">Filtrar</button>
     </form>
 </div>
 
@@ -70,19 +89,19 @@
                             </div>
 
                             <!-- Nomes e Placar -->
-                            <h6 class="text-truncate" title="@jogo.Dupla1.Jogador1.Nome / @jogo.Dupla1.Jogador2.Nome">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
 
                             <h3 class="my-2 fw-bold text-dark">
                                 @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0)
                             </h3>
 
-                            <h6 class="text-truncate" title="@jogo.Dupla2.Jogador1.Nome / @jogo.Dupla2.Jogador2.Nome">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
 
                             <hr class="my-2">
 
@@ -136,15 +155,15 @@
                             </div>
 
                             <!-- Nomes (Sem Placar) -->
-                            <h6 class="text-truncate">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
                             <h5 class="my-2 text-muted fw-bold">VS</h5>
-                            <h6 class="text-truncate">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
 
                             <hr class="my-2">
 
@@ -194,19 +213,19 @@
                             </div>
 
                             <!-- Nomes e Placar Final -->
-                            <h6 class="text-truncate @classeDupla1">
-                                <a class="@classeDupla1" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador1Id">@jogo.Dupla1.Jogador1.Nome</a> /
-                                <a class="@classeDupla1" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1.Jogador2Id">@jogo.Dupla1.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center @classeDupla1">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
 
                             <h3 class="my-2 fw-bold text-dark">
                                 @games1 x @games2
                             </h3>
 
-                            <h6 class="text-truncate @classeDupla2">
-                                <a class="@classeDupla2" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador1Id">@jogo.Dupla2.Jogador1.Nome</a> /
-                                <a class="@classeDupla2" asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2.Jogador2Id">@jogo.Dupla2.Jogador2.Nome</a>
-                            </h6>
+                            <div class="d-flex flex-column align-items-center @classeDupla2">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
 
                             <hr class="my-2">
 
@@ -227,6 +246,30 @@
                     </div>
                 </div>
             }
+        </div>
+    </div>
+</div>
+
+<!-- Modal compartilhado "Ver quem votou" do Palpitrômetro -->
+<div class="modal fade" id="modalVerVotos" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="bi bi-graph-up"></i> Quem votou em quem</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-6">
+                        <p class="fw-bold small mb-2" id="modalVerVotosNome1"></p>
+                        <div id="modalVerVotosLista1"></div>
+                    </div>
+                    <div class="col-6">
+                        <p class="fw-bold small mb-2" id="modalVerVotosNome2"></p>
+                        <div id="modalVerVotosLista2"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

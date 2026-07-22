@@ -21,6 +21,18 @@
     </div>
 </div>
 
+<!-- Lateralidade -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small d-block">Destro ou canhoto</label>
+    <div class="btn-group w-100" role="group">
+        <input type="radio" class="btn-check" name="lateralidade" id="lateralidadeDestro" value="Destro" autocomplete="off" @(Model.Lateralidade == "Destro" || string.IsNullOrEmpty(Model.Lateralidade) ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="lateralidadeDestro">Destro</label>
+
+        <input type="radio" class="btn-check" name="lateralidade" id="lateralidadeCanhoto" value="Canhoto" autocomplete="off" @(Model.Lateralidade == "Canhoto" ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="lateralidadeCanhoto">Canhoto</label>
+    </div>
+</div>
+
 <!-- Instagram -->
 <div class="mb-4">
     <label class="form-label fw-bold text-muted small d-block" for="instagramInput">Instagram</label>
@@ -29,6 +41,15 @@
         <input type="text" class="form-control" name="instagram" id="instagramInput" placeholder="seu.usuario" value="@Model.Instagram" />
     </div>
     <small class="text-muted d-block mt-1">Aparece no seu perfil pra outros jogadores te encontrarem. Deixe em branco pra não mostrar.</small>
+</div>
+
+<!-- Perfil privado -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="perfilPrivado" value="true" id="perfilPrivado" style="transform: scale(1.2);" @(Model.PerfilPrivado ? "checked" : "") />
+        <label class="form-check-label fw-bold" for="perfilPrivado">Perfil privado</label>
+    </div>
+    <small class="text-muted d-block mt-2">Se ativado, quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos.</small>
 </div>
 
 <!-- Notificações -->
@@ -43,7 +64,45 @@
         <label class="form-check-label" for="notifWhats">Receber por WhatsApp</label>
     </div>
     <small class="text-muted d-block mt-2">Desmarque os dois pra parar de receber avisos. Pode mudar isso quando quiser.</small>
+
+    <hr class="my-3" />
+
+    <label class="form-label fw-bold text-muted small d-block mb-2">Notificação no celular/navegador</label>
+    <button type="button" id="btnPushToggle" class="btn btn-sm btn-outline-primary" onclick="onClickPushToggle()">
+        <i class="bi bi-bell"></i> <span id="btnPushToggleLabel">Verificando...</span>
+    </button>
+    <small class="text-muted d-block mt-2">Ativa um aviso instantâneo direto no seu celular ou computador, mesmo com o Padelizou fechado (precisa ter instalado o site na tela inicial ou permitido notificações no navegador).</small>
 </div>
+
+<script>
+    async function atualizarBotaoPush() {
+        const status = await statusNotificacoesPush();
+        const btn = document.getElementById('btnPushToggle');
+        const label = document.getElementById('btnPushToggleLabel');
+        if (status === 'unsupported') {
+            btn.disabled = true;
+            label.textContent = 'Não suportado neste navegador';
+            return;
+        }
+        if (status === 'subscribed') {
+            label.textContent = 'Notificações ativadas (clique pra desativar)';
+        } else {
+            label.textContent = 'Ativar notificações';
+        }
+    }
+
+    async function onClickPushToggle() {
+        const status = await statusNotificacoesPush();
+        if (status === 'subscribed') {
+            await desativarNotificacoesPush();
+        } else {
+            await ativarNotificacoesPush();
+        }
+        await atualizarBotaoPush();
+    }
+
+    document.addEventListener('DOMContentLoaded', atualizarBotaoPush);
+</script>
 
 <!-- Convites de jogo avulso -->
 <div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">

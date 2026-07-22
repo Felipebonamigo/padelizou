@@ -194,6 +194,20 @@ public class JogadoresController : Controller
             .FirstOrDefaultAsync(j => j.Id == id);
         if (jogador == null) return NotFound();
 
+        int? meuId = User.Identity?.IsAuthenticated == true
+            ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
+            : null;
+        ViewBag.MeuId = meuId;
+
+        bool souEuMesmo = meuId.HasValue && meuId.Value == id;
+
+        // Perfil privado: visitantes (que não são o dono) só veem foto e nome — pula todo o resto.
+        if (jogador.PerfilPrivado && !souEuMesmo)
+        {
+            ViewBag.PerfilBloqueado = true;
+            return View((jogador, new List<Dupla>()));
+        }
+
         // Busca todas as duplas em que este jogador participou
         var historicoDuplas = await _context.Duplas
             .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
@@ -213,13 +227,7 @@ public class JogadoresController : Controller
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
 
-        // Se tem alguém logado, monta o contexto de confronto (H2H)
-        int? meuId = User.Identity?.IsAuthenticated == true
-            ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
-            : null;
-        ViewBag.MeuId = meuId;
-
-        if (meuId.HasValue && meuId.Value == id)
+        if (souEuMesmo)
         {
             // É o próprio perfil: mostra parceiros de sempre e os confrontos (jogou contra / rivais)
             ViewBag.Confrontos = await _estatisticas.ObterConfrontosAsync(id);

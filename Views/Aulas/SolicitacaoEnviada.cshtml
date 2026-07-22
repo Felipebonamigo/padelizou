@@ -1,8 +1,14 @@
-@model Aula
+@model List<Aula>
 @{
     ViewData["Title"] = "Solicitação Enviada - Padelizou";
-    var mensagem = $"Olá Prof. {Model.Professor.Nome}! Acabei de solicitar uma aula com você em {Model.LocalAula.Nome} no dia {Model.DataHora:dd/MM 'às' HH:mm} pelo Padelizou. Pode confirmar?";
-    var linkWhatsApp = WhatsAppLinkHelper.GerarLink(Model.Professor.Celular, mensagem);
+    var primeira = Model[0];
+    var ehSerie = Model.Count > 1;
+    var puladas = ViewBag.AulasPuladas is int p ? p : 0;
+
+    var mensagem = ehSerie
+        ? $"Olá Prof. {primeira.Professor.Nome}! Acabei de solicitar uma série de {Model.Count} aulas com você em {primeira.LocalAula.Nome}, começando dia {primeira.DataHora:dd/MM 'às' HH:mm}, pelo Padelizou. Pode confirmar?"
+        : $"Olá Prof. {primeira.Professor.Nome}! Acabei de solicitar uma aula com você em {primeira.LocalAula.Nome} no dia {primeira.DataHora:dd/MM 'às' HH:mm} pelo Padelizou. Pode confirmar?";
+    var linkWhatsApp = WhatsAppLinkHelper.GerarLink(primeira.Professor.Celular, mensagem);
 }
 
 <div class="container mt-5">
@@ -11,12 +17,34 @@
             <div class="card shadow-sm border-0 text-center p-4 p-md-5">
                 <i class="bi bi-envelope-check display-3 text-success mb-3"></i>
                 <h3 class="fw-bold" style="color: var(--padel-blue);">Solicitação enviada!</h3>
-                <p class="text-muted">
-                    Enviamos um e-mail para o Prof. @Model.Professor.Nome com os detalhes da aula em
-                    <strong>@Model.LocalAula.Nome</strong> no dia
-                    <strong>@Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
-                    Assim que ele confirmar, você recebe um aviso por e-mail.
-                </p>
+
+                @if (ehSerie)
+                {
+                    <p class="text-muted">
+                        Enviamos um e-mail para o Prof. @primeira.Professor.Nome com os detalhes da série de
+                        <strong>@Model.Count aula(s)</strong> em <strong>@primeira.LocalAula.Nome</strong>.
+                        Assim que ele confirmar (tudo de uma vez ou aula a aula), você recebe um aviso por e-mail.
+                    </p>
+                    <ul class="list-unstyled small text-muted text-start mx-auto" style="max-width:320px;">
+                        @foreach (var aula in Model)
+                        {
+                            <li><i class="bi bi-calendar-event"></i> @aula.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</li>
+                        }
+                    </ul>
+                    @if (puladas > 0)
+                    {
+                        <div class="alert alert-warning small mt-2">@puladas semana(s) pulada(s) por já estarem ocupadas nesse horário.</div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">
+                        Enviamos um e-mail para o Prof. @primeira.Professor.Nome com os detalhes da aula em
+                        <strong>@primeira.LocalAula.Nome</strong> no dia
+                        <strong>@primeira.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
+                        Assim que ele confirmar, você recebe um aviso por e-mail.
+                    </p>
+                }
 
                 <a href="@linkWhatsApp" target="_blank" class="btn btn-success rounded-pill fw-bold mt-3">
                     <i class="bi bi-whatsapp"></i> Avisar o professor por WhatsApp também

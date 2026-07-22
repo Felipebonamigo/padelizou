@@ -163,6 +163,26 @@ namespace Padelizou.Migrations
                     b.ToTable("Categoria");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.Cidade", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Estado")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Cidades");
+                });
+
             modelBuilder.Entity("Padelizou.Models.Clube", b =>
                 {
                     b.Property<int>("Id")
@@ -312,6 +332,29 @@ namespace Padelizou.Migrations
                     b.ToTable("HorarioDisponivel");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.InscricaoAmericana", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoriaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("InscricaoAmericana");
+                });
+
             modelBuilder.Entity("Padelizou.Models.Jogador", b =>
                 {
                     b.Property<int>("Id")
@@ -376,6 +419,14 @@ namespace Padelizou.Migrations
                     b.Property<string>("LadoQuadra")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Lateralidade")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Login")
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -386,6 +437,9 @@ namespace Padelizou.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("NotificarWhatsApp")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PerfilPrivado")
                         .HasColumnType("bit");
 
                     b.Property<int>("PontuacaoGlobal")
@@ -402,6 +456,10 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("AgendaFeedToken")
                         .IsUnique();
+
+                    b.HasIndex("Login")
+                        .IsUnique()
+                        .HasFilter("[Login] IS NOT NULL");
 
                     b.HasIndex("TimeId");
 
@@ -749,6 +807,79 @@ namespace Padelizou.Migrations
                     b.ToTable("Partida");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.ProfessorCidade", b =>
+                {
+                    b.Property<int>("ProfessorId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CidadeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProfessorId", "CidadeId");
+
+                    b.HasIndex("CidadeId");
+
+                    b.ToTable("ProfessorCidade");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.PushSubscriptionJogador", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("PushSubscriptionJogador");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.Quadra", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TorneioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TorneioId");
+
+                    b.ToTable("Quadra");
+                });
+
             modelBuilder.Entity("Padelizou.Models.SessaoGrupo", b =>
                 {
                     b.Property<int>("Id")
@@ -819,6 +950,10 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("DataInicio")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Formato")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("FormatoUnico")
                         .HasColumnType("bit");
 
@@ -831,6 +966,9 @@ namespace Padelizou.Migrations
                     b.Property<int>("GamesFaseMataMata")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImagemCapa")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("LocalTorneio")
                         .HasColumnType("nvarchar(max)");
 
@@ -840,8 +978,17 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(150)");
 
-                    b.Property<int>("OrganizadorId")
+                    b.Property<int?>("OrganizadorId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("PermiteImpedimentoSabadoManha")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PermiteImpedimentoSabadoTarde")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PermiteImpedimentoSextaNoite")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("PermiteImpedimentos")
                         .HasColumnType("bit");
@@ -1222,6 +1369,25 @@ namespace Padelizou.Migrations
                     b.Navigation("Professor");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.InscricaoAmericana", b =>
+                {
+                    b.HasOne("Padelizou.Models.Categoria", "Categoria")
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Categoria");
+
+                    b.Navigation("Jogador");
+                });
+
             modelBuilder.Entity("Padelizou.Models.Jogador", b =>
                 {
                     b.HasOne("Padelizou.Models.Time", "Time")
@@ -1416,6 +1582,47 @@ namespace Padelizou.Migrations
                     b.Navigation("Dupla2");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.ProfessorCidade", b =>
+                {
+                    b.HasOne("Padelizou.Models.Cidade", "Cidade")
+                        .WithMany()
+                        .HasForeignKey("CidadeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Jogador", "Professor")
+                        .WithMany()
+                        .HasForeignKey("ProfessorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cidade");
+
+                    b.Navigation("Professor");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.PushSubscriptionJogador", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.Quadra", b =>
+                {
+                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                        .WithMany()
+                        .HasForeignKey("TorneioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Torneio");
+                });
+
             modelBuilder.Entity("Padelizou.Models.SessaoGrupo", b =>
                 {
                     b.HasOne("padelizou.Models.GrupoPrivado", "Grupo")
@@ -1449,7 +1656,6 @@ namespace Padelizou.Migrations
                     b.HasOne("Padelizou.Models.Organizador", "Organizador")
                         .WithMany("Torneios")
                         .HasForeignKey("OrganizadorId")
-                        .IsRequired()
                         .HasConstraintName("FK__Torneio__Organiz__4E88ABD4");
 
                     b.Navigation("Clube");

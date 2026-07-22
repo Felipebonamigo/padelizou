@@ -14,6 +14,8 @@ public partial class Jogador
 
     public string Cpf { get; set; } = null!;
 
+    public string? Login { get; set; }
+
     public string? Codigo { get; set; }
 
     public virtual ICollection<Dupla> DuplaJogador1s { get; set; } = new List<Dupla>();
@@ -31,6 +33,12 @@ public partial class Jogador
 
     // "Esquerda" / "Direita" / "Ambos"
     public string? LadoQuadra { get; set; }
+
+    // "Destro" / "Canhoto"
+    public string? Lateralidade { get; set; }
+
+    // Se true, visitantes só veem foto e nome no perfil público (Jogadores/Perfil)
+    public bool PerfilPrivado { get; set; }
     public bool NotificarEmail { get; set; }
     public bool NotificarWhatsApp { get; set; }
 

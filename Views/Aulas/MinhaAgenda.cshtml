@@ -2,6 +2,14 @@
 @{
     ViewData["Title"] = "Minha Agenda - Padelizou";
     bool googleConectado = ViewBag.GoogleConectado == true;
+
+    var todasAulas = Model?.ToList() ?? new List<Aula>();
+    var seriesPendentes = todasAulas
+        .Where(a => a.Status == "Pendente" && a.RecorrenciaId != null)
+        .GroupBy(a => a.RecorrenciaId!.Value)
+        .ToList();
+    var idsEmSerie = seriesPendentes.SelectMany(g => g.Select(a => a.Id)).ToHashSet();
+    var aulasIndividuais = todasAulas.Where(a => !idsEmSerie.Contains(a.Id)).ToList();
 }
 
 <div class="container mt-4 mb-5">
@@ -33,7 +41,10 @@
                     <i class="bi bi-google"></i> Conectar Google Agenda
                 </a>
             }
-            <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill btn-sm">Voltar ao Perfil</a>
+            <a asp-controller="Aulas" asp-action="MinhasCidades" class="btn btn-outline-primary rounded-pill btn-sm">
+                <i class="bi bi-pin-map"></i> Minhas Cidades
+            </a>
+            <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">Voltar ao Painel</a>
         </div>
     </div>
 
@@ -55,10 +66,69 @@
         </div>
     }
 
+    @if (seriesPendentes.Any())
+    {
+        <div class="row">
+            @foreach (var serie in seriesPendentes)
+            {
+                var aulasDaSerie = serie.OrderBy(a => a.DataHora).ToList();
+                var primeira = aulasDaSerie[0];
+                var nomeAlunoSerie = primeira.Aluno?.Nome ?? primeira.NomeAlunoAvulso ?? "Aluno avulso";
+
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm border-0" style="border-left: 5px solid var(--padel-blue);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                <h5 class="fw-bold mb-0" style="color: var(--padel-blue);">
+                                    <i class="bi bi-arrow-repeat"></i> Série de @aulasDaSerie.Count aula(s) — @nomeAlunoSerie
+                                </h5>
+                                <span class="text-muted small"><i class="bi bi-geo-alt-fill text-danger"></i> @primeira.LocalAula.Nome</span>
+                            </div>
+
+                            <ul class="list-unstyled small text-muted mb-3">
+                                @foreach (var aula in aulasDaSerie)
+                                {
+                                    <li class="d-flex justify-content-between align-items-center py-1 flex-wrap gap-2 border-bottom">
+                                        <span>@aula.DataHora.ToString("dd/MM/yyyy HH:mm") — @aula.Preco.ToString("C")</span>
+                                        <div class="d-flex gap-1">
+                                            <form asp-action="ConfirmarSolicitacao" method="post">
+                                                <input type="hidden" name="aulaId" value="@aula.Id" />
+                                                <input type="hidden" name="aceitar" value="true" />
+                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Aceitar só esta"><i class="bi bi-check2"></i></button>
+                                            </form>
+                                            <form asp-action="ConfirmarSolicitacao" method="post">
+                                                <input type="hidden" name="aulaId" value="@aula.Id" />
+                                                <input type="hidden" name="aceitar" value="false" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Recusar só esta"><i class="bi bi-x"></i></button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+
+                            <div class="d-flex gap-2">
+                                <form asp-action="ConfirmarSerie" method="post" class="w-50">
+                                    <input type="hidden" name="recorrenciaId" value="@serie.Key" />
+                                    <input type="hidden" name="aceitar" value="true" />
+                                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-check2-all"></i> Aceitar todas</button>
+                                </form>
+                                <form asp-action="ConfirmarSerie" method="post" class="w-50">
+                                    <input type="hidden" name="recorrenciaId" value="@serie.Key" />
+                                    <input type="hidden" name="aceitar" value="false" />
+                                    <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Recusar todas</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
     <div class="row">
-        @if (Model != null && Model.Any())
+        @if (aulasIndividuais.Any())
         {
-            @foreach (var aula in Model)
+            @foreach (var aula in aulasIndividuais)
             {
                 var badgeClass = aula.Status switch
                 {
@@ -143,7 +213,7 @@
                 </div>
             }
         }
-        else
+        else if (!seriesPendentes.Any())
         {
             <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
                 <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>

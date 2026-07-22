@@ -65,8 +65,8 @@
                 </a>
                 @if (Model.IsProfessor)
                 {
-                    <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-warning mt-3 rounded-pill w-100 fw-bold shadow-sm" style="color: var(--padel-blue);">
-                        <i class="bi bi-journal-bookmark-fill me-1"></i> Gerenciar Aulas (Professor)
+                    <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-warning mt-3 rounded-pill w-100 fw-bold shadow-sm" style="color: var(--padel-blue);">
+                        <i class="bi bi-journal-bookmark-fill me-1"></i> Painel do Professor
                     </a>
                 }
                 <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary mt-3 rounded-pill w-100">
@@ -74,6 +74,9 @@
                 </a>
                 <a asp-controller="Auth" asp-action="Preferencias" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-sliders me-1"></i> Minhas Preferências
+                </a>
+                <a asp-controller="Auth" asp-action="ReportarProblema" class="btn btn-outline-secondary mt-3 rounded-pill w-100">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Reportar Problema
                 </a>
                 <a asp-controller="Auth" asp-action="Logout" class="btn btn-outline-danger mt-3 rounded-pill w-100">Sair da Conta</a>
             </div>

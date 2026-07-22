@@ -4,6 +4,7 @@
     string NavActive(params string[] controllers) => controllers.Contains(currentController) ? "active" : "";
     var nomeUsuario = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.Name) : null;
     var meuId = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+    var minhaFoto = User.Identity?.IsAuthenticated == true ? User.FindFirstValue("FotoPerfil") : null;
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -12,6 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Padelizou</title>
     <meta name="theme-color" content="#141d33" />
+    <link rel="manifest" href="~/manifest.json" />
     <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />
     <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,7 +46,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Create">
+                            <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Index">
                                 <i class="bi bi-trophy"></i> Torneio
                             </a>
                         </li>
@@ -56,11 +58,6 @@
                         <li class="nav-item">
                             <a class="nav-link @NavActive("Avisos")" asp-area="" asp-controller="Avisos" asp-action="Index">
                                 <i class="bi bi-megaphone"></i> Buscar Jogo
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @NavActive("Parceiros")" asp-area="" asp-controller="Parceiros" asp-action="Index">
-                                <i class="bi bi-person-plus"></i> Parceiro
                             </a>
                         </li>
                         <li class="nav-item">
@@ -87,7 +84,14 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil">
-                                <i class="bi bi-person-circle"></i>
+                                @if (!string.IsNullOrWhiteSpace(minhaFoto))
+                                {
+                                    <img src="@minhaFoto" alt="" class="rounded-circle" style="width:22px;height:22px;object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-circle"></i>
+                                }
                                 <span class="text-truncate">@nomeUsuario</span>
                             </a>
                             <a class="btn btn-sm pdz-btn-ghost rounded-pill" asp-controller="Auth" asp-action="Logout" title="Sair">
@@ -127,6 +131,14 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/push.js" asp-append-version="true"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

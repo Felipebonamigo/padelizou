@@ -41,6 +41,7 @@ public class LembreteJogoBackgroundService : BackgroundService
             var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
             var sessaoGrupoService = scope.ServiceProvider.GetRequiredService<ISessaoGrupoService>();
             var whatsAppService = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
+            var pushService = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
             var grupos = await context.GruposPrivados
                 .Include(g => g.Clube)
@@ -49,7 +50,7 @@ public class LembreteJogoBackgroundService : BackgroundService
 
             foreach (var grupo in grupos)
             {
-                await ProcessarGrupoAsync(grupo, context, sessaoGrupoService, whatsAppService, stoppingToken);
+                await ProcessarGrupoAsync(grupo, context, sessaoGrupoService, whatsAppService, pushService, stoppingToken);
             }
         }
         catch (Exception ex)
@@ -60,7 +61,7 @@ public class LembreteJogoBackgroundService : BackgroundService
 
     private async Task ProcessarGrupoAsync(
         GrupoPrivado grupo, DbPadelContext context, ISessaoGrupoService sessaoGrupoService,
-        IWhatsAppService whatsAppService, CancellationToken stoppingToken)
+        IWhatsAppService whatsAppService, IPushNotificationService pushService, CancellationToken stoppingToken)
     {
         var sessao = await sessaoGrupoService.ObterOuCriarSessaoAsync(grupo, null);
 
@@ -86,6 +87,12 @@ public class LembreteJogoBackgroundService : BackgroundService
             {
                 confirmacao.LembreteEnviadoEm = agora;
             }
+
+            await pushService.EnviarParaJogadorAsync(
+                confirmacao.JogadorId,
+                "Jogo em 24h!",
+                $"Confirma presença no jogo fixo dia {sessao.DataHora:dd/MM 'às' HH:mm}.",
+                "/Agenda");
         }
 
         if (pendentes.Any())

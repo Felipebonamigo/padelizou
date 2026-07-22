@@ -1,0 +1,108 @@
+@* Busca um Jogador por CPF ou Login (autocomplete) pra adicionar como organizador do torneio.
+   Modo "coleta" (ViewData["BuscaOrgHiddenName"] setado): vira um chip removível, com um input
+   hidden desse nome, dentro do form que o chamador já tem (ex: Create.cshtml).
+   Modo "direto" (ViewData["BuscaOrgTorneioId"] setado): ao clicar no resultado, já submete
+   um POST pra TorneiosController.AdicionarOrganizador (ex: aba Gerenciar Torneio). *@
+@{
+    var uid = Guid.NewGuid().ToString("N").Substring(0, 8);
+    var hiddenName = ViewData["BuscaOrgHiddenName"] as string;
+    var torneioIdDireto = ViewData["BuscaOrgTorneioId"] as int?;
+}
+
+<div class="mb-2">
+    <input type="text" id="buscaOrg_@uid" class="form-control" placeholder="Digite o CPF ou o login do organizador..." autocomplete="off" />
+    <div id="buscaOrgResultado_@uid" class="list-group shadow-sm mt-1"></div>
+    @if (!string.IsNullOrEmpty(hiddenName))
+    {
+        <div id="buscaOrgSelecionados_@uid" class="d-flex flex-wrap gap-2 mt-2"></div>
+    }
+</div>
+
+@if (torneioIdDireto.HasValue)
+{
+    <form id="antiforgery_@uid" style="display:none">@Html.AntiForgeryToken()</form>
+}
+
+<script>
+    (function () {
+        var input = document.getElementById('buscaOrg_@uid');
+        var resultadoDiv = document.getElementById('buscaOrgResultado_@uid');
+        var selecionadosDiv = document.getElementById('buscaOrgSelecionados_@uid');
+        var hiddenName = @Html.Raw(string.IsNullOrEmpty(hiddenName) ? "null" : System.Text.Json.JsonSerializer.Serialize(hiddenName));
+        var torneioIdDireto = @Html.Raw(torneioIdDireto.HasValue ? torneioIdDireto.Value.ToString() : "null");
+        var timer = null;
+
+        function limparResultado() { resultadoDiv.innerHTML = ''; }
+
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            var termo = input.value.trim();
+            if (termo.length < 3) { limparResultado(); return; }
+            timer = setTimeout(function () {
+                fetch('/Torneios/BuscarJogadorParaOrganizador?termo=' + encodeURIComponent(termo))
+                    .then(function (r) { return r.json(); })
+                    .then(function (lista) {
+                        if (lista.length === 0) {
+                            resultadoDiv.innerHTML = '<div class="list-group-item text-muted small">Nenhum jogador encontrado com esse CPF/login — peça para a pessoa criar uma conta primeiro.</div>';
+                            return;
+                        }
+                        resultadoDiv.innerHTML = lista.map(function (j) {
+                            var foto = j.fotoPerfil || '/img/default-avatar.png';
+                            var nomeSeguro = String(j.nome).replace(/"/g, '&quot;');
+                            return '<button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-2" data-id="' + j.id + '" data-nome="' + nomeSeguro + '" data-foto="' + foto + '">' +
+                                   '<img src="' + foto + '" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">' +
+                                   '<span>' + nomeSeguro + '</span></button>';
+                        }).join('');
+                    });
+            }, 300);
+        });
+
+        resultadoDiv.addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-id]');
+            if (!btn) return;
+            var id = btn.getAttribute('data-id');
+            var nome = btn.getAttribute('data-nome');
+            var foto = btn.getAttribute('data-foto');
+
+            if (torneioIdDireto !== null) {
+                var token = document.querySelector('#antiforgery_@uid input[name="__RequestVerificationToken"]').value;
+                var form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/Torneios/AdicionarOrganizador';
+                form.style.display = 'none';
+
+                var campoTorneio = document.createElement('input');
+                campoTorneio.name = 'torneioId'; campoTorneio.value = torneioIdDireto;
+                var campoJogador = document.createElement('input');
+                campoJogador.name = 'jogadorId'; campoJogador.value = id;
+                var campoToken = document.createElement('input');
+                campoToken.name = '__RequestVerificationToken'; campoToken.value = token;
+
+                form.appendChild(campoTorneio);
+                form.appendChild(campoJogador);
+                form.appendChild(campoToken);
+                document.body.appendChild(form);
+                form.submit();
+                return;
+            }
+
+            if (selecionadosDiv.querySelector('[data-chip-id="' + id + '"]')) {
+                input.value = ''; limparResultado();
+                return;
+            }
+
+            var chip = document.createElement('span');
+            chip.className = 'badge rounded-pill bg-light text-dark border d-inline-flex align-items-center gap-2 p-2';
+            chip.setAttribute('data-chip-id', id);
+            chip.innerHTML = '<img src="' + foto + '" class="rounded-circle" style="width:20px;height:20px;object-fit:cover;">' +
+                              '<span>' + nome + '</span>' +
+                              '<input type="hidden" name="' + hiddenName + '" value="' + id + '">' +
+                              '<button type="button" class="btn-close" style="font-size:0.55rem;" aria-label="Remover"></button>';
+            chip.querySelector('button').addEventListener('click', function () { chip.remove(); });
+            selecionadosDiv.appendChild(chip);
+
+            input.value = '';
+            limparResultado();
+        });
+    })();
+</script>

@@ -23,6 +23,13 @@ public class HistoricoCategoriaVM
 {
     public string MelhorFase { get; set; } = "Grupos";
     public int Titulos { get; set; }
+
+    // Estilo do selo, conforme o tier da categoria (ver EstatisticasService.TierDaCategoria).
+    public string Tier { get; set; } = "Geral";
+    public string TierNome { get; set; } = "Geral";
+    public string IconeTier { get; set; } = "bi-trophy-fill";
+    public string CorFundoTier { get; set; } = "#eef2f8";
+    public string CorTextoTier { get; set; } = "#6c757d";
 }
 
 // Resumo de um adversário no histórico de confrontos

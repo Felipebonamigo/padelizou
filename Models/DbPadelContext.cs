@@ -34,6 +34,8 @@ public partial class DbPadelContext : DbContext
     public DbSet<Time> Times { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
+    public DbSet<Cidade> Cidades { get; set; }
+    public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
     public DbSet<JogadorCategoria> JogadorCategorias { get; set; }
     public DbSet<JogadorClube> JogadorClubes { get; set; }
     public DbSet<JogadorDiaHorario> JogadorDiasHorarios { get; set; }
@@ -47,6 +49,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<ConfirmacaoSessao> ConfirmacoesSessao { get; set; }
     public DbSet<MensalidadeGrupo> MensalidadesGrupo { get; set; }
     public DbSet<PalpitePartida> PalpitesPartida { get; set; }
+    public DbSet<Quadra> Quadras { get; set; }
+    public DbSet<InscricaoAmericana> InscricoesAmericanas { get; set; }
+    public DbSet<PushSubscriptionJogador> PushSubscriptionsJogador { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -96,6 +101,18 @@ public partial class DbPadelContext : DbContext
         });
         modelBuilder.Entity<TorneioOrganizador>()
         .HasKey(to => new { to.TorneioId, to.JogadorId });
+        modelBuilder.Entity<InscricaoAmericana>(entity =>
+        {
+            entity.HasOne(e => e.Categoria)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Categoria>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Categori__3214EC079FE58FF8");
@@ -149,6 +166,8 @@ public partial class DbPadelContext : DbContext
 
             entity.HasIndex(e => e.AgendaFeedToken).IsUnique();
 
+            entity.HasIndex(e => e.Login).IsUnique();
+
             entity.Property(e => e.Codigo)
                 .HasMaxLength(50)
                 .IsUnicode(false);
@@ -156,6 +175,9 @@ public partial class DbPadelContext : DbContext
                 .HasMaxLength(11)
                 .IsUnicode(false)
                 .HasColumnName("CPF");
+            entity.Property(e => e.Login)
+                .HasMaxLength(30)
+                .IsUnicode(false);
             entity.Property(e => e.Nome)
                 .HasMaxLength(100)
                 .IsUnicode(false);
@@ -311,6 +333,21 @@ public partial class DbPadelContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<ProfessorCidade>(entity =>
+        {
+            entity.HasKey(e => new { e.ProfessorId, e.CidadeId });
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Cidade)
+                .WithMany()
+                .HasForeignKey(e => e.CidadeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<JogadorDiaHorario>(entity =>
         {
             entity.HasKey(e => new { e.JogadorId, e.DiaSemana, e.Periodo });
@@ -444,6 +481,16 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DuplaEscolhidaId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PushSubscriptionJogador>(entity =>
+        {
+            entity.HasIndex(e => e.Endpoint).IsUnique();
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         OnModelCreatingPartial(modelBuilder);

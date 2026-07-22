@@ -3,7 +3,7 @@
     var r = Model.resumo ?? new Padelizou.ViewModels.PalpiteResumoVM { PartidaId = Model.partida.Id };
     bool finalizada = Model.partida.Status == "Finalizada";
     bool logado = Model.meuId.HasValue;
-    bool votavel = !finalizada && logado;
+    bool votavel = Model.partida.Status == "Agendada" && logado;
     int? meuVoto = r.MeuVotoDuplaId;
     string nome1 = $"{Model.partida.Dupla1?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla1?.Jogador2?.Nome?.Split(' ')[0]}";
     string nome2 = $"{Model.partida.Dupla2?.Jogador1?.Nome?.Split(' ')[0]} / {Model.partida.Dupla2?.Jogador2?.Nome?.Split(' ')[0]}";
@@ -50,6 +50,12 @@
         else
         {
             <small class="text-muted pdz-total-votos">@r.TotalVotos voto(s)</small>
+        }
+        @if (r.TotalVotos > 0)
+        {
+            <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-partida-id="@Model.partida.Id" data-nome1="@nome1" data-nome2="@nome2" onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                Ver quem votou
+            </button>
         }
     </div>
 </div>

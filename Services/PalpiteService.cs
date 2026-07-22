@@ -49,7 +49,7 @@ public class PalpiteService : IPalpiteService
     {
         var partida = await _context.Partidas.FindAsync(partidaId);
         if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
-        if (partida.Status == "Finalizada") throw new InvalidOperationException("Esta partida já foi finalizada — não é mais possível palpitar.");
+        if (partida.Status != "Agendada") throw new InvalidOperationException("Esta partida já começou — não é mais possível palpitar.");
         if (duplaEscolhidaId != partida.Dupla1Id && duplaEscolhidaId != partida.Dupla2Id)
             throw new InvalidOperationException("Dupla inválida para esta partida.");
 
@@ -70,5 +70,24 @@ public class PalpiteService : IPalpiteService
 
         var resumos = await ObterResumosAsync(new[] { partidaId }, jogadorId);
         return resumos[partidaId];
+    }
+
+    public async Task<VotantesPartidaVM> ObterVotantesAsync(int partidaId)
+    {
+        var partida = await _context.Partidas.FindAsync(partidaId);
+        if (partida == null) throw new InvalidOperationException("Partida não encontrada.");
+
+        var votos = await _context.PalpitesPartida
+            .Include(v => v.Jogador)
+            .Where(v => v.PartidaId == partidaId)
+            .ToListAsync();
+
+        return new VotantesPartidaVM
+        {
+            VotantesDupla1 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla1Id)
+                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList(),
+            VotantesDupla2 = votos.Where(v => v.DuplaEscolhidaId == partida.Dupla2Id)
+                .Select(v => new VotanteVM { Nome = v.Jogador.Nome, FotoPerfil = v.Jogador.FotoPerfil }).ToList()
+        };
     }
 }

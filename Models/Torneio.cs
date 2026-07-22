@@ -10,7 +10,7 @@ public partial class Torneio
 {
     public int Id { get; set; }
 
-    public int OrganizadorId { get; set; }
+    public int? OrganizadorId { get; set; }
 
     public string Nome { get; set; } = null!;
 
@@ -18,13 +18,18 @@ public partial class Torneio
 
     public virtual ICollection<Categoria> Categorias { get; set; } = new List<Categoria>();
 
-    public virtual Organizador Organizador { get; set; } = null!; 
+    public virtual Organizador? Organizador { get; set; }
     public DateTime? DataInicio{ get; set; } 
     public bool PermiteImpedimentos { get; set; }
+    public bool PermiteImpedimentoSextaNoite { get; set; } = true;
+    public bool PermiteImpedimentoSabadoManha { get; set; } = true;
+    public bool PermiteImpedimentoSabadoTarde { get; set; } = true;
     public decimal PrecoInscricao { get; set; }
     public string? LocalTorneio { get; set; }
+    public string? ImagemCapa { get; set; }
     public int QuantidadeQuadras { get; set; }
     public string Status { get; set; } = "Inscrições Abertas";
+    public string Formato { get; set; } = "Padrao"; // "Padrao" ou "Americano"
     public bool FormatoUnico { get; set; }
     public int SetsFaseGrupos { get; set; }
     public int GamesFaseGrupos { get; set; }

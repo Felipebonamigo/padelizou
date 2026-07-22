@@ -1,0 +1,25 @@
+{
+  "name": "Padelizou",
+  "short_name": "Padelizou",
+  "description": "Torneios, aulas e agenda de padel",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#141d33",
+  "theme_color": "#141d33",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/image/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/image/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

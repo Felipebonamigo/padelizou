@@ -14,7 +14,8 @@
           "Microsoft.EntityFrameworkCore.SqlServer": "10.0.10",
           "Microsoft.VisualStudio.Web.CodeGeneration.Design": "10.0.2",
           "NuGet.Packaging": "7.6.0",
-          "NuGet.Protocol": "7.6.0"
+          "NuGet.Protocol": "7.6.0",
+          "WebPush": "1.0.13"
         },
         "runtime": {
           "Padelizou.dll": {}
@@ -1802,6 +1803,14 @@
           }
         }
       },
+      "Portable.BouncyCastle/1.9.0": {
+        "runtime": {
+          "lib/netstandard2.0/BouncyCastle.Crypto.dll": {
+            "assemblyVersion": "1.9.0.0",
+            "fileVersion": "1.9.0.1"
+          }
+        }
+      },
       "System.ClientModel/1.5.1": {
         "dependencies": {
           "System.Memory.Data": "8.0.1"
@@ -1944,6 +1953,17 @@
           "lib/net9.0/System.Security.Cryptography.ProtectedData.dll": {
             "assemblyVersion": "9.0.0.0",
             "fileVersion": "9.0.625.26613"
+          }
+        }
+      },
+      "WebPush/1.0.13": {
+        "dependencies": {
+          "Portable.BouncyCastle": "1.9.0"
+        },
+        "runtime": {
+          "lib/net10.0/WebPush.dll": {
+            "assemblyVersion": "1.0.13.0",
+            "fileVersion": "1.0.13.0"
           }
         }
       }
@@ -2746,6 +2766,13 @@
       "path": "nuget.versioning/7.6.0",
       "hashPath": "nuget.versioning.7.6.0.nupkg.sha512"
     },
+    "Portable.BouncyCastle/1.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-eZZBCABzVOek+id9Xy04HhmgykF0wZg9wpByzrWN7q8qEI0Qen9b7tfd7w8VA3dOeesumMG7C5ZPy0jk7PSRHw==",
+      "path": "portable.bouncycastle/1.9.0",
+      "hashPath": "portable.bouncycastle.1.9.0.nupkg.sha512"
+    },
     "System.ClientModel/1.5.1": {
       "type": "package",
       "serviceable": true,
@@ -2843,6 +2870,13 @@
       "sha512": "sha512-yErfw/3pZkJE/VKza/Cm5idTpIKOy/vsmVi59Ta5SruPVtubzxb8CtnE8tyUpzs5pr0Y28GUFfSVzAhCLN3F/Q==",
       "path": "system.security.cryptography.protecteddata/9.0.6",
       "hashPath": "system.security.cryptography.protecteddata.9.0.6.nupkg.sha512"
+    },
+    "WebPush/1.0.13": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Qyypsk6j+GqncCa/IgbmZLnL7DxqKFGz3jIdquGSLeiD3NtN+HPnIFBMwIJHffDU9ZEztTkaMMYxvW3PJxJL7Q==",
+      "path": "webpush/1.0.13",
+      "hashPath": "webpush.1.0.13.nupkg.sha512"
     }
   }
 }

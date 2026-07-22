@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Criar Novo Torneio";
     var catalogo = ViewBag.CatalogoCategorias as List<padelizou.Models.CategoriaPadrao>;
+    var catalogoClubes = ViewBag.CatalogoClubes as List<Padelizou.Models.Clube>;
 }
 
 <div class="container mt-4 mb-5">
@@ -9,10 +10,27 @@
         <div class="card-body p-4 p-md-5">
             <h2 class="fw-bold mb-4" style="color: var(--padel-blue);"><i class="bi bi-trophy-fill"></i> Criar Novo Torneio</h2>
 
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
 
                 <!-- DADOS BÁSICOS DO TORNEIO -->
                 <h5 class="fw-bold text-muted border-bottom pb-2 mb-3">1. Informações Gerais</h5>
+
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Formato do Torneio</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Formato" id="formatoPadrao" value="Padrao" checked>
+                                <label class="form-check-label" for="formatoPadrao">Torneio Padrão (duplas fixas)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Formato" id="formatoAmericano" value="Americano">
+                                <label class="form-check-label" for="formatoAmericano">Torneio Americano (parceiros rotativos)</label>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-1">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
+                    </div>
+                </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold small">Nome do Torneio</label>
@@ -23,19 +41,66 @@
                         <input type="text" asp-for="LocalTorneio" class="form-control bg-light" required placeholder="Ex: Padel Garden - Gravataí" />
                     </div>
                 </div>
-                <div class="row mb-4">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Imagem de Capa (Opcional)</label>
+                        <input type="file" name="capa" class="form-control" accept="image/*" />
+                        <small class="text-muted d-block mt-1">Aparece como cartaz do torneio na Home e na listagem de Torneios.</small>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Clube Responsável</label>
+                        <select asp-for="ClubeId" class="form-select bg-light" required>
+                            <option value="">-- Selecione o clube --</option>
+                            @if (catalogoClubes != null)
+                            {
+                                foreach (var clube in catalogoClubes)
+                                {
+                                    <option value="@clube.Id">@clube.Nome</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Data de Início</label>
+                        <input type="date" asp-for="DataInicio" class="form-control bg-light" required />
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Preço da Inscrição (Por Dupla)</label>
                         <input type="number" asp-for="PrecoInscricao" step="0.01" class="form-control bg-light" required placeholder="Ex: 150,00" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Qtd. de Quadras Disponíveis</label>
-                        <input type="number" asp-for="QuantidadeQuadras" class="form-control bg-light" required placeholder="Ex: 3" />
+                        <input type="number" asp-for="QuantidadeQuadras" id="quantidadeQuadras" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">Nome de cada Quadra (opcional)</label>
+                        <div id="camposNomesQuadras" class="row g-2"></div>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-12">
                         <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentos" id="impSwitch" style="transform: scale(1.3); margin-right: 10px;">
+                            <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentos" id="impSwitch" onchange="toggleImpedimentos()" style="transform: scale(1.3); margin-right: 10px;">
                             <label class="form-check-label fw-bold text-muted" for="impSwitch">Permitir Impedimentos de Horário?</label>
+                        </div>
+                        <div id="turnosImpedimento" class="ps-4" style="display: none;">
+                            <p class="small text-muted mb-2">Quais turnos as duplas podem marcar como impedimento?</p>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoSextaNoite" id="impSexta">
+                                <label class="form-check-label" for="impSexta">Sexta à noite</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoSabadoManha" id="impSabManha">
+                                <label class="form-check-label" for="impSabManha">Sábado de manhã</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoSabadoTarde" id="impSabTarde">
+                                <label class="form-check-label" for="impSabTarde">Sábado à tarde</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -83,8 +148,15 @@
                     </div>
                 </div>
 
+                <!-- OUTROS ORGANIZADORES -->
+                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">3. Outros Organizadores (opcional)</h5>
+                <p class="small text-muted mt-n2 mb-3">Além de você, quem mais vai poder gerenciar este torneio? Busque por CPF ou login de quem já tem conta no Padelizou.</p>
+                @{ ViewData["BuscaOrgHiddenName"] = "organizadoresSelecionados"; }
+                <partial name="_BuscaOrganizador" />
+                @{ ViewData["BuscaOrgHiddenName"] = null; }
+
                 <!-- CATEGORIAS (O CATÁLOGO) -->
-                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">3. Categorias Disponíveis neste Torneio</h5>
+                <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">4. Categorias Disponíveis neste Torneio</h5>
 
                 <div class="row">
                     <!-- Coluna Masculina -->
@@ -143,4 +215,31 @@
             el.style.display = isUnico ? 'none' : 'block';
         });
     }
+
+    function toggleImpedimentos() {
+        var ligado = document.getElementById('impSwitch').checked;
+        document.getElementById('turnosImpedimento').style.display = ligado ? 'block' : 'none';
+    }
+
+    function gerarCamposQuadra() {
+        var quantidade = Math.max(0, Math.min(26, parseInt(document.getElementById('quantidadeQuadras').value, 10) || 0));
+        var container = document.getElementById('camposNomesQuadras');
+        var valoresAtuais = Array.from(container.querySelectorAll('input')).map(function (i) { return i.value; });
+
+        container.innerHTML = '';
+        for (var i = 0; i < quantidade; i++) {
+            var col = document.createElement('div');
+            col.className = 'col-md-3 col-6';
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'nomesQuadras';
+            input.className = 'form-control form-control-sm';
+            input.placeholder = 'Quadra ' + String.fromCharCode(65 + i);
+            input.value = valoresAtuais[i] || '';
+            col.appendChild(input);
+            container.appendChild(col);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
 </script>
