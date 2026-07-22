@@ -1,0 +1,71 @@
+@model Jogador
+@{
+    ViewData["Title"] = "Editar Perfil - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold" style="color: var(--padel-blue);">Editar Perfil</h2>
+                    <p class="text-muted mb-0">Seus dados pessoais. Preferências de jogo ficam em "Minhas Preferências".</p>
+                </div>
+                <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+            </div>
+
+            @if (ViewBag.Erro != null)
+            {
+                <div class="alert alert-danger">@ViewBag.Erro</div>
+            }
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form asp-controller="Auth" asp-action="EditarPerfil" method="post" enctype="multipart/form-data">
+
+                        <div class="mb-4 text-center">
+                            @if (!string.IsNullOrEmpty(Model.FotoPerfil))
+                            {
+                                <img src="@Model.FotoPerfil" alt="Foto de perfil" class="rounded-circle mb-2" style="width: 96px; height: 96px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle d-block" style="font-size: 96px; color: var(--padel-blue);"></i>
+                            }
+                            <label class="form-label fw-bold text-muted small d-block mt-2">Trocar foto de perfil</label>
+                            <input type="file" name="foto" class="form-control" accept="image/*" style="max-width: 320px; margin: 0 auto;" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Nome Completo</label>
+                            <input type="text" name="nome" class="form-control bg-light" required value="@Model.Nome" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">E-mail</label>
+                            <input type="email" name="email" class="form-control bg-light" required value="@Model.Email" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Celular / WhatsApp</label>
+                            <input type="tel" name="celular" class="form-control bg-light" placeholder="(51) 99999-9999" value="@Model.Celular" />
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold text-muted small">Cidade</label>
+                                <input type="text" name="cidade" class="form-control bg-light" value="@Model.Cidade" />
+                            </div>
+                            <div class="col-md-4 mt-3 mt-md-0">
+                                <label class="form-label fw-bold text-muted small">Estado (UF)</label>
+                                <input type="text" name="estado" class="form-control bg-light" maxlength="2" style="text-transform: uppercase;" value="@Model.Estado" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

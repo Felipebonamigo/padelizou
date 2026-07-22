@@ -4,6 +4,10 @@
 }
 
 <div class="container mt-4">
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
     <div class="row">
         <!-- Coluna da Esquerda: Resumo do Jogador -->
         <div class="col-md-4 mb-4">
@@ -25,6 +29,9 @@
                         <i class="bi bi-journal-bookmark-fill me-1"></i> Gerenciar Aulas (Professor)
                     </a>
                 }
+                <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary mt-3 rounded-pill w-100">
+                    <i class="bi bi-pencil-square me-1"></i> Editar Perfil
+                </a>
                 <a asp-controller="Auth" asp-action="Preferencias" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-sliders me-1"></i> Minhas Preferências
                 </a>

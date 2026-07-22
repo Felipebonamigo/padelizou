@@ -79,6 +79,74 @@ namespace padelizou.Controllers
             return View(jogador);
         }
 
+        // 3.1 TELA DE EDITAR PERFIL (dados pessoais — diferente de "Preferências", que é sobre jogo)
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> EditarPerfil()
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            return View(jogador);
+        }
+
+        [Authorize]
+        [HttpPost]
+        public async Task<IActionResult> EditarPerfil(
+            string nome, string email, string? celular, string? cidade, string? estado, IFormFile? foto)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(email))
+            {
+                ViewBag.Erro = "Preencha nome e e-mail.";
+                return View(jogador);
+            }
+
+            if (foto != null && foto.Length > 0)
+            {
+                string pastaUploads = Path.Combine(_env.WebRootPath, "uploads", "fotos-perfil");
+                if (!Directory.Exists(pastaUploads))
+                {
+                    Directory.CreateDirectory(pastaUploads);
+                }
+
+                string nomeArquivoUnico = Guid.NewGuid().ToString() + "_" + foto.FileName;
+                string caminhoFisicoCompleto = Path.Combine(pastaUploads, nomeArquivoUnico);
+
+                using (var stream = new FileStream(caminhoFisicoCompleto, FileMode.Create))
+                {
+                    await foto.CopyToAsync(stream);
+                }
+
+                jogador.FotoPerfil = "/uploads/fotos-perfil/" + nomeArquivoUnico;
+            }
+
+            jogador.Nome = nome;
+            jogador.Email = email;
+            jogador.Celular = string.IsNullOrWhiteSpace(celular) ? null : celular.Trim();
+            jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
+            jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+            await _context.SaveChangesAsync();
+
+            // Renova o cookie com nome/e-mail atualizados (o chip do usuário na navbar lê da claim,
+            // não do banco — sem isso ficaria com o nome antigo até o próximo login).
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
+                new Claim(ClaimTypes.Name, jogador.Nome),
+                new Claim(ClaimTypes.Email, jogador.Email)
+            };
+            var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
+
+            TempData["Sucesso"] = "Perfil atualizado!";
+            return RedirectToAction("Perfil");
+        }
+
         // 4. LOGOUT
         public async Task<IActionResult> Logout()
         {
@@ -97,7 +165,7 @@ namespace padelizou.Controllers
         // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
         [HttpPost]
         public async Task<IActionResult> Cadastro(
-            string nome, string cpf, string email, string senha, bool isProfessor, IFormFile foto,
+            string nome, string cpf, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
             string? ladoQuadra, string? instagram, bool notificarEmail, bool notificarWhatsApp,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
@@ -166,6 +234,7 @@ namespace padelizou.Controllers
 
             jogador.LadoQuadra = ladoQuadra;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
+            jogador.Celular = string.IsNullOrWhiteSpace(celular) ? null : celular.Trim();
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
 
