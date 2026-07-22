@@ -4,16 +4,19 @@ namespace Padelizou.Services;
 
 public static class WhatsAppLinkHelper
 {
-    // Gera um link wa.me pronto para o usuário clicar e enviar a mensagem pelo próprio WhatsApp.
-    // Assume número de celular brasileiro (DDD + número, sem o "55").
-    public static string GerarLink(string? celular, string mensagem)
+    // Remove formatação comum de celular brasileiro (DDD + número, sem o "55").
+    public static string LimparNumero(string? celular)
     {
-        var numeroLimpo = (celular ?? string.Empty)
+        return (celular ?? string.Empty)
             .Replace("-", "")
             .Replace(" ", "")
             .Replace("(", "")
             .Replace(")", "");
+    }
 
-        return $"https://wa.me/55{numeroLimpo}?text={WebUtility.UrlEncode(mensagem)}";
+    // Gera um link wa.me pronto para o usuário clicar e enviar a mensagem pelo próprio WhatsApp.
+    public static string GerarLink(string? celular, string mensagem)
+    {
+        return $"https://wa.me/55{LimparNumero(celular)}?text={WebUtility.UrlEncode(mensagem)}";
     }
 }

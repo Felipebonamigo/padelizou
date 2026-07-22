@@ -1,0 +1,64 @@
+@model List<Jogador>
+@{
+    ViewData["Title"] = "Convidar Jogadores - Padelizou";
+    var grupo = (GrupoPrivado)ViewBag.Grupo;
+    int sessaoId = ViewBag.SessaoId;
+    DateTime dataSessao = ViewBag.DataSessao;
+    string? linkGerado = TempData["WhatsAppLink"] as string;
+    string? nomeGerado = TempData["WhatsAppNome"] as string;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);"><i class="bi bi-whatsapp text-success"></i> Convidar jogadores</h2>
+            <p class="text-muted mb-0">@grupo.Nome — jogo de @dataSessao.ToString("dd/MM 'às' HH:mm")</p>
+        </div>
+        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" asp-route-data="@dataSessao.ToString("s")" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
+    }
+
+    @if (!string.IsNullOrEmpty(linkGerado))
+    {
+        <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span>Convite pronto pra <strong>@nomeGerado</strong> — clique pra abrir o WhatsApp e mandar.</span>
+            <a href="@linkGerado" target="_blank" class="btn btn-sm btn-success rounded-pill"><i class="bi bi-whatsapp"></i> Abrir WhatsApp</a>
+        </div>
+    }
+
+    <p class="text-muted small">
+        Jogadores do sistema que aceitam convites (categoria, clube e dia/horário compatíveis no perfil deles),
+        que ainda não estão nessa sessão. É só um link pronto — o clique pra enviar é manual, não é automático.
+    </p>
+
+    @if (Model.Any())
+    {
+        <div class="card shadow-sm border-0">
+            <ul class="list-group list-group-flush">
+                @foreach (var jogador in Model)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogador.Id" class="text-decoration-none text-dark">@jogador.Nome</a>
+                        <form asp-controller="Grupos" asp-action="ConvidarJogador" method="post">
+                            <input type="hidden" name="sessaoId" value="@sessaoId" />
+                            <input type="hidden" name="jogadorId" value="@jogador.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">
+                                <i class="bi bi-whatsapp"></i> Gerar convite
+                            </button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <p class="text-muted mb-0">Nenhum jogador disponível topa esse convite no momento (categoria/clube/dia-horário do perfil).</p>
+        </div>
+    }
+</div>

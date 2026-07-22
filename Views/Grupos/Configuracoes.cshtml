@@ -1,0 +1,146 @@
+@model GrupoPrivado
+@{
+    ViewData["Title"] = "Configurações do Grupo - Padelizou";
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
+    var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
+    string[] nomesDias = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-gear display-4" style="color: var(--padel-green);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Configurações — @Model.Nome</h3>
+                        <p class="text-muted">Dia, horário e local fixos, valores e vagas do jogo semanal.</p>
+                    </div>
+
+                    @if (TempData["Erro"] != null)
+                    {
+                        <div class="alert alert-warning">@TempData["Erro"]</div>
+                    }
+
+                    <form asp-controller="Grupos" asp-action="Configuracoes" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Dia fixo</label>
+                                <select name="diaSemanaFixo" class="form-select bg-light" required>
+                                    <option value="">-- Escolha --</option>
+                                    @for (int d = 0; d <= 6; d++)
+                                    {
+                                        <option value="@d" selected="@(Model.DiaSemanaFixo == d)">@nomesDias[d]</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Horário fixo</label>
+                                <input type="time" name="horarioFixo" class="form-control bg-light"
+                                       value="@(Model.HorarioFixo?.ToString(@"hh\:mm"))" required />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Local (clube)</label>
+                            <select name="clubeId" id="selectClube" class="form-select bg-light">
+                                <option value="">-- Escolha um local --</option>
+                                @foreach (var clube in catalogoClubes)
+                                {
+                                    <option value="@clube.Id" selected="@(Model.ClubeId == clube.Id)">@clube.Nome</option>
+                                }
+                            </select>
+                            <div class="mt-2 d-flex gap-2">
+                                <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Não achou? Cadastre um local novo" />
+                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" onclick="adicionarClubeSelect()">
+                                    <i class="bi bi-plus-circle"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Categoria do jogo</label>
+                            <select name="categoriaPadraoId" class="form-select bg-light">
+                                <option value="">-- Escolha a categoria --</option>
+                                <optgroup label="Masculina">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Masculina"))
+                                    {
+                                        <option value="@cat.Id" selected="@(Model.CategoriaPadraoId == cat.Id)">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Feminina">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Feminina"))
+                                    {
+                                        <option value="@cat.Id" selected="@(Model.CategoriaPadraoId == cat.Id)">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Mista">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Mista"))
+                                    {
+                                        <option value="@cat.Id" selected="@(Model.CategoriaPadraoId == cat.Id)">@cat.Nome</option>
+                                    }
+                                </optgroup>
+                            </select>
+                            <div class="form-text">Usada pra filtrar quem pode ser convidado de fora do grupo.</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-4">
+                                <label class="form-label fw-bold text-muted small">Vagas na sessão</label>
+                                <input type="number" name="vagasMaximas" class="form-control bg-light" min="4" value="@Model.VagasMaximas" required />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label fw-bold text-muted small">Mensalidade (R$)</label>
+                                <input type="number" step="0.01" name="valorMensalidade" class="form-control bg-light" value="@Model.ValorMensalidade" placeholder="Opcional" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label fw-bold text-muted small">Valor avulso (R$)</label>
+                                <input type="number" step="0.01" name="valorAvulso" class="form-control bg-light" value="@Model.ValorAvulso" placeholder="Opcional" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3 p-3 rounded" style="background-color: #f8f9fa;">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="enviarLembrete24h" value="true" id="enviarLembrete24h" style="transform: scale(1.2);" @(Model.EnviarLembrete24h ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="enviarLembrete24h"><i class="bi bi-whatsapp"></i> Enviar lembrete automático por WhatsApp 24h antes</label>
+                            </div>
+                            <small class="text-muted d-block mt-1">Manda uma mensagem automática pros mensalistas que ainda não confirmaram presença, 24h antes do horário fixo.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-3">Salvar Configurações</button>
+                    </form>
+
+                    <a asp-controller="Grupos" asp-action="Detalhes" asp-route-id="@Model.Id" class="btn btn-link text-muted d-block text-center mt-3">Voltar pro grupo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function adicionarClubeSelect() {
+            var input = document.getElementById('novoClubeNome');
+            var nome = input.value.trim();
+            if (!nome) return;
+
+            fetch('/Clubes/Criar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'nome=' + encodeURIComponent(nome)
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (clube) {
+                    var select = document.getElementById('selectClube');
+                    var option = document.createElement('option');
+                    option.value = clube.id;
+                    option.text = clube.nome;
+                    option.selected = true;
+                    select.appendChild(option);
+                    input.value = '';
+                });
+        }
+    </script>
+}

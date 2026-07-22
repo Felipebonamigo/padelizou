@@ -20,6 +20,9 @@
             }
         </div>
         <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@Model.Id" class="btn btn-outline-primary rounded-pill">
+                <i class="bi bi-calendar-week"></i> Jogo da Semana
+            </a>
             <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@Model.Id" class="btn btn-padel rounded-pill">
                 <i class="bi bi-plus-circle"></i> Registrar Jogo
             </a>

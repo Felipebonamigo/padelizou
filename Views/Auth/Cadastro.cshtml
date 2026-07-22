@@ -14,6 +14,11 @@
                         <p class="text-muted">Junte-se ao Padelizou para acompanhar seu ranking e gerenciar seus jogos.</p>
                     </div>
 
+                    @if (ViewBag.Erro != null)
+                    {
+                        <div class="alert alert-danger text-center">@ViewBag.Erro</div>
+                    }
+
                     <!-- ATENÇÃO AO ENCTYPE: Obrigatório para a foto funcionar -->
                     <form asp-controller="Auth" asp-action="Cadastro" method="post" enctype="multipart/form-data">
 

@@ -23,4 +23,10 @@ public interface IEstatisticasService
 
     // Resumo estatístico do jogador (títulos, finais, semis, quartas, caiu na chave, total).
     Task<ResumoJogadorVM> ObterResumoJogadorAsync(int jogadorId);
+
+    // Parceiros de dupla mais frequentes ("joga sempre com"), ordenados por mais jogos juntos.
+    Task<List<ParceiroResumoVM>> ObterParceirosAsync(int jogadorId);
+
+    // Conquistas/badges do jogador, calculadas a partir do histórico (não persistidas).
+    Task<List<ConquistaVM>> ObterConquistasAsync(int jogadorId);
 }

@@ -21,6 +21,16 @@
     </div>
 </div>
 
+<!-- Instagram -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small d-block" for="instagramInput">Instagram</label>
+    <div class="input-group">
+        <span class="input-group-text">@@</span>
+        <input type="text" class="form-control" name="instagram" id="instagramInput" placeholder="seu.usuario" value="@Model.Instagram" />
+    </div>
+    <small class="text-muted d-block mt-1">Aparece no seu perfil pra outros jogadores te encontrarem. Deixe em branco pra não mostrar.</small>
+</div>
+
 <!-- Notificações -->
 <div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
     <label class="form-label fw-bold text-muted small d-block mb-2">Como quer ser avisado de novos jogos?</label>
@@ -35,6 +45,15 @@
     <small class="text-muted d-block mt-2">Desmarque os dois pra parar de receber avisos. Pode mudar isso quando quiser.</small>
 </div>
 
+<!-- Convites de jogo avulso -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="aceitaConvitesJogo" value="true" id="aceitaConvites" style="transform: scale(1.2);" @(Model.AceitaConvitesJogo ? "checked" : "") />
+        <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos</label>
+    </div>
+    <small class="text-muted d-block mt-2">Quando o organizador de um grupo precisar de gente de fora pra completar o jogo da semana, ele pode te chamar pelo WhatsApp — respeitando as categorias, locais e dias/horários que você marcou abaixo.</small>
+</div>
+
 <!-- Categorias -->
 <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
@@ -42,7 +61,7 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('categoria')">Aceito qualquer categoria</button>
     </div>
     <div class="row">
-        <div class="col-md-4 mb-2">
+        <div class="col-md-6 mb-2">
             <h6 class="small fw-bold text-muted"><i class="bi bi-gender-male"></i> Masculina</h6>
             @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Masculina"))
             {
@@ -52,19 +71,9 @@
                 </div>
             }
         </div>
-        <div class="col-md-4 mb-2">
+        <div class="col-md-6 mb-2">
             <h6 class="small fw-bold text-muted"><i class="bi bi-gender-female"></i> Feminina</h6>
             @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Feminina"))
-            {
-                <div class="form-check">
-                    <input class="form-check-input categoria-check" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" @(Model.CategoriasSelecionadas.Contains(cat.Id) ? "checked" : "") />
-                    <label class="form-check-label small" for="cat_@cat.Id">@cat.Nome</label>
-                </div>
-            }
-        </div>
-        <div class="col-md-4 mb-2">
-            <h6 class="small fw-bold text-muted"><i class="bi bi-people-fill"></i> Mista</h6>
-            @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Mista"))
             {
                 <div class="form-check">
                     <input class="form-check-input categoria-check" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" @(Model.CategoriasSelecionadas.Contains(cat.Id) ? "checked" : "") />

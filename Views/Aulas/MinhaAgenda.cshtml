@@ -11,6 +11,9 @@
             <p class="text-muted mb-0">Gerencie seus locais, horários e alunos marcados.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="Aulas" asp-action="AdicionarManual" class="btn btn-padel rounded-pill btn-sm">
+                <i class="bi bi-plus-lg"></i> Adicionar Aula
+            </a>
             <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm">
                 <i class="bi bi-geo-alt"></i> Meus Locais
             </a>
@@ -65,8 +68,10 @@
                     _ => "bg-danger"
                 };
 
-                var mensagemWhats = $"Olá, {aula.Aluno.Nome}! Tudo certo para a nossa aula de Padel dia {aula.DataHora:dd/MM}?";
-                var linkWhatsApp = WhatsAppLinkHelper.GerarLink(aula.Aluno.Celular, mensagemWhats);
+                var nomeAluno = aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno avulso";
+                var telefoneAluno = aula.Aluno?.Celular ?? aula.TelefoneAlunoAvulso;
+                var mensagemWhats = $"Olá, {nomeAluno}! Tudo certo para a nossa aula de Padel dia {aula.DataHora:dd/MM}?";
+                var linkWhatsApp = string.IsNullOrEmpty(telefoneAluno) ? null : WhatsAppLinkHelper.GerarLink(telefoneAluno, mensagemWhats);
 
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
@@ -77,7 +82,13 @@
                             </div>
 
                             <h5 class="fw-bold mb-1" style="color: var(--padel-blue);">
-                                <i class="bi bi-person-bounding-box text-muted me-1"></i> @aula.Aluno.Nome
+                                <i class="bi bi-person-bounding-box text-muted me-1"></i> @nomeAluno
+                                @if (aula.RecorrenciaId != null)
+                                {
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill ms-1" style="font-size:0.65rem;">
+                                        <i class="bi bi-arrow-repeat"></i> Recorrente
+                                    </span>
+                                }
                             </h5>
 
                             <p class="text-muted small mb-1">
@@ -103,7 +114,7 @@
                                         </form>
                                     </div>
                                 }
-                                else
+                                else if (linkWhatsApp != null)
                                 {
                                     <a href="@linkWhatsApp" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold">
                                         <i class="bi bi-whatsapp"></i> Chamar Aluno
@@ -119,7 +130,7 @@
                                             <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-check2-all"></i> Concluir</button>
                                         </form>
 
-                                        <form asp-action="AtualizarStatus" method="post" class="w-50">
+                                        <form asp-action="AtualizarStatus" method="post" class="w-50 form-cancelar-aula" data-datahora="@aula.DataHora.ToString("o")">
                                             <input type="hidden" name="aulaId" value="@aula.Id" />
                                             <input type="hidden" name="novoStatus" value="Cancelada" />
                                             <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Cancelar</button>
@@ -142,3 +153,22 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            $('.form-cancelar-aula').on('submit', function (e) {
+                var dataHora = new Date($(this).data('datahora'));
+                var horasRestantes = (dataHora - new Date()) / (1000 * 60 * 60);
+
+                var mensagem = horasRestantes < 24
+                    ? 'Essa aula é em menos de 24 horas. Pela política do Padelizou, o aluno deve ser cobrado normalmente mesmo com o cancelamento. Confirmar o cancelamento mesmo assim?'
+                    : 'Confirmar o cancelamento desta aula?';
+
+                if (!confirm(mensagem)) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+}

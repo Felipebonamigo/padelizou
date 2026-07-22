@@ -1,0 +1,255 @@
+@model SessaoGrupo
+@using System.Security.Claims
+@{
+    ViewData["Title"] = "Jogo da Semana - Padelizou";
+    var grupo = (GrupoPrivado)ViewBag.Grupo;
+    bool ehAdmin = ViewBag.EhAdmin == true;
+    bool souMembro = ViewBag.SouMembro == true;
+    var confirmados = (List<ConfirmacaoSessao>)ViewBag.Confirmados;
+    var naoVao = (List<ConfirmacaoSessao>)ViewBag.NaoVao;
+    var pendentes = (List<ConfirmacaoSessao>)ViewBag.Pendentes;
+    var minhaConfirmacao = (ConfirmacaoSessao?)ViewBag.MinhaConfirmacao;
+    var mensalidades = (List<MensalidadeGrupo>)ViewBag.Mensalidades;
+    var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
+    var rankingSemana = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingSemana;
+    DateTime semanaAnterior = ViewBag.SemanaAnterior;
+    DateTime proximaSemana = ViewBag.ProximaSemana;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--padel-blue);"><i class="bi bi-calendar-week"></i> @grupo.Nome</h2>
+            <p class="text-muted mb-0">
+                @Model.DataHora.ToString("dddd, dd/MM 'às' HH:mm")
+                @if (grupo.Clube != null)
+                {
+                    <text> — @grupo.Clube.Nome</text>
+                }
+                — <strong>@confirmados.Count/@grupo.VagasMaximas</strong> vagas confirmadas
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            @if (ehAdmin)
+            {
+                <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-success rounded-pill">
+                    <i class="bi bi-whatsapp"></i> Convidar
+                </a>
+                <a asp-controller="Grupos" asp-action="Configuracoes" asp-route-id="@grupo.Id" class="btn btn-outline-secondary rounded-pill">
+                    <i class="bi bi-gear"></i> Configurações
+                </a>
+            }
+            <a asp-controller="Grupos" asp-action="Detalhes" asp-route-id="@grupo.Id" class="btn btn-outline-primary rounded-pill">Ranking geral</a>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mb-4">
+        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" asp-route-data="@semanaAnterior.ToString("s")" class="btn btn-sm btn-link">
+            <i class="bi bi-chevron-left"></i> Semana anterior
+        </a>
+        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" asp-route-data="@proximaSemana.ToString("s")" class="btn btn-sm btn-link">
+            Próxima semana <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
+    }
+
+    @if (minhaConfirmacao != null)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Sua presença</h6>
+                @if (minhaConfirmacao.Avulso && minhaConfirmacao.Status == "Pendente")
+                {
+                    <p class="small text-muted">Você foi convidado pra esse jogo — confirma se vai?</p>
+                }
+                <form asp-controller="Grupos" asp-action="ConfirmarPresenca" method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="hidden" name="sessaoId" value="@Model.Id" />
+                    <select name="lado" class="form-select form-select-sm w-auto">
+                        <option value="Esquerda" selected="@(minhaConfirmacao.Lado == "Esquerda")">Esquerda</option>
+                        <option value="Direita" selected="@(minhaConfirmacao.Lado == "Direita")">Direita</option>
+                    </select>
+                    <button type="submit" name="vou" value="true" class="btn btn-sm rounded-pill @(minhaConfirmacao.Status == "Confirmado" ? "btn-success" : "btn-outline-success")">
+                        <i class="bi bi-check-circle"></i> Vou jogar
+                    </button>
+                    <button type="submit" name="vou" value="false" class="btn btn-sm rounded-pill @(minhaConfirmacao.Status == "NaoVai" ? "btn-danger" : "btn-outline-danger")">
+                        Não vou dessa vez
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (grupo.ValorMensalidade != null || grupo.ValorAvulso != null)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body d-flex gap-4 flex-wrap">
+                @if (grupo.ValorMensalidade != null)
+                {
+                    <div><span class="text-muted small">Mensalidade</span><br /><strong>R$ @grupo.ValorMensalidade.Value.ToString("0.00")</strong></div>
+                }
+                @if (grupo.ValorAvulso != null)
+                {
+                    <div><span class="text-muted small">Avulso (convidado)</span><br /><strong>R$ @grupo.ValorAvulso.Value.ToString("0.00")</strong></div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-success mb-3"><i class="bi bi-check-circle"></i> Confirmados (@confirmados.Count)</h6>
+                    @if (confirmados.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var c in confirmados)
+                            {
+                                var pago = mensalidades.Any(m => m.JogadorId == c.JogadorId && m.Pago);
+                                <li class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                        <span>
+                                            @c.Jogador.Nome
+                                            @if (!string.IsNullOrEmpty(c.Lado))
+                                            {
+                                                <span class="badge bg-light text-dark border">@c.Lado</span>
+                                            }
+                                            @if (c.Avulso)
+                                            {
+                                                <span class="badge bg-info-subtle text-dark">convidado</span>
+                                            }
+                                        </span>
+                                    </div>
+                                    @if (!c.Avulso && ehAdmin)
+                                    {
+                                        <form asp-controller="Grupos" asp-action="MarcarPagamento" method="post" class="mt-1">
+                                            <input type="hidden" name="grupoId" value="@grupo.Id" />
+                                            <input type="hidden" name="jogadorId" value="@c.JogadorId" />
+                                            <input type="hidden" name="ano" value="@Model.DataHora.Year" />
+                                            <input type="hidden" name="mes" value="@Model.DataHora.Month" />
+                                            <input type="hidden" name="data" value="@Model.DataHora.ToString("s")" />
+                                            <input type="hidden" name="pago" value="@(!pago).ToString().ToLower()" />
+                                            <button type="submit" class="btn btn-sm @(pago ? "btn-success" : "btn-outline-secondary")">
+                                                @(pago ? "Mensalidade paga ✓" : "Marcar mensalidade paga")
+                                            </button>
+                                        </form>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Ninguém confirmou ainda.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-warning mb-3"><i class="bi bi-hourglass-split"></i> Aguardando resposta (@pendentes.Count)</h6>
+                    @if (pendentes.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var c in pendentes)
+                            {
+                                <li class="list-group-item px-0">
+                                    @c.Jogador.Nome
+                                    @if (c.Avulso)
+                                    {
+                                        <span class="badge bg-info-subtle text-dark">convidado</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Todo mundo já respondeu.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted mb-3"><i class="bi bi-x-circle"></i> Não vão (@naoVao.Count)</h6>
+                    @if (naoVao.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var c in naoVao)
+                            {
+                                <li class="list-group-item px-0 text-muted">@c.Jogador.Nome</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Ninguém avisou ausência.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3" style="color: var(--padel-blue);">Ranking da semana</h6>
+                    @if (rankingSemana.Any())
+                    {
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var item in rankingSemana.Take(5))
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    @item.Jogador.Nome
+                                    <span class="badge bg-primary rounded-pill">@item.Pontos pts</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Ainda sem jogo registrado essa semana.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3" style="color: var(--padel-blue);">Ranking do grupo</h6>
+                    @if (ranking.Any(r => r.PontuacaoInterna > 0))
+                    {
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var item in ranking.Where(r => r.PontuacaoInterna > 0).Take(5))
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    @item.Jogador.Nome
+                                    <span class="badge bg-primary rounded-pill">@item.PontuacaoInterna pts</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Ainda sem resultado registrado.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

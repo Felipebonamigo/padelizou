@@ -129,34 +129,116 @@ public class EstatisticasService : IEstatisticasService
 
     public async Task<List<ConfrontoResumoVM>> ObterConfrontosAsync(int jogadorId)
     {
-        var partidas = await CarregarPartidasFinalizadasAsync();
         var acc = new Dictionary<int, ConfrontoResumoVM>();
 
+        void Somar(Jogador? oponente, bool? venci)
+        {
+            if (oponente == null || oponente.Id == jogadorId) return;
+            if (!acc.TryGetValue(oponente.Id, out var resumo))
+            {
+                resumo = new ConfrontoResumoVM { Oponente = oponente };
+                acc[oponente.Id] = resumo;
+            }
+            resumo.Jogos += 1;
+            if (venci == true) resumo.Vitorias += 1;
+            else if (venci == false) resumo.Derrotas += 1;
+        }
+
+        var partidas = await CarregarPartidasFinalizadasAsync();
         foreach (var p in partidas)
         {
             var (minhaDupla, oppDupla) = LocalizarDuplas(p, jogadorId);
             if (minhaDupla == null || oppDupla == null) continue;
 
             bool venci = p.VencedorId == minhaDupla.Id;
+            Somar(oppDupla.Jogador1, venci);
+            Somar(oppDupla.Jogador2, venci);
+        }
 
-            foreach (var oponente in new[] { oppDupla.Jogador1, oppDupla.Jogador2 })
-            {
-                if (oponente == null || oponente.Id == jogadorId) continue;
+        var jogosSemanais = await CarregarJogosSemanaisAsync(jogadorId);
+        foreach (var j in jogosSemanais)
+        {
+            var (meuLado, oponentes) = LocalizarLadoJogoSemanal(j, jogadorId);
+            if (meuLado == 0) continue;
 
-                if (!acc.TryGetValue(oponente.Id, out var resumo))
-                {
-                    resumo = new ConfrontoResumoVM { Oponente = oponente };
-                    acc[oponente.Id] = resumo;
-                }
-                resumo.Jogos += 1;
-                if (venci) resumo.Vitorias += 1; else resumo.Derrotas += 1;
-            }
+            bool? venci = j.VencedorLado == 0 ? null : (j.VencedorLado == meuLado);
+            Somar(oponentes.Item1, venci);
+            Somar(oponentes.Item2, venci);
         }
 
         return acc.Values
             .OrderByDescending(c => c.Jogos)
             .ThenByDescending(c => c.Vitorias)
             .ToList();
+    }
+
+    public async Task<List<ParceiroResumoVM>> ObterParceirosAsync(int jogadorId)
+    {
+        var acc = new Dictionary<int, ParceiroResumoVM>();
+
+        void Somar(Jogador? parceiro, bool? venci)
+        {
+            if (parceiro == null || parceiro.Id == jogadorId) return;
+            if (!acc.TryGetValue(parceiro.Id, out var resumo))
+            {
+                resumo = new ParceiroResumoVM { Parceiro = parceiro };
+                acc[parceiro.Id] = resumo;
+            }
+            resumo.Jogos += 1;
+            if (venci == true) resumo.Vitorias += 1;
+        }
+
+        var partidas = await CarregarPartidasFinalizadasAsync();
+        foreach (var p in partidas)
+        {
+            var (minhaDupla, _) = LocalizarDuplas(p, jogadorId);
+            if (minhaDupla == null) continue;
+
+            bool venci = p.VencedorId == minhaDupla.Id;
+            var parceiro = minhaDupla.Jogador1Id == jogadorId ? minhaDupla.Jogador2 : minhaDupla.Jogador1;
+            Somar(parceiro, venci);
+        }
+
+        var jogosSemanais = await CarregarJogosSemanaisAsync(jogadorId);
+        foreach (var j in jogosSemanais)
+        {
+            var (meuLado, _) = LocalizarLadoJogoSemanal(j, jogadorId);
+            if (meuLado == 0) continue;
+
+            bool? venci = j.VencedorLado == 0 ? null : (j.VencedorLado == meuLado);
+            var parceiro = meuLado == 1
+                ? (j.Dupla1Jogador1Id == jogadorId ? j.Dupla1Jogador2 : j.Dupla1Jogador1)
+                : (j.Dupla2Jogador1Id == jogadorId ? j.Dupla2Jogador2 : j.Dupla2Jogador1);
+            Somar(parceiro, venci);
+        }
+
+        return acc.Values
+            .OrderByDescending(p => p.Jogos)
+            .ThenByDescending(p => p.Vitorias)
+            .ToList();
+    }
+
+    public async Task<List<ConquistaVM>> ObterConquistasAsync(int jogadorId)
+    {
+        var jogador = await _context.Jogadores.FindAsync(jogadorId);
+        if (jogador == null) return new List<ConquistaVM>();
+
+        bool temDupla = await _context.Duplas.AnyAsync(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId);
+        int totalJogosSemanais = await _context.JogosSemanais.CountAsync(j =>
+            j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId ||
+            j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId);
+        bool ehOrganizador = await _context.TorneioOrganizadores.AnyAsync(o => o.JogadorId == jogadorId);
+        var resumo = await ObterResumoJogadorAsync(jogadorId);
+
+        return new List<ConquistaVM>
+        {
+            new() { Codigo = "Estreia", Titulo = "Estreia", Icone = "bi-flag-fill", Conquistada = temDupla || totalJogosSemanais > 0 },
+            new() { Codigo = "Mensalista", Titulo = "Mensalista", Icone = "bi-calendar2-check-fill", Conquistada = totalJogosSemanais >= 4 },
+            new() { Codigo = "Organizador", Titulo = "Organizador", Icone = "bi-clipboard-check-fill", Conquistada = ehOrganizador },
+            new() { Codigo = "DoTime", Titulo = "Do time", Icone = "bi-shield-fill", Conquistada = jogador.TimeId != null },
+            new() { Codigo = "Campeao", Titulo = "Campeão", Icone = "bi-trophy-fill", Conquistada = resumo.Titulos > 0 },
+            new() { Codigo = "Professor", Titulo = "Professor", Icone = "bi-mortarboard-fill", Conquistada = jogador.IsProfessor },
+        };
     }
 
     public async Task<HeadToHeadVM> ObterHeadToHeadAsync(int jogadorId, int oponenteId)
@@ -248,6 +330,29 @@ public class EstatisticasService : IEstatisticasService
         if (naDupla1 && !naDupla2) return (p.Dupla1, p.Dupla2);
         if (naDupla2 && !naDupla1) return (p.Dupla2, p.Dupla1);
         return (null, null);
+    }
+
+    private async Task<List<JogoSemanal>> CarregarJogosSemanaisAsync(int jogadorId)
+    {
+        return await _context.JogosSemanais
+            .Include(j => j.Dupla1Jogador1)
+            .Include(j => j.Dupla1Jogador2)
+            .Include(j => j.Dupla2Jogador1)
+            .Include(j => j.Dupla2Jogador2)
+            .Where(j => j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId ||
+                        j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId)
+            .ToListAsync();
+    }
+
+    // Descobre o lado (1 ou 2) do jogador num jogo semanal e os dois jogadores do lado adversário.
+    private static (int meuLado, (Jogador?, Jogador?) oponentes) LocalizarLadoJogoSemanal(JogoSemanal j, int jogadorId)
+    {
+        bool naDupla1 = j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId;
+        bool naDupla2 = j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId;
+
+        if (naDupla1 && !naDupla2) return (1, (j.Dupla2Jogador1, j.Dupla2Jogador2));
+        if (naDupla2 && !naDupla1) return (2, (j.Dupla1Jogador1, j.Dupla1Jogador2));
+        return (0, (null, null));
     }
 
     private static string NomesDupla(Dupla d)

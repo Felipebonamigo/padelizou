@@ -1,0 +1,104 @@
+@model IEnumerable<LocalAula>
+@{
+    ViewData["Title"] = "Adicionar Aula - Padelizou";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-calendar-plus display-4" style="color: var(--padel-green);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--padel-blue);">Adicionar Aula</h3>
+                        <p class="text-muted">Para alunos que combinaram com você fora do sistema.</p>
+                    </div>
+
+                    @if (TempData["Erro"] != null)
+                    {
+                        <div class="alert alert-danger">@TempData["Erro"]</div>
+                    }
+
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-warning">
+                            Você ainda não tem nenhum local ativo cadastrado.
+                            <a asp-action="MeusLocais">Cadastre um local</a> antes de adicionar uma aula.
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-controller="Aulas" asp-action="AdicionarManual" method="post">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Local</label>
+                                <select id="select-local" name="localId" class="form-select bg-light" required>
+                                    <option value="">-- Escolha um local --</option>
+                                    @foreach (var local in Model)
+                                    {
+                                        <option value="@local.Id" data-preco="@local.PrecoPadrao.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                            @local.Nome (R$ @local.PrecoPadrao.ToString("N2"))
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Nome do aluno</label>
+                                <input type="text" name="nomeAluno" class="form-control bg-light" required maxlength="100" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Telefone (opcional)</label>
+                                <input type="text" name="telefoneAluno" class="form-control bg-light" maxlength="20" placeholder="Para chamar pelo WhatsApp depois" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Data e hora</label>
+                                <input type="datetime-local" name="dataHora" class="form-control bg-light" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Preço (opcional — usa o preço padrão do local se vazio)</label>
+                                <input type="number" step="0.01" min="0" name="preco" id="input-preco" class="form-control bg-light" />
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="check-recorrente" name="recorrente" value="true" />
+                                <label class="form-check-label" for="check-recorrente">Aula fixa toda semana nesse horário?</label>
+                            </div>
+
+                            <div class="mb-4" id="grupo-semanas" style="display:none;">
+                                <label class="form-label fw-bold text-muted small">Repetir por quantas semanas (incluindo essa)?</label>
+                                <input type="number" min="2" max="26" value="4" name="semanasRecorrencia" class="form-control bg-light" />
+                            </div>
+
+                            <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">
+                                <i class="bi bi-check-circle-fill me-1"></i> Adicionar Aula
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            var $checkRecorrente = $('#check-recorrente');
+            var $grupoSemanas = $('#grupo-semanas');
+            var $selectLocal = $('#select-local');
+            var $inputPreco = $('#input-preco');
+
+            $checkRecorrente.on('change', function () {
+                $grupoSemanas.toggle(this.checked);
+            });
+
+            $selectLocal.on('change', function () {
+                var preco = $(this).find(':selected').data('preco');
+                $inputPreco.attr('placeholder', preco ? 'R$ ' + Number(preco).toFixed(2) : '');
+            });
+        });
+    </script>
+}

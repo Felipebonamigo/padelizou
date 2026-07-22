@@ -1,6 +1,9 @@
 @model IEnumerable<GrupoPrivado>
+@using System.Security.Claims
 @{
     ViewData["Title"] = "Meus Grupos - Padelizou";
+    var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
+    var convitesPendentes = (List<ConfirmacaoSessao>)ViewBag.ConvitesPendentes;
 }
 
 <div class="container mt-4 mb-5">
@@ -19,6 +22,22 @@
         </div>
     </div>
 
+    @if (convitesPendentes.Any())
+    {
+        <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--padel-green);">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3"><i class="bi bi-whatsapp text-success"></i> Convites pra jogos fixos</h6>
+                @foreach (var convite in convitesPendentes)
+                {
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <span>Você foi convidado pro jogo do grupo <strong>@convite.Sessao.Grupo.Nome</strong> dia @convite.Sessao.DataHora.ToString("dd/MM 'às' HH:mm")</span>
+                        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@convite.Sessao.GrupoId" asp-route-data="@convite.Sessao.DataHora.ToString("s")" class="btn btn-sm btn-padel rounded-pill">Ver e responder</a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
     <div class="row">
         @if (Model != null && Model.Any())
         {
@@ -29,7 +48,16 @@
                         <div class="card-body">
                             <h5 class="fw-bold" style="color: var(--padel-blue);"><i class="bi bi-shield-lock-fill text-success"></i> @grupo.Nome</h5>
                             <p class="text-muted small mb-3">Código de convite: <code>@grupo.CodigoConvite</code></p>
-                            <a asp-controller="Grupos" asp-action="Detalhes" asp-route-id="@grupo.Id" class="btn btn-sm btn-padel w-100 rounded-pill">Ver Ranking</a>
+                            <div class="d-flex gap-2">
+                                <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" class="btn btn-sm btn-padel w-100 rounded-pill">Jogo da Semana</a>
+                                <a asp-controller="Grupos" asp-action="Detalhes" asp-route-id="@grupo.Id" class="btn btn-sm btn-outline-primary rounded-pill">Ranking</a>
+                            </div>
+                            @if (grupo.AdministradorId == userId)
+                            {
+                                <a asp-controller="Grupos" asp-action="Configuracoes" asp-route-id="@grupo.Id" class="btn btn-sm btn-link text-muted mt-1 px-0">
+                                    <i class="bi bi-gear"></i> Configurações
+                                </a>
+                            }
                         </div>
                     </div>
                 </div>

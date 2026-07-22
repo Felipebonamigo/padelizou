@@ -15,6 +15,13 @@ public partial class LocalAula
     // Opcional: quanto o professor paga ao local por aula, usado no relatório de gastos.
     public decimal? CustoPorAula { get; set; }
 
+    // Pacote de aulas (opcional) — preço fechado por um combo de aulas em vez de avulso.
+    // Só informativo por enquanto: o pagamento é combinado direto com o professor (ex: Pix),
+    // não há cobrança nem controle de créditos pelo site ainda.
+    public bool PacoteAtivo { get; set; }
+    public int? PacoteQuantidadeAulas { get; set; }
+    public decimal? PacotePreco { get; set; }
+
     [ForeignKey("ProfessorId")]
     public virtual Jogador Professor { get; set; } = null!;
 

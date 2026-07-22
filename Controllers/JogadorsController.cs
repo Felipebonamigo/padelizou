@@ -187,8 +187,11 @@ public class JogadoresController : Controller
     [HttpGet]
     public async Task<IActionResult> Perfil(int id)
     {
-        // Busca o jogador
-        var jogador = await _context.Jogadores.FindAsync(id);
+        // Busca o jogador (com clubes e dias/horários preferidos, pro bloco "joga em")
+        var jogador = await _context.Jogadores
+            .Include(j => j.JogadorClubes).ThenInclude(c => c.Clube)
+            .Include(j => j.JogadorDiasHorarios)
+            .FirstOrDefaultAsync(j => j.Id == id);
         if (jogador == null) return NotFound();
 
         // Busca todas as duplas em que este jogador participou
@@ -207,6 +210,9 @@ public class JogadoresController : Controller
         ViewBag.Quartas = resumo.Quartas;
         ViewBag.CaiuNaChave = resumo.CaiuNaChave;
 
+        // Conquistas/badges: público, aparece pra qualquer visitante do perfil
+        ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
+
         // Se tem alguém logado, monta o contexto de confronto (H2H)
         int? meuId = User.Identity?.IsAuthenticated == true
             ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
@@ -215,11 +221,9 @@ public class JogadoresController : Controller
 
         if (meuId.HasValue && meuId.Value == id)
         {
-            // É o próprio perfil: mostra os rivais (mais enfrentado / mais vencido / mais perdido)
-            var confrontos = await _estatisticas.ObterConfrontosAsync(id);
-            ViewBag.MaisEnfrentou = confrontos.OrderByDescending(c => c.Jogos).FirstOrDefault();
-            ViewBag.MaisVenceu = confrontos.Where(c => c.Vitorias > 0).OrderByDescending(c => c.Vitorias).FirstOrDefault();
-            ViewBag.MaisPerdeu = confrontos.Where(c => c.Derrotas > 0).OrderByDescending(c => c.Derrotas).FirstOrDefault();
+            // É o próprio perfil: mostra parceiros de sempre e os confrontos (jogou contra / rivais)
+            ViewBag.Confrontos = await _estatisticas.ObterConfrontosAsync(id);
+            ViewBag.Parceiros = await _estatisticas.ObterParceirosAsync(id);
         }
         else if (meuId.HasValue)
         {

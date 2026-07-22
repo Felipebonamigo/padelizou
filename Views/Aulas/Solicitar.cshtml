@@ -36,6 +36,9 @@
                             <select id="select-local" name="localId" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um professor primeiro --</option>
                             </select>
+                            <div id="info-pacote" class="small text-primary mt-1" style="display:none;">
+                                <i class="bi bi-box-seam"></i> <span id="info-pacote-texto"></span>
+                            </div>
                         </div>
 
                         <div class="mb-4">
@@ -43,6 +46,12 @@
                             <select id="select-horario" name="dataHora" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um local primeiro --</option>
                             </select>
+                        </div>
+
+                        <div class="alert alert-warning small d-flex gap-2 align-items-start" role="alert">
+                            <i class="bi bi-clock-history mt-1"></i>
+                            <span>Ao confirmar, essa vaga fica reservada só pra você — cancelamentos com menos de
+                                24h de antecedência são cobrados normalmente, como se a aula tivesse acontecido.</span>
                         </div>
 
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill" id="btn-solicitar" disabled>
@@ -82,9 +91,14 @@
                     }
                     var options = '<option value="">-- Escolha um local --</option>';
                     $.each(locais, function (i, l) {
-                        options += '<option value="' + l.id + '">' + l.nome + ' (R$ ' + l.precoPadrao.toFixed(2) + ')</option>';
+                        options += '<option value="' + l.id + '"' +
+                            ' data-pacote-ativo="' + (l.pacoteAtivo ? '1' : '0') + '"' +
+                            ' data-pacote-qtd="' + (l.pacoteQuantidadeAulas || '') + '"' +
+                            ' data-pacote-preco="' + (l.pacotePreco || '') + '"' +
+                            '>' + l.nome + ' (R$ ' + l.precoPadrao.toFixed(2) + ')</option>';
                     });
                     $local.html(options).prop('disabled', false);
+                    $('#info-pacote').hide();
                 });
             });
 
@@ -92,6 +106,17 @@
                 var professorId = $professor.val();
                 var localId = $(this).val();
                 $btn.prop('disabled', true);
+
+                var $selected = $(this).find(':selected');
+                if (localId && $selected.data('pacote-ativo') == '1' && $selected.data('pacote-preco')) {
+                    var qtd = $selected.data('pacote-qtd');
+                    var preco = Number($selected.data('pacote-preco'));
+                    $('#info-pacote-texto').text('Esse professor também oferece pacote de ' + qtd + ' aulas por R$ ' +
+                        preco.toFixed(2) + ' (combinado direto com ele, ex: Pix).');
+                    $('#info-pacote').show();
+                } else {
+                    $('#info-pacote').hide();
+                }
 
                 if (!localId) {
                     $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);

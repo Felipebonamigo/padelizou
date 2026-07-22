@@ -25,6 +25,7 @@ public partial class Jogador
     public string? Email { get; set; }
     public string? SenhaHash { get; set; }
     public string? FotoPerfil { get; set; }
+    public string? Instagram { get; set; }
     public int PontuacaoGlobal { get; set; }
     public bool IsProfessor { get; set; } // <- A nova Flag!
 
@@ -32,6 +33,10 @@ public partial class Jogador
     public string? LadoQuadra { get; set; }
     public bool NotificarEmail { get; set; }
     public bool NotificarWhatsApp { get; set; }
+
+    // Controla só o convite avulso pra jogo de grupo (Grupos.Convidar) — separado de
+    // NotificarWhatsApp, que é o canal geral de aviso (ex: aula).
+    public bool AceitaConvitesJogo { get; set; } = true;
 
     public virtual ICollection<JogadorCategoria> JogadorCategorias { get; set; } = new List<JogadorCategoria>();
     public virtual ICollection<JogadorClube> JogadorClubes { get; set; } = new List<JogadorClube>();
@@ -42,6 +47,9 @@ public partial class Jogador
     public bool AgendaMostrarTorneios { get; set; } = true;
     public bool AgendaMostrarAulas { get; set; } = true;
     public bool AgendaMostrarAlunos { get; set; } = true;
+
+    // Token opaco usado na URL do feed .ics de assinatura de agenda (sem exigir login)
+    public Guid AgendaFeedToken { get; set; } = Guid.NewGuid();
 
     // Lista de aulas onde ele é o PROFESSOR
     [InverseProperty("Professor")]

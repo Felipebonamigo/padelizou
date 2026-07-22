@@ -67,3 +67,20 @@ public class ResumoJogadorVM
     public int Quartas { get; set; }
     public int CaiuNaChave { get; set; }
 }
+
+// Parceiro de dupla mais frequente ("joga sempre com")
+public class ParceiroResumoVM
+{
+    public Jogador Parceiro { get; set; } = null!;
+    public int Jogos { get; set; }
+    public int Vitorias { get; set; }
+}
+
+// Badge/conquista calculada on-the-fly (não persistida no banco)
+public class ConquistaVM
+{
+    public string Codigo { get; set; } = "";
+    public string Titulo { get; set; } = "";
+    public string Icone { get; set; } = "";
+    public bool Conquistada { get; set; }
+}

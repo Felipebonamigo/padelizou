@@ -5,7 +5,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
+Type=simple
 WorkingDirectory=/opt/padelizou
 ExecStart=/usr/bin/dotnet /opt/padelizou/Padelizou.dll
 Restart=always
@@ -17,20 +17,18 @@ User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:5000
 
-# Preencher os valores reais antes de "systemctl daemon-reload" — ver DEPLOY.md seção 3.
-# Formato esperado: Server=tcp:SEUSERVIDOR.database.windows.net,1433;Database=DB_PADEL;User Id=...;Password=...;Encrypt=True;
-Environment="ConnectionStrings__DefaultConnection=REPLACE_ME"
+Environment="ConnectionStrings__DefaultConnection=Server=tcp:SEUSERVIDOR.database.windows.net,1433;Database=DB_PADEL;User Id=SEU_LOGIN_ADMIN;Password=SENHA_FORTE_AQUI;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 Environment="EmailSettings__SmtpHost=smtp.gmail.com"
 Environment="EmailSettings__SmtpPort=587"
-Environment="EmailSettings__RemetenteEmail=REPLACE_ME"
-Environment="EmailSettings__RemetenteSenhaApp=REPLACE_ME"
+Environment="EmailSettings__RemetenteEmail=seuemail@gmail.com"
+Environment="EmailSettings__RemetenteSenhaApp=senha-de-app-do-gmail"
 Environment="EmailSettings__RemetenteNome=Padelizou"
-Environment="GoogleCalendar__ClientId=REPLACE_ME"
-Environment="GoogleCalendar__ClientSecret=REPLACE_ME"
+Environment="GoogleCalendar__ClientId=SEU_CLIENT_ID_AQUI"
+Environment="GoogleCalendar__ClientSecret=SEU_CLIENT_SECRET_AQUI"
 Environment="GoogleCalendar__RedirectUri=https://padelizou.com.br/GoogleAuth/Callback"
 Environment="AcessoAntecipado__Habilitado=true"
 Environment="AcessoAntecipado__Usuario=padelizou"
-Environment="AcessoAntecipado__Senha=REPLACE_ME"
+Environment="AcessoAntecipado__Senha=TROCAR_ANTES_DE_PUBLICAR"
 
 [Install]
 WantedBy=multi-user.target

@@ -69,11 +69,11 @@ public class GoogleCalendarService : IGoogleCalendarService
         var duracaoMinutos = 60;
         var evento = new Event
         {
-            Summary = $"Aula de Padel - {aula.Aluno.Nome}",
+            Summary = $"Aula de Padel - {aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno"}",
             Location = aula.LocalAula.Endereco,
             Start = new EventDateTime { DateTime = aula.DataHora, TimeZone = "America/Sao_Paulo" },
             End = new EventDateTime { DateTime = aula.DataHora.AddMinutes(duracaoMinutos), TimeZone = "America/Sao_Paulo" },
-            Attendees = string.IsNullOrEmpty(aula.Aluno.Email)
+            Attendees = string.IsNullOrEmpty(aula.Aluno?.Email)
                 ? null
                 : new List<EventAttendee> { new EventAttendee { Email = aula.Aluno.Email, DisplayName = aula.Aluno.Nome } }
         };

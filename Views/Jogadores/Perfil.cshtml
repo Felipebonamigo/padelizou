@@ -3,9 +3,10 @@
 @{
     ViewData["Title"] = "Perfil de " + Model.jogador.Nome;
     var meuConfronto = ViewBag.MeuConfronto as HeadToHeadVM;
-    var maisEnfrentou = ViewBag.MaisEnfrentou as ConfrontoResumoVM;
-    var maisVenceu = ViewBag.MaisVenceu as ConfrontoResumoVM;
-    var maisPerdeu = ViewBag.MaisPerdeu as ConfrontoResumoVM;
+    var confrontos = ViewBag.Confrontos as List<ConfrontoResumoVM> ?? new();
+    var parceiros = ViewBag.Parceiros as List<ParceiroResumoVM> ?? new();
+    var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
 }
 
 <div class="container mt-4">
@@ -20,7 +21,80 @@
              class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
         <h3 class="fw-bold mt-3">@Model.jogador.Nome</h3>
         <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
+        {
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))
+                {
+                    <a href="https://instagram.com/@(Model.jogador.Instagram.TrimStart('@'))" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-secondary rounded-pill">
+                        <i class="bi bi-instagram"></i> @@@(Model.jogador.Instagram.TrimStart('@'))
+                    </a>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.Celular))
+                {
+                    var numeroLimpo = new string(Model.jogador.Celular.Where(char.IsDigit).ToArray());
+                    <a href="https://wa.me/55@(numeroLimpo)" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-success rounded-pill">
+                        <i class="bi bi-whatsapp"></i> WhatsApp
+                    </a>
+                }
+            </div>
+        }
     </div>
+
+    <!-- CLUBES E HORÁRIOS -->
+    @if (Model.jogador.JogadorClubes.Any() || Model.jogador.JogadorDiasHorarios.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            @if (Model.jogador.JogadorClubes.Any())
+            {
+                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.7rem;"><i class="bi bi-building"></i> Joga em</small>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    @foreach (var jc in Model.jogador.JogadorClubes)
+                    {
+                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@jc.Clube.Nome</span>
+                    }
+                </div>
+            }
+            @if (Model.jogador.JogadorDiasHorarios.Any())
+            {
+                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.7rem;"><i class="bi bi-clock-history"></i> Dias e horários preferidos</small>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var dh in Model.jogador.JogadorDiasHorarios.OrderBy(d => d.DiaSemana))
+                    {
+                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@diasSemana[dh.DiaSemana] · @dh.Periodo</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- CONQUISTAS -->
+    @if (conquistas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-award-fill text-warning"></i> Conquistas</h6>
+                <small class="text-muted">@conquistas.Count(c => c.Conquistada)/@conquistas.Count</small>
+            </div>
+            <div class="row g-2">
+                @foreach (var c in conquistas)
+                {
+                    <div class="col-3 text-center">
+                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")">
+                            <i class="bi @c.Icone fs-4 @(c.Conquistada ? "text-warning" : "text-muted")"></i>
+                            <div class="small fw-bold mt-1">@c.Titulo</div>
+                            <div style="font-size: 0.65rem;" class="@(c.Conquistada ? "text-success" : "text-muted")">
+                                @(c.Conquistada ? "✓ conquistado" : "bloqueado")
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     <!-- CONFRONTO COM VOCÊ (ao ver o perfil de outra pessoa, estando logado) -->
     @if (meuConfronto != null)
@@ -51,46 +125,65 @@
         </div>
     }
 
-    <!-- RIVAIS (visível apenas no próprio perfil) -->
-    @if (maisEnfrentou != null || maisVenceu != null || maisPerdeu != null)
+    <!-- JOGA SEMPRE COM / JOGOU CONTRA / RIVAIS (visível apenas no próprio perfil) -->
+    @if (parceiros.Any())
     {
-        <div class="row g-2 mb-4">
-            @if (maisEnfrentou != null)
-            {
-                <div class="col-md-4">
-                    <div class="card p-3 shadow-sm h-100 border-0">
-                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-people-fill"></i> Rival de sempre</small>
-                        <a asp-action="Confronto" asp-route-oponenteId="@maisEnfrentou.Oponente.Id" class="text-decoration-none">
-                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisEnfrentou.Oponente.Nome</h6>
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-people-fill"></i> Joga sempre com</h6>
+            <p class="text-muted small mb-2">A turma que joga junto.</p>
+            <div class="row g-2 text-center">
+                @foreach (var par in parceiros.Take(4))
+                {
+                    <div class="col-3">
+                        <a asp-action="Perfil" asp-route-id="@par.Parceiro.Id" class="text-decoration-none text-dark">
+                            <img src="@(string.IsNullOrEmpty(par.Parceiro.FotoPerfil) ? "/img/default-avatar.png" : par.Parceiro.FotoPerfil)"
+                                 class="rounded-circle" style="width:48px;height:48px;object-fit:cover;" />
+                            <div class="small fw-bold mt-1">@par.Parceiro.Nome.Split(' ')[0]</div>
+                            <div class="text-muted" style="font-size:0.7rem;">@par.Jogos jogo(s)</div>
                         </a>
-                        <small class="text-muted">@maisEnfrentou.Jogos jogo(s) · @maisEnfrentou.Vitorias V / @maisEnfrentou.Derrotas D</small>
                     </div>
-                </div>
-            }
-            @if (maisVenceu != null)
-            {
-                <div class="col-md-4">
-                    <div class="card p-3 shadow-sm h-100 border-0">
-                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-emoji-sunglasses-fill text-success"></i> Mais venceu</small>
-                        <a asp-action="Confronto" asp-route-oponenteId="@maisVenceu.Oponente.Id" class="text-decoration-none">
-                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisVenceu.Oponente.Nome</h6>
+                }
+            </div>
+        </div>
+    }
+
+    @if (confrontos.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-shuffle"></i> Jogou contra</h6>
+            <div class="row g-2 text-center">
+                @foreach (var c in confrontos.Take(4))
+                {
+                    <div class="col-3">
+                        <a asp-action="Confronto" asp-route-oponenteId="@c.Oponente.Id" class="text-decoration-none text-dark">
+                            <img src="@(string.IsNullOrEmpty(c.Oponente.FotoPerfil) ? "/img/default-avatar.png" : c.Oponente.FotoPerfil)"
+                                 class="rounded-circle" style="width:48px;height:48px;object-fit:cover;" />
+                            <div class="small fw-bold mt-1">@c.Oponente.Nome.Split(' ')[0]</div>
+                            <div class="text-muted" style="font-size:0.7rem;">@c.Jogos confronto(s)</div>
                         </a>
-                        <small class="text-muted">@maisVenceu.Vitorias vitória(s) em @maisVenceu.Jogos</small>
                     </div>
-                </div>
-            }
-            @if (maisPerdeu != null)
-            {
-                <div class="col-md-4">
-                    <div class="card p-3 shadow-sm h-100 border-0">
-                        <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;"><i class="bi bi-emoji-frown-fill text-danger"></i> Mais perdeu</small>
-                        <a asp-action="Confronto" asp-route-oponenteId="@maisPerdeu.Oponente.Id" class="text-decoration-none">
-                            <h6 class="fw-bold mt-1 mb-0 text-dark">@maisPerdeu.Oponente.Nome</h6>
-                        </a>
-                        <small class="text-muted">@maisPerdeu.Derrotas derrota(s) em @maisPerdeu.Jogos</small>
-                    </div>
-                </div>
-            }
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-lightning-fill text-danger"></i> Rivais</h6>
+            <p class="text-muted small mb-2">Quem mais cruza a rede com você.</p>
+            <div class="list-group list-group-flush">
+                @foreach (var c in confrontos.Take(5))
+                {
+                    <a asp-action="Confronto" asp-route-oponenteId="@c.Oponente.Id"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <span class="fw-bold text-dark">@c.Oponente.Nome</span>
+                            <div class="text-muted small">@c.Jogos confronto(s)</div>
+                        </div>
+                        <span class="badge rounded-pill @(c.Vitorias >= c.Derrotas ? "bg-success" : "bg-danger")">
+                            @(c.Vitorias)V @(c.Derrotas)D
+                        </span>
+                    </a>
+                }
+            </div>
         </div>
     }
 

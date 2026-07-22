@@ -50,7 +50,16 @@ namespace padelizou.Controllers
         {
             var locais = await _context.LocaisAula
                 .Where(l => l.ProfessorId == professorId && l.Ativo)
-                .Select(l => new { l.Id, l.Nome, l.Endereco, l.PrecoPadrao })
+                .Select(l => new
+                {
+                    l.Id,
+                    l.Nome,
+                    l.Endereco,
+                    l.PrecoPadrao,
+                    l.PacoteAtivo,
+                    l.PacoteQuantidadeAulas,
+                    l.PacotePreco
+                })
                 .ToListAsync();
 
             return Json(locais);
@@ -248,6 +257,8 @@ namespace padelizou.Controllers
 
         // Aplica o aceite/recusa: atualiza status, cria evento no Google Calendar (se aceito e conectado)
         // e dispara o e-mail ao aluno. Retorna o link wa.me pronto para o professor avisar o aluno.
+        // Só é chamado a partir do fluxo normal de solicitação (ConfirmarSolicitacao/
+        // ConfirmarPorEmail), onde a aula sempre tem um Aluno real — nunca recebe aula avulsa.
         private async Task<string> ProcessarDecisaoAsync(Aula aula, bool aceitar)
         {
             aula.Status = aceitar ? "Confirmada" : "Recusada";
@@ -271,9 +282,9 @@ namespace padelizou.Controllers
 
                 try
                 {
-                    await _emailService.EnviarAsync(aula.Aluno.Email!, aula.Aluno.Nome,
+                    await _emailService.EnviarAsync(aula.Aluno!.Email!, aula.Aluno.Nome,
                         "Sua aula foi confirmada! - Padelizou",
-                        $@"<p>Olá {aula.Aluno.Nome},</p>
+                        $@"<p>Olá {aula.Aluno!.Nome},</p>
                            <p>O professor <strong>{aula.Professor.Nome}</strong> confirmou sua aula em
                            <strong>{aula.LocalAula.Nome}</strong> ({aula.LocalAula.Endereco})
                            no dia <strong>{aula.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>");
@@ -287,9 +298,9 @@ namespace padelizou.Controllers
             {
                 try
                 {
-                    await _emailService.EnviarAsync(aula.Aluno.Email!, aula.Aluno.Nome,
+                    await _emailService.EnviarAsync(aula.Aluno!.Email!, aula.Aluno.Nome,
                         "Sua solicitação de aula foi recusada - Padelizou",
-                        $@"<p>Olá {aula.Aluno.Nome},</p>
+                        $@"<p>Olá {aula.Aluno!.Nome},</p>
                            <p>O professor <strong>{aula.Professor.Nome}</strong> não pôde confirmar a aula
                            no dia <strong>{aula.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>. Tente outro horário.</p>");
                 }
@@ -300,10 +311,10 @@ namespace padelizou.Controllers
             }
 
             var mensagem = aceitar
-                ? $"Olá {aula.Aluno.Nome}! Sua aula comigo dia {aula.DataHora:dd/MM 'às' HH:mm} em {aula.LocalAula.Nome} está confirmada!"
-                : $"Olá {aula.Aluno.Nome}, infelizmente não vou poder dar a aula dia {aula.DataHora:dd/MM 'às' HH:mm}. Vamos combinar outro horário?";
+                ? $"Olá {aula.Aluno!.Nome}! Sua aula comigo dia {aula.DataHora:dd/MM 'às' HH:mm} em {aula.LocalAula.Nome} está confirmada!"
+                : $"Olá {aula.Aluno!.Nome}, infelizmente não vou poder dar a aula dia {aula.DataHora:dd/MM 'às' HH:mm}. Vamos combinar outro horário?";
 
-            return WhatsAppLinkHelper.GerarLink(aula.Aluno.Celular, mensagem);
+            return WhatsAppLinkHelper.GerarLink(aula.Aluno!.Celular, mensagem);
         }
 
         // ===================== GESTÃO DO PROFESSOR =====================
@@ -353,6 +364,26 @@ namespace padelizou.Controllers
             if (local != null)
             {
                 local.CustoPorAula = custoPorAula;
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("MeusLocais");
+        }
+
+        // Preço do pacote de aulas é só informativo por enquanto — o pagamento é combinado
+        // direto com o professor (ex: Pix), sem cobrança nem controle de créditos pelo site.
+        [HttpPost]
+        public async Task<IActionResult> AtualizarPacoteLocal(int id, bool pacoteAtivo, int? pacoteQuantidadeAulas, decimal? pacotePreco)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+            if (local != null)
+            {
+                local.PacoteAtivo = pacoteAtivo;
+                local.PacoteQuantidadeAulas = pacoteAtivo ? (pacoteQuantidadeAulas is null or <= 0 ? 4 : pacoteQuantidadeAulas) : null;
+                local.PacotePreco = pacoteAtivo ? pacotePreco : null;
                 await _context.SaveChangesAsync();
             }
 
@@ -436,6 +467,112 @@ namespace padelizou.Controllers
             }
 
             return RedirectToAction("MeusHorarios");
+        }
+
+        // ===================== AULA MANUAL / AVULSA (PROFESSOR) =====================
+        // Para alunos que combinaram a aula fora do sistema (não têm conta). A aula nasce
+        // direto como "Confirmada" — sem o fluxo de solicitação/aceite.
+
+        private const int MinSemanasRecorrencia = 2;
+        private const int MaxSemanasRecorrencia = 26;
+
+        [HttpGet]
+        public async Task<IActionResult> AdicionarManual()
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var locais = await _context.LocaisAula
+                .Where(l => l.ProfessorId == professorId && l.Ativo)
+                .ToListAsync();
+
+            return View(locais);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
+            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            if (string.IsNullOrWhiteSpace(nomeAluno))
+            {
+                TempData["Erro"] = "Informe o nome do aluno.";
+                return RedirectToAction("AdicionarManual");
+            }
+
+            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+            if (local == null)
+            {
+                TempData["Erro"] = "Local inválido.";
+                return RedirectToAction("AdicionarManual");
+            }
+
+            var quantidade = recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1;
+            var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
+
+            var novasAulas = new List<Aula>();
+            var puladas = 0;
+
+            for (var i = 0; i < quantidade; i++)
+            {
+                var horario = dataHora.AddDays(7 * i);
+
+                var ocupado = await _context.Aulas.AnyAsync(a =>
+                    a.ProfessorId == professorId &&
+                    a.DataHora == horario &&
+                    (a.Status == "Pendente" || a.Status == "Confirmada"));
+
+                if (ocupado)
+                {
+                    puladas++;
+                    continue;
+                }
+
+                novasAulas.Add(new Aula
+                {
+                    ProfessorId = professorId.Value,
+                    AlunoId = null,
+                    NomeAlunoAvulso = nomeAluno.Trim(),
+                    TelefoneAlunoAvulso = string.IsNullOrWhiteSpace(telefoneAluno) ? null : telefoneAluno.Trim(),
+                    LocalAulaId = localId,
+                    LocalAula = local,
+                    DataHora = horario,
+                    Preco = preco ?? local.PrecoPadrao,
+                    Status = "Confirmada",
+                    RecorrenciaId = recorrenciaId
+                });
+            }
+
+            if (novasAulas.Count > 0)
+            {
+                _context.Aulas.AddRange(novasAulas);
+                await _context.SaveChangesAsync();
+
+                foreach (var aula in novasAulas)
+                {
+                    try
+                    {
+                        var eventId = await _googleCalendarService.CriarEventoAsync(aula);
+                        if (eventId != null)
+                        {
+                            aula.GoogleEventId = eventId;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para a aula manual {AulaId}", aula.Id);
+                    }
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = puladas > 0
+                ? $"{novasAulas.Count} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
+                : $"{novasAulas.Count} aula(s) criada(s) com sucesso.";
+
+            return RedirectToAction("MinhaAgenda");
         }
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)

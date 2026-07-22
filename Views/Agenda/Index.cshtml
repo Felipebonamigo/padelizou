@@ -13,6 +13,11 @@
         <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
     </div>
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">O que aparece aqui?</h6>
@@ -40,6 +45,38 @@
             </form>
         </div>
     </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-2">Assine sua agenda</h6>
+            <p class="text-muted small mb-3">
+                Cole este link no Google Agenda (Configurações → Adicionar agenda → Por URL),
+                no Apple Calendar (Arquivo → Nova assinatura de calendário) ou no Outlook
+                (Adicionar calendário → Da internet) para ver suas aulas, torneios e partidas
+                direto no seu calendário — sem precisar entrar no Padelizou.
+            </p>
+            <div class="input-group mb-2">
+                <input type="text" id="linkAgendaFeed" class="form-control form-control-sm"
+                       value="@ViewBag.LinkFeedAgenda" readonly />
+                <button class="btn btn-sm btn-outline-secondary" type="button" onclick="copiarLinkAgenda()">
+                    Copiar link
+                </button>
+            </div>
+            <form asp-controller="Agenda" asp-action="RegenerarTokenFeed" method="post"
+                  onsubmit="return confirm('O link atual vai parar de funcionar. Continuar?');">
+                <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                    Gerar novo link (invalida o atual)
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function copiarLinkAgenda() {
+            const campo = document.getElementById('linkAgendaFeed');
+            navigator.clipboard.writeText(campo.value).then(() => alert('Link copiado!'));
+        }
+    </script>
 
     @if (Model.Any())
     {

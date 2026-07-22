@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
@@ -13,11 +14,13 @@ namespace padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly IPasswordHasher<Jogador> _passwordHasher;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher)
         {
             _context = context;
             _env = env;
+            _passwordHasher = passwordHasher;
         }
 
         [HttpGet]
@@ -30,9 +33,10 @@ namespace padelizou.Controllers
         public async Task<IActionResult> Login(string email, string senha)
         {
             var jogador = await _context.Jogadores
-                .FirstOrDefaultAsync(j => j.Email == email && j.SenhaHash == senha);
+                .FirstOrDefaultAsync(j => j.Email == email);
 
-            if (jogador == null)
+            if (jogador == null || string.IsNullOrEmpty(jogador.SenhaHash) ||
+                _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash, senha) == PasswordVerificationResult.Failed)
             {
                 ViewBag.Erro = "E-mail ou senha incorretos.";
                 return View();
@@ -94,9 +98,18 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> Cadastro(
             string nome, string cpf, string email, string senha, bool isProfessor, IFormFile foto,
-            string? ladoQuadra, bool notificarEmail, bool notificarWhatsApp,
+            string? ladoQuadra, string? instagram, bool notificarEmail, bool notificarWhatsApp,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
+            if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
+                string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
+            {
+                ViewBag.Erro = "Preencha nome, CPF, e-mail e senha pra finalizar o cadastro.";
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                return View();
+            }
+
             string caminhoDaFotoParaBanco = "";
 
             // 1. Lógica de Upload da Foto (Salva na pasta, não no banco!)
@@ -127,7 +140,7 @@ namespace padelizou.Controllers
             {
                 // Se já existe, atualizamos os dados de acesso e a flag de Professor
                 jogador.Email = email;
-                jogador.SenhaHash = senha;
+                jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha);
                 jogador.IsProfessor = isProfessor; // <- Salva se ele marcou a caixinha
 
                 if (caminhoDaFotoParaBanco != null)
@@ -143,15 +156,16 @@ namespace padelizou.Controllers
                     Nome = nome,
                     Cpf = cpf,
                     Email = email,
-                    SenhaHash = senha,
                     IsProfessor = isProfessor, // <- Salva se ele marcou a caixinha
                     FotoPerfil = caminhoDaFotoParaBanco,
                     PontuacaoGlobal = 0 // Motor do ranking zerado!
                 };
+                jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha);
                 _context.Jogadores.Add(jogador);
             }
 
             jogador.LadoQuadra = ladoQuadra;
+            jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
 
@@ -195,7 +209,7 @@ namespace padelizou.Controllers
         [Authorize]
         [HttpPost]
         public async Task<IActionResult> Preferencias(
-            string? ladoQuadra, bool notificarEmail, bool notificarWhatsApp,
+            string? ladoQuadra, string? instagram, bool notificarEmail, bool notificarWhatsApp, bool aceitaConvitesJogo,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -203,8 +217,10 @@ namespace padelizou.Controllers
             if (jogador == null) return NotFound();
 
             jogador.LadoQuadra = ladoQuadra;
+            jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
+            jogador.AceitaConvitesJogo = aceitaConvitesJogo;
             await _context.SaveChangesAsync();
 
             await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados);

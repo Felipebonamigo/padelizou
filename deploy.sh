@@ -3,7 +3,7 @@
 # Preencher SERVIDOR (usuário@ip) antes de usar pela primeira vez.
 set -euo pipefail
 
-SERVIDOR="usuario@SEU_IP_AQUI"
+SERVIDOR="root@179.197.233.184"
 PASTA_REMOTA="/opt/padelizou"
 SERVICO="padelizou"
 
@@ -12,13 +12,14 @@ rm -rf ./publish
 dotnet publish -c Release -o ./publish
 
 echo "==> Enviando arquivos pro servidor ($SERVIDOR:$PASTA_REMOTA)..."
-rsync -avz --delete \
-    --exclude 'App_Data/GoogleTokens/' \
-    --exclude 'wwwroot/uploads/' \
-    ./publish/ "$SERVIDOR:$PASTA_REMOTA/"
+# scp em vez de rsync (rsync não vem por padrão no Git Bash do Windows).
+# App_Data/GoogleTokens e wwwroot/uploads são gerados em runtime no servidor,
+# não fazem parte do publish local, então não precisam de --exclude aqui.
+ssh "$SERVIDOR" "mkdir -p $PASTA_REMOTA"
+scp -r ./publish/. "$SERVIDOR:$PASTA_REMOTA/"
 
 echo "==> Reiniciando o serviço..."
-ssh "$SERVIDOR" "sudo systemctl restart $SERVICO && sleep 2 && sudo systemctl status $SERVICO --no-pager -l"
+ssh "$SERVIDOR" "systemctl restart $SERVICO && sleep 2 && systemctl status $SERVICO --no-pager -l"
 
 echo "==> Feito. Se essa atualização incluiu uma migration nova, rode:"
 echo "    dotnet ef database update --connection \"<connection string de produção>\""
