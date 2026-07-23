@@ -1,0 +1,232 @@
+@using Padelizou.ViewModels
+@model (string TargetAction, int TorneioId)
+@{
+    var aoVivoList = ViewBag.AoVivo as List<Partida> ?? new();
+    var agendadasList = ViewBag.Agendadas as List<Partida> ?? new();
+    var finalizadasList = ViewBag.Finalizadas as List<Partida> ?? new();
+    bool defaultAoVivo = aoVivoList.Count > 0;
+    var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
+    int? meuId = ViewBag.MeuId as int?;
+    var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
+    var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
+}
+
+<!-- Filtro de Times e Categorias -->
+<form asp-action="@Model.TargetAction" method="get" class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <input type="hidden" name="id" value="@Model.TorneioId" />
+    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;">
+        <option value="">Todos os Times</option>
+    </select>
+
+    <div class="dropdown">
+        <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
+        </button>
+        <ul class="dropdown-menu p-2" style="min-width: 220px;">
+            @foreach (var cat in categoriasDoTorneio)
+            {
+                <li class="form-check ms-1">
+                    <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
+                    <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <button type="submit" class="btn btn-padel">Filtrar</button>
+</form>
+
+<!-- Navegação das Sub-Abas -->
+<ul class="nav nav-pills mb-3" id="jogosTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(defaultAoVivo ? "active" : "") text-danger fw-bold" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
+            🔴 Ao Vivo (@aoVivoList.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(defaultAoVivo ? "" : "active")" id="agendadas-tab" data-bs-toggle="tab" data-bs-target="#agendadas" type="button" role="tab">
+            📅 Agendadas (@agendadasList.Count)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="finalizadas-tab" data-bs-toggle="tab" data-bs-target="#finalizadas" type="button" role="tab">
+            ✅ Finalizadas (@finalizadasList.Count)
+        </button>
+    </li>
+</ul>
+
+<!-- Conteúdo das Sub-Abas -->
+<div class="tab-content" id="jogosTabsContent">
+
+    <!-- SUB-ABA: AO VIVO -->
+    <div class="tab-pane fade @(defaultAoVivo ? "show active" : "")" id="aovivo" role="tabpanel">
+        @if (aoVivoList.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo rolando no momento.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogo in aoVivoList)
+            {
+                <div class="col-md-6 mb-3">
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra não definida" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-danger blink">
+                                    ⏱️ <span class="cronometro" data-inicio="@jogo.HorarioInicioReal?.ToString("O")">@jogo.MinutosDecorridos min</span>
+                                </span>
+                            </div>
+
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
+
+                            <h3 class="my-2 fw-bold text-dark">
+                                @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0)
+                            </h3>
+
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
+
+                            <hr class="my-2">
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+
+                                @if (!string.IsNullOrEmpty(jogo.LinkTransmissao))
+                                {
+                                    <a href="@jogo.LinkTransmissao" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm">
+                                        🎥 Ver ao vivo
+                                    </a>
+                                }
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- SUB-ABA: AGENDADAS -->
+    <div class="tab-pane fade @(defaultAoVivo ? "" : "show active")" id="agendadas" role="tabpanel">
+        @if (agendadasList.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo agendado no momento.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogo in agendadasList)
+            {
+                <div class="col-md-6 mb-3">
+                    <div class="card border-primary shadow-sm">
+                        <div class="card-body text-center">
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra a definir" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-primary">
+                                    📅 @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "Horário a definir")
+                                </span>
+                            </div>
+
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
+                            <h5 class="my-2 text-muted fw-bold">VS</h5>
+                            <div class="d-flex flex-column align-items-center">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
+
+                            <hr class="my-2">
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- SUB-ABA: FINALIZADAS -->
+    <div class="tab-pane fade" id="finalizadas" role="tabpanel">
+        @if (finalizadasList.Count == 0)
+        {
+            <p class="text-muted">Nenhum jogo finalizado ainda.</p>
+        }
+
+        <div class="row">
+            @foreach (var jogo in finalizadasList)
+            {
+                var games1 = jogo.GamesDupla1 ?? 0;
+                var games2 = jogo.GamesDupla2 ?? 0;
+                var classeDupla1 = games1 > games2 ? "text-success fw-bold" : "text-muted";
+                var classeDupla2 = games2 > games1 ? "text-success fw-bold" : "text-muted";
+
+                <div class="col-md-6 mb-3">
+                    <div class="card border-success shadow-sm">
+                        <div class="card-body text-center">
+                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                ✏️ Editar Jogo
+                            </a>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="badge bg-secondary">
+                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Não informada" : jogo.NomeQuadra)
+                                </span>
+                                <span class="badge bg-success">✅ Finalizado</span>
+                            </div>
+
+                            <div class="d-flex flex-column align-items-center @classeDupla1">
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                            </div>
+
+                            <h3 class="my-2 fw-bold text-dark">
+                                @games1 x @games2
+                            </h3>
+
+                            <div class="d-flex flex-column align-items-center @classeDupla2">
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
+                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                            </div>
+
+                            <hr class="my-2">
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
+
+                                @if (!string.IsNullOrEmpty(jogo.LinkTransmissao))
+                                {
+                                    <a href="@jogo.LinkTransmissao" target="_blank" class="btn btn-sm btn-outline-secondary shadow-sm">
+                                        📼 Assistir VT
+                                    </a>
+                                }
+                            </div>
+
+                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

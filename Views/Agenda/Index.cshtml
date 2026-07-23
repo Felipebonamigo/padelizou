@@ -7,7 +7,7 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold" style="color: var(--padel-blue);">Minha Agenda</h2>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Minha Agenda</h2>
             <p class="text-muted mb-0">Tudo que você tem marcado, num só lugar.</p>
         </div>
         <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
@@ -78,45 +78,73 @@
         }
     </script>
 
-    @if (Model.Any())
-    {
-        <div class="list-group shadow-sm">
-            @foreach (var item in Model)
-            {
-                var badgeClass = item.Tipo switch
-                {
-                    "Aula" => "bg-primary",
-                    "Aluno" => "bg-warning text-dark",
-                    "Torneio" => "bg-success",
-                    _ => "bg-info text-dark"
-                };
+    <div class="d-flex flex-wrap gap-3 mb-3 small text-muted align-items-center">
+        <span class="d-inline-flex align-items-center gap-1"><span class="pdz-legenda-dot" style="background:#1C2742;"></span> Aula</span>
+        @if (jogador.IsProfessor)
+        {
+            <span class="d-inline-flex align-items-center gap-1"><span class="pdz-legenda-dot" style="background:#ffc107;"></span> Aluno</span>
+        }
+        <span class="d-inline-flex align-items-center gap-1"><span class="pdz-legenda-dot" style="background:#198754;"></span> Torneio</span>
+        <span class="d-inline-flex align-items-center gap-1"><span class="pdz-legenda-dot" style="background:#0dcaf0;"></span> Jogo Semanal</span>
+    </div>
 
-                <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="bi @item.Icone fs-4 text-muted"></i>
-                        <div>
-                            <span class="badge @badgeClass mb-1">@item.Tipo</span>
-                            <h6 class="mb-0 fw-bold" style="color: var(--padel-blue);">@item.Titulo</h6>
-                            <span class="text-muted small">@item.Subtitulo</span>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <div class="fw-bold small">@item.Data.ToString("dd/MM/yyyy")</div>
-                        @if (item.LinkController != null)
-                        {
-                            <a asp-controller="@item.LinkController" asp-action="@item.LinkAction" asp-route-id="@item.LinkId" class="small">Ver mais</a>
-                        }
-                    </div>
-                </div>
-            }
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div id="pdzCalendario"></div>
         </div>
-    }
-    else
-    {
-        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
-            <i class="bi bi-calendar3 display-4 text-muted mb-3"></i>
-            <h4 class="fw-bold text-secondary">Nada por aqui ainda</h4>
-            <p class="text-muted">Marque uma aula, entre num grupo ou se inscreva num torneio pra ver tudo aqui.</p>
-        </div>
-    }
+    </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/pt-br.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var elemento = document.getElementById('pdzCalendario');
+            var calendario = new FullCalendar.Calendar(elemento, {
+                locale: 'pt-br',
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                },
+                buttonText: { today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' },
+                allDayText: 'Dia inteiro',
+                events: '@Url.Action("EventosJson", "Agenda")',
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+                    if (info.event.url) window.location.href = info.event.url;
+                }
+            });
+            calendario.render();
+        });
+    </script>
+    <style>
+        .pdz-legenda-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        .fc {
+            --fc-border-color: var(--pdz-border);
+            --fc-page-bg-color: transparent;
+            --fc-neutral-bg-color: var(--pdz-surface-alt);
+            --fc-list-event-hover-bg-color: var(--pdz-surface-alt);
+            --fc-today-bg-color: rgba(163, 216, 39, .12);
+            --fc-button-text-color: #fff;
+            --fc-button-bg-color: var(--pdz-navy);
+            --fc-button-border-color: var(--pdz-navy);
+            --fc-button-hover-bg-color: var(--pdz-navy-900);
+            --fc-button-hover-border-color: var(--pdz-navy-900);
+            --fc-button-active-bg-color: var(--pdz-navy-900);
+            --fc-button-active-border-color: var(--pdz-navy-900);
+            font-family: var(--font-body);
+            color: var(--pdz-ink);
+        }
+
+        .fc .fc-toolbar-title { font-family: var(--font-display); color: var(--pdz-ink); }
+        .fc .fc-button { border-radius: 50px !important; text-transform: capitalize; box-shadow: none !important; }
+        .fc .fc-daygrid-day-number, .fc .fc-col-header-cell-cushion { color: var(--pdz-ink); }
+        .fc .fc-event { border-radius: 6px; cursor: pointer; }
+        .fc-theme-standard td, .fc-theme-standard th { border-color: var(--pdz-border); }
+        .fc-theme-standard .fc-scrollgrid { border-color: var(--pdz-border); }
+    </style>
+}

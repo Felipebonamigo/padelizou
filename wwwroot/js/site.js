@@ -32,3 +32,23 @@ function adicionarClube(nomeInputId, listaContainerId, checkboxName) {
 function desmarcarTodos(classe) {
     document.querySelectorAll('.' + classe + '-check').forEach(function (el) { el.checked = false; });
 }
+
+// Máscara de telefone brasileiro: (XX) XXXXX-XXXX (celular) ou (XX) XXXX-XXXX (fixo).
+function pdzFormatarTelefone(valor) {
+    valor = valor.replace(/\D/g, '').slice(0, 11);
+    if (valor.length === 0) return '';
+    if (valor.length <= 2) return '(' + valor;
+    if (valor.length <= 6) return '(' + valor.slice(0, 2) + ') ' + valor.slice(2);
+    if (valor.length <= 10) return '(' + valor.slice(0, 2) + ') ' + valor.slice(2, 6) + '-' + valor.slice(6);
+    return '(' + valor.slice(0, 2) + ') ' + valor.slice(2, 7) + '-' + valor.slice(7);
+}
+
+// Aplica a máscara em todo input[type=tel] da página, à medida que o usuário digita.
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('input[type="tel"]').forEach(function (input) {
+        input.value = pdzFormatarTelefone(input.value);
+        input.addEventListener('input', function () {
+            input.value = pdzFormatarTelefone(input.value);
+        });
+    });
+});

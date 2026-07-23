@@ -110,10 +110,10 @@
 
         if (response.ok) {
             const data = await response.json();
-            document.getElementById(`games1_${partidaId}`).innerText = data.games1;
-            document.getElementById(`games2_${partidaId}`).innerText = data.games2;
-            document.getElementById(`sets1_${partidaId}`).innerText = data.sets1;
-            document.getElementById(`sets2_${partidaId}`).innerText = data.sets2;
+            document.getElementById(`gamesA_${partidaId}`).innerText = data.games1;
+            document.getElementById(`gamesB_${partidaId}`).innerText = data.games2;
+            document.getElementById(`setsA_${partidaId}`).innerText = data.sets1;
+            document.getElementById(`setsB_${partidaId}`).innerText = data.sets2;
 
             // INTELIGÊNCIA DA REGRA DE JOGO
             if (data.games1 >= limiteGames || data.games2 >= limiteGames) {

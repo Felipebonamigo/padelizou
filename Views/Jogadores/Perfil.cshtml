@@ -5,6 +5,7 @@
     var meuConfronto = ViewBag.MeuConfronto as HeadToHeadVM;
     var confrontos = ViewBag.Confrontos as List<ConfrontoResumoVM> ?? new();
     var parceiros = ViewBag.Parceiros as List<ParceiroResumoVM> ?? new();
+    var destaques = ViewBag.Destaques as DestaquesJogadorVM;
     var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
     bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
@@ -37,6 +38,18 @@
         else
         {
             <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+
+            @if (ViewBag.EstouSeguindo != null)
+            {
+                bool estouSeguindo = (bool)ViewBag.EstouSeguindo;
+                <form asp-controller="Jogadores" asp-action="@(estouSeguindo ? "DeixarDeSeguir" : "Seguir")" method="post" class="mb-2">
+                    <input type="hidden" name="id" value="@Model.jogador.Id" />
+                    <button type="submit" class="btn btn-sm @(estouSeguindo ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+                        <i class="bi @(estouSeguindo ? "bi-person-check-fill" : "bi-person-plus")"></i>
+                        @(estouSeguindo ? "Seguindo" : "Seguir")
+                    </button>
+                </form>
+            }
 
             @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
             {
@@ -142,7 +155,7 @@
     <!-- CONFRONTO COM VOCÊ (ao ver o perfil de outra pessoa, estando logado) -->
     @if (meuConfronto != null)
     {
-        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--padel-blue), #1b3a6b); color: #fff;">
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--pdz-navy-fixed), #1b3a6b); color: #fff;">
             <div class="card-body">
                 @if (meuConfronto.Jogos > 0)
                 {
@@ -167,6 +180,9 @@
             </div>
         </div>
     }
+
+    <!-- DESTAQUES (parceiro que mais jogou junto, algoz, freguês) — só no próprio perfil -->
+    <partial name="_DestaquesJogador" model="destaques" />
 
     <!-- JOGA SEMPRE COM / JOGOU CONTRA / RIVAIS (visível apenas no próprio perfil) -->
     @if (parceiros.Any())

@@ -1,0 +1,74 @@
+@model List<Clube>
+@{
+    ViewData["Title"] = "Clubes - Painel Admin - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Clubes</h2>
+            <p class="text-muted mb-0">Atribua o dono de cada clube. Só o dono e quem ele adicionar como administrador conseguem gerenciar o clube.</p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Clube</th>
+                    <th>Dono atual</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var clube in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@clube.Nome</td>
+                        <td>
+                            @if (clube.Dono != null)
+                            {
+                                <span>@clube.Dono.Nome</span>
+                                <form asp-controller="Admin" asp-action="AtribuirDono" method="post" class="d-inline">
+                                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                                    <input type="hidden" name="jogadorId" value="0" />
+                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0 ms-2">remover</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic">Sem dono</span>
+                            }
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#atribuir_@clube.Id">
+                                Atribuir dono
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="atribuir_@clube.Id">
+                        <td colspan="3">
+                            @{
+                                ViewData["BuscaOrgActionUrl"] = Url.Action("AtribuirDono", "Admin");
+                                ViewData["BuscaOrgExtraFieldName"] = "clubeId";
+                                ViewData["BuscaOrgExtraFieldValue"] = clube.Id;
+                            }
+                            <partial name="_BuscaOrganizador" />
+                            @{
+                                ViewData["BuscaOrgActionUrl"] = null;
+                                ViewData["BuscaOrgExtraFieldName"] = null;
+                                ViewData["BuscaOrgExtraFieldValue"] = null;
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -42,4 +42,26 @@ public partial class Torneio
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
     public int TamanhoGrupo { get; set; } = 3;
     public int ClassificadosPorGrupo { get; set; } = 2;
+
+    // OBSOLETO — mantido só para não dropar a coluna em produção (evita janela de erro
+    // com o app antigo rodando). A regra agora é controlada por RestricaoCategoria.
+    public bool BloquearCategoriaInferior { get; set; }
+
+    // Regra anti-sandbagging configurável pelo organizador. Define o "gatilho" a partir
+    // do qual um jogador comprova nível numa categoria e não pode se inscrever em
+    // categorias mais fracas. Valores:
+    //   "Livre"     -> sem restrição (qualquer um em qualquer categoria)
+    //   "SaiuChave" -> comprova ao passar da fase de grupos (Quartas+)
+    //   "Semifinal" -> comprova ao chegar à semifinal (Semi+)
+    //   "Final"     -> comprova ao chegar à final (Final ou Campeão)
+    public string RestricaoCategoria { get; set; } = "Livre";
+
+    // Vagas máximas somando TODAS as categorias do torneio. Null = sem limite.
+    // Quem se inscrever depois de atingido vai pra lista de espera (Dupla/InscricaoAmericana.EmListaDeEspera).
+    public int? LimiteDuplasTotal { get; set; }
+
+    // Torneio restrito: só quem tiver a ChaveAcesso consegue se inscrever (Dupla ou
+    // InscricaoAmericana). Chave gerada automaticamente na criação quando Restrito = true.
+    public bool Restrito { get; set; }
+    public string? ChaveAcesso { get; set; }
 }

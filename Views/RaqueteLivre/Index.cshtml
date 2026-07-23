@@ -1,0 +1,51 @@
+@model List<AvisoRaqueteLivre>
+@{
+    ViewData["Title"] = "Raquete Livre - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="mb-4">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Raquete Livre</h2>
+        <p class="text-muted mb-0">Eventos abertos publicados pelos clubes.</p>
+    </div>
+
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var aviso in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @aviso.Clube.Nome
+                            </h5>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-calendar3"></i> @aviso.DataHoraInicio.ToString("dd/MM/yyyy")
+                                — @aviso.DataHoraInicio.ToString("HH:mm") às @aviso.DataHoraFim.ToString("HH:mm")
+                            </p>
+                            @if (aviso.Preco.HasValue)
+                            {
+                                <p class="small mb-2"><i class="bi bi-cash"></i> R$ @aviso.Preco.Value.ToString("0.00")</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(aviso.Observacoes))
+                            {
+                                <p class="small fst-italic">"@aviso.Observacoes"</p>
+                            }
+                            <a asp-controller="RaqueteLivre" asp-action="Detalhes" asp-route-id="@aviso.Id" class="btn btn-sm btn-padel rounded-pill w-100 mt-2">
+                                Ver detalhes / inscrever-se
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <i class="bi bi-megaphone display-4 text-muted mb-3"></i>
+                <h4 class="fw-bold text-secondary">Nenhum evento aberto no momento</h4>
+            </div>
+        }
+    </div>
+</div>

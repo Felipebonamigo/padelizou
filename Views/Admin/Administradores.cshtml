@@ -1,0 +1,53 @@
+@model List<Jogador>
+@{
+    ViewData["Title"] = "Administradores - Painel Admin - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Administradores do Sistema</h2>
+            <p class="text-muted mb-0">Quem está aqui pode gerenciar donos de clube (e o que mais vier a ser adicionado no painel admin).</p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-3">Adicionar administrador</h6>
+            @{
+                ViewData["BuscaOrgActionUrl"] = Url.Action("AdicionarAdministrador", "Admin");
+            }
+            <partial name="_BuscaOrganizador" />
+            @{
+                ViewData["BuscaOrgActionUrl"] = null;
+            }
+        </div>
+    </div>
+
+    <div class="list-group shadow-sm">
+        @if (Model.Any())
+        {
+            @foreach (var admin in Model)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">@admin.Nome</span>
+                    <form asp-controller="Admin" asp-action="RemoverAdministrador" method="post"
+                          onsubmit="return confirm('Remover @admin.Nome como administrador?');">
+                        <input type="hidden" name="jogadorId" value="@admin.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                    </form>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="list-group-item text-muted">Nenhum administrador nomeado ainda.</div>
+        }
+    </div>
+</div>

@@ -1,14 +1,26 @@
 @using System.Security.Claims
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
     string NavActive(params string[] controllers) => controllers.Contains(currentController) ? "active" : "";
     var nomeUsuario = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.Name) : null;
     var meuId = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
     var minhaFoto = User.Identity?.IsAuthenticated == true ? User.FindFirstValue("FotoPerfil") : null;
+    var souProfessor = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsProfessor") == "true";
+    var souAdmin = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsAdmin") == "true";
 }
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <script>
+        (function () {
+            var tema = localStorage.getItem('pdz-theme');
+            if (!tema) {
+                tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', tema);
+        })();
+    </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Padelizou</title>
@@ -50,8 +62,16 @@
                                 <i class="bi bi-trophy"></i> Torneio
                             </a>
                         </li>
+                        @if (souProfessor)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(currentController == "Aulas" && currentAction == "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Dashboard">
+                                    <i class="bi bi-clipboard-data"></i> Painel do Professor
+                                </a>
+                            </li>
+                        }
                         <li class="nav-item">
-                            <a class="nav-link @NavActive("Aulas")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
+                            <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
                                 <i class="bi bi-calendar-plus"></i> Aula
                             </a>
                         </li>
@@ -73,6 +93,14 @@
                                 </a>
                             </li>
                         }
+                        @if (souAdmin)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @NavActive("Admin")" asp-controller="Admin" asp-action="Index">
+                                    <i class="bi bi-shield-lock-fill"></i> Painel Admin
+                                </a>
+                            </li>
+                        }
                         <li class="nav-item">
                             <a class="nav-link @NavActive("Jogadores")" asp-controller="Jogadores" asp-action="Ranking">
                                 <i class="bi bi-graph-up-arrow"></i> Ranking
@@ -81,6 +109,9 @@
                     </ul>
 
                     <div class="d-flex align-items-center gap-2 pdz-authbar">
+                        <button type="button" id="pdzThemeToggle" class="btn btn-sm pdz-btn-ghost rounded-pill" title="Alternar tema claro/escuro">
+                            <i class="bi bi-moon-stars-fill" id="pdzThemeIcon"></i>
+                        </button>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil">
@@ -132,12 +163,38 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/push.js" asp-append-version="true"></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <partial name="_InstalarPwaModal" />
+    }
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js');
             });
         }
+    </script>
+    <script>
+        (function () {
+            var botao = document.getElementById('pdzThemeToggle');
+            var icone = document.getElementById('pdzThemeIcon');
+
+            function atualizarIcone() {
+                var escuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                icone.className = escuro ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+                botao.title = escuro ? 'Mudar pro tema claro' : 'Mudar pro tema escuro';
+            }
+
+            botao.addEventListener('click', function () {
+                var atual = document.documentElement.getAttribute('data-bs-theme');
+                var novo = atual === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-bs-theme', novo);
+                localStorage.setItem('pdz-theme', novo);
+                atualizarIcone();
+            });
+
+            atualizarIcone();
+        })();
     </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

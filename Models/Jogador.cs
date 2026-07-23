@@ -59,6 +59,24 @@ public partial class Jogador
     // Token opaco usado na URL do feed .ics de assinatura de agenda (sem exigir login)
     public Guid AgendaFeedToken { get; set; } = Guid.NewGuid();
 
+    // Administrador raiz: só o dono do app (definido 1x direto no banco, nunca por tela).
+    // Só quem tem essa flag pode gerenciar a lista de IsAdminGeral.
+    public bool IsAdminRaiz { get; set; }
+
+    // Administrador do sistema nomeado pelo raiz (por CPF/login) — hoje só gerencia donos de
+    // clube, mas é a fundação pra outras telas administrativas futuras.
+    public bool IsAdminGeral { get; set; }
+
+    // Preferências de notificação por tipo de aviso (independentes do canal NotificarEmail/
+    // NotificarWhatsApp, que definem COMO recebe; estas definem O QUE recebe).
+    public bool NotificarTorneiosAbertos { get; set; } = true;
+    public bool NotificarSeguidosTorneio { get; set; } = true;
+
+    // Gate do Avisos ("Buscar Jogo") existente — antes só dependia de NotificarEmail/WhatsApp.
+    public bool NotificarAvisoJogo { get; set; } = true;
+    public bool NotificarJogoAula { get; set; } = true;
+    public bool NotificarRaqueteLivre { get; set; } = true;
+
     // Lista de aulas onde ele é o PROFESSOR
     [InverseProperty("Professor")]
     public virtual ICollection<Aula> AulasDadas { get; set; } = new List<Aula>();

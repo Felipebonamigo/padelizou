@@ -1,0 +1,80 @@
+@model Padelizou.ViewModels.DestaquesJogadorVM
+@{
+    // Só renderiza se houver pelo menos um destaque.
+    bool temAlgo = Model != null && (Model.MaisJogouJunto != null || Model.MaisEnfrentou != null
+        || Model.MaisTeVenceu != null || Model.VoceMaisVenceu != null);
+}
+@if (temAlgo)
+{
+    <div class="card border-0 shadow-sm mb-4 p-3">
+        <h6 class="fw-bold mb-1"><i class="bi bi-stars text-warning"></i> Destaques</h6>
+        <p class="text-muted small mb-3">Suas parcerias e rivalidades (contando torneios e jogos de grupo).</p>
+        <div class="row g-2 row-cols-2 row-cols-md-4">
+
+            <div class="col">
+                <div class="p-2 rounded-3 bg-light h-100 text-center">
+                    <i class="bi bi-people-fill fs-4 text-primary"></i>
+                    <div class="text-muted mt-1" style="font-size:0.72rem;">Dupla que mais jogou junto</div>
+                    @if (Model.MaisJogouJunto != null)
+                    {
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisJogouJunto.Parceiro.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisJogouJunto.Parceiro.Nome.Split(' ')[0]</a>
+                        <div class="small text-muted">@Model.MaisJogouJunto.Jogos jogo(s) juntos</div>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-muted">—</div>
+                    }
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="p-2 rounded-3 bg-light h-100 text-center">
+                    <i class="bi bi-shuffle fs-4 text-info"></i>
+                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais enfrentou</div>
+                    @if (Model.MaisEnfrentou != null)
+                    {
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisEnfrentou.Oponente.Nome.Split(' ')[0]</a>
+                        <div class="small text-muted">@Model.MaisEnfrentou.Jogos confronto(s)</div>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-muted">—</div>
+                    }
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="p-2 rounded-3 bg-light h-100 text-center">
+                    <i class="bi bi-emoji-frown-fill fs-4 text-danger"></i>
+                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais te venceu</div>
+                    @if (Model.MaisTeVenceu != null)
+                    {
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisTeVenceu.Oponente.Nome.Split(' ')[0]</a>
+                        <div class="small text-danger">@Model.MaisTeVenceu.Derrotas derrota(s) sua(s)</div>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-muted">—</div>
+                    }
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="p-2 rounded-3 bg-light h-100 text-center">
+                    <i class="bi bi-emoji-sunglasses-fill fs-4 text-success"></i>
+                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais perdeu pra você</div>
+                    @if (Model.VoceMaisVenceu != null)
+                    {
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.VoceMaisVenceu.Oponente.Nome.Split(' ')[0]</a>
+                        <div class="small text-success">@Model.VoceMaisVenceu.Vitorias vitória(s) sua(s)</div>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-muted">—</div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+}

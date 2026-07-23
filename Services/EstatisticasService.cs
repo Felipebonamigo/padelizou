@@ -56,6 +56,23 @@ public class EstatisticasService : IEstatisticasService
         return ("Geral", "Geral", "bi-trophy-fill", "#eef2f8", "#6c757d");
     }
 
+    // Ordem de FORÇA da categoria (maior número = categoria mais forte). Usado pela
+    // regra anti-sandbagging: quem comprova nível numa categoria forte não pode
+    // descer para categorias mais fracas (número de ordem menor). 0 = desconhecida.
+    public static int OrdemCategoria(string? nomeCategoria)
+    {
+        string n = nomeCategoria ?? "";
+        if (n.Contains("Open")) return 8;
+        if (n.Contains("1ª")) return 7;
+        if (n.Contains("2ª")) return 6;
+        if (n.Contains("3ª")) return 5;
+        if (n.Contains("4ª")) return 4;
+        if (n.Contains("5ª")) return 3;
+        if (n.Contains("6ª")) return 2;
+        if (n.Contains("7ª") || n.Contains("Iniciantes")) return 1;
+        return 0;
+    }
+
     public async Task<List<RankingCategoriaVM>> ObterRankingPorCategoriaAsync(string? categoriaNome = null)
     {
         var duplas = await _context.Duplas
@@ -105,6 +122,314 @@ public class EstatisticasService : IEstatisticasService
         }
 
         return resultado.OrderBy(r => r.Categoria).ToList();
+    }
+
+    // Ranking de times: cada ponto de torneio que um jogador conquista (PontosPorFase da
+    // fase alcançada por cada dupla dele) soma para o time ao qual ele pertence.
+    public async Task<List<RankingTimeVM>> ObterRankingTimesAsync()
+    {
+        var jogadores = await _context.Jogadores
+            .Where(j => j.TimeId != null && j.Time != null)
+            .Select(j => new { j.Id, TimeId = j.TimeId!.Value, TimeNome = j.Time!.Nome, TimeLogo = j.Time!.Logo })
+            .ToListAsync();
+
+        if (jogadores.Count == 0) return new List<RankingTimeVM>();
+
+        var idsComTime = jogadores.Select(j => j.Id).ToHashSet();
+
+        var duplas = await _context.Duplas
+            .Where(d => idsComTime.Contains(d.Jogador1Id) || idsComTime.Contains(d.Jogador2Id))
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+            .ToListAsync();
+
+        // Pontos/títulos por jogador (mesma pontuação por fase do ranking individual).
+        var porJogador = new Dictionary<int, (int pontos, int titulos)>();
+        void Somar(int jogadorId, string? fase)
+        {
+            if (!idsComTime.Contains(jogadorId)) return;
+            var atual = porJogador.GetValueOrDefault(jogadorId);
+            atual.pontos += PontosPorFase(fase);
+            if (fase == "Campeao") atual.titulos += 1;
+            porJogador[jogadorId] = atual;
+        }
+        foreach (var d in duplas)
+        {
+            Somar(d.Jogador1Id, d.UltimaFase);
+            Somar(d.Jogador2Id, d.UltimaFase);
+        }
+
+        return jogadores
+            .GroupBy(j => new { j.TimeId, j.TimeNome, j.TimeLogo })
+            .Select(g =>
+            {
+                int pontos = 0, titulos = 0;
+                foreach (var j in g)
+                {
+                    if (porJogador.TryGetValue(j.Id, out var p)) { pontos += p.pontos; titulos += p.titulos; }
+                }
+                return new RankingTimeVM
+                {
+                    TimeId = g.Key.TimeId,
+                    Time = g.Key.TimeNome,
+                    Logo = g.Key.TimeLogo,
+                    Jogadores = g.Count(),
+                    Pontos = pontos,
+                    Titulos = titulos
+                };
+            })
+            .OrderByDescending(t => t.Pontos).ThenByDescending(t => t.Titulos).ThenBy(t => t.Time)
+            .ToList();
+    }
+
+    public async Task<RankingHubVM> ObterRankingHubAsync()
+    {
+        var vm = new RankingHubVM();
+
+        // 1 e 2: ranking por categoria (pontos) e o mesmo recorte ordenado por títulos.
+        var porCategoria = await ObterRankingPorCategoriaAsync();
+        vm.PorCategoria = porCategoria;
+        vm.TrofeusPorCategoria = porCategoria
+            .Select(c => new RankingCategoriaVM
+            {
+                Categoria = c.Categoria,
+                Linhas = c.Linhas
+                    .Where(l => l.Titulos > 0 || l.Finais > 0)
+                    .OrderByDescending(l => l.Titulos)
+                    .ThenByDescending(l => l.Finais)
+                    .ThenByDescending(l => l.Pontos)
+                    .ToList()
+            })
+            .Where(c => c.Linhas.Count > 0)
+            .ToList();
+
+        // 3 a 8: derivados das partidas de torneio finalizadas (com vencedor definido).
+        var partidas = await CarregarPartidasFinalizadasAsync(incluirTorneio: true);
+
+        DateTime Ordem(Partida p) =>
+            p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto
+            ?? p.Categoria?.Torneio?.DataInicio ?? DateTime.MinValue;
+
+        var jog = new Dictionary<int, JogadorContagemVM>();
+        var jogCat = new Dictionary<(string cat, int jid), JogadorContagemVM>();
+        var dup = new Dictionary<int, DuplaContagemVM>();
+        var jogSeq = new Dictionary<int, List<(DateTime ord, bool venceu)>>();
+        var dupSeq = new Dictionary<int, List<(DateTime ord, bool venceu)>>();
+
+        foreach (var p in partidas.OrderBy(Ordem).ThenBy(p => p.Id))
+        {
+            var cat = p.Categoria?.Nome ?? "—";
+            var torneio = p.Categoria?.Torneio?.Nome ?? "—";
+            var ord = Ordem(p);
+
+            foreach (var (dupla, dId) in new[] { (p.Dupla1, p.Dupla1Id), (p.Dupla2, p.Dupla2Id) })
+            {
+                if (dupla == null) continue;
+                bool venceu = p.VencedorId == dId;
+
+                // Dupla (inscrição por torneio)
+                if (!dup.TryGetValue(dId, out var dc))
+                {
+                    dc = new DuplaContagemVM
+                    {
+                        Jogador1 = dupla.Jogador1,
+                        Jogador2 = dupla.Jogador2,
+                        Categoria = cat,
+                        Torneio = torneio
+                    };
+                    dup[dId] = dc;
+                }
+                dc.Jogos++;
+                if (venceu) dc.Vitorias++;
+
+                if (!dupSeq.TryGetValue(dId, out var dseq)) { dseq = new(); dupSeq[dId] = dseq; }
+                dseq.Add((ord, venceu));
+
+                // Jogadores da dupla
+                foreach (var jgd in new[] { dupla.Jogador1, dupla.Jogador2 })
+                {
+                    if (jgd == null) continue;
+
+                    if (!jog.TryGetValue(jgd.Id, out var jc)) { jc = new JogadorContagemVM { Jogador = jgd }; jog[jgd.Id] = jc; }
+                    jc.Jogos++;
+                    if (venceu) jc.Vitorias++;
+
+                    var chaveCat = (cat, jgd.Id);
+                    if (!jogCat.TryGetValue(chaveCat, out var jcc)) { jcc = new JogadorContagemVM { Jogador = jgd }; jogCat[chaveCat] = jcc; }
+                    jcc.Jogos++;
+                    if (venceu) jcc.Vitorias++;
+
+                    if (!jogSeq.TryGetValue(jgd.Id, out var jseq)) { jseq = new(); jogSeq[jgd.Id] = jseq; }
+                    jseq.Add((ord, venceu));
+                }
+            }
+        }
+
+        // Maior sequência de vitórias consecutivas (sem derrota no meio). Como não há
+        // empate em partida de torneio, "invicto" == vitórias seguidas.
+        static (int seq, DateTime? de, DateTime? ate) MaiorSequencia(List<(DateTime ord, bool venceu)> hist)
+        {
+            int best = 0, cur = 0;
+            DateTime? bestDe = null, bestAte = null, curDe = null;
+            foreach (var h in hist.OrderBy(x => x.ord))
+            {
+                if (h.venceu)
+                {
+                    if (cur == 0) curDe = h.ord;
+                    cur++;
+                    if (cur > best) { best = cur; bestDe = curDe; bestAte = h.ord; }
+                }
+                else { cur = 0; curDe = null; }
+            }
+            return (best, bestDe, bestAte);
+        }
+
+        // 3. Jogador com mais vitórias (geral)
+        vm.VitoriasJogadores = jog.Values
+            .Where(x => x.Vitorias > 0)
+            .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
+            .Take(50).ToList();
+
+        // 4. Jogador com mais vitórias por categoria
+        vm.VitoriasJogadoresPorCategoria = jogCat
+            .GroupBy(kv => kv.Key.cat)
+            .Select(g => new CategoriaJogadoresVM
+            {
+                Categoria = g.Key,
+                Jogadores = g.Select(x => x.Value)
+                    .Where(x => x.Vitorias > 0)
+                    .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ThenBy(x => x.Jogador.Nome)
+                    .ToList()
+            })
+            .Where(c => c.Jogadores.Count > 0)
+            .OrderBy(c => c.Categoria).ToList();
+
+        // 5. Jogador com mais jogos invicto
+        foreach (var kv in jogSeq)
+        {
+            var (seq, de, ate) = MaiorSequencia(kv.Value);
+            if (seq <= 0) continue;
+            vm.InvictosJogadores.Add(new InvictoJogadorVM { Jogador = jog[kv.Key].Jogador, Sequencia = seq, De = de, Ate = ate });
+        }
+        vm.InvictosJogadores = vm.InvictosJogadores
+            .OrderByDescending(x => x.Sequencia).ThenBy(x => x.Jogador.Nome)
+            .Take(50).ToList();
+
+        // 6. Dupla com mais vitórias (geral)
+        vm.VitoriasDuplas = dup.Values
+            .Where(x => x.Vitorias > 0)
+            .OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos)
+            .Take(50).ToList();
+
+        // 7. Dupla com mais vitórias por categoria
+        vm.VitoriasDuplasPorCategoria = dup.Values
+            .Where(x => x.Vitorias > 0)
+            .GroupBy(d => d.Categoria)
+            .Select(g => new CategoriaDuplasVM
+            {
+                Categoria = g.Key,
+                Duplas = g.OrderByDescending(x => x.Vitorias).ThenByDescending(x => x.Jogos).ToList()
+            })
+            .OrderBy(c => c.Categoria).ToList();
+
+        // 8. Dupla com mais tempo invicta
+        foreach (var kv in dupSeq)
+        {
+            var (seq, de, ate) = MaiorSequencia(kv.Value);
+            var dc = dup[kv.Key];
+            dc.SequenciaInvicta = seq;
+            dc.De = de;
+            dc.Ate = ate;
+        }
+        vm.InvictasDuplas = dup.Values
+            .Where(x => x.SequenciaInvicta > 0)
+            .OrderByDescending(x => x.SequenciaInvicta).ThenByDescending(x => x.Vitorias)
+            .Take(50).ToList();
+
+        // 9. Nível comprovado (base da previsão/elegibilidade de categoria)
+        var niveis = await ObterNiveisComprovadosAsync();
+        if (niveis.Count > 0)
+        {
+            var ids = niveis.Keys.ToList();
+            var jogadores = await _context.Jogadores
+                .Where(j => ids.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id);
+
+            vm.NiveisComprovados = niveis
+                .Where(kv => jogadores.ContainsKey(kv.Key))
+                .Select(kv => new NivelJogadorVM
+                {
+                    Jogador = jogadores[kv.Key],
+                    Categoria = kv.Value.Categoria,
+                    Ordem = kv.Value.Ordem,
+                    MelhorFase = kv.Value.MelhorFase
+                })
+                .OrderByDescending(x => x.Ordem).ThenBy(x => x.Jogador.Nome)
+                .ToList();
+        }
+
+        // 10. Ranking de times
+        vm.Times = await ObterRankingTimesAsync();
+
+        return vm;
+    }
+
+    // Fases (UltimaFase da dupla) que "comprovam" nível, conforme o gatilho escolhido
+    // pelo organizador. "Livre" => nenhuma (não trava).
+    public static string[] FasesQueComprovam(string? modo) => modo switch
+    {
+        "SaiuChave" => new[] { "Quartas de Final", "Semifinal", "Final", "Campeao" },
+        "Semifinal" => new[] { "Semifinal", "Final", "Campeao" },
+        "Final" => new[] { "Final", "Campeao" },
+        _ => Array.Empty<string>() // Livre ou desconhecido
+    };
+
+    // Frase curta do que o jogador fez naquela categoria (para a mensagem de bloqueio).
+    public static string RotuloComprovacao(string? fase) => fase switch
+    {
+        "Campeao" => "foi campeão",
+        "Final" => "chegou à final",
+        "Semifinal" => "chegou à semifinal",
+        "Quartas de Final" => "passou da fase de grupos",
+        _ => "jogou"
+    };
+
+    public async Task<Dictionary<int, NivelComprovadoVM>> ObterNiveisComprovadosAsync(string modo = "Final")
+    {
+        var fasesComprovam = FasesQueComprovam(modo);
+        if (fasesComprovam.Length == 0) return new Dictionary<int, NivelComprovadoVM>(); // Livre
+
+        // Só resultados de torneio: o nível é comprovado pela UltimaFase da dupla.
+        var duplas = await _context.Duplas
+            .Include(d => d.Categoria)
+            .Where(d => d.Categoria != null && fasesComprovam.Contains(d.UltimaFase))
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, CategoriaNome = d.Categoria.Nome })
+            .ToListAsync();
+
+        var mapa = new Dictionary<int, NivelComprovadoVM>();
+
+        void Aplicar(int jogadorId, string? fase, string categoriaNome)
+        {
+            int ordem = OrdemCategoria(categoriaNome);
+            if (ordem == 0) return; // categoria sem tier reconhecido não trava nível
+
+            if (!mapa.TryGetValue(jogadorId, out var atual) || ordem > atual.Ordem)
+            {
+                mapa[jogadorId] = new NivelComprovadoVM
+                {
+                    Categoria = categoriaNome,
+                    Ordem = ordem,
+                    MelhorFase = fase
+                };
+            }
+        }
+
+        foreach (var d in duplas)
+        {
+            Aplicar(d.Jogador1Id, d.UltimaFase, d.CategoriaNome);
+            Aplicar(d.Jogador2Id, d.UltimaFase, d.CategoriaNome);
+        }
+
+        return mapa;
     }
 
     public async Task<Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>> ObterMelhoresColocacoesAsync(
@@ -247,6 +572,37 @@ public class EstatisticasService : IEstatisticasService
             .OrderByDescending(p => p.Jogos)
             .ThenByDescending(p => p.Vitorias)
             .ToList();
+    }
+
+    public async Task<DestaquesJogadorVM> ObterDestaquesAsync(int jogadorId)
+    {
+        var parceiros = await ObterParceirosAsync(jogadorId);
+        var confrontos = await ObterConfrontosAsync(jogadorId);
+        return MontarDestaques(parceiros, confrontos);
+    }
+
+    // Monta os destaques a partir de listas já calculadas (evita recarregar partidas quando
+    // a tela já tem parceiros/confrontos em mãos, como em Jogadores/Perfil).
+    public static DestaquesJogadorVM MontarDestaques(
+        List<ParceiroResumoVM> parceiros, List<ConfrontoResumoVM> confrontos)
+    {
+        return new DestaquesJogadorVM
+        {
+            MaisJogouJunto = parceiros
+                .OrderByDescending(p => p.Jogos).ThenByDescending(p => p.Vitorias)
+                .FirstOrDefault(),
+            MaisEnfrentou = confrontos
+                .OrderByDescending(c => c.Jogos).ThenByDescending(c => c.Vitorias)
+                .FirstOrDefault(),
+            MaisTeVenceu = confrontos
+                .Where(c => c.Derrotas > 0)
+                .OrderByDescending(c => c.Derrotas).ThenByDescending(c => c.Jogos)
+                .FirstOrDefault(),
+            VoceMaisVenceu = confrontos
+                .Where(c => c.Vitorias > 0)
+                .OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Jogos)
+                .FirstOrDefault(),
+        };
     }
 
     public async Task<List<ConquistaVM>> ObterConquistasAsync(int jogadorId)

@@ -1,0 +1,53 @@
+@{
+    ViewData["Title"] = "Publicar Raquete Livre - Padelizou";
+    var clube = (Clube)ViewBag.Clube;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold" style="color: var(--pdz-ink);">Publicar Raquete Livre</h2>
+                <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+            </div>
+            <p class="text-muted">@clube.Nome</p>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form asp-controller="RaqueteLivre" asp-action="Criar" method="post">
+                        <input type="hidden" name="clubeId" value="@clube.Id" />
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Início</label>
+                                <input type="datetime-local" class="form-control" name="dataHoraInicio" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Fim</label>
+                                <input type="datetime-local" class="form-control" name="dataHoraFim" required />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Valor por pessoa (opcional)</label>
+                                <input type="number" step="0.01" min="0" class="form-control" name="preco" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small">Limite de vagas (opcional)</label>
+                                <input type="number" min="1" class="form-control" name="limiteVagas" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">Observações</label>
+                            <textarea class="form-control" name="observacoes" rows="3" placeholder="Ex: todos convidados, valor único para todos"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Publicar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

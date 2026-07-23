@@ -32,7 +32,7 @@
                         <span class="badge bg-primary">@Model.NomeTorneio</span>
                         <span class="badge @(Model.Status == "Ativo" ? "bg-warning text-dark" : Model.Status == "Preenchida" ? "bg-success" : "bg-danger")">@Model.Status</span>
                     </div>
-                    <h4 class="fw-bold mt-2" style="color: var(--padel-blue);"><i class="bi bi-geo-alt-fill text-danger"></i> @Model.Local</h4>
+                    <h4 class="fw-bold mt-2" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt-fill text-danger"></i> @Model.Local</h4>
                     <p class="text-muted mb-1"><i class="bi bi-clock-history"></i> @Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</p>
                     <p class="text-muted mb-3"><i class="bi bi-person-circle"></i> Criado por @Model.Criador.Nome</p>
 

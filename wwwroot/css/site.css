@@ -19,7 +19,12 @@
     --pdz-ink: #1b2540;
     --pdz-muted: #6a7891;
     --pdz-surface: #ffffff;
+    --pdz-surface-alt: #f4f7fc;
     --pdz-border: rgba(28, 39, 66, .09);
+
+    /* Navy fixo — não muda com o tema (usado em fundos/detalhes que sempre precisam ficar escuros,
+       tipo os painéis "Ranking Global" e cabeçalhos de card com texto branco em cima). */
+    --pdz-navy-fixed: #1C2742;
 
     --pdz-shadow-sm: 0 1px 2px rgba(20, 29, 51, .06), 0 4px 14px rgba(20, 29, 51, .06);
     --pdz-shadow-md: 0 6px 18px rgba(20, 29, 51, .10), 0 2px 6px rgba(20, 29, 51, .06);
@@ -37,6 +42,52 @@
     --bs-link-color: var(--pdz-navy-600);
     --bs-link-hover-color: var(--pdz-lime-600);
 }
+
+/* =========================================================
+   TEMA ESCURO
+   Ativado via <html data-bs-theme="dark"> (padrão nativo do Bootstrap 5.3).
+   Só redefine os tokens de "tinta"/superfície — as cores de marca (navy, lime)
+   usadas em botões/badges/faixas decorativas continuam fixas nos dois temas.
+   ========================================================= */
+:root[data-bs-theme="dark"] {
+    --pdz-ink: #e7ecf7;
+    --pdz-muted: #9aa7c4;
+    --pdz-surface: #1a2338;
+    --pdz-surface-alt: #212c46;
+    --pdz-border: rgba(231, 236, 247, .10);
+
+    --pdz-shadow-sm: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .25);
+    --pdz-shadow-md: 0 6px 18px rgba(0, 0, 0, .35), 0 2px 6px rgba(0, 0, 0, .25);
+    --pdz-shadow-lg: 0 18px 40px rgba(0, 0, 0, .45);
+
+    --bs-link-color: var(--pdz-lime-300);
+    --bs-link-hover-color: var(--pdz-lime);
+
+    --pdz-code-bg: rgba(231, 236, 247, .08);
+    --pdz-winner-bg: rgba(163, 216, 39, .12);
+}
+
+:root[data-bs-theme="dark"] body {
+    color: var(--pdz-ink);
+    background-color: #0f1526;
+    background-image:
+        radial-gradient(1100px 480px at 100% -8%, rgba(163, 216, 39, .07), transparent 60%),
+        radial-gradient(900px 420px at -10% 0%, rgba(28, 39, 66, .5), transparent 55%),
+        linear-gradient(180deg, #10162a 0%, #0b0f1c 100%);
+}
+
+/* Rede de segurança pra classes/estilos que assumem fundo claro em telas específicas */
+:root[data-bs-theme="dark"] .text-dark { color: var(--pdz-ink) !important; }
+:root[data-bs-theme="dark"] .text-black { color: var(--pdz-ink) !important; }
+:root[data-bs-theme="dark"] .bg-white { background-color: var(--pdz-surface) !important; }
+:root[data-bs-theme="dark"] .border { border-color: var(--pdz-border) !important; }
+
+:root[data-bs-theme="dark"] .alert-success { background: rgba(163, 216, 39, .14); color: #c9ee6b; }
+:root[data-bs-theme="dark"] .alert-danger { background: rgba(220, 38, 74, .18); color: #ff9db3; }
+:root[data-bs-theme="dark"] .alert-warning { background: rgba(245, 175, 15, .16); color: #ffd479; }
+:root[data-bs-theme="dark"] .alert-info { background: rgba(14, 165, 233, .16); color: #7dd3fc; }
+
+:root[data-bs-theme="dark"] .table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .10); }
 
 html {
     font-size: 15px;
@@ -69,7 +120,7 @@ h1, h2, h3, h4, h5, h6,
 .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
     font-family: var(--font-display);
     letter-spacing: -0.015em;
-    color: var(--pdz-navy);
+    color: var(--pdz-ink);
 }
 
 a { color: var(--pdz-navy-600); text-decoration: none; transition: color .18s ease; }
@@ -93,12 +144,12 @@ a:hover { color: var(--pdz-lime-600); }
 
 .pdz-footer {
     flex-shrink: 0;
-    background: #fff;
+    background: var(--pdz-surface);
     border-top: 1px solid var(--pdz-border);
     padding: 1.4rem 0;
     margin-top: auto;
 }
-.pdz-footer .fw-semibold { font-family: var(--font-display); color: var(--pdz-navy); }
+.pdz-footer .fw-semibold { font-family: var(--font-display); color: var(--pdz-ink); }
 .pdz-footer a { color: var(--pdz-muted); }
 .pdz-footer a:hover { color: var(--pdz-lime-600); }
 
@@ -254,7 +305,7 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-section-title {
     font-family: var(--font-display);
     font-weight: 700;
-    color: var(--pdz-navy);
+    color: var(--pdz-ink);
     position: relative;
     padding-bottom: .6rem;
     display: inline-block;
@@ -342,7 +393,7 @@ a:hover { color: var(--pdz-lime-600); }
 .card-footer { background: transparent; border-top: 1px solid var(--pdz-border); }
 
 /* Fundo suave usado em vários cards utilitários */
-.bg-light { background-color: #f4f7fc !important; }
+.bg-light { background-color: var(--pdz-surface-alt) !important; }
 
 /* =========================================================
    FORMULÁRIOS
@@ -353,15 +404,28 @@ a:hover { color: var(--pdz-lime-600); }
     border: 1.5px solid var(--pdz-border);
     padding: .6rem .85rem;
     color: var(--pdz-ink);
-    background-color: #fff;
+    background-color: var(--pdz-surface);
     transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
 }
+.form-select { padding-right: 2.25rem; }
 .form-control.form-control-lg, .form-select.form-select-lg { padding: .8rem 1rem; }
-.form-control.bg-light, .form-select.bg-light { background-color: #f4f7fc !important; }
-.form-control::placeholder { color: #9aa7ba; }
+.pdz-categoria-toggle {
+    border-radius: 12px;
+    border: 1.5px solid var(--pdz-border);
+    padding: .6rem .85rem;
+    color: var(--pdz-ink);
+    background-color: var(--pdz-surface);
+}
+.pdz-categoria-toggle:hover, .pdz-categoria-toggle:focus, .pdz-categoria-toggle:active {
+    color: var(--pdz-ink) !important;
+    background-color: var(--pdz-surface) !important;
+    border-color: var(--pdz-border) !important;
+}
+.form-control.bg-light, .form-select.bg-light { background-color: var(--pdz-surface-alt) !important; }
+.form-control::placeholder { color: var(--pdz-muted); }
 .form-control:focus, .form-select:focus {
     border-color: var(--pdz-lime);
-    background-color: #fff;
+    background-color: var(--pdz-surface);
     box-shadow: 0 0 0 .22rem rgba(163, 216, 39, .22);
 }
 textarea.form-control { border-radius: 14px; }
@@ -397,7 +461,7 @@ textarea.form-control { border-radius: 14px; }
     border-radius: 8px;
 }
 .bg-primary { background-color: var(--pdz-navy) !important; }
-.text-primary { color: var(--pdz-navy) !important; }
+.text-primary { color: var(--pdz-ink) !important; }
 
 .alert { border: none; border-radius: 14px; box-shadow: var(--pdz-shadow-sm); }
 .alert-success { background: #eaf7e0; color: #3f6212; }
@@ -411,7 +475,7 @@ textarea.form-control { border-radius: 14px; }
 }
 .list-group-item:first-child { border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
 .list-group-item:last-child { border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
-.list-group-numbered > .list-group-item::before { color: var(--pdz-navy); font-weight: 700; }
+.list-group-numbered > .list-group-item::before { color: var(--pdz-ink); font-weight: 700; }
 
 .table { color: var(--pdz-ink); }
 .table > thead {
@@ -429,8 +493,8 @@ textarea.form-control { border-radius: 14px; }
 .table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .06); }
 
 code {
-    background: rgba(28, 39, 66, .06);
-    color: var(--pdz-navy);
+    background: var(--pdz-code-bg, rgba(28, 39, 66, .06));
+    color: var(--pdz-ink);
     padding: .12rem .45rem;
     border-radius: 6px;
     font-weight: 600;
@@ -489,14 +553,14 @@ button, a, input, select { touch-action: manipulation; }
 .bracket-header {
     text-align: center;
     font-weight: bold;
-    color: var(--pdz-navy);
+    color: var(--pdz-ink);
     margin-bottom: 20px;
     text-transform: uppercase;
     font-size: 0.9rem;
     letter-spacing: 1px;
 }
 .bracket-match {
-    background: #fff;
+    background: var(--pdz-surface);
     border-radius: 12px;
     box-shadow: var(--pdz-shadow-sm);
     margin-bottom: 20px;
@@ -508,11 +572,11 @@ button, a, input, select { touch-action: manipulation; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #f1f4f8;
+    border-bottom: 1px solid var(--pdz-border);
 }
 .bracket-team:last-child { border-bottom: none; }
 .bracket-team.winner {
-    background-color: #f4fff8;
+    background-color: var(--pdz-winner-bg, #f4fff8);
     border-left: 4px solid var(--pdz-lime);
 }
 .bracket-team.winner .team-name { font-weight: 800 !important; }
@@ -527,3 +591,12 @@ button, a, input, select { touch-action: manipulation; }
 }
 .palpite-opcao.votavel:hover { background-color: var(--pdz-navy-50, #eef2f8); }
 .pdz-palpitrometro .progress-bar { transition: width .3s ease; }
+.pdz-palpite-barra-wrap { position: relative; padding-top: 18px; }
+.pdz-palpite-pct-badge {
+    position: absolute;
+    top: 0;
+    font-size: .75rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.pdz-palpite-pct-badge i { display: block; font-size: .7rem; margin-top: 1px; }

@@ -1,6 +1,10 @@
 @model Jogador
 @{
     ViewData["Title"] = "Editar Perfil - Padelizou";
+    var meuTimeDono = ViewBag.MeuTimeDono as Padelizou.Models.Time;
+    var timesDisponiveis = ViewBag.Times as List<Padelizou.Models.Time> ?? new List<Padelizou.Models.Time>();
+    var clubesDisponiveis = ViewBag.Clubes as List<Padelizou.Models.Clube> ?? new List<Padelizou.Models.Clube>();
+    bool ehDonoAtual = meuTimeDono != null;
 }
 
 <div class="container mt-4 mb-5">
@@ -8,7 +12,7 @@
         <div class="col-md-7">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2 class="fw-bold" style="color: var(--padel-blue);">Editar Perfil</h2>
+                    <h2 class="fw-bold" style="color: var(--pdz-ink);">Editar Perfil</h2>
                     <p class="text-muted mb-0">Seus dados pessoais. Preferências de jogo ficam em "Minhas Preferências".</p>
                 </div>
                 <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
@@ -30,7 +34,7 @@
                             }
                             else
                             {
-                                <i class="bi bi-person-circle d-block" style="font-size: 96px; color: var(--padel-blue);"></i>
+                                <i class="bi bi-person-circle d-block" style="font-size: 96px; color: var(--pdz-ink);"></i>
                             }
                             <label class="form-label fw-bold text-muted small d-block mt-2">Trocar foto de perfil</label>
                             <input type="file" name="foto" class="form-control" accept="image/*" style="max-width: 320px; margin: 0 auto;" />
@@ -62,6 +66,58 @@
                             </div>
                         </div>
 
+                        <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="isProfessor" value="true" id="isProfessor" style="transform: scale(1.2);" @(Model.IsProfessor ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="isProfessor">Sou Professor de Padel</label>
+                            </div>
+                            <small class="text-muted d-block mt-2">Ative pra receber agendamentos de aulas e gerenciar sua agenda de professor no sistema.</small>
+                        </div>
+
+                        <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                            <h6 class="fw-bold mb-1"><i class="bi bi-shield-fill"></i> Meu time</h6>
+                            <p class="text-muted small mb-3">Seus pontos de torneio somam para o time no ranking de times.</p>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="ehDonoTime" value="true" id="ehDonoTime" style="transform: scale(1.2);" @(ehDonoAtual ? "checked" : "") onchange="toggleDonoTime()" />
+                                <label class="form-check-label fw-bold" for="ehDonoTime">Sou dono de um time</label>
+                            </div>
+
+                            <!-- Não é dono: escolhe um time existente -->
+                            <div id="blocoTimeExistente" style="display: @(ehDonoAtual ? "none" : "block");">
+                                <label class="form-label fw-bold text-muted small">Escolha seu time</label>
+                                <select name="timeId" class="form-select bg-light">
+                                    <option value="">— Sem time —</option>
+                                    @foreach (var t in timesDisponiveis)
+                                    {
+                                        <option value="@t.Id" selected="@(Model.TimeId == t.Id)">@t.Nome</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- É dono: cria/edita o próprio time -->
+                            <div id="blocoTimeDono" style="display: @(ehDonoAtual ? "block" : "none");">
+                                <label class="form-label fw-bold text-muted small">Nome do time</label>
+                                <input type="text" name="nomeTime" class="form-control bg-light mb-2" placeholder="Ex: Nata Padel" value="@(meuTimeDono?.Nome)" />
+
+                                @if (!string.IsNullOrEmpty(meuTimeDono?.Logo))
+                                {
+                                    <div class="mb-1"><img src="@meuTimeDono.Logo" alt="Logo do time" class="rounded border bg-white p-1" style="height:56px;object-fit:contain;" /></div>
+                                }
+                                <label class="form-label fw-bold text-muted small">Logo do time</label>
+                                <input type="file" name="logoTime" class="form-control mb-2" accept="image/*" />
+
+                                <label class="form-label fw-bold text-muted small">Clube sede (opcional)</label>
+                                <select name="clubeSedeId" class="form-select bg-light">
+                                    <option value="">— Sem clube —</option>
+                                    @foreach (var c in clubesDisponiveis)
+                                    {
+                                        <option value="@c.Id" selected="@(meuTimeDono?.ClubeId == c.Id)">@c.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Salvar Alterações</button>
                     </form>
                 </div>
@@ -69,3 +125,11 @@
         </div>
     </div>
 </div>
+
+<script>
+    function toggleDonoTime() {
+        var dono = document.getElementById('ehDonoTime').checked;
+        document.getElementById('blocoTimeDono').style.display = dono ? 'block' : 'none';
+        document.getElementById('blocoTimeExistente').style.display = dono ? 'none' : 'block';
+    }
+</script>

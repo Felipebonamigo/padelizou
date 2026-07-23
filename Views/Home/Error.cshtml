@@ -1,0 +1,35 @@
+@model Padelizou.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Ops! Algo deu errado - Padelizou";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 text-center p-4">
+                <div class="card-body">
+                    <i class="bi bi-emoji-dizzy display-1" style="color: var(--pdz-ink);"></i>
+                    <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Ops! Algo deu errado</h2>
+                    <p class="text-muted mt-2">
+                        Tivemos um problema pra carregar essa página. Pode ter sido algo passageiro —
+                        tenta de novo em alguns segundos.
+                    </p>
+
+                    @if (Model?.ShowRequestId == true)
+                    {
+                        <p class="text-muted small mt-3 mb-0">
+                            Código de referência: <code>@Model.RequestId</code>
+                        </p>
+                        <p class="text-muted small">
+                            Se o problema continuar, inclua esse código ao reportar em "Reportar Problema".
+                        </p>
+                    }
+
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-padel rounded-pill mt-4 px-4">
+                        Voltar ao Início
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

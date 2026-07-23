@@ -28,7 +28,7 @@ Environment="GoogleCalendar__ClientSecret=SEU_CLIENT_SECRET_AQUI"
 Environment="GoogleCalendar__RedirectUri=https://padelizou.com.br/GoogleAuth/Callback"
 Environment="AcessoAntecipado__Habilitado=true"
 Environment="AcessoAntecipado__Usuario=padelizou"
-Environment="AcessoAntecipado__Senha=TROCAR_ANTES_DE_PUBLICAR"
+Environment="AcessoAntecipado__Senha=bona"
 
 [Install]
 WantedBy=multi-user.target

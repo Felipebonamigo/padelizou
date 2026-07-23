@@ -1,0 +1,83 @@
+@{
+    ViewData["Title"] = "Publicar Jogo Aula - Padelizou";
+    var meusLocais = (List<LocalAula>)ViewBag.MeusLocais;
+    var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold" style="color: var(--pdz-ink);">Publicar Jogo Aula</h2>
+                <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+            </div>
+
+            @if (!meusLocais.Any())
+            {
+                <div class="alert alert-warning">Você precisa ter pelo menos um local de aula ativo pra publicar um jogo aula.</div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <form asp-controller="JogoAula" asp-action="Publicar" method="post">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Local</label>
+                                <select class="form-select" name="localAulaId" required>
+                                    @foreach (var local in meusLocais)
+                                    {
+                                        <option value="@local.Id">@local.Nome</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Categoria</label>
+                                <select class="form-select" name="categoriaPadraoId" required>
+                                    @foreach (var cat in catalogoCategorias)
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small d-block">Modalidade</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="modalidade" id="modIndividual" value="Individual" checked />
+                                    <label class="btn btn-outline-primary" for="modIndividual">Individual</label>
+
+                                    <input type="radio" class="btn-check" name="modalidade" id="modDupla" value="Dupla" />
+                                    <label class="btn btn-outline-primary" for="modDupla">Dupla</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Data e horário</label>
+                                <input type="datetime-local" class="form-control" name="dataHora" required />
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">Valor (opcional)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control" name="preco" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">Limite de vagas (opcional)</label>
+                                    <input type="number" min="1" class="form-control" name="limiteVagas" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small">Observações</label>
+                                <textarea class="form-control" name="observacoes" rows="3"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Publicar</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

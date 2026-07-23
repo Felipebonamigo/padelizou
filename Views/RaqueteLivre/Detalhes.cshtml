@@ -1,0 +1,110 @@
+@model AvisoRaqueteLivre
+@{
+    ViewData["Title"] = $"{Model.Clube.Nome} - Raquete Livre - Padelizou";
+    var inscricoes = (List<InscricaoRaqueteLivre>)ViewBag.Inscricoes;
+    var minhaInscricao = (InscricaoRaqueteLivre?)ViewBag.MinhaInscricao;
+    var podeGerenciar = (bool)ViewBag.PodeGerenciar;
+    var confirmados = inscricoes.Where(i => !i.EmListaDeEspera).ToList();
+    var listaDeEspera = inscricoes.Where(i => i.EmListaDeEspera).ToList();
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt-fill text-danger"></i> @Model.Clube.Nome</h2>
+                    <p class="text-muted mb-0">Criado por @Model.Criador.Nome</p>
+                </div>
+                <a asp-controller="RaqueteLivre" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <p class="mb-2"><i class="bi bi-calendar3"></i> @Model.DataHoraInicio.ToString("dd/MM/yyyy") — @Model.DataHoraInicio.ToString("HH:mm") às @Model.DataHoraFim.ToString("HH:mm")</p>
+                    @if (Model.Preco.HasValue)
+                    {
+                        <p class="mb-2"><i class="bi bi-cash"></i> R$ @Model.Preco.Value.ToString("0.00") por pessoa</p>
+                    }
+                    @if (Model.LimiteVagas.HasValue)
+                    {
+                        <p class="mb-2"><i class="bi bi-people"></i> @confirmados.Count / @Model.LimiteVagas vagas</p>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.Observacoes))
+                    {
+                        <p class="fst-italic">"@Model.Observacoes"</p>
+                    }
+
+                    @if (Model.Status == "Ativo")
+                    {
+                        @if (minhaInscricao == null)
+                        {
+                            <form asp-controller="RaqueteLivre" asp-action="Inscrever" method="post">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-padel rounded-pill">Quero ir</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert @(minhaInscricao.EmListaDeEspera ? "alert-warning" : "alert-success") mb-2">
+                                @(minhaInscricao.EmListaDeEspera ? "Você está na lista de espera." : "Você está inscrito!")
+                            </div>
+                            <form asp-controller="RaqueteLivre" asp-action="CancelarInscricao" method="post">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-outline-danger rounded-pill">Cancelar minha inscrição</button>
+                            </form>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-secondary mb-0">Este evento foi cancelado.</div>
+                    }
+
+                    @if (podeGerenciar && Model.Status == "Ativo")
+                    {
+                        <form asp-controller="RaqueteLivre" asp-action="Cancelar" method="post" class="mt-2"
+                              onsubmit="return confirm('Cancelar este Raquete Livre?');">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">Cancelar este evento</button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted mb-3">Inscritos (@confirmados.Count)</h6>
+                    @if (confirmados.Any())
+                    {
+                        <ul class="list-group list-group-flush mb-3">
+                            @foreach (var i in confirmados)
+                            {
+                                <li class="list-group-item px-0">@i.Jogador.Nome</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted small">Ninguém inscrito ainda.</p>
+                    }
+
+                    @if (listaDeEspera.Any())
+                    {
+                        <h6 class="fw-bold text-muted mb-2 mt-3">Lista de espera (@listaDeEspera.Count)</h6>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var i in listaDeEspera)
+                            {
+                                <li class="list-group-item px-0 text-muted">@i.Jogador.Nome</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

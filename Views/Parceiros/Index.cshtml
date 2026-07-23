@@ -6,7 +6,7 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold" style="color: var(--padel-blue);">Procurar Parceiro</h2>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Procurar Parceiro</h2>
             <p class="text-muted mb-0">Quem está sem dupla pra um torneio.</p>
         </div>
         <a asp-controller="Parceiros" asp-action="Criar" class="btn btn-padel rounded-pill">
@@ -20,14 +20,14 @@
             @foreach (var aviso in Model)
             {
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-blue);">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--pdz-navy-fixed);">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-primary">@aviso.NomeTorneio</span>
                                 <span class="text-muted fw-bold small"><i class="bi bi-clock-history"></i> @aviso.DataHora.ToString("dd/MM/yyyy HH:mm")</span>
                             </div>
 
-                            <h5 class="fw-bold mb-1" style="color: var(--padel-blue);">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
                                 <i class="bi bi-geo-alt-fill text-danger"></i> @aviso.Local
                             </h5>
 

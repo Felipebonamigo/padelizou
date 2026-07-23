@@ -46,4 +46,8 @@ public partial class Dupla
     public int SaldoGames { get; set; }
     public string UltimaFase { get; set; } = "Grupos";
     public string? Grupo { get; set; } // Vai receber "A", "B", etc.
+
+    // Verdadeiro quando a categoria (ou o torneio) já estava com vagas esgotadas no
+    // momento da inscrição. Fica de fora das chaves/contagens até ser promovido.
+    public bool EmListaDeEspera { get; set; }
 }

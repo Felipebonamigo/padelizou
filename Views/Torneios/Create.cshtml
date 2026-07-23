@@ -6,9 +6,9 @@
 }
 
 <div class="container mt-4 mb-5">
-    <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-blue);">
+    <div class="card shadow-sm border-0" style="border-top: 4px solid var(--pdz-navy-fixed);">
         <div class="card-body p-4 p-md-5">
-            <h2 class="fw-bold mb-4" style="color: var(--padel-blue);"><i class="bi bi-trophy-fill"></i> Criar Novo Torneio</h2>
+            <h2 class="fw-bold mb-4" style="color: var(--pdz-ink);"><i class="bi bi-trophy-fill"></i> Criar Novo Torneio</h2>
 
             <form asp-action="Create" method="post" enctype="multipart/form-data">
 
@@ -74,6 +74,11 @@
                         <label class="form-label fw-bold small">Qtd. de Quadras Disponíveis</label>
                         <input type="number" asp-for="QuantidadeQuadras" id="quantidadeQuadras" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Limite total de duplas no torneio (opcional)</label>
+                        <input type="number" asp-for="LimiteDuplasTotal" min="1" class="form-control bg-light" placeholder="Sem limite" />
+                        <small class="text-muted d-block mt-1">Somando todas as categorias. Quem se inscrever depois de esgotado vai pra lista de espera.</small>
+                    </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-12">
@@ -105,12 +110,43 @@
                     </div>
                 </div>
 
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" asp-for="Restrito" id="restritoSwitch" style="transform: scale(1.3); margin-right: 10px;">
+                            <label class="form-check-label fw-bold text-muted" for="restritoSwitch">
+                                <i class="bi bi-key-fill"></i> Torneio Restrito (exige chave de acesso pra se inscrever)
+                            </label>
+                        </div>
+                        <small class="text-muted d-block">Ao publicar, o sistema gera uma chave de 6 caracteres. Só quem tiver essa chave consegue se inscrever — você compartilha com quem quiser convidar.</small>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold text-muted" for="createRestricaoCat">
+                            <i class="bi bi-shield-lock"></i> Restrição de categoria (anti-sandbagging)
+                        </label>
+                        <select class="form-select" asp-for="RestricaoCategoria" id="createRestricaoCat">
+                            <option value="Livre">Tudo liberado (sem restrição)</option>
+                            <option value="SaiuChave">Passou da fase de grupos (mata-mata)</option>
+                            <option value="Semifinal">Chegou à semifinal</option>
+                            <option value="Final">Chegou à final</option>
+                        </select>
+                        <div class="small text-muted mt-2">
+                            Impede que um jogador se inscreva numa categoria <strong>mais fraca</strong> do que outra em que já provou nível.
+                            O gatilho define o que conta como prova. Ex.: com "chegou à final", quem foi vice/campeão da 4ª só entra na 4ª ou acima (3ª, 2ª, Open).
+                            Vale por jogador; quem nunca jogou torneio entra em qualquer categoria. Dá pra liberar caso a caso na inscrição.
+                        </div>
+                    </div>
+                </div>
+
                 <!-- REGRAS DE SETS E GAMES -->
                 <h5 class="fw-bold text-muted border-bottom pb-2 mb-3 mt-5">2. Formato das Partidas</h5>
 
                 <div class="form-check form-switch mb-3 p-3 rounded" style="background-color: #f8f9fa;">
                     <input class="form-check-input ms-0 me-2" type="checkbox" asp-for="FormatoUnico" id="formatoUnico" checked onchange="toggleFases()" style="transform: scale(1.3);">
-                    <label class="form-check-label fw-bold ms-2" for="formatoUnico" style="color: var(--padel-blue);">
+                    <label class="form-check-label fw-bold ms-2" for="formatoUnico" style="color: var(--pdz-ink);">
                         Formato Único (Todas as partidas do torneio terão a mesma regra)
                     </label>
                 </div>
@@ -118,7 +154,7 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <div class="card bg-light border-0 p-3 h-100">
-                            <h6 class="fw-bold" style="color: var(--padel-blue);">Fase de Grupos (ou Geral)</h6>
+                            <h6 class="fw-bold" style="color: var(--pdz-ink);">Fase de Grupos (ou Geral)</h6>
                             <label class="small text-muted mt-2">Quantidade de Sets</label>
                             <input type="number" asp-for="SetsFaseGrupos" class="form-control mb-2" value="1" required />
                             <label class="small text-muted">Games por Set</label>
@@ -161,12 +197,15 @@
                 <div class="row">
                     <!-- Coluna Masculina -->
                     <div class="col-md-4 mb-4">
-                        <h6 class="fw-bold mb-3" style="color: var(--padel-blue);"><i class="bi bi-gender-male"></i> Masculinas</h6>
+                        <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-gender-male"></i> Masculinas</h6>
                         @foreach (var cat in catalogo.Where(c => c.Tipo == "Masculina"))
                         {
-                            <div class="form-check mb-2">
-                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
-                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            <div class="form-check mb-2 d-flex align-items-center gap-2">
+                                <div class="flex-grow-1">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                </div>
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
                             </div>
                         }
                     </div>
@@ -176,9 +215,12 @@
                         <h6 class="fw-bold mb-3" style="color: var(--padel-green);"><i class="bi bi-gender-female"></i> Femininas</h6>
                         @foreach (var cat in catalogo.Where(c => c.Tipo == "Feminina"))
                         {
-                            <div class="form-check mb-2">
-                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
-                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            <div class="form-check mb-2 d-flex align-items-center gap-2">
+                                <div class="flex-grow-1">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                </div>
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
                             </div>
                         }
                     </div>
@@ -188,9 +230,12 @@
                         <h6 class="fw-bold mb-3 text-warning"><i class="bi bi-people-fill"></i> Mistas</h6>
                         @foreach (var cat in catalogo.Where(c => c.Tipo == "Mista"))
                         {
-                            <div class="form-check mb-2">
-                                <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
-                                <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                            <div class="form-check mb-2 d-flex align-items-center gap-2">
+                                <div class="flex-grow-1">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                </div>
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
                             </div>
                         }
                     </div>

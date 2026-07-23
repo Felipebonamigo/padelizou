@@ -230,16 +230,58 @@ public class JogadoresController : Controller
         if (souEuMesmo)
         {
             // É o próprio perfil: mostra parceiros de sempre e os confrontos (jogou contra / rivais)
-            ViewBag.Confrontos = await _estatisticas.ObterConfrontosAsync(id);
-            ViewBag.Parceiros = await _estatisticas.ObterParceirosAsync(id);
+            var confrontos = await _estatisticas.ObterConfrontosAsync(id);
+            var parceiros = await _estatisticas.ObterParceirosAsync(id);
+            ViewBag.Confrontos = confrontos;
+            ViewBag.Parceiros = parceiros;
+            // Destaques reaproveitam as listas já carregadas (sem recarregar partidas).
+            ViewBag.Destaques = EstatisticasService.MontarDestaques(parceiros, confrontos);
         }
         else if (meuId.HasValue)
         {
             // É o perfil de outra pessoa: mostra o confronto entre eu e ela
             ViewBag.MeuConfronto = await _estatisticas.ObterHeadToHeadAsync(meuId.Value, id);
+            ViewBag.EstouSeguindo = await _context.SeguidoresJogador
+                .AnyAsync(s => s.SeguidorId == meuId.Value && s.SeguidoId == id);
         }
 
         return View((jogador, historicoDuplas));
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Seguir(int id)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (meuId != id)
+        {
+            var jaSigo = await _context.SeguidoresJogador.AnyAsync(s => s.SeguidorId == meuId && s.SeguidoId == id);
+            if (!jaSigo)
+            {
+                _context.SeguidoresJogador.Add(new SeguidorJogador { SeguidorId = meuId, SeguidoId = id });
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        return RedirectToAction("Perfil", new { id });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeixarDeSeguir(int id)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var vinculo = await _context.SeguidoresJogador
+            .FirstOrDefaultAsync(s => s.SeguidorId == meuId && s.SeguidoId == id);
+        if (vinculo != null)
+        {
+            _context.SeguidoresJogador.Remove(vinculo);
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToAction("Perfil", new { id });
     }
 
     // Busca de jogadores por nome (para ver histórico/H2H de qualquer um).
@@ -305,16 +347,15 @@ public class JogadoresController : Controller
             return View("RankingPorTorneio", rankingPorTorneio);
         }
 
-        // 3. RANKING GLOBAL (Fallback se nada for selecionado)
+        // 3. RANKING CONSOLIDADO (padrão): tudo calculado a partir de resultados de
+        //    torneio. Substitui o antigo "ranking global" baseado em PontuacaoGlobal
+        //    (campo manual que nada de torneio atualizava).
         ViewBag.TorneiosList = await _context.Torneios
             .OrderByDescending(t => t.DataInicio)
             .ToListAsync();
 
-        var rankingGlobal = await _context.Jogadores
-            .OrderByDescending(j => j.PontuacaoGlobal)
-            .ToListAsync();
-
-        return View("Ranking", rankingGlobal);
+        var hub = await _estatisticas.ObterRankingHubAsync();
+        return View("Ranking", hub);
     }
 
     // Ranking por categoria (agrupado por Categoria.Nome), pontuado pelos resultados em torneios.

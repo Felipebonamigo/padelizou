@@ -1,0 +1,213 @@
+@* Modal de "instale como app", mostrado uma única vez por dispositivo pra usuários logados no
+   celular (iOS ou Android), com o passo a passo certo pra cada plataforma. Não aparece se o site
+   já está rodando instalado (modo standalone) nem em desktop. *@
+<div id="pwaInstallOverlay" class="pdz-pwa-overlay" style="display:none;">
+    <div class="pdz-pwa-card">
+        <button type="button" class="pdz-pwa-close" onclick="fecharInstalarPwaModal()" aria-label="Fechar">&times;</button>
+        <div class="pdz-pwa-eyebrow"><i class="bi bi-phone"></i> INSTALAÇÃO</div>
+        <h3 class="pdz-pwa-title">Adicionar Padelizou à tela inicial</h3>
+        <p class="pdz-pwa-subtitle">Use o Padelizou como se fosse um app, sem precisar procurar o link no navegador.</p>
+
+        <div class="pdz-pwa-steps" id="pwaStepsIos" style="display:none;">
+            <div class="pdz-pwa-steps-title">iPhone / Safari — 3 toques:</div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">1</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-box-arrow-up"></i></span>
+                <span>Toque em <strong>Compartilhar</strong> (quadrado com seta &uarr;, na barra do Safari)</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">2</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-plus-lg"></i></span>
+                <span>Role a lista e toque em <strong>Adicionar à Tela de Início</strong></span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">3</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-check-circle"></i></span>
+                <span>Confirme em <strong>Adicionar</strong> — o Padelizou vira um app na sua tela</span>
+            </div>
+            <div class="pdz-pwa-note">Precisa ser pelo Safari — pelo Chrome não funciona no iPhone.</div>
+        </div>
+
+        <div class="pdz-pwa-steps" id="pwaStepsAndroid" style="display:none;">
+            <div class="pdz-pwa-steps-title">Android / Chrome — 3 toques:</div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">1</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-three-dots-vertical"></i></span>
+                <span>Toque no menu (três pontinhos, canto superior direito)</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">2</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-download"></i></span>
+                <span>Toque em <strong>Instalar aplicativo</strong> (ou <strong>Adicionar à tela inicial</strong>)</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">3</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-check-circle"></i></span>
+                <span>Confirme — o Padelizou vira um app na sua tela</span>
+            </div>
+        </div>
+
+        <button type="button" class="pdz-pwa-cta" onclick="fecharInstalarPwaModal()">Entendi</button>
+    </div>
+</div>
+
+<style>
+    .pdz-pwa-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1080;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .pdz-pwa-card {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        background: var(--pdz-navy-900, #141d33);
+        color: #fff;
+        border-radius: 20px 20px 0 0;
+        padding: 28px 24px calc(24px + env(safe-area-inset-bottom));
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    @@media (min-width: 576px) {
+        .pdz-pwa-overlay {
+            align-items: center;
+        }
+
+        .pdz-pwa-card {
+            border-radius: 20px;
+        }
+    }
+
+    .pdz-pwa-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        color: #cfd6e4;
+        font-size: 1.6rem;
+        line-height: 1;
+    }
+
+    .pdz-pwa-eyebrow {
+        color: var(--pdz-lime, #A3D827);
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        margin-bottom: 10px;
+    }
+
+    .pdz-pwa-title {
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .pdz-pwa-subtitle {
+        color: #b7c0d4;
+        margin-bottom: 18px;
+    }
+
+    .pdz-pwa-steps {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 16px;
+    }
+
+    .pdz-pwa-steps-title {
+        font-weight: 700;
+        margin-bottom: 14px;
+    }
+
+    .pdz-pwa-step {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: #dbe0ec;
+    }
+
+    .pdz-pwa-step:last-of-type {
+        margin-bottom: 0;
+    }
+
+    .pdz-pwa-badge {
+        flex: 0 0 auto;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--pdz-lime, #A3D827);
+        color: #14210a;
+        font-weight: 800;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pdz-pwa-icon {
+        flex: 0 0 auto;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .pdz-pwa-note {
+        margin-top: 14px;
+        font-size: 0.8rem;
+        color: #9aa4bb;
+    }
+
+    .pdz-pwa-cta {
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+        background: none;
+        border: none;
+        color: #fff;
+        font-weight: 700;
+        padding: 10px;
+    }
+</style>
+
+<script>
+    (function () {
+        var CHAVE_DISPENSADO = 'pdzPwaInstallDismissed';
+
+        function jaInstalado() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+
+        function detectarPlataforma() {
+            var ua = navigator.userAgent || '';
+            if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
+            if (/Android/.test(ua)) return 'android';
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (localStorage.getItem(CHAVE_DISPENSADO) === '1' || jaInstalado()) return;
+
+            var plataforma = detectarPlataforma();
+            if (!plataforma) return; // desktop ou plataforma não reconhecida: não mostra
+
+            document.getElementById(plataforma === 'ios' ? 'pwaStepsIos' : 'pwaStepsAndroid').style.display = 'block';
+            document.getElementById('pwaInstallOverlay').style.display = 'flex';
+        });
+    })();
+
+    function fecharInstalarPwaModal() {
+        localStorage.setItem('pdzPwaInstallDismissed', '1');
+        document.getElementById('pwaInstallOverlay').style.display = 'none';
+    }
+</script>

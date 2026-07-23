@@ -52,6 +52,12 @@ public partial class DbPadelContext : DbContext
     public DbSet<Quadra> Quadras { get; set; }
     public DbSet<InscricaoAmericana> InscricoesAmericanas { get; set; }
     public DbSet<PushSubscriptionJogador> PushSubscriptionsJogador { get; set; }
+    public DbSet<ClubeAdministrador> ClubeAdministradores { get; set; }
+    public DbSet<AvisoRaqueteLivre> AvisosRaqueteLivre { get; set; }
+    public DbSet<InscricaoRaqueteLivre> InscricoesRaqueteLivre { get; set; }
+    public DbSet<JogoAula> JogosAula { get; set; }
+    public DbSet<InscricaoJogoAula> InscricoesJogoAula { get; set; }
+    public DbSet<SeguidorJogador> SeguidoresJogador { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -101,6 +107,64 @@ public partial class DbPadelContext : DbContext
         });
         modelBuilder.Entity<TorneioOrganizador>()
         .HasKey(to => new { to.TorneioId, to.JogadorId });
+        modelBuilder.Entity<Clube>(entity =>
+        {
+            // Restrict: apagar um Jogador não pode apagar o Clube que ele é dono — força
+            // reatribuir o dono antes. Primeiro (e único) caminho de Jogador até Clube, sem
+            // risco de conflito de múltiplos caminhos de cascade.
+            entity.HasOne(e => e.Dono)
+                .WithMany()
+                .HasForeignKey(e => e.DonoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ClubeAdministrador>(entity =>
+        {
+            entity.HasKey(e => new { e.ClubeId, e.JogadorId });
+
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AvisoRaqueteLivre>(entity =>
+        {
+            // Restrict: não é FK de Jogador, só não faz sentido cascatear (mesmo padrão de
+            // AvisoJogo.Clube).
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Criador)
+                .WithMany()
+                .HasForeignKey(e => e.CriadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+        });
+        modelBuilder.Entity<InscricaoRaqueteLivre>(entity =>
+        {
+            entity.HasKey(e => new { e.AvisoRaqueteLivreId, e.JogadorId });
+
+            entity.HasOne(e => e.AvisoRaqueteLivre)
+                .WithMany()
+                .HasForeignKey(e => e.AvisoRaqueteLivreId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: Jogador já alcança essa tabela via Criador (Cascade) -> AvisoRaqueteLivre
+            // (Cascade) -> InscricaoRaqueteLivre — um segundo caminho direto causaria o mesmo
+            // conflito de múltiplos caminhos de cascade já visto em ConfirmacaoSessao/
+            // JogadorGrupo/MensalidadeGrupo.
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<InscricaoAmericana>(entity =>
         {
             entity.HasOne(e => e.Categoria)
@@ -111,6 +175,63 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.Jogador)
                 .WithMany()
                 .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<JogoAula>(entity =>
+        {
+            // LocalAula.ProfessorId já cascateia de Jogador — JogoAula tem 2 caminhos
+            // candidatos (direto via Professor, indireto via LocalAula). Sigo o mesmo
+            // precedente de Aula.cs: Professor cascateia, LocalAula/CategoriaPadrao restrict.
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LocalAula)
+                .WithMany()
+                .HasForeignKey(e => e.LocalAulaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.CategoriaPadrao)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+        });
+        modelBuilder.Entity<InscricaoJogoAula>(entity =>
+        {
+            entity.HasKey(e => new { e.JogoAulaId, e.JogadorId });
+
+            entity.HasOne(e => e.JogoAula)
+                .WithMany()
+                .HasForeignKey(e => e.JogoAulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: JogoAula já cascateia de Jogador via Professor — segundo caminho
+            // direto causaria o mesmo conflito de múltiplos caminhos de cascade.
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<SeguidorJogador>(entity =>
+        {
+            entity.HasKey(e => new { e.SeguidorId, e.SeguidoId });
+
+            // Cascade: apagar minha conta remove minhas inscrições de "seguir".
+            entity.HasOne(e => e.Seguidor)
+                .WithMany()
+                .HasForeignKey(e => e.SeguidorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: primeira auto-referência intencionalmente cascateando em Jogador —
+            // evita o mesmo conflito de múltiplos caminhos de cascade se Seguidor e Seguido
+            // fossem os dois Cascade (Dupla.Jogador1/Jogador2 é legado com ClientSetNull,
+            // não serve de precedente aqui).
+            entity.HasOne(e => e.Seguido)
+                .WithMany()
+                .HasForeignKey(e => e.SeguidoId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<Categoria>(entity =>

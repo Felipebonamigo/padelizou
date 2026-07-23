@@ -140,7 +140,7 @@ namespace padelizou.Controllers
             var diaSemana = (int)aviso.DataHora.DayOfWeek;
 
             return await _context.Jogadores
-                .Where(j => j.Id != aviso.CriadorId && (j.NotificarEmail || j.NotificarWhatsApp))
+                .Where(j => j.Id != aviso.CriadorId && (j.NotificarEmail || j.NotificarWhatsApp) && j.NotificarAvisoJogo)
                 .Where(j => !_context.JogadorCategorias.Any(c => c.JogadorId == j.Id)
                          || _context.JogadorCategorias.Any(c => c.JogadorId == j.Id && c.CategoriaPadraoId == aviso.CategoriaPadraoId))
                 .Where(j => !_context.JogadorClubes.Any(c => c.JogadorId == j.Id)

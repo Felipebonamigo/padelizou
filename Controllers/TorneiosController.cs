@@ -16,14 +16,72 @@ namespace Padelizou.Controllers
         private readonly IEstatisticasService _estatisticas;
         private readonly IPalpiteService _palpites;
         private readonly IWebHostEnvironment _env;
+        private readonly IEmailService _emailService;
+        private readonly IPushNotificationService _pushService;
+        private readonly ILogger<TorneiosController> _logger;
 
         // Injeta o banco de dados
-        public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites, IWebHostEnvironment env)
+        public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
+            IWebHostEnvironment env, IEmailService emailService, IPushNotificationService pushService, ILogger<TorneiosController> logger)
         {
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
             _env = env;
+            _emailService = emailService;
+            _pushService = pushService;
+            _logger = logger;
+        }
+
+        // Notifica quem tem NotificarSeguidosTorneio marcado e segue algum dos jogadores que
+        // acabou de se inscrever num torneio (usado por DuplasController seria o ideal, mas o
+        // gancho fica aqui perto de InscreverIndividual pra reaproveitar os mesmos campos —
+        // ver também o gancho equivalente em DuplasController.Create).
+        private async Task NotificarSeguidoresDeInscricaoAsync(int torneioId, IEnumerable<int> jogadoresInscritos)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return;
+
+            var jogadores = await _context.Jogadores
+                .Where(j => jogadoresInscritos.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            var seguidores = await _context.SeguidoresJogador
+                .Include(s => s.Seguidor)
+                .Where(s => jogadoresInscritos.Contains(s.SeguidoId) && s.Seguidor.NotificarSeguidosTorneio)
+                .ToListAsync();
+
+            var url = Url.Action("Details", "Torneios", new { id = torneioId });
+
+            foreach (var grupo in seguidores.GroupBy(s => s.SeguidorId))
+            {
+                var seguidor = grupo.First().Seguidor;
+                var nomesQueSigo = grupo.Select(s => jogadores.TryGetValue(s.SeguidoId, out var nome) ? nome : "").Where(n => n != "");
+                var titulo = "Alguém que você segue se inscreveu num torneio";
+                var corpo = $"{string.Join(" e ", nomesQueSigo)} se inscreveu em {torneio.Nome}.";
+
+                if (seguidor.NotificarEmail && !string.IsNullOrWhiteSpace(seguidor.Email))
+                {
+                    try
+                    {
+                        await _emailService.EnviarAsync(seguidor.Email!, seguidor.Nome, titulo,
+                            $"<p>{corpo}</p>");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Falha ao enviar e-mail de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
+                    }
+                }
+
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao enviar push de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
+                }
+            }
         }
 
         // Salva um IFormFile de imagem numa subpasta de wwwroot/uploads e devolve o caminho relativo
@@ -60,6 +118,19 @@ namespace Padelizou.Controllers
             return claim != null ? int.Parse(claim) : (int?)null;
         }
 
+        // Gera a chave de acesso de um torneio Restrito. Sem 0/O/1/I pra não confundir
+        // na hora de digitar/ler em voz alta.
+        private static string GerarChaveAcesso()
+        {
+            const string caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var buffer = new char[6];
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = caracteres[Random.Shared.Next(caracteres.Length)];
+            }
+            return new string(buffer);
+        }
+
         // TELA INICIAL DA ABA "TORNEIO": lista tudo, separado por status
         [HttpGet]
         public async Task<IActionResult> Index()
@@ -89,7 +160,7 @@ namespace Padelizou.Controllers
         // 2. RECEBE OS DADOS E SALVA O TORNEIO
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa)
+        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria)
         {
             // Validação de Segurança: Se for formato único, iguala todas as fases à Fase de Grupos
             if (torneio.FormatoUnico)
@@ -104,6 +175,7 @@ namespace Padelizou.Controllers
             torneio.Status = "Inscrições Abertas";
             torneio.OrganizadorId = null;
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+            torneio.ChaveAcesso = torneio.Restrito ? GerarChaveAcesso() : null;
 
             if (capa != null && capa.Length > 0)
             {
@@ -159,16 +231,48 @@ namespace Padelizou.Controllers
                     var catPadrao = await _context.CategoriasPadrao.FindAsync(catId);
                     if (catPadrao != null)
                     {
+                        int? limite = limiteCategoria != null && limiteCategoria.TryGetValue(catId, out var l) && l is > 0 ? l : null;
                         var novaCategoria = new Categoria
                         {
                             TorneioId = torneio.Id,
                             Nome = catPadrao.Nome,
-                            Codigo = catPadrao.Codigo
+                            Codigo = catPadrao.Codigo,
+                            LimiteDuplas = limite
                         };
                         _context.Categorias.Add(novaCategoria);
                     }
                 }
                 await _context.SaveChangesAsync();
+            }
+
+            // Avisa quem tem NotificarTorneiosAbertos marcado que um torneio novo abriu.
+            var elegiveis = await _context.Jogadores.Where(j => j.NotificarTorneiosAbertos).ToListAsync();
+            var urlTorneio = Url.Action("Details", "Torneios", new { id = torneio.Id });
+
+            foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
+            {
+                try
+                {
+                    await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
+                        "Novo torneio aberto - Padelizou",
+                        $"<p>Olá {jogador.Nome},</p><p>Um novo torneio acabou de abrir: <strong>{torneio.Nome}</strong>.</p>");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao enviar e-mail de torneio aberto {TorneioId} para jogador {JogadorId}", torneio.Id, jogador.Id);
+                }
+            }
+
+            foreach (var jogador in elegiveis)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(jogador.Id, "Novo torneio aberto", torneio.Nome, urlTorneio);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao enviar push de torneio aberto {TorneioId} para jogador {JogadorId}", torneio.Id, jogador.Id);
+                }
             }
 
             return RedirectToAction("Details", new { id = torneio.Id });
@@ -217,7 +321,7 @@ namespace Padelizou.Controllers
         // Inscrição individual (Torneio Americano) — achar-ou-criar Jogador por CPF, mesmo
         // padrão de DuplasController.Create, só que sem parceiro fixo.
         [HttpPost]
-        public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf)
+        public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf, string? chaveAcesso = null)
         {
             var categoria = await _context.Categorias.FindAsync(categoriaId);
             if (categoria == null || categoria.TorneioId != torneioId)
@@ -233,6 +337,12 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            if (torneio.Restrito && !string.Equals(chaveAcesso?.Trim(), torneio.ChaveAcesso, StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Erro"] = "Chave de acesso inválida. Confira com o organizador do torneio.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
             if (jogador == null)
             {
@@ -245,11 +355,33 @@ namespace Padelizou.Controllers
                 .AnyAsync(i => i.CategoriaId == categoriaId && i.JogadorId == jogador.Id);
             if (!jaInscrito)
             {
-                _context.InscricoesAmericanas.Add(new InscricaoAmericana { CategoriaId = categoriaId, JogadorId = jogador.Id });
-                await _context.SaveChangesAsync();
-            }
+                // Vagas: mesma regra da inscrição em dupla (ver DuplasController) — se a
+                // categoria ou o torneio já estão cheios, entra na lista de espera.
+                bool emListaDeEspera = false;
+                if (categoria.LimiteDuplas.HasValue)
+                {
+                    int naCategoria = await _context.InscricoesAmericanas.CountAsync(i => i.CategoriaId == categoriaId && !i.EmListaDeEspera);
+                    emListaDeEspera = naCategoria >= categoria.LimiteDuplas.Value;
+                }
+                if (!emListaDeEspera && torneio.LimiteDuplasTotal.HasValue)
+                {
+                    int noTorneio = await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == torneioId && !i.EmListaDeEspera);
+                    emListaDeEspera = noTorneio >= torneio.LimiteDuplasTotal.Value;
+                }
 
-            TempData["Sucesso"] = "Inscrição individual confirmada!";
+                _context.InscricoesAmericanas.Add(new InscricaoAmericana { CategoriaId = categoriaId, JogadorId = jogador.Id, EmListaDeEspera = emListaDeEspera });
+                await _context.SaveChangesAsync();
+
+                await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador.Id });
+
+                TempData["Sucesso"] = emListaDeEspera
+                    ? "Vagas esgotadas — inscrição entrou na lista de espera. Se alguém desistir, é chamado na ordem de inscrição."
+                    : "Inscrição individual confirmada!";
+            }
+            else
+            {
+                TempData["Sucesso"] = "Inscrição individual confirmada!";
+            }
             return RedirectToAction("Details", new { id = torneioId });
         }
 
@@ -261,6 +393,7 @@ namespace Padelizou.Controllers
             int id, string nome, string? localTorneio, DateTime? dataInicio, decimal precoInscricao, int clubeId,
             int quantidadeQuadras, string[]? nomesQuadras,
             bool permiteImpedimentos, bool permiteImpedimentoSextaNoite, bool permiteImpedimentoSabadoManha, bool permiteImpedimentoSabadoTarde,
+            string? restricaoCategoria,
             IFormFile? capa)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
@@ -276,6 +409,7 @@ namespace Padelizou.Controllers
             torneio.ClubeId = clubeId;
             torneio.QuantidadeQuadras = quantidadeQuadras;
             torneio.PermiteImpedimentos = permiteImpedimentos;
+            torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
             torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;
             torneio.PermiteImpedimentoSabadoTarde = permiteImpedimentoSabadoTarde;
@@ -335,8 +469,24 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            bool eraConfirmada = !dupla.EmListaDeEspera;
             _context.Duplas.Remove(dupla);
             await _context.SaveChangesAsync();
+
+            // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria
+            // (a dupla de menor Id, já que a ordem de inscrição segue a ordem de criação).
+            if (eraConfirmada)
+            {
+                var proximaDaFila = await _context.Duplas
+                    .Where(d => d.CategoriaId == dupla.CategoriaId && d.EmListaDeEspera)
+                    .OrderBy(d => d.Id)
+                    .FirstOrDefaultAsync();
+                if (proximaDaFila != null)
+                {
+                    proximaDaFila.EmListaDeEspera = false;
+                    await _context.SaveChangesAsync();
+                }
+            }
 
             TempData["Sucesso"] = "Inscrito removido do torneio.";
             return RedirectToAction("Details", new { id = torneioId });
@@ -344,7 +494,7 @@ namespace Padelizou.Controllers
 
         // Exemplo de como deve ficar o seu método Details
         [HttpGet]
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds)
         {
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias)
@@ -456,6 +606,12 @@ namespace Padelizou.Controllers
                 ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
             }
 
+            // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.
+            if (torneio.Status != "Inscrições Abertas")
+            {
+                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds);
+            }
+
             return View(torneio);
         }
         [HttpPost]
@@ -503,11 +659,71 @@ namespace Padelizou.Controllers
                     .OrderByDescending(d => d.Jogador1.PontuacaoGlobal + d.Jogador2.PontuacaoGlobal)
                     .ToList();
 
-                // Grupos do tamanho configurado no torneio (Torneio.TamanhoGrupo, normalmente 3 duplas)
-                int numGrupos = (int)Math.Ceiling((double)duplasOrdenadas.Count / torneio.TamanhoGrupo);
-                var gruposCriados = new List<GrupoTorneio>();
+                // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
+                // múltiplo de 3, os melhores rankeados resolvem em grupo(s) de 2 (chave direta),
+                // e o restante (sempre múltiplo de 3 depois disso) fecha em grupos de 3 normalmente:
+                //   - sobra 2 (ex: 14 duplas): 1º x 2º vira um grupo de 2 só, o resto (12) fecha em 4 grupos de 3.
+                //   - sobra 1 (ex: 13 duplas): os 4 melhores viram 2 grupos de 2 (1º x 4º e 2º x 3º),
+                //     o resto (9) fecha em 3 grupos de 3.
+                int n = duplasOrdenadas.Count;
+                var gruposDeDuplas = new List<List<Dupla>>();
 
-                for (int i = 0; i < numGrupos; i++)
+                if (n < 3)
+                {
+                    gruposDeDuplas.Add(duplasOrdenadas); // 2 duplas: só dá pra ter a chave direta 1x2
+                }
+                else
+                {
+                    int resto = n % 3;
+                    List<Dupla> restantes;
+
+                    if (resto == 1)
+                    {
+                        gruposDeDuplas.Add(new List<Dupla> { duplasOrdenadas[0], duplasOrdenadas[3] });
+                        gruposDeDuplas.Add(new List<Dupla> { duplasOrdenadas[1], duplasOrdenadas[2] });
+                        restantes = duplasOrdenadas.Skip(4).ToList();
+                    }
+                    else if (resto == 2)
+                    {
+                        gruposDeDuplas.Add(new List<Dupla> { duplasOrdenadas[0], duplasOrdenadas[1] });
+                        restantes = duplasOrdenadas.Skip(2).ToList();
+                    }
+                    else
+                    {
+                        restantes = duplasOrdenadas;
+                    }
+
+                    int numGruposDeTres = restantes.Count / 3;
+                    if (numGruposDeTres > 0)
+                    {
+                        var bucket = new List<Dupla>[numGruposDeTres];
+                        for (int i = 0; i < numGruposDeTres; i++) bucket[i] = new List<Dupla>();
+
+                        // DISTRIBUIÇÃO EM ZIGUE-ZAGUE (balanceia 1 cabeça de chave forte/médio/fraco por grupo)
+                        int grupoIndex = 0;
+                        int direcao = 1;
+                        foreach (var dupla in restantes)
+                        {
+                            bucket[grupoIndex].Add(dupla);
+
+                            grupoIndex += direcao;
+                            if (grupoIndex >= numGruposDeTres)
+                            {
+                                grupoIndex = numGruposDeTres - 1;
+                                direcao = -1;
+                            }
+                            else if (grupoIndex < 0)
+                            {
+                                grupoIndex = 0;
+                                direcao = 1;
+                            }
+                        }
+                        gruposDeDuplas.AddRange(bucket);
+                    }
+                }
+
+                var gruposCriados = new List<GrupoTorneio>();
+                for (int i = 0; i < gruposDeDuplas.Count; i++)
                 {
                     char letra = (char)('A' + i);
                     var novoGrupo = new GrupoTorneio { CategoriaId = categoria.Id, Nome = $"Grupo {letra}" };
@@ -516,25 +732,11 @@ namespace Padelizou.Controllers
                 }
                 await _context.SaveChangesAsync();
 
-                // DISTRIBUIÇÃO EM ZIGUE-ZAGUE (Garante os cruzamentos 1x4 e 2x3 automaticamente)
-                int grupoIndex = 0;
-                int direcao = 1;
-
-                foreach (var dupla in duplasOrdenadas)
+                for (int i = 0; i < gruposDeDuplas.Count; i++)
                 {
-                    dupla.GrupoTorneioId = gruposCriados[grupoIndex].Id;
-
-                    grupoIndex += direcao;
-
-                    if (grupoIndex >= numGrupos)
+                    foreach (var dupla in gruposDeDuplas[i])
                     {
-                        grupoIndex = numGrupos - 1;
-                        direcao = -1;
-                    }
-                    else if (grupoIndex < 0)
-                    {
-                        grupoIndex = 0;
-                        direcao = 1;
+                        dupla.GrupoTorneioId = gruposCriados[i].Id;
                     }
                 }
             }
@@ -559,7 +761,7 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.TorneioId == id && p.Status == "Em Andamento")
+                .Where(p => p.TorneioId == id && p.Status == "AoVivo")
                 .ToListAsync();
 
             ViewBag.TorneioId = id;
@@ -569,25 +771,26 @@ namespace Padelizou.Controllers
         // 1. ATUALIZAR PLACAR AO VIVO (Corrigido para Dupla1 e Dupla2)
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> AtualizarPlacarAoVivo(int partidaId, int equipe, string tipo, int valor)
+        public async Task<IActionResult> AtualizarPlacarAoVivo(int partidaId, string equipe, string tipo, int valor)
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
             if (partida.TorneioId == null || !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            if (equipe == 1)
+            if (equipe == "A")
             {
                 if (tipo == "Game") partida.GamesDupla1 += valor;
                 if (tipo == "Set") partida.SetsDupla1 += valor;
             }
-            else if (equipe == 2)
+            else if (equipe == "B")
             {
                 if (tipo == "Game") partida.GamesDupla2 += valor;
                 if (tipo == "Set") partida.SetsDupla2 += valor;
             }
 
-            partida.GamesDupla1 = Math.Max(0, partida.GamesDupla1 ?? 0);
-            partida.GamesDupla2 = Math.Max(0, partida.GamesDupla2 ?? 0);
+            // Contagem de games não passa de 9 (regra do torneio).
+            partida.GamesDupla1 = Math.Clamp(partida.GamesDupla1 ?? 0, 0, 9);
+            partida.GamesDupla2 = Math.Clamp(partida.GamesDupla2 ?? 0, 0, 9);
             partida.SetsDupla1 = Math.Max(0, partida.SetsDupla1 ?? 0);
             partida.SetsDupla2 = Math.Max(0, partida.SetsDupla2 ?? 0);
 
@@ -797,16 +1000,25 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
-            // 1. Busca todas as partidas deste torneio e TRAZ JUNTO as Duplas, Jogadores e Times
+            await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds);
+            ViewBag.Torneio = torneio;
+
+            return View();
+        }
+
+        // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
+        // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
+        // pros dois lugares não divergirem.
+        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds)
+        {
             var query = _context.Partidas
                 .Include(p => p.Categoria)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
-                .Where(p => p.TorneioId == id);
+                .Where(p => p.TorneioId == torneioId);
 
-            // 2. O Filtro Mágico: Se o usuário selecionou um time (ex: Nata Padel), mostra só os jogos deles
             if (timeFiltroId.HasValue)
             {
                 query = query.Where(p =>
@@ -815,7 +1027,6 @@ namespace Padelizou.Controllers
                 );
             }
 
-            // 2.1 Filtro por 1 ou mais Categorias
             if (categoriaFiltroIds != null && categoriaFiltroIds.Length > 0)
             {
                 query = query.Where(p => categoriaFiltroIds.Contains(p.CategoriaId));
@@ -823,16 +1034,13 @@ namespace Padelizou.Controllers
 
             var partidas = await query.ToListAsync();
 
-            // 3. Separando os jogos para as 3 abas na View
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada").OrderByDescending(p => p.HorarioFimReal).ToList();
             ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
 
-            // 4. Mandando os times para o Dropdown de filtro na tela
             ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeFiltroId);
-            ViewBag.Torneio = torneio;
-            ViewBag.TimeAtual = timeFiltroId; // Para manter o select preenchido após filtrar
-            ViewBag.CategoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == id).OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.TimeAtual = timeFiltroId;
+            ViewBag.CategoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == torneioId).OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CategoriaFiltroAtual = categoriaFiltroIds ?? Array.Empty<int>();
 
             // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
@@ -841,8 +1049,6 @@ namespace Padelizou.Controllers
                 : null;
             ViewBag.MeuId = meuId;
             ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
-
-            return View();
         }
         // Torneio Americano: sorteia as rodadas de todas as categorias do torneio, trocando os
         // parceiros a cada rodada. Heurística gulosa (não é uma escalação matematicamente perfeita

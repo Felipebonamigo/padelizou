@@ -136,6 +136,96 @@ namespace padelizou.Controllers
             return RedirectToAction("Index");
         }
 
+        // ===================== EVENTOS PRA CALENDÁRIO (FullCalendar) =====================
+
+        // Mesmos 4 tipos/toggles e mesmos links do Index() (histórico completo, sem filtro de
+        // data) — só que com start/end reais em vez de um único ponto, pra render em grade.
+        [HttpGet]
+        public async Task<IActionResult> EventosJson()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(userId);
+            if (jogador == null) return NotFound();
+
+            var eventos = new List<object>();
+
+            if (jogador.AgendaMostrarAulas)
+            {
+                var aulas = await _context.Aulas
+                    .Include(a => a.Professor)
+                    .Include(a => a.LocalAula)
+                    .Where(a => a.AlunoId == userId)
+                    .ToListAsync();
+
+                eventos.AddRange(aulas.Select(a => (object)new
+                {
+                    title = $"Aula com Prof. {a.Professor.Nome}",
+                    start = a.DataHora,
+                    end = a.DataHora.AddMinutes(DuracaoPadraoMinutosAula),
+                    color = "#1C2742",
+                    url = Url.Action("MinhasAulas", "Aulas")
+                }));
+            }
+
+            if (jogador.AgendaMostrarAlunos && jogador.IsProfessor)
+            {
+                var aulasDadas = await _context.Aulas
+                    .Include(a => a.Aluno)
+                    .Include(a => a.LocalAula)
+                    .Where(a => a.ProfessorId == userId)
+                    .ToListAsync();
+
+                eventos.AddRange(aulasDadas.Select(a => (object)new
+                {
+                    title = $"Aula para {(a.Aluno != null ? a.Aluno.Nome : a.NomeAlunoAvulso ?? "aluno avulso")}",
+                    start = a.DataHora,
+                    end = a.DataHora.AddMinutes(DuracaoPadraoMinutosAula),
+                    color = "#ffc107",
+                    textColor = "#1b2540",
+                    url = Url.Action("MinhaAgenda", "Aulas")
+                }));
+            }
+
+            if (jogador.AgendaMostrarTorneios)
+            {
+                var duplas = await _context.Duplas
+                    .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                    .Where(d => d.Jogador1Id == userId || d.Jogador2Id == userId)
+                    .ToListAsync();
+
+                eventos.AddRange(duplas
+                    .Where(d => d.Categoria?.Torneio?.DataInicio != null)
+                    .Select(d => (object)new
+                    {
+                        title = d.Categoria.Torneio.Nome,
+                        start = d.Categoria.Torneio.DataInicio!.Value.ToString("yyyy-MM-dd"),
+                        allDay = true,
+                        color = "#198754",
+                        url = Url.Action("Details", "Torneios", new { id = d.Categoria.Torneio.Id })
+                    }));
+            }
+
+            if (jogador.AgendaMostrarJogosSemanais)
+            {
+                var jogos = await _context.JogosSemanais
+                    .Include(j => j.Grupo)
+                    .Where(j => j.Dupla1Jogador1Id == userId || j.Dupla1Jogador2Id == userId ||
+                                j.Dupla2Jogador1Id == userId || j.Dupla2Jogador2Id == userId)
+                    .ToListAsync();
+
+                eventos.AddRange(jogos.Select(j => (object)new
+                {
+                    title = $"Jogo do grupo {j.Grupo.Nome}",
+                    start = j.DataJogo,
+                    color = "#0dcaf0",
+                    textColor = "#1b2540",
+                    url = Url.Action("Detalhes", "Grupos", new { id = j.GrupoId })
+                }));
+            }
+
+            return Json(eventos);
+        }
+
         // ===================== ASSINATURA DE AGENDA (FEED .ICS) =====================
 
         // URL fixa por jogador, protegida por id+token (mesmo padrão de Aula.TokenConfirmacao /

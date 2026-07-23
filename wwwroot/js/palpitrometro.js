@@ -22,16 +22,22 @@ async function votarPalpite(el) {
 }
 
 function atualizarPalpitrometro(container, data) {
-    container.querySelector('[data-pct="1"]').innerText = data.percentualDupla1 + '%';
-    container.querySelector('[data-pct="2"]').innerText = data.percentualDupla2 + '%';
+    const badge1 = container.querySelector('[data-pct="1"]');
+    const badge2 = container.querySelector('[data-pct="2"]');
+    const dupla1Lidera = data.percentualDupla1 >= data.percentualDupla2;
+
+    badge1.innerHTML = data.percentualDupla1 + '%<i class="bi bi-caret-down-fill"></i>';
+    badge2.innerHTML = data.percentualDupla2 + '%<i class="bi bi-caret-down-fill"></i>';
+    badge1.style.display = dupla1Lidera ? 'block' : 'none';
+    badge2.style.display = dupla1Lidera ? 'none' : 'block';
+
     container.querySelector('[data-bar="1"]').style.width = data.percentualDupla1 + '%';
     container.querySelector('[data-bar="2"]').style.width = data.percentualDupla2 + '%';
 
     container.querySelectorAll('.palpite-opcao').forEach(op => {
-        const span = op.querySelector('span.text-truncate');
         const souEuAgora = String(data.meuVotoDuplaId) === op.dataset.duplaId;
-        span.classList.toggle('fw-bold', souEuAgora);
-        span.innerText = (souEuAgora ? '✓ ' : '') + span.innerText.replace(/^✓ /, '');
+        op.classList.toggle('fw-bold', souEuAgora);
+        op.innerText = (souEuAgora ? '✓ ' : '') + op.innerText.replace(/^✓ /, '');
     });
 
     const totalEl = container.querySelector('.pdz-total-votos');

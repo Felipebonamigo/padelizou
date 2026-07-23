@@ -12,4 +12,7 @@ public class InscricaoAmericana
     public virtual Categoria Categoria { get; set; } = null!;
     public int JogadorId { get; set; }
     public virtual Jogador Jogador { get; set; } = null!;
+
+    // Mesmo esquema de lista de espera do Dupla — ver Dupla.EmListaDeEspera.
+    public bool EmListaDeEspera { get; set; }
 }

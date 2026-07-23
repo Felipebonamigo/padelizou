@@ -68,10 +68,35 @@
     <hr class="my-3" />
 
     <label class="form-label fw-bold text-muted small d-block mb-2">Notificação no celular/navegador</label>
-    <button type="button" id="btnPushToggle" class="btn btn-sm btn-outline-primary" onclick="onClickPushToggle()">
-        <i class="bi bi-bell"></i> <span id="btnPushToggleLabel">Verificando...</span>
-    </button>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btnPushToggle" class="btn btn-sm btn-outline-primary" onclick="onClickPushToggle()">
+            <i class="bi bi-bell"></i> <span id="btnPushToggleLabel">Verificando...</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-decoration-none" data-bs-toggle="collapse" data-bs-target="#comoInstalarPasso">
+            <i class="bi bi-question-circle"></i> Como instalar no celular?
+        </button>
+    </div>
     <small class="text-muted d-block mt-2">Ativa um aviso instantâneo direto no seu celular ou computador, mesmo com o Padelizou fechado (precisa ter instalado o site na tela inicial ou permitido notificações no navegador).</small>
+
+    <div class="collapse mt-3" id="comoInstalarPasso">
+        <div class="card card-body bg-white small">
+            <p class="fw-bold mb-2"><i class="bi bi-apple"></i> No iPhone (precisa ser pelo Safari, não pelo Chrome)</p>
+            <ol class="ps-3 mb-3">
+                <li>Abra <strong>padelizou.com.br</strong> no Safari.</li>
+                <li>Toque no ícone de <strong>Compartilhar</strong> (quadrado com seta pra cima), na barra inferior.</li>
+                <li>Role as opções e toque em <strong>"Adicionar à Tela de Início"</strong>.</li>
+                <li>Confirme o nome e toque em <strong>Adicionar</strong>.</li>
+                <li>Abra o Padelizou pelo ícone novo (não mais pelo Safari) e toque em "Ativar notificações" aqui em cima.</li>
+            </ol>
+            <p class="fw-bold mb-2"><i class="bi bi-android2"></i> No Android (Chrome)</p>
+            <ol class="ps-3 mb-0">
+                <li>Abra <strong>padelizou.com.br</strong> no Chrome.</li>
+                <li>Toque no menu (três pontinhos, canto superior direito).</li>
+                <li>Toque em <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
+                <li>Confirme, e abra o Padelizou pelo ícone que aparece na tela inicial.</li>
+            </ol>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -111,6 +136,32 @@
         <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos</label>
     </div>
     <small class="text-muted d-block mt-2">Quando o organizador de um grupo precisar de gente de fora pra completar o jogo da semana, ele pode te chamar pelo WhatsApp — respeitando as categorias, locais e dias/horários que você marcou abaixo.</small>
+</div>
+
+<!-- Tipos de aviso -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <label class="form-label fw-bold text-muted small d-block mb-2">Que tipo de aviso você quer receber?</label>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarTorneiosAbertos" value="true" id="notifTorneiosAbertos" style="transform: scale(1.2);" @(Model.NotificarTorneiosAbertos ? "checked" : "") />
+        <label class="form-check-label" for="notifTorneiosAbertos">Novos torneios abertos pra inscrição</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarSeguidosTorneio" value="true" id="notifSeguidosTorneio" style="transform: scale(1.2);" @(Model.NotificarSeguidosTorneio ? "checked" : "") />
+        <label class="form-check-label" for="notifSeguidosTorneio">Pessoas que eu sigo se inscrevendo em torneios</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarAvisoJogo" value="true" id="notifAvisoJogo" style="transform: scale(1.2);" @(Model.NotificarAvisoJogo ? "checked" : "") />
+        <label class="form-check-label" for="notifAvisoJogo">Convites de jogo na minha categoria (Buscar Jogo)</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarJogoAula" value="true" id="notifJogoAula" style="transform: scale(1.2);" @(Model.NotificarJogoAula ? "checked" : "") />
+        <label class="form-check-label" for="notifJogoAula">Convites de jogo aula de professores</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarRaqueteLivre" value="true" id="notifRaqueteLivre" style="transform: scale(1.2);" @(Model.NotificarRaqueteLivre ? "checked" : "") />
+        <label class="form-check-label" for="notifRaqueteLivre">Raquete livre / eventos abertos de clube</label>
+    </div>
+    <small class="text-muted d-block mt-2">Cada um controla um tipo de aviso separadamente. O canal (e-mail/WhatsApp/push) continua sendo o que você escolheu acima.</small>
 </div>
 
 <!-- Categorias -->

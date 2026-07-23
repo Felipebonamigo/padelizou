@@ -19,7 +19,7 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold" style="color: var(--padel-blue);"><i class="bi bi-calendar-week"></i> @grupo.Nome</h2>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-calendar-week"></i> @grupo.Nome</h2>
             <p class="text-muted mb-0">
                 @Model.DataHora.ToString("dddd, dd/MM 'às' HH:mm")
                 @if (grupo.Clube != null)
@@ -207,7 +207,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="fw-bold mb-3" style="color: var(--padel-blue);">Ranking da semana</h6>
+                    <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">Ranking da semana</h6>
                     @if (rankingSemana.Any())
                     {
                         <ol class="list-group list-group-numbered">
@@ -231,7 +231,7 @@
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
-                    <h6 class="fw-bold mb-3" style="color: var(--padel-blue);">Ranking do grupo</h6>
+                    <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">Ranking do grupo</h6>
                     @if (ranking.Any(r => r.PontuacaoInterna > 0))
                     {
                         <ol class="list-group list-group-numbered">

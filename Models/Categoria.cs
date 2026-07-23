@@ -22,4 +22,8 @@ public partial class Categoria
     public virtual ICollection<GrupoTorneio> GruposTorneio { get; set; } = new List<GrupoTorneio>();
 
     public virtual Torneio Torneio { get; set; } = null!;
+
+    // Vagas máximas nesta categoria. Null = sem limite. Quem se inscrever depois de
+    // atingido vai pra lista de espera (Dupla.EmListaDeEspera).
+    public int? LimiteDuplas { get; set; }
 }

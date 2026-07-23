@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Painel Admin - Padelizou";
+    var ehRaiz = (bool)ViewBag.EhRaiz;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="mb-4">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Painel Admin</h2>
+        <p class="text-muted mb-0">Administração do sistema.</p>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <a asp-controller="Admin" asp-action="Clubes" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shop"></i> Clubes</h5>
+                        <p class="text-muted small mb-0">Atribuir ou trocar o dono de cada clube.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        @if (ehRaiz)
+        {
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="Administradores" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-badge"></i> Administradores</h5>
+                            <p class="text-muted small mb-0">Nomear ou remover administradores do sistema.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>

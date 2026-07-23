@@ -15,7 +15,14 @@
         <!-- Coluna da Esquerda: Resumo do Jogador -->
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 text-center p-4">
-                <i class="bi bi-person-circle display-1" style="color: var(--padel-blue);"></i>
+                @if (!string.IsNullOrWhiteSpace(Model.FotoPerfil))
+                {
+                    <img src="@Model.FotoPerfil" alt="" class="rounded-circle mx-auto" style="width: 96px; height: 96px; object-fit: cover;" />
+                }
+                else
+                {
+                    <i class="bi bi-person-circle display-1" style="color: var(--pdz-ink);"></i>
+                }
                 <h3 class="mt-3 fw-bold mb-0">
                     @Model.Nome
                     @if (resumo.Titulos > 0)
@@ -56,7 +63,7 @@
                     </div>
                 </div>
 
-                <div class="p-3 rounded-3 mt-2" style="background-color: var(--padel-blue); color: white;">
+                <div class="p-3 rounded-3 mt-2" style="background-color: var(--pdz-navy-fixed); color: white;">
                     <p class="mb-0 small text-uppercase" style="letter-spacing: 1px;">Ranking Global</p>
                     <h1 class="display-5 fw-bold" style="color: var(--padel-green);">@Model.PontuacaoGlobal <span class="fs-6 text-light">pts</span></h1>
                 </div>
@@ -65,7 +72,7 @@
                 </a>
                 @if (Model.IsProfessor)
                 {
-                    <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-warning mt-3 rounded-pill w-100 fw-bold shadow-sm" style="color: var(--padel-blue);">
+                    <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-warning mt-3 rounded-pill w-100 fw-bold shadow-sm" style="color: var(--pdz-ink);">
                         <i class="bi bi-journal-bookmark-fill me-1"></i> Painel do Professor
                     </a>
                 }
@@ -84,7 +91,7 @@
 
         <!-- Coluna da Direita: Atividades e Painel -->
         <div class="col-md-8">
-            <h4 class="mb-3 fw-bold" style="color: var(--padel-blue);">Meu Painel</h4>
+            <h4 class="mb-3 fw-bold" style="color: var(--pdz-ink);">Meu Painel</h4>
 
             <div class="row mb-4">
                 <!-- Card de Torneios -->
@@ -129,7 +136,7 @@
                 <div class="col-sm-12 mb-3 mt-3">
                     <div class="card border-0 bg-light p-3 d-flex flex-row justify-content-between align-items-center shadow-sm" style="border-radius: 12px;">
                         <div>
-                            <h6 class="fw-bold mb-1" style="color: var(--padel-blue);"><i class="bi bi-calendar-check"></i> Minhas Aulas</h6>
+                            <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-calendar-check"></i> Minhas Aulas</h6>
                             <p class="small text-muted mb-0">Acesse seus treinos agendados e histórico.</p>
                         </div>
                         <a asp-controller="Aulas" asp-action="MinhasAulas" class="btn btn-sm btn-padel rounded-pill px-4 fw-bold">Ver Aulas</a>
@@ -139,13 +146,38 @@
                 <div class="col-sm-12 mb-3">
                     <div class="card border-0 bg-light p-3 d-flex flex-row justify-content-between align-items-center shadow-sm" style="border-radius: 12px;">
                         <div>
-                            <h6 class="fw-bold mb-1" style="color: var(--padel-blue);"><i class="bi bi-megaphone-fill"></i> Buscar Jogo</h6>
+                            <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-megaphone-fill"></i> Buscar Jogo</h6>
                             <p class="small text-muted mb-0">Veja quem está procurando jogadores ou crie seu aviso.</p>
                         </div>
                         <a asp-controller="Avisos" asp-action="Index" class="btn btn-sm btn-padel rounded-pill px-4 fw-bold">Ver Avisos</a>
                     </div>
                 </div>
+                @{
+                    var meusClubes = (List<Clube>)ViewBag.MeusClubes;
+                }
+                @if (meusClubes.Any())
+                {
+                    <!-- Card de Clubes que administro -->
+                    <div class="col-sm-12 mb-3">
+                        <div class="card border-0 bg-light p-3 shadow-sm" style="border-radius: 12px;">
+                            <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);"><i class="bi bi-shop"></i> Clubes que administro</h6>
+                            @foreach (var clube in meusClubes)
+                            {
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <span class="small">@clube.Nome</span>
+                                    <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@clube.Id" class="btn btn-sm btn-outline-primary rounded-pill">Gerenciar</a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
+
+            <!-- Destaques de parceria/rivalidade -->
+            @{
+                var destaques = ViewBag.Destaques as DestaquesJogadorVM;
+            }
+            <partial name="_DestaquesJogador" model="destaques" />
 
             <!-- Histórico de Torneios (últimos, o resto fica em "Ver Meu Histórico") -->
             <div class="card border-0 shadow-sm mb-4 p-3">

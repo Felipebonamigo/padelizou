@@ -89,7 +89,10 @@ namespace padelizou.Controllers
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
                 new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
+                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
+                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
+                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
             };
 
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -122,12 +125,22 @@ namespace padelizou.Controllers
             // Resumo de torneios (vitórias/derrotas/vezes campeão) pro dashboard não depender de
             // ir até Jogadores/Perfil só pra ver esses números.
             ViewBag.Resumo = await _estatisticas.ObterResumoJogadorAsync(jogadorId);
+            ViewBag.Destaques = await _estatisticas.ObterDestaquesAsync(jogadorId);
             ViewBag.HistoricoTorneios = await _context.Duplas
                 .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
                 .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
                 .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
                 .Take(5)
                 .ToListAsync();
+
+            // Clubes que ele é dono ou administrador — pra linkar direto na tela de gerenciar.
+            var clubesAdministrados = await _context.ClubeAdministradores
+                .Include(a => a.Clube)
+                .Where(a => a.JogadorId == jogadorId)
+                .Select(a => a.Clube)
+                .ToListAsync();
+            var clubesDono = await _context.Clubes.Where(c => c.DonoId == jogadorId).ToListAsync();
+            ViewBag.MeusClubes = clubesDono.Concat(clubesAdministrados).DistinctBy(c => c.Id).ToList();
 
             return View(jogador);
         }
@@ -141,13 +154,39 @@ namespace padelizou.Controllers
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
             if (jogador == null) return NotFound();
 
+            await PopularDadosTimeAsync(jogadorId);
             return View(jogador);
+        }
+
+        // Dados para a seção "Meu time" do editar perfil: times disponíveis (não-dono escolhe),
+        // clubes (sede opcional) e o time que este jogador é dono (se houver).
+        private async Task PopularDadosTimeAsync(int jogadorId)
+        {
+            ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
+            ViewBag.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.MeuTimeDono = await _context.Times.FirstOrDefaultAsync(t => t.DonoId == jogadorId);
+        }
+
+        // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo.
+        private async Task<string> SalvarLogoTimeAsync(IFormFile arquivo)
+        {
+            string pasta = Path.Combine(_env.WebRootPath, "uploads", "logos-time");
+            if (!Directory.Exists(pasta)) Directory.CreateDirectory(pasta);
+
+            string nomeArquivo = Guid.NewGuid().ToString() + "_" + arquivo.FileName;
+            string caminho = Path.Combine(pasta, nomeArquivo);
+            using (var stream = new FileStream(caminho, FileMode.Create))
+            {
+                await arquivo.CopyToAsync(stream);
+            }
+            return "/uploads/logos-time/" + nomeArquivo;
         }
 
         [Authorize]
         [HttpPost]
         public async Task<IActionResult> EditarPerfil(
-            string nome, string email, string? celular, string? cidade, string? estado, IFormFile? foto)
+            string nome, string email, string? celular, string? cidade, string? estado, bool isProfessor, IFormFile? foto,
+            bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -156,6 +195,16 @@ namespace padelizou.Controllers
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(email))
             {
                 ViewBag.Erro = "Preencha nome e e-mail.";
+                await PopularDadosTimeAsync(jogadorId);
+                return View(jogador);
+            }
+
+            // Se marcou "sou dono", precisa do nome do time (ao menos na primeira vez).
+            var meuTime = await _context.Times.FirstOrDefaultAsync(t => t.DonoId == jogadorId);
+            if (ehDonoTime && meuTime == null && string.IsNullOrWhiteSpace(nomeTime))
+            {
+                ViewBag.Erro = "Informe o nome do time (você marcou que é dono de um time).";
+                await PopularDadosTimeAsync(jogadorId);
                 return View(jogador);
             }
 
@@ -183,6 +232,34 @@ namespace padelizou.Controllers
             jogador.Celular = string.IsNullOrWhiteSpace(celular) ? null : celular.Trim();
             jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
             jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+            jogador.IsProfessor = isProfessor;
+
+            // --- Meu time ---
+            if (ehDonoTime)
+            {
+                if (meuTime == null)
+                {
+                    meuTime = new Time { Nome = nomeTime!.Trim(), DonoId = jogadorId };
+                    _context.Times.Add(meuTime);
+                }
+                else if (!string.IsNullOrWhiteSpace(nomeTime))
+                {
+                    meuTime.Nome = nomeTime.Trim();
+                }
+                meuTime.ClubeId = clubeSedeId; // clube sede é opcional
+                if (logoTime != null && logoTime.Length > 0)
+                {
+                    meuTime.Logo = await SalvarLogoTimeAsync(logoTime);
+                }
+                await _context.SaveChangesAsync(); // garante o Id do time recém-criado
+                jogador.TimeId = meuTime.Id;       // o dono também faz parte do próprio time
+            }
+            else
+            {
+                // Não é dono: entra num time existente (ou em nenhum).
+                jogador.TimeId = timeId;
+            }
+
             await _context.SaveChangesAsync();
 
             // Renova o cookie com nome/e-mail atualizados (o chip do usuário na navbar lê da claim,
@@ -192,7 +269,10 @@ namespace padelizou.Controllers
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
                 new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
+                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
+                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
+                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
             };
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
@@ -315,7 +395,10 @@ namespace padelizou.Controllers
                 new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
                 new Claim(ClaimTypes.Name, jogador.Nome),
                 new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? "")
+                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
+                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
+                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
+                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
             };
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
@@ -348,6 +431,7 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> Preferencias(
             string? ladoQuadra, string? lateralidade, string? instagram, bool perfilPrivado, bool notificarEmail, bool notificarWhatsApp, bool aceitaConvitesJogo,
+            bool notificarTorneiosAbertos, bool notificarSeguidosTorneio, bool notificarAvisoJogo, bool notificarJogoAula, bool notificarRaqueteLivre,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -361,6 +445,11 @@ namespace padelizou.Controllers
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
             jogador.AceitaConvitesJogo = aceitaConvitesJogo;
+            jogador.NotificarTorneiosAbertos = notificarTorneiosAbertos;
+            jogador.NotificarSeguidosTorneio = notificarSeguidosTorneio;
+            jogador.NotificarAvisoJogo = notificarAvisoJogo;
+            jogador.NotificarJogoAula = notificarJogoAula;
+            jogador.NotificarRaqueteLivre = notificarRaqueteLivre;
             await _context.SaveChangesAsync();
 
             await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados);

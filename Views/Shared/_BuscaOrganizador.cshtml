@@ -1,12 +1,23 @@
-@* Busca um Jogador por CPF ou Login (autocomplete) pra adicionar como organizador do torneio.
+@* Busca um Jogador por CPF ou Login (autocomplete) — reaproveitado em vários lugares que
+   precisam achar um jogador já cadastrado (organizador de torneio, dono/admin de clube,
+   administrador do sistema).
    Modo "coleta" (ViewData["BuscaOrgHiddenName"] setado): vira um chip removível, com um input
-   hidden desse nome, dentro do form que o chamador já tem (ex: Create.cshtml).
-   Modo "direto" (ViewData["BuscaOrgTorneioId"] setado): ao clicar no resultado, já submete
-   um POST pra TorneiosController.AdicionarOrganizador (ex: aba Gerenciar Torneio). *@
+   hidden desse nome, dentro do form que o chamador já tem (ex: Torneios/Create.cshtml).
+   Modo "direto": ao clicar no resultado, já submete um POST. Duas formas de configurar:
+   - Legado (ViewData["BuscaOrgTorneioId"] setado): posta pra TorneiosController.
+     AdicionarOrganizador com torneioId+jogadorId (comportamento original, intacto).
+   - Genérico (ViewData["BuscaOrgActionUrl"] setado): posta pra qualquer action, com
+     ViewData["BuscaOrgExtraFieldName"]/["BuscaOrgExtraFieldValue"] como 2º campo do form
+     (além de jogadorId). Ex: AdminController.AtribuirDono, ClubesController.
+     AdicionarAdministrador. *@
 @{
     var uid = Guid.NewGuid().ToString("N").Substring(0, 8);
     var hiddenName = ViewData["BuscaOrgHiddenName"] as string;
     var torneioIdDireto = ViewData["BuscaOrgTorneioId"] as int?;
+    var actionUrlDireto = ViewData["BuscaOrgActionUrl"] as string;
+    var extraFieldNameDireto = ViewData["BuscaOrgExtraFieldName"] as string;
+    var extraFieldValueDireto = ViewData["BuscaOrgExtraFieldValue"];
+    var modoDireto = torneioIdDireto.HasValue || actionUrlDireto != null;
 }
 
 <div class="mb-2">
@@ -18,7 +29,7 @@
     }
 </div>
 
-@if (torneioIdDireto.HasValue)
+@if (modoDireto)
 {
     <form id="antiforgery_@uid" style="display:none">@Html.AntiForgeryToken()</form>
 }
@@ -29,7 +40,10 @@
         var resultadoDiv = document.getElementById('buscaOrgResultado_@uid');
         var selecionadosDiv = document.getElementById('buscaOrgSelecionados_@uid');
         var hiddenName = @Html.Raw(string.IsNullOrEmpty(hiddenName) ? "null" : System.Text.Json.JsonSerializer.Serialize(hiddenName));
-        var torneioIdDireto = @Html.Raw(torneioIdDireto.HasValue ? torneioIdDireto.Value.ToString() : "null");
+        var modoDireto = @Html.Raw(modoDireto ? "true" : "false");
+        var actionUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(actionUrlDireto ?? "/Torneios/AdicionarOrganizador"));
+        var extraFieldName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(extraFieldNameDireto ?? (torneioIdDireto.HasValue ? "torneioId" : null)));
+        var extraFieldValue = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(extraFieldValueDireto != null ? extraFieldValueDireto.ToString() : (torneioIdDireto.HasValue ? torneioIdDireto.Value.ToString() : "")));
         var timer = null;
 
         function limparResultado() { resultadoDiv.innerHTML = ''; }
@@ -64,21 +78,23 @@
             var nome = btn.getAttribute('data-nome');
             var foto = btn.getAttribute('data-foto');
 
-            if (torneioIdDireto !== null) {
+            if (modoDireto) {
                 var token = document.querySelector('#antiforgery_@uid input[name="__RequestVerificationToken"]').value;
                 var form = document.createElement('form');
                 form.method = 'post';
-                form.action = '/Torneios/AdicionarOrganizador';
+                form.action = actionUrl;
                 form.style.display = 'none';
 
-                var campoTorneio = document.createElement('input');
-                campoTorneio.name = 'torneioId'; campoTorneio.value = torneioIdDireto;
+                if (extraFieldName) {
+                    var campoExtra = document.createElement('input');
+                    campoExtra.name = extraFieldName; campoExtra.value = extraFieldValue;
+                    form.appendChild(campoExtra);
+                }
                 var campoJogador = document.createElement('input');
                 campoJogador.name = 'jogadorId'; campoJogador.value = id;
                 var campoToken = document.createElement('input');
                 campoToken.name = '__RequestVerificationToken'; campoToken.value = token;
 
-                form.appendChild(campoTorneio);
                 form.appendChild(campoJogador);
                 form.appendChild(campoToken);
                 document.body.appendChild(form);

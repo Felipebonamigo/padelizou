@@ -13,13 +13,13 @@
         }
         else
         {
-            <div style="height: 150px; background: linear-gradient(125deg, var(--pdz-navy-900), var(--padel-blue) 60%, #29396a); display:flex; align-items:center; justify-content:center;">
+            <div style="height: 150px; background: linear-gradient(125deg, var(--pdz-navy-900), var(--pdz-navy-fixed) 60%, #29396a); display:flex; align-items:center; justify-content:center;">
                 <img src="~/image/logo-icon.png" style="height: 64px; opacity: 0.92; filter: drop-shadow(0 6px 14px rgba(0,0,0,.3));" />
             </div>
         }
 
         <div class="card-body">
-            <h5 class="card-title fw-bold" style="color: var(--padel-blue);">@Model.Nome</h5>
+            <h5 class="card-title fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h5>
             <p class="card-text text-muted small mb-1">
                 <i class="bi bi-geo-alt-fill"></i> Local: @(string.IsNullOrEmpty(Model.LocalTorneio) ? "A definir" : Model.LocalTorneio)
             </p>

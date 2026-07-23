@@ -22,23 +22,28 @@
         }
     </div>
 
-    <div class="palpite-opcao @(votavel ? "votavel" : "")" data-dupla-id="@Model.partida.Dupla1Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
-        <div class="d-flex justify-content-between small">
-            <span class="text-truncate @(meuVoto == Model.partida.Dupla1Id ? "fw-bold" : "")">@(meuVoto == Model.partida.Dupla1Id ? "✓ " : "")@nome1</span>
-            <span class="fw-bold ms-2" data-pct="1">@r.PercentualDupla1%</span>
-        </div>
-        <div class="progress" style="height: 8px;">
-            <div class="progress-bar bg-primary" data-bar="1" style="width: @(r.PercentualDupla1.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
-        </div>
+    @{
+        bool dupla1Lidera = r.PercentualDupla1 >= r.PercentualDupla2;
+    }
+    <div class="d-flex justify-content-between small mb-1 gap-2">
+        <span class="palpite-opcao text-truncate text-success @(votavel ? "votavel" : "") @(meuVoto == Model.partida.Dupla1Id ? "fw-bold" : "")" data-dupla-id="@Model.partida.Dupla1Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
+            @(meuVoto == Model.partida.Dupla1Id ? "✓ " : "")@nome1
+        </span>
+        <span class="palpite-opcao text-truncate text-primary text-end @(votavel ? "votavel" : "") @(meuVoto == Model.partida.Dupla2Id ? "fw-bold" : "")" data-dupla-id="@Model.partida.Dupla2Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
+            @(meuVoto == Model.partida.Dupla2Id ? "✓ " : "")@nome2
+        </span>
     </div>
 
-    <div class="palpite-opcao mt-1 @(votavel ? "votavel" : "")" data-dupla-id="@Model.partida.Dupla2Id" data-votavel="@votavel.ToString().ToLower()" onclick="votarPalpite(this)">
-        <div class="d-flex justify-content-between small">
-            <span class="text-truncate @(meuVoto == Model.partida.Dupla2Id ? "fw-bold" : "")">@(meuVoto == Model.partida.Dupla2Id ? "✓ " : "")@nome2</span>
-            <span class="fw-bold ms-2" data-pct="2">@r.PercentualDupla2%</span>
+    <div class="pdz-palpite-barra-wrap">
+        <div class="pdz-palpite-pct-badge text-success" data-pct="1" style="display: @(dupla1Lidera ? "block" : "none"); left: 0;">
+            @r.PercentualDupla1%<i class="bi bi-caret-down-fill"></i>
         </div>
-        <div class="progress" style="height: 8px;">
-            <div class="progress-bar bg-danger" data-bar="2" style="width: @(r.PercentualDupla2.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+        <div class="pdz-palpite-pct-badge text-primary" data-pct="2" style="display: @(dupla1Lidera ? "none" : "block"); right: 0;">
+            @r.PercentualDupla2%<i class="bi bi-caret-down-fill"></i>
+        </div>
+        <div class="progress" style="height: 10px;">
+            <div class="progress-bar bg-success" data-bar="1" style="width: @(r.PercentualDupla1.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+            <div class="progress-bar bg-primary" data-bar="2" style="width: @(r.PercentualDupla2.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
         </div>
     </div>
 

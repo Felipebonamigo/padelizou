@@ -65,7 +65,8 @@ namespace padelizou.Controllers
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade), propriedades);
                 }
 
-                return LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+                var destino = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
+                return LocalRedirect(destino);
             }
 
             ViewBag.Erro = "Usuário ou senha incorretos.";

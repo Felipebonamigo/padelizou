@@ -1,0 +1,49 @@
+@model List<JogoAula>
+@{
+    ViewData["Title"] = "Jogo Aula - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="mb-4">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Jogo Aula</h2>
+        <p class="text-muted mb-0">Turmas e jogos publicados por professores.</p>
+    </div>
+
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var jogo in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-primary">@jogo.CategoriaPadrao.Nome</span>
+                                <span class="text-muted small">@jogo.Modalidade</span>
+                            </div>
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">Prof. @jogo.Professor.Nome</h5>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-geo-alt-fill"></i> @jogo.LocalAula.Nome<br />
+                                <i class="bi bi-calendar3"></i> @jogo.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")
+                            </p>
+                            @if (jogo.Preco.HasValue)
+                            {
+                                <p class="small mb-2"><i class="bi bi-cash"></i> R$ @jogo.Preco.Value.ToString("0.00")</p>
+                            }
+                            <a asp-controller="JogoAula" asp-action="Detalhes" asp-route-id="@jogo.Id" class="btn btn-sm btn-padel rounded-pill w-100 mt-2">
+                                Ver detalhes / inscrever-se
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <i class="bi bi-megaphone display-4 text-muted mb-3"></i>
+                <h4 class="fw-bold text-secondary">Nenhum jogo aula publicado no momento</h4>
+            </div>
+        }
+    </div>
+</div>
