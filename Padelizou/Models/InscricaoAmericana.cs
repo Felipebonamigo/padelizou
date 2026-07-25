@@ -15,4 +15,8 @@ public class InscricaoAmericana
 
     // Mesmo esquema de lista de espera do Dupla — ver Dupla.EmListaDeEspera.
     public bool EmListaDeEspera { get; set; }
+
+    // Nulo = inscrição feita antes de 25/07/2026 (quando a coluna nasceu) — usado nas
+    // métricas de uso do admin (inscrições por semana).
+    public DateTime? CriadoEm { get; set; } = DateTime.Now;
 }

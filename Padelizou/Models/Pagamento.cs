@@ -57,4 +57,8 @@ public class Pagamento
 
     // Depois disso a cobrança perde a validade e a vaga segurada é liberada.
     public DateTime? ExpiraEm { get; set; }
+
+    // Quando o lembrete de "sua cobrança está pra vencer" foi enviado — evita mandar
+    // o mesmo aviso duas vezes. Nulo = ainda não avisou.
+    public DateTime? LembreteEnviadoEm { get; set; }
 }

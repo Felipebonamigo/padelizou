@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.ViewModels;
 using System.Security.Claims;
 
 namespace padelizou.Controllers
@@ -14,11 +15,14 @@ namespace padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IPushNotificationService _pushNotificationService;
+        private readonly IConfiguration _configuration;
 
-        public AdminController(DbPadelContext context, IPushNotificationService pushNotificationService)
+        public AdminController(DbPadelContext context, IPushNotificationService pushNotificationService,
+            IConfiguration configuration)
         {
             _context = context;
             _pushNotificationService = pushNotificationService;
+            _configuration = configuration;
         }
 
         // Qualquer administrador (raiz ou nomeado) — usado pelas ações que administradores
@@ -125,6 +129,82 @@ namespace padelizou.Controllers
 
             TempData["Sucesso"] = "Administrador removido.";
             return RedirectToAction("Administradores");
+        }
+
+        // Métricas de uso: os números que dizem se o sistema está crescendo e quanto a
+        // plataforma já faturou no ano (controle do teto do MEI). CriadoEm nulo = registro
+        // anterior a 25/07/2026 (antes da coluna existir) — entra nos totais, não nas séries.
+        [HttpGet]
+        public async Task<IActionResult> Metricas()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var agora = DateTime.Now;
+            var ha7 = agora.AddDays(-7);
+            var ha30 = agora.AddDays(-30);
+            var inicioAno = new DateTime(agora.Year, 1, 1);
+
+            // Início da série semanal: segunda-feira de 8 semanas atrás.
+            var inicioSemanaAtual = agora.Date.AddDays(-(((int)agora.DayOfWeek + 6) % 7));
+            var inicioSerie = inicioSemanaAtual.AddDays(-7 * 7);
+
+            var vm = new MetricasAdminVM
+            {
+                TotalJogadores = await _context.Jogadores.CountAsync(),
+                JogadoresNovos7 = await _context.Jogadores.CountAsync(j => j.CriadoEm >= ha7),
+                JogadoresNovos30 = await _context.Jogadores.CountAsync(j => j.CriadoEm >= ha30),
+
+                InscricoesNovas7 = await _context.Duplas.CountAsync(d => d.CriadoEm >= ha7)
+                    + await _context.InscricoesAmericanas.CountAsync(i => i.CriadoEm >= ha7),
+                InscricoesNovas30 = await _context.Duplas.CountAsync(d => d.CriadoEm >= ha30)
+                    + await _context.InscricoesAmericanas.CountAsync(i => i.CriadoEm >= ha30),
+
+                PagamentosConfirmados30 = await _context.Pagamentos
+                    .CountAsync(p => p.Status == "Confirmado" && p.ConfirmadoEm >= ha30),
+                ValorConfirmado30 = await _context.Pagamentos
+                    .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= ha30)
+                    .SumAsync(p => (decimal?)p.Valor) ?? 0,
+
+                JogadoresComApp = await _context.PushSubscriptionsJogador
+                    .Select(s => s.JogadorId).Distinct().CountAsync(),
+                TorneiosTotal = await _context.Torneios.CountAsync(),
+                TorneiosAtivos = await _context.Torneios.CountAsync(t => t.Status != "Finalizado"),
+
+                ComissaoAno = await _context.Pagamentos
+                    .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioAno)
+                    .SumAsync(p => (decimal?)p.Comissao) ?? 0,
+                TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
+            };
+
+            // Série semanal — poucas linhas por semana, agrupar em memória é suficiente.
+            var cadastros = await _context.Jogadores
+                .Where(j => j.CriadoEm >= inicioSerie)
+                .Select(j => j.CriadoEm!.Value).ToListAsync();
+            var inscricoes = (await _context.Duplas
+                    .Where(d => d.CriadoEm >= inicioSerie)
+                    .Select(d => d.CriadoEm!.Value).ToListAsync())
+                .Concat(await _context.InscricoesAmericanas
+                    .Where(i => i.CriadoEm >= inicioSerie)
+                    .Select(i => i.CriadoEm!.Value).ToListAsync())
+                .ToList();
+            var pagamentos = await _context.Pagamentos
+                .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioSerie)
+                .Select(p => new { Data = p.ConfirmadoEm!.Value, p.Valor }).ToListAsync();
+
+            for (var inicio = inicioSerie; inicio <= inicioSemanaAtual; inicio = inicio.AddDays(7))
+            {
+                var fim = inicio.AddDays(7);
+                vm.Semanas.Add(new SemanaMetricaVM
+                {
+                    Inicio = inicio,
+                    Cadastros = cadastros.Count(d => d >= inicio && d < fim),
+                    Inscricoes = inscricoes.Count(d => d >= inicio && d < fim),
+                    Pagamentos = pagamentos.Count(p => p.Data >= inicio && p.Data < fim),
+                    Valor = pagamentos.Where(p => p.Data >= inicio && p.Data < fim).Sum(p => p.Valor),
+                });
+            }
+
+            return View(vm);
         }
 
         [HttpPost]

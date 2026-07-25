@@ -134,6 +134,82 @@ public class PagamentosController : Controller
         return View(vm);
     }
 
+    // Extrato de recebimentos em CSV — pro contador. Mesmo recorte da tela Meus:
+    // o que entrou (ou está pra entrar) pra mim como organizador/professor.
+    [HttpGet]
+    public async Task<IActionResult> ExportarCsv(string? periodo)
+    {
+        var meuId = ObterJogadorIdLogado();
+        var per = (periodo ?? "").Trim().ToLower() switch { "mes" => "mes", "ano" => "ano", _ => "sempre" };
+
+        var agora = DateTime.Now;
+        DateTime? de = per switch
+        {
+            "mes" => new DateTime(agora.Year, agora.Month, 1),
+            "ano" => new DateTime(agora.Year, 1, 1),
+            _ => null
+        };
+
+        var recebidos = await _context.Pagamentos
+            .Where(p => p.RecebedorId == meuId)
+            .Include(p => p.Jogador)
+            .OrderBy(p => p.ConfirmadoEm ?? p.CriadoEm)
+            .ToListAsync();
+        if (de != null) recebidos = recebidos.Where(p => (p.ConfirmadoEm ?? p.CriadoEm) >= de.Value).ToList();
+
+        var idsTorneio = recebidos.Where(p => p.TorneioId != null).Select(p => p.TorneioId!.Value).Distinct().ToList();
+        var nomesTorneio = idsTorneio.Count == 0
+            ? new Dictionary<int, string>()
+            : await _context.Torneios.Where(t => idsTorneio.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Nome);
+
+        // Ponto e vírgula + vírgula decimal: é o que o Excel brasileiro abre certo de primeira.
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Data;Status;Origem;Pagador;Valor pago;Meu repasse;Comissao plataforma");
+        foreach (var p in recebidos)
+        {
+            var origem = p.TorneioId != null
+                ? nomesTorneio.GetValueOrDefault(p.TorneioId.Value, "Torneio")
+                : p.Tipo == "Aula" ? "Aula" : "Aluguel de quadra";
+            var data = (p.ConfirmadoEm ?? p.CriadoEm).ToString("dd/MM/yyyy");
+            static string Campo(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
+            sb.AppendLine(string.Join(";",
+                data, p.Status, Campo(origem), Campo(p.Jogador?.Nome ?? "-"),
+                p.Valor.ToString("F2").Replace('.', ','),
+                p.ValorRepasse.ToString("F2").Replace('.', ','),
+                p.Comissao.ToString("F2").Replace('.', ',')));
+        }
+
+        // BOM pro Excel reconhecer UTF-8 (sem ele, acentos viram lixo).
+        var bytes = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        return File(bytes, "text/csv", $"extrato-padelizou-{per}-{agora:yyyyMMdd}.csv");
+    }
+
+    // Comprovante de um pagamento — visível pra quem pagou, quem recebeu e o admin raiz.
+    [HttpGet]
+    public async Task<IActionResult> Comprovante(int id)
+    {
+        var meuId = ObterJogadorIdLogado();
+        var pagamento = await _context.Pagamentos
+            .Include(p => p.Jogador)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (pagamento == null) return NotFound();
+
+        var eu = await _context.Jogadores.FindAsync(meuId);
+        var podeVer = pagamento.JogadorId == meuId || pagamento.RecebedorId == meuId || eu?.IsAdminRaiz == true;
+        if (!podeVer) return Forbid();
+
+        ViewBag.Recebedor = pagamento.RecebedorId == null
+            ? null
+            : await _context.Jogadores.FindAsync(pagamento.RecebedorId.Value);
+        ViewBag.Origem = pagamento.TorneioId != null
+            ? (await _context.Torneios.FindAsync(pagamento.TorneioId.Value))?.Nome ?? "Torneio"
+            : pagamento.Tipo == "Aula" ? "Aula" : "Aluguel de quadra";
+
+        return View(pagamento);
+    }
+
     // Estorna (ou cancela, se ainda não foi paga) uma cobrança dos meus torneios/aulas.
     [HttpPost]
     [ValidateAntiForgeryToken]

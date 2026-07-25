@@ -50,4 +50,8 @@ public partial class Dupla
     // Verdadeiro quando a categoria (ou o torneio) já estava com vagas esgotadas no
     // momento da inscrição. Fica de fora das chaves/contagens até ser promovido.
     public bool EmListaDeEspera { get; set; }
+
+    // Nulo = inscrição feita antes de 25/07/2026 (quando a coluna nasceu) — usado nas
+    // métricas de uso do admin (inscrições por semana).
+    public DateTime? CriadoEm { get; set; } = DateTime.Now;
 }

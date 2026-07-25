@@ -1,0 +1,91 @@
+@model Padelizou.Models.Pagamento
+@{
+    ViewData["Title"] = "Comprovante - Padelizou";
+    var recebedor = ViewBag.Recebedor as Padelizou.Models.Jogador;
+    string origem = ViewBag.Origem;
+
+    var (corStatus, rotuloStatus) = Model.Status switch
+    {
+        "Confirmado" => ("success", "Pago"),
+        "Pendente" => ("warning", "Aguardando pagamento"),
+        "Estornado" => ("danger", "Estornado"),
+        "Cancelado" => ("secondary", "Cancelado"),
+        _ => ("secondary", Model.Status)
+    };
+}
+
+<div class="container mt-4 mb-5" style="max-width: 560px;">
+    <div class="card shadow-sm border-0" id="pdzComprovante">
+        <div class="card-body p-4">
+            <div class="text-center mb-3">
+                <h5 class="fw-bold mb-0" style="color: var(--pdz-ink);">Padelizou</h5>
+                <div class="text-muted small">Comprovante de pagamento nº @Model.Id</div>
+                <span class="badge bg-@corStatus mt-2">@rotuloStatus</span>
+            </div>
+
+            <div class="text-center my-4">
+                <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@Model.Valor.ToString("C")</div>
+                @if (Model.ConfirmadoEm != null)
+                {
+                    <div class="text-muted small">pago em @Model.ConfirmadoEm.Value.ToString("dd/MM/yyyy 'às' HH:mm")</div>
+                }
+                else
+                {
+                    <div class="text-muted small">gerado em @Model.CriadoEm.ToString("dd/MM/yyyy 'às' HH:mm")</div>
+                }
+            </div>
+
+            <hr />
+            <dl class="row mb-0 small">
+                <dt class="col-5 text-muted">Referente a</dt>
+                <dd class="col-7 mb-2">@origem</dd>
+
+                <dt class="col-5 text-muted">Pago por</dt>
+                <dd class="col-7 mb-2">@(Model.Jogador?.Nome ?? "-")</dd>
+
+                @if (recebedor != null)
+                {
+                    <dt class="col-5 text-muted">Recebido por</dt>
+                    <dd class="col-7 mb-2">@recebedor.Nome</dd>
+                }
+
+                @if (Model.Status == "Confirmado")
+                {
+                    <dt class="col-5 text-muted">Repasse ao organizador</dt>
+                    <dd class="col-7 mb-2">@Model.ValorRepasse.ToString("C")</dd>
+
+                    <dt class="col-5 text-muted">Taxa da plataforma</dt>
+                    <dd class="col-7 mb-2">@Model.Comissao.ToString("C")</dd>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.AsaasPaymentId))
+                {
+                    <dt class="col-5 text-muted">Identificação (Asaas)</dt>
+                    <dd class="col-7 mb-2"><code class="small">@Model.AsaasPaymentId</code></dd>
+                }
+            </dl>
+
+            @if (Model.Status == "Pendente" && !string.IsNullOrEmpty(Model.InvoiceUrl))
+            {
+                <div class="d-grid mt-3">
+                    <a href="@Model.InvoiceUrl" target="_blank" rel="noopener" class="btn btn-padel rounded-pill">Pagar agora</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-center mt-3 d-print-none">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="window.print()">
+            <i class="bi bi-printer"></i> Imprimir / salvar PDF
+        </button>
+        <a asp-action="Meus" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Voltar ao extrato</a>
+    </div>
+</div>
+
+<style>
+    @@media print {
+        /* Só o comprovante no papel — sem menu, sem botões. */
+        nav, footer, .d-print-none { display: none !important; }
+        #pdzComprovante { box-shadow: none !important; border: 1px solid #ddd !important; }
+    }
+</style>

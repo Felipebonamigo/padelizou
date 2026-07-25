@@ -109,4 +109,8 @@ public partial class Jogador
     // "Descontada" -> sai da fatia dele, e o jogador paga só o valor anunciado.
     // Nulo = usa o padrão de AsaasSettings.
     public string? ModoComissao { get; set; }
+
+    // Nulo = cadastrado antes de 25/07/2026 (quando a coluna nasceu) — usado nas métricas
+    // de uso do admin (cadastros por semana).
+    public DateTime? CriadoEm { get; set; } = DateTime.Now;
 }

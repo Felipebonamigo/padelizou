@@ -1,0 +1,117 @@
+@model Padelizou.ViewModels.MetricasAdminVM
+@{
+    ViewData["Title"] = "Métricas de uso - Padelizou";
+
+    var pct = Model.PercentualMei;
+    var corMei = pct >= 90 ? "danger" : pct >= 70 ? "warning" : "success";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Métricas de uso</h2>
+            <p class="text-muted mb-0">Como o sistema está sendo usado, semana a semana.</p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+    </div>
+
+    @* ---- Medidor do MEI ---- *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-speedometer2"></i> Faturamento do MEI em @DateTime.Now.Year</h6>
+                <span class="badge bg-@corMei">@pct% do teto</span>
+            </div>
+            <div class="progress mb-2" style="height: 10px;">
+                <div class="progress-bar bg-@corMei" role="progressbar" style="width: @Math.Min(pct, 100)%"></div>
+            </div>
+            <div class="small text-muted">
+                Comissão da plataforma no ano: <strong>@Model.ComissaoAno.ToString("C")</strong>
+                de um teto de <strong>@Model.TetoMei.ToString("C")</strong>.
+                @if (pct >= 90)
+                {
+                    <span class="text-danger fw-bold">Atenção: acima de 90% — hora de planejar a migração de MEI pra ME.</span>
+                }
+                else if (pct >= 70)
+                {
+                    <span class="text-warning fw-bold">Acima de 70% — vale acompanhar de perto.</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ---- Cards-resumo ---- *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 h-100 text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.TotalJogadores</div>
+                    <div class="small text-muted">jogadores no total</div>
+                    <div class="small text-success">+@Model.JogadoresNovos7 em 7 dias · +@Model.JogadoresNovos30 em 30</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 h-100 text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.InscricoesNovas30</div>
+                    <div class="small text-muted">inscrições em 30 dias</div>
+                    <div class="small text-success">+@Model.InscricoesNovas7 em 7 dias</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 h-100 text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.ValorConfirmado30.ToString("C0")</div>
+                    <div class="small text-muted">pagos em 30 dias</div>
+                    <div class="small text-success">@Model.PagamentosConfirmados30 pagamento(s)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0 h-100 text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.JogadoresComApp</div>
+                    <div class="small text-muted">com o app instalado</div>
+                    <div class="small text-muted">@Model.TorneiosAtivos torneio(s) ativo(s) de @Model.TorneiosTotal</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ---- Série semanal ---- *@
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week"></i> Últimas 8 semanas</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-1">
+                    <thead>
+                        <tr class="text-muted small">
+                            <th>Semana</th>
+                            <th class="text-end">Cadastros</th>
+                            <th class="text-end">Inscrições</th>
+                            <th class="text-end">Pagamentos</th>
+                            <th class="text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Enumerable.Reverse(Model.Semanas))
+                        {
+                            <tr>
+                                <td>@s.Inicio.ToString("dd/MM") – @s.Inicio.AddDays(6).ToString("dd/MM")</td>
+                                <td class="text-end">@(s.Cadastros > 0 ? s.Cadastros.ToString() : "—")</td>
+                                <td class="text-end">@(s.Inscricoes > 0 ? s.Inscricoes.ToString() : "—")</td>
+                                <td class="text-end">@(s.Pagamentos > 0 ? s.Pagamentos.ToString() : "—")</td>
+                                <td class="text-end">@(s.Valor > 0 ? s.Valor.ToString("C0") : "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="small text-muted">
+                Cadastros e inscrições anteriores a 25/07/2026 não têm data registrada — entram nos totais, mas não nas semanas.
+            </div>
+        </div>
+    </div>
+</div>
