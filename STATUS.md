@@ -24,6 +24,14 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - **2 bugs críticos** encontrados pelos testes e corrigidos: mata-mata nunca disparava num torneio real (conflito de nomes de fase) e os robôs criavam partida sem código obrigatório.
 - **Monitoramento**: endpoint `/healthz` (app + banco), vigia no VPS que reinicia sozinho (cron 5 min) e UptimeRobot externo. Validado derrubando o dev de propósito → voltou em 11s.
 
+### 25/07/2026 — Blindagem (Fase 1 quase toda)
+- **CI no GitHub Actions**: os 85 testes rodam a cada push; commit com teste vermelho fica marcado com ❌.
+- **Deploy via GitHub com versões**: o CI gera o pacote (`build-N-sha`) só se os testes passarem — é *impossível* publicar código reprovado. O VPS baixa, guarda cada versão em `/opt/padelizou-releases/`, troca por symlink e confere o `/healthz`; se não responder, **volta sozinho**. `deploy.sh`/`deploy-dev.sh` locais agora recusam mudanças não commitadas (fim da colisão de sessões).
+- **Rollback em 1 comando**: `ssh root@VPS /opt/padelizou-deploy/rollback.sh <prod|dev>`.
+- **Dados persistentes fora das versões**: uploads, tokens do Google e `appsettings.json` vivem em `/opt/padelizou-shared/` — trocar de versão nunca apaga foto de ninguém.
+- **Backup ampliado**: além do banco, o cron das 4h agora copia uploads + tokens + configs (14 dias de histórico).
+- *Limpeza pendente:* apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` (cópias de emergência da migração) depois de alguns dias.
+
 ### 25/07/2026 — Produto
 - **Mata-mata genérico** (`Services/ChaveamentoMataMata`): funciona com qualquer nº de grupos (antes só 1/2/4/8). Melhores 2ºs completam o quadro; categoria de 1 grupo agora também coroa campeão.
 - **Painel financeiro** (`Pagamentos/Meus`): filtro por período, cards de recebido/a receber/taxa/estornado, "de onde veio" por torneio e "quem está devendo" com link de cobrança. **Serve organizador, professor e clube na mesma tela.**
@@ -36,10 +44,10 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 ## 🔜 Próximos passos, em ordem
 
 ### Fase 1 — Terminar a blindagem `~3-5 dias`
-- [ ] **CI**: GitHub Actions rodando os 85 testes a cada envio `2h`
-- [ ] **Deploy a partir do GitHub**, não do disco local `3h`
-- [ ] **Rollback em 1 comando** (guardar versão anterior no VPS) `1h`
-- [ ] **Backup também dos uploads** (fotos, logos, capas) `30min`
+- [x] **CI**: GitHub Actions rodando os 85 testes a cada envio ✅ 25/07
+- [x] **Deploy a partir do GitHub**, não do disco local ✅ 25/07
+- [x] **Rollback em 1 comando** (guardar versão anterior no VPS) ✅ 25/07
+- [x] **Backup também dos uploads** (fotos, logos, capas) ✅ 25/07
 - [ ] **Ambiente local**: Postgres na máquina pra rodar o site pelo VS `2h`
 
 ### Fase 2 — Sair do modo demonstração `~1 semana` ⭐ *maior impacto*
