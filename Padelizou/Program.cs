@@ -174,7 +174,9 @@ app.MapStaticAssets();
 // Health check pro monitor de uptime (cron do VPS + UptimeRobot): responde 200 "ok"
 // quando o app está de pé E consegue falar com o banco; 503 caso contrário.
 // Liberado no AcessoAntecipadoMiddleware (PrefixosLiberados).
-app.MapGet("/healthz", async (DbPadelContext db) =>
+// Aceita HEAD além de GET: o UptimeRobot (e vários monitores) checam com HEAD por
+// padrão, e um endpoint só-GET responde 405 — o monitor lê isso como site fora do ar.
+app.MapMethods("/healthz", new[] { "GET", "HEAD" }, async (DbPadelContext db) =>
 {
     try
     {
