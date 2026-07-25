@@ -82,6 +82,27 @@ public class BuscaJogadoresTests
         // esconder essa gente esvaziaria a busca, já que quase ninguém preenche.
         Assert.Contains("Nao declarou", nomes);
         Assert.DoesNotContain("Joga na 4a", nomes);
+
+        // Quem declarou vem primeiro e com selo; quem só "não disse nada", depois.
+        Assert.Equal("Joga na 2a", vm.Resultados[0].Jogador.Nome);
+        Assert.True(vm.Resultados[0].Declarou);
+        Assert.False(vm.Resultados.Single(r => r.Jogador.Nome == "Nao declarou").Declarou);
+        Assert.Equal(1, vm.QtdDeclarou);
+        Assert.True(vm.FiltraPreferencia);
+    }
+
+    [Fact]
+    public async Task Busca_so_por_nome_nao_marca_ninguem_como_declarado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        NovoJogador(ctx, "Ana", "1", "Caxias do Sul", "RS");
+
+        var vm = await Buscar(ctx, q: "Ana");
+
+        // Sem filtro de categoria/clube não existe "combina" — o selo perderia sentido.
+        Assert.False(vm.FiltraPreferencia);
+        Assert.Equal(0, vm.QtdDeclarou);
+        Assert.False(vm.Resultados.Single().Declarou);
     }
 
     [Fact]

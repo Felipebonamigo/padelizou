@@ -23,6 +23,11 @@ public class BuscaJogadoresVM
     // ----- resultado -----
     public List<JogadorEncontradoVM> Resultados { get; set; } = new();
     public int TotalEncontrado { get; set; }
+
+    // A busca filtrou por categoria e/ou clube (as que dependem de o jogador ter
+    // declarado a preferência), e quantos de fato declararam.
+    public bool FiltraPreferencia { get; set; }
+    public int QtdDeclarou { get; set; }
     public bool Truncado => TotalEncontrado > Resultados.Count;
 
     // Nenhum filtro preenchido: a tela mostra o convite em vez de "nada encontrado".
@@ -38,4 +43,9 @@ public class JogadorEncontradoVM
     public string? Time { get; set; }
     public List<string> Categorias { get; set; } = new();
     public List<string> Clubes { get; set; } = new();
+
+    // O jogador DECLAROU a categoria/clube filtrado, em vez de apenas "não ter dito nada".
+    // Quem declarou aparece primeiro e ganha selo — sem isso o filtro seria inócuo,
+    // porque quase ninguém preenche preferência e todo mundo entraria no resultado.
+    public bool Declarou { get; set; }
 }

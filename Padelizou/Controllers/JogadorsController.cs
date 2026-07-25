@@ -494,6 +494,23 @@ public class JogadoresController : Controller
             .GroupBy(x => x.JogadorId)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Nome).ToList());
 
+        // Quem DECLAROU a categoria/clube filtrado sobe pro topo com selo. Sem isso o
+        // filtro pareceria quebrado: como quase ninguém preenche preferência, todo mundo
+        // entra pela regra do "sem linha = aceita qualquer um".
+        var declararamCategoria = vm.CategoriaId == null
+            ? new HashSet<int>()
+            : (await _context.JogadorCategorias
+                .Where(c => ids.Contains(c.JogadorId) && c.CategoriaPadraoId == vm.CategoriaId)
+                .Select(c => c.JogadorId).ToListAsync()).ToHashSet();
+
+        var declararamClube = vm.ClubeId == null
+            ? new HashSet<int>()
+            : (await _context.JogadorClubes
+                .Where(c => ids.Contains(c.JogadorId) && c.ClubeId == vm.ClubeId)
+                .Select(c => c.JogadorId).ToListAsync()).ToHashSet();
+
+        bool filtraPreferencia = vm.CategoriaId != null || vm.ClubeId != null;
+
         vm.Resultados = jogadores.Select(j => new JogadorEncontradoVM
         {
             Jogador = j,
@@ -501,7 +518,17 @@ public class JogadoresController : Controller
             Time = j.Time?.Nome,
             Categorias = catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
             Clubes = clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
-        }).ToList();
+            Declarou = filtraPreferencia
+                && (vm.CategoriaId == null || declararamCategoria.Contains(j.Id))
+                && (vm.ClubeId == null || declararamClube.Contains(j.Id)),
+        })
+        .OrderByDescending(r => r.Declarou)
+        .ThenByDescending(r => r.Pontos)
+        .ThenBy(r => r.Jogador.Nome)
+        .ToList();
+
+        vm.FiltraPreferencia = filtraPreferencia;
+        vm.QtdDeclarou = vm.Resultados.Count(r => r.Declarou);
 
         return View(vm);
     }

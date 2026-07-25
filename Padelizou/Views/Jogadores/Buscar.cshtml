@@ -171,6 +171,29 @@
             @Model.TotalEncontrado jogador(es) encontrado(s)@(Model.Truncado ? $" — mostrando os {Model.Resultados.Count} primeiros, refine os filtros pra ver os demais" : "")
         </p>
 
+        @if (Model.FiltraPreferencia)
+        {
+            <div class="alert alert-light border small py-2 mb-3">
+                @if (Model.QtdDeclarou > 0)
+                {
+                    <span>
+                        <i class="bi bi-check-circle-fill" style="color: var(--padel-green);"></i>
+                        <strong>@Model.QtdDeclarou</strong> declararam exatamente isso no perfil e aparecem primeiro.
+                        Os demais entram porque não informaram preferência — o que significa "aceito qualquer uma".
+                    </span>
+                }
+                else
+                {
+                    <span>
+                        <i class="bi bi-info-circle"></i>
+                        Ninguém declarou essa preferência ainda no perfil, então a lista traz todos que batem
+                        nos outros filtros. Quanto mais jogadores preencherem categoria e clube em
+                        <a asp-controller="Auth" asp-action="Preferencias">Minhas Preferências</a>, mais preciso isso fica.
+                    </span>
+                }
+            </div>
+        }
+
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
             @foreach (var r in Model.Resultados)
             {
@@ -188,7 +211,16 @@
                                     <i class="bi bi-person-circle fs-1 flex-shrink-0" style="color: var(--pdz-ink); opacity:.45;"></i>
                                 }
                                 <div class="flex-grow-1 overflow-hidden">
-                                    <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@r.Jogador.Nome</strong>
+                                    <strong class="d-block text-truncate" style="color: var(--pdz-ink);">
+                                        @r.Jogador.Nome
+                                        @if (r.Declarou)
+                                        {
+                                            <span class="badge rounded-pill ms-1" style="background: var(--padel-green); color: #14261a;"
+                                                  title="Declarou essa preferência no perfil">
+                                                <i class="bi bi-check-lg"></i> combina
+                                            </span>
+                                        }
+                                    </strong>
                                     <small class="text-muted">
                                         @r.Pontos pts
                                         @if (r.Time != null)
