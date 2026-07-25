@@ -23,8 +23,18 @@
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    @* Home fica só "Padelizou"; páginas internas viram "Página - Padelizou". *@
-    <title>@(string.IsNullOrWhiteSpace(ViewData["Title"] as string) ? "Padelizou" : $"{ViewData["Title"]} - Padelizou")</title>
+    @*
+        Home fica só "Padelizou"; internas viram "Página - Padelizou".
+        Boa parte das views já escreve "- Padelizou" no próprio Title (e virava
+        "Entrar - Padelizou - Padelizou"), então só completamos quando falta.
+    *@
+    @{
+        var tituloPagina = (ViewData["Title"] as string)?.Trim();
+        var tituloAba = string.IsNullOrWhiteSpace(tituloPagina) ? "Padelizou"
+            : tituloPagina.EndsWith("Padelizou", StringComparison.OrdinalIgnoreCase) ? tituloPagina
+            : $"{tituloPagina} - Padelizou";
+    }
+    <title>@tituloAba</title>
     <meta name="theme-color" content="#141d33" />
     <link rel="manifest" href="~/manifest.json" />
     <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />
