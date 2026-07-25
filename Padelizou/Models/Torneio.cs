@@ -68,4 +68,9 @@ public partial class Torneio
     // Some da listagem pública (Torneios/Index) — só acessível por quem tem o link direto
     // ou é organizador. Não afeta a inscrição em si (isso é papel de Restrito/ChaveAcesso).
     public bool Oculto { get; set; }
+
+    // O mesmo jogador pode entrar em mais de uma categoria deste torneio?
+    // Default true = comportamento que sempre existiu (não havia trava nenhuma).
+    // Desligar é útil pra evitar choque de horário: o jogador fica preso a uma categoria só.
+    public bool PermiteMultiplasCategorias { get; set; } = true;
 }

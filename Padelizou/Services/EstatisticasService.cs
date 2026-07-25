@@ -198,7 +198,8 @@ public class EstatisticasService : IEstatisticasService
         var idsComTime = jogadores.Select(j => j.Id).ToHashSet();
 
         var duplas = await _context.Duplas
-            .Where(d => (idsComTime.Contains(d.Jogador1Id) || idsComTime.Contains(d.Jogador2Id))
+            .Where(d => (idsComTime.Contains(d.Jogador1Id)
+                         || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
                          || d.Categoria.Torneio.DataInicio <= ate))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
@@ -217,7 +218,7 @@ public class EstatisticasService : IEstatisticasService
         foreach (var d in duplas)
         {
             Somar(d.Jogador1Id, d.UltimaFase);
-            Somar(d.Jogador2Id, d.UltimaFase);
+            if (d.Jogador2Id != null) Somar(d.Jogador2Id.Value, d.UltimaFase);
         }
 
         return jogadores
@@ -704,7 +705,7 @@ public class EstatisticasService : IEstatisticasService
         foreach (var d in duplas)
         {
             Aplicar(d.Jogador1Id, d.UltimaFase, d.CategoriaNome);
-            Aplicar(d.Jogador2Id, d.UltimaFase, d.CategoriaNome);
+            if (d.Jogador2Id != null) Aplicar(d.Jogador2Id.Value, d.UltimaFase, d.CategoriaNome);
         }
 
         return mapa;
@@ -755,7 +756,7 @@ public class EstatisticasService : IEstatisticasService
         foreach (var r in registros)
         {
             Aplicar(r.Jogador1Id, r.UltimaFase, r.CategoriaNome);
-            Aplicar(r.Jogador2Id, r.UltimaFase, r.CategoriaNome);
+            if (r.Jogador2Id != null) Aplicar(r.Jogador2Id.Value, r.UltimaFase, r.CategoriaNome);
         }
 
         return mapa;
@@ -989,7 +990,8 @@ public class EstatisticasService : IEstatisticasService
         if (ids.Count == 0) return pontos;
 
         var duplas = await _context.Duplas
-            .Where(d => ids.Contains(d.Jogador1Id) || ids.Contains(d.Jogador2Id))
+            .Where(d => ids.Contains(d.Jogador1Id)
+                     || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value)))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
             .ToListAsync();
 
@@ -997,7 +999,7 @@ public class EstatisticasService : IEstatisticasService
         {
             int p = PontosPorFase(d.UltimaFase);
             if (pontos.ContainsKey(d.Jogador1Id)) pontos[d.Jogador1Id] += p;
-            if (pontos.ContainsKey(d.Jogador2Id)) pontos[d.Jogador2Id] += p;
+            if (d.Jogador2Id != null && pontos.ContainsKey(d.Jogador2Id.Value)) pontos[d.Jogador2Id.Value] += p;
         }
 
         return pontos;

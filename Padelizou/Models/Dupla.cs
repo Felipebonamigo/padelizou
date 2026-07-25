@@ -14,7 +14,9 @@ public partial class Dupla
 
     public int Jogador1Id { get; set; }
 
-    public int Jogador2Id { get; set; }
+    // NULO = inscrito sozinho, ainda procurando parceiro. A dupla existe (ocupa vaga,
+    // pagou, entra na lista de espera), mas fica de fora do sorteio até ter os dois nomes.
+    public int? Jogador2Id { get; set; }
 
     public string? Codigo { get; set; }
 
@@ -22,7 +24,11 @@ public partial class Dupla
 
     public virtual Jogador Jogador1 { get; set; } = null!;
 
-    public virtual Jogador Jogador2 { get; set; } = null!;
+    public virtual Jogador? Jogador2 { get; set; }
+
+    // Só entra em chaves/grupos quando a dupla está fechada.
+    [NotMapped]
+    public bool Completa => Jogador2Id != null;
 
     public virtual ICollection<Partida> PartidasDupla1 { get; set; } = new List<Partida>();
 

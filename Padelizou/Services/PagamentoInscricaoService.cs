@@ -7,7 +7,12 @@ using System.Text.Json;
 namespace Padelizou.Services;
 
 // O que fica guardado no Pagamento pra montar a inscrição quando o dinheiro entrar.
-// Jogador2Id nulo = inscrição individual (Torneio Americano).
+//
+// Jogador2Id nulo tem DOIS significados, distinguidos por SemParceiro:
+//   SemParceiro = false -> inscrição individual de Torneio Americano
+//   SemParceiro = true  -> dupla aberta, o jogador define o parceiro depois
+// O campo tem default false de propósito: pagamento antigo, serializado antes dele
+// existir, continua sendo lido como americano (que era o único caso).
 public record DadosInscricaoTorneio(
     int TorneioId,
     int CategoriaId,
@@ -15,7 +20,8 @@ public record DadosInscricaoTorneio(
     int? Jogador2Id,
     bool ImpedimentoSextaNoite,
     bool ImpedimentoSabadoManha,
-    bool ImpedimentoSabadoTarde);
+    bool ImpedimentoSabadoTarde,
+    bool SemParceiro = false);
 
 public record DadosInscricaoAula(int JogoAulaId, int JogadorId);
 
@@ -259,16 +265,18 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         // A vaga não fica reservada enquanto o pagamento está pendente, então quem pagou por
         // último pode achar a categoria cheia — nesse caso entra na lista de espera, mesma
         // regra de quem se inscreve num torneio lotado.
+        // O último parâmetro diz se a vaga é de dupla (ocupa 1 vaga de dupla) ou de
+        // americano — a dupla sem parceiro conta como dupla, ela só está incompleta.
         bool emListaDeEspera = await CategoriaOuTorneioEstaCheioAsync(
-            categoria, torneio, dados.Jogador2Id.HasValue);
+            categoria, torneio, dados.Jogador2Id.HasValue || dados.SemParceiro);
 
-        if (dados.Jogador2Id.HasValue)
+        if (dados.Jogador2Id.HasValue || dados.SemParceiro)
         {
             var dupla = new Dupla
             {
                 CategoriaId = dados.CategoriaId,
                 Jogador1Id = dados.Jogador1Id,
-                Jogador2Id = dados.Jogador2Id.Value,
+                Jogador2Id = dados.Jogador2Id,
                 ImpedimentoSextaNoite = dados.ImpedimentoSextaNoite,
                 ImpedimentoSabadoManha = dados.ImpedimentoSabadoManha,
                 ImpedimentoSabadoTarde = dados.ImpedimentoSabadoTarde,

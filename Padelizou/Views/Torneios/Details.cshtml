@@ -317,18 +317,38 @@
                 <!-- JOGADOR 2 -->
                 <div class="col-md-6">
                     <div class="card mb-3 border-0 bg-light">
-                        <div class="card-header fw-bold text-white" style="background-color: var(--pdz-navy-fixed);">Jogador 2</div>
+                        <div class="card-header fw-bold text-white d-flex justify-content-between align-items-center" style="background-color: var(--pdz-navy-fixed);">
+                            <span>Jogador 2</span>
+                            <span class="badge bg-info text-dark" id="pdzBadgeSemParceiro" style="display:none;">a definir</span>
+                        </div>
                         <div class="card-body">
-                            <input type="text" name="cpf2" class="form-control mb-1 js-cpf" data-alvo="2"
-                                   placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
-                            <div class="small mb-2 js-cpf-status" data-alvo="2"></div>
-                            <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome Completo" required />
-                            <input type="text" name="celular2" class="form-control mb-2" data-mascara="celular"
-                                   inputmode="numeric" placeholder="Celular (WhatsApp)" required />
-                            <div class="row g-2">
-                                <div class="col-8"><input type="text" name="cidade2" class="form-control" placeholder="Cidade" required /></div>
-                                <div class="col-4"><input type="text" name="estado2" class="form-control" placeholder="UF" required /></div>
+                            @* Inscrição solo: some com os campos do parceiro e tira o "required"
+                               deles, senão o navegador barra o envio de campo escondido. *@
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="semParceiro" value="true"
+                                       id="pdzSemParceiro" style="transform: scale(1.2); margin-right: 8px;">
+                                <label class="form-check-label fw-bold" for="pdzSemParceiro">
+                                    <i class="bi bi-person-plus"></i> Ainda não tenho parceiro
+                                </label>
                             </div>
+
+                            <div id="pdzCamposParceiro">
+                                <input type="text" name="cpf2" class="form-control mb-1 js-cpf" data-alvo="2"
+                                       placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
+                                <div class="small mb-2 js-cpf-status" data-alvo="2"></div>
+                                <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome Completo" required />
+                                <input type="text" name="celular2" class="form-control mb-2" data-mascara="celular"
+                                       inputmode="numeric" placeholder="Celular (WhatsApp)" required />
+                                <div class="row g-2">
+                                    <div class="col-8"><input type="text" name="cidade2" class="form-control" placeholder="Cidade" required /></div>
+                                    <div class="col-4"><input type="text" name="estado2" class="form-control" placeholder="UF" required /></div>
+                                </div>
+                            </div>
+
+                            <p class="small text-muted mb-0" id="pdzAvisoSemParceiro" style="display:none;">
+                                Sua vaga fica garantida. Assim que encontrar alguém, você define o parceiro
+                                aqui mesmo na página do torneio — antes do sorteio das chaves.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -620,23 +640,72 @@
                             <ul class="list-group list-group-flush mb-2">
                                 @foreach (var dupla in cat.Duplas.OrderBy(d => d.EmListaDeEspera).ThenBy(d => d.Id))
                                 {
-                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                    <li class="list-group-item bg-transparent px-0">
+                                    <div class="d-flex justify-content-between align-items-center">
                                         <span>
-                                            @dupla.Jogador1.Nome / @dupla.Jogador2.Nome
+                                            @dupla.Jogador1.Nome /
+                                            @if (dupla.Jogador2 != null)
+                                            {
+                                                @dupla.Jogador2.Nome
+                                            }
+                                            else
+                                            {
+                                                <em class="text-muted">procurando parceiro</em>
+                                            }
                                             @if (dupla.EmListaDeEspera)
                                             {
                                                 <span class="badge bg-warning text-dark ms-2">Lista de espera</span>
                                             }
+                                            @if (!dupla.Completa)
+                                            {
+                                                <span class="badge bg-info text-dark ms-2">Sem parceiro</span>
+                                            }
                                         </span>
                                         @if (Model.Status == "Inscrições Abertas")
                                         {
-                                            <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
-                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="bi bi-trash"></i> Remover
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                        data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
+                                                    <i class="bi bi-arrow-left-right"></i>
+                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir parceiro")
                                                 </button>
-                                            </form>
+                                                <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash"></i> Remover
+                                                    </button>
+                                                </form>
+                                            </div>
                                         }
+                                    </div>
+
+                                    @if (Model.Status == "Inscrições Abertas")
+                                    {
+                                        <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
+                                            <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
+                                                  class="bg-white border rounded p-2">
+                                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-md-4">
+                                                        <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
+                                                               placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+                                                    </div>
+                                                    <div class="col-md-5">
+                                                        <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
+                                                               placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <button type="submit" class="btn btn-sm btn-padel w-100">
+                                                            <i class="bi bi-check-lg"></i> Confirmar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted d-block mt-1">
+                                                    Só quem está na dupla (ou o organizador) pode alterar, e só enquanto as inscrições estão abertas.
+                                                </small>
+                                            </form>
+                                        </div>
+                                    }
                                     </li>
                                 }
                             </ul>
@@ -1001,5 +1070,38 @@
                     .catch(function () { status.innerHTML = ''; });
             });
         });
+    })();
+
+    // "Ainda não tenho parceiro": esconde os campos do jogador 2. O required precisa sair
+    // junto, senão o navegador recusa o envio apontando pra um campo invisível.
+    (function () {
+        var check = document.getElementById('pdzSemParceiro');
+        if (!check) return;
+
+        var campos = document.getElementById('pdzCamposParceiro');
+        var aviso = document.getElementById('pdzAvisoSemParceiro');
+        var badge = document.getElementById('pdzBadgeSemParceiro');
+
+        function aplicar() {
+            var solo = check.checked;
+            campos.style.display = solo ? 'none' : '';
+            aviso.style.display = solo ? '' : 'none';
+            badge.style.display = solo ? '' : 'none';
+
+            campos.querySelectorAll('input').forEach(function (input) {
+                if (solo) {
+                    if (input.hasAttribute('required')) {
+                        input.dataset.eraRequired = '1';
+                        input.removeAttribute('required');
+                    }
+                    input.value = '';
+                } else if (input.dataset.eraRequired === '1') {
+                    input.setAttribute('required', 'required');
+                }
+            });
+        }
+
+        check.addEventListener('change', aplicar);
+        aplicar(); // respeita o estado se o navegador restaurar o formulário
     })();
 </script>

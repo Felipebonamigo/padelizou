@@ -324,10 +324,12 @@ namespace Padelizou.Controllers
             void Somar(int jogadorId, int games) => pontos[jogadorId] = pontos.GetValueOrDefault(jogadorId) + games;
             foreach (var p in partidas)
             {
+                // No americano as duplas são sorteadas pelo sistema, então Jogador2Id nunca
+                // é nulo aqui — mas a checagem evita quebrar se algum dado vier torto.
                 Somar(p.Dupla1.Jogador1Id, p.GamesDupla1 ?? 0);
-                Somar(p.Dupla1.Jogador2Id, p.GamesDupla1 ?? 0);
+                if (p.Dupla1.Jogador2Id != null) Somar(p.Dupla1.Jogador2Id.Value, p.GamesDupla1 ?? 0);
                 Somar(p.Dupla2.Jogador1Id, p.GamesDupla2 ?? 0);
-                Somar(p.Dupla2.Jogador2Id, p.GamesDupla2 ?? 0);
+                if (p.Dupla2.Jogador2Id != null) Somar(p.Dupla2.Jogador2Id.Value, p.GamesDupla2 ?? 0);
             }
 
             var top4 = pontos.OrderByDescending(kv => kv.Value).Take(4).Select(kv => kv.Key).ToList();

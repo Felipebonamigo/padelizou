@@ -398,6 +398,15 @@ namespace Padelizou.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // Uma categoria por jogador, quando o organizador desligou as múltiplas.
+            var bloqueioCategorias = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
+                _context, torneio, new[] { jogador.Id });
+            if (bloqueioCategorias != null)
+            {
+                TempData["Erro"] = bloqueioCategorias;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             bool jaInscrito = await _context.InscricoesAmericanas
                 .AnyAsync(i => i.CategoriaId == categoriaId && i.JogadorId == jogador.Id);
             if (!jaInscrito)
@@ -740,12 +749,16 @@ namespace Padelizou.Controllers
             var idsInscritos = torneio.Categorias
                 .SelectMany(c => c.Duplas)
                 .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
+                .Where(id => id != null).Select(id => id!.Value)
                 .ToList();
             var pontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(idsInscritos);
 
             foreach (var categoria in torneio.Categorias)
             {
-                var duplas = categoria.Duplas.ToList();
+                // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
+                // nomes) e confirmada. Quem está na lista de espera ou ainda sem parceiro
+                // continua inscrito, mas fora das chaves.
+                var duplas = categoria.Duplas.Where(d => d.Completa && !d.EmListaDeEspera).ToList();
 
                 // CORREÇÃO DA REGRA DE OURO:
                 // O mínimo para ter jogo não é 3, é 2 duplas (Para uma chave final direta)!
@@ -754,7 +767,7 @@ namespace Padelizou.Controllers
                 // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
-                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id))
+                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id!.Value))
                     .ToList();
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
@@ -1025,8 +1038,11 @@ namespace Padelizou.Controllers
                 bool ehFinal = partida.Fase == "Final";
 
                 // 1. Quem jogou recebe o próprio resultado.
-                var idsVencedores = new[] { vencedora.Jogador1Id, vencedora.Jogador2Id };
-                var idsPerdedores = new[] { perdedora.Jogador1Id, perdedora.Jogador2Id };
+                // Dupla incompleta não chega a jogar, mas o filtro protege o push de nulo.
+                var idsVencedores = new[] { vencedora.Jogador1Id, vencedora.Jogador2Id }
+                    .Where(id => id != null).Select(id => id!.Value).ToArray();
+                var idsPerdedores = new[] { perdedora.Jogador1Id, perdedora.Jogador2Id }
+                    .Where(id => id != null).Select(id => id!.Value).ToArray();
 
                 foreach (var id in idsVencedores)
                 {
@@ -1189,7 +1205,10 @@ namespace Padelizou.Controllers
                 .Where(c => c.TorneioId == torneioId)
                 .Select(c => c.Nome).Distinct().ToListAsync();
             var hist = await _estatisticas.ObterMelhoresColocacoesAsync(nomes, excluirTorneioId: torneioId);
-            int Titulos(int jogadorId) => hist.TryGetValue(jogadorId, out var porTier) ? porTier.Values.Sum(v => v.Titulos) : 0;
+            // Aceita nulo (dupla ainda sem parceiro) devolvendo 0 — a transmissão não pode
+            // quebrar por causa de uma inscrição incompleta.
+            int Titulos(int? jogadorId) => jogadorId != null && hist.TryGetValue(jogadorId.Value, out var porTier)
+                ? porTier.Values.Sum(v => v.Titulos) : 0;
 
             var partidas = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
@@ -1204,11 +1223,11 @@ namespace Padelizou.Controllers
                 jogador1IdD1 = p.Dupla1.Jogador1Id,
                 jogador1NomeD1 = p.Dupla1.Jogador1.Nome,
                 jogador2IdD1 = p.Dupla1.Jogador2Id,
-                jogador2NomeD1 = p.Dupla1.Jogador2.Nome,
+                jogador2NomeD1 = p.Dupla1.Jogador2 != null ? p.Dupla1.Jogador2.Nome : "A definir",
                 jogador1IdD2 = p.Dupla2.Jogador1Id,
                 jogador1NomeD2 = p.Dupla2.Jogador1.Nome,
                 jogador2IdD2 = p.Dupla2.Jogador2Id,
-                jogador2NomeD2 = p.Dupla2.Jogador2.Nome,
+                jogador2NomeD2 = p.Dupla2.Jogador2 != null ? p.Dupla2.Jogador2.Nome : "A definir",
                 setsD1 = p.SetsDupla1,
                 gamesD1 = p.GamesDupla1,
                 setsD2 = p.SetsDupla2,
