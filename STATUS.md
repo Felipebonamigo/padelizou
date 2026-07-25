@@ -38,7 +38,9 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - **Ranking**: categoria prevista movida para o perfil, busca dentro do ranking, dropdown de categorias, ranking por torneio embutido, coluna de vitórias, filtro de período e filtro por estado + **várias cidades**.
 - **Fim do "Ranking: 0 pts"**: perfil mostra pontos reais somados dos torneios (3 telas corrigidas).
 - **PWA**: ícone de iPhone + maskable e atalhos de app (Agenda, Torneios, Ranking, Marcar jogo).
-- **Fase 2 (parte de código)**: métricas de uso no admin com medidor do MEI, alerta de 70/90% por e-mail, lembrete automático de cobrança e comprovante + CSV. Colunas `CriadoEm` novas (registro antigo = sem data). 89 testes. Testado no dev (lembrete disparou de verdade) e **publicado em produção** (build-5).
+- **Fase 2 (parte de código)**: métricas de uso no admin com medidor do MEI, alerta de 70/90% por e-mail, lembrete automático de cobrança e comprovante + CSV. Colunas `CriadoEm` novas (registro antigo = sem data). Testado no dev (lembrete disparou de verdade) e **publicado em produção** (build-5).
+- **Área do jogador**: gráfico de evolução (pontos por mês + acumulado, SVG sem biblioteca), push nos momentos-chave (convite de grupo, inscrição confirmada, resultado — seguidor só no mata-mata pra não virar spam) e onboarding de 5 passos que some quando concluído. **98 testes**. Publicado em produção (build-9).
+- **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
 
 ---
 
@@ -61,7 +63,8 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 
 ### Fase 3 — O dia do torneio `~1-2 semanas`
 - [ ] **Comunicado em massa** aos inscritos (1 clique) `1 dia`
-- [ ] **Notificações nos momentos-chave**: inscrição confirmada, chaves publicadas, seu jogo é o próximo, resultado `1 dia`
+- [x] **Notificações nos momentos-chave**: convite, inscrição confirmada e resultado ✅ 25/07
+- [ ] Faltam 2 momentos: **chaves publicadas** e **seu jogo é o próximo** `4h`
 - [ ] **Convite pra se cadastrar na tela ao vivo** (maior porta de entrada desperdiçada) `4h` 💡
 - [ ] **Check-in de duplas** por QR code `1 dia`
 - [ ] **Aviso de quadra atrasada** (o sistema já sabe previsto × real) `1 dia` 💡
@@ -97,7 +100,6 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [ ] Push de **nova solicitação de aula** pro professor (hoje só e-mail)
 
 ## 📋 Backlog consciente (fazer depois)
-- Gráfico de evolução do jogador (pontos por mês)
 - Banners/avisos da plataforma
 - Fila de denúncias de comentários
 - **Exclusão de conta pelo usuário** — ⚠️ vira obrigação legal (LGPD) quando a base crescer
