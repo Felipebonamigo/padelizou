@@ -414,22 +414,96 @@ public class JogadoresController : Controller
         return RedirectToAction("Perfil", new { id = perfilId });
     }
 
-    // Busca de jogadores por nome (para ver histórico/H2H de qualquer um).
+    // Busca de jogadores: nome + categoria + cidade/estado + clube, tudo combinável.
+    // É a tela de "achar parceiro" — por isso os filtros são os mesmos critérios que
+    // alguém usa pra escolher com quem jogar.
     [HttpGet]
-    public async Task<IActionResult> Buscar(string? q)
+    public async Task<IActionResult> Buscar(string? q, int? categoriaId, string? estado, string? cidade, int? clubeId)
     {
-        var resultados = string.IsNullOrWhiteSpace(q)
-            ? new List<Jogador>()
-            : await _context.Jogadores
-                .Where(j => j.Nome.Contains(q))
-                .OrderBy(j => j.Nome)
-                .Take(50)
-                .ToListAsync();
+        const int limite = 60;
 
-        // Pontos reais de ranking dos jogadores listados, em UMA consulta.
-        ViewBag.PontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(resultados.Select(j => j.Id));
-        ViewBag.Query = q;
-        return View(resultados);
+        var vm = new BuscaJogadoresVM
+        {
+            Nome = q,
+            CategoriaId = categoriaId,
+            Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim().ToUpper(),
+            Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim(),
+            ClubeId = clubeId,
+        };
+
+        // Opções dos selects. As cidades já saem filtradas pelo estado escolhido.
+        var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(vm.Estado);
+        vm.Estados = estados;
+        vm.Cidades = cidades;
+        vm.Categorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+        vm.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+
+        if (!vm.TemFiltro) return View(vm);
+
+        var query = _context.Jogadores.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(vm.Nome))
+            query = query.Where(j => j.Nome.Contains(vm.Nome));
+
+        if (vm.Estado != null)
+            query = query.Where(j => j.Estado != null && j.Estado.ToUpper() == vm.Estado);
+
+        if (vm.Cidade != null)
+            query = query.Where(j => j.Cidade != null && j.Cidade.ToUpper() == vm.Cidade.ToUpper());
+
+        // Categoria e clube vivem em tabelas de ligação, e "sem nenhuma linha" significa
+        // "aceita qualquer uma" (ver JogadorCategoria/JogadorClube) — quem não declarou
+        // preferência entra no resultado em vez de sumir da busca.
+        if (vm.CategoriaId != null)
+        {
+            query = query.Where(j =>
+                !_context.JogadorCategorias.Any(c => c.JogadorId == j.Id)
+                || _context.JogadorCategorias.Any(c => c.JogadorId == j.Id && c.CategoriaPadraoId == vm.CategoriaId));
+        }
+
+        if (vm.ClubeId != null)
+        {
+            query = query.Where(j =>
+                !_context.JogadorClubes.Any(c => c.JogadorId == j.Id)
+                || _context.JogadorClubes.Any(c => c.JogadorId == j.Id && c.ClubeId == vm.ClubeId));
+        }
+
+        vm.TotalEncontrado = await query.CountAsync();
+
+        var jogadores = await query
+            .Include(j => j.Time)
+            .OrderBy(j => j.Nome)
+            .Take(limite)
+            .ToListAsync();
+
+        var ids = jogadores.Select(j => j.Id).ToList();
+        var pontos = await _estatisticas.ObterPontosPorJogadorAsync(ids);
+
+        // Categorias e clubes de todos os achados em duas consultas, não uma por jogador.
+        var catsPorJogador = (await _context.JogadorCategorias
+                .Where(c => ids.Contains(c.JogadorId))
+                .Select(c => new { c.JogadorId, Nome = c.CategoriaPadrao.Nome })
+                .ToListAsync())
+            .GroupBy(x => x.JogadorId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Nome).ToList());
+
+        var clubesPorJogador = (await _context.JogadorClubes
+                .Where(c => ids.Contains(c.JogadorId))
+                .Select(c => new { c.JogadorId, Nome = c.Clube.Nome })
+                .ToListAsync())
+            .GroupBy(x => x.JogadorId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Nome).ToList());
+
+        vm.Resultados = jogadores.Select(j => new JogadorEncontradoVM
+        {
+            Jogador = j,
+            Pontos = pontos.GetValueOrDefault(j.Id),
+            Time = j.Time?.Nome,
+            Categorias = catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+            Clubes = clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+        }).ToList();
+
+        return View(vm);
     }
 
     // Histórico completo de confrontos entre o jogador logado e um adversário.

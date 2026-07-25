@@ -10,9 +10,14 @@
             <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Times</h2>
             <p class="text-muted small mb-0">As bandeiras da comunidade e quem veste cada uma.</p>
         </div>
-        <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary rounded-pill px-3">
-            <i class="bi bi-flag me-1"></i> Meu time
-        </a>
+        <div class="d-flex gap-2">
+            <a asp-controller="Jogadores" asp-action="Buscar" class="btn btn-padel rounded-pill px-3">
+                <i class="bi bi-search me-1"></i> Buscar jogadores
+            </a>
+            <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-flag me-1"></i> Meu time
+            </a>
+        </div>
     </div>
 
     @* Busca no servidor: a lista de times tende a crescer bastante menos que a de jogadores. *@
