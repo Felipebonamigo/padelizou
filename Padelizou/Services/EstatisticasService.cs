@@ -980,6 +980,143 @@ public class EstatisticasService : IEstatisticasService
         };
     }
 
+    // Pontos reais de vários jogadores numa consulta só — evita repetir esse mesmo loop
+    // em cada tela que precisa de pontuação (busca, sorteio de chaves...).
+    public async Task<Dictionary<int, int>> ObterPontosPorJogadorAsync(IEnumerable<int> jogadorIds)
+    {
+        var ids = jogadorIds.Distinct().ToHashSet();
+        var pontos = ids.ToDictionary(id => id, _ => 0);
+        if (ids.Count == 0) return pontos;
+
+        var duplas = await _context.Duplas
+            .Where(d => ids.Contains(d.Jogador1Id) || ids.Contains(d.Jogador2Id))
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+            .ToListAsync();
+
+        foreach (var d in duplas)
+        {
+            int p = PontosPorFase(d.UltimaFase);
+            if (pontos.ContainsKey(d.Jogador1Id)) pontos[d.Jogador1Id] += p;
+            if (pontos.ContainsKey(d.Jogador2Id)) pontos[d.Jogador2Id] += p;
+        }
+
+        return pontos;
+    }
+
+    // Evolução mês a mês. Os pontos de um torneio contam no mês em que ele COMEÇOU
+    // (Torneio.DataInicio) — é a única data que o torneio tem. Torneio sem data fica de fora
+    // do gráfico, mas continua somando no total do perfil.
+    public async Task<EvolucaoJogadorVM> ObterEvolucaoJogadorAsync(int jogadorId, int meses = 12)
+    {
+        var primeiroMes = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-(meses - 1));
+
+        var participacoes = await _context.Duplas
+            .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+            .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase })
+            .ToListAsync();
+
+        // Tudo que aconteceu antes da janela já entra como saldo inicial do acumulado,
+        // senão a linha começaria em zero e daria a impressão de que o jogador regrediu.
+        int acumulado = participacoes
+            .Where(p => p.Data != null && p.Data.Value < primeiroMes)
+            .Sum(p => PontosPorFase(p.UltimaFase));
+
+        var naJanela = participacoes.Where(p => p.Data != null && p.Data.Value >= primeiroMes).ToList();
+
+        var vm = new EvolucaoJogadorVM();
+        for (int i = 0; i < meses; i++)
+        {
+            var mes = primeiroMes.AddMonths(i);
+            var fim = mes.AddMonths(1);
+            var doMes = naJanela.Where(p => p.Data!.Value >= mes && p.Data.Value < fim).ToList();
+
+            int ganhos = doMes.Sum(p => PontosPorFase(p.UltimaFase));
+            acumulado += ganhos;
+
+            vm.Meses.Add(new MesEvolucaoVM
+            {
+                Mes = mes,
+                Pontos = ganhos,
+                Acumulado = acumulado,
+                Torneios = doMes.Count,
+                Titulos = doMes.Count(p => p.UltimaFase == "Campeao"),
+            });
+        }
+
+        return vm;
+    }
+
+    // Primeiros passos do jogador novo. A ordem importa: cada passo só faz sentido depois do
+    // anterior — sem perfil preenchido o app não sabe o que sugerir; sem seguir ninguém o
+    // feed fica vazio; e a inscrição é o que finalmente coloca a pessoa dentro de um jogo.
+    public async Task<OnboardingVM> ObterOnboardingAsync(int jogadorId)
+    {
+        var jogador = await _context.Jogadores.FindAsync(jogadorId);
+        if (jogador == null) return new OnboardingVM();
+
+        bool perfilCompleto =
+            !string.IsNullOrWhiteSpace(jogador.FotoPerfil)
+            && !string.IsNullOrWhiteSpace(jogador.Cidade)
+            && !string.IsNullOrWhiteSpace(jogador.LadoQuadra);
+
+        bool temCategoria = await _context.JogadorCategorias.AnyAsync(c => c.JogadorId == jogadorId);
+        bool segueAlguem = await _context.SeguidoresJogador.AnyAsync(s => s.SeguidorId == jogadorId);
+        bool temInscricao = await _context.Duplas
+                .AnyAsync(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+            || await _context.InscricoesAmericanas.AnyAsync(i => i.JogadorId == jogadorId);
+        bool instalouApp = await _context.PushSubscriptionsJogador.AnyAsync(s => s.JogadorId == jogadorId);
+
+        return new OnboardingVM
+        {
+            Passos = new List<PassoOnboardingVM>
+            {
+                new()
+                {
+                    Titulo = "Complete seu perfil",
+                    Explicacao = "Foto, cidade e de que lado você joga — é assim que te acham pra formar dupla.",
+                    Icone = "bi-person-badge",
+                    TextoBotao = "Completar perfil",
+                    Controller = "Auth", Action = "EditarPerfil",
+                    Concluido = perfilCompleto,
+                },
+                new()
+                {
+                    Titulo = "Diga sua categoria",
+                    Explicacao = "Serve pra te convidarem pros jogos do seu nível.",
+                    Icone = "bi-bar-chart-steps",
+                    TextoBotao = "Escolher categoria",
+                    Controller = "Auth", Action = "Preferencias",
+                    Concluido = temCategoria,
+                },
+                new()
+                {
+                    Titulo = "Siga outros jogadores",
+                    Explicacao = "Você fica sabendo quando eles se inscrevem num torneio ou ganham um jogo.",
+                    Icone = "bi-person-plus",
+                    TextoBotao = "Buscar jogadores",
+                    Controller = "Jogadores", Action = "Buscar",
+                    Concluido = segueAlguem,
+                },
+                new()
+                {
+                    Titulo = "Entre num torneio",
+                    Explicacao = "É onde você começa a pontuar no ranking.",
+                    Icone = "bi-trophy",
+                    TextoBotao = "Ver torneios",
+                    Controller = "Torneios", Action = "Index",
+                    Concluido = temInscricao,
+                },
+                new()
+                {
+                    Titulo = "Instale o app no celular",
+                    Explicacao = "No iPhone: botão de compartilhar → \"Adicionar à Tela de Início\". No Android o próprio navegador oferece.",
+                    Icone = "bi-phone",
+                    Concluido = instalouApp,
+                },
+            }
+        };
+    }
+
     // ---------- helpers ----------
 
     private async Task<List<Partida>> CarregarPartidasFinalizadasAsync(bool incluirTorneio = false)

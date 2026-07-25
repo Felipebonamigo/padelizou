@@ -84,6 +84,16 @@
 
     @if (!perfilBloqueado)
     {
+    <!-- EVOLUÇÃO NO TEMPO -->
+    var evolucao = ViewBag.Evolucao as Padelizou.ViewModels.EvolucaoJogadorVM;
+    @if (evolucao != null && evolucao.TemDados)
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow"></i> Evolução nos últimos 12 meses</h6>
+            @await Html.PartialAsync("_GraficoEvolucao", evolucao)
+        </div>
+    }
+
     <!-- PERFIL DE JOGO (lado preferido / lateralidade) -->
     @if (!string.IsNullOrWhiteSpace(Model.jogador.LadoQuadra) || !string.IsNullOrWhiteSpace(Model.jogador.Lateralidade))
     {

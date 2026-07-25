@@ -88,6 +88,31 @@ public class ResumoJogadorVM
     public int Derrotas { get; set; }
 }
 
+// Evolução do jogador no tempo — um ponto por mês, pro gráfico do perfil.
+public class EvolucaoJogadorVM
+{
+    public List<MesEvolucaoVM> Meses { get; set; } = new();
+
+    // Falso quando o jogador nunca pontuou no período — a view esconde o gráfico.
+    public bool TemDados => Meses.Any(m => m.Pontos > 0);
+
+    // Quanto ganhou nos últimos 30 dias (o "+X pts no mês" ao lado do total).
+    public int PontosNoUltimoMes => Meses.Count == 0 ? 0 : Meses[^1].Pontos;
+
+    public int Total => Meses.Count == 0 ? 0 : Meses[^1].Acumulado;
+}
+
+public class MesEvolucaoVM
+{
+    public DateTime Mes { get; set; }        // primeiro dia do mês
+    public int Pontos { get; set; }          // ganhos NESTE mês
+    public int Acumulado { get; set; }       // total até o fim deste mês
+    public int Torneios { get; set; }        // torneios encerrados no mês
+    public int Titulos { get; set; }
+
+    public string Rotulo => Mes.ToString("MMM/yy");
+}
+
 // Parceiro de dupla mais frequente ("joga sempre com")
 public class ParceiroResumoVM
 {

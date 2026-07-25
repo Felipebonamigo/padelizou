@@ -54,14 +54,17 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private readonly IAsaasService _asaas;
     private readonly AsaasSettings _settings;
     private readonly ILogger<PagamentoInscricaoService> _logger;
+    private readonly IPushNotificationService _push;
 
     public PagamentoInscricaoService(DbPadelContext context, IAsaasService asaas,
-        IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger)
+        IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger,
+        IPushNotificationService push)
     {
         _context = context;
         _asaas = asaas;
         _settings = settings.Value;
         _logger = logger;
+        _push = push;
     }
 
     // Quem recebe é quem criou o torneio. Se por algum motivo não houver "Criador" gravado,
@@ -291,6 +294,30 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         await _context.SaveChangesAsync();
         _logger.LogInformation("Pagamento {Id} efetivado — inscrição de torneio {Ref} criada.",
             pagamento.Id, pagamento.ReferenciaId);
+
+        // A inscrição paga só existe quando o dinheiro entra — este é o momento em que o
+        // jogador precisa saber que está dentro (ou na lista de espera).
+        var inscritos = dados.Jogador2Id.HasValue
+            ? new[] { dados.Jogador1Id, dados.Jogador2Id.Value }
+            : new[] { dados.Jogador1Id };
+
+        foreach (var jogadorId in inscritos)
+        {
+            try
+            {
+                await _push.EnviarParaJogadorAsync(jogadorId,
+                    emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!",
+                    emListaDeEspera
+                        ? $"{torneio.Nome} · {categoria.Nome} estava lotado. Se alguém desistir, vocês são chamados."
+                        : $"{torneio.Nome} · {categoria.Nome}. Boa sorte!",
+                    $"/Torneios/Details/{torneio.Id}");
+            }
+            catch (Exception ex)
+            {
+                // Push é acessório — a inscrição já está paga e criada, não pode falhar por isso.
+                _logger.LogWarning(ex, "Falha ao notificar inscrição do jogador {JogadorId}.", jogadorId);
+            }
+        }
     }
 
     private async Task EfetivarAulaAsync(Pagamento pagamento)

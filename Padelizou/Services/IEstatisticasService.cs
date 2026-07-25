@@ -68,4 +68,14 @@ public interface IEstatisticasService
 
     // Conquistas/badges do jogador, calculadas a partir do histórico (não persistidas).
     Task<List<ConquistaVM>> ObterConquistasAsync(int jogadorId);
+
+    // Pontos reais de ranking de vários jogadores numa consulta só. Existe porque
+    // Jogador.PontuacaoGlobal é campo morto (sempre 0) — quem precisa de pontos usa isto.
+    Task<Dictionary<int, int>> ObterPontosPorJogadorAsync(IEnumerable<int> jogadorIds);
+
+    // Evolução do jogador mês a mês (pontos ganhos e acumulado) pros últimos N meses.
+    Task<EvolucaoJogadorVM> ObterEvolucaoJogadorAsync(int jogadorId, int meses = 12);
+
+    // Primeiros passos do jogador (completar perfil → seguir → se inscrever → instalar o app).
+    Task<OnboardingVM> ObterOnboardingAsync(int jogadorId);
 }

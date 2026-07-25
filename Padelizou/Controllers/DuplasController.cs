@@ -206,11 +206,39 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync(); // Inscrição finalizada!
 
             await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador1.Id, jogador2.Id });
+            await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome,
+                new[] { jogador1.Id, jogador2.Id }, emListaDeEspera);
 
             TempData["Sucesso"] = emListaDeEspera
                 ? "Vagas esgotadas — sua dupla entrou na lista de espera. Se alguém desistir, vocês são chamados na ordem de inscrição."
                 : "Inscrição confirmada com sucesso!";
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
+        }
+
+        // Avisa a própria dupla que está dentro. Quem paga recebe o mesmo aviso pelo
+        // PagamentoInscricaoService, quando a cobrança confirma.
+        private async Task NotificarInscricaoConfirmadaAsync(
+            Torneio torneio, string categoriaNome, IEnumerable<int> jogadorIds, bool emListaDeEspera)
+        {
+            var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+
+            foreach (var jogadorId in jogadorIds)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(jogadorId,
+                        emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!",
+                        emListaDeEspera
+                            ? $"{torneio.Nome} · {categoriaNome} estava lotado. Se alguém desistir, vocês são chamados."
+                            : $"{torneio.Nome} · {categoriaNome}. Boa sorte!",
+                        url);
+                }
+                catch (Exception ex)
+                {
+                    // Push é acessório — a inscrição já foi salva, não pode falhar por isso.
+                    _logger.LogWarning(ex, "Falha ao notificar inscrição do jogador {JogadorId}.", jogadorId);
+                }
+            }
         }
 
         // Monta a mensagem de bloqueio se algum dos jogadores já comprovou nível (conforme o

@@ -734,17 +734,27 @@ namespace Padelizou.Controllers
             if (torneio == null || torneio.Status != "Chaves em Sorteio") return NotFound();
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            // Pontos reais de todo mundo inscrito, numa consulta só. Antes isto usava
+            // Jogador.PontuacaoGlobal, campo morto que é sempre 0 — na prática os cabeças de
+            // chave saíam na ordem de inscrição, e não por ranking.
+            var idsInscritos = torneio.Categorias
+                .SelectMany(c => c.Duplas)
+                .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
+                .ToList();
+            var pontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(idsInscritos);
+
             foreach (var categoria in torneio.Categorias)
             {
                 var duplas = categoria.Duplas.ToList();
 
-                // CORREÇÃO DA REGRA DE OURO: 
+                // CORREÇÃO DA REGRA DE OURO:
                 // O mínimo para ter jogo não é 3, é 2 duplas (Para uma chave final direta)!
                 if (duplas.Count < 2) continue;
 
                 // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
                 var duplasOrdenadas = duplas
-                    .OrderByDescending(d => d.Jogador1.PontuacaoGlobal + d.Jogador2.PontuacaoGlobal)
+                    .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
+                                          + pontosPorJogador.GetValueOrDefault(d.Jogador2Id))
                     .ToList();
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
@@ -985,8 +995,82 @@ namespace Padelizou.Controllers
                     if (torneio != null) torneio.Status = "Finalizado";
                     await _context.SaveChangesAsync();
                 }
+
+                await NotificarResultadoAsync(partida, vencedorId, perdedorId);
             }
             return RedirectToAction("MesaControle", new { id = partida?.TorneioId });
+        }
+
+        // Fim de jogo: avisa quem jogou e quem acompanha esses jogadores. É o momento em que
+        // o app tem algo a dizer — antes disso a pessoa precisava abrir a tela pra descobrir.
+        private async Task NotificarResultadoAsync(Partida partida, int vencedorId, int perdedorId)
+        {
+            try
+            {
+                var duplas = await _context.Duplas
+                    .Include(d => d.Jogador1).Include(d => d.Jogador2)
+                    .Where(d => d.Id == vencedorId || d.Id == perdedorId)
+                    .ToListAsync();
+
+                var vencedora = duplas.FirstOrDefault(d => d.Id == vencedorId);
+                var perdedora = duplas.FirstOrDefault(d => d.Id == perdedorId);
+                if (vencedora == null || perdedora == null) return;
+
+                var torneio = partida.TorneioId == null ? null : await _context.Torneios.FindAsync(partida.TorneioId.Value);
+                var url = Url.Action("Details", "Torneios", new { id = partida.TorneioId });
+
+                string Nomes(Dupla d) => $"{d.Jogador1?.Nome} e {d.Jogador2?.Nome}";
+                var placar = $"{partida.GamesDupla1}x{partida.GamesDupla2}";
+                var ondeFoi = torneio != null ? $" · {torneio.Nome}" : "";
+                bool ehFinal = partida.Fase == "Final";
+
+                // 1. Quem jogou recebe o próprio resultado.
+                var idsVencedores = new[] { vencedora.Jogador1Id, vencedora.Jogador2Id };
+                var idsPerdedores = new[] { perdedora.Jogador1Id, perdedora.Jogador2Id };
+
+                foreach (var id in idsVencedores)
+                {
+                    await _pushService.EnviarParaJogadorAsync(id,
+                        ehFinal ? "🏆 Campeões!" : "Vitória!",
+                        ehFinal
+                            ? $"Vocês venceram a final{ondeFoi}!"
+                            : $"Vocês venceram {Nomes(perdedora)} ({placar}){ondeFoi}.",
+                        url);
+                }
+
+                foreach (var id in idsPerdedores)
+                {
+                    await _pushService.EnviarParaJogadorAsync(id,
+                        "Resultado do seu jogo",
+                        $"{Nomes(vencedora)} venceu ({placar}){ondeFoi}.",
+                        url);
+                }
+
+                // 2. Quem segue os jogadores da partida fica sabendo — sem repetir pra quem
+                //    já recebeu como participante, e respeitando a preferência de notificação.
+                var idsEmQuadra = idsVencedores.Concat(idsPerdedores).ToHashSet();
+                var seguidores = await _context.SeguidoresJogador
+                    .Include(s => s.Seguidor)
+                    .Where(s => idsEmQuadra.Contains(s.SeguidoId)
+                             && !idsEmQuadra.Contains(s.SeguidorId)
+                             && s.Seguidor.NotificarSeguidosTorneio)
+                    .Select(s => s.SeguidorId)
+                    .Distinct()
+                    .ToListAsync();
+
+                foreach (var seguidorId in seguidores)
+                {
+                    await _pushService.EnviarParaJogadorAsync(seguidorId,
+                        ehFinal ? "Saiu o campeão!" : "Resultado de quem você segue",
+                        $"{Nomes(vencedora)} venceu {Nomes(perdedora)} ({placar}){ondeFoi}.",
+                        url);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Push é acessório — o resultado já está gravado, não pode falhar por isso.
+                _logger.LogWarning(ex, "Falha ao notificar resultado da partida {PartidaId}.", partida.Id);
+            }
         }
 
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).

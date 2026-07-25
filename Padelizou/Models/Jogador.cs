@@ -28,6 +28,11 @@ public partial class Jogador
     public string? SenhaHash { get; set; }
     public string? FotoPerfil { get; set; }
     public string? Instagram { get; set; }
+    // CAMPO MORTO — não é o ranking. Nunca foi alimentado pelo sistema (os valores que
+    // existem em produção vieram de SQL manual antigo). Os pontos reais são calculados a
+    // partir das fases alcançadas: use IEstatisticasService.ObterPontosPorJogadorAsync ou
+    // ObterResumoJogadorAsync. A coluna fica só pra não exigir migração destrutiva.
+    [Obsolete("Use IEstatisticasService para pontos reais. Este campo não reflete o ranking.")]
     public int PontuacaoGlobal { get; set; }
     public bool IsProfessor { get; set; } // <- A nova Flag!
 

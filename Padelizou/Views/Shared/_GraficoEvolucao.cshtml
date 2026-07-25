@@ -1,0 +1,118 @@
+@model Padelizou.ViewModels.EvolucaoJogadorVM
+@using Microsoft.AspNetCore.Html
+@*
+    Evolução de pontos no tempo. SVG inline de propósito: nenhuma biblioteca externa,
+    funciona com o app instalado sem internet e acompanha o tema claro/escuro.
+    Barras = pontos ganhos no mês. Linha = total acumulado.
+*@
+@{
+    var meses = Model.Meses;
+
+    // Geometria do desenho (unidades do viewBox, não pixels de tela).
+    const int larg = 340, alt = 130;
+    const int margemEsq = 30, margemDir = 8, margemTopo = 10, margemBase = 22;
+    int plotL = larg - margemEsq - margemDir;
+    int plotA = alt - margemTopo - margemBase;
+
+    int maxAcum = Math.Max(1, meses.Count == 0 ? 1 : meses.Max(m => m.Acumulado));
+    int maxMes = Math.Max(1, meses.Count == 0 ? 1 : meses.Max(m => m.Pontos));
+
+    // Um "passo" por mês; o ponto fica no centro da faixa.
+    double passo = meses.Count == 0 ? plotL : (double)plotL / meses.Count;
+    double X(int i) => margemEsq + passo * (i + 0.5);
+    double YAcum(int v) => margemTopo + plotA - (double)v / maxAcum * plotA;
+
+    string Num(double d) => d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    // <text> é tag reservada do Razor, então os rótulos do SVG saem por Html.Raw.
+    Func<double, double, string, string, IHtmlContent> Rotulo = (x, y, ancora, texto) =>
+        Html.Raw($"<text x=\"{x.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}\" " +
+                 $"y=\"{y.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}\" " +
+                 $"text-anchor=\"{ancora}\" class=\"pdz-ev-eixo\">{System.Net.WebUtility.HtmlEncode(texto)}</text>");
+
+    var pontosLinha = string.Join(" ", meses.Select((m, i) => $"{Num(X(i))},{Num(YAcum(m.Acumulado))}"));
+    var areaFechada = meses.Count == 0 ? "" :
+        $"{Num(X(0))},{Num(margemTopo + plotA)} {pontosLinha} {Num(X(meses.Count - 1))},{Num(margemTopo + plotA)}";
+}
+
+@if (!Model.TemDados)
+{
+    <div class="text-center text-muted py-4">
+        <i class="bi bi-graph-up-arrow fs-2 d-block mb-2 opacity-50"></i>
+        <p class="small mb-0">Ainda não há pontos para desenhar a evolução.</p>
+        <p class="small mb-0">Dispute um torneio e o gráfico aparece aqui.</p>
+    </div>
+}
+else
+{
+    <div class="pdz-evolucao">
+        <svg viewBox="0 0 @larg @alt" width="100%" height="auto" role="img"
+             aria-label="Evolução de pontos nos últimos @meses.Count meses"
+             style="display:block; overflow:visible;">
+
+            @* Linhas de referência: zero, metade e topo *@
+            @for (int g = 0; g <= 2; g++)
+            {
+                double y = margemTopo + plotA - plotA / 2.0 * g;
+                int valor = (int)Math.Round(maxAcum / 2.0 * g);
+                <line x1="@margemEsq" y1="@Num(y)" x2="@(larg - margemDir)" y2="@Num(y)"
+                      class="pdz-ev-grade" />
+                @Rotulo(margemEsq - 4, y + 3, "end", valor.ToString())
+            }
+
+            @* Barras: o que ganhou em cada mês *@
+            @for (int i = 0; i < meses.Count; i++)
+            {
+                var m = meses[i];
+                if (m.Pontos <= 0) { continue; }
+
+                double h = (double)m.Pontos / maxMes * (plotA * 0.55);
+                double larguraBarra = Math.Max(4, passo * 0.5);
+                <rect x="@Num(X(i) - larguraBarra / 2)" y="@Num(margemTopo + plotA - h)"
+                      width="@Num(larguraBarra)" height="@Num(h)" rx="2" class="pdz-ev-barra">
+                    <title>@m.Rotulo: +@m.Pontos pts@(m.Torneios > 0 ? $" em {m.Torneios} torneio(s)" : "")</title>
+                </rect>
+            }
+
+            @* Área + linha do acumulado *@
+            <polygon points="@areaFechada" class="pdz-ev-area" />
+            <polyline points="@pontosLinha" class="pdz-ev-linha" />
+
+            @for (int i = 0; i < meses.Count; i++)
+            {
+                var m = meses[i];
+                <circle cx="@Num(X(i))" cy="@Num(YAcum(m.Acumulado))" r="@(m.Titulos > 0 ? 3.6 : 2.4)"
+                        class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto")">
+                    <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")</title>
+                </circle>
+            }
+
+            @* Eixo do tempo: rótulo em 1 mês sim, 1 não, pra não embolar no celular *@
+            @for (int i = 0; i < meses.Count; i++)
+            {
+                if (meses.Count > 6 && i % 2 != 0 && i != meses.Count - 1) { continue; }
+                @Rotulo(X(i), alt - 6, "middle", meses[i].Rotulo)
+            }
+        </svg>
+
+        <div class="d-flex flex-wrap gap-3 justify-content-center mt-2 small text-muted">
+            <span><span class="pdz-ev-chip pdz-ev-chip-barra"></span> ganhos no mês</span>
+            <span><span class="pdz-ev-chip pdz-ev-chip-linha"></span> total acumulado</span>
+            <span><span class="pdz-ev-chip pdz-ev-chip-titulo"></span> mês com título</span>
+        </div>
+    </div>
+
+    <style>
+        .pdz-evolucao .pdz-ev-grade { stroke: currentColor; opacity: .12; stroke-width: 1; }
+        .pdz-evolucao .pdz-ev-eixo { fill: currentColor; opacity: .55; font-size: 8px; }
+        .pdz-evolucao .pdz-ev-barra { fill: var(--padel-green, #8bc34a); opacity: .45; }
+        .pdz-evolucao .pdz-ev-area { fill: var(--padel-green, #8bc34a); opacity: .12; }
+        .pdz-evolucao .pdz-ev-linha { fill: none; stroke: var(--padel-green, #8bc34a); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+        .pdz-evolucao .pdz-ev-ponto { fill: var(--padel-green, #8bc34a); }
+        .pdz-evolucao .pdz-ev-ponto-titulo { fill: #ffc107; stroke: #fff; stroke-width: 1; }
+        .pdz-evolucao .pdz-ev-chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 3px; }
+        .pdz-evolucao .pdz-ev-chip-barra { background: var(--padel-green, #8bc34a); opacity: .45; }
+        .pdz-evolucao .pdz-ev-chip-linha { background: var(--padel-green, #8bc34a); }
+        .pdz-evolucao .pdz-ev-chip-titulo { background: #ffc107; border-radius: 50%; }
+    </style>
+}

@@ -126,6 +126,8 @@ namespace padelizou.Controllers
             // ir até Jogadores/Perfil só pra ver esses números.
             ViewBag.Resumo = await _estatisticas.ObterResumoJogadorAsync(jogadorId);
             ViewBag.Destaques = await _estatisticas.ObterDestaquesAsync(jogadorId);
+            ViewBag.Evolucao = await _estatisticas.ObterEvolucaoJogadorAsync(jogadorId);
+            ViewBag.Onboarding = await _estatisticas.ObterOnboardingAsync(jogadorId);
             ViewBag.HistoricoTorneios = await _context.Duplas
                 .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
                 .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
@@ -390,7 +392,6 @@ namespace padelizou.Controllers
                     Email = email,
                     IsProfessor = isProfessor, // <- Salva se ele marcou a caixinha
                     FotoPerfil = caminhoDaFotoParaBanco,
-                    PontuacaoGlobal = 0 // Motor do ranking zerado!
                 };
                 jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha);
                 _context.Jogadores.Add(jogador);

@@ -4,6 +4,8 @@
     ViewData["Title"] = "Meu Perfil";
     var resumo = (ResumoJogadorVM)ViewBag.Resumo;
     var historicoTorneios = (List<Padelizou.Models.Dupla>)ViewBag.HistoricoTorneios;
+    var evolucao = (EvolucaoJogadorVM)ViewBag.Evolucao;
+    var onboarding = (OnboardingVM)ViewBag.Onboarding;
 }
 
 <div class="container mt-4">
@@ -65,7 +67,15 @@
 
                 <div class="p-3 rounded-3 mt-2" style="background-color: var(--pdz-navy-fixed); color: white;">
                     <p class="mb-0 small text-uppercase" style="letter-spacing: 1px;">Pontos de ranking</p>
-                    <h1 class="display-5 fw-bold" style="color: var(--padel-green);">@resumo.Pontos <span class="fs-6 text-light">pts</span></h1>
+                    <h1 class="display-5 fw-bold mb-0" style="color: var(--padel-green);">
+                        @resumo.Pontos <span class="fs-6 text-light">pts</span>
+                    </h1>
+                    @if (evolucao.PontosNoUltimoMes > 0)
+                    {
+                        <p class="mb-0 small fw-bold" style="color: var(--padel-green);">
+                            <i class="bi bi-arrow-up-short"></i>+@evolucao.PontosNoUltimoMes neste mês
+                        </p>
+                    }
                     <p class="mb-0 small text-light opacity-75">Somados dos seus resultados em torneios.</p>
                 </div>
                 <a asp-controller="Agenda" asp-action="Index" class="btn btn-padel mt-4 rounded-pill w-100 fw-bold shadow-sm">
@@ -96,6 +106,20 @@
         <!-- Coluna da Direita: Atividades e Painel -->
         <div class="col-md-8">
             <h4 class="mb-3 fw-bold" style="color: var(--pdz-ink);">Meu Painel</h4>
+
+            @await Html.PartialAsync("_Onboarding", onboarding)
+
+            @if (evolucao.TemDados)
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                            <i class="bi bi-graph-up-arrow"></i> Sua evolução
+                        </h6>
+                        @await Html.PartialAsync("_GraficoEvolucao", evolucao)
+                    </div>
+                </div>
+            }
 
             <div class="row mb-4">
                 <!-- Card de Torneios -->

@@ -89,7 +89,7 @@ public class JogadoresController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     // Certifique-se de que "TimeId" está dentro do atributo [Bind]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,PontuacaoGlobal,TimeId")] Jogador jogador)
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Nome,TimeId")] Jogador jogador)
     {
         if (id != jogador.Id)
         {
@@ -232,6 +232,9 @@ public class JogadoresController : Controller
 
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
+
+        // Evolução de pontos mês a mês (gráfico do perfil).
+        ViewBag.Evolucao = await _estatisticas.ObterEvolucaoJogadorAsync(id);
 
         // Elogios recebidos, agregados por tipo (só os tipos que têm pelo menos 1).
         var elogiosRecebidos = await _context.Elogios
@@ -423,26 +426,8 @@ public class JogadoresController : Controller
                 .Take(50)
                 .ToListAsync();
 
-        // Pontos reais de ranking dos jogadores listados, em UMA consulta (o campo
-        // Jogador.PontuacaoGlobal é morto e mostrava "0 pts" pra todo mundo).
-        var pontos = new Dictionary<int, int>();
-        if (resultados.Count > 0)
-        {
-            var ids = resultados.Select(j => j.Id).ToList();
-            var fases = await _context.Duplas
-                .Where(d => ids.Contains(d.Jogador1Id) || ids.Contains(d.Jogador2Id))
-                .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
-                .ToListAsync();
-
-            foreach (var d in fases)
-            {
-                int p = _estatisticas.PontosPorFase(d.UltimaFase);
-                if (ids.Contains(d.Jogador1Id)) pontos[d.Jogador1Id] = pontos.GetValueOrDefault(d.Jogador1Id) + p;
-                if (ids.Contains(d.Jogador2Id)) pontos[d.Jogador2Id] = pontos.GetValueOrDefault(d.Jogador2Id) + p;
-            }
-        }
-
-        ViewBag.PontosPorJogador = pontos;
+        // Pontos reais de ranking dos jogadores listados, em UMA consulta.
+        ViewBag.PontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(resultados.Select(j => j.Id));
         ViewBag.Query = q;
         return View(resultados);
     }

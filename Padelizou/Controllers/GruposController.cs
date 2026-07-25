@@ -13,11 +13,16 @@ namespace padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly ISessaoGrupoService _sessaoGrupoService;
+        private readonly IPushNotificationService _pushService;
+        private readonly ILogger<GruposController> _logger;
 
-        public GruposController(DbPadelContext context, ISessaoGrupoService sessaoGrupoService)
+        public GruposController(DbPadelContext context, ISessaoGrupoService sessaoGrupoService,
+            IPushNotificationService pushService, ILogger<GruposController> logger)
         {
             _context = context;
             _sessaoGrupoService = sessaoGrupoService;
+            _pushService = pushService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -371,6 +376,21 @@ namespace padelizou.Controllers
             var infoValor = grupo.ValorAvulso.HasValue ? $" (R$ {grupo.ValorAvulso.Value:0.00} a diária)" : "";
             var mensagem = $"Oi {jogador.Nome}! Tô te chamando pro nosso jogo fixo em {(grupo.Clube?.Nome ?? "nosso clube")} " +
                            $"dia {sessao.DataHora:dd/MM 'às' HH:mm}{infoValor}. Bora?";
+
+            // Push além do WhatsApp: quem tem o app instalado recebe o convite na hora e cai
+            // direto na tela de responder. O WhatsApp continua sendo o canal principal.
+            try
+            {
+                await _pushService.EnviarParaJogadorAsync(jogadorId,
+                    "Te chamaram pra jogar!",
+                    $"{grupo.Nome} · {sessao.DataHora:dd/MM 'às' HH:mm}{(grupo.Clube != null ? $" em {grupo.Clube.Nome}" : "")}",
+                    Url.Action("Index", "Grupos"));
+            }
+            catch (Exception ex)
+            {
+                // Push é acessório — falhar aqui não pode impedir o convite pelo WhatsApp.
+                _logger.LogWarning(ex, "Falha ao enviar push de convite pro jogador {JogadorId}.", jogadorId);
+            }
 
             TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(jogador.Celular, mensagem);
             TempData["WhatsAppNome"] = jogador.Nome;
