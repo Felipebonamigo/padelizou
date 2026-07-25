@@ -48,37 +48,90 @@ public class PagamentosController : Controller
 
     // Extrato: o que entrou pra mim como organizador/professor e o que eu paguei como jogador.
     [HttpGet]
-    public async Task<IActionResult> Meus()
+    public async Task<IActionResult> Meus(string? periodo)
     {
         var meuId = ObterJogadorIdLogado();
+        var vm = new ViewModels.ExtratoFinanceiroVM
+        {
+            Periodo = (periodo ?? "").Trim().ToLower() switch { "mes" => "mes", "ano" => "ano", _ => "sempre" }
+        };
+
+        // Corte do período. Vale a data em que o dinheiro entrou de fato (ConfirmadoEm);
+        // pra cobrança ainda pendente, a data em que ela foi criada.
+        var agora = DateTime.Now;
+        DateTime? de = vm.Periodo switch
+        {
+            "mes" => new DateTime(agora.Year, agora.Month, 1),
+            "ano" => new DateTime(agora.Year, 1, 1),
+            _ => null
+        };
+        static DateTime DataEfetiva(Pagamento p) => p.ConfirmadoEm ?? p.CriadoEm;
 
         var recebidos = await _context.Pagamentos
             .Where(p => p.RecebedorId == meuId)
             .Include(p => p.Jogador)
             .OrderByDescending(p => p.CriadoEm)
-            .Take(200)
+            .Take(500)
             .ToListAsync();
 
-        ViewBag.Pagos = await _context.Pagamentos
+        if (de != null) recebidos = recebidos.Where(p => DataEfetiva(p) >= de.Value).ToList();
+
+        vm.Movimentos = recebidos;
+        vm.Recebido = recebidos.Where(p => p.Status == "Confirmado").Sum(p => p.ValorRepasse);
+        vm.AReceber = recebidos.Where(p => p.Status == "Pendente").Sum(p => p.ValorRepasse);
+        vm.Estornado = recebidos.Where(p => p.Status == "Estornado").Sum(p => p.ValorRepasse);
+        vm.TaxaPaga = recebidos.Where(p => p.Status == "Confirmado").Sum(p => p.Comissao);
+        vm.QtdRecebimentos = recebidos.Count(p => p.Status == "Confirmado");
+        vm.Pendentes = recebidos.Where(p => p.Status == "Pendente").OrderBy(p => p.ExpiraEm ?? p.CriadoEm).ToList();
+
+        // "De onde veio o dinheiro": cada torneio vira uma linha (o organizador quer ver
+        // torneio a torneio); aulas e quadras entram agregadas por tipo.
+        var idsTorneio = recebidos.Where(p => p.TorneioId != null).Select(p => p.TorneioId!.Value).Distinct().ToList();
+        var nomesTorneio = idsTorneio.Count == 0
+            ? new Dictionary<int, string>()
+            : await _context.Torneios.Where(t => idsTorneio.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Nome);
+
+        vm.PorOrigem = recebidos
+            .Where(p => p.Status is "Confirmado" or "Pendente")
+            .GroupBy(p => p.TorneioId != null
+                ? ("Torneio", nomesTorneio.GetValueOrDefault(p.TorneioId!.Value, "Torneio"))
+                : p.Tipo == "Aula" ? ("Aula", "Aulas") : ("Quadra", "Aluguel de quadra"))
+            .Select(g => new ViewModels.OrigemFinanceiraVM
+            {
+                Tipo = g.Key.Item1,
+                Nome = g.Key.Item2,
+                Icone = g.Key.Item1 switch { "Torneio" => "bi-trophy-fill", "Aula" => "bi-mortarboard-fill", _ => "bi-calendar2-check-fill" },
+                Recebido = g.Where(p => p.Status == "Confirmado").Sum(p => p.ValorRepasse),
+                Pendente = g.Where(p => p.Status == "Pendente").Sum(p => p.ValorRepasse),
+                Qtd = g.Count(p => p.Status == "Confirmado"),
+            })
+            .OrderByDescending(o => o.Recebido).ThenByDescending(o => o.Pendente)
+            .ToList();
+
+        var compras = await _context.Pagamentos
             .Where(p => p.JogadorId == meuId)
             .OrderByDescending(p => p.CriadoEm)
             .Take(200)
             .ToListAsync();
+        vm.MinhasCompras = de == null ? compras : compras.Where(p => DataEfetiva(p) >= de.Value).ToList();
 
         // O dono do app enxerga o total de comissão de todo mundo; os demais, só o próprio.
         var eu = await _context.Jogadores.FindAsync(meuId);
-        ViewBag.EhAdmin = eu?.IsAdminRaiz == true;
-        if (ViewBag.EhAdmin)
+        vm.EhAdmin = eu?.IsAdminRaiz == true;
+        if (vm.EhAdmin)
         {
-            ViewBag.ComissaoTotal = await _context.Pagamentos
-                .Where(p => p.Status == "Confirmado")
-                .SumAsync(p => (decimal?)p.Comissao) ?? 0m;
-            ViewBag.ComissaoPendente = await _context.Pagamentos
-                .Where(p => p.Status == "Pendente")
-                .SumAsync(p => (decimal?)p.Comissao) ?? 0m;
+            var todos = await _context.Pagamentos
+                .Where(p => p.Status == "Confirmado" || p.Status == "Pendente")
+                .Select(p => new { p.Status, p.Comissao, p.CriadoEm, p.ConfirmadoEm })
+                .ToListAsync();
+            if (de != null) todos = todos.Where(p => (p.ConfirmadoEm ?? p.CriadoEm) >= de.Value).ToList();
+
+            vm.ComissaoPlataforma = todos.Where(p => p.Status == "Confirmado").Sum(p => p.Comissao);
+            vm.ComissaoPlataformaPendente = todos.Where(p => p.Status == "Pendente").Sum(p => p.Comissao);
         }
 
-        return View(recebidos);
+        return View(vm);
     }
 
     // Estorna (ou cancela, se ainda não foi paga) uma cobrança dos meus torneios/aulas.

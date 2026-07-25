@@ -45,7 +45,7 @@
         }
         else
         {
-            <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+            <p class="text-muted">Ranking: <strong>@ViewBag.Pontos pts</strong> <span class="small">· @ViewBag.TotalTorneios torneio(s)</span></p>
 
             @if (ViewBag.EstouSeguindo != null)
             {

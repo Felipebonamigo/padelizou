@@ -74,6 +74,10 @@ public class ConfrontoPartidaVM
 // Resumo estatístico do jogador (cards do perfil)
 public class ResumoJogadorVM
 {
+    // Pontos de ranking somados de TODAS as categorias (mesma regra do hub: pontos por fase
+    // alcançada em cada torneio). Substitui o campo morto Jogador.PontuacaoGlobal, que ficava 0.
+    public int Pontos { get; set; }
+
     public int TotalTorneios { get; set; }
     public int Titulos { get; set; }
     public int Finais { get; set; }

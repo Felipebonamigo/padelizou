@@ -217,6 +217,7 @@ public class JogadoresController : Controller
 
         // Cálculos de Estatísticas (via serviço central, inclui "caiu na chave")
         var resumo = await _estatisticas.ObterResumoJogadorAsync(id);
+        ViewBag.Pontos = resumo.Pontos;
         ViewBag.TotalTorneios = resumo.TotalTorneios;
         ViewBag.Titulos = resumo.Titulos;
         ViewBag.Finais = resumo.Finais;
@@ -422,6 +423,26 @@ public class JogadoresController : Controller
                 .Take(50)
                 .ToListAsync();
 
+        // Pontos reais de ranking dos jogadores listados, em UMA consulta (o campo
+        // Jogador.PontuacaoGlobal é morto e mostrava "0 pts" pra todo mundo).
+        var pontos = new Dictionary<int, int>();
+        if (resultados.Count > 0)
+        {
+            var ids = resultados.Select(j => j.Id).ToList();
+            var fases = await _context.Duplas
+                .Where(d => ids.Contains(d.Jogador1Id) || ids.Contains(d.Jogador2Id))
+                .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+                .ToListAsync();
+
+            foreach (var d in fases)
+            {
+                int p = _estatisticas.PontosPorFase(d.UltimaFase);
+                if (ids.Contains(d.Jogador1Id)) pontos[d.Jogador1Id] = pontos.GetValueOrDefault(d.Jogador1Id) + p;
+                if (ids.Contains(d.Jogador2Id)) pontos[d.Jogador2Id] = pontos.GetValueOrDefault(d.Jogador2Id) + p;
+            }
+        }
+
+        ViewBag.PontosPorJogador = pontos;
         ViewBag.Query = q;
         return View(resultados);
     }

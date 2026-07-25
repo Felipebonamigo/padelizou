@@ -1,11 +1,6 @@
-@model List<Pagamento>
+@model Padelizou.ViewModels.ExtratoFinanceiroVM
 @{
-    ViewData["Title"] = "Meus Pagamentos - Padelizou";
-    var pagos = ViewBag.Pagos as List<Pagamento> ?? new List<Pagamento>();
-    bool ehAdmin = ViewBag.EhAdmin == true;
-
-    decimal recebidoConfirmado = Model.Where(p => p.Status == "Confirmado").Sum(p => p.ValorRepasse);
-    decimal recebidoPendente = Model.Where(p => p.Status == "Pendente").Sum(p => p.ValorRepasse);
+    ViewData["Title"] = "Financeiro - Padelizou";
 
     Func<string, string> corDoStatus = status => status switch
     {
@@ -14,6 +9,15 @@
         "Estornado" or "Cancelado" => "danger",
         _ => "secondary"
     };
+
+    Func<string, string> rotuloTipo = tipo => tipo switch
+    {
+        "Aula" => "Aula",
+        "Jogo" => "Quadra",
+        _ => "Torneio"
+    };
+
+    string UrlPeriodo(string p) => "/Pagamentos/Meus" + (p == "sempre" ? "" : "?periodo=" + p);
 }
 
 @if (TempData["Sucesso"] != null)
@@ -26,57 +30,173 @@
 }
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
         <div>
-            <h2 class="fw-bold" style="color: var(--pdz-ink);">Meus Pagamentos</h2>
-            <p class="text-muted mb-0">O que você recebeu pelos seus torneios e aulas.</p>
+            <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">Financeiro</h2>
+            <p class="text-muted mb-0">O que você recebeu pelos seus torneios, aulas e quadras.</p>
         </div>
-        <a asp-controller="Pagamentos" asp-action="Configurar" class="btn btn-outline-secondary rounded-pill">Configurar</a>
+        <a asp-controller="Pagamentos" asp-action="Configurar" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-gear"></i> Configurar recebimento
+        </a>
     </div>
 
+    <!-- Período: recorta todos os números da tela -->
+    <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+        <span class="text-muted small fw-semibold"><i class="bi bi-calendar3"></i> Período:</span>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="@UrlPeriodo("mes")" class="btn @(Model.Periodo == "mes" ? "btn-primary" : "btn-outline-secondary")">Este mês</a>
+            <a href="@UrlPeriodo("ano")" class="btn @(Model.Periodo == "ano" ? "btn-primary" : "btn-outline-secondary")">Este ano</a>
+            <a href="@UrlPeriodo("sempre")" class="btn @(Model.Periodo == "sempre" ? "btn-primary" : "btn-outline-secondary")">Sempre</a>
+        </div>
+    </div>
+
+    <!-- Resumo do período -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="text-muted small">Recebido</div>
-                    <div class="fs-4 fw-bold text-success">@recebidoConfirmado.ToString("C")</div>
+                    <div class="text-muted small"><i class="bi bi-check-circle-fill text-success"></i> Recebido</div>
+                    <div class="fs-4 fw-bold text-success">@Model.Recebido.ToString("C")</div>
+                    <div class="small text-muted">@Model.QtdRecebimentos pagamento@(Model.QtdRecebimentos == 1 ? "" : "s") @Model.PeriodoRotulo</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="text-muted small">Aguardando pagamento</div>
-                    <div class="fs-4 fw-bold text-warning">@recebidoPendente.ToString("C")</div>
+                    <div class="text-muted small"><i class="bi bi-hourglass-split text-warning"></i> A receber</div>
+                    <div class="fs-4 fw-bold text-warning">@Model.AReceber.ToString("C")</div>
+                    <div class="small text-muted">@Model.Pendentes.Count aguardando pagamento</div>
                 </div>
             </div>
         </div>
-        @if (ehAdmin)
-        {
-            <div class="col-md-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-percent"></i> Taxa do Padelizou</div>
+                    <div class="fs-4 fw-bold text-secondary">@Model.TaxaPaga.ToString("C")</div>
+                    <div class="small text-muted">já descontada do recebido</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            @if (Model.EhAdmin)
+            {
                 <div class="card border-0 shadow-sm h-100" style="background: var(--pdz-ink); color: #fff;">
                     <div class="card-body">
-                        <div class="small opacity-75">Comissão do Padelizou</div>
-                        <div class="fs-4 fw-bold">@(((decimal)ViewBag.ComissaoTotal).ToString("C"))</div>
-                        <div class="small opacity-75">
-                            + @(((decimal)ViewBag.ComissaoPendente).ToString("C")) pendente
-                        </div>
+                        <div class="small opacity-75"><i class="bi bi-shield-fill"></i> Comissão da plataforma</div>
+                        <div class="fs-4 fw-bold">@Model.ComissaoPlataforma.ToString("C")</div>
+                        <div class="small opacity-75">+ @Model.ComissaoPlataformaPendente.ToString("C") pendente</div>
                     </div>
                 </div>
-            </div>
-        }
+            }
+            else
+            {
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small"><i class="bi bi-arrow-counterclockwise text-danger"></i> Estornado</div>
+                        <div class="fs-4 fw-bold @(Model.Estornado > 0 ? "text-danger" : "text-muted")">@Model.Estornado.ToString("C")</div>
+                        <div class="small text-muted">devolvido a jogadores</div>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 
-    <h5 class="fw-bold mb-3">Recebimentos</h5>
-    @if (!Model.Any())
+    @if (!Model.TemMovimento)
     {
-        <div class="alert alert-light border">
-            Nenhum recebimento ainda. Ative o recebimento em <strong>Configurar</strong> e coloque
-            preço nos seus torneios ou aulas.
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <i class="bi bi-cash-stack display-4 text-muted mb-3 d-block"></i>
+            <h5 class="fw-bold text-secondary">Nada movimentado @Model.PeriodoRotulo</h5>
+            <p class="text-muted mb-3">
+                Para receber pelo app: ative em <strong>Configurar recebimento</strong> e coloque
+                preço nos seus torneios, aulas ou horários de quadra.
+            </p>
+            <a asp-action="Configurar" class="btn btn-padel rounded-pill px-4">Configurar recebimento</a>
         </div>
     }
     else
     {
+        <!-- Quem está devendo: o "a cobrar" do dia a dia -->
+        @if (Model.Pendentes.Any())
+        {
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-warning-subtle border-0">
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-hourglass-split"></i> Aguardando pagamento (@Model.Pendentes.Count)</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th>Quem</th>
+                                <th>Origem</th>
+                                <th class="text-end">Valor</th>
+                                <th>Vence</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model.Pendentes)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@(p.Jogador?.Nome ?? "—")</td>
+                                    <td class="small text-muted">@rotuloTipo(p.Tipo)</td>
+                                    <td class="text-end fw-semibold">@p.ValorRepasse.ToString("C")</td>
+                                    <td class="small text-muted">@(p.ExpiraEm?.ToString("dd/MM HH:mm") ?? "—")</td>
+                                    <td class="text-end">
+                                        @if (!string.IsNullOrEmpty(p.InvoiceUrl))
+                                        {
+                                            <a href="@p.InvoiceUrl" target="_blank" rel="noopener"
+                                               class="btn btn-sm btn-outline-primary rounded-pill px-3">Link de pagamento</a>
+                                        }
+                                        <form asp-action="Estornar" asp-route-id="@p.Id" method="post" class="d-inline"
+                                              onsubmit="return confirm('Cancelar esta cobrança?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">Cancelar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- De onde veio o dinheiro -->
+        @if (Model.PorOrigem.Any())
+        {
+            <h5 class="fw-bold mb-3">De onde veio</h5>
+            <div class="row g-3 mb-4">
+                @foreach (var o in Model.PorOrigem)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="fw-bold" style="color: var(--pdz-ink);">
+                                            <i class="bi @o.Icone text-secondary"></i> @o.Nome
+                                        </div>
+                                        <div class="small text-muted">@o.Qtd pagamento@(o.Qtd == 1 ? "" : "s")</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold text-success">@o.Recebido.ToString("C")</div>
+                                        @if (o.Pendente > 0)
+                                        {
+                                            <div class="small text-warning">+ @o.Pendente.ToString("C") a receber</div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Extrato detalhado -->
+        <h5 class="fw-bold mb-3">Extrato</h5>
         <div class="table-responsive mb-5">
             <table class="table align-middle">
                 <thead>
@@ -91,12 +211,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var p in Model)
+                    @foreach (var p in Model.Movimentos)
                     {
                         <tr>
-                            <td class="small">@p.CriadoEm.ToString("dd/MM/yy HH:mm")</td>
+                            <td class="small">@((p.ConfirmadoEm ?? p.CriadoEm).ToString("dd/MM/yy HH:mm"))</td>
                             <td>@(p.Jogador?.Nome ?? "-")</td>
-                            <td class="small">@p.Tipo</td>
+                            <td class="small">@rotuloTipo(p.Tipo)</td>
                             <td class="text-end fw-semibold">@p.ValorRepasse.ToString("C")</td>
                             <td class="text-end small text-muted">@p.Comissao.ToString("C")</td>
                             <td><span class="badge bg-@corDoStatus(p.Status)">@p.Status</span></td>
@@ -119,9 +239,9 @@
         </div>
     }
 
-    @if (pagos.Any())
+    @if (Model.MinhasCompras.Any())
     {
-        <h5 class="fw-bold mb-3">Minhas inscrições pagas</h5>
+        <h5 class="fw-bold mb-3">O que eu paguei</h5>
         <div class="table-responsive">
             <table class="table align-middle">
                 <thead>
@@ -134,11 +254,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var p in pagos)
+                    @foreach (var p in Model.MinhasCompras)
                     {
                         <tr>
-                            <td class="small">@p.CriadoEm.ToString("dd/MM/yy HH:mm")</td>
-                            <td class="small">@p.Tipo</td>
+                            <td class="small">@((p.ConfirmadoEm ?? p.CriadoEm).ToString("dd/MM/yy HH:mm"))</td>
+                            <td class="small">@rotuloTipo(p.Tipo)</td>
                             <td class="text-end fw-semibold">@p.Valor.ToString("C")</td>
                             <td><span class="badge bg-@corDoStatus(p.Status)">@p.Status</span></td>
                             <td class="text-end">

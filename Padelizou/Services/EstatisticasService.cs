@@ -968,6 +968,7 @@ public class EstatisticasService : IEstatisticasService
 
         return new ResumoJogadorVM
         {
+            Pontos = fases.Sum(PontosPorFase),
             TotalTorneios = fases.Count,
             Titulos = fases.Count(f => f == "Campeao"),
             Finais = fases.Count(f => f == "Final"),

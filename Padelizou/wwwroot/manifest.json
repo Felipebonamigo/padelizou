@@ -16,10 +16,48 @@
       "type": "image/png"
     },
     {
+      "src": "/image/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/image/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/image/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minha agenda",
+      "short_name": "Agenda",
+      "description": "Seus jogos, aulas e torneios",
+      "url": "/Agenda"
+    },
+    {
+      "name": "Torneios",
+      "short_name": "Torneios",
+      "description": "Torneios abertos e ao vivo",
+      "url": "/Torneios"
+    },
+    {
+      "name": "Ranking",
+      "short_name": "Ranking",
+      "description": "Ranking de jogadores e times",
+      "url": "/Jogadores/Ranking"
+    },
+    {
+      "name": "Marcar jogo",
+      "short_name": "Marcar",
+      "description": "Reservar quadra em um clube",
+      "url": "/MarcarJogo"
     }
   ]
 }
