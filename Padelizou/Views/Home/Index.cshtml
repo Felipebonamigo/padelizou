@@ -103,22 +103,27 @@
     }
 
     <!-- Números da comunidade -->
-    @if (Model.TotalJogadores > 0)
+    @{
+        // Só entra o que já aconteceu: "0 jogos disputados" na home passa a impressão
+        // errada numa base nova. Se não sobrar nada, o bloco inteiro some.
+        var numeros = new[]
+        {
+            (Valor: Model.TotalJogadores, Rotulo: "jogadores"),
+            (Valor: Model.JogosDisputados, Rotulo: "jogos disputados"),
+            (Valor: Model.TorneiosRealizados, Rotulo: "torneios realizados"),
+        }.Where(n => n.Valor > 0).ToList();
+    }
+    @if (numeros.Any())
     {
         <div class="card border-0 shadow-sm mb-5 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
             <div class="row text-center g-3">
-                <div class="col-4">
-                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.TotalJogadores.ToString("N0")</h2>
-                    <small class="text-light opacity-75">jogadores</small>
-                </div>
-                <div class="col-4">
-                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.JogosDisputados.ToString("N0")</h2>
-                    <small class="text-light opacity-75">jogos disputados</small>
-                </div>
-                <div class="col-4">
-                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.TorneiosRealizados.ToString("N0")</h2>
-                    <small class="text-light opacity-75">torneios realizados</small>
-                </div>
+                @foreach (var n in numeros)
+                {
+                    <div class="col-@(12 / numeros.Count)">
+                        <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@n.Valor.ToString("N0")</h2>
+                        <small class="text-light opacity-75">@n.Rotulo</small>
+                    </div>
+                }
             </div>
         </div>
     }
