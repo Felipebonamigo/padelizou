@@ -1,0 +1,31 @@
+# CI do Padelizou — roda os testes automatizados a cada push e pull request.
+# Se algum teste falhar, o commit fica marcado com ❌ no GitHub.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  testes:
+    name: Build + 85 testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restaurar pacotes
+        run: dotnet restore Padelizou.slnx
+
+      - name: Compilar (Release)
+        run: dotnet build Padelizou.slnx -c Release --no-restore
+
+      - name: Rodar os testes
+        run: dotnet test Padelizou.slnx -c Release --no-build --nologo
