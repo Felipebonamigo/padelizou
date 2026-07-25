@@ -160,7 +160,7 @@ namespace Padelizou.Controllers
                     // Fim da Fase de Grupos -> Gera as Quartas/Semis
                     await VerificarEGerarMataMataAutomatico(partida.TorneioId.Value, partida.CategoriaId);
                 }
-                else if (partida.Fase == "Quartas de Final" || partida.Fase == "Semifinal")
+                else if (ChaveamentoMataMata.ProximaFase(partida.Fase) != null) // Oitavas, Quartas ou Semifinal
                 {
                     // Fim de um jogo de Mata-Mata -> Empurra o vencedor pra próxima fase
                     await ProcessarAvancoMataMataAutomatico(partida.CategoriaId, partida.TorneioId.Value, partida.Fase);
@@ -232,30 +232,31 @@ namespace Padelizou.Controllers
             })
             .GroupBy(c => c.Grupo).OrderBy(g => g.Key).ToList();
 
-            var primeirosColocados = new List<Dupla>();
-            var segundosColocados = new List<Dupla>();
-
+            // Motor único de chaveamento (mesmo do TorneiosController): funciona pra
+            // QUALQUER nº de grupos — todos os 1ºs + melhores 2ºs completando o quadro.
+            var classificados = new List<ChaveamentoMataMata.Classificado>();
             foreach (var grupo in classificacao)
             {
                 var rankingDoGrupo = grupo.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ToList();
-                if (rankingDoGrupo.Count > 0) primeirosColocados.Add(rankingDoGrupo[0].Dupla);
-                if (rankingDoGrupo.Count > 1) segundosColocados.Add(rankingDoGrupo[1].Dupla);
+                for (int pos = 0; pos < rankingDoGrupo.Count && pos < 2; pos++)
+                {
+                    classificados.Add(new ChaveamentoMataMata.Classificado(
+                        rankingDoGrupo[pos].Dupla.Id, grupo.Key ?? "?", rankingDoGrupo[pos].Vitorias, rankingDoGrupo[pos].Saldo, pos + 1));
+                }
             }
 
-            if (primeirosColocados.Count == 0 || primeirosColocados.Count != segundosColocados.Count) return;
-
-            int totalJogos = primeirosColocados.Count;
-            string nomeFase = totalJogos switch { 1 => "Final", 2 => "Semifinal", 4 => "Quartas de Final", 8 => "Oitavas de Final", _ => "Mata-Mata" };
+            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados);
+            if (confrontos.Count == 0) return;
 
             var novasPartidas = new List<Partida>();
-            for (int i = 0; i < totalJogos; i++)
+            foreach (var confronto in confrontos)
             {
                 novasPartidas.Add(new Partida
                 {
                     TorneioId = torneioId,
                     CategoriaId = categoriaId,
-                    Dupla1Id = primeirosColocados[i].Id,
-                    Dupla2Id = segundosColocados[totalJogos - 1 - i].Id,
+                    Dupla1Id = confronto.Dupla1Id,
+                    Dupla2Id = confronto.Dupla2Id,
                     Fase = nomeFase,
                     Status = "Agendada",
                     HorarioPrevisto = horarioAtual,
@@ -268,31 +269,36 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
         }
 
-        // --- ROBÔ 2: GERA O AVANÇO DAS CHAVES (Quartas -> Semis -> Final) ---
+        // --- ROBÔ 2: GERA O AVANÇO DAS CHAVES (Oitavas -> Quartas -> Semis -> Final) ---
         private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int torneioId, string faseConcluida)
         {
+            var proximaFase = ChaveamentoMataMata.ProximaFase(faseConcluida);
+            if (proximaFase == null) return;
+
             // Busca os vencedores da fase que acabou de jogar
             var vencedores = await _context.Partidas
                 .Where(p => p.CategoriaId == categoriaId && p.Fase == faseConcluida && p.Status == "Finalizada")
-                .Select(p => p.VencedorId.Value)
+                .OrderBy(p => p.Id)
+                .Select(p => p.VencedorId!.Value)
                 .ToListAsync();
 
-            // Só avança se TODOS os jogos daquela fase acabaram
-            if (faseConcluida == "Quartas de Final" && vencedores.Count == 4)
+            // Só avança com a fase completa, e nunca gera a próxima em duplicidade.
+            if (vencedores.Count != ChaveamentoMataMata.JogosDaFase(faseConcluida)) return;
+            if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
+
+            foreach (var confronto in ChaveamentoMataMata.ParearVencedores(vencedores))
             {
-                // Verifica se já não foi gerado para evitar duplicação
-                if (!await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == "Semifinal"))
+                _context.Partidas.Add(new Partida
                 {
-                    _context.Partidas.Add(new Partida { TorneioId = torneioId, CategoriaId = categoriaId, Fase = "Semifinal", Status = "Agendada", Dupla1Id = vencedores[0], Dupla2Id = vencedores[3], HorarioPrevisto = DateTime.Now.AddHours(2), Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() });
-                    _context.Partidas.Add(new Partida { TorneioId = torneioId, CategoriaId = categoriaId, Fase = "Semifinal", Status = "Agendada", Dupla1Id = vencedores[1], Dupla2Id = vencedores[2], HorarioPrevisto = DateTime.Now.AddHours(2), Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() });
-                }
-            }
-            else if (faseConcluida == "Semifinal" && vencedores.Count == 2)
-            {
-                if (!await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == "Final"))
-                {
-                    _context.Partidas.Add(new Partida { TorneioId = torneioId, CategoriaId = categoriaId, Fase = "Final", Status = "Agendada", Dupla1Id = vencedores[0], Dupla2Id = vencedores[1], HorarioPrevisto = DateTime.Now.AddHours(2), Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() });
-                }
+                    TorneioId = torneioId,
+                    CategoriaId = categoriaId,
+                    Fase = proximaFase,
+                    Status = "Agendada",
+                    Dupla1Id = confronto.Dupla1Id,
+                    Dupla2Id = confronto.Dupla2Id,
+                    HorarioPrevisto = DateTime.Now.AddHours(2),
+                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                });
             }
             await _context.SaveChangesAsync();
         }

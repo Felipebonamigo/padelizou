@@ -115,6 +115,79 @@ public class TorneioFluxoTests
         Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
+    // Motor genérico (25/07/2026): antes o mata-mata só fechava com 1/2/4/8 grupos.
+    // Agora QUALQUER nº de grupos fecha: todos os 1ºs + melhores 2ºs completam o quadro.
+    [Theory]
+    [InlineData(9, "Semifinal", 2)]         // 3 grupos → quadro de 4 (3 primeiros + melhor 2º)
+    [InlineData(15, "Quartas de Final", 4)] // 5 grupos → quadro de 8 (5 primeiros + 3 melhores 2ºs)
+    [InlineData(18, "Quartas de Final", 4)] // 6 grupos → quadro de 8 (6 primeiros + 2 melhores 2ºs)
+    [InlineData(24, "Oitavas de Final", 8)] // 8 grupos → quadro de 16 (todos 1ºs e 2ºs)
+    public async Task Qualquer_numero_de_grupos_fecha_o_mata_mata(int qtdDuplas, string primeiraFase, int jogosEsperados)
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var jogosDeGrupo = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
+        foreach (var jogo in jogosDeGrupo)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var primeiraFaseJogos = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == primeiraFase).ToListAsync();
+        Assert.Equal(jogosEsperados, primeiraFaseJogos.Count);
+
+        // Nenhuma dupla aparece 2x na primeira fase do mata-mata.
+        var ids = primeiraFaseJogos.SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).ToList();
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+
+        // E o fluxo segue até coroar um campeão.
+        string? fase = primeiraFase;
+        while (fase != null)
+        {
+            var jogos = await ctx.Partidas
+                .Where(p => p.CategoriaId == categoria.Id && p.Fase == fase && p.Status != "Finalizada").ToListAsync();
+            foreach (var jogo in jogos)
+                await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 4);
+            fase = Padelizou.Services.ChaveamentoMataMata.ProximaFase(fase);
+            if (fase != null)
+                Assert.True(await ctx.Partidas.AnyAsync(p => p.CategoriaId == categoria.Id && p.Fase == fase),
+                    $"A fase '{fase}' deveria ter sido gerada pelo robô.");
+        }
+
+        var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync();
+        Assert.Equal(1, duplas.Count(d => d.UltimaFase == "Campeao"));
+        Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+    }
+
+    // Categoria mínima: 1 grupo só também fecha com Final e campeão (antes travava pra sempre).
+    [Theory]
+    [InlineData(3)] // 1 grupo de 3 → Final 1º x 2º
+    [InlineData(2)] // 1 grupo de 2 (chave direta) → Final entre as duas
+    public async Task Um_grupo_so_tambem_coroa_campeao(int qtdDuplas)
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var jogosDeGrupo = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
+        foreach (var jogo in jogosDeGrupo)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var final = await ctx.Partidas
+            .SingleOrDefaultAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Final");
+        Assert.NotNull(final);
+
+        await TestInfra.FinalizarComPlacarAsync(ctx, controller, final!, 9, 6);
+
+        var duplas = await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync();
+        Assert.Equal(1, duplas.Count(d => d.UltimaFase == "Campeao"));
+        Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+    }
+
     [Fact]
     public async Task Fluxo_com_4_grupos_gera_quartas_depois_semis_depois_final()
     {

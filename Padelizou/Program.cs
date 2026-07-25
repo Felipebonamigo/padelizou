@@ -171,6 +171,23 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 
+// Health check pro monitor de uptime (cron do VPS + UptimeRobot): responde 200 "ok"
+// quando o app está de pé E consegue falar com o banco; 503 caso contrário.
+// Liberado no AcessoAntecipadoMiddleware (PrefixosLiberados).
+app.MapGet("/healthz", async (DbPadelContext db) =>
+{
+    try
+    {
+        return await db.Database.CanConnectAsync()
+            ? Results.Text("ok")
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
