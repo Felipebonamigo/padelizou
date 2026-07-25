@@ -1,40 +1,144 @@
 @model Padelizou.ViewModels.HomeVM
+@using System.Globalization
 @{
     // Título vazio de propósito: a aba mostra só "Padelizou" (o sistema não é só torneio).
     ViewData["Title"] = null;
-    bool logado = User.Identity?.IsAuthenticated == true;
+    bool logado = Model.PrimeiroNome != null;
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    // "hoje 14:00" / "amanhã 09:30" / "sáb 05/08 10:00" — curto, do jeito que se fala.
+    string QuandoFala(DateTime d)
+    {
+        if (d.Date == DateTime.Today) return $"hoje às {d:HH\\:mm}";
+        if (d.Date == DateTime.Today.AddDays(1)) return $"amanhã às {d:HH\\:mm}";
+        return $"{ptBr.DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek)} {d:dd/MM} às {d:HH\\:mm}";
+    }
 }
 
-<!-- Banner Hero -->
-<div class="pdz-hero text-center mb-5">
-    <span class="pdz-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Jogos · Aulas · Torneios · Ranking</span>
-    <h1 class="display-4 fw-bold mb-2">Seu padel num lugar só.</h1>
-    <p class="lead mb-4">Encontre parceiros, marque quadra e aula, dispute torneios e acompanhe sua evolução.</p>
-    <div class="d-flex flex-wrap gap-2 justify-content-center">
-        @if (logado)
-        {
-            <a asp-controller="Avisos" asp-action="Index" class="btn btn-padel btn-lg rounded-pill px-4">
-                <i class="bi bi-megaphone me-1"></i> Buscar um Jogo
-            </a>
-            <a asp-controller="Auth" asp-action="Perfil" class="btn btn-lg pdz-btn-ghost rounded-pill px-4">
-                <i class="bi bi-person-circle me-1"></i> Meu Painel
-            </a>
-        }
-        else
-        {
+@if (!logado)
+{
+    <!-- ============ VISITANTE: o mapa da plataforma ============ -->
+    <div class="pdz-hero text-center mb-5">
+        <span class="pdz-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Jogos · Aulas · Torneios · Ranking</span>
+        <h1 class="display-4 fw-bold mb-2">Seu padel num lugar só.</h1>
+        <p class="lead mb-4">Encontre parceiros, marque quadra e aula, dispute torneios e acompanhe sua evolução.</p>
+        <div class="d-flex flex-wrap gap-2 justify-content-center">
             <a asp-controller="Auth" asp-action="Cadastro" class="btn btn-padel btn-lg rounded-pill px-4">
                 <i class="bi bi-person-plus me-1"></i> Criar Conta Grátis
             </a>
             <a asp-controller="Auth" asp-action="Login" class="btn btn-lg pdz-btn-ghost rounded-pill px-4">
                 <i class="bi bi-box-arrow-in-right me-1"></i> Já tenho conta
             </a>
-        }
+        </div>
     </div>
-</div>
+}
+else
+{
+    <!-- ============ LOGADO: hoje no seu padel ============ -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Olá, @Model.PrimeiroNome!</h2>
+            <p class="text-muted small mb-0 text-capitalize">@DateTime.Now.ToString("dddd, dd 'de' MMMM", ptBr)</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Avisos" asp-action="Index" class="btn btn-padel rounded-pill px-3">
+                <i class="bi bi-megaphone me-1"></i> Buscar Jogo
+            </a>
+            <a asp-controller="Agenda" asp-action="Index" class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-calendar3 me-1"></i> Agenda
+            </a>
+        </div>
+    </div>
+}
 
 <div class="container px-0">
 
-    @* Torneio rolando agora é a coisa mais viva do sistema — quando existe, abre a página. *@
+    @if (logado)
+    {
+        @* Jogador novo é guiado antes de qualquer outra coisa. Some quando completa. *@
+        @if (Model.Onboarding != null)
+        {
+            @await Html.PartialAsync("_Onboarding", Model.Onboarding)
+        }
+
+        @* A informação mais valiosa que a home pode dar: seu jogo, hora e quadra. *@
+        @if (Model.ProximoJogo != null)
+        {
+            var j = Model.ProximoJogo;
+            <div class="card border-0 shadow-sm mb-4 p-4" style="background-color: var(--pdz-navy-fixed); color: white; border-left: 4px solid var(--padel-green) !important;">
+                <p class="mb-1 small text-uppercase" style="letter-spacing: 1px; color: var(--padel-green);">
+                    <i class="bi bi-alarm"></i> Seu próximo jogo
+                </p>
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+                    <div>
+                        <h3 class="fw-bold mb-1">@QuandoFala(j.Horario)@(j.Quadra != null ? $" · {j.Quadra}" : "")</h3>
+                        <p class="mb-0 text-light opacity-75">
+                            contra <strong class="text-light opacity-100">@j.Adversarios</strong><br />
+                            <small>@j.Fase · @j.Categoria · @j.Torneio</small>
+                        </p>
+                    </div>
+                    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@j.TorneioId"
+                       class="btn btn-padel rounded-pill px-4 fw-bold">Ver torneio</a>
+                </div>
+            </div>
+        }
+
+        @* Próximos compromissos (aula, quadra reservada) *@
+        @if (Model.Compromissos.Any())
+        {
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-calendar-event"></i> Próximos compromissos</h6>
+                        <a asp-controller="Agenda" asp-action="Index" class="small text-decoration-none fw-bold">Minha agenda →</a>
+                    </div>
+                    @foreach (var c in Model.Compromissos)
+                    {
+                        <a asp-controller="@c.Controller" asp-action="@c.Action" asp-route-id="@c.RotaId"
+                           class="d-flex align-items-center gap-3 py-2 text-decoration-none border-top">
+                            <i class="bi @c.Icone fs-5" style="color: var(--padel-green);"></i>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@c.Titulo</span>
+                                <small class="text-muted">@c.Subtitulo</small>
+                            </div>
+                            <small class="text-muted text-nowrap">@QuandoFala(c.Data)</small>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+
+        @* Torneios em que estou dentro *@
+        @if (Model.MeusTorneios.Any())
+        {
+            <h3 class="pdz-section-title mb-4">Seus torneios</h3>
+            <div class="row g-3 mb-5">
+                @foreach (var m in Model.MeusTorneios)
+                {
+                    bool rolando = m.Torneio.Status != "Inscrições Abertas";
+                    <div class="col-12 col-md-6">
+                        <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3 h-100">
+                            <span class="badge rounded-pill flex-shrink-0 @(rolando ? "bg-danger" : "bg-success")">
+                                @(rolando ? m.Torneio.Status : "Inscrito")
+                            </span>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@m.Torneio.Nome</strong>
+                                <small class="text-muted">@m.Categoria</small>
+                                @if (m.ListaDeEspera)
+                                {
+                                    <span class="badge text-bg-warning ms-1">lista de espera</span>
+                                }
+                            </div>
+                            <a asp-controller="Torneios" asp-action="Details" asp-route-id="@m.Torneio.Id"
+                               class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">@(rolando ? "Acompanhar" : "Ver")</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @* Torneio rolando agora (dos outros — os meus já apareceram acima). *@
     @if (Model.EmAndamento.Any())
     {
         <h3 class="pdz-section-title mb-4"><i class="bi bi-broadcast text-danger me-1"></i> Acontecendo agora</h3>
@@ -60,7 +164,7 @@
     }
 
     <!-- O mapa da plataforma: as 6 portas de entrada -->
-    <h3 class="pdz-section-title mb-4">O que você quer fazer hoje?</h3>
+    <h3 class="pdz-section-title mb-4">@(logado ? "O que você quer fazer hoje?" : "O que dá pra fazer aqui")</h3>
     <div class="row row-cols-2 row-cols-md-3 g-3 mb-5">
         @{
             var portas = new[]
@@ -102,30 +206,30 @@
         </div>
     }
 
-    <!-- Números da comunidade -->
-    @{
-        // Só entra o que já aconteceu: "0 jogos disputados" na home passa a impressão
-        // errada numa base nova. Se não sobrar nada, o bloco inteiro some.
+    <!-- Números da comunidade: prova social, faz sentido pra quem ainda está de fora -->
+    @if (!logado)
+    {
         var numeros = new[]
         {
             (Valor: Model.TotalJogadores, Rotulo: "jogadores"),
             (Valor: Model.JogosDisputados, Rotulo: "jogos disputados"),
             (Valor: Model.TorneiosRealizados, Rotulo: "torneios realizados"),
         }.Where(n => n.Valor > 0).ToList();
-    }
-    @if (numeros.Any())
-    {
-        <div class="card border-0 shadow-sm mb-5 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
-            <div class="row text-center g-3">
-                @foreach (var n in numeros)
-                {
-                    <div class="col-@(12 / numeros.Count)">
-                        <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@n.Valor.ToString("N0")</h2>
-                        <small class="text-light opacity-75">@n.Rotulo</small>
-                    </div>
-                }
+
+        @if (numeros.Any())
+        {
+            <div class="card border-0 shadow-sm mb-5 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
+                <div class="row text-center g-3">
+                    @foreach (var n in numeros)
+                    {
+                        <div class="col-@(12 / numeros.Count)">
+                            <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@n.Valor.ToString("N0")</h2>
+                            <small class="text-light opacity-75">@n.Rotulo</small>
+                        </div>
+                    }
+                </div>
             </div>
-        </div>
+        }
     }
 
     <!-- Faixa pra quem toca o padel da cidade -->
