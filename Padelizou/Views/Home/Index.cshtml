@@ -1,40 +1,157 @@
-﻿@model IEnumerable<Padelizou.Models.Torneio>
+@model Padelizou.ViewModels.HomeVM
 @{
-    ViewData["Title"] = "Torneios de Padel";
+    // Título vazio de propósito: a aba mostra só "Padelizou" (o sistema não é só torneio).
+    ViewData["Title"] = null;
+    bool logado = User.Identity?.IsAuthenticated == true;
 }
 
 <!-- Banner Hero -->
 <div class="pdz-hero text-center mb-5">
-    <span class="pdz-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Bem-vindo ao Padelizou</span>
-    <h1 class="display-4 fw-bold mb-2">Encontre seu próximo desafio.</h1>
-    <p class="lead mb-4">Inscreva sua dupla, marque aulas, busque parceiros e suba no ranking — tudo num lugar só.</p>
+    <span class="pdz-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Jogos · Aulas · Torneios · Ranking</span>
+    <h1 class="display-4 fw-bold mb-2">Seu padel num lugar só.</h1>
+    <p class="lead mb-4">Encontre parceiros, marque quadra e aula, dispute torneios e acompanhe sua evolução.</p>
     <div class="d-flex flex-wrap gap-2 justify-content-center">
-        <a asp-controller="Avisos" asp-action="Index" class="btn btn-padel btn-lg rounded-pill px-4">
-            <i class="bi bi-megaphone me-1"></i> Buscar um Jogo
-        </a>
-        <a asp-controller="Aulas" asp-action="Solicitar" class="btn btn-lg pdz-btn-ghost rounded-pill px-4">
-            <i class="bi bi-calendar-plus me-1"></i> Marcar Aula
-        </a>
-    </div>
-</div>
-
-<!-- Grid de Torneios -->
-<div class="container px-0">
-    <h3 class="pdz-section-title mb-4">Torneios com Inscrições Abertas</h3>
-
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        @if (Model != null && Model.Any())
+        @if (logado)
         {
-            foreach (var torneio in Model)
-            {
-                <partial name="_TorneioCard" model="torneio" />
-            }
+            <a asp-controller="Avisos" asp-action="Index" class="btn btn-padel btn-lg rounded-pill px-4">
+                <i class="bi bi-megaphone me-1"></i> Buscar um Jogo
+            </a>
+            <a asp-controller="Auth" asp-action="Perfil" class="btn btn-lg pdz-btn-ghost rounded-pill px-4">
+                <i class="bi bi-person-circle me-1"></i> Meu Painel
+            </a>
         }
         else
         {
-            <div class="col-12 text-center text-muted mt-4">
-                <p>Nenhum torneio aberto no momento.</p>
-            </div>
+            <a asp-controller="Auth" asp-action="Cadastro" class="btn btn-padel btn-lg rounded-pill px-4">
+                <i class="bi bi-person-plus me-1"></i> Criar Conta Grátis
+            </a>
+            <a asp-controller="Auth" asp-action="Login" class="btn btn-lg pdz-btn-ghost rounded-pill px-4">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Já tenho conta
+            </a>
         }
     </div>
 </div>
+
+<div class="container px-0">
+
+    @* Torneio rolando agora é a coisa mais viva do sistema — quando existe, abre a página. *@
+    @if (Model.EmAndamento.Any())
+    {
+        <h3 class="pdz-section-title mb-4"><i class="bi bi-broadcast text-danger me-1"></i> Acontecendo agora</h3>
+        <div class="row g-3 mb-5">
+            @foreach (var t in Model.EmAndamento)
+            {
+                <div class="col-12 col-md-6">
+                    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3 h-100">
+                        <span class="badge rounded-pill bg-danger flex-shrink-0"><i class="bi bi-record-circle"></i> @t.Status</span>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@t.Nome</strong>
+                            @if (!string.IsNullOrEmpty(t.LocalTorneio))
+                            {
+                                <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>
+                            }
+                        </div>
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                           class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">Acompanhar</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- O mapa da plataforma: as 6 portas de entrada -->
+    <h3 class="pdz-section-title mb-4">O que você quer fazer hoje?</h3>
+    <div class="row row-cols-2 row-cols-md-3 g-3 mb-5">
+        @{
+            var portas = new[]
+            {
+                (Icone: "bi-megaphone-fill", Titulo: "Buscar um jogo", Texto: "Ache parceiros do seu nível pra jogar hoje.", Controller: "Avisos", Action: "Index"),
+                (Icone: "bi-trophy-fill", Titulo: "Torneios", Texto: "Inscreva sua dupla e dispute de verdade.", Controller: "Torneios", Action: "Index"),
+                (Icone: "bi-mortarboard-fill", Titulo: "Aulas", Texto: "Marque aula com professor e evolua mais rápido.", Controller: "Aulas", Action: "Solicitar"),
+                (Icone: "bi-graph-up-arrow", Titulo: "Ranking", Texto: "Pontos, títulos, vitórias e sua evolução.", Controller: "Jogadores", Action: "Ranking"),
+                (Icone: "bi-shield-lock-fill", Titulo: "Grupos", Texto: "Organize o jogo fixo da semana com a galera.", Controller: "Grupos", Action: "Index"),
+                (Icone: "bi-calendar2-week-fill", Titulo: "Marcar quadra", Texto: "Reserve horário nos clubes parceiros.", Controller: "MarcarJogo", Action: "Index"),
+            };
+        }
+        @foreach (var p in portas)
+        {
+            <div class="col">
+                <a asp-controller="@p.Controller" asp-action="@p.Action" class="text-decoration-none">
+                    <div class="card border-0 shadow-sm h-100 p-3 pdz-porta">
+                        <i class="bi @p.Icone fs-3 mb-2" style="color: var(--padel-green);"></i>
+                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">@p.Titulo</h6>
+                        <p class="small text-muted mb-0">@p.Texto</p>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+
+    <!-- Torneios com inscrições abertas -->
+    @if (Model.Abertos.Any())
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="pdz-section-title mb-0">Inscrições abertas</h3>
+            <a asp-controller="Torneios" asp-action="Index" class="small text-decoration-none fw-bold">Ver todos →</a>
+        </div>
+        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+            @foreach (var torneio in Model.Abertos)
+            {
+                <partial name="_TorneioCard" model="torneio" />
+            }
+        </div>
+    }
+
+    <!-- Números da comunidade -->
+    @if (Model.TotalJogadores > 0)
+    {
+        <div class="card border-0 shadow-sm mb-5 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
+            <div class="row text-center g-3">
+                <div class="col-4">
+                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.TotalJogadores.ToString("N0")</h2>
+                    <small class="text-light opacity-75">jogadores</small>
+                </div>
+                <div class="col-4">
+                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.JogosDisputados.ToString("N0")</h2>
+                    <small class="text-light opacity-75">jogos disputados</small>
+                </div>
+                <div class="col-4">
+                    <h2 class="fw-bold mb-0" style="color: var(--padel-green);">@Model.TorneiosRealizados.ToString("N0")</h2>
+                    <small class="text-light opacity-75">torneios realizados</small>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Faixa pra quem toca o padel da cidade -->
+    <h3 class="pdz-section-title mb-4">Você organiza, ensina ou tem um clube?</h3>
+    <div class="row g-3 mb-5">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3">
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-clipboard-check me-1"></i> Organizador</h6>
+                <p class="small text-muted mb-2">Crie torneios com chaves automáticas, mesa de controle, transmissão ao vivo e cobrança online.</p>
+                <a asp-controller="Torneios" asp-action="Index" class="small fw-bold text-decoration-none mt-auto">Criar meu torneio →</a>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3">
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-mortarboard me-1"></i> Professor</h6>
+                <p class="small text-muted mb-2">Agenda de aulas, pacotes, recorrência e recebimento — tudo organizado num painel só.</p>
+                <a asp-controller="Aulas" asp-action="Dashboard" class="small fw-bold text-decoration-none mt-auto">Painel do professor →</a>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3">
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shop me-1"></i> Clube</h6>
+                <p class="small text-muted mb-2">Agenda de quadras online, com marcação pelos jogadores e cobrança na reserva.</p>
+                <a asp-controller="MarcarJogo" asp-action="Index" class="small fw-bold text-decoration-none mt-auto">Ver como funciona →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Card-porta: levanta no hover pra deixar claro que é clicável. */
+    .pdz-porta { transition: transform .15s ease, box-shadow .15s ease; }
+    .pdz-porta:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12) !important; }
+</style>

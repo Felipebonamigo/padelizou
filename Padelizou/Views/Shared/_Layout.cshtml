@@ -23,7 +23,8 @@
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Padelizou</title>
+    @* Home fica só "Padelizou"; páginas internas viram "Página - Padelizou". *@
+    <title>@(string.IsNullOrWhiteSpace(ViewData["Title"] as string) ? "Padelizou" : $"{ViewData["Title"]} - Padelizou")</title>
     <meta name="theme-color" content="#141d33" />
     <link rel="manifest" href="~/manifest.json" />
     <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />

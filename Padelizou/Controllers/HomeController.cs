@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
+using Padelizou.ViewModels;
 using System.Diagnostics;
 
 namespace Padelizou.Controllers
@@ -14,11 +16,25 @@ namespace Padelizou.Controllers
             _context = context;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            // Busca os torneios com inscrições abertas para montar a vitrine
-            var torneios = _context.Torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
-            return View(torneios);
+            // Torneio oculto não aparece na home (mesma regra da listagem de Torneios —
+            // antes a home ignorava o Oculto e vazava torneio restrito na vitrine).
+            var ativos = await _context.Torneios
+                .Where(t => !t.Oculto && t.Status != "Finalizado")
+                .OrderBy(t => t.DataInicio)
+                .ToListAsync();
+
+            var vm = new HomeVM
+            {
+                Abertos = ativos.Where(t => t.Status == "Inscrições Abertas").Take(6).ToList(),
+                EmAndamento = ativos.Where(t => t.Status != "Inscrições Abertas").ToList(),
+                TotalJogadores = await _context.Jogadores.CountAsync(),
+                TorneiosRealizados = await _context.Torneios.CountAsync(t => t.Status == "Finalizado"),
+                JogosDisputados = await _context.Partidas.CountAsync(p => p.VencedorId != null),
+            };
+
+            return View(vm);
         }
 
         public IActionResult Privacy()

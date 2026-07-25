@@ -1,7 +1,7 @@
 {
   "name": "Padelizou",
   "short_name": "Padelizou",
-  "description": "Torneios, aulas e agenda de padel",
+  "description": "Jogos, aulas, torneios e ranking de padel",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
