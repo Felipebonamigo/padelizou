@@ -1046,8 +1046,11 @@ namespace Padelizou.Controllers
                         url);
                 }
 
-                // 2. Quem segue os jogadores da partida fica sabendo — sem repetir pra quem
-                //    já recebeu como participante, e respeitando a preferência de notificação.
+                // 2. Quem segue os jogadores fica sabendo — mas SÓ do mata-mata. Num dia de
+                //    torneio a fase de grupos tem dezenas de jogos; avisar seguidor a cada um
+                //    viraria spam e a pessoa desligaria a notificação de vez.
+                if (FasesTorneio.EhFaseDeGrupos(partida.Fase)) return;
+
                 var idsEmQuadra = idsVencedores.Concat(idsPerdedores).ToHashSet();
                 var seguidores = await _context.SeguidoresJogador
                     .Include(s => s.Seguidor)
