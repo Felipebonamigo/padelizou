@@ -1,0 +1,632 @@
+@model Padelizou.ViewModels.RankingHubVM
+@using Padelizou.ViewModels
+@{
+    ViewData["Title"] = "Ranking";
+    var torneiosList = ViewBag.TorneiosList as List<Padelizou.Models.Torneio> ?? new List<Padelizou.Models.Torneio>();
+    bool temTorneioSelecionado = Model.TorneioSelecionadoId != null;
+}
+
+@functions {
+    // Selo de posição (1º/2º/3º com medalha, restante em cinza).
+    static string PosBadge(int pos) => pos switch
+    {
+        1 => "<span class=\"badge bg-warning text-dark\">1º</span>",
+        2 => "<span class=\"badge bg-secondary\">2º</span>",
+        3 => "<span class=\"badge\" style=\"background:#cd7f32;color:#fff;\">3º</span>",
+        _ => $"<span class=\"text-muted\">{pos}º</span>"
+    };
+
+    static string Periodo(DateTime? de, DateTime? ate)
+    {
+        if (de == null) return "—";
+        var d = de.Value.ToString("dd/MM/yy");
+        var a = (ate ?? de).Value.ToString("dd/MM/yy");
+        return d == a ? d : $"{d} – {a}";
+    }
+
+    // Selo de movimento no último mês (estilo HLTV): subiu (verde), desceu (vermelho),
+    // igual (–) ou novo no ranking.
+    static string MovBadge(int? mov)
+    {
+        if (mov == null) return "<span class=\"badge bg-primary-subtle text-primary\" title=\"Novo no ranking\">novo</span>";
+        if (mov == 0) return "<span class=\"text-muted\" title=\"Sem mudança\">–</span>";
+        if (mov > 0) return $"<span class=\"text-success fw-bold\" title=\"Subiu {mov}\"><i class=\"bi bi-caret-up-fill\"></i>{mov}</span>";
+        return $"<span class=\"text-danger fw-bold\" title=\"Desceu {-mov}\"><i class=\"bi bi-caret-down-fill\"></i>{-mov}</span>";
+    }
+
+    // Monta a URL do ranking com um estado + lista de cidades (e preserva torneio/período atuais).
+    // Usado pelos filtros de local (multi-cidade) e reaproveitado pelo seletor de período.
+    static string UrlLocal(RankingHubVM m, string? estado, IEnumerable<string> cidades, string? periodo, int? torneioId, string hash = "")
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(estado)) qs.Add("estado=" + System.Uri.EscapeDataString(estado));
+        foreach (var c in cidades.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())
+            qs.Add("cidade=" + System.Uri.EscapeDataString(c));
+        if (torneioId != null) qs.Add("torneioId=" + torneioId);
+        if (!string.IsNullOrEmpty(periodo) && periodo != "sempre") qs.Add("periodo=" + periodo);
+        return "/Jogadores/Ranking" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "") + hash;
+    }
+
+    // Botões de período (Este mês / Este ano / Sempre) para as abas de vitórias/invencibilidade/troféus.
+    // Preserva os filtros atuais (local, torneio) e leva a hash da aba pra reabri-la após o reload.
+    static string SeletorPeriodo(RankingHubVM m, string hash)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<div class=\"d-flex align-items-center gap-2 mb-3 flex-wrap\">");
+        sb.Append("<span class=\"text-muted small fw-semibold\"><i class=\"bi bi-calendar3\"></i> Período:</span>");
+        sb.Append("<div class=\"btn-group btn-group-sm\" role=\"group\">");
+        foreach (var (v, l) in new[] { ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
+            sb.Append($"<a href=\"{UrlLocal(m, m.Estado, m.Cidades, v, m.TorneioSelecionadoId, hash)}\" class=\"btn {(m.Periodo == v ? "btn-primary" : "btn-outline-secondary")}\">{l}</a>");
+        sb.Append("</div></div>");
+        return sb.ToString();
+    }
+}
+
+<div class="container mt-3 mb-5">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+            <h2 class="pdz-section-title mb-1"><i class="bi bi-award-fill text-warning"></i> Ranking</h2>
+            <p class="text-muted mb-0">
+                <i class="bi bi-shield-lock"></i>
+                Tudo abaixo é calculado <strong>só a partir de resultados de torneios</strong>.
+                Aulas, jogos semanais e ajustes manuais não entram.
+            </p>
+        </div>
+        @if (torneiosList.Any())
+        {
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <select class="form-select form-select-sm rounded-pill" style="max-width: 240px;"
+                        onchange="if(this.value) window.location.href='/Jogadores/Ranking?torneioId=' + this.value; else window.location.href='/Jogadores/Ranking';">
+                    <option value="">Ver ranking de um torneio…</option>
+                    @foreach (var t in torneiosList)
+                    {
+                        <option value="@t.Id" selected="@(Model.TorneioSelecionadoId == t.Id)">@t.Nome</option>
+                    }
+                </select>
+            </div>
+        }
+    </div>
+
+    <!-- Filtro regional (padrão: país todo). Um estado + VÁRIAS cidades ao mesmo tempo. -->
+    @{
+        var cidadesRestantes = Model.CidadesDisponiveis.Where(c => !Model.Cidades.Contains(c)).ToList();
+    }
+    <div class="d-flex align-items-center gap-2 flex-wrap mt-3 mb-1">
+        <span class="text-muted small fw-semibold"><i class="bi bi-geo-alt-fill"></i> Local:</span>
+
+        <!-- Estado: trocar o estado zera as cidades (elas são de outro estado) -->
+        <select id="filtroEstado" class="form-select form-select-sm" style="max-width: 160px;"
+                onchange="if(this.value !== undefined) window.location.href = this.value">
+            <option value="@UrlLocal(Model, null, new string[0], Model.Periodo, Model.TorneioSelecionadoId)" selected="@(Model.Estado == null)">Brasil todo</option>
+            @foreach (var uf in Model.EstadosDisponiveis)
+            {
+                <option value="@UrlLocal(Model, uf, new string[0], Model.Periodo, Model.TorneioSelecionadoId)" selected="@(Model.Estado == uf)">@uf</option>
+            }
+        </select>
+
+        <!-- Cidades já escolhidas viram chips (cada uma com ✕ pra remover) -->
+        @foreach (var c in Model.Cidades)
+        {
+            <span class="badge rounded-pill bg-primary d-inline-flex align-items-center gap-1 py-2 px-3">
+                <i class="bi bi-geo-alt-fill"></i> @c
+                <a href="@UrlLocal(Model, Model.Estado, Model.Cidades.Where(x => x != c), Model.Periodo, Model.TorneioSelecionadoId)"
+                   class="text-white text-decoration-none ms-1" title="Remover @c" style="font-size:.85rem;">&times;</a>
+            </span>
+        }
+
+        <!-- Adicionar mais uma cidade (some as já escolhidas) -->
+        @if (cidadesRestantes.Any())
+        {
+            <select class="form-select form-select-sm" style="max-width: 220px;"
+                    onchange="if(this.value) window.location.href = this.value">
+                <option value="">@(Model.Cidades.Any() ? "+ Adicionar cidade" : "Todas as cidades")</option>
+                @foreach (var c in cidadesRestantes)
+                {
+                    <option value="@UrlLocal(Model, Model.Estado, Model.Cidades.Append(c), Model.Periodo, Model.TorneioSelecionadoId)">@c</option>
+                }
+            </select>
+        }
+
+        @if (Model.TemFiltro)
+        {
+            <a href="/Jogadores/Ranking" class="btn btn-sm btn-outline-secondary rounded-pill">Limpar</a>
+        }
+    </div>
+    <p class="text-muted small mb-3">
+        @if (Model.TemFiltro)
+        {
+            <text>Considerando apenas jogadores de:
+            <strong>@(Model.Cidades.Any() ? string.Join(", ", Model.Cidades) : "todas as cidades")@(Model.Estado != null ? " · " + Model.Estado : "")</strong>.</text>
+        }
+        else
+        {
+            <text>Mostrando o ranking do Brasil todo.</text>
+        }
+    </p>
+
+    @* ============ RANKING DE UM TORNEIO (embutido na mesma página) ============ *@
+    @if (temTorneioSelecionado)
+    {
+        <div class="card shadow-sm border-0 mb-4" id="tab-torneio">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0"><i class="bi bi-trophy-fill text-warning"></i> Ranking do torneio: @Model.TorneioSelecionadoNome</h5>
+                <a href="/Jogadores/Ranking" class="btn btn-sm btn-outline-light rounded-pill"><i class="bi bi-arrow-left"></i> Ranking geral</a>
+            </div>
+            @if (!Model.RankingTorneio.Any())
+            {
+                <div class="card-body text-muted"><i class="bi bi-info-circle"></i> Esse torneio ainda não tem jogadores pontuando.</div>
+            }
+            else
+            {
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    <thead><tr>
+                        <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
+                        <th class="text-center">Jogos</th><th class="text-center">Títulos</th>
+                        <th class="text-center">Vitórias</th><th class="text-end">Pontos</th>
+                    </tr></thead>
+                    <tbody>
+                        @{ var posTor = 1; }
+                        @foreach (var l in Model.RankingTorneio)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posTor))</td>
+                                <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                <td class="text-center text-muted">@l.Jogos</td>
+                                <td class="text-center">@(l.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {l.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
+                                <td class="text-center fw-bold text-success">@l.Vitorias</td>
+                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
+                            </tr>
+                            posTor++;
+                        }
+                    </tbody>
+                </table></div>
+            }
+        </div>
+    }
+
+    <!-- Navegação principal -->
+    <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3 mt-2" role="tablist" style="white-space: nowrap;">
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill" data-bs-target="#tab-pontos" type="button"><i class="bi bi-list-ol"></i> Por categoria</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-trofeus" type="button"><i class="bi bi-trophy-fill"></i> Troféus</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vjog" type="button"><i class="bi bi-person-check-fill"></i> Vitórias (jogadores)</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vdup" type="button"><i class="bi bi-people-fill"></i> Vitórias (duplas)</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-invicto" type="button"><i class="bi bi-fire"></i> Invencibilidade</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-times" type="button"><i class="bi bi-shield-fill"></i> Times</button></li>
+    </ul>
+
+    <!-- Buscar jogador DENTRO do ranking selecionado (filtro client-side por nome) -->
+    <div class="input-group input-group-sm mb-3" style="max-width: 360px;">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="pdzBuscaRanking" class="form-control" placeholder="Buscar jogador neste ranking…" autocomplete="off" />
+        <button type="button" class="btn btn-outline-secondary" id="pdzBuscaLimpar" title="Limpar"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="tab-content" id="pdzRankConteudo">
+
+        @* ============================ 1. POR CATEGORIA (PONTOS) — DROPDOWN ============================ *@
+        <div class="tab-pane fade show active" id="tab-pontos" role="tabpanel">
+            @if (!Model.TodasCategorias.Any())
+            {
+                <partial name="_RankingVazio" />
+            }
+            else
+            {
+                <p class="text-muted small mb-2">Pontos por fase: Campeão 100 · Vice 60 · Semifinal 35 · Quartas 20 · Fase de grupos 10 (por torneio disputado).</p>
+
+                <!-- Dropdown de categorias: escolher uma vira chip ao lado e some do dropdown -->
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                    <select id="pdzCatSelect" class="form-select form-select-sm" style="max-width: 280px;">
+                        <option value="">— filtrar por categoria —</option>
+                        @foreach (var nome in Model.TodasCategorias)
+                        {
+                            <option value="@nome">@nome</option>
+                        }
+                    </select>
+                    <span id="pdzCatChipWrap" class="d-inline-flex gap-2 flex-wrap"></span>
+                </div>
+
+                <div id="pdzCatInicial" class="text-muted small mb-3"><i class="bi bi-arrow-up"></i> Escolha uma categoria acima para ver o ranking.</div>
+                <div id="pdzCatVazio" class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed #ccc;" hidden>
+                    <i class="bi bi-inbox display-6 text-muted"></i>
+                    <p class="text-muted mb-0">Sem resultados em <strong id="pdzCatVazioNome"></strong> ainda.</p>
+                </div>
+
+                @foreach (var cat in Model.PorCategoria)
+                {
+                    <div class="pdz-cat-panel" data-cat="@cat.Categoria" hidden>
+                        <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Vitórias</th><th class="text-center">Torneios</th><th class="text-end">Pontos</th><th class="text-center" style="width:64px;" title="Movimento no último mês">Mês</th></tr></thead>
+                            <tbody>
+                                @{ var pos = 1; }
+                                @foreach (var l in cat.Linhas)
+                                {
+                                    <tr>
+                                        <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                        <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                        <td class="text-center">@(l.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {l.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
+                                        <td class="text-center fw-bold text-success">@l.Vitorias</td>
+                                        <td class="text-center text-muted">@l.Torneios</td>
+                                        <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
+                                        <td class="text-center">@Html.Raw(MovBadge(l.Movimento))</td>
+                                    </tr>
+                                    pos++;
+                                }
+                            </tbody>
+                        </table></div></div>
+                    </div>
+                }
+            }
+        </div>
+
+        @* ============================ 2. TROFÉUS POR CATEGORIA ============================ *@
+        <div class="tab-pane fade" id="tab-trofeus" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#tab-trofeus"))
+            @if (!Model.TrofeusPorCategoria.Any())
+            {
+                <partial name="_RankingVazio" />
+            }
+            else
+            {
+                <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3" role="tablist" style="white-space: nowrap;">
+                    @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+                    {
+                        <li class="nav-item me-2"><button class="nav-link rounded-pill @(i == 0 ? "active" : "")" data-bs-toggle="pill" data-bs-target="#trf-@i" type="button">@Model.TrofeusPorCategoria[i].Categoria</button></li>
+                    }
+                </ul>
+                <div class="tab-content">
+                    @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+                    {
+                        var cat = Model.TrofeusPorCategoria[i];
+                        <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="trf-@i" role="tabpanel">
+                            <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                                <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Finais</th></tr></thead>
+                                <tbody>
+                                    @{ var pos = 1; }
+                                    @foreach (var l in cat.Linhas)
+                                    {
+                                        <tr>
+                                            <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                            <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                            <td class="text-center"><span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @l.Titulos</span></td>
+                                            <td class="text-center text-muted">@l.Finais</td>
+                                        </tr>
+                                        pos++;
+                                    }
+                                </tbody>
+                            </table></div></div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ============================ 3+4. VITÓRIAS — JOGADORES ============================ *@
+        <div class="tab-pane fade" id="tab-vjog" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#tab-vjog"))
+            @if (!Model.VitoriasJogadores.Any())
+            {
+                <partial name="_RankingVazio" />
+            }
+            else
+            {
+                <h5 class="fw-bold mb-2"><i class="bi bi-globe2 text-secondary"></i> Geral (todas as categorias)</h5>
+                <div class="card shadow-sm border-0 mb-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th><th class="text-end pe-3">Aproveit.</th></tr></thead>
+                    <tbody>
+                        @{ var posG = 1; }
+                        @foreach (var j in Model.VitoriasJogadores)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posG))</td>
+                                <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                <td class="text-center fw-bold text-success">@j.Vitorias</td>
+                                <td class="text-center text-muted">@j.Jogos</td>
+                                <td class="text-end pe-3">@(j.Jogos > 0 ? $"{(100.0 * j.Vitorias / j.Jogos):0}%" : "—")</td>
+                            </tr>
+                            posG++;
+                        }
+                    </tbody>
+                </table></div></div>
+
+                <h5 class="fw-bold mb-2"><i class="bi bi-diagram-3-fill text-secondary"></i> Por categoria</h5>
+                <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3" role="tablist" style="white-space: nowrap;">
+                    @for (var i = 0; i < Model.VitoriasJogadoresPorCategoria.Count; i++)
+                    {
+                        <li class="nav-item me-2"><button class="nav-link rounded-pill @(i == 0 ? "active" : "")" data-bs-toggle="pill" data-bs-target="#vjc-@i" type="button">@Model.VitoriasJogadoresPorCategoria[i].Categoria</button></li>
+                    }
+                </ul>
+                <div class="tab-content">
+                    @for (var i = 0; i < Model.VitoriasJogadoresPorCategoria.Count; i++)
+                    {
+                        var cat = Model.VitoriasJogadoresPorCategoria[i];
+                        <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="vjc-@i" role="tabpanel">
+                            <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                                <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
+                                <tbody>
+                                    @{ var pos = 1; }
+                                    @foreach (var j in cat.Jogadores)
+                                    {
+                                        <tr>
+                                            <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                            <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                            <td class="text-center fw-bold text-success">@j.Vitorias</td>
+                                            <td class="text-center text-muted">@j.Jogos</td>
+                                        </tr>
+                                        pos++;
+                                    }
+                                </tbody>
+                            </table></div></div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ============================ 6+7. VITÓRIAS — DUPLAS ============================ *@
+        <div class="tab-pane fade" id="tab-vdup" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#tab-vdup"))
+            @if (!Model.VitoriasDuplas.Any())
+            {
+                <partial name="_RankingVazio" />
+            }
+            else
+            {
+                <p class="text-muted small mb-2">Cada dupla é uma inscrição em um torneio/categoria (a mesma parceria em torneios diferentes conta separado).</p>
+                <h5 class="fw-bold mb-2"><i class="bi bi-globe2 text-secondary"></i> Geral</h5>
+                <div class="card shadow-sm border-0 mb-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="text-center" style="width:60px;">#</th><th>Dupla</th><th>Categoria / Torneio</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
+                    <tbody>
+                        @{ var posG = 1; }
+                        @foreach (var d in Model.VitoriasDuplas)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posG))</td>
+                                <td>
+                                    <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
+                                    <span class="text-muted">/</span>
+                                    <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
+                                </td>
+                                <td class="small text-muted">@d.Categoria<br><span class="text-secondary">@d.Torneio</span></td>
+                                <td class="text-center fw-bold text-success">@d.Vitorias</td>
+                                <td class="text-center text-muted">@d.Jogos</td>
+                            </tr>
+                            posG++;
+                        }
+                    </tbody>
+                </table></div></div>
+
+                <h5 class="fw-bold mb-2"><i class="bi bi-diagram-3-fill text-secondary"></i> Por categoria</h5>
+                <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3" role="tablist" style="white-space: nowrap;">
+                    @for (var i = 0; i < Model.VitoriasDuplasPorCategoria.Count; i++)
+                    {
+                        <li class="nav-item me-2"><button class="nav-link rounded-pill @(i == 0 ? "active" : "")" data-bs-toggle="pill" data-bs-target="#vdc-@i" type="button">@Model.VitoriasDuplasPorCategoria[i].Categoria</button></li>
+                    }
+                </ul>
+                <div class="tab-content">
+                    @for (var i = 0; i < Model.VitoriasDuplasPorCategoria.Count; i++)
+                    {
+                        var cat = Model.VitoriasDuplasPorCategoria[i];
+                        <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="vdc-@i" role="tabpanel">
+                            <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                                <thead><tr><th class="text-center" style="width:60px;">#</th><th>Dupla</th><th>Torneio</th><th class="text-center">Vitórias</th><th class="text-center">Jogos</th></tr></thead>
+                                <tbody>
+                                    @{ var pos = 1; }
+                                    @foreach (var d in cat.Duplas)
+                                    {
+                                        <tr>
+                                            <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                            <td>
+                                                <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
+                                                <span class="text-muted">/</span>
+                                                <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
+                                            </td>
+                                            <td class="small text-muted">@d.Torneio</td>
+                                            <td class="text-center fw-bold text-success">@d.Vitorias</td>
+                                            <td class="text-center text-muted">@d.Jogos</td>
+                                        </tr>
+                                        pos++;
+                                    }
+                                </tbody>
+                            </table></div></div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ============================ 5+8. INVENCIBILIDADE ============================ *@
+        <div class="tab-pane fade" id="tab-invicto" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#tab-invicto"))
+            <p class="text-muted small mb-3">Maior sequência de partidas de torneio consecutivas <strong>sem perder</strong>.</p>
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <h5 class="fw-bold mb-2"><i class="bi bi-person-fill text-danger"></i> Jogadores mais invictos</h5>
+                    @if (!Model.InvictosJogadores.Any())
+                    {
+                        <div class="text-muted small">Sem dados ainda.</div>
+                    }
+                    else
+                    {
+                        <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Sequência</th><th class="text-end pe-3">Período</th></tr></thead>
+                            <tbody>
+                                @{ var pos = 1; }
+                                @foreach (var j in Model.InvictosJogadores)
+                                {
+                                    <tr>
+                                        <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                        <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                        <td class="text-center"><span class="badge bg-danger-subtle text-danger fw-bold">@j.Sequencia <i class="bi bi-fire"></i></span></td>
+                                        <td class="text-end pe-3 small text-muted">@Periodo(j.De, j.Ate)</td>
+                                    </tr>
+                                    pos++;
+                                }
+                            </tbody>
+                        </table></div></div>
+                    }
+                </div>
+                <div class="col-lg-6">
+                    <h5 class="fw-bold mb-2"><i class="bi bi-people-fill text-danger"></i> Duplas mais invictas</h5>
+                    @if (!Model.InvictasDuplas.Any())
+                    {
+                        <div class="text-muted small">Sem dados ainda.</div>
+                    }
+                    else
+                    {
+                        <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="text-center" style="width:60px;">#</th><th>Dupla</th><th class="text-center">Seq.</th><th class="text-end pe-3">Torneio</th></tr></thead>
+                            <tbody>
+                                @{ var posd = 1; }
+                                @foreach (var d in Model.InvictasDuplas)
+                                {
+                                    <tr>
+                                        <td class="text-center fw-bold">@Html.Raw(PosBadge(posd))</td>
+                                        <td>
+                                            <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
+                                            <span class="text-muted">/</span>
+                                            <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
+                                            <div class="small text-muted">@d.Categoria</div>
+                                        </td>
+                                        <td class="text-center"><span class="badge bg-danger-subtle text-danger fw-bold">@d.SequenciaInvicta <i class="bi bi-fire"></i></span></td>
+                                        <td class="text-end pe-3 small text-muted">@d.Torneio</td>
+                                    </tr>
+                                    posd++;
+                                }
+                            </tbody>
+                        </table></div></div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ============================ 10. RANKING DE TIMES ============================ *@
+        <div class="tab-pane fade" id="tab-times" role="tabpanel">
+            <p class="text-muted small mb-3">Cada ponto que um jogador conquista em torneio soma para o time dele. Mesma pontuação por fase do ranking individual.</p>
+            @if (!Model.Times.Any())
+            {
+                <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                    <i class="bi bi-shield display-4 text-muted mb-3"></i>
+                    <h4 class="fw-bold text-secondary">Ainda não há times pontuando</h4>
+                    <p class="text-muted mb-0">Quando jogadores com time tiverem resultados em torneios, o ranking aparece aqui.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="text-center" style="width:60px;">#</th><th>Time</th><th class="text-center">Jogadores</th><th class="text-center">Títulos</th><th class="text-center">Vitórias</th><th class="text-end">Pontos</th><th class="text-center" style="width:64px;" title="Movimento no último mês">Mês</th></tr></thead>
+                    <tbody>
+                        @{ var posT = 1; }
+                        @foreach (var t in Model.Times)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posT))</td>
+                                <td class="fw-bold" style="color: var(--pdz-ink);">
+                                    @if (!string.IsNullOrEmpty(t.Logo))
+                                    {
+                                        <img src="@t.Logo" alt="" class="rounded me-1" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;" />
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-shield-fill text-secondary me-1"></i>
+                                    }
+                                    @t.Time
+                                </td>
+                                <td class="text-center text-muted">@t.Jogadores</td>
+                                <td class="text-center">@(t.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {t.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
+                                <td class="text-center fw-bold text-success">@t.Vitorias</td>
+                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@t.Pontos</td>
+                                <td class="text-center">@Html.Raw(MovBadge(t.Movimento))</td>
+                            </tr>
+                            posT++;
+                        }
+                    </tbody>
+                </table></div></div>
+            }
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Reabre a aba indicada na hash da URL (usado pelos botões de período, que recarregam a página).
+    document.addEventListener('DOMContentLoaded', function () {
+        var h = location.hash;
+        if (h && h.length > 1) {
+            var btn = document.querySelector('.nav-pills [data-bs-target="' + h + '"]');
+            if (btn && window.bootstrap) { new bootstrap.Tab(btn).show(); }
+        }
+    });
+
+    // Buscar jogador dentro do ranking (filtra as linhas visíveis por nome, em todas as tabelas).
+    (function () {
+        var input = document.getElementById('pdzBuscaRanking');
+        var limpar = document.getElementById('pdzBuscaLimpar');
+        if (!input) return;
+        function aplicar() {
+            var termo = (input.value || '').trim().toLowerCase();
+            document.querySelectorAll('#pdzRankConteudo table tbody tr').forEach(function (tr) {
+                var nome = tr.textContent.toLowerCase();
+                tr.style.display = (!termo || nome.indexOf(termo) !== -1) ? '' : 'none';
+            });
+        }
+        input.addEventListener('input', aplicar);
+        if (limpar) limpar.addEventListener('click', function () { input.value = ''; aplicar(); input.focus(); });
+    })();
+
+    // Dropdown de categorias na aba "Por categoria": escolher vira chip e some do dropdown.
+    (function () {
+        var sel = document.getElementById('pdzCatSelect');
+        if (!sel) return;
+        var chipWrap = document.getElementById('pdzCatChipWrap');
+        var vazio = document.getElementById('pdzCatVazio');
+        var vazioNome = document.getElementById('pdzCatVazioNome');
+        var inicial = document.getElementById('pdzCatInicial');
+
+        function painelDe(cat) {
+            var found = null;
+            document.querySelectorAll('.pdz-cat-panel').forEach(function (p) { if (p.dataset.cat === cat) found = p; });
+            return found;
+        }
+        function limpar() {
+            document.querySelectorAll('.pdz-cat-panel').forEach(function (p) { p.hidden = true; });
+            if (vazio) vazio.hidden = true;
+            if (inicial) inicial.hidden = false;
+            chipWrap.innerHTML = '';
+            for (var i = 0; i < sel.options.length; i++) { sel.options[i].hidden = false; }
+            sel.value = '';
+        }
+        function aplicar(cat) {
+            if (!cat) { limpar(); return; }
+            if (inicial) inicial.hidden = true;
+            document.querySelectorAll('.pdz-cat-panel').forEach(function (p) { p.hidden = (p.dataset.cat !== cat); });
+            var painel = painelDe(cat);
+            if (vazio) { vazio.hidden = !!painel; if (!painel && vazioNome) vazioNome.textContent = cat; }
+            // chip ao lado
+            chipWrap.innerHTML = '';
+            var chip = document.createElement('span');
+            chip.className = 'badge rounded-pill bg-primary d-inline-flex align-items-center gap-1 py-2 px-3';
+            var txt = document.createElement('span');
+            txt.innerHTML = '<i class="bi bi-funnel-fill"></i> ';
+            txt.appendChild(document.createTextNode(cat));
+            var x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'btn-close btn-close-white';
+            x.style.fontSize = '.6rem';
+            x.setAttribute('aria-label', 'Remover filtro de categoria');
+            x.addEventListener('click', limpar);
+            chip.appendChild(txt);
+            chip.appendChild(x);
+            chipWrap.appendChild(chip);
+            // some do dropdown a categoria escolhida
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value) sel.options[i].hidden = (sel.options[i].value === cat);
+            }
+            sel.value = '';
+        }
+        sel.addEventListener('change', function () { if (this.value) aplicar(this.value); });
+
+        // Início: mostra a primeira categoria que tem dados (se houver).
+        var primeiro = document.querySelector('.pdz-cat-panel');
+        if (primeiro) aplicar(primeiro.dataset.cat);
+    })();
+</script>

@@ -1,0 +1,95 @@
+@model List<Jogador>
+@{
+    ViewData["Title"] = "Convidar Jogadores - Padelizou";
+    var marcacao = (MarcacaoJogo)ViewBag.Marcacao;
+    var categorias = (List<CategoriaPadrao>)ViewBag.Categorias;
+    var cidades = (List<Cidade>)ViewBag.Cidades;
+    int? categoriaId = ViewBag.CategoriaId;
+    int? cidadeId = ViewBag.CidadeId;
+    string? linkGerado = TempData["WhatsAppLink"] as string;
+    string? nomeGerado = TempData["WhatsAppNome"] as string;
+    bool buscou = categoriaId.HasValue || cidadeId.HasValue;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-whatsapp text-success"></i> Convidar jogadores</h2>
+            <p class="text-muted mb-0">@marcacao.Clube.Nome — @marcacao.QuadraClube.Nome, @marcacao.DataHora.ToString("dd/MM 'às' HH:mm")</p>
+        </div>
+        <a asp-controller="MarcarJogo" asp-action="MinhasMarcacoes" class="btn btn-outline-secondary rounded-pill">Ir pra Minhas Marcações</a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(linkGerado))
+    {
+        <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span>Convite pronto pra <strong>@nomeGerado</strong> — clique pra abrir o WhatsApp e mandar.</span>
+            <a href="@linkGerado" target="_blank" class="btn btn-sm btn-success rounded-pill"><i class="bi bi-whatsapp"></i> Abrir WhatsApp</a>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-3">Buscar jogadores</h6>
+            <form method="get" asp-controller="MarcarJogo" asp-action="Convidar" class="d-flex flex-wrap gap-2 align-items-end">
+                <input type="hidden" name="marcacaoId" value="@marcacao.Id" />
+                <div>
+                    <label class="form-label small mb-1">Categoria</label>
+                    <select name="categoriaId" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        @foreach (var cat in categorias)
+                        {
+                            <option value="@cat.Id" selected="@(categoriaId == cat.Id)">@cat.Nome</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label small mb-1">Cidade</label>
+                    <select name="cidadeId" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        @foreach (var cid in cidades)
+                        {
+                            <option value="@cid.Id" selected="@(cidadeId == cid.Id)">@cid.Nome</option>
+                        }
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4">Buscar</button>
+            </form>
+        </div>
+    </div>
+
+    @if (!buscou)
+    {
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <p class="text-muted mb-0">Escolha categoria e/ou cidade pra ver jogadores disponíveis.</p>
+        </div>
+    }
+    else if (Model.Any())
+    {
+        <div class="card shadow-sm border-0">
+            <ul class="list-group list-group-flush">
+                @foreach (var jogador in Model)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogador.Id" class="text-decoration-none text-dark">@jogador.Nome</a>
+                        <form asp-controller="MarcarJogo" asp-action="GerarConvite" method="post">
+                            <input type="hidden" name="marcacaoId" value="@marcacao.Id" />
+                            <input type="hidden" name="jogadorId" value="@jogador.Id" />
+                            <input type="hidden" name="categoriaId" value="@categoriaId" />
+                            <input type="hidden" name="cidadeId" value="@cidadeId" />
+                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">
+                                <i class="bi bi-whatsapp"></i> Gerar convite
+                            </button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <p class="text-muted mb-0">Nenhum jogador encontrado com esse filtro.</p>
+        </div>
+    }
+</div>

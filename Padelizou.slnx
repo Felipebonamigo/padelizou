@@ -1,3 +1,4 @@
 <Solution>
-  <Project Path="Padelizou.csproj" />
+  <Project Path="Padelizou/Padelizou.csproj" />
+  <Project Path="Padelizou.Tests/Padelizou.Tests.csproj" />
 </Solution>

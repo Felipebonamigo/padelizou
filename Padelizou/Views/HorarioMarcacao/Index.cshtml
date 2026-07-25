@@ -1,0 +1,166 @@
+@{
+    ViewData["Title"] = "Gerenciar Horários - Padelizou";
+    var clube = (Clube)ViewBag.Clube;
+    var quadras = (List<QuadraClube>)ViewBag.Quadras;
+    var horarios = (List<HorarioMarcacaoDisponivel>)ViewBag.Horarios;
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Horários — @clube.Nome</h2>
+            <p class="text-muted mb-0">Quadras e disponibilidade semanal recorrente pra marcação.</p>
+        </div>
+        <div class="d-flex gap-2">
+            @if (clube.NotificarHorariosDiariamente)
+            {
+                <form asp-controller="HorarioMarcacao" asp-action="AvisarVagaHoje" method="post">
+                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                    <button type="submit" class="btn btn-outline-primary rounded-pill">
+                        <i class="bi bi-bell"></i> Avisar vaga hoje
+                    </button>
+                </form>
+            }
+            <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-3">Quadras</h6>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @foreach (var quadra in quadras)
+                {
+                    <span class="badge bg-light text-dark border">@quadra.Nome</span>
+                }
+                @if (!quadras.Any())
+                {
+                    <span class="text-muted small">Nenhuma quadra cadastrada ainda.</span>
+                }
+            </div>
+            <form asp-controller="HorarioMarcacao" asp-action="CriarQuadra" method="post" class="d-flex gap-2">
+                <input type="hidden" name="clubeId" value="@clube.Id" />
+                <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome da quadra (ex: Quadra 1)" style="max-width: 260px;" required />
+                <button type="submit" class="btn btn-sm btn-outline-primary">Adicionar quadra</button>
+            </form>
+        </div>
+    </div>
+
+    @if (!quadras.Any())
+    {
+        <div class="alert alert-warning">Cadastre pelo menos uma quadra antes de definir horários.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-3">Novo horário recorrente</h6>
+                <form asp-controller="HorarioMarcacao" asp-action="CriarHorario" method="post" class="row g-2">
+                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                    <div class="col-md-3">
+                        <select name="quadraClubeId" class="form-select" required>
+                            @foreach (var quadra in quadras)
+                            {
+                                <option value="@quadra.Id">@quadra.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="diaSemana" class="form-select" required>
+                            @for (int i = 0; i < diasSemana.Length; i++)
+                            {
+                                <option value="@i">@diasSemana[i]</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="time" name="horaInicio" class="form-control" required />
+                        <div class="form-text">Início</div>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="time" name="horaFim" class="form-control" required />
+                        <div class="form-text">Fim</div>
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" name="duracaoMinutos" class="form-control" value="60" min="15" step="15" required />
+                        <div class="form-text">Min</div>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" name="preco" class="form-control" min="0" step="0.01" placeholder="80,00" />
+                        <div class="form-text">Preço (vazio = grátis)</div>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-padel w-100 rounded-pill">+</button>
+                    </div>
+                </form>
+                <div class="form-text mt-2">
+                    O preço é do horário inteiro (uma regra de 1h30 a R$ 120 cobra os R$ 120).
+                    Para horário nobre mais caro, crie uma regra separada só para aquela faixa.
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle bg-white shadow-sm rounded text-nowrap">
+                <thead>
+                    <tr>
+                        <th>Quadra</th>
+                        <th>Dia</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th>Duração</th>
+                        <th>Preço</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (horarios.Any())
+                    {
+                        @foreach (var h in horarios)
+                        {
+                            <tr class="@(h.Ativo ? "" : "text-muted")">
+                                <td>@h.QuadraClube.Nome</td>
+                                <td>@diasSemana[h.DiaSemana]</td>
+                                <td>@h.HoraInicio.ToString(@"hh\:mm")</td>
+                                <td>@h.HoraFim.ToString(@"hh\:mm")</td>
+                                <td>@h.DuracaoMinutos min</td>
+                                <td>
+                                    <form asp-controller="HorarioMarcacao" asp-action="AtualizarPreco" method="post"
+                                          class="d-flex gap-1 align-items-center">
+                                        <input type="hidden" name="id" value="@h.Id" />
+                                        <input type="hidden" name="clubeId" value="@clube.Id" />
+                                        <input type="number" name="preco" value="@(h.Preco?.ToString("0.00"))"
+                                               class="form-control form-control-sm" style="width: 6rem;"
+                                               min="0" step="0.01" placeholder="Grátis" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar</button>
+                                    </form>
+                                </td>
+                                <td><span class="badge @(h.Ativo ? "bg-success" : "bg-secondary")">@(h.Ativo ? "Ativo" : "Inativo")</span></td>
+                                <td>
+                                    <form asp-controller="HorarioMarcacao" asp-action="AlternarHorario" method="post">
+                                        <input type="hidden" name="id" value="@h.Id" />
+                                        <input type="hidden" name="clubeId" value="@clube.Id" />
+                                        <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")">
+                                            @(h.Ativo ? "Desativar" : "Reativar")
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="7" class="text-center text-muted py-4">Nenhum horário cadastrado.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

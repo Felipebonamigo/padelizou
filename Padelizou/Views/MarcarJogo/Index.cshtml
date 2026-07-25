@@ -1,0 +1,49 @@
+@model List<Clube>
+@{
+    ViewData["Title"] = "Marcar Jogo - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Marcar Jogo</h2>
+            <p class="text-muted mb-0">Clubes disponíveis pra marcação de quadra pelo Padelizou.</p>
+        </div>
+        <a asp-controller="MarcarJogo" asp-action="MinhasMarcacoes" class="btn btn-outline-primary rounded-pill">
+            <i class="bi bi-calendar-check"></i> Minhas Marcações
+        </a>
+    </div>
+
+    <div class="row">
+        @if (Model.Any())
+        {
+            @foreach (var clube in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @clube.Nome
+                            </h5>
+                            @if (clube.Cidade != null)
+                            {
+                                <p class="text-muted small mb-2">@clube.Cidade.Nome @(clube.Cidade.Estado != null ? $"- {clube.Cidade.Estado}" : "")</p>
+                            }
+                            <a asp-controller="MarcarJogo" asp-action="Clube" asp-route-clubeId="@clube.Id" class="btn btn-sm btn-padel rounded-pill w-100 mt-2">
+                                Ver horários disponíveis
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
+                <h4 class="fw-bold text-secondary">Nenhum clube com marcação ativa ainda</h4>
+                <p class="text-muted">Estamos em fase de testes — em breve mais clubes.</p>
+            </div>
+        }
+    </div>
+</div>

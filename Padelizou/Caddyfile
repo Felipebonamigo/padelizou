@@ -1,0 +1,25 @@
+padelizou.com.br, www.padelizou.com.br, admin.padelizou.com.br {
+	# Caddy cuida do certificado HTTPS automaticamente (Let's Encrypt) e redireciona
+	# http:// -> https:// sozinho.
+	reverse_proxy localhost:5000
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/padelizou.log
+		format json
+	}
+}
+
+# Ambiente de teste isolado: instância própria (padelizou-dev.service, porta 5001) e banco
+# Postgres próprio (db_padel_dev) — pra testar código novo sem mexer em dado real de usuário.
+dev.padelizou.com.br {
+	reverse_proxy localhost:5001
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/padelizou-dev.log
+		format json
+	}
+}

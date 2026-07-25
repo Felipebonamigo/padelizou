@@ -1,0 +1,278 @@
+@model Padelizou.ViewModels.PreferenciasViewModel
+@{
+    var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
+    var catalogoCidades = (List<Cidade>)ViewBag.CatalogoCidades;
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+    string[] periodos = { "Manhã", "Tarde", "Noite" };
+}
+
+<!-- Lado da quadra -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small d-block">Lado que joga</label>
+    <div class="btn-group w-100" role="group">
+        <input type="radio" class="btn-check" name="ladoQuadra" id="ladoEsquerda" value="Esquerda" autocomplete="off" @(Model.LadoQuadra == "Esquerda" ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="ladoEsquerda">Esquerda</label>
+
+        <input type="radio" class="btn-check" name="ladoQuadra" id="ladoDireita" value="Direita" autocomplete="off" @(Model.LadoQuadra == "Direita" ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="ladoDireita">Direita</label>
+
+        <input type="radio" class="btn-check" name="ladoQuadra" id="ladoAmbos" value="Ambos" autocomplete="off" @(Model.LadoQuadra == "Ambos" || string.IsNullOrEmpty(Model.LadoQuadra) ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="ladoAmbos">Ambos</label>
+    </div>
+</div>
+
+<!-- Lateralidade -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small d-block">Destro ou canhoto</label>
+    <div class="btn-group w-100" role="group">
+        <input type="radio" class="btn-check" name="lateralidade" id="lateralidadeDestro" value="Destro" autocomplete="off" @(Model.Lateralidade == "Destro" || string.IsNullOrEmpty(Model.Lateralidade) ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="lateralidadeDestro">Destro</label>
+
+        <input type="radio" class="btn-check" name="lateralidade" id="lateralidadeCanhoto" value="Canhoto" autocomplete="off" @(Model.Lateralidade == "Canhoto" ? "checked" : "") />
+        <label class="btn btn-outline-primary" for="lateralidadeCanhoto">Canhoto</label>
+    </div>
+</div>
+
+<!-- Instagram -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small d-block" for="instagramInput">Instagram</label>
+    <div class="input-group">
+        <span class="input-group-text">@@</span>
+        <input type="text" class="form-control" name="instagram" id="instagramInput" placeholder="seu.usuario" value="@Model.Instagram" />
+    </div>
+    <small class="text-muted d-block mt-1">Aparece no seu perfil pra outros jogadores te encontrarem. Deixe em branco pra não mostrar.</small>
+</div>
+
+<!-- Perfil privado -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="perfilPrivado" value="true" id="perfilPrivado" style="transform: scale(1.2);" @(Model.PerfilPrivado ? "checked" : "") />
+        <label class="form-check-label fw-bold" for="perfilPrivado">Perfil privado</label>
+    </div>
+    <small class="text-muted d-block mt-2">Se ativado, quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos.</small>
+</div>
+
+<!-- Notificações -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <label class="form-label fw-bold text-muted small d-block mb-2">Como quer ser avisado de novos jogos?</label>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarEmail" value="true" id="notifEmail" style="transform: scale(1.2);" @(Model.NotificarEmail ? "checked" : "") />
+        <label class="form-check-label" for="notifEmail">Receber por e-mail</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarWhatsApp" value="true" id="notifWhats" style="transform: scale(1.2);" @(Model.NotificarWhatsApp ? "checked" : "") />
+        <label class="form-check-label" for="notifWhats">Receber por WhatsApp</label>
+    </div>
+    <small class="text-muted d-block mt-2">Desmarque os dois pra parar de receber avisos. Pode mudar isso quando quiser.</small>
+
+    <hr class="my-3" />
+
+    <label class="form-label fw-bold text-muted small d-block mb-2">Notificação no celular/navegador</label>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btnPushToggle" class="btn btn-sm btn-outline-primary" onclick="onClickPushToggle()">
+            <i class="bi bi-bell"></i> <span id="btnPushToggleLabel">Verificando...</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-decoration-none" data-bs-toggle="collapse" data-bs-target="#comoInstalarPasso">
+            <i class="bi bi-question-circle"></i> Como instalar no celular?
+        </button>
+    </div>
+    <small class="text-muted d-block mt-2">Ativa um aviso instantâneo direto no seu celular ou computador, mesmo com o Padelizou fechado (precisa ter instalado o site na tela inicial ou permitido notificações no navegador).</small>
+
+    <div class="collapse mt-3" id="comoInstalarPasso">
+        <div class="card card-body bg-white small">
+            <p class="fw-bold mb-2"><i class="bi bi-apple"></i> No iPhone (precisa ser pelo Safari, não pelo Chrome)</p>
+            <ol class="ps-3 mb-3">
+                <li>Abra <strong>padelizou.com.br</strong> no Safari.</li>
+                <li>Toque no ícone de <strong>Compartilhar</strong> (quadrado com seta pra cima), na barra inferior.</li>
+                <li>Role as opções e toque em <strong>"Adicionar à Tela de Início"</strong>.</li>
+                <li>Confirme o nome e toque em <strong>Adicionar</strong>.</li>
+                <li>Abra o Padelizou pelo ícone novo (não mais pelo Safari) e toque em "Ativar notificações" aqui em cima.</li>
+            </ol>
+            <p class="fw-bold mb-2"><i class="bi bi-android2"></i> No Android (Chrome)</p>
+            <ol class="ps-3 mb-0">
+                <li>Abra <strong>padelizou.com.br</strong> no Chrome.</li>
+                <li>Toque no menu (três pontinhos, canto superior direito).</li>
+                <li>Toque em <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
+                <li>Confirme, e abra o Padelizou pelo ícone que aparece na tela inicial.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function atualizarBotaoPush() {
+        const status = await statusNotificacoesPush();
+        const btn = document.getElementById('btnPushToggle');
+        const label = document.getElementById('btnPushToggleLabel');
+        if (status === 'unsupported') {
+            btn.disabled = true;
+            label.textContent = 'Não suportado neste navegador';
+            return;
+        }
+        if (status === 'subscribed') {
+            label.textContent = 'Notificações ativadas (clique pra desativar)';
+        } else {
+            label.textContent = 'Ativar notificações';
+        }
+    }
+
+    async function onClickPushToggle() {
+        const status = await statusNotificacoesPush();
+        if (status === 'subscribed') {
+            await desativarNotificacoesPush();
+        } else {
+            await ativarNotificacoesPush();
+        }
+        await atualizarBotaoPush();
+    }
+
+    document.addEventListener('DOMContentLoaded', atualizarBotaoPush);
+</script>
+
+<!-- Convites de jogo avulso -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="aceitaConvitesJogo" value="true" id="aceitaConvites" style="transform: scale(1.2);" @(Model.AceitaConvitesJogo ? "checked" : "") />
+        <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos</label>
+    </div>
+    <small class="text-muted d-block mt-2">Quando o organizador de um grupo precisar de gente de fora pra completar o jogo da semana, ele pode te chamar pelo WhatsApp — respeitando as categorias, locais e dias/horários que você marcou abaixo.</small>
+</div>
+
+<!-- Tipos de aviso -->
+<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+    <label class="form-label fw-bold text-muted small d-block mb-2">Que tipo de aviso você quer receber?</label>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarTorneiosAbertos" value="true" id="notifTorneiosAbertos" style="transform: scale(1.2);" @(Model.NotificarTorneiosAbertos ? "checked" : "") />
+        <label class="form-check-label" for="notifTorneiosAbertos">Novos torneios abertos pra inscrição</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarSeguidosTorneio" value="true" id="notifSeguidosTorneio" style="transform: scale(1.2);" @(Model.NotificarSeguidosTorneio ? "checked" : "") />
+        <label class="form-check-label" for="notifSeguidosTorneio">Pessoas que eu sigo se inscrevendo em torneios</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarAvisoJogo" value="true" id="notifAvisoJogo" style="transform: scale(1.2);" @(Model.NotificarAvisoJogo ? "checked" : "") />
+        <label class="form-check-label" for="notifAvisoJogo">Convites de jogo na minha categoria (Buscar Jogo)</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarJogoAula" value="true" id="notifJogoAula" style="transform: scale(1.2);" @(Model.NotificarJogoAula ? "checked" : "") />
+        <label class="form-check-label" for="notifJogoAula">Convites de jogo aula de professores</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarRaqueteLivre" value="true" id="notifRaqueteLivre" style="transform: scale(1.2);" @(Model.NotificarRaqueteLivre ? "checked" : "") />
+        <label class="form-check-label" for="notifRaqueteLivre">Raquete livre / eventos abertos de clube</label>
+    </div>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" name="notificarHorarioVagoRegiao" value="true" id="notifHorarioVago" style="transform: scale(1.2);" @(Model.NotificarHorarioVagoRegiao ? "checked" : "") />
+        <label class="form-check-label" for="notifHorarioVago">Horário de quadra vago na minha região</label>
+    </div>
+    <small class="text-muted d-block mt-2">Cada um controla um tipo de aviso separadamente. O canal (e-mail/WhatsApp/push) continua sendo o que você escolheu acima. O aviso de horário vago só chega se você marcar pelo menos uma cidade abaixo.</small>
+</div>
+
+<!-- Categorias -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <label class="form-label fw-bold text-muted small mb-0">Categorias que aceita jogar</label>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('categoria')">Aceito qualquer categoria</button>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-2">
+            <h6 class="small fw-bold text-muted"><i class="bi bi-gender-male"></i> Masculina</h6>
+            @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Masculina"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input categoria-check" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" @(Model.CategoriasSelecionadas.Contains(cat.Id) ? "checked" : "") />
+                    <label class="form-check-label small" for="cat_@cat.Id">@cat.Nome</label>
+                </div>
+            }
+        </div>
+        <div class="col-md-6 mb-2">
+            <h6 class="small fw-bold text-muted"><i class="bi bi-gender-female"></i> Feminina</h6>
+            @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Feminina"))
+            {
+                <div class="form-check">
+                    <input class="form-check-input categoria-check" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" @(Model.CategoriasSelecionadas.Contains(cat.Id) ? "checked" : "") />
+                    <label class="form-check-label small" for="cat_@cat.Id">@cat.Nome</label>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Locais preferidos -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <label class="form-label fw-bold text-muted small mb-0">Locais preferidos</label>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('clube')">Qualquer local</button>
+    </div>
+    <div id="listaClubes">
+        @foreach (var clube in catalogoClubes)
+        {
+            <div class="form-check form-check-inline">
+                <input class="form-check-input clube-check" type="checkbox" name="clubesSelecionados" value="@clube.Id" id="clube_@clube.Id" @(Model.ClubesSelecionados.Contains(clube.Id) ? "checked" : "") />
+                <label class="form-check-label small" for="clube_@clube.Id">@clube.Nome</label>
+            </div>
+        }
+    </div>
+    <div class="mt-2 d-flex gap-2 flex-wrap">
+        <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Nome de um novo clube" style="max-width: 220px;" />
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarClube('novoClubeNome', 'listaClubes', 'clubesSelecionados')">
+            <i class="bi bi-plus-circle"></i> Adicionar clube
+        </button>
+    </div>
+</div>
+
+<!-- Cidades onde jogo (usado pro aviso de horário de quadra vago na região) -->
+<div class="mb-4">
+    <label class="form-label fw-bold text-muted small mb-2 d-block">Cidades onde jogo ou aceito jogar</label>
+    <div>
+        @foreach (var cidade in catalogoCidades)
+        {
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="cidadesSelecionadas" value="@cidade.Id" id="cidade_@cidade.Id" @(Model.CidadesSelecionadas.Contains(cidade.Id) ? "checked" : "") />
+                <label class="form-check-label small" for="cidade_@cidade.Id">@cidade.Nome@(cidade.Estado != null ? $" - {cidade.Estado}" : "")</label>
+            </div>
+        }
+        @if (!catalogoCidades.Any())
+        {
+            <span class="text-muted small">Nenhuma cidade cadastrada ainda.</span>
+        }
+    </div>
+    <small class="text-muted d-block mt-2">Usado só pra saber onde te avisar de horário de quadra vago (Marcar Jogo).</small>
+</div>
+
+<!-- Dias e períodos preferidos -->
+<div class="mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <label class="form-label fw-bold text-muted small mb-0">Dias e períodos preferidos</label>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('diahorario')">Qualquer horário</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle text-center">
+            <thead>
+                <tr>
+                    <th class="text-start">Dia</th>
+                    @foreach (var periodo in periodos)
+                    {
+                        <th>@periodo</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (int dia = 0; dia < diasSemana.Length; dia++)
+                {
+                    <tr>
+                        <td class="text-start small">@diasSemana[dia]</td>
+                        @foreach (var periodo in periodos)
+                        {
+                            var valor = $"{dia}|{periodo}";
+                            <td>
+                                <input class="form-check-input diahorario-check" type="checkbox" name="diasHorariosSelecionados" value="@valor" @(Model.DiasHorariosSelecionados.Contains(valor) ? "checked" : "") />
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

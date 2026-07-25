@@ -1,6 +1,14 @@
+# Build e IDE
 .vs/
 bin/
 obj/
-# Cuidado: Só suba se tiver certeza que não há senhas nele!
+publish/
+
+# Nunca subir — contém segredos reais (chaves de API, tokens).
+# Atenção: padrão com barra no meio é ancorado na raiz; o **/ cobre qualquer nível.
 appsettings.json
-App_Data/GoogleTokens/
+**/App_Data/GoogleTokens/
+
+# Backups locais e config pessoal
+Migrations_old_20260721_backup/
+.claude/

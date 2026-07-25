@@ -1,0 +1,117 @@
+@model Jogador
+@{
+    ViewData["Title"] = "Receber Pagamentos - Padelizou";
+    var comissoes = ViewBag.ComissoesPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
+    decimal minima = ViewBag.ComissaoMinima ?? 4m;
+    string modoAtual = Model.ModoComissao ?? (string)(ViewBag.ModoPadrao ?? "Somada");
+
+    // Exemplo com um torneio de R$ 100 só pra deixar concreto o que muda entre os dois modos.
+    decimal percentualExemplo = comissoes.TryGetValue("Torneio", out var pct) ? pct : 15m;
+    decimal exemploValor = 100m;
+    decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualExemplo / 100m, 2), minima);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold" style="color: var(--pdz-ink);">Receber Pagamentos</h2>
+                    <p class="text-muted mb-0">Cobre as inscrições dos seus torneios e aulas pelo app.</p>
+                </div>
+                <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Erro"]</div>
+            }
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form asp-controller="Pagamentos" asp-action="Configurar" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="receberPagamentoOnline" name="receberPagamentoOnline" value="true"
+                                   @(Model.ReceberPagamentoOnline ? "checked" : "")>
+                            <input type="hidden" name="receberPagamentoOnline" value="false">
+                            <label class="form-check-label fw-semibold" for="receberPagamentoOnline">
+                                Receber pagamento pelo Padelizou
+                            </label>
+                            <div class="text-muted small">
+                                Desligado, nada muda: você combina e recebe a inscrição por fora, como sempre fez.
+                            </div>
+                        </div>
+
+                        <div id="camposRecebimento" class="@(Model.ReceberPagamentoOnline ? "" : "d-none")">
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <label for="asaasWalletId" class="form-label fw-semibold">Wallet ID da sua conta Asaas</label>
+                                <input type="text" class="form-control" id="asaasWalletId" name="asaasWalletId"
+                                       value="@Model.AsaasWalletId" placeholder="ex: 8a2c4b1e-...">
+                                <div class="form-text">
+                                    É pra onde o dinheiro das inscrições cai, <strong>direto na sua conta</strong>.
+                                    Crie uma conta grátis no Asaas (pode ser CPF, não precisa de CNPJ) e copie o
+                                    Wallet ID em <em>Configurações › Integrações</em>.
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">Quem paga a taxa do Padelizou?</label>
+                                <div class="text-muted small mb-3">
+                                    O Padelizou fica com
+                                    @string.Join(", ", comissoes.Select(c => $"{c.Value.ToString("0.##")}% em {c.Key.ToLower()}s"))
+                                    — com mínimo de @minima.ToString("C"). Você escolhe como isso aparece:
+                                </div>
+
+                                <div class="form-check border rounded-3 p-3 mb-2">
+                                    <input class="form-check-input ms-0 me-2" type="radio" name="modoComissao"
+                                           id="modoSomada" value="Somada" @(modoAtual == "Somada" ? "checked" : "")>
+                                    <label class="form-check-label" for="modoSomada">
+                                        <strong>O jogador paga a taxa</strong>
+                                        <div class="text-muted small mt-1">
+                                            Num torneio de @exemploValor.ToString("C"): o jogador paga
+                                            <strong>@((exemploValor + exemploComissao).ToString("C"))</strong>
+                                            e você recebe os @exemploValor.ToString("C") cheios.
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="form-check border rounded-3 p-3">
+                                    <input class="form-check-input ms-0 me-2" type="radio" name="modoComissao"
+                                           id="modoDescontada" value="Descontada" @(modoAtual == "Descontada" ? "checked" : "")>
+                                    <label class="form-check-label" for="modoDescontada">
+                                        <strong>Eu pago a taxa</strong>
+                                        <div class="text-muted small mt-1">
+                                            Num torneio de @exemploValor.ToString("C"): o jogador paga
+                                            @exemploValor.ToString("C") e você recebe
+                                            <strong>@((exemploValor - exemploComissao).ToString("C"))</strong>.
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">Salvar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Os campos de recebimento só fazem sentido com o switch ligado.
+        document.getElementById('receberPagamentoOnline').addEventListener('change', function () {
+            document.getElementById('camposRecebimento').classList.toggle('d-none', !this.checked);
+        });
+    </script>
+}

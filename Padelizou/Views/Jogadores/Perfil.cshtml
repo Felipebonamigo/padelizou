@@ -1,0 +1,432 @@
+@model (Padelizou.Models.Jogador jogador, List<Padelizou.Models.Dupla> historico)
+@using Padelizou.ViewModels
+@{
+    ViewData["Title"] = "Perfil de " + Model.jogador.Nome;
+    var meuConfronto = ViewBag.MeuConfronto as HeadToHeadVM;
+    var confrontos = ViewBag.Confrontos as List<ConfrontoResumoVM> ?? new();
+    var parceiros = ViewBag.Parceiros as List<ParceiroResumoVM> ?? new();
+    var destaques = ViewBag.Destaques as DestaquesJogadorVM;
+    var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
+    var elogiosRecebidos = ViewBag.Elogios as List<ElogioResumoVM> ?? new();
+    var catalogoElogios = ViewBag.CatalogoElogios as List<Padelizou.Services.TipoElogio> ?? new();
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+    bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
+    int? meuId = ViewBag.MeuId;
+    bool podeElogiar = meuId.HasValue && meuId.Value != Model.jogador.Id && !perfilBloqueado;
+    var meusTiposDados = elogiosRecebidos.Where(e => e.EuDei).Select(e => e.Codigo).ToHashSet();
+    var comentarios = ViewBag.Comentarios as List<Padelizou.Models.ComentarioPerfil> ?? new();
+    bool podeModerarComentarios = ViewBag.PodeModerarComentarios == true;
+    var categoriaPrevista = ViewBag.CategoriaPrevista as NivelComprovadoVM;
+}
+
+<div class="container mt-4">
+    <!-- HEADER DO PERFIL -->
+    <div class="text-center mb-4">
+        <div class="mb-2">
+            <a asp-action="Buscar" class="text-decoration-none small text-muted">
+                <i class="bi bi-search"></i> Buscar outro jogador
+            </a>
+        </div>
+        <img src="@(string.IsNullOrEmpty(Model.jogador.FotoPerfil) ? "/img/default-avatar.png" : Model.jogador.FotoPerfil)"
+             class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
+        <h3 class="fw-bold mt-3">
+            @Model.jogador.Nome
+            @if (!perfilBloqueado && (int)ViewBag.Titulos > 0)
+            {
+                <span class="badge rounded-pill ms-1 align-middle" style="background:#fff6df;color:#8a6d00;font-weight:600;" title="Campeão @ViewBag.Titulos vez(es)">
+                    <i class="bi bi-trophy-fill"></i> @ViewBag.Titulos×
+                </span>
+            }
+        </h3>
+
+        @if (perfilBloqueado)
+        {
+            <p class="text-muted small"><i class="bi bi-lock-fill"></i> Este perfil é privado.</p>
+        }
+        else
+        {
+            <p class="text-muted">Ranking: <strong>@Model.jogador.PontuacaoGlobal pts</strong></p>
+
+            @if (ViewBag.EstouSeguindo != null)
+            {
+                bool estouSeguindo = (bool)ViewBag.EstouSeguindo;
+                <form asp-controller="Jogadores" asp-action="@(estouSeguindo ? "DeixarDeSeguir" : "Seguir")" method="post" class="mb-2">
+                    <input type="hidden" name="id" value="@Model.jogador.Id" />
+                    <button type="submit" class="btn btn-sm @(estouSeguindo ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+                        <i class="bi @(estouSeguindo ? "bi-person-check-fill" : "bi-person-plus")"></i>
+                        @(estouSeguindo ? "Seguindo" : "Seguir")
+                    </button>
+                </form>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
+            {
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))
+                    {
+                        <a href="https://instagram.com/@(Model.jogador.Instagram.TrimStart('@'))" target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-secondary rounded-pill">
+                            <i class="bi bi-instagram"></i> @@@(Model.jogador.Instagram.TrimStart('@'))
+                        </a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.jogador.Celular))
+                    {
+                        var numeroLimpo = new string(Model.jogador.Celular.Where(char.IsDigit).ToArray());
+                        <a href="https://wa.me/55@(numeroLimpo)" target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-success rounded-pill">
+                            <i class="bi bi-whatsapp"></i> WhatsApp
+                        </a>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    @if (!perfilBloqueado)
+    {
+    <!-- PERFIL DE JOGO (lado preferido / lateralidade) -->
+    @if (!string.IsNullOrWhiteSpace(Model.jogador.LadoQuadra) || !string.IsNullOrWhiteSpace(Model.jogador.Lateralidade))
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-2"><i class="bi bi-person-badge"></i> Perfil de jogo</h6>
+            <div class="row g-2">
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.LadoQuadra))
+                {
+                    <div class="col-6">
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Lado preferido</small>
+                        <span class="fw-bold">@Model.jogador.LadoQuadra</span>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.jogador.Lateralidade))
+                {
+                    <div class="col-6">
+                        <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">Lateralidade</small>
+                        <span class="fw-bold">@Model.jogador.Lateralidade</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- CLUBES E HORÁRIOS -->
+    @if (Model.jogador.JogadorClubes.Any() || Model.jogador.JogadorDiasHorarios.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            @if (Model.jogador.JogadorClubes.Any())
+            {
+                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.7rem;"><i class="bi bi-building"></i> Joga em</small>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    @foreach (var jc in Model.jogador.JogadorClubes)
+                    {
+                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@jc.Clube.Nome</span>
+                    }
+                </div>
+            }
+            @if (Model.jogador.JogadorDiasHorarios.Any())
+            {
+                <small class="text-muted text-uppercase fw-bold d-block mb-1" style="font-size: 0.7rem;"><i class="bi bi-clock-history"></i> Dias e horários preferidos</small>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var dh in Model.jogador.JogadorDiasHorarios.OrderBy(d => d.DiaSemana))
+                    {
+                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2">@diasSemana[dh.DiaSemana] · @dh.Periodo</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- CONQUISTAS -->
+    @if (conquistas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-award-fill text-warning"></i> Conquistas</h6>
+                <small class="text-muted">@conquistas.Count(c => c.Conquistada)/@conquistas.Count</small>
+            </div>
+            <div class="row g-2">
+                @foreach (var c in conquistas)
+                {
+                    <div class="col-3 text-center">
+                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")">
+                            <i class="bi @c.Icone fs-4 @(c.Conquistada ? "text-warning" : "text-muted")"></i>
+                            <div class="small fw-bold mt-1">@c.Titulo</div>
+                            <div style="font-size: 0.65rem;" class="@(c.Conquistada ? "text-success" : "text-muted")">
+                                @(c.Conquistada ? "✓ conquistado" : "bloqueado")
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- ELOGIOS -->
+    @if (elogiosRecebidos.Any() || podeElogiar)
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-hand-thumbs-up-fill text-success"></i> Elogios</h6>
+                @if (podeElogiar)
+                {
+                    <button type="button" class="btn btn-sm btn-padel rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalElogiar">
+                        <i class="bi bi-plus-lg"></i> Elogiar
+                    </button>
+                }
+            </div>
+
+            @if (elogiosRecebidos.Any())
+            {
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var e in elogiosRecebidos)
+                    {
+                        <span class="pdz-elogio-badge @(e.EuDei ? "pdz-elogio-badge-dado" : "")"
+                              title="@(e.EuDei ? "Você deu esse elogio" : "")">
+                            <i class="bi @e.Icone"></i>
+                            <strong>@e.Quantidade</strong> @e.Titulo
+                        </span>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small mb-0">Ainda não recebeu elogios.</p>
+            }
+        </div>
+    }
+
+    <!-- COMENTÁRIOS -->
+    @if (comentarios.Any() || podeElogiar)
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-chat-heart-fill text-danger"></i> Comentários</h6>
+
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger py-2 small">@TempData["Erro"]</div>
+            }
+
+            @if (podeElogiar)
+            {
+                <form asp-controller="Jogadores" asp-action="ComentarPerfil" asp-route-id="@Model.jogador.Id" method="post" class="mb-3">
+                    <textarea name="texto" class="form-control mb-2" rows="2" maxlength="500"
+                              placeholder="Deixe um elogio pro @Model.jogador.Nome.Split(' ')[0] — sem ofensas, por favor."></textarea>
+                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                        <i class="bi bi-send-fill"></i> Comentar
+                    </button>
+                </form>
+            }
+
+            @if (comentarios.Any())
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var c in comentarios)
+                    {
+                        <div class="d-flex gap-2 align-items-start">
+                            <img src="@(string.IsNullOrEmpty(c.Autor.FotoPerfil) ? "/img/default-avatar.png" : c.Autor.FotoPerfil)"
+                                 class="rounded-circle" style="width:36px;height:36px;object-fit:cover;flex-shrink:0;" />
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <a asp-action="Perfil" asp-route-id="@c.AutorId" class="fw-bold text-decoration-none small" style="color: var(--pdz-ink);">@c.Autor.Nome</a>
+                                        <span class="text-muted" style="font-size:.72rem;"> · @c.CriadoEm.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                    @if (podeModerarComentarios || meuId == c.AutorId)
+                                    {
+                                        <form asp-controller="Jogadores" asp-action="RemoverComentario" asp-route-comentarioId="@c.Id" method="post"
+                                              onsubmit="return confirm('Remover esse comentário?');">
+                                            <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Remover">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                                <p class="mb-0 small">@c.Texto</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small mb-0">Nenhum comentário ainda.</p>
+            }
+        </div>
+    }
+
+    <!-- CONFRONTO COM VOCÊ (ao ver o perfil de outra pessoa, estando logado) -->
+    @if (meuConfronto != null)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, var(--pdz-navy-fixed), #1b3a6b); color: #fff;">
+            <div class="card-body">
+                @if (meuConfronto.Jogos > 0)
+                {
+                    <h6 class="fw-bold text-uppercase small mb-3 opacity-75">
+                        <i class="bi bi-people-fill"></i> Seu confronto com @Model.jogador.Nome.Split(' ')[0]
+                    </h6>
+                    <div class="row text-center g-2">
+                        <div class="col-4"><h4 class="fw-bold mb-0">@meuConfronto.Jogos</h4><small class="opacity-75">Jogos</small></div>
+                        <div class="col-4"><h4 class="fw-bold mb-0 text-success">@meuConfronto.Vitorias</h4><small class="opacity-75">Vitórias</small></div>
+                        <div class="col-4"><h4 class="fw-bold mb-0 text-warning">@meuConfronto.Derrotas</h4><small class="opacity-75">Derrotas</small></div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a asp-action="Confronto" asp-route-oponenteId="@Model.jogador.Id" class="btn btn-sm btn-light rounded-pill fw-bold">
+                            Ver histórico completo
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p class="mb-0 text-center"><i class="bi bi-info-circle"></i> Vocês ainda não se enfrentaram em nenhuma partida registrada.</p>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- DESTAQUES (parceiro que mais jogou junto, algoz, freguês) — só no próprio perfil -->
+    <partial name="_DestaquesJogador" model="destaques" />
+
+    <!-- JOGA SEMPRE COM / JOGOU CONTRA / RIVAIS (visível apenas no próprio perfil) -->
+    @if (parceiros.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-people-fill"></i> Joga sempre com</h6>
+            <p class="text-muted small mb-2">A turma que joga junto.</p>
+            <div class="row g-2 text-center">
+                @foreach (var par in parceiros.Take(4))
+                {
+                    <div class="col-3">
+                        <a asp-action="Perfil" asp-route-id="@par.Parceiro.Id" class="text-decoration-none text-dark">
+                            <img src="@(string.IsNullOrEmpty(par.Parceiro.FotoPerfil) ? "/img/default-avatar.png" : par.Parceiro.FotoPerfil)"
+                                 class="rounded-circle" style="width:48px;height:48px;object-fit:cover;" />
+                            <div class="small fw-bold mt-1">@par.Parceiro.Nome.Split(' ')[0]</div>
+                            <div class="text-muted" style="font-size:0.7rem;">@par.Jogos jogo(s)</div>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (confrontos.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-shuffle"></i> Jogou contra</h6>
+            <div class="row g-2 text-center">
+                @foreach (var c in confrontos.Take(4))
+                {
+                    <div class="col-3">
+                        <a asp-action="Confronto" asp-route-oponenteId="@c.Oponente.Id" class="text-decoration-none text-dark">
+                            <img src="@(string.IsNullOrEmpty(c.Oponente.FotoPerfil) ? "/img/default-avatar.png" : c.Oponente.FotoPerfil)"
+                                 class="rounded-circle" style="width:48px;height:48px;object-fit:cover;" />
+                            <div class="small fw-bold mt-1">@c.Oponente.Nome.Split(' ')[0]</div>
+                            <div class="text-muted" style="font-size:0.7rem;">@c.Jogos confronto(s)</div>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-lightning-fill text-danger"></i> Rivais</h6>
+            <p class="text-muted small mb-2">Quem mais cruza a rede com você.</p>
+            <div class="list-group list-group-flush">
+                @foreach (var c in confrontos.Take(5))
+                {
+                    <a asp-action="Confronto" asp-route-oponenteId="@c.Oponente.Id"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <span class="fw-bold text-dark">@c.Oponente.Nome</span>
+                            <div class="text-muted small">@c.Jogos confronto(s)</div>
+                        </div>
+                        <span class="badge rounded-pill @(c.Vitorias >= c.Derrotas ? "bg-success" : "bg-danger")">
+                            @(c.Vitorias)V @(c.Derrotas)D
+                        </span>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- CATEGORIA PREVISTA (nível comprovado) -->
+    <div class="card border-0 shadow-sm mb-4 p-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;"><i class="bi bi-bar-chart-steps"></i> Categoria prevista</small>
+                @if (categoriaPrevista != null)
+                {
+                    <span class="fw-bold fs-5">@categoriaPrevista.Categoria</span>
+                    <span class="text-muted small">— @(categoriaPrevista.MelhorFase == "Campeao" ? "foi campeão" : "chegou à final") nessa categoria</span>
+                }
+                else
+                {
+                    <span class="text-muted">Ainda sem nível comprovado (é preciso chegar a uma final de torneio).</span>
+                }
+            </div>
+            <i class="bi bi-bar-chart-steps fs-2 text-primary opacity-50"></i>
+        </div>
+        @if (categoriaPrevista != null)
+        {
+            <small class="text-muted mt-1"><i class="bi bi-info-circle"></i> Já comprovou esse nível — o ideal é não se inscrever em categorias mais fracas que esta.</small>
+        }
+    </div>
+
+    <!-- CARDS DE ESTATÍSTICA (GRID MOBILE) -->
+    <div class="row g-2 mb-4">
+        <div class="col-4 col-md-2"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Vitórias</small><h5 class="fw-bold text-success mb-0">@ViewBag.Vitorias</h5></div></div>
+        <div class="col-4 col-md-2"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Títulos</small><h5 class="fw-bold text-warning mb-0">@ViewBag.Titulos</h5></div></div>
+        <div class="col-4 col-md-2"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Finais</small><h5 class="fw-bold text-primary mb-0">@ViewBag.Finais</h5></div></div>
+        <div class="col-4 col-md-2"><div class="card p-2 text-center shadow-sm"><small class="text-muted">Semis</small><h5 class="fw-bold text-info mb-0">@ViewBag.Semis</h5></div></div>
+        <div class="col-4 col-md-2"><div class="card p-2 text-center shadow-sm"><small class="text-muted" style="font-size: 0.7rem;">Caiu na Chave</small><h5 class="fw-bold text-secondary mb-0">@ViewBag.CaiuNaChave</h5></div></div>
+    </div>
+
+    <!-- LISTA DE TORNEIOS -->
+    <h5 class="fw-bold mb-3">Histórico de Torneios</h5>
+    <div class="list-group shadow-sm mb-4">
+        @if (!Model.historico.Any())
+        {
+            <p class="text-muted small mb-0"><i class="bi bi-info-circle"></i> Nenhum torneio registrado ainda.</p>
+        }
+        @foreach (var dupla in Model.historico)
+        {
+            <div class="list-group-item d-flex justify-content-between align-items-center p-3">
+                <div>
+                    <h6 class="fw-bold mb-0">@dupla.Categoria.Torneio.Nome</h6>
+                    <small class="text-muted">@dupla.Categoria.Nome · @dupla.Categoria.Torneio.DataInicio?.ToString("dd/MM/yyyy")</small>
+                </div>
+                <span class="badge rounded-pill @(dupla.UltimaFase == "Campeao" ? "bg-warning text-dark" : "bg-light text-dark border")">
+                    @dupla.UltimaFase
+                </span>
+            </div>
+        }
+    </div>
+    }
+</div>
+
+@if (podeElogiar)
+{
+    <div class="modal fade" id="modalElogiar" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-hand-thumbs-up-fill text-success"></i> Elogiar @Model.jogador.Nome.Split(' ')[0]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Toque num elogio pra dar. Toque de novo pra tirar.</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var t in catalogoElogios)
+                        {
+                            bool jaDei = meusTiposDados.Contains(t.Codigo);
+                            <form asp-controller="Jogadores" asp-action="@(jaDei ? "RemoverElogio" : "DarElogio")" asp-route-id="@Model.jogador.Id" method="post">
+                                <input type="hidden" name="tipo" value="@t.Codigo" />
+                                <button type="submit" class="pdz-elogio-chip @(jaDei ? "pdz-elogio-chip-ativo" : "")">
+                                    <i class="bi @t.Icone"></i> @t.Titulo
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

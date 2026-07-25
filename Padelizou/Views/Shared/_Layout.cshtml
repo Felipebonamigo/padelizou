@@ -1,0 +1,207 @@
+@using System.Security.Claims
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    string NavActive(params string[] controllers) => controllers.Contains(currentController) ? "active" : "";
+    var nomeUsuario = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.Name) : null;
+    var meuId = User.Identity?.IsAuthenticated == true ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+    var minhaFoto = User.Identity?.IsAuthenticated == true ? User.FindFirstValue("FotoPerfil") : null;
+    var souProfessor = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsProfessor") == "true";
+    var souAdmin = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsAdmin") == "true";
+}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <script>
+        (function () {
+            var tema = localStorage.getItem('pdz-theme');
+            if (!tema) {
+                tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', tema);
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Padelizou</title>
+    <meta name="theme-color" content="#141d33" />
+    <link rel="manifest" href="~/manifest.json" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />
+    <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="~/image/logo-icon.png" alt="Padelizou" class="pdz-brand-logo" />
+                    <span class="pdz-wordmark">Padelizou</span>
+                </a>
+
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#pdzNav"
+                        aria-controls="pdzNav" aria-expanded="false" aria-label="Abrir menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="navbar-collapse collapse" id="pdzNav">
+                    <ul class="navbar-nav mx-lg-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Home")" asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door"></i> Início
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Index">
+                                <i class="bi bi-trophy"></i> Torneio
+                            </a>
+                        </li>
+                        @if (souProfessor)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(currentController == "Aulas" && currentAction == "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Dashboard">
+                                    <i class="bi bi-clipboard-data"></i> Painel do Professor
+                                </a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
+                                <i class="bi bi-calendar-plus"></i> Aula
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Avisos")" asp-area="" asp-controller="Avisos" asp-action="Index">
+                                <i class="bi bi-megaphone"></i> Buscar Jogo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Grupos")" asp-area="" asp-controller="Grupos" asp-action="Index">
+                                <i class="bi bi-shield-lock"></i> Grupos
+                            </a>
+                        </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @NavActive("MarcarJogo")" asp-controller="MarcarJogo" asp-action="Index">
+                                    <i class="bi bi-calendar2-plus"></i> Marcar Jogo
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @NavActive("Agenda")" asp-controller="Agenda" asp-action="Index">
+                                    <i class="bi bi-calendar3"></i> Agenda
+                                </a>
+                            </li>
+                        }
+                        @if (souAdmin)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" href="https://admin.padelizou.com.br" target="_blank" rel="noopener">
+                                    <i class="bi bi-shield-lock-fill"></i> Painel Admin
+                                </a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link @NavActive("Jogadores")" asp-controller="Jogadores" asp-action="Ranking">
+                                <i class="bi bi-graph-up-arrow"></i> Ranking
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="d-flex align-items-center gap-2 pdz-authbar">
+                        <button type="button" id="pdzThemeToggle" class="btn btn-sm pdz-btn-ghost rounded-pill" title="Alternar tema claro/escuro">
+                            <i class="bi bi-moon-stars-fill" id="pdzThemeIcon"></i>
+                        </button>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil">
+                                @if (!string.IsNullOrWhiteSpace(minhaFoto))
+                                {
+                                    <img src="@minhaFoto" alt="" class="rounded-circle" style="width:22px;height:22px;object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-circle"></i>
+                                }
+                                <span class="text-truncate">@nomeUsuario</span>
+                            </a>
+                            <a class="btn btn-sm pdz-btn-ghost rounded-pill" asp-controller="Auth" asp-action="Logout" title="Sair">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="btn btn-sm btn-padel rounded-pill px-3" asp-controller="Auth" asp-action="Login">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main" class="pdz-main">
+        <div class="container">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="pdz-footer">
+        <div class="container">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <img src="~/image/logo-icon.png" alt="Padelizou" style="height: 26px; width: 26px;" />
+                    <span class="fw-semibold">Padelizou</span>
+                </div>
+                <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidade</a></span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/push.js" asp-append-version="true"></script>
+    <script src="~/js/mascaras.js" asp-append-version="true"></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <partial name="_InstalarPwaModal" />
+    }
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
+    <script>
+        (function () {
+            var botao = document.getElementById('pdzThemeToggle');
+            var icone = document.getElementById('pdzThemeIcon');
+
+            function atualizarIcone() {
+                var escuro = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                icone.className = escuro ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+                botao.title = escuro ? 'Mudar pro tema claro' : 'Mudar pro tema escuro';
+            }
+
+            botao.addEventListener('click', function () {
+                var atual = document.documentElement.getAttribute('data-bs-theme');
+                var novo = atual === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-bs-theme', novo);
+                localStorage.setItem('pdz-theme', novo);
+                atualizarIcone();
+            });
+
+            atualizarIcone();
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
