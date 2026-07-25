@@ -38,6 +38,7 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - **Ranking**: categoria prevista movida para o perfil, busca dentro do ranking, dropdown de categorias, ranking por torneio embutido, coluna de vitórias, filtro de período e filtro por estado + **várias cidades**.
 - **Fim do "Ranking: 0 pts"**: perfil mostra pontos reais somados dos torneios (3 telas corrigidas).
 - **PWA**: ícone de iPhone + maskable e atalhos de app (Agenda, Torneios, Ranking, Marcar jogo).
+- **Fase 2 (parte de código)**: métricas de uso no admin com medidor do MEI, alerta de 70/90% por e-mail, lembrete automático de cobrança e comprovante + CSV. Colunas `CriadoEm` novas (registro antigo = sem data). 89 testes.
 
 ---
 
@@ -51,12 +52,12 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [ ] **Ambiente local**: Postgres na máquina pra rodar o site pelo VS `2h`
 
 ### Fase 2 — Sair do modo demonstração `~1 semana` ⭐ *maior impacto*
-- [ ] **Asaas para produção** (trocar chave + URL, sem mexer no código) `1h`
-- [ ] **Limpar dados fictícios**: desligar seed de demo no startup + remover torneios `TEST*` e jogadores CPF `999*` `2h`
-- [ ] **Alerta de limite do MEI** (avisar em 70% e 90% do teto anual) `3h` 💡
-- [ ] **Métricas de uso** no admin: cadastros/semana, inscrições, pagamentos `1 dia`
-- [ ] **Lembrete automático de cobrança** antes do vencimento `4h`
-- [ ] **Comprovante + exportar CSV** pro contador `4h`
+- [ ] **Asaas para produção** (trocar chave + URL, sem mexer no código) `1h` ← *precisa do Felipe*
+- [ ] **Limpar dados fictícios**: desligar seed de demo no startup + remover torneios `TEST*` e jogadores CPF `999*` `2h` ← *combinar o momento*
+- [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
+- [x] **Métricas de uso** no admin (`/Admin/Metricas`): cadastros, inscrições, pagamentos, série semanal e medidor do MEI ✅ 25/07
+- [x] **Lembrete automático de cobrança** (push + e-mail a 6h do vencimento, 1x só) ✅ 25/07
+- [x] **Comprovante imprimível + exportar CSV** pro contador ✅ 25/07
 
 ### Fase 3 — O dia do torneio `~1-2 semanas`
 - [ ] **Comunicado em massa** aos inscritos (1 clique) `1 dia`
