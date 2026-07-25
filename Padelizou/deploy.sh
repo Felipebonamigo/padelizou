@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
-# Publica o Padelizou e envia pro servidor de produção.
-# Preencher SERVIDOR (usuário@ip) antes de usar pela primeira vez.
+# Deploy de PRODUÇÃO — via GitHub, não mais pelo disco local.
+#
+# Fluxo: commit → push → CI roda os testes → CI gera o pacote →
+#        o VPS baixa e instala exatamente aquele commit.
+# Se algo der errado, voltar é 1 comando:
+#        ssh root@179.197.233.184 /opt/padelizou-deploy/rollback.sh prod
 set -euo pipefail
 
 SERVIDOR="root@179.197.233.184"
-PASTA_REMOTA="/opt/padelizou"
-SERVICO="padelizou"
 
-echo "==> Publicando (framework-dependent, o runtime já está instalado no servidor)..."
-rm -rf ./publish
-dotnet publish -c Release -o ./publish
+cd "$(dirname "$0")/.."   # raiz do repositório
 
-echo "==> Enviando arquivos pro servidor ($SERVIDOR:$PASTA_REMOTA)..."
-# scp em vez de rsync (rsync não vem por padrão no Git Bash do Windows).
-# App_Data/GoogleTokens e wwwroot/uploads são gerados em runtime no servidor,
-# não fazem parte do publish local, então não precisam de --exclude aqui.
-ssh "$SERVIDOR" "mkdir -p $PASTA_REMOTA"
-scp -r ./publish/. "$SERVIDOR:$PASTA_REMOTA/"
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERRO: há alterações não commitadas."
+  echo "Só se publica o que está no GitHub — faça commit (e push) primeiro."
+  git status --short
+  exit 1
+fi
 
-echo "==> Reiniciando o serviço..."
-ssh "$SERVIDOR" "systemctl restart $SERVICO && sleep 2 && systemctl status $SERVICO --no-pager -l"
+echo "==> Enviando pro GitHub (se já estiver lá, não muda nada)..."
+git push origin main
 
-echo "==> Feito. O app aplica as migrations sozinho no startup (db.Database.Migrate())."
+SHA=$(git rev-parse HEAD)
+echo "==> Pedindo pro servidor instalar o commit $SHA..."
+ssh "$SERVIDOR" "/opt/padelizou-deploy/deploy.sh prod $SHA"

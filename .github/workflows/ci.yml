@@ -29,3 +29,47 @@ jobs:
 
       - name: Rodar os testes
         run: dotnet test Padelizou.slnx -c Release --no-build --nologo
+
+  # Se os testes passaram no main, gera o pacote pronto pra deploy e anexa
+  # num release "build-N-sha". O VPS só instala pacotes daqui — ou seja,
+  # é impossível publicar código que não passou nos testes.
+  publicar:
+    name: Pacote de deploy
+    needs: testes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publicar (Release)
+        run: dotnet publish Padelizou/Padelizou.csproj -c Release -o publish
+
+      - name: Compactar
+        run: tar -czf padelizou.tar.gz -C publish .
+
+      - name: Criar release de build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha7=$(echo "${{ github.sha }}" | cut -c1-7)
+          tag="build-${{ github.run_number }}-$sha7"
+          gh release create "$tag" padelizou.tar.gz \
+            --title "Build ${{ github.run_number }} ($sha7)" \
+            --notes "Pacote pronto pra deploy — commit ${{ github.sha }}" \
+            --prerelease
+
+      - name: Limpar builds antigos (mantém os 20 últimos)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 100 --json tagName -q '.[].tagName' \
+            | grep '^build-' | sort -t- -k2 -rn | tail -n +21 \
+            | xargs -r -I{} gh release delete {} --cleanup-tag --yes

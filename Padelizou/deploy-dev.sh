@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Publica o Padelizou no ambiente de teste isolado (dev.padelizou.com.br) — instância e banco
-# Postgres próprios (db_padel_dev), separados da produção. Mesmo fluxo do deploy.sh, só
-# apontando pra outra pasta/serviço no mesmo servidor.
+# Deploy do ambiente de TESTE (dev.padelizou.com.br) — via GitHub.
+#
+# Mesmo fluxo da produção: só instala commit que passou no CI.
+# Voltar: ssh root@179.197.233.184 /opt/padelizou-deploy/rollback.sh dev
 set -euo pipefail
 
 SERVIDOR="root@179.197.233.184"
-PASTA_REMOTA="/opt/padelizou-dev"
-SERVICO="padelizou-dev"
 
-echo "==> Publicando (framework-dependent, o runtime já está instalado no servidor)..."
-rm -rf ./publish
-dotnet publish -c Release -o ./publish
+cd "$(dirname "$0")/.."   # raiz do repositório
 
-echo "==> Enviando arquivos pro servidor ($SERVIDOR:$PASTA_REMOTA)..."
-ssh "$SERVIDOR" "mkdir -p $PASTA_REMOTA"
-scp -r ./publish/. "$SERVIDOR:$PASTA_REMOTA/"
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERRO: há alterações não commitadas."
+  echo "Só se publica o que está no GitHub — faça commit (e push) primeiro."
+  git status --short
+  exit 1
+fi
 
-echo "==> Reiniciando o serviço..."
-ssh "$SERVIDOR" "systemctl restart $SERVICO && sleep 2 && systemctl status $SERVICO --no-pager -l"
+echo "==> Enviando pro GitHub (se já estiver lá, não muda nada)..."
+git push origin main
 
-echo "==> Feito. O app aplica as migrations sozinho no startup (db.Database.Migrate())."
+SHA=$(git rev-parse HEAD)
+echo "==> Pedindo pro servidor instalar o commit $SHA no DEV..."
+ssh "$SERVIDOR" "/opt/padelizou-deploy/deploy.sh dev $SHA"
