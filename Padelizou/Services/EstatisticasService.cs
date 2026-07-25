@@ -1008,12 +1008,24 @@ public class EstatisticasService : IEstatisticasService
     // do gráfico, mas continua somando no total do perfil.
     public async Task<EvolucaoJogadorVM> ObterEvolucaoJogadorAsync(int jogadorId, int meses = 12)
     {
-        var primeiroMes = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-(meses - 1));
+        var mesAtual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        var primeiroMes = mesAtual.AddMonths(-(meses - 1));
 
         var participacoes = await _context.Duplas
             .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
             .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase })
             .ToListAsync();
+
+        // O ranking concede pontos de participação já na inscrição, então um torneio marcado
+        // pra frente JÁ conta no total do perfil. Se a linha parasse no mês atual, o gráfico
+        // terminaria abaixo do total exibido — o jogador veria dois números diferentes.
+        // Por isso a janela se estica até o torneio mais distante (teto de 1 ano).
+        var ultimoTorneio = participacoes.Where(p => p.Data != null).Select(p => p.Data!.Value).DefaultIfEmpty(mesAtual).Max();
+        var ultimoMes = new DateTime(ultimoTorneio.Year, ultimoTorneio.Month, 1);
+        if (ultimoMes < mesAtual) ultimoMes = mesAtual;
+        if (ultimoMes > mesAtual.AddMonths(12)) ultimoMes = mesAtual.AddMonths(12);
+
+        int totalMeses = ((ultimoMes.Year - primeiroMes.Year) * 12) + ultimoMes.Month - primeiroMes.Month + 1;
 
         // Tudo que aconteceu antes da janela já entra como saldo inicial do acumulado,
         // senão a linha começaria em zero e daria a impressão de que o jogador regrediu.
@@ -1024,7 +1036,7 @@ public class EstatisticasService : IEstatisticasService
         var naJanela = participacoes.Where(p => p.Data != null && p.Data.Value >= primeiroMes).ToList();
 
         var vm = new EvolucaoJogadorVM();
-        for (int i = 0; i < meses; i++)
+        for (int i = 0; i < totalMeses; i++)
         {
             var mes = primeiroMes.AddMonths(i);
             var fim = mes.AddMonths(1);

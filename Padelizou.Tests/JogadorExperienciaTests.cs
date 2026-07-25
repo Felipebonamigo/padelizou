@@ -116,6 +116,36 @@ public class JogadorExperienciaTests
     }
 
     [Fact]
+    public async Task Evolucao_alcanca_o_mesmo_total_do_perfil_com_torneio_futuro()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var j = new Jogador { Nome = "J", Cpf = "1" };
+        var p = new Jogador { Nome = "P", Cpf = "2" };
+        ctx.Jogadores.AddRange(j, p);
+
+        var passado = NovaCategoria(ctx, "TP", DateTime.Now.AddMonths(-2));
+        // Torneio marcado pra daqui a 1 mês: a inscrição já pontua (10 de participação).
+        var futuro = NovaCategoria(ctx, "TF", DateTime.Now.AddMonths(1));
+        ctx.Duplas.Add(new Dupla { CategoriaId = passado.Id, Jogador1Id = j.Id, Jogador2Id = p.Id, UltimaFase = "Final" }); // 60
+        ctx.Duplas.Add(new Dupla { CategoriaId = futuro.Id, Jogador1Id = j.Id, Jogador2Id = p.Id, UltimaFase = "Grupos" }); // 10
+        ctx.SaveChanges();
+
+        var svc = new EstatisticasService(ctx);
+        var vm = await svc.ObterEvolucaoJogadorAsync(j.Id);
+        var resumo = await svc.ObterResumoJogadorAsync(j.Id);
+
+        // O gráfico não pode terminar abaixo do total do perfil — seriam dois números
+        // diferentes na mesma tela.
+        Assert.Equal(resumo.Pontos, vm.Total);
+        Assert.Equal(70, vm.Total);
+        Assert.True(vm.TemMesFuturo);
+        Assert.True(vm.Meses[^1].NoFuturo);
+
+        // "+X neste mês" olha o mês corrente, não o futuro.
+        Assert.Equal(0, vm.PontosNoUltimoMes);
+    }
+
+    [Fact]
     public async Task Evolucao_ignora_torneio_sem_data()
     {
         using var ctx = TestInfra.NovoContexto();

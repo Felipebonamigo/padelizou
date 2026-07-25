@@ -96,10 +96,13 @@ public class EvolucaoJogadorVM
     // Falso quando o jogador nunca pontuou no período — a view esconde o gráfico.
     public bool TemDados => Meses.Any(m => m.Pontos > 0);
 
-    // Quanto ganhou nos últimos 30 dias (o "+X pts no mês" ao lado do total).
-    public int PontosNoUltimoMes => Meses.Count == 0 ? 0 : Meses[^1].Pontos;
+    // Quanto ganhou no mês corrente (o "+X pts neste mês" ao lado do total).
+    public int PontosNoUltimoMes => Meses.LastOrDefault(m => !m.NoFuturo)?.Pontos ?? 0;
 
     public int Total => Meses.Count == 0 ? 0 : Meses[^1].Acumulado;
+
+    // Verdadeiro quando o jogador já está inscrito em torneio que ainda vai acontecer.
+    public bool TemMesFuturo => Meses.Any(m => m.NoFuturo);
 }
 
 public class MesEvolucaoVM
@@ -107,10 +110,14 @@ public class MesEvolucaoVM
     public DateTime Mes { get; set; }        // primeiro dia do mês
     public int Pontos { get; set; }          // ganhos NESTE mês
     public int Acumulado { get; set; }       // total até o fim deste mês
-    public int Torneios { get; set; }        // torneios encerrados no mês
+    public int Torneios { get; set; }        // torneios do mês
     public int Titulos { get; set; }
 
     public string Rotulo => Mes.ToString("MMM/yy");
+
+    // Mês que ainda não chegou: o jogador já está inscrito e a inscrição já pontua,
+    // mas o torneio não aconteceu. A view desenha esse trecho tracejado.
+    public bool NoFuturo => Mes > new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
 }
 
 // Parceiro de dupla mais frequente ("joga sempre com")

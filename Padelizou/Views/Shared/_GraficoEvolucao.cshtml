@@ -30,9 +30,18 @@
                  $"y=\"{y.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}\" " +
                  $"text-anchor=\"{ancora}\" class=\"pdz-ev-eixo\">{System.Net.WebUtility.HtmlEncode(texto)}</text>");
 
-    var pontosLinha = string.Join(" ", meses.Select((m, i) => $"{Num(X(i))},{Num(YAcum(m.Acumulado))}"));
-    var areaFechada = meses.Count == 0 ? "" :
-        $"{Num(X(0))},{Num(margemTopo + plotA)} {pontosLinha} {Num(X(meses.Count - 1))},{Num(margemTopo + plotA)}";
+    string Ponto(int i) => $"{Num(X(i))},{Num(YAcum(meses[i].Acumulado))}";
+
+    // A linha é partida em duas: o que já aconteceu (sólida) e o que está por vir
+    // (tracejada). O trecho futuro começa no último mês real, pra não haver buraco.
+    int ultimoReal = meses.FindLastIndex(m => !m.NoFuturo);
+    if (ultimoReal < 0) { ultimoReal = 0; }
+
+    var linhaReal = string.Join(" ", Enumerable.Range(0, ultimoReal + 1).Select(Ponto));
+    var linhaFutura = meses.Count - 1 > ultimoReal
+        ? string.Join(" ", Enumerable.Range(ultimoReal, meses.Count - ultimoReal).Select(Ponto))
+        : "";
+    var areaFechada = $"{Num(X(0))},{Num(margemTopo + plotA)} {linhaReal} {Num(X(ultimoReal))},{Num(margemTopo + plotA)}";
 }
 
 @if (!Model.TemDados)
@@ -69,21 +78,26 @@ else
                 double h = (double)m.Pontos / maxMes * (plotA * 0.55);
                 double larguraBarra = Math.Max(4, passo * 0.5);
                 <rect x="@Num(X(i) - larguraBarra / 2)" y="@Num(margemTopo + plotA - h)"
-                      width="@Num(larguraBarra)" height="@Num(h)" rx="2" class="pdz-ev-barra">
-                    <title>@m.Rotulo: +@m.Pontos pts@(m.Torneios > 0 ? $" em {m.Torneios} torneio(s)" : "")</title>
+                      width="@Num(larguraBarra)" height="@Num(h)" rx="2"
+                      class="pdz-ev-barra @(m.NoFuturo ? "pdz-ev-futuro" : "")">
+                    <title>@m.Rotulo: +@m.Pontos pts@(m.Torneios > 0 ? $" em {m.Torneios} torneio(s)" : "")@(m.NoFuturo ? " — inscrito, ainda não jogou" : "")</title>
                 </rect>
             }
 
-            @* Área + linha do acumulado *@
+            @* Área + linha do acumulado (o trecho ainda por acontecer vai tracejado) *@
             <polygon points="@areaFechada" class="pdz-ev-area" />
-            <polyline points="@pontosLinha" class="pdz-ev-linha" />
+            <polyline points="@linhaReal" class="pdz-ev-linha" />
+            @if (linhaFutura != "")
+            {
+                <polyline points="@linhaFutura" class="pdz-ev-linha pdz-ev-linha-futura" />
+            }
 
             @for (int i = 0; i < meses.Count; i++)
             {
                 var m = meses[i];
                 <circle cx="@Num(X(i))" cy="@Num(YAcum(m.Acumulado))" r="@(m.Titulos > 0 ? 3.6 : 2.4)"
-                        class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto")">
-                    <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")</title>
+                        class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto") @(m.NoFuturo ? "pdz-ev-futuro" : "")">
+                    <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")@(m.NoFuturo ? " (torneio ainda por vir)" : "")</title>
                 </circle>
             }
 
@@ -100,9 +114,19 @@ else
             <span><span class="pdz-ev-chip pdz-ev-chip-linha"></span> total acumulado</span>
             <span><span class="pdz-ev-chip pdz-ev-chip-titulo"></span> mês com título</span>
         </div>
+
+        @if (Model.TemMesFuturo)
+        {
+            <p class="small text-muted text-center mt-2 mb-0">
+                O trecho claro no fim é torneio em que você já está inscrito e ainda vai acontecer —
+                a inscrição já conta pontos de participação.
+            </p>
+        }
     </div>
 
     <style>
+        /* Sem teto, o SVG estica até a largura do card e fica desproporcional no desktop. */
+        .pdz-evolucao { max-width: 560px; margin: 0 auto; }
         .pdz-evolucao .pdz-ev-grade { stroke: currentColor; opacity: .12; stroke-width: 1; }
         .pdz-evolucao .pdz-ev-eixo { fill: currentColor; opacity: .55; font-size: 8px; }
         .pdz-evolucao .pdz-ev-barra { fill: var(--padel-green, #8bc34a); opacity: .45; }
@@ -114,5 +138,8 @@ else
         .pdz-evolucao .pdz-ev-chip-barra { background: var(--padel-green, #8bc34a); opacity: .45; }
         .pdz-evolucao .pdz-ev-chip-linha { background: var(--padel-green, #8bc34a); }
         .pdz-evolucao .pdz-ev-chip-titulo { background: #ffc107; border-radius: 50%; }
+        /* Mês que ainda não chegou: mesma cor, mas apagado e tracejado. */
+        .pdz-evolucao .pdz-ev-linha-futura { stroke-dasharray: 4 3; opacity: .55; }
+        .pdz-evolucao .pdz-ev-futuro { opacity: .35; }
     </style>
 }
