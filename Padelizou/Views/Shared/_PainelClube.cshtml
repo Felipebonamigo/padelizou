@@ -1,0 +1,42 @@
+@model Padelizou.ViewModels.PainelClubeHomeVM
+@*
+    Painel do dono/administrador de clube. Por enquanto entrega a ocupação de hoje —
+    o mapa da semana inteira ainda está por fazer (ver STATUS.md, bloco Clube).
+*@
+<div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #0dcaf0 !important;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-shop"></i> Meu clube
+            </h6>
+            <a asp-controller="MarcarJogo" asp-action="Index" class="small text-decoration-none fw-bold">Ver quadras →</a>
+        </div>
+
+        <div class="row g-2 text-center mb-3">
+            <div class="col-6">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.ReservasHoje</div>
+                    <small class="text-muted" style="font-size:.7rem;">reservas hoje</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.QuadrasAtivas</div>
+                    <small class="text-muted" style="font-size:.7rem;">quadras ativas</small>
+                </div>
+            </div>
+        </div>
+
+        @foreach (var c in Model.Clubes)
+        {
+            <div class="d-flex align-items-center gap-2 py-2 border-top">
+                <div class="flex-grow-1 overflow-hidden">
+                    <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@c.Nome</span>
+                    <small class="text-muted">@c.ReservasHoje reserva(s) hoje · @c.Quadras quadra(s)</small>
+                </div>
+                <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@c.Id"
+                   class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">Gerenciar</a>
+            </div>
+        }
+    </div>
+</div>

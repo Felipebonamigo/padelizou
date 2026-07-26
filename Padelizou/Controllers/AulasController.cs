@@ -15,6 +15,7 @@ namespace padelizou.Controllers
         private readonly DbPadelContext _context;
         private readonly IEmailService _emailService;
         private readonly IGoogleCalendarService _googleCalendarService;
+        private readonly IPushNotificationService _pushService;
         private readonly ILogger<AulasController> _logger;
 
         private const int DuracaoPadraoMinutos = 60;
@@ -24,11 +25,13 @@ namespace padelizou.Controllers
             DbPadelContext context,
             IEmailService emailService,
             IGoogleCalendarService googleCalendarService,
+            IPushNotificationService pushService,
             ILogger<AulasController> logger)
         {
             _context = context;
             _emailService = emailService;
             _googleCalendarService = googleCalendarService;
+            _pushService = pushService;
             _logger = logger;
         }
 
@@ -253,6 +256,24 @@ namespace padelizou.Controllers
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Falha ao enviar e-mail de solicitação para a série de aulas do professor {ProfessorId}", professorId);
+            }
+
+            // Push além do e-mail: solicitação de aula é o aviso mais urgente do professor —
+            // enquanto ele não responde, o horário fica travado pro aluno.
+            try
+            {
+                var primeira = novasAulas[0];
+                await _pushService.EnviarParaJogadorAsync(professorId,
+                    "Nova solicitação de aula",
+                    novasAulas.Count == 1
+                        ? $"{aluno!.Nome} quer aula em {local.Nome}, {primeira.DataHora:dd/MM 'às' HH:mm}."
+                        : $"{aluno!.Nome} pediu {novasAulas.Count} aulas em {local.Nome}, a partir de {primeira.DataHora:dd/MM}.",
+                    Url.Action("MinhaAgenda", "Aulas"));
+            }
+            catch (Exception ex)
+            {
+                // Push é acessório — a solicitação já está gravada e o e-mail já saiu.
+                _logger.LogWarning(ex, "Falha ao enviar push de solicitação de aula ao professor {ProfessorId}", professorId);
             }
 
             return RedirectToAction("SolicitacaoEnviada", new { recorrenciaId, id = novasAulas[0].Id, puladas });

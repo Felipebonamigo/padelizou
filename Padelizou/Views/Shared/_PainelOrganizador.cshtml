@@ -1,0 +1,68 @@
+@model Padelizou.ViewModels.PainelOrganizadorHomeVM
+@*
+    Painel de quem organiza torneio. A ordem já veio do controller: jogo ao vivo primeiro
+    (é o que acontece agora), depois o que está esperando sorteio.
+*@
+<div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--padel-green) !important;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-clipboard-check-fill"></i> Meus torneios (organizador)
+            </h6>
+            <a asp-controller="Torneios" asp-action="Index" class="small text-decoration-none fw-bold">Ver todos →</a>
+        </div>
+
+        <div class="row g-2 text-center mb-3">
+            <div class="col-4">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.TorneiosAtivos</div>
+                    <small class="text-muted" style="font-size:.7rem;">ativos</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5 @(Model.JogosAoVivo > 0 ? "text-danger" : "")" style="@(Model.JogosAoVivo > 0 ? "" : "color: var(--pdz-ink);")">
+                        @Model.JogosAoVivo
+                    </div>
+                    <small class="text-muted" style="font-size:.7rem;">jogos ao vivo</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.InscricoesNaSemana</div>
+                    <small class="text-muted" style="font-size:.7rem;">inscrições/semana</small>
+                </div>
+            </div>
+        </div>
+
+        @foreach (var t in Model.Torneios)
+        {
+            <div class="d-flex align-items-center gap-2 py-2 border-top">
+                <div class="flex-grow-1 overflow-hidden">
+                    <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@t.Nome</span>
+                    <small class="text-muted">
+                        @t.Status · @t.Inscritos inscrito(s)
+                        @if (t.JogosAoVivo > 0)
+                        {
+                            <span class="badge bg-danger ms-1"><i class="bi bi-record-circle"></i> @t.JogosAoVivo ao vivo</span>
+                        }
+                        @if (t.PrecisaSortear)
+                        {
+                            <span class="badge bg-warning text-dark ms-1">sortear chaves</span>
+                        }
+                    </small>
+                </div>
+                @if (t.JogosAoVivo > 0)
+                {
+                    <a asp-controller="Torneios" asp-action="MesaControle" asp-route-id="@t.Id"
+                       class="btn btn-sm btn-danger rounded-pill px-3 flex-shrink-0">Mesa</a>
+                }
+                else
+                {
+                    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                       class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">Abrir</a>
+                }
+            </div>
+        }
+    </div>
+</div>

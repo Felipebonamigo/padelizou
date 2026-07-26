@@ -1,0 +1,98 @@
+@model Padelizou.ViewModels.PainelProfessorHomeVM
+@using System.Globalization
+@*
+    "Meu dia" do professor na entrada. Pensado pro celular: o que pede ação vem primeiro
+    (solicitação pendente), depois a agenda, e cada aula já traz o botão de falar com o aluno.
+*@
+@{
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    string Quando(DateTime d)
+    {
+        if (d.Date == DateTime.Today) return $"hoje {d:HH\\:mm}";
+        if (d.Date == DateTime.Today.AddDays(1)) return $"amanhã {d:HH\\:mm}";
+        return $"{ptBr.DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek)} {d:dd/MM} {d:HH\\:mm}";
+    }
+
+    string SoDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+}
+
+<div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #ffc107 !important;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-mortarboard-fill"></i> Meu dia como professor
+            </h6>
+            <a asp-controller="Aulas" asp-action="Dashboard" class="small text-decoration-none fw-bold">Painel completo →</a>
+        </div>
+
+        @* Solicitação pendente é o único item que trava o aluno — vem antes de tudo. *@
+        @if (Model.SolicitacoesPendentes > 0)
+        {
+            <a asp-controller="Aulas" asp-action="MinhaAgenda"
+               class="alert alert-warning d-flex align-items-center gap-2 py-2 text-decoration-none mb-3">
+                <i class="bi bi-bell-fill fs-5"></i>
+                <span class="flex-grow-1">
+                    <strong>@Model.SolicitacoesPendentes</strong>
+                    @(Model.SolicitacoesPendentes == 1 ? "aula esperando sua resposta" : "aulas esperando sua resposta")
+                </span>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        }
+
+        <div class="row g-2 text-center mb-3">
+            <div class="col-3">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.AulasHoje</div>
+                    <small class="text-muted" style="font-size:.7rem;">hoje</small>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@Model.AulasNaSemana</div>
+                    <small class="text-muted" style="font-size:.7rem;">na semana</small>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-6 text-success">@Model.RecebidoNoMes.ToString("C0", ptBr)</div>
+                    <small class="text-muted" style="font-size:.7rem;">no mês</small>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="p-2 rounded-3 bg-light">
+                    <div class="fw-bold fs-6" style="color: var(--pdz-ink);">@Model.AReceber.ToString("C0", ptBr)</div>
+                    <small class="text-muted" style="font-size:.7rem;">a receber</small>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.ProximasAulas.Any())
+        {
+            @foreach (var a in Model.ProximasAulas)
+            {
+                <div class="d-flex align-items-center gap-2 py-2 border-top">
+                    <i class="bi @(a.Confirmada ? "bi-check-circle-fill" : "bi-clock-history") fs-5"
+                       style="color: @(a.Confirmada ? "var(--padel-green)" : "#ffc107");"
+                       title="@(a.Confirmada ? "Confirmada" : "Aguardando sua resposta")"></i>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@a.Aluno</span>
+                        <small class="text-muted">@Quando(a.DataHora) · @a.Local · @a.Preco.ToString("C0", ptBr)</small>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(a.CelularAluno))
+                    {
+                        var msg = Uri.EscapeDataString($"Oi {a.Aluno.Split(' ')[0]}! Sobre nossa aula de {a.DataHora:dd/MM 'às' HH:mm} em {a.Local}.");
+                        <a href="https://wa.me/55@(SoDigitos(a.CelularAluno))?text=@msg" target="_blank" rel="noopener"
+                           class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0" title="Falar com o aluno">
+                            <i class="bi bi-whatsapp"></i>
+                        </a>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p class="small text-muted mb-0 border-top pt-2">Nenhuma aula marcada por enquanto.</p>
+        }
+    </div>
+</div>

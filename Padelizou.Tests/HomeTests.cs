@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using padelizou.Models;   // namespace legado (minúsculo): Aula
 using Microsoft.AspNetCore.Mvc;
 using Padelizou.Controllers;
 using Padelizou.Models;
@@ -138,6 +139,102 @@ public class HomeTests
 
         Assert.Null(vm.ProximoJogo);
         Assert.Single(vm.MeusTorneios); // o torneio continua listado como meu
+    }
+
+    [Fact]
+    public async Task Jogador_comum_nao_ganha_painel_de_papel_nenhum()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var j = new Jogador { Nome = "So Jogador", Cpf = "1" };
+        ctx.Jogadores.Add(j);
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, j.Id);
+
+        Assert.Null(vm.Professor);
+        Assert.Null(vm.Organizador);
+        Assert.Null(vm.Clube);
+        Assert.False(vm.TemAlgumPapel);
+    }
+
+    [Fact]
+    public async Task Quem_acumula_os_tres_papeis_ve_os_tres_paineis()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var eu = new Jogador { Nome = "Multi Papel", Cpf = "1", IsProfessor = true };
+        var aluno = new Jogador { Nome = "Aluno", Cpf = "2" };
+        ctx.Jogadores.AddRange(eu, aluno);
+        ctx.SaveChanges();
+
+        // Professor: uma aula pendente e uma já realizada neste mês.
+        var local = new LocalAula { ProfessorId = eu.Id, Nome = "Quadra A", Endereco = "rua", PrecoPadrao = 100 };
+        ctx.LocaisAula.Add(local);
+        ctx.SaveChanges();
+        ctx.Aulas.Add(new Aula
+        {
+            ProfessorId = eu.Id, AlunoId = aluno.Id, LocalAulaId = local.Id,
+            DataHora = DateTime.Today.AddHours(20), Preco = 120, Status = "Pendente",
+        });
+        ctx.Aulas.Add(new Aula
+        {
+            ProfessorId = eu.Id, AlunoId = aluno.Id, LocalAulaId = local.Id,
+            DataHora = DateTime.Today.AddDays(-1), Preco = 100, Status = "Realizada",
+        });
+
+        // Organizador de um torneio ativo.
+        var torneio = new Torneio { Nome = "Copa", Codigo = "C1", Status = "Chaves em Sorteio", DataInicio = DateTime.Now };
+        ctx.Torneios.Add(torneio);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = eu.Id, NivelAcesso = "Criador" });
+
+        // Dono de clube com uma reserva hoje.
+        var clube = new Clube { Nome = "Meu Clube", Contato = "x", Endereco = "y", DonoId = eu.Id };
+        ctx.Clubes.Add(clube);
+        ctx.SaveChanges();
+        var quadra = new QuadraClube { ClubeId = clube.Id, Nome = "Q1", Ativa = true };
+        ctx.QuadrasClube.Add(quadra);
+        ctx.SaveChanges();
+        ctx.MarcacoesJogo.Add(new MarcacaoJogo
+        {
+            JogadorId = aluno.Id, ClubeId = clube.Id, QuadraClubeId = quadra.Id,
+            DataHora = DateTime.Today.AddHours(19), DuracaoMinutos = 60, Status = "Confirmada",
+        });
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, eu.Id);
+
+        Assert.True(vm.TemAlgumPapel);
+
+        Assert.NotNull(vm.Professor);
+        Assert.Equal(1, vm.Professor!.SolicitacoesPendentes);
+        Assert.Equal(100, vm.Professor.RecebidoNoMes);   // só a Realizada conta como recebida
+
+        Assert.NotNull(vm.Organizador);
+        Assert.Equal(1, vm.Organizador!.TorneiosAtivos);
+        Assert.True(vm.Organizador.Torneios.Single().PrecisaSortear);
+
+        Assert.NotNull(vm.Clube);
+        Assert.Equal(1, vm.Clube!.ReservasHoje);
+        Assert.Equal(1, vm.Clube.QuadrasAtivas);
+    }
+
+    [Fact]
+    public async Task Torneio_ja_finalizado_nao_gera_painel_de_organizador()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var eu = new Jogador { Nome = "Ex Organizador", Cpf = "1" };
+        ctx.Jogadores.Add(eu);
+        var torneio = new Torneio { Nome = "Antiga", Codigo = "A1", Status = "Finalizado", DataInicio = DateTime.Now.AddMonths(-2) };
+        ctx.Torneios.Add(torneio);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = eu.Id, NivelAcesso = "Criador" });
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, eu.Id);
+
+        // Quem já encerrou tudo não precisa de painel ocupando a entrada.
+        Assert.Null(vm.Organizador);
+        Assert.False(vm.TemAlgumPapel);
     }
 
     [Fact]

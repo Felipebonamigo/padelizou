@@ -159,6 +159,138 @@ namespace Padelizou.Controllers
             var meusIds = vm.MeusTorneios.Select(m => m.Torneio.Id).ToHashSet();
             vm.EmAndamento = vm.EmAndamento.Where(t => !meusIds.Contains(t.Id)).ToList();
             vm.Abertos = vm.Abertos.Where(t => !meusIds.Contains(t.Id)).ToList();
+
+            await PreencherPapeisAsync(vm, jogador);
+        }
+
+        // Painéis de quem também trabalha com padel. São independentes: quem é professor E
+        // organizador E dono de clube vê os três empilhados, sem precisar caçar no menu.
+        private async Task PreencherPapeisAsync(HomeVM vm, Jogador jogador)
+        {
+            var hoje = DateTime.Today;
+            var amanha = hoje.AddDays(1);
+            var inicioMes = new DateTime(hoje.Year, hoje.Month, 1);
+            int jogadorId = jogador.Id;
+
+            // ----- Professor -----
+            if (jogador.IsProfessor)
+            {
+                var minhasAulas = await _context.Aulas
+                    .Include(a => a.Aluno)
+                    .Include(a => a.LocalAula)
+                    .Where(a => a.ProfessorId == jogadorId)
+                    .ToListAsync();
+
+                vm.Professor = new PainelProfessorHomeVM
+                {
+                    SolicitacoesPendentes = minhasAulas.Count(a => a.Status == "Pendente" && a.DataHora >= hoje),
+                    AulasHoje = minhasAulas.Count(a => a.DataHora >= hoje && a.DataHora < amanha
+                                                    && a.Status != "Cancelada" && a.Status != "Recusada"),
+                    AulasNaSemana = minhasAulas.Count(a => a.DataHora >= hoje && a.DataHora < hoje.AddDays(7)
+                                                        && a.Status != "Cancelada" && a.Status != "Recusada"),
+                    RecebidoNoMes = minhasAulas
+                        .Where(a => a.Status == "Realizada" && a.DataHora >= inicioMes)
+                        .Sum(a => a.Preco),
+                    // Já confirmado e ainda por dar: é o que entra se ninguém desmarcar.
+                    AReceber = minhasAulas
+                        .Where(a => a.Status == "Confirmada" && a.DataHora >= DateTime.Now)
+                        .Sum(a => a.Preco),
+                    ProximasAulas = minhasAulas
+                        .Where(a => a.DataHora >= DateTime.Now.AddHours(-1)
+                                 && (a.Status == "Pendente" || a.Status == "Confirmada"))
+                        .OrderBy(a => a.DataHora)
+                        .Take(5)
+                        .Select(a => new AulaDoDiaVM
+                        {
+                            AulaId = a.Id,
+                            DataHora = a.DataHora,
+                            Aluno = a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso",
+                            Local = a.LocalAula.Nome,
+                            Status = a.Status,
+                            Preco = a.Preco,
+                            CelularAluno = a.Aluno?.Celular ?? a.TelefoneAlunoAvulso,
+                        })
+                        .ToList(),
+                };
+            }
+
+            // ----- Organizador de torneio -----
+            var idsOrganizados = await _context.TorneioOrganizadores
+                .Where(o => o.JogadorId == jogadorId)
+                .Select(o => o.TorneioId)
+                .ToListAsync();
+
+            if (idsOrganizados.Count > 0)
+            {
+                var torneios = await _context.Torneios
+                    .Where(t => idsOrganizados.Contains(t.Id) && t.Status != "Finalizado")
+                    .Select(t => new TorneioOrganizadoVM
+                    {
+                        Id = t.Id,
+                        Nome = t.Nome,
+                        Status = t.Status,
+                        // Dupla + americano: Categoria não tem coleção de inscrições
+                        // americanas, então a contagem sai direto do DbSet.
+                        Inscritos = t.Categorias.Sum(c => c.Duplas.Count)
+                                  + _context.InscricoesAmericanas.Count(i => i.Categoria.TorneioId == t.Id),
+                        JogosAoVivo = _context.Partidas.Count(p => p.TorneioId == t.Id && p.Status == "AoVivo"),
+                        PrecisaSortear = t.Status == "Chaves em Sorteio",
+                    })
+                    .ToListAsync();
+
+                if (torneios.Count > 0)
+                {
+                    var inicioSemana = hoje.AddDays(-7);
+                    vm.Organizador = new PainelOrganizadorHomeVM
+                    {
+                        TorneiosAtivos = torneios.Count,
+                        JogosAoVivo = torneios.Sum(t => t.JogosAoVivo),
+                        InscricoesNaSemana = await _context.Duplas.CountAsync(d =>
+                            idsOrganizados.Contains(d.Categoria.TorneioId)
+                            && d.CriadoEm != null && d.CriadoEm >= inicioSemana),
+                        Torneios = torneios
+                            .OrderByDescending(t => t.JogosAoVivo)
+                            .ThenByDescending(t => t.PrecisaSortear)
+                            .ToList(),
+                    };
+                }
+            }
+
+            // ----- Dono/administrador de clube -----
+            var idsClubes = await _context.Clubes
+                .Where(c => c.DonoId == jogadorId)
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            idsClubes.AddRange(await _context.ClubeAdministradores
+                .Where(a => a.JogadorId == jogadorId)
+                .Select(a => a.ClubeId)
+                .ToListAsync());
+
+            idsClubes = idsClubes.Distinct().ToList();
+
+            if (idsClubes.Count > 0)
+            {
+                var clubes = await _context.Clubes
+                    .Where(c => idsClubes.Contains(c.Id))
+                    .Select(c => new ClubeResumoHomeVM
+                    {
+                        Id = c.Id,
+                        Nome = c.Nome,
+                        Quadras = _context.QuadrasClube.Count(q => q.ClubeId == c.Id && q.Ativa),
+                        ReservasHoje = _context.MarcacoesJogo.Count(m => m.ClubeId == c.Id
+                            && m.Status == "Confirmada"
+                            && m.DataHora >= hoje && m.DataHora < amanha),
+                    })
+                    .ToListAsync();
+
+                vm.Clube = new PainelClubeHomeVM
+                {
+                    ReservasHoje = clubes.Sum(c => c.ReservasHoje),
+                    QuadrasAtivas = clubes.Sum(c => c.Quadras),
+                    Clubes = clubes.OrderBy(c => c.Nome).ToList(),
+                };
+            }
         }
 
         public IActionResult Privacy()

@@ -61,6 +61,24 @@ else
             @await Html.PartialAsync("_Onboarding", Model.Onboarding)
         }
 
+        @*
+            Painéis de quem trabalha com padel. Vêm antes do conteúdo de jogador porque
+            quem é professor/organizador/dono abre o app pra TRABALHAR — e quem acumula
+            papéis vê os três empilhados, sem caçar no menu.
+        *@
+        @if (Model.Professor != null)
+        {
+            @await Html.PartialAsync("_PainelProfessor", Model.Professor)
+        }
+        @if (Model.Organizador != null)
+        {
+            @await Html.PartialAsync("_PainelOrganizador", Model.Organizador)
+        }
+        @if (Model.Clube != null)
+        {
+            @await Html.PartialAsync("_PainelClube", Model.Clube)
+        }
+
         @* A informação mais valiosa que a home pode dar: seu jogo, hora e quadra. *@
         @if (Model.ProximoJogo != null)
         {
@@ -233,6 +251,9 @@ else
         }
     }
 
+    @* Quem JÁ exerce algum desses papéis não precisa da propaganda — ele já tem o painel. *@
+    @if (!logado || !Model.TemAlgumPapel)
+    {
     <!-- Faixa pra quem toca o padel da cidade -->
     <h3 class="pdz-section-title mb-4">Você organiza, ensina ou tem um clube?</h3>
     <div class="row g-3 mb-5">
@@ -258,6 +279,7 @@ else
             </div>
         </div>
     </div>
+    }
 </div>
 
 <style>
