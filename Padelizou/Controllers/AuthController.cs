@@ -74,15 +74,10 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> Login(string email, string senha)
         {
-            // Aceita e-mail OU login, sem diferenciar maiúsculas: "Bona", "bOnA" e
-            // "bona" são a mesma pessoa. Antes só o e-mail servia (e exato), então quem
-            // se cadastrou com login nunca conseguia entrar por ele.
-            var identificador = (email ?? "").Trim().ToLower();
-
-            var jogador = string.IsNullOrEmpty(identificador) ? null : await _context.Jogadores
-                .FirstOrDefaultAsync(j =>
-                    (j.Email != null && j.Email.ToLower() == identificador) ||
-                    (j.Login != null && j.Login.ToLower() == identificador));
+            // Aceita e-mail OU login, sem diferenciar maiúsculas (ver BuscaJogador).
+            // Antes só o e-mail servia, e exato — quem se cadastrou com login nunca
+            // conseguia entrar por ele.
+            var jogador = await BuscaJogador.PorIdentificadorAsync(_context, email);
 
             if (jogador == null || string.IsNullOrEmpty(jogador.SenhaHash) ||
                 _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash, senha) == PasswordVerificationResult.Failed)

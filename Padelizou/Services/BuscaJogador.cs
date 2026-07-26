@@ -57,6 +57,19 @@ public static class BuscaJogador
             (j.Apelido != null && j.Apelido.ToLower().Contains(alvo)));
     }
 
+    // Quem está tentando entrar? Aceita e-mail OU login, sem diferenciar maiúsculas —
+    // "Bona", "bona" e "bOnA" são a mesma pessoa. Fica aqui junto das outras buscas
+    // pra não existir uma quarta regra de "achar jogador" espalhada pelo sistema.
+    public static async Task<Jogador?> PorIdentificadorAsync(DbPadelContext context, string? identificador)
+    {
+        var alvo = (identificador ?? "").Trim().ToLower();
+        if (alvo.Length == 0) return null;
+
+        return await context.Jogadores.FirstOrDefaultAsync(j =>
+            (j.Email != null && j.Email.ToLower() == alvo) ||
+            (j.Login != null && j.Login.ToLower() == alvo));
+    }
+
     // Busca direta, já ordenada com o mais relevante primeiro: quem começa com o termo
     // vem antes de quem só o contém no meio ("Ana" antes de "Mariana").
     public static async Task<List<Jogador>> BuscarAsync(
