@@ -1,9 +1,12 @@
-// Máscaras de CPF e celular aplicadas em todo o site.
+// Máscaras de documento e telefone aplicadas em todo o site.
 //
-// Basta marcar o input com data-mascara="cpf" ou data-mascara="celular" — não precisa de
-// código por tela. A máscara é só visual: o servidor limpa tudo que não é dígito de qualquer
-// jeito (Documentos.SomenteDigitos), porque JS desligado ou colar texto de fora não pode
-// resultar em CPF de 14 caracteres indo pro banco, onde a coluna aceita 11.
+// Basta marcar o input: data-mascara="cpf" | "cnpj" | "documento" | "celular" — não precisa
+// de código por tela. A máscara é só visual: o servidor limpa tudo que não é dígito de
+// qualquer jeito (Documentos.SomenteDigitos), porque JS desligado ou colar texto de fora não
+// pode resultar em CPF de 14 caracteres indo pro banco, onde a coluna aceita 11.
+//
+// "documento" troca sozinho entre CPF e CNPJ conforme o tamanho — serve pros campos que
+// aceitam os dois (o Asaas cobra tanto de pessoa física quanto de empresa).
 (function () {
     'use strict';
 
@@ -29,7 +32,27 @@
         return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
     }
 
-    var formatadores = { cpf: formatarCpf, celular: formatarCelular };
+    // 00.000.000/0000-00
+    function formatarCnpj(valor) {
+        var d = apenasDigitos(valor).slice(0, 14);
+        if (d.length > 12) return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5, 8) + '/' + d.slice(8, 12) + '-' + d.slice(12);
+        if (d.length > 8) return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5, 8) + '/' + d.slice(8);
+        if (d.length > 5) return d.slice(0, 2) + '.' + d.slice(2, 5) + '.' + d.slice(5);
+        if (d.length > 2) return d.slice(0, 2) + '.' + d.slice(2);
+        return d;
+    }
+
+    // Até 11 dígitos é CPF; passou disso, é CNPJ. A troca acontece enquanto se digita.
+    function formatarDocumento(valor) {
+        return apenasDigitos(valor).length > 11 ? formatarCnpj(valor) : formatarCpf(valor);
+    }
+
+    var formatadores = {
+        cpf: formatarCpf,
+        cnpj: formatarCnpj,
+        documento: formatarDocumento,
+        celular: formatarCelular
+    };
 
     function aplicar(input) {
         var formatar = formatadores[input.dataset.mascara];
