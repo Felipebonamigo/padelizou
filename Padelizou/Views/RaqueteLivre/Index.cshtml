@@ -6,7 +6,9 @@
 <div class="container mt-4 mb-5">
     <div class="mb-4">
         <h2 class="fw-bold" style="color: var(--pdz-ink);">Raquete Livre</h2>
-        <p class="text-muted mb-0">Eventos abertos publicados pelos clubes.</p>
+        <p class="text-muted mb-0">
+            Rodízio aberto nos clubes: valor fixo, sem dupla marcada, e você joga enquanto durar.
+        </p>
     </div>
 
     <div class="row">
@@ -22,11 +24,11 @@
                             </h5>
                             <p class="text-muted small mb-2">
                                 <i class="bi bi-calendar3"></i> @aviso.DataHoraInicio.ToString("dd/MM/yyyy")
-                                — @aviso.DataHoraInicio.ToString("HH:mm") às @aviso.DataHoraFim.ToString("HH:mm")
+                                — @SessaoRaqueteLivre.DescreverHorario(aviso)
                             </p>
                             @if (aviso.Preco.HasValue)
                             {
-                                <p class="small mb-2"><i class="bi bi-cash"></i> R$ @aviso.Preco.Value.ToString("0.00")</p>
+                                <p class="small mb-2"><i class="bi bi-cash"></i> R$ @aviso.Preco.Value.ToString("0.00") por pessoa</p>
                             }
                             @if (!string.IsNullOrWhiteSpace(aviso.Observacoes))
                             {

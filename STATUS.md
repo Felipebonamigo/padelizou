@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/07/2026** — limpeza do código morto (build-28) + auditoria do plano contra o código.
+> Última atualização: **26/07/2026** — apelido + busca sem caixa + máscaras + Raquete Livre corrigido (build-37).
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **142 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **169 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Falta o principal:** ainda roda em *modo demonstração* — cobrança em sandbox e dados fictícios em produção.
@@ -55,6 +55,9 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único b
 - **Ambiente local + limpeza do VPS** (26/07): PostgreSQL 17 na máquina e 184 MB de legado apagados.
 - **Segurança: só o organizador mexe no placar** (26/07, build-29). Auditando autorização depois da limpeza, achei que `ControlePlacar` (GET e POST) não exigia login nem checava organizador — qualquer um que alcançasse a rota mudava o placar de qualquer jogo, inclusive ao vivo. Corrigido nos dois verbos, com **4 testes de regressão** (139 no total).
 - **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
+- **Apelido + busca sem caixa** (26/07, build-35): `Jogador.Apelido` opcional, e `Services/BuscaJogador` virou a única autoridade de busca — aceita nome, apelido ou **CPF completo** (parcial não procura), tudo `ToLower` dos dois lados porque `LIKE` no PostgreSQL diferencia maiúscula. Entrada passou a aceitar e-mail **ou** login, também sem caixa.
+- **Máscaras de documento** (26/07, build-36): `data-mascara` em `mascaras.js` ganhou CNPJ e o modo `documento` (troca sozinho por tamanho). Auditados os 44 campos de texto — só 2 estavam sem máscara, e um deles tinha `maxlength="11"`, que cortaria o CPF formatado no meio.
+- **Raquete Livre era outra coisa** (26/07, build-37): estava modelado como evento com hora de início **e fim obrigatórios**, e descrito no material comercial como "entrar de substituto". É rodízio: hora de começar, valor fixo por pessoa, sem dupla marcada, número inexato de gente e **muitas vezes sem hora pra acabar**. `DataHoraFim` virou anulável e as regras de exibição saíram pra `Services/SessaoRaqueteLivre` (sessão sem fim fica em cartaz por 6h após começar). **169 testes.**
 
 ---
 

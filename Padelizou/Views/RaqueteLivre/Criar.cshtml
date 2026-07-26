@@ -12,6 +12,17 @@
             </div>
             <p class="text-muted">@clube.Nome</p>
 
+            @if (ViewBag.Erro != null)
+            {
+                <div class="alert alert-danger">@ViewBag.Erro</div>
+            }
+
+            <div class="alert alert-light border small">
+                <i class="bi bi-info-circle"></i>
+                Rodízio na quadra: cada um paga um valor fixo, ninguém precisa levar dupla e
+                o pessoal se reveza enquanto a sessão durar.
+            </div>
+
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <form asp-controller="RaqueteLivre" asp-action="Criar" method="post">
@@ -19,29 +30,32 @@
 
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label class="form-label fw-bold small">Início</label>
+                                <label class="form-label fw-bold small">Começa</label>
                                 <input type="datetime-local" class="form-control" name="dataHoraInicio" required />
                             </div>
                             <div class="col-6">
-                                <label class="form-label fw-bold small">Fim</label>
-                                <input type="datetime-local" class="form-control" name="dataHoraFim" required />
+                                <label class="form-label fw-bold small">Termina <span class="fw-normal text-muted">(opcional)</span></label>
+                                <input type="datetime-local" class="form-control" name="dataHoraFim" />
+                                <div class="form-text">Deixe vazio se vai até o pessoal cansar.</div>
                             </div>
                         </div>
 
                         <div class="row mb-3">
                             <div class="col-6">
-                                <label class="form-label fw-bold small">Valor por pessoa (opcional)</label>
+                                <label class="form-label fw-bold small">Valor fixo por pessoa</label>
                                 <input type="number" step="0.01" min="0" class="form-control" name="preco" />
+                                <div class="form-text">Paga uma vez e joga a sessão inteira.</div>
                             </div>
                             <div class="col-6">
-                                <label class="form-label fw-bold small">Limite de vagas (opcional)</label>
+                                <label class="form-label fw-bold small">Limite de vagas</label>
                                 <input type="number" min="1" class="form-control" name="limiteVagas" />
+                                <div class="form-text">Vazio = sem número fixo de gente.</div>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label fw-bold small">Observações</label>
-                            <textarea class="form-control" name="observacoes" rows="3" placeholder="Ex: todos convidados, valor único para todos"></textarea>
+                            <textarea class="form-control" name="observacoes" rows="3" placeholder="Ex: 2 quadras reservadas, leve sua raquete, bola por conta do clube"></textarea>
                         </div>
 
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Publicar</button>

@@ -26,15 +26,31 @@
 
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body">
-                    <p class="mb-2"><i class="bi bi-calendar3"></i> @Model.DataHoraInicio.ToString("dd/MM/yyyy") — @Model.DataHoraInicio.ToString("HH:mm") às @Model.DataHoraFim.ToString("HH:mm")</p>
+                    <p class="mb-2">
+                        <i class="bi bi-calendar3"></i> @Model.DataHoraInicio.ToString("dd/MM/yyyy") — @SessaoRaqueteLivre.DescreverHorario(Model)
+                        @if (SessaoRaqueteLivre.SemHoraPraAcabar(Model))
+                        {
+                            <span class="badge bg-light text-muted border ms-1">sem hora pra acabar</span>
+                        }
+                    </p>
                     @if (Model.Preco.HasValue)
                     {
-                        <p class="mb-2"><i class="bi bi-cash"></i> R$ @Model.Preco.Value.ToString("0.00") por pessoa</p>
+                        <p class="mb-2">
+                            <i class="bi bi-cash"></i> R$ @Model.Preco.Value.ToString("0.00") por pessoa
+                            <span class="text-muted small">— valor fixo, joga enquanto durar</span>
+                        </p>
                     }
                     @if (Model.LimiteVagas.HasValue)
                     {
                         <p class="mb-2"><i class="bi bi-people"></i> @confirmados.Count / @Model.LimiteVagas vagas</p>
                     }
+                    else
+                    {
+                        <p class="mb-2"><i class="bi bi-people"></i> @confirmados.Count confirmados — sem limite de vagas</p>
+                    }
+                    <p class="mb-2 text-muted small">
+                        <i class="bi bi-arrow-repeat"></i> É rodízio: não precisa de dupla, o pessoal se reveza na quadra.
+                    </p>
                     @if (!string.IsNullOrWhiteSpace(Model.Observacoes))
                     {
                         <p class="fst-italic">"@Model.Observacoes"</p>

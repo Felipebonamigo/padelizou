@@ -7,8 +7,9 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // "Raquete Livre" — aviso de clube (dono ou administrador) com inscrição e lista de
-    // espera dentro do app, notificando quem tem NotificarRaqueteLivre marcado.
+    // "Raquete Livre" — sessão de rodízio publicada pelo clube (dono ou administrador):
+    // hora pra começar, valor fixo por pessoa, sem dupla fixa e sem número exato de gente.
+    // Tem inscrição e lista de espera no app e avisa quem marcou NotificarRaqueteLivre.
     [Authorize]
     public class RaqueteLivreController : Controller
     {
@@ -41,10 +42,11 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var avisos = await _context.AvisosRaqueteLivre
+            var consulta = SessaoRaqueteLivre.EmCartaz(_context.AvisosRaqueteLivre, DateTime.Now);
+
+            var avisos = await consulta
                 .Include(a => a.Clube)
                 .Include(a => a.Criador)
-                .Where(a => a.Status == "Ativo" && a.DataHoraFim >= DateTime.Now)
                 .OrderBy(a => a.DataHoraInicio)
                 .ToListAsync();
 
@@ -88,11 +90,22 @@ namespace padelizou.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Criar(int clubeId, DateTime dataHoraInicio, DateTime dataHoraFim,
+        public async Task<IActionResult> Criar(int clubeId, DateTime dataHoraInicio, DateTime? dataHoraFim,
             decimal? preco, string? observacoes, int? limiteVagas)
         {
             var meuId = ObterJogadorIdLogado();
             if (!await EhDonoOuAdminDoClubeAsync(clubeId, meuId)) return Forbid();
+
+            // Fim é opcional, mas se vier tem que fazer sentido.
+            if (dataHoraFim.HasValue && dataHoraFim.Value <= dataHoraInicio)
+            {
+                var clubeDaTela = await _context.Clubes.FindAsync(clubeId);
+                if (clubeDaTela == null) return NotFound();
+
+                ViewBag.Clube = clubeDaTela;
+                ViewBag.Erro = "O fim tem que ser depois do início. Se não tem hora pra acabar, deixe o campo vazio.";
+                return View();
+            }
 
             var aviso = new AvisoRaqueteLivre
             {
@@ -115,7 +128,7 @@ namespace padelizou.Controllers
 
             var elegiveis = await ObterJogadoresElegiveisAsync(avisoCompleto);
             var titulo = $"Raquete Livre em {avisoCompleto.Clube.Nome}";
-            var corpo = $"{avisoCompleto.DataHoraInicio:dd/MM} das {avisoCompleto.DataHoraInicio:HH:mm} às {avisoCompleto.DataHoraFim:HH:mm}.";
+            var corpo = $"{avisoCompleto.DataHoraInicio:dd/MM}, {SessaoRaqueteLivre.DescreverHorario(avisoCompleto)}.";
             var url = Url.Action("Detalhes", "RaqueteLivre", new { id = aviso.Id });
 
             foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
@@ -124,12 +137,12 @@ namespace padelizou.Controllers
                 {
                     await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
                         "Raquete Livre - Padelizou",
-                        $@"<p>Olá {jogador.Nome},</p>
+                        $@"<p>Olá {jogador.ComoChamar},</p>
                            <p><strong>{avisoCompleto.Clube.Nome}</strong> tem um raquete livre marcado pra
-                           <strong>{avisoCompleto.DataHoraInicio:dd/MM/yyyy}</strong>, das
-                           <strong>{avisoCompleto.DataHoraInicio:HH:mm}</strong> às
-                           <strong>{avisoCompleto.DataHoraFim:HH:mm}</strong>.</p>
-                           {(avisoCompleto.Preco.HasValue ? $"<p>Valor: R$ {avisoCompleto.Preco:0.00}</p>" : "")}
+                           <strong>{avisoCompleto.DataHoraInicio:dd/MM/yyyy}</strong>,
+                           {SessaoRaqueteLivre.DescreverHorario(avisoCompleto)}.</p>
+                           {(avisoCompleto.Preco.HasValue ? $"<p>Valor fixo de R$ {avisoCompleto.Preco:0.00} por pessoa — você joga enquanto durar.</p>" : "")}
+                           <p>É rodízio: não precisa levar dupla, o pessoal se reveza na quadra.</p>
                            {(string.IsNullOrWhiteSpace(avisoCompleto.Observacoes) ? "" : $"<p>{avisoCompleto.Observacoes}</p>")}");
                 }
                 catch (Exception ex)
