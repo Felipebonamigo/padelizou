@@ -19,16 +19,31 @@ namespace padelizou.Controllers
             _context = context;
         }
 
+        // "Criar clube inline": chamada por fetch de dentro de Avisos/Criar e
+        // Grupos/Configuracoes, telas que já exigem login. Tinha [AllowAnonymous], que só
+        // alargava a superfície — qualquer um criava clubes sem limite, e clube aparece em
+        // dropdown por todo o app (locais de aula, torneio, preferências, busca).
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> Criar(string nome, string? endereco)
         {
-            if (string.IsNullOrWhiteSpace(nome))
+            nome = (nome ?? "").Trim();
+
+            if (string.IsNullOrWhiteSpace(nome) || nome.Length > 120)
             {
                 return BadRequest();
             }
 
-            var clube = new Clube { Nome = nome, Endereco = endereco ?? "", Contato = "" };
+            // Mesmo nome não vira clube novo: devolve o que já existe. Evita a lista encher
+            // de "Arena Beira Rio" repetido só porque dois jogadores digitaram junto.
+            var existente = await _context.Clubes
+                .FirstOrDefaultAsync(c => c.Nome.ToLower() == nome.ToLower());
+
+            if (existente != null)
+            {
+                return Json(new { id = existente.Id, nome = existente.Nome });
+            }
+
+            var clube = new Clube { Nome = nome, Endereco = endereco?.Trim() ?? "", Contato = "" };
             _context.Clubes.Add(clube);
             await _context.SaveChangesAsync();
 

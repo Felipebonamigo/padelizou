@@ -12,3 +12,7 @@ appsettings.json
 # Backups locais e config pessoal
 Migrations_old_20260721_backup/
 .claude/
+
+# Backups do appsettings — guardam os mesmos segredos do original
+appsettings.json.bak
+*.bak
