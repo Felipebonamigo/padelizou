@@ -164,5 +164,16 @@ Gerados em 25/07/2026, salvos também em PDF na Área de Trabalho:
 - **Plano de evolução** — as 6 fases detalhadas com justificativa
 - **Inventário de melhorias** — as 41 melhorias com status individual
 
+Gerados em 26/07/2026 (PDFs na Área de Trabalho + artifacts no claude.ai):
+- **Apresentação comercial** — página de venda com o posicionamento "o padel cresceu,
+  chegou a plataforma à altura"; falta trocar o WhatsApp de exemplo do botão final.
+  Artifact: `claude.ai/code/artifact/05bdbad2-ff8c-411f-99a2-675455a21756`
+- **Análise de monetização** — recomendação: híbrido em fases (comissão 15/10/10 como
+  base → assinatura que compra taxa menor, estilo Shopify → audiência); jogador nunca
+  paga; o concorrente da cobrança é o Pix por fora; teto do MEI vira tarefa quando a
+  receita chegar perto de R$ 6,7 mil/mês. Preços de planos são hipóteses a validar com
+  3 meses de dado real do Asaas em produção.
+  Artifact: `claude.ai/code/artifact/128ee0e3-a783-4bfa-9ff8-d7b24f8f6c43`
+
 > ⚠️ Os 3 documentos refletem o diagnóstico de **25/07 de manhã** e envelheceram: a maior
 > parte do que eles listam como "falta" já foi entregue. Este STATUS.md é a fonte da verdade.
