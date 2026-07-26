@@ -34,6 +34,7 @@ builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSect
 builder.Services.Configure<AcessoAntecipadoSettings>(builder.Configuration.GetSection("AcessoAntecipado"));
 builder.Services.Configure<BetaSettings>(builder.Configuration.GetSection("Beta"));
 builder.Services.Configure<DadosDemoSettings>(builder.Configuration.GetSection("DadosDemo"));
+builder.Services.Configure<SuporteSettings>(builder.Configuration.GetSection("Suporte"));
 builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));

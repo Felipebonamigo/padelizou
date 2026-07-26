@@ -1,4 +1,4 @@
-@model IEnumerable<LocalAula>
+﻿@model IEnumerable<LocalAula>
 @{
     ViewData["Title"] = "Meus Locais - Padelizou";
 }
@@ -63,7 +63,7 @@
                                 <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Salvar</button>
                             </form>
 
-                            <form asp-controller="Aulas" asp-action="AtualizarPacoteLocal" method="post" class="mb-2 p-2 rounded" style="background:#f8f9fa;">
+                            <form asp-controller="Aulas" asp-action="AtualizarPacoteLocal" method="post" class="mb-2 p-2 rounded" style="background:var(--pdz-surface-alt);">
                                 <input type="hidden" name="id" value="@local.Id" />
                                 <div class="form-check mb-2">
                                     <input type="checkbox" class="form-check-input" id="pacoteAtivo-@local.Id" name="pacoteAtivo" value="true" @(local.PacoteAtivo ? "checked" : "") />
@@ -89,7 +89,7 @@
         }
         else
         {
-            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
                 <p class="text-muted mb-0">Você ainda não cadastrou nenhum local.</p>
             </div>
         }

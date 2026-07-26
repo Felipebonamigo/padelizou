@@ -1,4 +1,4 @@
-@model IEnumerable<Aula>
+﻿@model IEnumerable<Aula>
 @{
     ViewData["Title"] = "Minha Agenda - Padelizou";
     bool googleConectado = ViewBag.GoogleConectado == true;
@@ -215,7 +215,7 @@
         }
         else if (!seriesPendentes.Any())
         {
-            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
                 <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
                 <h4 class="fw-bold text-secondary">Sua agenda está livre!</h4>
                 <p class="text-muted">Nenhum aluno agendou aulas com você ainda.</p>

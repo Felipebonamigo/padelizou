@@ -773,3 +773,71 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-faixa-beta i { flex-shrink: 0; }
+
+.pdz-link-beta {
+    color: var(--pdz-navy-fixed);
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+}
+.pdz-link-beta:hover { color: #000; }
+
+/* ── Tema escuro: o que o bloco lá de cima não cobria ──────────────────────
+   As classes utilitárias do Bootstrap que fixam cor clara (`bg-light`,
+   `btn-outline-*` sem preencher, `.form-select`) ficavam claras num fundo
+   escuro — ou pior, texto escuro sobre fundo escuro. Isso apareceu no
+   cadastro: os botões não escolhidos ("Direita", "Canhoto") sumiam por
+   completo e o cartão do professor ficava branco no meio da página escura. */
+:root[data-bs-theme="dark"] .bg-light {
+    background-color: var(--pdz-surface-alt) !important;
+    color: var(--pdz-ink);
+}
+
+/* Campos de formulário: o `bg-light` das views não pode clarear o input. */
+:root[data-bs-theme="dark"] .form-control,
+:root[data-bs-theme="dark"] .form-select,
+:root[data-bs-theme="dark"] .form-control.bg-light,
+:root[data-bs-theme="dark"] .form-select.bg-light {
+    background-color: var(--pdz-surface-alt) !important;
+    color: var(--pdz-ink);
+    border-color: var(--pdz-border);
+}
+
+:root[data-bs-theme="dark"] .form-control::placeholder { color: var(--pdz-muted); opacity: 1; }
+
+/* Botão de opção não escolhido: precisa continuar legível, não sumir. */
+:root[data-bs-theme="dark"] .btn-outline-primary,
+:root[data-bs-theme="dark"] .btn-outline-secondary,
+:root[data-bs-theme="dark"] .btn-outline-dark {
+    color: var(--pdz-ink);
+    border-color: var(--pdz-border);
+}
+
+:root[data-bs-theme="dark"] .btn-outline-primary:hover,
+:root[data-bs-theme="dark"] .btn-outline-secondary:hover,
+:root[data-bs-theme="dark"] .btn-outline-dark:hover,
+:root[data-bs-theme="dark"] .btn-check:checked + .btn-outline-primary,
+:root[data-bs-theme="dark"] .btn-check:checked + .btn-outline-secondary {
+    background-color: var(--pdz-lime);
+    border-color: var(--pdz-lime);
+    color: var(--pdz-navy-fixed);
+}
+
+/* Caixa tracejada de upload e afins. */
+:root[data-bs-theme="dark"] .border-dashed,
+:root[data-bs-theme="dark"] [style*="dashed"] { border-color: var(--pdz-border) !important; }
+
+:root[data-bs-theme="dark"] .form-control[type="file"]::file-selector-button {
+    background-color: var(--pdz-surface);
+    color: var(--pdz-ink);
+    border-color: var(--pdz-border);
+}
+
+/* Títulos que as views pintam de lime sobre cartão claro ficavam ilegíveis. */
+:root[data-bs-theme="dark"] .card { background-color: var(--pdz-surface); }
+:root[data-bs-theme="dark"] .list-group-item {
+    background-color: transparent;
+    color: var(--pdz-ink);
+    border-color: var(--pdz-border);
+}

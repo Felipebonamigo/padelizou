@@ -1,4 +1,4 @@
-@model Padelizou.ViewModels.SolicitarViewModel
+﻿@model Padelizou.ViewModels.SolicitarViewModel
 @{
     ViewData["Title"] = "Marcar Aula - Padelizou";
 }
@@ -52,7 +52,7 @@
                         <div id="opcoes-tipo" class="mb-3" style="display:none;">
                             <label class="form-label fw-bold text-muted small">4. Tipo de aula</label>
 
-                            <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:#f8f9fa; display:none;">
+                            <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:var(--pdz-surface-alt); display:none;">
                                 <div class="form-check">
                                     <input type="radio" class="form-check-input" id="tipo-avulsa" name="tipoAula" value="avulsa" checked />
                                     <label class="form-check-label" for="tipo-avulsa">Aula avulsa</label>
@@ -65,7 +65,7 @@
                                 </div>
                             </div>
 
-                            <div id="opcao-recorrencia" class="p-2 rounded" style="background:#f8f9fa;">
+                            <div id="opcao-recorrencia" class="p-2 rounded" style="background:var(--pdz-surface-alt);">
                                 <div class="form-check mb-2">
                                     <input type="checkbox" class="form-check-input" id="check-recorrente" name="recorrenteCheck" />
                                     <label class="form-check-label small" for="check-recorrente">Fixar esse horário toda semana</label>

@@ -1,4 +1,4 @@
-@model GrupoPrivado
+﻿@model GrupoPrivado
 @{
     ViewData["Title"] = "Configurações do Grupo - Padelizou";
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
@@ -101,7 +101,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-3 p-3 rounded" style="background-color: #f8f9fa;">
+                        <div class="mb-3 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="enviarLembrete24h" value="true" id="enviarLembrete24h" style="transform: scale(1.2);" @(Model.EnviarLembrete24h ? "checked" : "") />
                                 <label class="form-check-label fw-bold" for="enviarLembrete24h"><i class="bi bi-whatsapp"></i> Enviar lembrete automático por WhatsApp 24h antes</label>

@@ -1,4 +1,4 @@
-@using Padelizou.Services
+﻿@using Padelizou.Services
 @{
     ViewData["Title"] = "Marcar Jogo - Padelizou";
     var clube = (Clube)ViewBag.Clube;
@@ -92,7 +92,7 @@
     }
     else
     {
-        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
             <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
             <h5 class="fw-bold text-secondary">Nenhum horário livre nesse dia</h5>
         </div>

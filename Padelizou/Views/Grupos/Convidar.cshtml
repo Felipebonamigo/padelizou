@@ -1,4 +1,4 @@
-@model List<Jogador>
+﻿@model List<Jogador>
 @{
     ViewData["Title"] = "Convidar Jogadores - Padelizou";
     var grupo = (GrupoPrivado)ViewBag.Grupo;
@@ -57,7 +57,7 @@
     }
     else
     {
-        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
             <p class="text-muted mb-0">Nenhum jogador disponível topa esse convite no momento (categoria/clube/dia-horário do perfil).</p>
         </div>
     }

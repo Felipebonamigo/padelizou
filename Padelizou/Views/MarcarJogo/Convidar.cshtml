@@ -1,4 +1,4 @@
-@model List<Jogador>
+﻿@model List<Jogador>
 @{
     ViewData["Title"] = "Convidar Jogadores - Padelizou";
     var marcacao = (MarcacaoJogo)ViewBag.Marcacao;
@@ -60,7 +60,7 @@
 
     @if (!buscou)
     {
-        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
             <p class="text-muted mb-0">Escolha categoria e/ou cidade pra ver jogadores disponíveis.</p>
         </div>
     }
@@ -88,7 +88,7 @@
     }
     else
     {
-        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
             <p class="text-muted mb-0">Nenhum jogador encontrado com esse filtro.</p>
         </div>
     }

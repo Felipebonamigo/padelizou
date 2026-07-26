@@ -1,4 +1,4 @@
-@model GrupoPrivado
+﻿@model GrupoPrivado
 @{
     ViewData["Title"] = $"{Model.Nome} - Padelizou";
     var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
@@ -137,7 +137,7 @@
     }
     else
     {
-        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
             <p class="text-muted mb-0">Nenhum jogo registrado ainda.</p>
         </div>
     }

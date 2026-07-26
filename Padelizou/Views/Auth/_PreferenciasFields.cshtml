@@ -1,4 +1,4 @@
-@model Padelizou.ViewModels.PreferenciasViewModel
+﻿@model Padelizou.ViewModels.PreferenciasViewModel
 @{
     var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
@@ -45,7 +45,7 @@
 </div>
 
 <!-- Perfil privado -->
-<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+<div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="perfilPrivado" value="true" id="perfilPrivado" style="transform: scale(1.2);" @(Model.PerfilPrivado ? "checked" : "") />
         <label class="form-check-label fw-bold" for="perfilPrivado">Perfil privado</label>
@@ -54,7 +54,7 @@
 </div>
 
 <!-- Notificações -->
-<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+<div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <label class="form-label fw-bold text-muted small d-block mb-2">Como quer ser avisado de novos jogos?</label>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarEmail" value="true" id="notifEmail" style="transform: scale(1.2);" @(Model.NotificarEmail ? "checked" : "") />
@@ -131,7 +131,7 @@
 </script>
 
 <!-- Convites de jogo avulso -->
-<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+<div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="aceitaConvitesJogo" value="true" id="aceitaConvites" style="transform: scale(1.2);" @(Model.AceitaConvitesJogo ? "checked" : "") />
         <label class="form-check-label fw-bold" for="aceitaConvites">Aceito ser convidado pra jogos avulsos de grupos</label>
@@ -140,7 +140,7 @@
 </div>
 
 <!-- Tipos de aviso -->
-<div class="mb-4 p-3 rounded" style="background-color: #f8f9fa;">
+<div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <label class="form-label fw-bold text-muted small d-block mb-2">Que tipo de aviso você quer receber?</label>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarTorneiosAbertos" value="true" id="notifTorneiosAbertos" style="transform: scale(1.2);" @(Model.NotificarTorneiosAbertos ? "checked" : "") />

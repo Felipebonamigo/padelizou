@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using padelizou.Models;
 using Padelizou.Models;
 using Padelizou.Services;
@@ -18,51 +19,107 @@ namespace padelizou.Controllers
         private readonly IPasswordHasher<Jogador> _passwordHasher;
         private readonly IEstatisticasService _estatisticas;
         private readonly IEmailService _email;
+        private readonly ILogger<AuthController> _logger;
+        private readonly SuporteSettings _suporte;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte)
         {
             _context = context;
             _env = env;
             _passwordHasher = passwordHasher;
             _estatisticas = estatisticas;
             _email = email;
+            _logger = logger;
+            _suporte = suporte.Value;
         }
 
-        // Reportar Problema: qualquer jogador logado pode mandar um relato pra equipe do Padelizou.
-        private const string EmailSuporte = "Padelizou@gmail.com";
+        // Salva a foto e devolve o caminho, ou null se não deu.
+        //
+        // Nunca lança: a foto é opcional, e derrubar o cadastro por causa dela custa caro —
+        // a pessoa preenche um formulário longo, escolhe a foto e recebe "Ops! Algo deu
+        // errado", perdendo tudo. Foi exatamente o que aconteceu quando a pasta de uploads
+        // do dev estava sem permissão de escrita.
+        private async Task<string?> SalvarFotoPerfilAsync(IFormFile? foto)
+        {
+            if (foto == null || foto.Length == 0) return null;
 
-        [Authorize]
+            // Só a extensão do arquivo enviado é aproveitada — o nome vem do usuário e não
+            // tem por que virar caminho no servidor.
+            var extensao = Path.GetExtension(foto.FileName)?.ToLowerInvariant();
+            if (extensao is not (".jpg" or ".jpeg" or ".png" or ".webp")) return null;
+
+            try
+            {
+                var pasta = Path.Combine(_env.WebRootPath, "uploads", "fotos-perfil");
+                Directory.CreateDirectory(pasta);
+
+                var nomeArquivo = Guid.NewGuid() + extensao;
+                using (var stream = new FileStream(Path.Combine(pasta, nomeArquivo), FileMode.Create))
+                {
+                    await foto.CopyToAsync(stream);
+                }
+
+                return "/uploads/fotos-perfil/" + nomeArquivo;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Falha ao salvar foto de perfil — seguindo sem ela.");
+                return null;
+            }
+        }
+
+        // Sugestão, bug ou crítica: aberto pra qualquer visitante, inclusive deslogado —
+        // no beta, boa parte dos problemas acontece justamente antes de conseguir entrar.
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult ReportarProblema()
         {
             return View();
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ReportarProblema(string mensagem)
+        public async Task<IActionResult> ReportarProblema(string mensagem, string? tipo, string? contato)
         {
             if (string.IsNullOrWhiteSpace(mensagem))
             {
-                ViewBag.Erro = "Descreva o problema antes de enviar.";
+                ViewBag.Erro = "Escreva sua mensagem antes de enviar.";
                 return View();
             }
 
-            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var jogador = await _context.Jogadores.FindAsync(jogadorId);
-            if (jogador == null) return NotFound();
+            var rotulo = tipo switch
+            {
+                "Sugestão" or "Bug" or "Crítica" => tipo,
+                _ => "Mensagem",
+            };
 
-            var corpo = $@"
-                <p><strong>Jogador:</strong> {jogador.Nome} (Id {jogador.Id})</p>
-                <p><strong>E-mail:</strong> {jogador.Email}</p>
-                <p><strong>Problema relatado:</strong></p>
-                <p>{System.Net.WebUtility.HtmlEncode(mensagem).Replace("\n", "<br/>")}</p>";
+            // Quem está logado a gente já sabe quem é; quem não está pode deixar um contato.
+            var jogador = User.Identity?.IsAuthenticated == true
+                ? await _context.Jogadores.FindAsync(int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!))
+                : null;
 
-            await _email.EnviarAsync(EmailSuporte, "Padelizou", $"Problema reportado por {jogador.Nome}", corpo);
+            var quem = jogador != null
+                ? $"{jogador.ComoChamar} ({jogador.Email})"
+                : string.IsNullOrWhiteSpace(contato) ? "visitante não identificado" : contato.Trim();
 
-            TempData["Sucesso"] = "Problema reportado! Nossa equipe vai dar uma olhada.";
-            return RedirectToAction("Perfil");
+            // E-mail é a cópia de segurança: se a pessoa desistir no WhatsApp, o relato não
+            // se perde. Falha de envio não pode travar o encaminhamento.
+            try
+            {
+                var corpo = $@"
+                    <p><strong>{rotulo}</strong> de {System.Net.WebUtility.HtmlEncode(quem)}</p>
+                    <p>{System.Net.WebUtility.HtmlEncode(mensagem).Replace("\n", "<br/>")}</p>";
+                await _email.EnviarAsync(_suporte.Email, "Padelizou", $"[{rotulo}] Padelizou — {quem}", corpo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Não consegui mandar o e-mail de feedback — seguindo pro WhatsApp.");
+            }
+
+            // Encaminha pro WhatsApp com tudo já digitado: é só apertar enviar.
+            var texto = $"*{rotulo} — Padelizou*\n\nDe: {quem}\n\n{mensagem}";
+            return Redirect(WhatsAppLinkHelper.GerarLink(_suporte.WhatsApp, texto));
         }
 
         [HttpGet]
@@ -213,24 +270,8 @@ namespace padelizou.Controllers
                 return View(jogador);
             }
 
-            if (foto != null && foto.Length > 0)
-            {
-                string pastaUploads = Path.Combine(_env.WebRootPath, "uploads", "fotos-perfil");
-                if (!Directory.Exists(pastaUploads))
-                {
-                    Directory.CreateDirectory(pastaUploads);
-                }
-
-                string nomeArquivoUnico = Guid.NewGuid().ToString() + "_" + foto.FileName;
-                string caminhoFisicoCompleto = Path.Combine(pastaUploads, nomeArquivoUnico);
-
-                using (var stream = new FileStream(caminhoFisicoCompleto, FileMode.Create))
-                {
-                    await foto.CopyToAsync(stream);
-                }
-
-                jogador.FotoPerfil = "/uploads/fotos-perfil/" + nomeArquivoUnico;
-            }
+            var fotoSalva = await SalvarFotoPerfilAsync(foto);
+            if (fotoSalva != null) jogador.FotoPerfil = fotoSalva;
 
             jogador.Nome = nome;
             // Apelido em branco volta a ser nulo — "sem apelido" e "apelido vazio" viram
@@ -355,28 +396,8 @@ namespace padelizou.Controllers
                 return View();
             }
 
-            string caminhoDaFotoParaBanco = "";
-
-            // 1. Lógica de Upload da Foto (Salva na pasta, não no banco!)
-            if (foto != null && foto.Length > 0)
-            {
-                string pastaUploads = Path.Combine(_env.WebRootPath, "uploads", "fotos-perfil");
-
-                if (!Directory.Exists(pastaUploads))
-                {
-                    Directory.CreateDirectory(pastaUploads);
-                }
-
-                string nomeArquivoUnico = Guid.NewGuid().ToString() + "_" + foto.FileName;
-                string caminhoFisicoCompleto = Path.Combine(pastaUploads, nomeArquivoUnico);
-
-                using (var stream = new FileStream(caminhoFisicoCompleto, FileMode.Create))
-                {
-                    await foto.CopyToAsync(stream);
-                }
-
-                caminhoDaFotoParaBanco = "/uploads/fotos-perfil/" + nomeArquivoUnico;
-            }
+            // A foto é opcional e não pode impedir o cadastro: se falhar, entra vazia.
+            string caminhoDaFotoParaBanco = await SalvarFotoPerfilAsync(foto) ?? "";
 
             // 2. Verifica se o CPF já existe (se ele já jogou um torneio antes)
             var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);

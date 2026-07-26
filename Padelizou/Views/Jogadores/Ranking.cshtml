@@ -1,4 +1,4 @@
-@model Padelizou.ViewModels.RankingHubVM
+﻿@model Padelizou.ViewModels.RankingHubVM
 @using Padelizou.ViewModels
 @{
     ViewData["Title"] = "Ranking";
@@ -226,7 +226,7 @@
                 </div>
 
                 <div id="pdzCatInicial" class="text-muted small mb-3"><i class="bi bi-arrow-up"></i> Escolha uma categoria acima para ver o ranking.</div>
-                <div id="pdzCatVazio" class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed #ccc;" hidden>
+                <div id="pdzCatVazio" class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);" hidden>
                     <i class="bi bi-inbox display-6 text-muted"></i>
                     <p class="text-muted mb-0">Sem resultados em <strong id="pdzCatVazioNome"></strong> ainda.</p>
                 </div>
@@ -504,7 +504,7 @@
             <p class="text-muted small mb-3">Cada ponto que um jogador conquista em torneio soma para o time dele. Mesma pontuação por fase do ranking individual.</p>
             @if (!Model.Times.Any())
             {
-                <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed #ccc;">
+                <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
                     <i class="bi bi-shield display-4 text-muted mb-3"></i>
                     <h4 class="fw-bold text-secondary">Ainda não há times pontuando</h4>
                     <p class="text-muted mb-0">Quando jogadores com time tiverem resultados em torneios, o ranking aparece aqui.</p>
