@@ -69,28 +69,30 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [x] **Lembrete automático de cobrança** (push + e-mail a 6h do vencimento, 1x só) ✅ 25/07
 - [x] **Comprovante imprimível + exportar CSV** pro contador ✅ 25/07
 
-### Fase 3 — O dia do torneio `~1-2 semanas`
-- [ ] **Comunicado em massa** aos inscritos (1 clique) `1 dia`
+### Fase 3 — O dia do torneio `quase toda feita`
+- [x] **Comunicado em massa** aos inscritos (1 clique, por categoria ou geral) ✅ 25/07 (build-25)
 - [x] **Notificações nos momentos-chave**: convite, inscrição confirmada e resultado ✅ 25/07
-- [ ] Faltam 2 momentos: **chaves publicadas** e **seu jogo é o próximo** `4h`
-- [ ] **Convite pra se cadastrar na tela ao vivo** (maior porta de entrada desperdiçada) `4h` 💡
-- [ ] **Check-in de duplas** por QR code `1 dia`
+- [x] **Convite pra se cadastrar na tela ao vivo** ✅ 25/07 (build-25)
+- [x] **Check-in de duplas** (lista de presença por categoria) ✅ 25/07 (build-25)
+- [x] **Relatório pós-torneio** (pódio + público + financeiro, imprime em PDF) ✅ 25/07 (build-25)
+- [x] **Financeiro do torneio por categoria** ✅ 25/07 (build-25)
+- [ ] Faltam 2 momentos de push: **chaves publicadas** e **seu jogo é o próximo** `4h`
 - [ ] **Aviso de quadra atrasada** (o sistema já sabe previsto × real) `1 dia` 💡
 - [ ] **Placar que funciona sem internet** (sincroniza depois) `2 dias` 💡
-- [ ] **Relatório pós-torneio em PDF** (resultados + público + financeiro) `1 dia`
 
-### Fase 4 — Clube `~1-2 semanas`
-- [ ] **Mapa de ocupação semanal** `2 dias`
-- [ ] **Horário fixo / mensalista** `2 dias`
-- [ ] **Bloquear horário** (manutenção, evento, aula) `4h`
-- [ ] **Política de cancelamento e falta** `1 dia`
+### Fase 4 — Clube `feita`
+- [x] **Mapa de ocupação semanal** (grade quadra × dia × hora, % e receita) ✅ 25/07 (build-25)
+- [x] **Horário fixo / mensalista** (gera N semanas, pula conflito) ✅ 25/07 (build-25)
+- [x] **Bloquear horário** (manutenção, evento, aula) ✅ 25/07 (build-25)
+- [x] **Política de cancelamento e no-show** ✅ 25/07 (build-25)
+- [x] **Financeiro do clube** por quadra e por dia da semana ✅ 25/07 (build-25)
 
-### Fase 5 — Professor `~1 semana`
+### Fase 5 — Professor `feita`
 - [x] **"Meu dia" na entrada + push de nova solicitação** ✅ 25/07 (build-22)
-- [ ] **Visão financeira do professor**: entrou no mês, quem deve, previsão `1 dia`
-- [ ] **Presença e falta do aluno** + política de cancelamento `1 dia`
-- [ ] **Avaliação pelos alunos** `1 dia`
-- [ ] **Página pública do professor** (vende aula, traz gente nova) `2 dias` 💡
+- [x] **Visão financeira**: entrou no mês, quem deve, previsão, resultado por local ✅ 25/07 (build-24)
+- [x] **Presença e falta do aluno** + política de cancelamento ✅ 25/07 (build-24)
+- [x] **Avaliação pelos alunos** (só quem teve aula) ✅ 25/07 (build-24)
+- [x] **Página pública do professor** + vitrine `/Professores` ✅ 25/07 (build-24)
 
 ### 🎭 Entrada por papel `feito 25/07`
 - [x] Home reconhece professor / organizador / dono de clube e empilha os painéis de quem acumula papéis (build-22)
