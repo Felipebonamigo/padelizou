@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **25/07/2026**
+> Última atualização: **26/07/2026** — auditoria do plano inteiro contra o código.
 
 ---
 
@@ -10,9 +10,11 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + 85 testes + monitoramento).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **135 testes** + CI + monitoramento + rollback em 1 comando).
+As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
+
 **Falta o principal:** ainda roda em *modo demonstração* — cobrança em sandbox e dados fictícios em produção.
-Nenhum torneio real passou pelo sistema com dinheiro de verdade.
+Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único bloqueio que separa o sistema de virar negócio.**
 
 ---
 
@@ -25,7 +27,7 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - **Monitoramento**: endpoint `/healthz` (app + banco), vigia no VPS que reinicia sozinho (cron 5 min) e UptimeRobot externo. Validado derrubando o dev de propósito → voltou em 11s.
 
 ### 25/07/2026 — Blindagem (Fase 1 quase toda)
-- **CI no GitHub Actions**: os 85 testes rodam a cada push; commit com teste vermelho fica marcado com ❌.
+- **CI no GitHub Actions**: a suíte inteira roda a cada push; commit com teste vermelho fica marcado com ❌.
 - **Deploy via GitHub com versões**: o CI gera o pacote (`build-N-sha`) só se os testes passarem — é *impossível* publicar código reprovado. O VPS baixa, guarda cada versão em `/opt/padelizou-releases/`, troca por symlink e confere o `/healthz`; se não responder, **volta sozinho**. `deploy.sh`/`deploy-dev.sh` locais agora recusam mudanças não commitadas (fim da colisão de sessões).
 - **Rollback em 1 comando**: `ssh root@VPS /opt/padelizou-deploy/rollback.sh <prod|dev>`.
 - **Dados persistentes fora das versões**: uploads, tokens do Google e `appsettings.json` vivem em `/opt/padelizou-shared/` — trocar de versão nunca apaga foto de ninguém.
@@ -49,6 +51,20 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - **Inscrição sem parceiro**: `Dupla.Jogador2Id` virou anulável. O jogador garante a vaga sozinho e define o parceiro depois; qualquer integrante (ou o organizador) troca enquanto as inscrições estão abertas, com push pra quem sai e pra quem entra. **109 testes.**
 - **2º fix de quebra**: `GerarChaves` não filtrava `EmListaDeEspera` — o modelo dizia que lista de espera fica fora das chaves, mas o sorteio incluía todo mundo. Agora só entra dupla completa e confirmada.
 - **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
+
+---
+
+## 🎯 O que realmente falta (auditado em 26/07)
+
+Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está em 3 grupos:
+
+| | O quê | Quem faz |
+|---|---|---|
+| 🔴 **Bloqueia o negócio** | Asaas para produção · limpar dados fictícios | **Felipe decide** |
+| 🟡 **Fecha pendências** | Código morto · apagar 184 MB de legado no VPS · Postgres local | Claude, ~1 dia |
+| 🟢 **Cresce depois** | 2 pushes do dia de jogo · quadra atrasada · placar offline · convite sem CPF · arte pro Instagram · Play Store | sem pressa |
+
+**Nada do que sobrou impede um torneio real de acontecer amanhã.** O único impedimento é a chave do Asaas.
 
 ---
 
@@ -98,10 +114,12 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [x] Home reconhece professor / organizador / dono de clube e empilha os painéis de quem acumula papéis (build-22)
 
 ### Fase 6 — Crescimento `contínuo`
-- [ ] **Convidar parceiro sem ele ter conta** (hoje exige CPF na hora — maior atrito) `2 dias` 💡
-- [ ] **Resumo do torneio pronto pro Instagram** `2 dias` 💡
-- [ ] **Tela inicial conforme o papel** `1 dia`
-- [ ] **Primeiros passos guiados** (+ ensinar instalação no iPhone) `1 dia`
+- [x] **Tela inicial conforme o papel** ✅ 25/07 (build-22)
+- [x] **Primeiros passos guiados** (onboarding de 5 passos, inclui instalação no iPhone) ✅ 25/07 (build-9)
+- [ ] **Convidar parceiro sem ele ter conta** `2 dias` 💡
+      *Meio caminho já feito:* dá pra se inscrever sem parceiro e definir depois (build-17).
+      Falta o convite por link/WhatsApp que dispensa digitar o CPF do outro.
+- [ ] **Resumo do torneio pronto pro Instagram** `2 dias` 💡 — o relatório pós-torneio (build-25) já reúne os dados; falta a arte
 - [ ] **Play Store** via empacotamento do PWA `1 dia`
 
 💡 = ideia que não estava no diagnóstico original
@@ -109,10 +127,11 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 ---
 
 ## 🔧 Metades a fechar (pequenas)
-- [ ] Financeiro **por categoria** no torneio (hoje só por torneio)
-- [ ] Financeiro **por quadra** no clube (hoje só o total)
-- [ ] Resto do **código morto**: entidade `Organizador`, telas órfãs (`RankingPorTorneio`, `RankingCategorias`, CRUD antigo de Jogadores), método `GerarFaseGrupos` sem botão
+- [x] Financeiro **por categoria** no torneio ✅ 25/07 (build-25)
+- [x] Financeiro **por quadra** no clube ✅ 25/07 (build-25)
 - [x] Push de **nova solicitação de aula** pro professor ✅ 25/07
+- [ ] Resto do **código morto** — *confirmado presente em 26/07*: `Models/Organizador.cs`, telas órfãs (`Views/Jogadores/RankingPorTorneio`, `RankingCategorias`, `Create`, `Edit`, `Delete`), método `GerarFaseGrupos` (TorneiosController:1701) sem botão que o chame `2h`
+- [ ] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** — cópias de emergência da migração de deploy, ocupando **184 MB**. Já passou tempo suficiente; podem ir `5min`
 
 ## 📋 Backlog consciente (fazer depois)
 - Banners/avisos da plataforma
@@ -136,3 +155,6 @@ Gerados em 25/07/2026, salvos também em PDF na Área de Trabalho:
 - **Análise do sistema** — diagnóstico completo por área
 - **Plano de evolução** — as 6 fases detalhadas com justificativa
 - **Inventário de melhorias** — as 41 melhorias com status individual
+
+> ⚠️ Os 3 documentos refletem o diagnóstico de **25/07 de manhã** e envelheceram: a maior
+> parte do que eles listam como "falta" já foi entregue. Este STATUS.md é a fonte da verdade.
