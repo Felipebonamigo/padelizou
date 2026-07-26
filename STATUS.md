@@ -86,9 +86,14 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [ ] **Política de cancelamento e falta** `1 dia`
 
 ### Fase 5 — Professor `~1 semana`
-- [ ] **Presença e falta do aluno** `1 dia`
+- [x] **"Meu dia" na entrada + push de nova solicitação** ✅ 25/07 (build-22)
+- [ ] **Visão financeira do professor**: entrou no mês, quem deve, previsão `1 dia`
+- [ ] **Presença e falta do aluno** + política de cancelamento `1 dia`
 - [ ] **Avaliação pelos alunos** `1 dia`
 - [ ] **Página pública do professor** (vende aula, traz gente nova) `2 dias` 💡
+
+### 🎭 Entrada por papel `feito 25/07`
+- [x] Home reconhece professor / organizador / dono de clube e empilha os painéis de quem acumula papéis (build-22)
 
 ### Fase 6 — Crescimento `contínuo`
 - [ ] **Convidar parceiro sem ele ter conta** (hoje exige CPF na hora — maior atrito) `2 dias` 💡
@@ -105,7 +110,7 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade.
 - [ ] Financeiro **por categoria** no torneio (hoje só por torneio)
 - [ ] Financeiro **por quadra** no clube (hoje só o total)
 - [ ] Resto do **código morto**: entidade `Organizador`, telas órfãs (`RankingPorTorneio`, `RankingCategorias`, CRUD antigo de Jogadores), método `GerarFaseGrupos` sem botão
-- [ ] Push de **nova solicitação de aula** pro professor (hoje só e-mail)
+- [x] Push de **nova solicitação de aula** pro professor ✅ 25/07
 
 ## 📋 Backlog consciente (fazer depois)
 - Banners/avisos da plataforma
