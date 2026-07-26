@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/07/2026** — auditoria do plano inteiro contra o código.
+> Última atualização: **26/07/2026** — limpeza do código morto (build-28) + auditoria do plano contra o código.
 
 ---
 
@@ -50,6 +50,7 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único b
 - **Uma categoria por jogador (opcional)**: `Torneio.PermiteMultiplasCategorias`, escolhido na criação. Vale pra dupla E americano. Migração sobe com **default TRUE** — antes não havia trava, e `false` mudaria a regra dos 14 torneios que já existem.
 - **Inscrição sem parceiro**: `Dupla.Jogador2Id` virou anulável. O jogador garante a vaga sozinho e define o parceiro depois; qualquer integrante (ou o organizador) troca enquanto as inscrições estão abertas, com push pra quem sai e pra quem entra. **109 testes.**
 - **2º fix de quebra**: `GerarChaves` não filtrava `EmListaDeEspera` — o modelo dizia que lista de espera fica fora das chaves, mas o sorteio incluía todo mundo. Agora só entra dupla completa e confirmada.
+- **Limpeza do código morto** (26/07, build-28): ~800 linhas removidas — CRUD scaffolded de Jogadores, `RankingCategorias`, `RankingPorTorneio`, `GerarFaseGrupos` e a entidade `Organizador`. **Fechou de quebra uma porta aberta:** as ações do CRUD não tinham `[Authorize]` e `/Jogadores/Delete/5` apagava jogador.
 - **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
 
 ---
@@ -61,7 +62,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 | | O quê | Quem faz |
 |---|---|---|
 | 🔴 **Bloqueia o negócio** | Asaas para produção · limpar dados fictícios | **Felipe decide** |
-| 🟡 **Fecha pendências** | Código morto · apagar 184 MB de legado no VPS · Postgres local | Claude, ~1 dia |
+| 🟡 **Fecha pendências** | ~~Código morto~~ ✅ · apagar 184 MB de legado no VPS · Postgres local | Claude, ~2h |
 | 🟢 **Cresce depois** | 2 pushes do dia de jogo · quadra atrasada · placar offline · convite sem CPF · arte pro Instagram · Play Store | sem pressa |
 
 **Nada do que sobrou impede um torneio real de acontecer amanhã.** O único impedimento é a chave do Asaas.
@@ -130,7 +131,8 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] Financeiro **por categoria** no torneio ✅ 25/07 (build-25)
 - [x] Financeiro **por quadra** no clube ✅ 25/07 (build-25)
 - [x] Push de **nova solicitação de aula** pro professor ✅ 25/07
-- [ ] Resto do **código morto** — *confirmado presente em 26/07*: `Models/Organizador.cs`, telas órfãs (`Views/Jogadores/RankingPorTorneio`, `RankingCategorias`, `Create`, `Edit`, `Delete`), método `GerarFaseGrupos` (TorneiosController:1701) sem botão que o chame `2h`
+- [x] **Código morto removido** ✅ 26/07 (build-28) — CRUD scaffolded de Jogadores (9 ações + 5 views), `RankingCategorias`, `RankingPorTorneio`, `GerarFaseGrupos` (77 linhas) e a entidade `Organizador` (tabela vazia, dropada por migração). **~800 linhas a menos.**
+      ⚠️ **Achado de segurança no caminho:** nenhuma ação do CRUD tinha `[Authorize]` — `/Jogadores/Delete/5` apagava jogador. O gate de Acesso Antecipado barrava anônimo, mas qualquer usuário logado alcançava, e ficaria aberto ao mundo no dia em que o gate saísse. Fechado.
 - [ ] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** — cópias de emergência da migração de deploy, ocupando **184 MB**. Já passou tempo suficiente; podem ir `5min`
 
 ## 📋 Backlog consciente (fazer depois)

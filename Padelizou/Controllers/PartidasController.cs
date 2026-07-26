@@ -18,6 +18,24 @@ namespace Padelizou.Controllers
             _palpites = palpites;
         }
 
+        private int? ObterJogadorIdLogado()
+        {
+            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return int.TryParse(claim, out var id) ? id : null;
+        }
+
+        // Só quem organiza o torneio mexe no placar. Partida sem torneio (jogo avulso)
+        // não tem dono definido, então fica com o mesmo critério: precisa estar logado.
+        private async Task<bool> PodeControlarPlacarAsync(Partida partida)
+        {
+            var jogadorId = ObterJogadorIdLogado();
+            if (jogadorId == null) return false;
+            if (partida.TorneioId == null) return true;
+
+            return await _context.TorneioOrganizadores
+                .AnyAsync(o => o.TorneioId == partida.TorneioId && o.JogadorId == jogadorId);
+        }
+
         // POST: Partidas/Votar — palpitrômetro (voto do jogador logado em quem vai ganhar a partida)
         [HttpPost]
         [Authorize]
@@ -58,6 +76,7 @@ namespace Padelizou.Controllers
         }
 
         // GET: Partidas/ControlePlacar/5
+        [Authorize]
         public async Task<IActionResult> ControlePlacar(int id)
         {
             var partida = await _context.Partidas
@@ -69,6 +88,7 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (partida == null) return NotFound();
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
 
             ViewBag.Quadras = await _context.Quadras
                 .Where(q => q.TorneioId == partida.TorneioId)
@@ -80,11 +100,15 @@ namespace Padelizou.Controllers
 
         // POST: Partidas/ControlePlacar/5
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
+
+            // Sem isto, qualquer um que alcançasse a rota mudava o placar de qualquer jogo.
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
 
             partida.GamesDupla1 = gamesDupla1;
             partida.GamesDupla2 = gamesDupla2;
