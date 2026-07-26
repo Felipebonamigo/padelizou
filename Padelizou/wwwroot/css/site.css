@@ -743,3 +743,33 @@ button, a, input, select { touch-action: manipulation; }
     line-height: 1;
 }
 .pdz-palpite-pct-badge i { display: block; font-size: .7rem; margin-top: 1px; }
+
+/* ── Aviso de Beta ─────────────────────────────────────────────────────────
+   Enquanto o Padelizou não abrir de verdade, quem entra tem que saber. São duas
+   peças: o selo colado na marca (viaja com a navbar sticky, aparece em toda tela)
+   e a faixa explicativa logo abaixo, que rola pra fora e não rouba altura no
+   celular depois dos primeiros segundos. */
+.pdz-selo-beta {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--pdz-lime);
+    color: var(--pdz-navy-fixed);
+    font-size: .6rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.pdz-faixa-beta {
+    background: var(--pdz-lime);
+    color: var(--pdz-navy-fixed);
+    font-size: .82rem;
+    font-weight: 600;
+    padding: 7px 0;
+}
+
+.pdz-faixa-beta i { flex-shrink: 0; }

@@ -31,6 +31,7 @@ builder.Services.AddDbContext<DbPadelContext>(options =>
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.Configure<AcessoAntecipadoSettings>(builder.Configuration.GetSection("AcessoAntecipado"));
+builder.Services.Configure<BetaSettings>(builder.Configuration.GetSection("Beta"));
 builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));

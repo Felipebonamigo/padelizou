@@ -18,13 +18,6 @@ public class AcessoAntecipadoMiddleware
 {
     public const string NomeCookie = "PadelizouAcessoLiberado";
 
-    // MODO DEMO TEMPORÁRIO (fase de teste fechado, site ainda não é público): quem já passou pela
-    // senha do Acesso Antecipado sempre entra logado como esse jogador — checado em toda request
-    // (não só no momento do POST do form), pra garantir que os menus de jogador logado nunca
-    // sumam (cookie do jogador expirando, trocando de aba/dispositivo, etc.). Remover este bloco
-    // (e o CPF abaixo) quando o site abrir pro público geral.
-    private const string CpfLoginAutomatico = "02061197043"; // Felipe Bonamigo
-
     // Só o caminho exato do webhook entra aqui — liberar "/Pagamentos" inteiro abriria as telas
     // de extrato e configuração de recebimento pra qualquer visitante. O webhook em si não fica
     // desprotegido: ele exige o token secreto do Asaas no header.
@@ -77,9 +70,13 @@ public class AcessoAntecipadoMiddleware
         {
             context.User = resultado.Principal!;
         }
-        else
+        else if (!string.IsNullOrWhiteSpace(settings.LoginAutomaticoCpf))
         {
-            var jogadorDemo = await db.Jogadores.FirstOrDefaultAsync(j => j.Cpf == CpfLoginAutomatico);
+            // MODO DEMONSTRAÇÃO: quem passou pela senha do gate entra logado como esse jogador,
+            // checado em toda request (não só no POST do form) pra que os menus de logado não
+            // sumam quando o cookie expira ou a pessoa troca de aba. Desligado onde
+            // LoginAutomaticoCpf está vazio — aí cada visitante cria a própria conta.
+            var jogadorDemo = await db.Jogadores.FirstOrDefaultAsync(j => j.Cpf == settings.LoginAutomaticoCpf);
             if (jogadorDemo != null)
             {
                 // Mesmo conjunto de claims do login normal (AuthController) — sem isso os menus
