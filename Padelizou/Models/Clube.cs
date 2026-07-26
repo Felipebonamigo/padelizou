@@ -22,6 +22,13 @@ public class Clube
     public bool MarcacaoHorariosAtiva { get; set; }
     public bool NotificarHorariosDiariamente { get; set; }
 
+    // ---- Política de cancelamento / no-show ----
+    // Mesma ideia da política do professor: horas mínimas de aviso e se cobra quem não
+    // avisa. 0 = pode desmarcar até a última hora.
+    public int HorasMinimasCancelamento { get; set; } = 12;
+    public bool CobraNoShow { get; set; }
+    public string? PoliticaCancelamentoTexto { get; set; }
+
     // Relacionamentos
     public ICollection<Torneio> Torneios { get; set; } = new List<Torneio>();
     public ICollection<Time> Times { get; set; } = new List<Time>();

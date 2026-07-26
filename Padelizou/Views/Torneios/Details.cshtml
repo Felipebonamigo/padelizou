@@ -624,6 +624,57 @@
                 </div>
             </div>
 
+            <!-- FERRAMENTAS DO DIA -->
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3">Ferramentas do organizador</h6>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                            <i class="bi bi-clipboard-check"></i> Check-in do dia
+                        </a>
+                        <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-cash-stack"></i> Financeiro
+                        </a>
+                        <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-file-earmark-text"></i> Relatório / PDF
+                        </a>
+                    </div>
+
+                    <!-- COMUNICADO EM MASSA -->
+                    <div class="border-top pt-3">
+                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            <i class="bi bi-megaphone-fill"></i> Avisar todo mundo
+                        </h6>
+                        <p class="small text-muted">
+                            Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
+                        </p>
+                        <form asp-action="Comunicar" method="post"
+                              onsubmit="return confirm('Enviar este aviso para todos os inscritos?');">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <select name="categoriaId" class="form-select form-select-sm">
+                                        <option value="">Todas as categorias</option>
+                                        @foreach (var c in Model.Categorias)
+                                        {
+                                            <option value="@c.Id">@c.Nome</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-8">
+                                    <input type="text" name="mensagem" class="form-control form-control-sm"
+                                           maxlength="180" required
+                                           placeholder="Ex: As chaves saíram! Confira seu horário." />
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
+                                <i class="bi bi-send"></i> Enviar aviso
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- GERENCIAR INSCRITOS -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">

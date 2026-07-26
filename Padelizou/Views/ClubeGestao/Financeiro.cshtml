@@ -1,0 +1,117 @@
+@model Padelizou.ViewModels.FinanceiroClubeVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Financeiro — {Model.Clube.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var maxQuadra = Model.PorQuadra.Any() ? Math.Max(1m, Model.PorQuadra.Max(q => q.Receita)) : 1m;
+    var maxDia = Model.PorDiaSemana.Any() ? Math.Max(1m, Model.PorDiaSemana.Max(d => d.Receita)) : 1m;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-cash-coin"></i> Financeiro do clube</h2>
+            <p class="text-muted small mb-0">@Model.Clube.Nome</p>
+        </div>
+        <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-grid-3x3"></i> Mapa de ocupação
+        </a>
+    </div>
+
+    <div class="btn-group mb-4">
+        @foreach (var (chave, texto) in new[] { ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
+        {
+            <a asp-action="Financeiro" asp-route-id="@Model.Clube.Id" asp-route-periodo="@chave"
+               class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>
+        }
+    </div>
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Receita @Model.PeriodoRotulo</small>
+                <div class="fw-bold fs-4 text-success">@Model.Receita.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.Reservas reserva(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Recuperado</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.Recuperado.ToString("C", ptBr)</div>
+                <small class="text-muted">no-shows cobrados</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Perdido</small>
+                <div class="fw-bold fs-4 text-danger">@Model.APerder.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.NoShows no-show(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Cancelamentos</small>
+                <div class="fw-bold fs-4 text-warning">@Model.Cancelamentos</div>
+                <small class="text-muted">no período</small>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.TemMovimento)
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-1">Nenhuma reserva @Model.PeriodoRotulo.</p>
+            <p class="small mb-0">
+                O valor de cada reserva vem do preço cadastrado em
+                <a asp-controller="HorarioMarcacao" asp-action="Index" asp-route-clubeId="@Model.Clube.Id">Gerenciar Horários</a>.
+            </p>
+        </div>
+        return;
+    }
+
+    <!-- Por quadra -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-square"></i> Receita por quadra</h6>
+            @foreach (var q in Model.PorQuadra)
+            {
+                var pct = (int)Math.Round(q.Receita / maxQuadra * 100);
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <small class="text-nowrap text-truncate" style="width: 110px; color: var(--pdz-ink);">@q.Quadra</small>
+                    <div class="progress flex-grow-1" style="height: 18px;">
+                        <div class="progress-bar" style="width: @pct%; background: var(--padel-green);"></div>
+                    </div>
+                    <small class="text-muted text-nowrap" style="width: 70px; text-align:right;">@q.Reservas res.</small>
+                    <small class="fw-bold text-nowrap" style="width: 90px; text-align:right; color: var(--pdz-ink);">
+                        @q.Receita.ToString("C0", ptBr)
+                    </small>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Por dia da semana: é o que mostra onde abrir promoção -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-calendar-week"></i> Por dia da semana</h6>
+            @foreach (var d in Model.PorDiaSemana)
+            {
+                var pct = (int)Math.Round(d.Receita / maxDia * 100);
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <small class="text-nowrap" style="width: 76px; color: var(--pdz-ink);">@d.Rotulo</small>
+                    <div class="progress flex-grow-1" style="height: 18px;">
+                        <div class="progress-bar" style="width: @pct%; background: var(--padel-green);"></div>
+                    </div>
+                    <small class="text-muted text-nowrap" style="width: 70px; text-align:right;">@d.Reservas res.</small>
+                    <small class="fw-bold text-nowrap" style="width: 90px; text-align:right; color: var(--pdz-ink);">
+                        @d.Receita.ToString("C0", ptBr)
+                    </small>
+                </div>
+            }
+            <p class="small text-muted mb-0 mt-2">
+                Dia fraco é onde vale promoção ou horário fixo — o mapa de ocupação mostra exatamente qual faixa está vazia.
+            </p>
+        </div>
+    </div>
+</div>

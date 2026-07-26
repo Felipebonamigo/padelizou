@@ -1,0 +1,130 @@
+@model Padelizou.ViewModels.RelatorioTorneioVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Relatório — {Model.Torneio.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+}
+
+@*
+    Relatório de fechamento pra prestar contas a patrocinador. Feito pra imprimir/salvar
+    em PDF pelo próprio navegador (Ctrl+P) — sem biblioteca de PDF no servidor, que seria
+    mais uma dependência pra manter só por causa desta tela.
+*@
+<div class="container mt-4 mb-5" style="max-width: 800px;">
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-2 d-print-none">
+        <a asp-action="Details" asp-route-id="@Model.Torneio.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Torneio
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-padel rounded-pill px-4 fw-bold">
+            <i class="bi bi-printer"></i> Salvar em PDF / Imprimir
+        </button>
+    </div>
+
+    <!-- Cabeçalho -->
+    <div class="text-center mb-4">
+        <img src="~/image/logo-icon.png" alt="" style="height: 48px;" class="mb-2" />
+        <h1 class="fw-bold mb-1" style="color: var(--pdz-ink);">@Model.Torneio.Nome</h1>
+        <p class="text-muted mb-0">
+            @if (Model.Torneio.DataInicio != null)
+            {
+                <span>@Model.Torneio.DataInicio.Value.ToString("dd 'de' MMMM 'de' yyyy", ptBr)</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Torneio.LocalTorneio))
+            {
+                <span> · @Model.Torneio.LocalTorneio</span>
+            }
+        </p>
+        <p class="small text-muted">Relatório gerado em @Model.GeradoEm.ToString("dd/MM/yyyy 'às' HH:mm")</p>
+    </div>
+
+    <!-- Números -->
+    <h5 class="fw-bold border-bottom pb-2 mb-3" style="color: var(--pdz-ink);">Números do evento</h5>
+    <div class="row text-center g-3 mb-4">
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.TotalJogadores</div>
+            <small class="text-muted">jogadores</small>
+        </div>
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.TotalDuplas</div>
+            <small class="text-muted">duplas</small>
+        </div>
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.TotalCategorias</div>
+            <small class="text-muted">categorias</small>
+        </div>
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.TotalPartidas</div>
+            <small class="text-muted">jogos</small>
+        </div>
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.PartidasFinalizadas</div>
+            <small class="text-muted">concluídos</small>
+        </div>
+        <div class="col-4 col-md-2">
+            <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.JogadoresAlcancados</div>
+            <small class="text-muted">alcançados</small>
+        </div>
+    </div>
+
+    <!-- Pódio -->
+    <h5 class="fw-bold border-bottom pb-2 mb-3" style="color: var(--pdz-ink);">Resultados por categoria</h5>
+    @foreach (var p in Model.Podios)
+    {
+        <div class="mb-3 pb-2 border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <strong style="color: var(--pdz-ink);">@p.Categoria</strong>
+                <small class="text-muted">@p.Duplas dupla(s)</small>
+            </div>
+            @if (p.Campea != null)
+            {
+                <div class="small mt-1">🥇 <strong>Campeã:</strong> @p.Campea</div>
+            }
+            @if (p.Vice != null)
+            {
+                <div class="small">🥈 <strong>Vice:</strong> @p.Vice</div>
+            }
+            @if (p.Semifinalistas.Any())
+            {
+                <div class="small text-muted">🥉 Semifinalistas: @string.Join(" · ", p.Semifinalistas)</div>
+            }
+            @if (p.Campea == null)
+            {
+                <div class="small text-muted fst-italic">Categoria ainda sem campeão definido.</div>
+            }
+        </div>
+    }
+
+    <!-- Financeiro -->
+    @if (Model.Arrecadado > 0)
+    {
+        <h5 class="fw-bold border-bottom pb-2 mb-3 mt-4" style="color: var(--pdz-ink);">Financeiro</h5>
+        <table class="table table-sm">
+            <tbody>
+                <tr>
+                    <td>Arrecadado com inscrições</td>
+                    <td class="text-end fw-bold">@Model.Arrecadado.ToString("C", ptBr)</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">Taxa da plataforma</td>
+                    <td class="text-end text-muted">− @Model.TaxaPlataforma.ToString("C", ptBr)</td>
+                </tr>
+                <tr class="border-top">
+                    <td class="fw-bold">Líquido para o organizador</td>
+                    <td class="text-end fw-bold" style="color: var(--padel-green);">@Model.Liquido.ToString("C", ptBr)</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+
+    <p class="text-center small text-muted mt-4">
+        Relatório emitido pelo <strong>Padelizou</strong> · padelizou.com.br
+    </p>
+</div>
+
+<style>
+    @@media print {
+        .d-print-none, nav, footer { display: none !important; }
+        body { background: #fff !important; }
+        a[href]:after { content: none !important; }
+    }
+</style>

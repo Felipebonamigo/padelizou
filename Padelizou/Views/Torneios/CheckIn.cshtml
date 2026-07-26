@@ -1,0 +1,90 @@
+@model Padelizou.Models.Torneio
+@{
+    ViewData["Title"] = $"Check-in — {Model.Nome}";
+
+    var todas = Model.Categorias.SelectMany(c => c.Duplas).Where(d => !d.EmListaDeEspera).ToList();
+    int presentes = todas.Count(d => d.CheckInEm != null);
+    int faltam = todas.Count - presentes;
+    int pct = todas.Count == 0 ? 0 : (int)Math.Round(presentes * 100.0 / todas.Count);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-clipboard-check"></i> Check-in</h2>
+            <p class="text-muted small mb-0">@Model.Nome — marque quem já chegou.</p>
+        </div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Torneio
+        </a>
+    </div>
+
+    <!-- Barra de presença -->
+    <div class="card border-0 shadow-sm mb-4 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold" style="color: var(--pdz-ink);">@presentes de @todas.Count presentes</span>
+            <span class="badge rounded-pill @(faltam == 0 ? "bg-success" : "bg-warning text-dark")">
+                @(faltam == 0 ? "todos chegaram" : $"{faltam} faltando")
+            </span>
+        </div>
+        <div class="progress" style="height: 10px;">
+            <div class="progress-bar" style="width: @pct%; background: var(--padel-green);"></div>
+        </div>
+    </div>
+
+    @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+    {
+        var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera).OrderBy(d => d.Jogador1.Nome).ToList();
+        if (!duplas.Any()) { continue; }
+
+        <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
+            @cat.Nome
+            <span class="text-muted small fw-normal">
+                (@duplas.Count(d => d.CheckInEm != null)/@duplas.Count)
+            </span>
+        </h6>
+
+        <div class="list-group shadow-sm">
+            @foreach (var d in duplas)
+            {
+                bool chegou = d.CheckInEm != null;
+                <div class="list-group-item d-flex align-items-center gap-3 @(chegou ? "bg-light" : "")">
+                    <i class="bi @(chegou ? "bi-check-circle-fill" : "bi-circle") fs-4"
+                       style="color: @(chegou ? "var(--padel-green)" : "#ccc");"></i>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">
+                            @d.Jogador1.Nome
+                            @if (d.Jogador2 != null)
+                            {
+                                <span>/ @d.Jogador2.Nome</span>
+                            }
+                            else
+                            {
+                                <em class="text-muted small">/ sem parceiro</em>
+                            }
+                        </span>
+                        @if (chegou)
+                        {
+                            <small class="text-muted">chegou @d.CheckInEm!.Value.ToString("HH:mm")</small>
+                        }
+                    </div>
+                    <form asp-action="MarcarCheckIn" method="post" class="flex-shrink-0">
+                        <input type="hidden" name="duplaId" value="@d.Id" />
+                        <input type="hidden" name="presente" value="@((!chegou).ToString().ToLower())" />
+                        <button type="submit" class="btn btn-sm @(chegou ? "btn-outline-secondary" : "btn-padel") rounded-pill px-3">
+                            @(chegou ? "Desfazer" : "Chegou")
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    @if (!todas.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Nenhuma dupla confirmada ainda.</p>
+        </div>
+    }
+</div>

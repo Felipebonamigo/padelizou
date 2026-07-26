@@ -87,6 +87,28 @@
             <p class="text-muted">Nenhum jogo rolando no momento.</p>
         }
 
+        @*
+            Convite pra se cadastrar: a tela ao vivo é a porta de entrada mais visitada
+            por quem ainda não tem conta (o torcedor abre o link que o organizador manda).
+            Só aparece pra quem NÃO está logado.
+        *@
+        @if (User.Identity?.IsAuthenticated != true)
+        {
+            <div class="card border-0 shadow-sm mb-3 p-3" style="background-color: var(--pdz-navy-fixed); color: white;">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <i class="bi bi-lightning-charge-fill fs-2" style="color: var(--padel-green);"></i>
+                    <div class="flex-grow-1">
+                        <strong class="d-block">Acompanhando de fora?</strong>
+                        <small class="text-light opacity-75">
+                            Crie sua conta grátis pra seguir jogadores, receber o resultado no celular e se inscrever nos próximos torneios.
+                        </small>
+                    </div>
+                    <a asp-controller="Auth" asp-action="Cadastro"
+                       class="btn btn-padel rounded-pill px-4 fw-bold flex-shrink-0">Criar conta grátis</a>
+                </div>
+            </div>
+        }
+
         <div class="row">
             @foreach (var jogo in aoVivoList)
             {

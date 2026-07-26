@@ -1,0 +1,265 @@
+@model Padelizou.ViewModels.OcupacaoClubeVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Ocupação — {Model.Clube.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var dias = Enumerable.Range(0, 7).Select(i => Model.InicioSemana.AddDays(i)).ToList();
+}
+
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-grid-3x3"></i> Mapa de ocupação</h2>
+            <p class="text-muted small mb-0">@Model.Clube.Nome</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Financeiro" asp-route-id="@Model.Clube.Id" class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-cash-coin"></i> Financeiro
+            </a>
+            <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@Model.Clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-gear"></i> Configurações
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null) { <div class="alert alert-success">@TempData["Sucesso"]</div> }
+    @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
+
+    <!-- Navegação de semana + resumo -->
+    <div class="card border-0 shadow-sm mb-3 p-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="btn-group">
+                <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" asp-route-semana="@Model.InicioSemana.AddDays(-7).ToString("yyyy-MM-dd")"
+                   class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
+                <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id"
+                   class="btn btn-sm btn-outline-secondary">Hoje</a>
+                <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" asp-route-semana="@Model.InicioSemana.AddDays(7).ToString("yyyy-MM-dd")"
+                   class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
+            </div>
+            <strong style="color: var(--pdz-ink);">
+                @Model.InicioSemana.ToString("dd/MM") a @Model.FimSemana.ToString("dd/MM")
+            </strong>
+            <div class="d-flex gap-3 align-items-center">
+                <span class="small text-muted">
+                    <strong style="color: var(--pdz-ink);">@Model.PercentualOcupacao%</strong> ocupado
+                    (@Model.SlotsOcupados/@Model.TotalSlots)
+                </span>
+                <span class="small text-muted">
+                    Receita: <strong class="text-success">@Model.ReceitaSemana.ToString("C0", ptBr)</strong>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.Horarios.Any() || !Model.Quadras.Any())
+    {
+        <div class="alert alert-light border">
+            <i class="bi bi-info-circle"></i>
+            Este clube ainda não tem quadras ativas ou horários cadastrados.
+            Configure em <a asp-controller="HorarioMarcacao" asp-action="Index" asp-route-clubeId="@Model.Clube.Id">Gerenciar Horários</a>.
+        </div>
+        return;
+    }
+
+    <!-- MAPA: uma tabela por quadra, dias nas colunas -->
+    @foreach (var q in Model.Quadras)
+    {
+        <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);"><i class="bi bi-square"></i> @q.Nome</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0 pdz-mapa">
+                <thead>
+                    <tr class="text-center small">
+                        <th style="width: 62px;">Hora</th>
+                        @foreach (var d in dias)
+                        {
+                            <th class="@(d.Date == DateTime.Today ? "table-warning" : "")">
+                                <div class="text-uppercase" style="font-size:.65rem;">@ptBr.DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek)</div>
+                                <div>@d.ToString("dd/MM")</div>
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in Model.Horarios)
+                    {
+                        <tr>
+                            <td class="text-center small fw-bold text-muted">@h.ToString(@"hh\:mm")</td>
+                            @foreach (var d in dias)
+                            {
+                                var slot = Model.Slots.GetValueOrDefault((q.Id, d.Date, h));
+                                // Monta o valor antes: "data" + "T" + "hora" colados no Razor
+                                // fazem o parser tratar o T como início de expressão.
+                                var quandoIso = d.Date.Add(h).ToString("yyyy-MM-ddTHH:mm");
+                                if (slot == null)
+                                {
+                                    <td class="text-center pdz-livre" title="Livre">
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-muted pdz-btn-bloquear"
+                                                data-quadra="@q.Id" data-quando="@quandoIso"
+                                                title="Bloquear este horário">+</button>
+                                    </td>
+                                }
+                                else if (slot.EhBloqueio)
+                                {
+                                    <td class="text-center pdz-bloqueado small" title="@slot.Titulo">
+                                        <i class="bi bi-lock-fill"></i>
+                                        <form asp-action="Desbloquear" method="post" class="d-inline">
+                                            <input type="hidden" name="marcacaoId" value="@slot.MarcacaoId" />
+                                            <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Remover bloqueio">×</button>
+                                        </form>
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="text-center pdz-ocupado small text-truncate" style="max-width:110px;"
+                                        title="@slot.Titulo@(slot.EhMensalista ? " (mensalista)" : "")">
+                                        @if (slot.EhMensalista)
+                                        {
+                                            <i class="bi bi-arrow-repeat" title="Mensalista"></i>
+                                        }
+                                        @slot.Titulo.Split(' ')[0]
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- Legenda -->
+    <div class="d-flex flex-wrap gap-3 mt-3 small text-muted">
+        <span><span class="pdz-chip pdz-livre"></span> livre (clique no + pra bloquear)</span>
+        <span><span class="pdz-chip pdz-ocupado"></span> reservado</span>
+        <span><span class="pdz-chip pdz-bloqueado"></span> bloqueado pelo clube</span>
+        <span><i class="bi bi-arrow-repeat"></i> horário fixo (mensalista)</span>
+    </div>
+
+    <!-- Criar mensalista -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-arrow-repeat"></i> Horário fixo (mensalista)</h6>
+            <p class="small text-muted">Reserva o mesmo horário toda semana. Se algum já estiver ocupado, ele é pulado.</p>
+            <form asp-action="CriarMensalista" method="post">
+                <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                <div class="row g-2">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Quadra</label>
+                        <select name="quadraId" class="form-select form-select-sm" required>
+                            @foreach (var q in Model.Quadras)
+                            {
+                                <option value="@q.Id">@q.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Jogador (id)</label>
+                        <input type="number" name="jogadorId" class="form-control form-control-sm" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">1º dia e hora</label>
+                        <input type="datetime-local" name="primeiraData" class="form-control form-control-sm" required />
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Minutos</label>
+                        <input type="number" name="duracaoMinutos" class="form-control form-control-sm" value="60" />
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Semanas</label>
+                        <input type="number" name="semanas" class="form-control form-control-sm" value="4" min="1" max="52" />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">Criar horário fixo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Política do clube -->
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+            <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shield-check"></i> Cancelamento e no-show</h6>
+            <form asp-action="SalvarPolitica" method="post">
+                <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Avisar com quantas horas?</label>
+                        <input type="number" name="horasMinimas" min="0" max="168" class="form-control form-control-sm"
+                               value="@Model.Clube.HorasMinimasCancelamento" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" name="cobraNoShow" value="true"
+                                   id="cobraNoShow" @(Model.Clube.CobraNoShow ? "checked" : "")>
+                            <label class="form-check-label small" for="cobraNoShow">Cobro quem não aparece</label>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-bold text-muted mb-1">Texto pro jogador (opcional)</label>
+                        <input type="text" name="texto" class="form-control form-control-sm"
+                               value="@Model.Clube.PoliticaCancelamentoTexto" placeholder="Escreva do seu jeito..." />
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2">Salvar política</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de bloqueio (preenchido pelo clique no +) -->
+<div class="modal fade" id="modalBloqueio" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Bloquear" method="post">
+                <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                <input type="hidden" name="quadraId" id="bloqQuadra" />
+                <input type="hidden" name="dataHora" id="bloqQuando" />
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold">Bloquear horário</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2" id="bloqResumo"></p>
+                    <label class="form-label small fw-bold text-muted mb-1">Motivo</label>
+                    <input type="text" name="motivo" class="form-control mb-2" placeholder="Manutenção, evento, aula..." />
+                    <label class="form-label small fw-bold text-muted mb-1">Duração (min)</label>
+                    <input type="number" name="duracaoMinutos" class="form-control" value="60" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-padel rounded-pill px-4">Bloquear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .pdz-mapa td { padding: .25rem; height: 34px; }
+    .pdz-livre { background: rgba(139,195,74,.06); }
+    .pdz-ocupado { background: rgba(139,195,74,.30); font-weight: 600; }
+    .pdz-bloqueado { background: rgba(220,53,69,.18); }
+    .pdz-chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 3px; }
+    .pdz-btn-bloquear { opacity: 0; transition: opacity .1s; }
+    .pdz-livre:hover .pdz-btn-bloquear { opacity: 1; }
+</style>
+
+@section Scripts {
+    <script>
+        // Clique no "+" de um slot livre abre o modal já com quadra e horário preenchidos.
+        (function () {
+            var modalEl = document.getElementById('modalBloqueio');
+            if (!modalEl) return;
+            var modal = new bootstrap.Modal(modalEl);
+
+            document.querySelectorAll('.pdz-btn-bloquear').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('bloqQuadra').value = btn.dataset.quadra;
+                    document.getElementById('bloqQuando').value = btn.dataset.quando;
+                    document.getElementById('bloqResumo').textContent =
+                        btn.dataset.quando.replace('T', ' às ');
+                    modal.show();
+                });
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,155 @@
+@model Padelizou.ViewModels.FinanceiroTorneioVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Financeiro — {Model.Torneio.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    string SoDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-cash-stack"></i> Financeiro do torneio</h2>
+            <p class="text-muted small mb-0">@Model.Torneio.Nome</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Relatorio" asp-route-id="@Model.Torneio.Id" class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-file-earmark-text"></i> Relatório
+            </a>
+            <a asp-action="Details" asp-route-id="@Model.Torneio.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Torneio
+            </a>
+        </div>
+    </div>
+
+    @if (Model.EhGratuito)
+    {
+        <div class="alert alert-light border">
+            <i class="bi bi-info-circle"></i>
+            Este torneio é <strong>gratuito</strong> (inscrição R$ 0,00), então não há cobrança pra acompanhar aqui.
+            Os números de inscritos continuam valendo.
+        </div>
+    }
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Arrecadado</small>
+                <div class="fw-bold fs-4 text-success">@Model.Arrecadado.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.Pagantes pagante(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Aguardando</small>
+                <div class="fw-bold fs-4 text-warning">@Model.Pendente.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.Pendentes.Count cobrança(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Estornado</small>
+                <div class="fw-bold fs-4 text-danger">@Model.Estornado.ToString("C", ptBr)</div>
+                <small class="text-muted">devolvido</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Líquido pra você</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.Liquido.ToString("C", ptBr)</div>
+                <small class="text-muted">taxa: @Model.TaxaPlataforma.ToString("C", ptBr)</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Por categoria -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-layers"></i> Por categoria</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr class="small text-muted">
+                            <th>Categoria</th>
+                            <th class="text-center">Inscritos</th>
+                            <th class="text-center">Espera</th>
+                            <th class="text-end">Arrecadado</th>
+                            <th class="text-end">Estornado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.PorCategoria)
+                        {
+                            <tr>
+                                <td class="fw-bold" style="color: var(--pdz-ink);">@c.Categoria</td>
+                                <td class="text-center">@c.Inscritos</td>
+                                <td class="text-center">
+                                    @if (c.ListaDeEspera > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">@c.ListaDeEspera</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-end text-success">@c.Arrecadado.ToString("C", ptBr)</td>
+                                <td class="text-end text-muted">@(c.Estornado > 0 ? c.Estornado.ToString("C", ptBr) : "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.Pendente > 0)
+            {
+                <p class="small text-muted mb-0 mt-2">
+                    As cobranças <strong>aguardando pagamento</strong> não aparecem por categoria porque a inscrição
+                    só é criada quando o dinheiro entra — elas estão listadas abaixo.
+                </p>
+            }
+        </div>
+    </div>
+
+    <!-- Aguardando pagamento -->
+    @if (Model.Pendentes.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                    <i class="bi bi-hourglass-split"></i> Aguardando pagamento
+                </h6>
+                @foreach (var p in Model.Pendentes)
+                {
+                    <div class="d-flex align-items-center gap-2 py-2 border-top">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@p.Jogador</span>
+                            <small class="text-muted">
+                                gerada @p.CriadoEm.ToString("dd/MM HH:mm")
+                                @if (p.ExpiraEm != null)
+                                {
+                                    <span>· expira @p.ExpiraEm.Value.ToString("dd/MM HH:mm")</span>
+                                }
+                            </small>
+                        </div>
+                        <span class="fw-bold text-warning text-nowrap">@p.Valor.ToString("C", ptBr)</span>
+                        @if (!string.IsNullOrWhiteSpace(p.LinkCobranca))
+                        {
+                            <a href="@p.LinkCobranca" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0" title="Abrir cobrança">
+                                <i class="bi bi-link-45deg"></i>
+                            </a>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(p.Celular))
+                        {
+                            var msg = Uri.EscapeDataString($"Oi {p.Jogador.Split(' ')[0]}! Sua inscrição em {Model.Torneio.Nome} está aguardando pagamento. {p.LinkCobranca}");
+                            <a href="https://wa.me/55@(SoDigitos(p.Celular))?text=@msg" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0" title="Cobrar no WhatsApp">
+                                <i class="bi bi-whatsapp"></i>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

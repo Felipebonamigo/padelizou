@@ -60,4 +60,8 @@ public partial class Dupla
     // Nulo = inscrição feita antes de 25/07/2026 (quando a coluna nasceu) — usado nas
     // métricas de uso do admin (inscrições por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;
+
+    // Check-in no dia do torneio: a dupla apareceu. Nulo = ainda não fez check-in.
+    // Serve pro organizador ver quem falta antes de começar, e evitar W.O. surpresa.
+    public DateTime? CheckInEm { get; set; }
 }
