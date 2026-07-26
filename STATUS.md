@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **135 testes** + CI + monitoramento + rollback em 1 comando).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **139 testes** + CI + monitoramento + rollback em 1 comando).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Falta o principal:** ainda roda em *modo demonstração* — cobrança em sandbox e dados fictícios em produção.
@@ -51,6 +51,7 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único b
 - **Inscrição sem parceiro**: `Dupla.Jogador2Id` virou anulável. O jogador garante a vaga sozinho e define o parceiro depois; qualquer integrante (ou o organizador) troca enquanto as inscrições estão abertas, com push pra quem sai e pra quem entra. **109 testes.**
 - **2º fix de quebra**: `GerarChaves` não filtrava `EmListaDeEspera` — o modelo dizia que lista de espera fica fora das chaves, mas o sorteio incluía todo mundo. Agora só entra dupla completa e confirmada.
 - **Limpeza do código morto** (26/07, build-28): ~800 linhas removidas — CRUD scaffolded de Jogadores, `RankingCategorias`, `RankingPorTorneio`, `GerarFaseGrupos` e a entidade `Organizador`. **Fechou de quebra uma porta aberta:** as ações do CRUD não tinham `[Authorize]` e `/Jogadores/Delete/5` apagava jogador.
+- **Segurança: só o organizador mexe no placar** (26/07, build-29). Auditando autorização depois da limpeza, achei que `ControlePlacar` (GET e POST) não exigia login nem checava organizador — qualquer um que alcançasse a rota mudava o placar de qualquer jogo, inclusive ao vivo. Corrigido nos dois verbos, com **4 testes de regressão** (139 no total).
 - **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
 
 ---
@@ -144,6 +145,9 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 ---
 
 ## 🔒 Regras para não regredir
+0. **Ação que grava dado precisa de `[Authorize]` E de checagem de dono/organizador.**
+   Dois buracos em 26/07 vieram da falta disso. O gate de Acesso Antecipado *não* é
+   autorização — ele some no dia em que o sistema abrir pro público.
 1. **Todo defeito corrigido vira teste.**
 2. **Nada é publicado com teste vermelho.**
 3. **Testar em `dev` antes de produção.**
