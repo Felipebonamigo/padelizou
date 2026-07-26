@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -340,10 +340,16 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Cadastro()
         {
+            await PopularCatalogosAsync();
+            return View();
+        }
+
+        private async Task PopularCatalogosAsync()
+        {
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
-            return View();
+            ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
         }
 
         // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
@@ -352,15 +358,15 @@ namespace padelizou.Controllers
             string nome, string cpf, string login, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
             string? ladoQuadra, string? lateralidade, string? instagram, bool notificarEmail, bool notificarWhatsApp,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
-            string? apelido = null)
+            string? apelido = null, int[]? cidadesSelecionadas = null, string? novoClubeNome = null,
+            string? novaCidadeNome = null, string? novaCidadeEstado = null,
+            int? timeId = null, string? nomeTime = null)
         {
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
                 string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
             {
                 ViewBag.Erro = "Preencha nome, CPF, login, e-mail e senha pra finalizar o cadastro.";
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-                ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+                await PopularCatalogosAsync();
                 return View();
             }
 
@@ -375,9 +381,7 @@ namespace padelizou.Controllers
             if (!Documentos.CpfTemFormatoValido(cpf))
             {
                 ViewBag.Erro = "CPF inválido — informe os 11 números.";
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-                ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+                await PopularCatalogosAsync();
                 return View();
             }
 
@@ -390,9 +394,7 @@ namespace padelizou.Controllers
             if (loginEmUso)
             {
                 ViewBag.Erro = "Esse login já está em uso. Escolha outro.";
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-                ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+                await PopularCatalogosAsync();
                 return View();
             }
 
@@ -439,7 +441,9 @@ namespace padelizou.Controllers
             jogador.NotificarWhatsApp = notificarWhatsApp;
 
             await _context.SaveChangesAsync();
-            await AtualizarPreferenciasAsync(jogador.Id, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados);
+            await AtualizarPreferenciasAsync(jogador.Id, categoriasSelecionadas, clubesSelecionados,
+                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado);
+            await DefinirTimeAsync(jogador, timeId, nomeTime);
 
             // 3. Loga o usuário automaticamente e manda pro Perfil
             var claims = new List<Claim>
@@ -487,7 +491,8 @@ namespace padelizou.Controllers
             string? ladoQuadra, string? lateralidade, string? instagram, bool perfilPrivado, bool notificarEmail, bool notificarWhatsApp, bool aceitaConvitesJogo,
             bool notificarTorneiosAbertos, bool notificarSeguidosTorneio, bool notificarAvisoJogo, bool notificarJogoAula, bool notificarRaqueteLivre,
             bool notificarHorarioVagoRegiao,
-            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas)
+            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas,
+            string? novoClubeNome = null, string? novaCidadeNome = null, string? novaCidadeEstado = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -508,16 +513,72 @@ namespace padelizou.Controllers
             jogador.NotificarHorarioVagoRegiao = notificarHorarioVagoRegiao;
             await _context.SaveChangesAsync();
 
-            await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados, diasHorariosSelecionados, cidadesSelecionadas);
+            await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados,
+                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado);
 
             TempData["Sucesso"] = "Preferências atualizadas!";
             return RedirectToAction("Preferencias");
         }
 
-        // Substitui (limpa e recria) as preferências de categoria/clube/dia-horário/cidade do jogador.
-        private async Task AtualizarPreferenciasAsync(
-            int jogadorId, int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas = null)
+        // Entra num time existente ou cria o seu.
+        //
+        // **Cada jogador só pode criar um time.** Sem essa trava, a mesma pessoa criaria
+        // "Nata Padel", "Nata Padel 2"... e a listagem de times viraria lixo. Entrar em time
+        // dos outros não tem limite — só criar.
+        private async Task DefinirTimeAsync(Jogador jogador, int? timeId, string? nomeTime)
         {
+            nomeTime = nomeTime?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(nomeTime))
+            {
+                var jaTenhoUm = await _context.Times.AnyAsync(t => t.DonoId == jogador.Id);
+                if (jaTenhoUm) return;
+
+                var alvo = nomeTime.ToLower();
+                var existente = await _context.Times.FirstOrDefaultAsync(t => t.Nome.ToLower() == alvo);
+                if (existente != null)
+                {
+                    // Alguém já criou um time com esse nome: entra nele em vez de duplicar.
+                    jogador.TimeId = existente.Id;
+                }
+                else
+                {
+                    if (nomeTime.Length > CatalogoLocais.TamanhoMaximoNome)
+                        nomeTime = nomeTime[..CatalogoLocais.TamanhoMaximoNome];
+
+                    var time = new Time { Nome = nomeTime, DonoId = jogador.Id };
+                    _context.Times.Add(time);
+                    await _context.SaveChangesAsync();
+                    jogador.TimeId = time.Id;
+                }
+            }
+            else if (timeId.HasValue && await _context.Times.AnyAsync(t => t.Id == timeId.Value))
+            {
+                jogador.TimeId = timeId.Value;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        // Substitui (limpa e recria) as preferências de categoria/clube/dia-horário/cidade do jogador.
+        // Os "novo*" permitem cadastrar clube e cidade que ainda não existem, direto do formulário.
+        private async Task AtualizarPreferenciasAsync(
+            int jogadorId, int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
+            int[]? cidadesSelecionadas = null, string? novoClubeNome = null,
+            string? novaCidadeNome = null, string? novaCidadeEstado = null)
+        {
+            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
+            if (clubeNovo != null)
+            {
+                clubesSelecionados = (clubesSelecionados ?? Array.Empty<int>()).Append(clubeNovo.Id).Distinct().ToArray();
+            }
+
+            var cidadeNova = await CatalogoLocais.AcharOuCriarCidadeAsync(_context, novaCidadeNome, novaCidadeEstado);
+            if (cidadeNova != null)
+            {
+                cidadesSelecionadas = (cidadesSelecionadas ?? Array.Empty<int>()).Append(cidadeNova.Id).Distinct().ToArray();
+            }
+
             _context.JogadorCategorias.RemoveRange(_context.JogadorCategorias.Where(c => c.JogadorId == jogadorId));
             _context.JogadorClubes.RemoveRange(_context.JogadorClubes.Where(c => c.JogadorId == jogadorId));
             _context.JogadorDiasHorarios.RemoveRange(_context.JogadorDiasHorarios.Where(c => c.JogadorId == jogadorId));

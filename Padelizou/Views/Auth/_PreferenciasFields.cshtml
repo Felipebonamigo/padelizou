@@ -214,11 +214,16 @@
             </div>
         }
     </div>
-    <div class="mt-2 d-flex gap-2 flex-wrap">
-        <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Nome de um novo clube" style="max-width: 220px;" />
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarClube('novoClubeNome', 'listaClubes', 'clubesSelecionados')">
-            <i class="bi bi-plus-circle"></i> Adicionar clube
-        </button>
+    @if (!catalogoClubes.Any())
+    {
+        <span class="text-muted small">Nenhum clube cadastrado ainda — escreva o seu abaixo.</span>
+    }
+    @* Vai junto no envio do formulário: o clube é criado no servidor, dentro do mesmo
+       cadastro. Não existe endpoint aberto de criar clube pra ninguém encher a base. *@
+    <div class="mt-2">
+        <input type="text" name="novoClubeNome" class="form-control form-control-sm"
+               maxlength="80" placeholder="Não achou? Escreva o nome do seu clube" style="max-width: 320px;" />
+        <small class="text-muted d-block mt-1">A gente cadastra junto com o seu perfil.</small>
     </div>
 </div>
 
@@ -235,8 +240,14 @@
         }
         @if (!catalogoCidades.Any())
         {
-            <span class="text-muted small">Nenhuma cidade cadastrada ainda.</span>
+            <span class="text-muted small">Nenhuma cidade cadastrada ainda — escreva a sua abaixo.</span>
         }
+    </div>
+    <div class="mt-2 d-flex gap-2 flex-wrap">
+        <input type="text" name="novaCidadeNome" class="form-control form-control-sm"
+               maxlength="80" placeholder="Não achou? Escreva sua cidade" style="max-width: 260px;" />
+        <input type="text" name="novaCidadeEstado" class="form-control form-control-sm text-uppercase"
+               maxlength="2" placeholder="UF" style="max-width: 80px;" />
     </div>
     <small class="text-muted d-block mt-2">Usado só pra saber onde te avisar de horário de quadra vago (Marcar Jogo).</small>
 </div>

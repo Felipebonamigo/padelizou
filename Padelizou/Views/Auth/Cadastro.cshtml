@@ -90,6 +90,32 @@
                             <small class="text-muted d-block mt-1">Formatos aceitos: JPG ou PNG.</small>
                         </div>
 
+                        <!-- Meu time -->
+                        <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                            <label class="form-label fw-bold text-muted small d-block" for="timeId">
+                                <i class="bi bi-flag-fill me-1"></i> Meu time <span class="fw-normal">(opcional)</span>
+                            </label>
+
+                            @{
+                                var catalogoTimes = ViewBag.CatalogoTimes as List<Padelizou.Models.Time> ?? new List<Padelizou.Models.Time>();
+                            }
+                            <select name="timeId" id="timeId" class="form-select">
+                                <option value="">-- Não jogo por nenhum time --</option>
+                                @foreach (var time in catalogoTimes)
+                                {
+                                    <option value="@time.Id">@time.Nome</option>
+                                }
+                            </select>
+
+                            <div class="mt-2">
+                                <input type="text" name="nomeTime" class="form-control" maxlength="80"
+                                       placeholder="Não achou o seu? Escreva o nome e a gente cria" />
+                                <small class="text-muted d-block mt-1">
+                                    Você vira o dono e pode colocar o logo depois. Cada pessoa pode criar um time só.
+                                </small>
+                            </div>
+                        </div>
+
                         <hr class="my-4" />
                         <h5 class="fw-bold text-muted mb-3">Preferências de jogo</h5>
                         <p class="small text-muted mt-n2 mb-3">
