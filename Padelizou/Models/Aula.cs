@@ -29,6 +29,24 @@ public partial class Aula
     // Preenchido quando o evento é criado na Google Agenda do professor
     public string? GoogleEventId { get; set; }
 
+    // ---- Presença ----
+    // null = professor ainda não marcou; true = veio; false = faltou.
+    // Quem falta com aviso dentro do prazo é cancelamento (Status), não falta.
+    public bool? Compareceu { get; set; }
+
+    // ---- Cancelamento ----
+    public DateTime? CanceladaEm { get; set; }
+    public string? CanceladaPor { get; set; }   // "Aluno" | "Professor"
+
+    // Falta/cancelamento fora do prazo que o professor decidiu cobrar assim mesmo.
+    // Entra na previsão financeira como valor a receber.
+    public bool CobrarMesmoFaltando { get; set; }
+
+    // Quantas horas antes da aula o cancelamento foi feito. Guardado no momento do
+    // cancelamento porque a política do professor pode mudar depois — o que valeu
+    // pro aluno foi a regra do dia.
+    public int? HorasDeAntecedenciaCancelamento { get; set; }
+
     // Quem vai dar a aula
     [ForeignKey("ProfessorId")]
     [InverseProperty("AulasDadas")]

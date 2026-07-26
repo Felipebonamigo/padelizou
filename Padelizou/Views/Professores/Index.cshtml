@@ -1,0 +1,87 @@
+@model List<Padelizou.Models.Jogador>
+@using System.Globalization
+@{
+    ViewData["Title"] = "Professores";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var medias = ViewBag.Medias as Dictionary<int, (double Media, int Total)> ?? new();
+    var precos = ViewBag.Precos as Dictionary<int, decimal> ?? new();
+    var cidades = ViewBag.Cidades as List<Padelizou.Models.Cidade> ?? new();
+    var cidadeId = ViewBag.CidadeId as int?;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="mb-4">
+        <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-mortarboard-fill"></i> Professores</h2>
+        <p class="text-muted small mb-0">Escolha por preço, nota e cidade — e marque a aula direto.</p>
+    </div>
+
+    <form method="get" class="mb-4">
+        <div class="input-group" style="max-width: 420px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-geo-alt"></i></span>
+            <select name="cidadeId" class="form-select border-start-0" onchange="this.form.submit()">
+                <option value="">Todas as cidades</option>
+                @foreach (var c in cidades)
+                {
+                    <option value="@c.Id" selected="@(cidadeId == c.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+    </form>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-mortarboard fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Nenhum professor cadastrado@(cidadeId != null ? " nessa cidade" : "") ainda.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+            @foreach (var p in Model)
+            {
+                var temNota = medias.TryGetValue(p.Id, out var nota);
+                var temPreco = precos.TryGetValue(p.Id, out var preco);
+                <div class="col">
+                    <a asp-action="Perfil" asp-route-id="@p.Id" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100 p-3 pdz-porta d-flex flex-row align-items-center gap-3">
+                            @if (!string.IsNullOrWhiteSpace(p.FotoPerfil))
+                            {
+                                <img src="@p.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
+                                     style="width: 56px; height: 56px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle fs-1 flex-shrink-0" style="color: var(--pdz-ink); opacity:.45;"></i>
+                            }
+                            <div class="flex-grow-1 overflow-hidden">
+                                <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@p.Nome</strong>
+                                <small class="text-muted d-block">
+                                    @if (temNota)
+                                    {
+                                        <span style="color:#ffc107;">★</span><span> @nota.Media.ToString("0.0", ptBr) (@nota.Total)</span>
+                                    }
+                                    else
+                                    {
+                                        <span>sem avaliações ainda</span>
+                                    }
+                                </small>
+                                @if (temPreco)
+                                {
+                                    <small class="d-block fw-bold" style="color: var(--padel-green);">
+                                        a partir de @preco.ToString("C0", ptBr)
+                                    </small>
+                                }
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .pdz-porta { transition: transform .15s ease, box-shadow .15s ease; }
+    .pdz-porta:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12) !important; }
+</style>

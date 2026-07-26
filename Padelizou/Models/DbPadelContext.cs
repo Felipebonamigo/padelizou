@@ -65,6 +65,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
+    public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -257,6 +258,24 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.ParaJogador)
                 .WithMany()
                 .HasForeignKey(e => e.ParaJogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<AvaliacaoProfessor>(entity =>
+        {
+            // Um aluno tem UMA avaliação por professor — reavaliar edita a mesma linha,
+            // senão a média viraria "quem escreve mais, pesa mais".
+            entity.HasIndex(e => new { e.AlunoId, e.ProfessorId }).IsUnique();
+
+            // Mesmo raciocínio do Elogio: dois FKs pra Jogador, um Cascade e outro
+            // Restrict, pra evitar conflito de múltiplos caminhos de cascade.
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<ComentarioPerfil>(entity =>

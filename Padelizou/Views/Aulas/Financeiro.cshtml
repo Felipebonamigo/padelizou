@@ -1,0 +1,167 @@
+@model Padelizou.ViewModels.FinanceiroProfessorVM
+@using System.Globalization
+@{
+    ViewData["Title"] = "Financeiro do Professor";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    string SoDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+
+    var maxMes = Model.UltimosMeses.Any() ? Math.Max(1m, Model.UltimosMeses.Max(m => m.Valor)) : 1m;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-cash-coin"></i> Meu financeiro</h2>
+            <p class="text-muted small mb-0">Aulas dadas, o que ainda entra e quem está devendo.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Painel
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null) { <div class="alert alert-success">@TempData["Sucesso"]</div> }
+    @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
+
+    <div class="btn-group mb-4" role="group">
+        @foreach (var (chave, texto) in new[] { ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
+        {
+            <a asp-action="Financeiro" asp-route-periodo="@chave"
+               class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>
+        }
+    </div>
+
+    <!-- Cartões -->
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Recebido @Model.PeriodoRotulo</small>
+                <div class="fw-bold fs-4 text-success">@Model.Recebido.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.AulasRealizadas aula(s) dada(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Previsto</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.Previsto.ToString("C", ptBr)</div>
+                <small class="text-muted">já confirmado, ainda por dar</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">A cobrar</small>
+                <div class="fw-bold fs-4 text-warning">@Model.AReceber.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.Devedores.Count aluno(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Perdido com faltas</small>
+                <div class="fw-bold fs-4 text-danger">@Model.PerdidoComFaltas.ToString("C", ptBr)</div>
+                <small class="text-muted">@Model.Faltas falta(s) não cobrada(s)</small>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.TemMovimento)
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-1">Nenhum movimento @Model.PeriodoRotulo.</p>
+            <p class="small mb-0">Assim que você marcar aulas como realizadas, os números aparecem aqui.</p>
+        </div>
+        return;
+    }
+
+    <!-- Quem está devendo -->
+    @if (Model.Devedores.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                    <i class="bi bi-exclamation-circle"></i> Quem está devendo
+                </h6>
+                @foreach (var d in Model.Devedores)
+                {
+                    <div class="d-flex align-items-center gap-2 py-2 border-top">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@d.Nome</span>
+                            <small class="text-muted">
+                                @d.AulasEmAberto aula(s) · mais antiga há @d.DiasEmAberto dia(s)
+                            </small>
+                        </div>
+                        <span class="fw-bold text-warning text-nowrap">@d.Valor.ToString("C", ptBr)</span>
+                        @if (!string.IsNullOrWhiteSpace(d.Celular))
+                        {
+                            var msg = Uri.EscapeDataString($"Oi {d.Nome.Split(' ')[0]}! Passando pra lembrar das {d.AulasEmAberto} aula(s) em aberto, total de {d.Valor.ToString("C", ptBr)}. Abraço!");
+                            <a href="https://wa.me/55@(SoDigitos(d.Celular))?text=@msg" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0" title="Cobrar pelo WhatsApp">
+                                <i class="bi bi-whatsapp"></i>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Últimos 6 meses -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-bar-chart"></i> Últimos 6 meses</h6>
+            @foreach (var m in Model.UltimosMeses)
+            {
+                var pct = (int)Math.Round(m.Valor / maxMes * 100);
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <small class="text-muted text-nowrap" style="width: 62px;">@m.Rotulo</small>
+                    <div class="progress flex-grow-1" style="height: 18px;">
+                        <div class="progress-bar" role="progressbar"
+                             style="width: @pct%; background: var(--padel-green);"></div>
+                    </div>
+                    <small class="fw-bold text-nowrap" style="width: 90px; text-align: right; color: var(--pdz-ink);">
+                        @m.Valor.ToString("C0", ptBr)
+                    </small>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Por local -->
+    @if (Model.PorLocal.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt"></i> Por local</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th>Local</th>
+                                <th class="text-center">Aulas</th>
+                                <th class="text-end">Recebido</th>
+                                <th class="text-end">Custo</th>
+                                <th class="text-end">Líquido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in Model.PorLocal)
+                            {
+                                <tr>
+                                    <td>@l.Local</td>
+                                    <td class="text-center">@l.Aulas</td>
+                                    <td class="text-end">@l.Recebido.ToString("C", ptBr)</td>
+                                    <td class="text-end text-muted">@(l.Custo?.ToString("C", ptBr) ?? "—")</td>
+                                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">
+                                        @(l.Liquido?.ToString("C", ptBr) ?? "—")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted mb-0 mt-2">
+                    O custo por aula é o que você cadastrou em <a asp-action="MeusLocais">Meus Locais</a> (aluguel da quadra).
+                </p>
+            </div>
+        </div>
+    }
+</div>

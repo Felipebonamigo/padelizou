@@ -52,6 +52,12 @@
         <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-primary rounded-pill btn-sm">
             <i class="bi bi-calendar3"></i> Minha Agenda
         </a>
+        <a asp-controller="Aulas" asp-action="Financeiro" class="btn btn-padel rounded-pill btn-sm fw-bold">
+            <i class="bi bi-cash-coin"></i> Meu financeiro
+        </a>
+        <a asp-controller="Professores" asp-action="Perfil" asp-route-id="@ViewBag.ProfessorId" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-person-badge"></i> Minha página pública
+        </a>
         <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm">
             <i class="bi bi-geo-alt"></i> Meus Locais
         </a>
@@ -68,6 +74,55 @@
             <i class="bi bi-megaphone"></i> Publicar Jogo Aula
         </a>
     </div>
+
+@{
+    var professorLogado = ViewBag.Professor as Padelizou.Models.Jogador;
+}
+@if (professorLogado != null)
+{
+    <!-- POLÍTICA DE CANCELAMENTO -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#politicaBox" style="cursor:pointer;">
+                <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                    <i class="bi bi-shield-check"></i> Política de cancelamento
+                </h6>
+                <i class="bi bi-chevron-down"></i>
+            </div>
+            <p class="small text-muted mb-0 mt-2">
+                @Padelizou.Services.PoliticaAula.DescreverPolitica(professorLogado)
+            </p>
+
+            <div class="collapse mt-3" id="politicaBox">
+                <form asp-action="SalvarPolitica" method="post">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">Avisar com quantas horas?</label>
+                            <input type="number" name="horasMinimas" min="0" max="168" class="form-control"
+                                   value="@professorLogado.HorasMinimasCancelamento" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" name="cobraFaltaSemAviso" value="true"
+                                       id="cobraFalta" @(professorLogado.CobraFaltaSemAviso ? "checked" : "")>
+                                <label class="form-check-label small" for="cobraFalta">Cobro falta sem aviso</label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small fw-bold text-muted mb-1">Texto pro aluno (opcional)</label>
+                            <input type="text" name="textoPolitica" class="form-control"
+                                   placeholder="Escreva do seu jeito..." value="@professorLogado.PoliticaCancelamentoTexto" />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4 mt-2">Salvar política</button>
+                    <small class="d-block text-muted mt-2">
+                        0 horas = pode desmarcar até a última hora. O aluno vê essa regra na sua página pública.
+                    </small>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
     <div class="row">
         <div class="col-lg-6 mb-4">

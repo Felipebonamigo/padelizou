@@ -528,6 +528,9 @@ namespace padelizou.Controllers
                 MinhasCidades = cidades
             };
 
+            ViewBag.ProfessorId = professorId;
+            ViewBag.Professor = await _context.Jogadores.FindAsync(professorId);
+
             return View(painel);
         }
 
@@ -900,14 +903,218 @@ namespace padelizou.Controllers
 
             var aula = await _context.Aulas.FindAsync(aulaId);
 
-            var transicaoValida = novoStatus == "Realizada" || novoStatus == "Cancelada";
-            if (aula != null && aula.ProfessorId == userId && aula.Status == "Confirmada" && transicaoValida)
+            var transicaoValida = novoStatus == PoliticaAula.Realizada || novoStatus == PoliticaAula.Cancelada;
+            if (aula != null && aula.ProfessorId == userId && aula.Status == PoliticaAula.Confirmada && transicaoValida)
             {
                 aula.Status = novoStatus;
+                if (novoStatus == PoliticaAula.Realizada) aula.Compareceu = true;
+                if (novoStatus == PoliticaAula.Cancelada)
+                {
+                    aula.CanceladaEm = DateTime.Now;
+                    aula.CanceladaPor = "Professor";
+                }
                 await _context.SaveChangesAsync();
             }
 
             return RedirectToAction("MinhaAgenda");
+        }
+
+        // ===================== FINANCEIRO DO PROFESSOR =====================
+
+        // "Quanto entrou, quanto ainda entra e quem está devendo" — o extrato geral de
+        // Pagamentos/Meus só mostra o que passou pelo Asaas, e a maior parte das aulas
+        // ainda é acertada por fora (Pix, dinheiro).
+        [HttpGet]
+        public async Task<IActionResult> Financeiro(string? periodo)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var hoje = DateTime.Today;
+            periodo = (periodo ?? "mes").Trim().ToLower();
+
+            var (de, rotulo) = periodo switch
+            {
+                "ano" => (new DateTime(hoje.Year, 1, 1), $"em {hoje.Year}"),
+                "sempre" => (DateTime.MinValue, "desde sempre"),
+                _ => (new DateTime(hoje.Year, hoje.Month, 1), "neste mês"),
+            };
+
+            var aulas = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId)
+                .ToListAsync();
+
+            var doPeriodo = aulas.Where(a => a.DataHora >= de).ToList();
+
+            // "Recebido" = aula que aconteceu. Falta cobrável conta como devida, não recebida.
+            var realizadas = doPeriodo.Where(a => a.Status == PoliticaAula.Realizada).ToList();
+            var faltas = doPeriodo.Where(a => a.Status == PoliticaAula.Faltou).ToList();
+            var cobraveis = doPeriodo.Where(a => a.CobrarMesmoFaltando).ToList();
+
+            var vm = new FinanceiroProfessorVM
+            {
+                Periodo = periodo,
+                PeriodoRotulo = rotulo,
+                Recebido = realizadas.Sum(a => a.Preco),
+                // Confirmada e ainda por acontecer: o que entra se ninguém desmarcar.
+                Previsto = aulas
+                    .Where(a => a.Status == PoliticaAula.Confirmada && a.DataHora >= DateTime.Now)
+                    .Sum(a => a.Preco),
+                AReceber = cobraveis.Sum(a => a.Preco),
+                PerdidoComFaltas = faltas.Where(a => !a.CobrarMesmoFaltando).Sum(a => a.Preco),
+                AulasRealizadas = realizadas.Count,
+                AulasCanceladas = doPeriodo.Count(a => a.Status == PoliticaAula.Cancelada),
+                Faltas = faltas.Count,
+            };
+
+            // Quem está devendo: agrupa por aluno as aulas realizadas/faltas cobráveis.
+            // Sem controle de quitação por aula, o critério é "aconteceu e é cobrável".
+            vm.Devedores = cobraveis
+                .GroupBy(a => a.AlunoId.HasValue ? $"a{a.AlunoId}" : $"v{(a.NomeAlunoAvulso ?? "").ToLower()}")
+                .Select(g => new DevedorVM
+                {
+                    Nome = g.First().Aluno?.Nome ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
+                    Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
+                    AulasEmAberto = g.Count(),
+                    Valor = g.Sum(a => a.Preco),
+                    AulaMaisAntiga = g.Min(a => a.DataHora),
+                })
+                .OrderByDescending(d => d.Valor)
+                .ToList();
+
+            vm.PorLocal = realizadas
+                .GroupBy(a => a.LocalAula)
+                .Select(g => new FinanceiroPorLocalVM
+                {
+                    Local = g.Key.Nome,
+                    Aulas = g.Count(),
+                    Recebido = g.Sum(a => a.Preco),
+                    Custo = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count() : null,
+                })
+                .OrderByDescending(l => l.Recebido)
+                .ToList();
+
+            // Últimos 6 meses de faturamento, pro professor ver a tendência.
+            var primeiroMes = new DateTime(hoje.Year, hoje.Month, 1).AddMonths(-5);
+            vm.UltimosMeses = Enumerable.Range(0, 6).Select(i =>
+            {
+                var mes = primeiroMes.AddMonths(i);
+                var fim = mes.AddMonths(1);
+                var doMes = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= mes && a.DataHora < fim).ToList();
+                return new MesFaturamentoVM { Mes = mes, Valor = doMes.Sum(a => a.Preco), Aulas = doMes.Count };
+            }).ToList();
+
+            return View(vm);
+        }
+
+        // ===================== PRESENÇA E CANCELAMENTO =====================
+
+        // O professor fecha a aula dizendo se o aluno veio. "Faltou" é diferente de
+        // "Cancelada": cancelamento é aviso prévio, falta é não aparecer.
+        [HttpPost]
+        public async Task<IActionResult> RegistrarPresenca(int aulaId, bool compareceu, bool cobrarMesmoAssim = false)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas.FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+            if (aula == null) return NotFound();
+
+            if (aula.Status == PoliticaAula.Cancelada || aula.Status == PoliticaAula.Recusada)
+            {
+                TempData["Erro"] = "Essa aula foi cancelada — não dá pra registrar presença.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            aula.Compareceu = compareceu;
+            aula.Status = compareceu ? PoliticaAula.Realizada : PoliticaAula.Faltou;
+
+            // Falta só vira dinheiro se o professor marcar — mesmo cobrando por política,
+            // a última palavra é dele (aluno pode ter avisado por fora).
+            aula.CobrarMesmoFaltando = !compareceu && cobrarMesmoAssim;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = compareceu
+                ? "Presença registrada. Aula marcada como realizada."
+                : aula.CobrarMesmoFaltando
+                    ? "Falta registrada e marcada como cobrável."
+                    : "Falta registrada, sem cobrança.";
+
+            return RedirectToAction("MinhaAgenda");
+        }
+
+        // Aluno desmarcando a própria aula. Aplica a política do professor pra decidir
+        // se fica marcada como cobrável.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CancelarComoAluno(int aulaId)
+        {
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdValue, out var userId)) return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas
+                .Include(a => a.Professor)
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.AlunoId == userId);
+
+            if (aula == null) return NotFound();
+
+            if (!PoliticaAula.ContaComoAtiva(aula.Status))
+            {
+                TempData["Erro"] = "Essa aula já não está ativa.";
+                return RedirectToAction("MinhasAulas");
+            }
+
+            var agora = DateTime.Now;
+            bool cobra = PoliticaAula.DeveCobrar(aula.Professor, aula, "Aluno", agora);
+
+            aula.Status = PoliticaAula.Cancelada;
+            aula.CanceladaEm = agora;
+            aula.CanceladaPor = "Aluno";
+            aula.HorasDeAntecedenciaCancelamento = PoliticaAula.HorasAntes(aula.DataHora, agora);
+            aula.CobrarMesmoFaltando = cobra;
+
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _pushService.EnviarParaJogadorAsync(aula.ProfessorId,
+                    "Aula desmarcada",
+                    $"O aluno desmarcou a aula de {aula.DataHora:dd/MM 'às' HH:mm}"
+                      + (cobra ? " (fora do prazo — marcada como cobrável)." : "."),
+                    Url.Action("MinhaAgenda", "Aulas"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar professor do cancelamento da aula {AulaId}", aulaId);
+            }
+
+            TempData["Sucesso"] = cobra
+                ? "Aula desmarcada. Como foi fora do prazo do professor, ela pode ser cobrada."
+                : "Aula desmarcada. Obrigado por avisar!";
+
+            return RedirectToAction("MinhasAulas");
+        }
+
+        // Configuração da política de cancelamento (tela do professor).
+        [HttpPost]
+        public async Task<IActionResult> SalvarPolitica(int horasMinimas, bool cobraFaltaSemAviso, string? textoPolitica)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var professor = await _context.Jogadores.FindAsync(professorId);
+            if (professor == null) return NotFound();
+
+            professor.HorasMinimasCancelamento = Math.Clamp(horasMinimas, 0, 168); // teto de 1 semana
+            professor.CobraFaltaSemAviso = cobraFaltaSemAviso;
+            professor.PoliticaCancelamentoTexto = string.IsNullOrWhiteSpace(textoPolitica) ? null : textoPolitica.Trim();
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Política de cancelamento atualizada.";
+            return RedirectToAction("Dashboard");
         }
 
         // 5. TELA DE HISTÓRICO DO ALUNO (Minhas Aulas)

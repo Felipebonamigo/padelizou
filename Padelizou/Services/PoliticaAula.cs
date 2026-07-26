@@ -1,0 +1,62 @@
+using padelizou.Models;
+using Padelizou.Models;
+
+namespace Padelizou.Services;
+
+// Regras de cancelamento e falta. Ficam aqui (e não no controller) porque valem em três
+// lugares: quando o aluno desmarca, quando o professor desmarca e quando o professor
+// fecha a presença depois da aula.
+public static class PoliticaAula
+{
+    // Status que o sistema usa. Antes existiam só "Pendente" e "Confirmada" espalhados
+    // como texto solto; centralizar evita a mesma armadilha das duas grafias de fase.
+    public const string Pendente = "Pendente";
+    public const string Confirmada = "Confirmada";
+    public const string Realizada = "Realizada";
+    public const string Cancelada = "Cancelada";
+    public const string Recusada = "Recusada";
+    public const string Faltou = "Faltou";
+
+    public static bool ContaComoAtiva(string? status) =>
+        status == Pendente || status == Confirmada;
+
+    // Cancelamento dentro do prazo que o professor definiu? Prazo 0 = sempre no prazo.
+    public static bool DentroDoPrazo(Jogador professor, DateTime dataHoraAula, DateTime agora)
+    {
+        if (professor.HorasMinimasCancelamento <= 0) return true;
+        return (dataHoraAula - agora).TotalHours >= professor.HorasMinimasCancelamento;
+    }
+
+    // Quantas horas antes da aula estamos. Negativo = a aula já passou.
+    public static int HorasAntes(DateTime dataHoraAula, DateTime agora) =>
+        (int)Math.Floor((dataHoraAula - agora).TotalHours);
+
+    // Cancelar gera cobrança? Só quando o professor cobra falta E o aviso veio fora do
+    // prazo. Professor que cancela nunca cobra — a regra existe pra proteger a agenda
+    // dele, não pra penalizar o aluno por decisão dele.
+    public static bool DeveCobrar(Jogador professor, Aula aula, string canceladaPor, DateTime agora)
+    {
+        if (canceladaPor != "Aluno") return false;
+        if (!professor.CobraFaltaSemAviso) return false;
+        return !DentroDoPrazo(professor, aula.DataHora, agora);
+    }
+
+    // Texto que o aluno lê antes de confirmar. Usa o texto livre do professor quando ele
+    // escreveu um; senão monta a frase a partir dos números.
+    public static string DescreverPolitica(Jogador professor)
+    {
+        if (!string.IsNullOrWhiteSpace(professor.PoliticaCancelamentoTexto))
+            return professor.PoliticaCancelamentoTexto!.Trim();
+
+        if (professor.HorasMinimasCancelamento <= 0)
+            return "Você pode desmarcar a qualquer momento, sem cobrança.";
+
+        var prazo = professor.HorasMinimasCancelamento == 24
+            ? "com 24h de antecedência"
+            : $"com pelo menos {professor.HorasMinimasCancelamento}h de antecedência";
+
+        return professor.CobraFaltaSemAviso
+            ? $"Desmarque {prazo}. Faltas sem aviso ou avisos fora do prazo podem ser cobrados."
+            : $"Desmarque {prazo} sempre que puder, pra liberar o horário pra outro aluno.";
+    }
+}

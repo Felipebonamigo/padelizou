@@ -36,6 +36,21 @@ public partial class Jogador
     public int PontuacaoGlobal { get; set; }
     public bool IsProfessor { get; set; } // <- A nova Flag!
 
+    // ---- Política de cancelamento do professor ----
+    // Quantas horas antes o aluno precisa avisar pra não ser cobrado. 0 = sem prazo
+    // (pode desmarcar até a última hora). Só faz sentido quando IsProfessor.
+    public int HorasMinimasCancelamento { get; set; } = 24;
+
+    // Cobra quem falta sem avisar (no-show) ou avisa fora do prazo?
+    public bool CobraFaltaSemAviso { get; set; }
+
+    // Texto livre que aparece pro aluno na hora de marcar e na página pública.
+    public string? PoliticaCancelamentoTexto { get; set; }
+
+    // ---- Página pública do professor ----
+    public string? ApresentacaoProfessor { get; set; }   // "sobre mim", o que vende a aula
+    public string? ExperienciaProfessor { get; set; }    // formação/tempo de quadra
+
     // "Esquerda" / "Direita" / "Ambos"
     public string? LadoQuadra { get; set; }
 

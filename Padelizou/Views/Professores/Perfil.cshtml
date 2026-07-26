@@ -1,0 +1,224 @@
+@model Padelizou.ViewModels.ProfessorPublicoVM
+@using System.Globalization
+@{
+    ViewData["Title"] = $"Prof. {Model.Professor.Nome}";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    // Estrelas cheias/vazias a partir da média (arredonda pra inteiro mais próximo).
+    string Estrelas(double? media)
+    {
+        int cheias = media == null ? 0 : (int)Math.Round(media.Value);
+        return string.Concat(Enumerable.Range(1, 5).Select(i => i <= cheias ? "★" : "☆"));
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 820px;">
+    @if (TempData["Sucesso"] != null) { <div class="alert alert-success">@TempData["Sucesso"]</div> }
+    @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
+
+    <!-- CABEÇALHO: é o que vende a aula -->
+    <div class="card border-0 shadow-sm mb-4 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            @if (!string.IsNullOrWhiteSpace(Model.Professor.FotoPerfil))
+            {
+                <img src="@Model.Professor.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
+                     style="width: 96px; height: 96px; object-fit: cover;" />
+            }
+            else
+            {
+                <i class="bi bi-person-circle display-1 flex-shrink-0" style="color: var(--padel-green);"></i>
+            }
+            <div class="flex-grow-1">
+                <span class="badge rounded-pill mb-1" style="background: var(--padel-green); color: #14261a;">
+                    <i class="bi bi-mortarboard-fill"></i> Professor
+                </span>
+                <h2 class="fw-bold mb-1">@Model.Professor.Nome</h2>
+
+                @if (Model.MediaNota != null)
+                {
+                    <p class="mb-1">
+                        <span style="color: #ffc107; font-size: 1.1rem;">@Estrelas(Model.MediaNota)</span>
+                        <strong class="ms-1">@Model.MediaNota.Value.ToString("0.0", ptBr)</strong>
+                        <span class="text-light opacity-75 small">(@Model.TotalAvaliacoes avaliação(ões))</span>
+                    </p>
+                }
+
+                <p class="mb-0 text-light opacity-75 small">
+                    @if (Model.Cidades.Any())
+                    {
+                        <span><i class="bi bi-geo-alt"></i> @string.Join(" · ", Model.Cidades)</span>
+                    }
+                    @if (Model.AulasRealizadas > 0)
+                    {
+                        <span class="ms-2"><i class="bi bi-check-circle"></i> @Model.AulasRealizadas aulas dadas</span>
+                    }
+                    @if (Model.AlunosAtendidos > 0)
+                    {
+                        <span class="ms-2"><i class="bi bi-people"></i> @Model.AlunosAtendidos alunos</span>
+                    }
+                </p>
+            </div>
+
+            <div class="text-center flex-shrink-0">
+                @if (Model.MenorPreco != null)
+                {
+                    <div class="small text-light opacity-75">a partir de</div>
+                    <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.MenorPreco.Value.ToString("C0", ptBr)</div>
+                }
+                <a asp-controller="Aulas" asp-action="Solicitar" class="btn btn-padel rounded-pill px-4 fw-bold mt-2">
+                    <i class="bi bi-calendar-plus me-1"></i> Marcar aula
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- APRESENTAÇÃO -->
+    @if (!string.IsNullOrWhiteSpace(Model.Professor.ApresentacaoProfessor) || !string.IsNullOrWhiteSpace(Model.Professor.ExperienciaProfessor))
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            @if (!string.IsNullOrWhiteSpace(Model.Professor.ApresentacaoProfessor))
+            {
+                <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">Sobre</h6>
+                <p class="mb-3" style="white-space: pre-line;">@Model.Professor.ApresentacaoProfessor</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Professor.ExperienciaProfessor))
+            {
+                <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">Experiência</h6>
+                <p class="mb-0 text-muted" style="white-space: pre-line;">@Model.Professor.ExperienciaProfessor</p>
+            }
+        </div>
+    }
+
+    @* O próprio professor edita a apresentação aqui mesmo — sem passar por outra tela. *@
+    @if (Model.EhOProprioProfessor)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                    <i class="bi bi-pencil-square"></i> Editar minha apresentação
+                </h6>
+                <p class="small text-muted">Isto é o que o aluno lê antes de decidir. Fale do seu jeito de dar aula.</p>
+                <form asp-action="SalvarApresentacao" method="post">
+                    <textarea name="apresentacao" class="form-control mb-2" rows="4"
+                              placeholder="Ex: Dou aula há 6 anos, foco em fundamentos e posicionamento...">@Model.Professor.ApresentacaoProfessor</textarea>
+                    <textarea name="experiencia" class="form-control mb-2" rows="2"
+                              placeholder="Formação, tempo de quadra, títulos...">@Model.Professor.ExperienciaProfessor</textarea>
+                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4">Salvar</button>
+                </form>
+            </div>
+        </div>
+    }
+
+    <!-- ONDE DÁ AULA -->
+    @if (Model.Locais.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt-fill"></i> Onde dá aula</h6>
+                @foreach (var l in Model.Locais)
+                {
+                    <div class="d-flex justify-content-between align-items-center py-2 border-top">
+                        <div class="overflow-hidden">
+                            <span class="d-block fw-bold text-truncate" style="color: var(--pdz-ink);">@l.Nome</span>
+                            <small class="text-muted">@l.Endereco</small>
+                            @if (l.PacoteAtivo && l.PacoteQuantidadeAulas != null && l.PacotePreco != null)
+                            {
+                                <small class="d-block" style="color: var(--padel-green);">
+                                    <i class="bi bi-tag-fill"></i>
+                                    Pacote: @l.PacoteQuantidadeAulas aulas por @l.PacotePreco.Value.ToString("C", ptBr)
+                                </small>
+                            }
+                        </div>
+                        <span class="fw-bold text-nowrap" style="color: var(--pdz-ink);">@l.PrecoPadrao.ToString("C", ptBr)</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- POLÍTICA DE CANCELAMENTO -->
+    <div class="alert alert-light border small mb-4">
+        <i class="bi bi-info-circle"></i> <strong>Cancelamento:</strong> @Model.PoliticaCancelamento
+    </div>
+
+    <!-- AVALIAÇÕES -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-star-fill"></i> Avaliações</h6>
+
+            @if (Model.TotalAvaliacoes == 0)
+            {
+                <p class="small text-muted mb-0">Ainda não há avaliações. Seja o primeiro a avaliar depois da sua aula.</p>
+            }
+            else
+            {
+                @* Distribuição por estrela, de 5 pra 1. *@
+                @for (int n = 5; n >= 1; n--)
+                {
+                    var qtd = Model.NotasPorEstrela.GetValueOrDefault(n);
+                    var pct = Model.TotalAvaliacoes == 0 ? 0 : (int)Math.Round(qtd * 100.0 / Model.TotalAvaliacoes);
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <small class="text-nowrap" style="width: 42px;">@n <span style="color:#ffc107;">★</span></small>
+                        <div class="progress flex-grow-1" style="height: 8px;">
+                            <div class="progress-bar" style="width: @pct%; background: #ffc107;"></div>
+                        </div>
+                        <small class="text-muted" style="width: 28px; text-align: right;">@qtd</small>
+                    </div>
+                }
+
+                @if (Model.Depoimentos.Any())
+                {
+                    <div class="mt-3">
+                        @foreach (var d in Model.Depoimentos)
+                        {
+                            <div class="border-top py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong class="small" style="color: var(--pdz-ink);">@d.Aluno.Nome</strong>
+                                    <span style="color:#ffc107;">@Estrelas(d.Nota)</span>
+                                </div>
+                                <p class="small text-muted mb-0">@d.Depoimento</p>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- AVALIAR (só quem teve aula) -->
+    @if (Model.PodeAvaliar)
+    {
+        <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--padel-green) !important;">
+            <div class="card-body">
+                <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                    @(Model.MinhaAvaliacao == null ? "Avaliar este professor" : "Atualizar minha avaliação")
+                </h6>
+                <form asp-action="Avaliar" method="post">
+                    <input type="hidden" name="professorId" value="@Model.Professor.Id" />
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-muted">Nota</label>
+                        <select name="nota" class="form-select">
+                            @for (int n = 5; n >= 1; n--)
+                            {
+                                <option value="@n" selected="@(Model.MinhaAvaliacao?.Nota == n)">
+                                    @n — @(n == 5 ? "Excelente" : n == 4 ? "Muito bom" : n == 3 ? "Bom" : n == 2 ? "Regular" : "Ruim")
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <textarea name="depoimento" class="form-control mb-2" rows="3"
+                              placeholder="Conte como foi a aula (opcional)">@Model.MinhaAvaliacao?.Depoimento</textarea>
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">
+                        @(Model.MinhaAvaliacao == null ? "Enviar avaliação" : "Atualizar")
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+    else if (!Model.EhOProprioProfessor)
+    {
+        <p class="small text-muted text-center">
+            Só quem já teve aula com o professor pode avaliar — é o que mantém as notas confiáveis.
+        </p>
+    }
+</div>
