@@ -9,19 +9,19 @@ namespace Padelizou.Services;
 // versões separadas continuariam concordando com o tempo.
 public static class BuscaJogador
 {
-    // O termo é CPF quando, tirando pontuação, sobram só dígitos (e pelo menos 3).
-    // Assim "111.444.777-35", "11144477735" e "111444" caem na busca por documento,
-    // e "Zeca" não.
+    // O termo é CPF quando, tirando pontuação, sobram exatamente 11 dígitos.
+    // Exigir o CPF INTEIRO é proposital: com busca parcial, digitar "200000" listaria
+    // todo mundo daquela faixa, e daria pra varrer os documentos da base aos poucos.
+    // Quem procura por CPF já tem o número na mão.
     public static bool PareceCpf(string? termo)
     {
         if (string.IsNullOrWhiteSpace(termo)) return false;
 
-        var digitos = Documentos.SomenteDigitos(termo);
-        if (digitos.Length < 3) return false;
-
         // Se o termo tem letra, é nome/apelido — mesmo que também tenha número
         // (tem gente cadastrada como "Ana 2").
-        return !termo.Any(char.IsLetter);
+        if (termo.Any(char.IsLetter)) return false;
+
+        return Documentos.SomenteDigitos(termo).Length == 11;
     }
 
     // Aplica o termo sobre uma consulta de jogadores. Devolve a consulta intocada
@@ -34,8 +34,16 @@ public static class BuscaJogador
 
         if (PareceCpf(termo))
         {
+            // Igualdade, não Contains: CPF completo acha uma pessoa só.
             var digitos = Documentos.SomenteDigitos(termo);
-            return query.Where(j => j.Cpf.Contains(digitos));
+            return query.Where(j => j.Cpf == digitos);
+        }
+
+        // Só números, mas não são 11 dígitos? Não é CPF válido pra busca e também não
+        // é nome — devolve vazio em vez de listar meio banco por engano.
+        if (!termo.Any(char.IsLetter) && Documentos.SomenteDigitos(termo).Length > 0)
+        {
+            return query.Where(j => false);
         }
 
         // Nome OU apelido, ignorando maiúsculas. O ToLower dos dois lados é proposital:

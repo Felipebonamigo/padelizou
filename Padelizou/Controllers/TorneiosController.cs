@@ -288,22 +288,27 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id = torneio.Id });
         }
 
-        // Autocomplete usado na criação/gerenciamento do torneio pra achar um Jogador por CPF ou Login
+        // Autocomplete pra achar quem vai organizar o torneio. Usa a mesma busca do resto
+        // do sistema (nome, apelido ou CPF completo, sem diferenciar maiúsculas) — antes
+        // aqui era CPF parcial + login exato em maiúsculas, uma terceira regra própria.
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> BuscarJogadorParaOrganizador(string termo)
         {
             if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 3) return Json(Array.Empty<object>());
 
-            termo = termo.Trim();
-            var resultados = await _context.Jogadores
-                .Where(j => j.Cpf.StartsWith(termo) || (j.Login != null && j.Login.Contains(termo)))
-                .OrderBy(j => j.Nome)
-                .Take(8)
-                .Select(j => new { j.Id, j.Nome, j.FotoPerfil, j.Login })
-                .ToListAsync();
+            var achados = await BuscaJogador.BuscarAsync(_context, termo, limite: 8);
 
-            return Json(resultados);
+            return Json(achados.Select(j => new
+            {
+                j.Id,
+                j.Nome,
+                j.FotoPerfil,
+                j.Login,
+                apelido = j.Apelido ?? "",
+                // A tela mostra uma linha só: o apelido quando existir, senão o nome.
+                exibicao = j.ComoChamar,
+            }));
         }
 
         // Preenche sozinho os dados do jogador na tela de inscrição quando o CPF digitado já

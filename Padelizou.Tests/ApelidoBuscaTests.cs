@@ -42,11 +42,15 @@ public class ApelidoBuscaTests
     // ---------- O termo é CPF ou nome? ----------
 
     [Fact]
-    public void Termo_so_de_digitos_e_tratado_como_CPF()
+    public void So_CPF_completo_conta_como_busca_por_documento()
     {
         Assert.True(BuscaJogador.PareceCpf("11144477735"));
         Assert.True(BuscaJogador.PareceCpf("111.444.777-35"));  // com máscara
-        Assert.True(BuscaJogador.PareceCpf("111444"));          // busca parcial
+
+        // Parcial NÃO vale: com "111444" dava pra varrer os documentos da base aos
+        // poucos. Quem procura por CPF já tem o número inteiro na mão.
+        Assert.False(BuscaJogador.PareceCpf("111444"));
+        Assert.False(BuscaJogador.PareceCpf("11"));
     }
 
     [Fact]
@@ -55,7 +59,23 @@ public class ApelidoBuscaTests
         Assert.False(BuscaJogador.PareceCpf("Zeca"));
         Assert.False(BuscaJogador.PareceCpf("Ana 2"));   // tem gente cadastrada assim
         Assert.False(BuscaJogador.PareceCpf(""));
-        Assert.False(BuscaJogador.PareceCpf("11"));      // curto demais pra ser documento
+    }
+
+    [Fact]
+    public async Task CPF_parcial_nao_lista_a_faixa_inteira()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        ctx.Jogadores.AddRange(
+            Novo("Um", "11144477735"),
+            Novo("Dois", "11144477736"),
+            Novo("Tres", "11144477737"));
+        ctx.SaveChanges();
+
+        // Antes isto devolvia os três — era o vetor de varredura de CPF.
+        Assert.Empty(await BuscaJogador.BuscarAsync(ctx, "111444"));
+
+        // Com o número inteiro, acha uma pessoa só.
+        Assert.Single(await BuscaJogador.BuscarAsync(ctx, "11144477736"));
     }
 
     // ---------- Busca ----------

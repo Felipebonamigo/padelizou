@@ -19,8 +19,12 @@
 
                     <form asp-controller="Auth" asp-action="Login" method="post">
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted">E-mail</label>
-                            <input type="email" name="email" class="form-control form-control-lg" required placeholder="seu@email.com" />
+                            <label class="form-label fw-bold text-muted">E-mail ou login</label>
+                            @* type="text" e não "email": com "email" o navegador recusaria
+                               um login como "Bona" antes mesmo de enviar o formulário. *@
+                            <input type="text" name="email" class="form-control form-control-lg"
+                                   required autocapitalize="none" autocomplete="username"
+                                   placeholder="seu@email.com ou seu login" />
                         </div>
                         <div class="mb-4">
                             <label class="form-label fw-bold text-muted">Senha</label>

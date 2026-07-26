@@ -74,13 +74,20 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> Login(string email, string senha)
         {
-            var jogador = await _context.Jogadores
-                .FirstOrDefaultAsync(j => j.Email == email);
+            // Aceita e-mail OU login, sem diferenciar maiúsculas: "Bona", "bOnA" e
+            // "bona" são a mesma pessoa. Antes só o e-mail servia (e exato), então quem
+            // se cadastrou com login nunca conseguia entrar por ele.
+            var identificador = (email ?? "").Trim().ToLower();
+
+            var jogador = string.IsNullOrEmpty(identificador) ? null : await _context.Jogadores
+                .FirstOrDefaultAsync(j =>
+                    (j.Email != null && j.Email.ToLower() == identificador) ||
+                    (j.Login != null && j.Login.ToLower() == identificador));
 
             if (jogador == null || string.IsNullOrEmpty(jogador.SenhaHash) ||
                 _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash, senha) == PasswordVerificationResult.Failed)
             {
-                ViewBag.Erro = "E-mail ou senha incorretos.";
+                ViewBag.Erro = "Login ou senha incorretos.";
                 return View();
             }
 
@@ -338,8 +345,12 @@ namespace padelizou.Controllers
                 return View();
             }
 
-            // Login precisa ser único (usado depois pra buscar organizadores de torneio)
-            var loginEmUso = await _context.Jogadores.AnyAsync(j => j.Login == login && j.Cpf != cpf);
+            // Login precisa ser único IGNORANDO maiúsculas — como a entrada aceita
+            // "Bona" e "bona" como a mesma coisa, deixar as duas se cadastrarem tornaria
+            // o login ambíguo (duas contas atenderiam pelo mesmo identificador).
+            var loginNormalizado = login.ToLower();
+            var loginEmUso = await _context.Jogadores
+                .AnyAsync(j => j.Login != null && j.Login.ToLower() == loginNormalizado && j.Cpf != cpf);
             if (loginEmUso)
             {
                 ViewBag.Erro = "Esse login já está em uso. Escolha outro.";
