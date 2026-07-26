@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/07/2026** — apelido + busca sem caixa + máscaras + Raquete Livre corrigido (build-37).
+> Última atualização: **26/07/2026** — separação prod × dev, aviso de Beta e seed só em dev (build-40).
 
 ---
 
@@ -57,6 +57,8 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único b
 - **Bug achado de quebra**: o sorteio definia cabeça de chave por `Jogador.PontuacaoGlobal` — campo que o sistema nunca alimentou, mas que tem valores em produção (120 de 145 jogadores, até 995) vindos de SQL manual antigo. Agora usa os pontos reais; campo marcado `[Obsolete]`.
 - **Apelido + busca sem caixa** (26/07, build-35): `Jogador.Apelido` opcional, e `Services/BuscaJogador` virou a única autoridade de busca — aceita nome, apelido ou **CPF completo** (parcial não procura), tudo `ToLower` dos dois lados porque `LIKE` no PostgreSQL diferencia maiúscula. Entrada passou a aceitar e-mail **ou** login, também sem caixa.
 - **Máscaras de documento** (26/07, build-36): `data-mascara` em `mascaras.js` ganhou CNPJ e o modo `documento` (troca sozinho por tamanho). Auditados os 44 campos de texto — só 2 estavam sem máscara, e um deles tinha `maxlength="11"`, que cortaria o CPF formatado no meio.
+- **Prod e dev viraram ambientes de verdade diferentes** (26/07, build-40). Dev é onde se testa: senha própria (`padelizou`/`natapadel`), **sem login automático** — quem entra cria a própria conta — e o seed de demonstração roda só lá (`DadosDemo:Habilitado`, que nasce **desligado**). Antes o seed rodava em qualquer ambiente, o que tornava a produção impossível de limpar: um restart e ela renascia com 23 jogadores inventados. Prod ganhou senha nova e mantém o login automático como Felipe (modo demonstração). Aviso de **Beta** ligado nos dois, com texto próprio por ambiente. Dev semeado com um cenário de cada tipo: torneio finalizado, em andamento (com jogo ao vivo), com inscrições abertas, professor com agenda e clube com 3 quadras precificadas.
+- ⏳ **Limpeza da produção: pronta, não executada.** Script em `/opt/padelizou-deploy/limpar-demo-prod.sh` (faz backup antes). Apaga 144 jogadores fictícios e os 14 torneios de demo, preserva a conta do Felipe e os catálogos.
 - **Raquete Livre era outra coisa** (26/07, build-37): estava modelado como evento com hora de início **e fim obrigatórios**, e descrito no material comercial como "entrar de substituto". É rodízio: hora de começar, valor fixo por pessoa, sem dupla marcada, número inexato de gente e **muitas vezes sem hora pra acabar**. `DataHoraFim` virou anulável e as regras de exibição saíram pra `Services/SessaoRaqueteLivre` (sessão sem fim fica em cartaz por 6h após começar). **169 testes.**
 
 ---
