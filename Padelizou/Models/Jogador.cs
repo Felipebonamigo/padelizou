@@ -12,7 +12,24 @@ public partial class Jogador
 
     public string Nome { get; set; } = null!;
 
+    // Como a pessoa é chamada na quadra. Opcional — muita gente do padel é conhecida só
+    // pelo apelido, e ninguém acha "José Carlos" procurando por "Zeca".
+    public string? Apelido { get; set; }
+
     public string Cpf { get; set; } = null!;
+
+    // ---- Exibição ----
+    // Duas formas, porque o contexto mudou o que é útil:
+
+    // Lista, placar, check-in, painel: o nome curto pelo qual reconhecem a pessoa.
+    [NotMapped]
+    public string ComoChamar => string.IsNullOrWhiteSpace(Apelido) ? Nome : Apelido!;
+
+    // Perfil e resultado de busca: o nome completo com o apelido ao lado, pra ligar
+    // "quem eu procurei" com "quem eu conheço".
+    [NotMapped]
+    public string NomeComApelido =>
+        string.IsNullOrWhiteSpace(Apelido) ? Nome : $"{Nome} ({Apelido})";
 
     public string? Login { get; set; }
 

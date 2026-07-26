@@ -31,6 +31,10 @@
              class="rounded-circle shadow" style="width: 120px; height: 120px; object-fit: cover;" />
         <h3 class="fw-bold mt-3">
             @Model.jogador.Nome
+            @if (!string.IsNullOrWhiteSpace(Model.jogador.Apelido))
+            {
+                <span class="d-block fs-6 fw-normal text-muted">"@Model.jogador.Apelido"</span>
+            }
             @if (!perfilBloqueado && (int)ViewBag.Titulos > 0)
             {
                 <span class="badge rounded-pill ms-1 align-middle" style="background:#fff6df;color:#8a6d00;font-weight:600;" title="Campeão @ViewBag.Titulos vez(es)">

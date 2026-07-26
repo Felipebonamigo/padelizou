@@ -318,7 +318,7 @@ namespace Padelizou.Controllers
 
             var jogador = await _context.Jogadores
                 .Where(j => j.Cpf == cpf)
-                .Select(j => new { j.Nome, j.Celular, j.Cidade, j.Estado })
+                .Select(j => new { j.Nome, j.Apelido, j.Celular, j.Cidade, j.Estado })
                 .FirstOrDefaultAsync();
 
             if (jogador == null) return Json(new { encontrado = false });
@@ -327,6 +327,8 @@ namespace Padelizou.Controllers
             {
                 encontrado = true,
                 nome = jogador.Nome,
+                // A tela mostra "achamos: Fulano" — o apelido confirma que é quem se pensa.
+                apelido = jogador.Apelido ?? "",
                 celular = jogador.Celular ?? "",
                 cidade = jogador.Cidade ?? "",
                 estado = jogador.Estado ?? ""
@@ -1031,7 +1033,8 @@ namespace Padelizou.Controllers
                 var torneio = partida.TorneioId == null ? null : await _context.Torneios.FindAsync(partida.TorneioId.Value);
                 var url = Url.Action("Details", "Torneios", new { id = partida.TorneioId });
 
-                string Nomes(Dupla d) => $"{d.Jogador1?.Nome} e {d.Jogador2?.Nome}";
+                // Push é lido de relance: apelido identifica mais rápido que nome completo.
+                string Nomes(Dupla d) => $"{d.Jogador1?.ComoChamar} e {d.Jogador2?.ComoChamar}";
                 var placar = $"{partida.GamesDupla1}x{partida.GamesDupla2}";
                 var ondeFoi = torneio != null ? $" · {torneio.Nome}" : "";
                 bool ehFinal = partida.Fase == "Final";

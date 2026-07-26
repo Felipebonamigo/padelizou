@@ -40,8 +40,8 @@
                                     <tr class="@classeLinha">
                                         <td class="fw-bold">@(posicao)º</td>
                                         <td class="text-start text-truncate" style="max-width: 150px;">
-                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador1Id" class="text-decoration-none text-dark">@stats.Dupla.Jogador1.Nome</a> <br />
-                                            <small class="text-muted"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador2Id" class="text-decoration-none text-muted">@(stats.Dupla.Jogador2?.Nome ?? "A definir")</a></small>
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador1Id" class="text-decoration-none text-dark">@stats.Dupla.Jogador1.ComoChamar</a> <br />
+                                            <small class="text-muted"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@stats.Dupla.Jogador2Id" class="text-decoration-none text-muted">@(stats.Dupla.Jogador2?.ComoChamar ?? "A definir")</a></small>
                                         </td>
                                         <td>@stats.JogosJogados</td>
                                         <td class="text-success fw-bold">@stats.Vitorias</td>

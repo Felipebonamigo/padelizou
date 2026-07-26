@@ -259,7 +259,7 @@ public class JogadoresController : Controller
 
         var vm = new BuscaJogadoresVM
         {
-            Nome = q,
+            Termo = q,
             CategoriaId = categoriaId,
             Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim().ToUpper(),
             Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim(),
@@ -277,8 +277,8 @@ public class JogadoresController : Controller
 
         var query = _context.Jogadores.AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(vm.Nome))
-            query = query.Where(j => j.Nome.Contains(vm.Nome));
+        // Nome, apelido ou CPF — mesma regra do resto do sistema (Services/BuscaJogador).
+        query = BuscaJogador.Filtrar(query, vm.Termo);
 
         if (vm.Estado != null)
             query = query.Where(j => j.Estado != null && j.Estado.ToUpper() == vm.Estado);

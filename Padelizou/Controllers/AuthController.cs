@@ -188,6 +188,7 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> EditarPerfil(
             string nome, string email, string? celular, string? cidade, string? estado, bool isProfessor, IFormFile? foto,
+            string? apelido = null,
             bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -230,6 +231,9 @@ namespace padelizou.Controllers
             }
 
             jogador.Nome = nome;
+            // Apelido em branco volta a ser nulo — "sem apelido" e "apelido vazio" viram
+            // a mesma coisa, senão ComoChamar teria que testar string vazia em todo lugar.
+            jogador.Apelido = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim();
             jogador.Email = email;
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
@@ -304,7 +308,8 @@ namespace padelizou.Controllers
         public async Task<IActionResult> Cadastro(
             string nome, string cpf, string login, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
             string? ladoQuadra, string? lateralidade, string? instagram, bool notificarEmail, bool notificarWhatsApp,
-            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados)
+            int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
+            string? apelido = null)
         {
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
                 string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
@@ -388,6 +393,7 @@ namespace padelizou.Controllers
                 jogador = new Jogador
                 {
                     Nome = nome,
+                    Apelido = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim(),
                     Cpf = cpf,
                     Email = email,
                     IsProfessor = isProfessor, // <- Salva se ele marcou a caixinha

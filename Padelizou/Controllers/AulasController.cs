@@ -483,7 +483,7 @@ namespace padelizou.Controllers
                 .GroupBy(a => a.AlunoId.HasValue ? $"aluno-{a.AlunoId}" : $"avulso-{(a.NomeAlunoAvulso ?? "").Trim().ToLower()}")
                 .Select(g => new AlunoResumo
                 {
-                    Nome = g.First().Aluno?.Nome ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
+                    Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
                     Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
                     TotalAulas = g.Count(a => a.Status != "Cancelada" && a.Status != "Recusada"),
                     UltimaAula = g.Max(a => a.DataHora),
@@ -975,7 +975,7 @@ namespace padelizou.Controllers
                 .GroupBy(a => a.AlunoId.HasValue ? $"a{a.AlunoId}" : $"v{(a.NomeAlunoAvulso ?? "").ToLower()}")
                 .Select(g => new DevedorVM
                 {
-                    Nome = g.First().Aluno?.Nome ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
+                    Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
                     Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
                     AulasEmAberto = g.Count(),
                     Valor = g.Sum(a => a.Preco),

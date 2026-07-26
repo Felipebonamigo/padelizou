@@ -52,8 +52,8 @@
                         <!-- Linha 2: O Placar (Bem grande para facilitar o toque no celular) -->
                         <div class="row text-center mb-4 align-items-center">
                             <div class="col-5">
-                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador1Id" class="text-decoration-none">@Model.Dupla1.Jogador1.Nome</a></h6>
-                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador2Id" class="text-decoration-none">@(Model.Dupla1.Jogador2?.Nome ?? "A definir")</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador1Id" class="text-decoration-none">@Model.Dupla1.Jogador1.ComoChamar</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador2Id" class="text-decoration-none">@(Model.Dupla1.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" max="9" />
                             </div>
 
@@ -62,8 +62,8 @@
                             </div>
 
                             <div class="col-5">
-                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador1Id" class="text-decoration-none">@Model.Dupla2.Jogador1.Nome</a></h6>
-                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador2Id" class="text-decoration-none">@(Model.Dupla2.Jogador2?.Nome ?? "A definir")</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador1Id" class="text-decoration-none">@Model.Dupla2.Jogador1.ComoChamar</a></h6>
+                                <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador2Id" class="text-decoration-none">@(Model.Dupla2.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" max="9" />
                             </div>
                         </div>

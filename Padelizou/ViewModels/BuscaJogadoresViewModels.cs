@@ -8,7 +8,8 @@ namespace Padelizou.ViewModels;
 public class BuscaJogadoresVM
 {
     // ----- o que foi pedido -----
-    public string? Nome { get; set; }
+    // Aceita nome, apelido OU CPF — quem decide é Services/BuscaJogador.
+    public string? Termo { get; set; }
     public int? CategoriaId { get; set; }
     public string? Estado { get; set; }
     public string? Cidade { get; set; }
@@ -32,7 +33,7 @@ public class BuscaJogadoresVM
 
     // Nenhum filtro preenchido: a tela mostra o convite em vez de "nada encontrado".
     public bool TemFiltro =>
-        !string.IsNullOrWhiteSpace(Nome) || CategoriaId != null
+        !string.IsNullOrWhiteSpace(Termo) || CategoriaId != null
         || !string.IsNullOrWhiteSpace(Estado) || !string.IsNullOrWhiteSpace(Cidade) || ClubeId != null;
 }
 

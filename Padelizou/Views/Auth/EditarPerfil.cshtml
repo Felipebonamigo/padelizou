@@ -46,6 +46,16 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Apelido <span class="fw-normal">(opcional)</span></label>
+                            <input type="text" name="apelido" class="form-control bg-light" maxlength="40"
+                                   placeholder="Como te chamam na quadra" value="@Model.Apelido" />
+                            <small class="text-muted">
+                                Se preencher, é assim que você aparece nas listas, no placar e na chamada do torneio —
+                                e as pessoas te acham buscando pelo apelido.
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-bold text-muted small">E-mail</label>
                             <input type="email" name="email" class="form-control bg-light" required value="@Model.Email" />
                         </div>

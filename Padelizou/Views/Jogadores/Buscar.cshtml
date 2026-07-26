@@ -7,7 +7,7 @@
     {
         var p = new Dictionary<string, string?>
         {
-            ["q"] = Model.Nome,
+            ["q"] = Model.Termo,
             ["categoriaId"] = Model.CategoriaId?.ToString(),
             ["estado"] = Model.Estado,
             ["cidade"] = Model.Cidade,
@@ -42,9 +42,9 @@
     <form method="get" asp-action="Buscar" class="card border-0 shadow-sm p-3 mb-4">
         <div class="row g-2">
             <div class="col-12 col-lg-4">
-                <label class="form-label small fw-bold text-muted mb-1">Nome</label>
-                <input type="text" name="q" value="@Model.Nome" class="form-control"
-                       placeholder="Nome do jogador..." />
+                <label class="form-label small fw-bold text-muted mb-1">Nome, apelido ou CPF</label>
+                <input type="text" name="q" value="@Model.Termo" class="form-control"
+                       placeholder="Ex: Zeca, José Carlos ou 111.444.777-35" />
             </div>
 
             <div class="col-6 col-lg-2">
@@ -110,11 +110,11 @@
         <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
             <span class="small text-muted">Filtrando por:</span>
 
-            @if (!string.IsNullOrWhiteSpace(Model.Nome))
+            @if (!string.IsNullOrWhiteSpace(Model.Termo))
             {
                 <a href="@UrlSem("q")" class="badge rounded-pill text-decoration-none d-inline-flex align-items-center gap-1"
                    style="background: var(--padel-green); color: #14261a;">
-                    <i class="bi bi-person"></i> @Model.Nome <i class="bi bi-x-lg"></i>
+                    <i class="bi bi-person"></i> @Model.Termo <i class="bi bi-x-lg"></i>
                 </a>
             }
             @if (nomeCategoria != null)
@@ -212,7 +212,12 @@
                                 }
                                 <div class="flex-grow-1 overflow-hidden">
                                     <strong class="d-block text-truncate" style="color: var(--pdz-ink);">
-                                        @r.Jogador.Nome
+                                        @r.Jogador.ComoChamar
+                                        @if (!string.IsNullOrWhiteSpace(r.Jogador.Apelido))
+                                        {
+                                            @* Achou pelo apelido? O nome completo confirma que é a pessoa certa. *@
+                                            <span class="d-block fw-normal text-muted" style="font-size:.78rem;">@r.Jogador.Nome</span>
+                                        }
                                         @if (r.Declarou)
                                         {
                                             <span class="badge rounded-pill ms-1" style="background: var(--padel-green); color: #14261a;"

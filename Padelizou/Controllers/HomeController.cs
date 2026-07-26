@@ -74,8 +74,9 @@ namespace Padelizou.Controllers
                     Horario = p.HorarioPrevisto!.Value,
                     Quadra = p.NomeQuadra,
                     Adversarios = (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId)
-                        ? p.Dupla2.Jogador1.Nome + " e " + p.Dupla2.Jogador2.Nome
-                        : p.Dupla1.Jogador1.Nome + " e " + p.Dupla1.Jogador2.Nome,
+                        // Apelido quando existir — é como o jogador reconhece o adversário.
+                        ? (p.Dupla2.Jogador1.Apelido ?? p.Dupla2.Jogador1.Nome) + " e " + (p.Dupla2.Jogador2!.Apelido ?? p.Dupla2.Jogador2.Nome)
+                        : (p.Dupla1.Jogador1.Apelido ?? p.Dupla1.Jogador1.Nome) + " e " + (p.Dupla1.Jogador2!.Apelido ?? p.Dupla1.Jogador2.Nome),
                 })
                 .FirstOrDefaultAsync();
 
@@ -204,7 +205,7 @@ namespace Padelizou.Controllers
                         {
                             AulaId = a.Id,
                             DataHora = a.DataHora,
-                            Aluno = a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso",
+                            Aluno = a.Aluno?.ComoChamar ?? a.NomeAlunoAvulso ?? "Aluno avulso",
                             Local = a.LocalAula.Nome,
                             Status = a.Status,
                             Preco = a.Preco,

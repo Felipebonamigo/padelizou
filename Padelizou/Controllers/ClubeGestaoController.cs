@@ -92,7 +92,8 @@ public class ClubeGestaoController : Controller
             vm.Slots[chave] = new SlotVM
             {
                 MarcacaoId = m.Id,
-                Titulo = m.EhBloqueio ? (m.MotivoBloqueio ?? "Bloqueado") : m.Jogador.Nome,
+                // No mapa cabe pouco texto — o apelido é o que o dono do clube reconhece.
+                Titulo = m.EhBloqueio ? (m.MotivoBloqueio ?? "Bloqueado") : m.Jogador.ComoChamar,
                 EhBloqueio = m.EhBloqueio,
                 EhMensalista = m.MensalidadeId != null,
                 Status = m.Status,
