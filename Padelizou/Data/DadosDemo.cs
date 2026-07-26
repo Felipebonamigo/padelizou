@@ -272,4 +272,122 @@ public static class DadosDemo
         }
         db.SaveChanges();
     }
+
+    // Fecha o conjunto de cenários do ambiente de testes: além dos torneios (finalizado, em
+    // andamento e com inscrições abertas), um professor em quem dá pra marcar aula de verdade
+    // e um clube em que dá pra reservar quadra. Sem estes dois, metade do sistema fica sem
+    // porta de entrada pra quem chega pra testar.
+    //
+    // Idempotente pelos nomes: rodar de novo não duplica nada.
+    public static void SeedProfessorEClube(DbPadelContext db)
+    {
+        SemearProfessor(db);
+        SemearClubeComQuadras(db);
+    }
+
+    private const string NomeLocalAula = "Arena Beira Rio — Quadra 3";
+
+    private static void SemearProfessor(DbPadelContext db)
+    {
+        if (db.LocaisAula.Any(l => l.Nome == NomeLocalAula)) return;
+
+        // Rodrigo já nasce com IsProfessor no SeedApresentacao, mas sem local nem horário
+        // ninguém consegue marcar com ele — o perfil aparecia e o botão não levava a nada.
+        var professor = db.Jogadores.FirstOrDefault(j => j.Cpf == "30000000005");
+        if (professor == null) return;
+
+        professor.IsProfessor = true;
+        professor.Celular ??= "51999990005";
+        professor.ApresentacaoProfessor ??=
+            "Dou aula há 8 anos, de quem nunca pegou na raquete a quem já joga torneio. " +
+            "Foco em consistência de fundo de quadra e saída de parede.";
+        professor.ExperienciaProfessor ??= "8 anos dando aula · ex-atleta 2ª categoria";
+        professor.HorasMinimasCancelamento = 24;
+        db.SaveChanges();
+
+        var local = new LocalAula
+        {
+            ProfessorId = professor.Id,
+            Nome = NomeLocalAula,
+            Endereco = "Av. Beira Rio, 100 - Porto Alegre/RS",
+            PrecoPadrao = 90m,
+            CustoPorAula = 35m,
+            PacoteAtivo = true,
+            PacoteQuantidadeAulas = 4,
+            PacotePreco = 320m,
+        };
+        db.LocaisAula.Add(local);
+        db.SaveChanges();
+
+        // Terça, quinta e sábado — o suficiente pra agenda mostrar dia cheio e dia vazio.
+        foreach (var (dia, inicio, fim) in new[]
+        {
+            (2, new TimeSpan(7, 0, 0), new TimeSpan(11, 0, 0)),
+            (4, new TimeSpan(7, 0, 0), new TimeSpan(11, 0, 0)),
+            (4, new TimeSpan(18, 0, 0), new TimeSpan(22, 0, 0)),
+            (6, new TimeSpan(9, 0, 0), new TimeSpan(12, 0, 0)),
+        })
+        {
+            db.HorariosDisponiveis.Add(new HorarioDisponivel
+            {
+                ProfessorId = professor.Id,
+                LocalAulaId = local.Id,
+                DiaSemana = dia,
+                HoraInicio = inicio,
+                HoraFim = fim,
+                DuracaoMinutos = 60,
+            });
+        }
+        db.SaveChanges();
+    }
+
+    private static void SemearClubeComQuadras(DbPadelContext db)
+    {
+        var clube = db.Clubes.FirstOrDefault(c => c.Nome == "Arena Beira Rio");
+        if (clube == null || db.QuadrasClube.Any(q => q.ClubeId == clube.Id)) return;
+
+        clube.MarcacaoHorariosAtiva = true;
+        clube.HorasMinimasCancelamento = 12;
+        clube.CobraNoShow = true;
+        clube.PoliticaCancelamentoTexto ??=
+            "Cancelamento até 12h antes é livre. Depois disso, ou faltando sem avisar, a reserva é cobrada.";
+        db.SaveChanges();
+
+        var quadras = new[]
+        {
+            new QuadraClube { ClubeId = clube.Id, Nome = "Quadra 1 (coberta)" },
+            new QuadraClube { ClubeId = clube.Id, Nome = "Quadra 2 (coberta)" },
+            new QuadraClube { ClubeId = clube.Id, Nome = "Quadra 3 (descoberta)" },
+        };
+        db.QuadrasClube.AddRange(quadras);
+        db.SaveChanges();
+
+        // Segunda a sexta com horário nobre mais caro à noite, e sábado de manhã — é assim
+        // que um clube de verdade precifica, e é o que faz o mapa de ocupação ter o que mostrar.
+        foreach (var quadra in quadras)
+        {
+            for (int dia = 1; dia <= 5; dia++)
+            {
+                AdicionarRegra(db, clube.Id, quadra.Id, dia, new TimeSpan(7, 0, 0), new TimeSpan(17, 0, 0), 80m);
+                AdicionarRegra(db, clube.Id, quadra.Id, dia, new TimeSpan(17, 0, 0), new TimeSpan(23, 0, 0), 120m);
+            }
+            AdicionarRegra(db, clube.Id, quadra.Id, 6, new TimeSpan(8, 0, 0), new TimeSpan(14, 0, 0), 100m);
+        }
+        db.SaveChanges();
+    }
+
+    private static void AdicionarRegra(DbPadelContext db, int clubeId, int quadraId, int dia,
+        TimeSpan inicio, TimeSpan fim, decimal preco)
+    {
+        db.HorariosMarcacaoDisponivel.Add(new HorarioMarcacaoDisponivel
+        {
+            ClubeId = clubeId,
+            QuadraClubeId = quadraId,
+            DiaSemana = dia,
+            HoraInicio = inicio,
+            HoraFim = fim,
+            DuracaoMinutos = 60,
+            Preco = preco,
+        });
+    }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Padelizou.Middleware;
 using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
@@ -32,6 +33,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.Configure<AcessoAntecipadoSettings>(builder.Configuration.GetSection("AcessoAntecipado"));
 builder.Services.Configure<BetaSettings>(builder.Configuration.GetSection("Beta"));
+builder.Services.Configure<DadosDemoSettings>(builder.Configuration.GetSection("DadosDemo"));
 builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
@@ -114,14 +116,23 @@ using (var scope = app.Services.CreateScope())
     }
     db.SaveChanges();
 
-    // Dados de demonstração — roda só se o banco ainda não tem jogadores (nunca sobrescreve dados reais).
-    Padelizou.Data.DadosDemo.Seed(db);
-
-    // Dados extras pra apresentação de vendas — roda uma vez (idempotente pelo Codigo
-    // "PRIMAVERA26") e não depende do banco estar vazio, diferente do Seed() acima.
-    if (!db.Torneios.Any(t => t.Codigo == "PRIMAVERA26"))
+    // Dado fictício é coisa de ambiente de teste: só semeia onde DadosDemo:Habilitado
+    // estiver ligado (dev). Em produção fica desligado, senão a base voltaria a nascer
+    // cheia de jogador que não existe toda vez que a gente limpasse.
+    var demo = app.Services.GetRequiredService<IOptions<DadosDemoSettings>>().Value;
+    if (demo.Habilitado)
     {
-        Padelizou.Data.DadosDemo.SeedApresentacao(db);
+        // Roda só se o banco ainda não tem jogadores (nunca sobrescreve dados reais).
+        Padelizou.Data.DadosDemo.Seed(db);
+
+        // Os dois abaixo rodam mesmo com dados existentes — a idempotência é pelo
+        // Codigo "PRIMAVERA26" e pelo nome do local de aula.
+        if (!db.Torneios.Any(t => t.Codigo == "PRIMAVERA26"))
+        {
+            Padelizou.Data.DadosDemo.SeedApresentacao(db);
+        }
+
+        Padelizou.Data.DadosDemo.SeedProfessorEClube(db);
     }
     }
     catch (Exception ex)
