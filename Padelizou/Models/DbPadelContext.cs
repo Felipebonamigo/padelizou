@@ -22,7 +22,6 @@ public partial class DbPadelContext : DbContext
 
     public virtual DbSet<Jogador> Jogadores { get; set; }
 
-    public virtual DbSet<Organizador> Organizadores { get; set; }
 
     public virtual DbSet<Partida> Partidas { get; set; }
 
@@ -428,30 +427,6 @@ public partial class DbPadelContext : DbContext
             entity.Property(e => e.AceitaConvitesJogo).HasDefaultValue(true);
         });
 
-        modelBuilder.Entity<Organizador>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__Organiza__3214EC079F755F08");
-
-            entity.ToTable("Organizador");
-
-            entity.HasIndex(e => e.Codigo, "UQ__Organiza__06370DAC46EF791B").IsUnique();
-
-            entity.HasIndex(e => e.Email, "UQ__Organiza__A9D10534817DC0DF").IsUnique();
-
-            entity.Property(e => e.Codigo)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.Nome)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.SenhaHash)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-        });
-
         modelBuilder.Entity<Partida>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Partida__3214EC0755DC2078");
@@ -495,10 +470,6 @@ public partial class DbPadelContext : DbContext
                 .HasMaxLength(150)
                 .IsUnicode(false);
 
-            entity.HasOne(d => d.Organizador).WithMany(p => p.Torneios)
-                .HasForeignKey(d => d.OrganizadorId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Torneio__Organiz__4E88ABD4");
         });
 
         modelBuilder.Entity<Aula>(entity =>

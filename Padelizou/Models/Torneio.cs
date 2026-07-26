@@ -10,16 +10,15 @@ public partial class Torneio
 {
     public int Id { get; set; }
 
-    public int? OrganizadorId { get; set; }
-
     public string Nome { get; set; } = null!;
 
     public string Codigo { get; set; } = null!;
 
     public virtual ICollection<Categoria> Categorias { get; set; } = new List<Categoria>();
 
-    public virtual Organizador? Organizador { get; set; }
-    public DateTime? DataInicio{ get; set; } 
+    // Quem organiza vive em TorneioOrganizadores (vários por torneio, com NivelAcesso).
+    // A entidade Organizador antiga foi removida em 26/07/2026 — tabela estava vazia.
+    public DateTime? DataInicio{ get; set; }
     public bool PermiteImpedimentos { get; set; }
     public bool PermiteImpedimentoSextaNoite { get; set; } = true;
     public bool PermiteImpedimentoSabadoManha { get; set; } = true;

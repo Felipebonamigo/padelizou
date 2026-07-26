@@ -184,7 +184,6 @@ namespace Padelizou.Controllers
 
             // O Torneio nasce com Inscrições Abertas
             torneio.Status = "Inscrições Abertas";
-            torneio.OrganizadorId = null;
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
             torneio.ChaveAcesso = torneio.Restrito ? GerarChaveAcesso() : null;
 
@@ -1695,83 +1694,6 @@ namespace Padelizou.Controllers
             return View(classificacao);
         }
 
-        [HttpPost]
-        [Authorize]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> GerarFaseGrupos(int torneioId, int categoriaId, DateTime dataHoraInicio)
-        {
-            var torneio = await _context.Torneios.FindAsync(torneioId);
-            if (torneio == null) return NotFound();
-            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
-
-            var duplasInscritas = await _context.Duplas
-                .Where(d => d.CategoriaId == categoriaId && d.Categoria.TorneioId == torneioId)
-                .ToListAsync();
-
-            if (duplasInscritas.Count < torneio.TamanhoGrupo)
-            {
-                TempData["Erro"] = "Número de duplas insuficiente para formar um grupo.";
-                return RedirectToAction("Detalhes", new { id = torneioId });
-            }
-
-            // 1. Embaralha as duplas para o sorteio
-            var rng = new Random();
-            var duplasSorteadas = duplasInscritas.OrderBy(d => rng.Next()).ToList();
-
-            // 2. Separa em Grupos (A, B, C...)
-            int numGrupos = (int)Math.Ceiling((double)duplasSorteadas.Count / torneio.TamanhoGrupo);
-            string alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-            var novasPartidas = new List<Partida>();
-            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
-
-            // Controle básico de horário (simulando 1 quadra para simplificar a leitura agora)
-            DateTime horarioAtual = dataHoraInicio;
-
-            for (int g = 0; g < numGrupos; g++)
-            {
-                string nomeGrupo = alfabeto[g].ToString();
-
-                // Pega as duplas deste grupo (ex: as 3 primeiras, depois as próximas 3...)
-                var duplasDoGrupo = duplasSorteadas.Skip(g * torneio.TamanhoGrupo).Take(torneio.TamanhoGrupo).ToList();
-
-                // Salva a letra do grupo na Dupla para a Tabela de Classificação depois
-                foreach (var dupla in duplasDoGrupo)
-                {
-                    dupla.Grupo = nomeGrupo;
-                    _context.Update(dupla);
-                }
-
-                // 3. Gera os jogos (Todos contra Todos dentro do grupo)
-                // Se for grupo de 3, gera: 1x2, 1x3, 2x3
-                for (int i = 0; i < duplasDoGrupo.Count; i++)
-                {
-                    for (int j = i + 1; j < duplasDoGrupo.Count; j++)
-                    {
-                        var partida = new Partida
-                        {
-                            TorneioId = torneioId,
-                            CategoriaId = categoriaId,
-                            Dupla1Id = duplasDoGrupo[i].Id,
-                            Dupla2Id = duplasDoGrupo[j].Id,
-                            Fase = $"Grupo {nomeGrupo}", // Salva como "Grupo A", "Grupo B"
-                            Status = "Agendada",
-                            HorarioPrevisto = horarioAtual,
-                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                        };
-
-                        novasPartidas.Add(partida);
-                        horarioAtual = horarioAtual.AddMinutes(tempoPartida); // Avança o relógio
-                    }
-                }
-            }
-
-            _context.Partidas.AddRange(novasPartidas);
-            await _context.SaveChangesAsync();
-
-            TempData["Sucesso"] = $"Fase de Grupos gerada! {numGrupos} grupos criados e {novasPartidas.Count} partidas agendadas.";
-            return RedirectToAction("Jogos", new { id = torneioId });
-        }
         // GET: Torneios/Classificacao/5?categoriaId=1
         public async Task<IActionResult> Classificacao(int id, int categoriaId)
         {
