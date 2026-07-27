@@ -27,6 +27,10 @@ public class TimeDetalheVM
     // Quem está vendo pode mexer na lista? (administrador do time, ou admin do Padelizou)
     public bool PossoGerenciar { get; set; }
     public bool SouAdminDoSistema { get; set; }
+
+    // Candidatos ao cargo. Fica no ViewModel, e não num ViewBag, porque ViewBag só falha
+    // em tela: o cast erra em runtime, no meio da página, pra quem tem permissão de ver.
+    public List<Jogador> CandidatosAAdministrador { get; set; } = new();
 }
 
 public class AdministradorTimeVM

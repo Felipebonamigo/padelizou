@@ -122,7 +122,7 @@ public class TimesController : Controller
         // Candidatos a administrador: quem já veste a camisa vem primeiro (é o caso comum),
         // mas a lista é geral porque um time recém-importado não tem membro nenhum — sem
         // isso, designar o primeiro administrador seria impossível pela tela.
-        ViewBag.JogadoresParaAdmin = vm.PossoGerenciar
+        vm.CandidatosAAdministrador = vm.PossoGerenciar
             ? await _context.Jogadores
                 .Where(j => !idsAdmin.Contains(j.Id))
                 .OrderByDescending(j => j.TimeId == id)

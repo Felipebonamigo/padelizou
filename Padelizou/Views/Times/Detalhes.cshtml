@@ -121,7 +121,7 @@
                         <label class="form-label small fw-semibold mb-1">Incluir administrador</label>
                         <select name="jogadorId" class="form-select" required>
                             <option value="">Escolha o jogador...</option>
-                            @foreach (var j in (List<Padelizou.Models.Jogador>)ViewBag.JogadoresParaAdmin)
+                            @foreach (var j in Model.CandidatosAAdministrador)
                             {
                                 <option value="@j.Id">@j.Nome</option>
                             }
