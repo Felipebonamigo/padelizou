@@ -87,7 +87,24 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Qtd. de Quadras Disponíveis</label>
-                        <input type="number" asp-for="QuantidadeQuadras" id="quantidadeQuadras" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
+                        <input type="number" asp-for="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
+                        <small class="text-muted d-block mt-1">Quantos jogos rodam ao mesmo tempo na grade.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Duração de cada jogo</label>
+                        <div class="input-group">
+                            <input type="number" asp-for="TempoPrevistoPartidaMinutos" min="10" max="180" class="form-control bg-light" required />
+                            <span class="input-group-text">min</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Jogos de que horas até que horas?</label>
+                        <div class="input-group">
+                            <input type="time" asp-for="HoraInicioDoDia" class="form-control bg-light" required />
+                            <span class="input-group-text">até</span>
+                            <input type="time" asp-for="HoraFimDoDia" class="form-control bg-light" required />
+                        </div>
+                        <small class="text-muted d-block mt-1">Vale pra cada dia. O que não couber vai pro dia seguinte, no mesmo horário de abertura.</small>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Limite total de duplas no torneio (opcional)</label>

@@ -98,6 +98,17 @@ public partial class Torneio
     public int ClubeId { get; set; }
     public Clube Clube { get; set; }
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
+
+    // Janela de jogos de cada dia. DataInicio guarda só a data — sem a hora de abertura a
+    // grade começava à meia-noite. Ao bater no fim, o que sobra vai pro dia seguinte, na
+    // hora de abertura: torneio não vira a noite.
+    public TimeSpan HoraInicioDoDia { get; set; } = new(8, 0, 0);
+    public TimeSpan HoraFimDoDia { get; set; } = new(22, 0, 0);
+
+    // Quando o primeiro jogo entra na quadra.
+    [NotMapped]
+    public DateTime AberturaDaGrade =>
+        (DataInicio ?? DateTime.Today).Date.Add(HoraInicioDoDia);
     public int TamanhoGrupo { get; set; } = 3;
     public int ClassificadosPorGrupo { get; set; } = 2;
 

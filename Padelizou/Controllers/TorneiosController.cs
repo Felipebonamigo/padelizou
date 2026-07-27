@@ -834,6 +834,11 @@ namespace Padelizou.Controllers
                 .ToList();
             var pontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(idsInscritos);
 
+            // A grade é UMA só pro torneio inteiro. Antes cada categoria recomeçava do
+            // horário de início, então três categorias marcavam jogos no mesmo horário nas
+            // mesmas quadras. Os horários são atribuídos depois, com todos os jogos na mão.
+            var jogosPraAgendar = new List<Partida>();
+
             foreach (var categoria in torneio.Categorias)
             {
                 // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
@@ -928,10 +933,6 @@ namespace Padelizou.Controllers
                 // GrupoTorneioId: as duplas ficavam com Grupo(str) nulo e NENHUMA partida era
                 // criada, então o torneio travava em "Fase de Grupos" sem jogos pra registrar e
                 // sem como avançar pro mata-mata (que agrupa por dupla.Grupo).
-                var partidasDaFaseDeGrupos = new List<Partida>();
-                var horarioJogo = torneio.DataInicio ?? DateTime.Now;
-                int tempoJogo = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
-
                 for (int i = 0; i < gruposDeDuplas.Count; i++)
                 {
                     char letra = (char)('A' + i);
@@ -948,7 +949,7 @@ namespace Padelizou.Controllers
                     {
                         for (int b = a + 1; b < duplasDoGrupo.Count; b++)
                         {
-                            partidasDaFaseDeGrupos.Add(new Partida
+                            jogosPraAgendar.Add(new Partida
                             {
                                 TorneioId = torneio.Id,
                                 CategoriaId = categoria.Id,
@@ -956,15 +957,27 @@ namespace Padelizou.Controllers
                                 Dupla2Id = duplasDoGrupo[b].Id,
                                 Fase = $"Grupo {letra}",
                                 Status = "Agendada",
-                                HorarioPrevisto = horarioJogo,
                                 Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
                             });
-                            horarioJogo = horarioJogo.AddMinutes(tempoJogo);
                         }
                     }
                 }
-                _context.Partidas.AddRange(partidasDaFaseDeGrupos);
             }
+
+            // Agora sim os horários: N quadras em paralelo, parando no fim do expediente e
+            // retomando no dia seguinte (ver GradeDeJogos).
+            var horarios = GradeDeJogos.Horarios(
+                torneio.AberturaDaGrade,
+                torneio.HoraFimDoDia,
+                torneio.QuantidadeQuadras,
+                torneio.TempoPrevistoPartidaMinutos,
+                jogosPraAgendar.Count).ToList();
+
+            for (int i = 0; i < jogosPraAgendar.Count; i++)
+            {
+                jogosPraAgendar[i].HorarioPrevisto = horarios[i];
+            }
+            _context.Partidas.AddRange(jogosPraAgendar);
 
             torneio.Status = "Fase de Grupos";
             await _context.SaveChangesAsync();
