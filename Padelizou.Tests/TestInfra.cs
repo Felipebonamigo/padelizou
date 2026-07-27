@@ -34,6 +34,7 @@ public static class TestInfra
             Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
+            Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
             NullLogger<TorneiosController>.Instance);
 
         controller.ControllerContext = new ControllerContext

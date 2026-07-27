@@ -33,10 +33,28 @@ public class TaxasExibicao
     // 21x a 4,29%, Pix e boleto a R$ 1,99).
     public DateTime? DescontoValidoAte { get; set; } = new DateTime(2026, 10, 27);
 
-    // Percentual que o Padelizou cobra do organizador quando o dinheiro corre por fora.
-    // Menor que a comissão do online porque aqui não há custo de gateway nem risco de
-    // chargeback — o serviço é só a organização do torneio.
-    public decimal ComissaoPercentualExterno { get; set; } = 10m;
+    // ── Taxa do Padelizou por forma de recebimento (só torneios) ───────────────────────
+    // Cada faixa acompanha o custo e o risco que a plataforma assume. Quem escolhe é o
+    // ORGANIZADOR, na criação — nunca o jogador no checkout, senão o organizador não
+    // saberia quanto vai receber antes de anunciar o preço.
+
+    // Não tocamos no dinheiro: sem custo de meio de pagamento, sem risco, sem capital parado.
+    public decimal ComissaoPercentualExterno { get; set; } = 5m;
+
+    // Pix: cai na hora e custa centavos.
+    public decimal ComissaoPercentualSomentePix { get; set; } = 10m;
+
+    // Todas as formas: o jogador pode parcelar no crédito, que custa até 3,29% + R$ 0,49
+    // e só é repassado 32 dias depois.
+    public decimal ComissaoPercentualTodasFormas { get; set; } = 15m;
+
+    // A taxa de um torneio, pela escolha que o organizador fez.
+    public decimal PercentualDoTorneio(string formaPagamento) => formaPagamento switch
+    {
+        "Externo" => ComissaoPercentualExterno,
+        "OnlinePix" => ComissaoPercentualSomentePix,
+        _ => ComissaoPercentualTodasFormas,
+    };
 
     public IEnumerable<FormaRecebimento> Todas => new[]
     {

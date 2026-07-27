@@ -47,7 +47,8 @@ public interface IPagamentoInscricaoService
 
     // Quanto a tela deve anunciar: o valor que o jogador realmente vai pagar e a taxa embutida.
     // Null quando não há cobrança online — aí o preço do torneio/aula já é o valor final.
-    (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor, string? modoComissao = null);
+    (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao,
+        Jogador? recebedor, string? modoComissao = null, decimal? percentual = null);
 
     Task EfetivarAsync(Pagamento pagamento);
 }
@@ -59,16 +60,18 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private readonly DbPadelContext _context;
     private readonly IAsaasService _asaas;
     private readonly AsaasSettings _settings;
+    private readonly TaxasExibicao _taxas;
     private readonly ILogger<PagamentoInscricaoService> _logger;
     private readonly IPushNotificationService _push;
 
     public PagamentoInscricaoService(DbPadelContext context, IAsaasService asaas,
         IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger,
-        IPushNotificationService push)
+        IPushNotificationService push, IOptions<TaxasExibicao> taxas)
     {
         _context = context;
         _asaas = asaas;
         _settings = settings.Value;
+        _taxas = taxas.Value;
         _logger = logger;
         _push = push;
     }
@@ -103,13 +106,14 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     public bool PodeCobrarQuadra(decimal? preco, Jogador? dono) =>
         EstaApto(dono) && preco > 0;
 
-    public (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor, string? modoComissao = null)
+    public (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao,
+        Jogador? recebedor, string? modoComissao = null, decimal? percentual = null)
     {
         if (!EstaApto(recebedor) || preco <= 0) return null;
 
         // Mesmo cálculo usado pra gerar a cobrança, pra tela e checkout nunca divergirem.
         // O modo vem do torneio quando informado; o do cadastro do recebedor é só o padrão.
-        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor!.ModoComissao);
+        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor!.ModoComissao, percentual);
         return (rateio.ValorTotal, rateio.ValorTotal - preco);
     }
 
@@ -126,7 +130,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             recebedor, pagador, torneio.ValorCobrado(inscricaoDeDupla: tipo == "TorneioDupla"),
             "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
-            torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao);
+            torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
+            percentual: _taxas.PercentualDoTorneio(torneio.FormaPagamento),
+            // Não existe "Pix + boleto" no gateway: ou trava numa forma, ou libera todas.
+            billingType: torneio.SomentePix ? "PIX" : "UNDEFINED");
 
     public Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor,
         Jogador pagador, DadosInscricaoAula dados) =>
@@ -144,9 +151,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
 
     private async Task<string?> CriarCobrancaAsync(Jogador recebedor, Jogador pagador, decimal preco,
         string tipoOperacao, string tipoPagamento, string descricao, object dados,
-        int? torneioId, int? jogoAulaId, string? modoComissao = null)
+        int? torneioId, int? jogoAulaId, string? modoComissao = null,
+        decimal? percentual = null, string billingType = "UNDEFINED")
     {
-        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor.ModoComissao);
+        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor.ModoComissao, percentual);
 
         var clienteId = await _asaas.ObterOuCriarClienteAsync(
             pagador.Nome, pagador.Cpf, pagador.Email, pagador.Celular);
@@ -176,7 +184,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             descricao,
             pagamento.Id.ToString(),
             DateTime.Today.AddDays(1),
-            recebedor.AsaasWalletId);
+            recebedor.AsaasWalletId,
+            billingType);
 
         if (cobranca == null)
         {

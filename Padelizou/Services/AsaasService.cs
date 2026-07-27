@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
@@ -24,10 +24,13 @@ public class AsaasService : IAsaasService
 
     public bool Configurado => !string.IsNullOrWhiteSpace(_settings.ApiKey);
 
-    public RateioComissao CalcularRateio(decimal preco, string tipoOperacao, string? modoComissao = null)
+    // percentual != null sobrepõe a tabela por tipo — é assim que cada torneio cobra a taxa
+    // da forma de recebimento que o organizador escolheu.
+    public RateioComissao CalcularRateio(decimal preco, string tipoOperacao, string? modoComissao = null,
+        decimal? percentual = null)
     {
         var comissao = Math.Max(
-            Math.Round(preco * PercentualDe(tipoOperacao) / 100m, 2),
+            Math.Round(preco * (percentual ?? PercentualDe(tipoOperacao)) / 100m, 2),
             _settings.ComissaoMinima);
 
         var modo = string.IsNullOrWhiteSpace(modoComissao) ? _settings.ModoComissaoPadrao : modoComissao;
@@ -135,15 +138,18 @@ public class AsaasService : IAsaasService
         string descricao,
         string referenciaExterna,
         DateTime vencimento,
-        string? walletIdRecebedor)
+        string? walletIdRecebedor,
+        string billingType = "UNDEFINED")
     {
         try
         {
             var corpo = new Dictionary<string, object?>
             {
                 ["customer"] = clienteId,
-                // UNDEFINED deixa o jogador escolher Pix, cartão ou boleto na página do Asaas.
-                ["billingType"] = "UNDEFINED",
+                // UNDEFINED deixa o pagador escolher entre as formas habilitadas na conta.
+                // "PIX" trava a cobrança em Pix — usado quando o organizador escolheu só Pix,
+                // porque não existe forma de oferecer um subconjunto (Pix+boleto, sem cartão).
+                ["billingType"] = billingType,
                 ["value"] = rateio.ValorTotal,
                 ["dueDate"] = vencimento.ToString("yyyy-MM-dd"),
                 ["description"] = descricao,

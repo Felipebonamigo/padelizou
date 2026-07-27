@@ -1,4 +1,4 @@
-namespace Padelizou.Services;
+﻿namespace Padelizou.Services;
 
 // Cobrança criada no Asaas: o Id serve pra casar o webhook com o Pagamento no nosso banco,
 // e a InvoiceUrl é a página hospedada onde o jogador escolhe Pix, cartão ou boleto.
@@ -15,7 +15,8 @@ public interface IAsaasService
     // Calcula o rateio a partir do preço. O percentual sai de tipoOperacao ("Torneio", "Aula"
     // ou "Jogo"); o modo ("Somada"/"Descontada") vem do cadastro do dono do torneio/aula e,
     // em branco, cai no padrão de AsaasSettings.
-    RateioComissao CalcularRateio(decimal preco, string tipoOperacao, string? modoComissao = null);
+    RateioComissao CalcularRateio(decimal preco, string tipoOperacao, string? modoComissao = null,
+        decimal? percentual = null);
 
     // Reaproveita o cliente já cadastrado pelo CPF; só cria um novo se não existir.
     Task<string?> ObterOuCriarClienteAsync(string nome, string cpf, string? email, string? celular);
@@ -28,7 +29,8 @@ public interface IAsaasService
         string descricao,
         string referenciaExterna,
         DateTime vencimento,
-        string? walletIdRecebedor);
+        string? walletIdRecebedor,
+        string billingType = "UNDEFINED");
 
     // Devolve o dinheiro ao jogador. Cobrança ainda não paga é cancelada em vez de estornada —
     // são endpoints diferentes no Asaas.

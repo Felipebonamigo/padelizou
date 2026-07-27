@@ -19,12 +19,14 @@ namespace Padelizou.Controllers
         private readonly IEmailService _emailService;
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
+        private readonly TaxasExibicao _taxas;
         private readonly ILogger<TorneiosController> _logger;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
             IWebHostEnvironment env, IEmailService emailService, IPushNotificationService pushService,
-            IPagamentoInscricaoService pagamentos, ILogger<TorneiosController> logger)
+            IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
+            ILogger<TorneiosController> logger)
         {
             _context = context;
             _estatisticas = estatisticas;
@@ -33,6 +35,7 @@ namespace Padelizou.Controllers
             _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
+            _taxas = taxas.Value;
             _logger = logger;
         }
 
@@ -741,7 +744,8 @@ namespace Padelizou.Controllers
             var recebedorTorneio = await _pagamentos.ObterRecebedorTorneioAsync(id);
             // Preço por pessoa: quem vê a tela quer saber quanto sai do bolso dele.
             var exibicao = torneio.CobraPeloSite
-                ? _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio, torneio.ModoComissao)
+                ? _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio,
+                    torneio.ModoComissao, _taxas.PercentualDoTorneio(torneio.FormaPagamento))
                 : null;
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;

@@ -37,14 +37,20 @@ public partial class Torneio
     public decimal ValorCobrado(bool inscricaoDeDupla) =>
         PrecoInscricao * (inscricaoDeDupla ? 2 : 1);
 
-    // Como o dinheiro da inscrição corre. Escolhido pelo organizador ao criar o torneio.
+    // Como o dinheiro da inscrição corre. Escolhido pelo organizador ao criar o torneio, e
+    // é ele quem define a taxa — porque a escolha é dele, não do jogador. A forma que o
+    // jogador escolhe no checkout não pode mexer na taxa: o split é fixado quando a cobrança
+    // nasce, muito antes de alguém pagar.
     //
-    // "Online"  — o jogador paga pelo site. O Padelizou gera a cobrança, retém a comissão
-    //             na hora e repassa o resto. Custa mais caro e o cartão demora a cair.
-    // "Externo" — o Padelizou não toca no dinheiro: Pix, dinheiro, o que o organizador
-    //             combinar. Ele cuida só da organização, e o Padelizou cobra a comissão
-    //             do organizador depois, sobre o que foi inscrito.
-    public string FormaPagamento { get; set; } = "Online";
+    // "OnlinePix"   — cobrança travada em Pix. Cai na hora, custo baixo → taxa menor.
+    // "OnlineTodas" — Pix, boleto, débito e crédito à escolha do jogador. Crédito custa
+    //                 caro e só cai em 32 dias → taxa maior.
+    // "Externo"     — o Padelizou não toca no dinheiro, só organiza. Sem custo de gateway
+    //                 nem risco → taxa menor de todas, cobrada do organizador depois.
+    public string FormaPagamento { get; set; } = "OnlinePix";
+
+    [NotMapped]
+    public bool SomentePix => FormaPagamento == "OnlinePix";
 
     // Fixo em "Descontada" desde 27/07/2026: o jogador paga exatamente o valor anunciado e a
     // taxa do Padelizou sai de dentro dele. Já foi uma escolha do organizador ("Somada" somava
@@ -53,7 +59,7 @@ public partial class Torneio
     public string ModoComissao { get; set; } = "Descontada";
 
     [NotMapped]
-    public bool CobraPeloSite => FormaPagamento == "Online";
+    public bool CobraPeloSite => FormaPagamento.StartsWith("Online");
 
     // Pagar é condição pra se inscrever, ou dá pra garantir a vaga e acertar depois?
     // true (padrão) mantém o comportamento que já existia: sem pagar, sem inscrição.

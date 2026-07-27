@@ -17,7 +17,8 @@ public class FormaPagamentoTorneioTests
         return new PagamentoInscricaoService(
             ctx, asaas, Options.Create(new AsaasSettings()),
             NullLogger<PagamentoInscricaoService>.Instance,
-            Substitute.For<IPushNotificationService>());
+            Substitute.For<IPushNotificationService>(),
+            Options.Create(new TaxasExibicao()));
     }
 
     private static Jogador RecebedorApto() => new()
@@ -32,7 +33,7 @@ public class FormaPagamentoTorneioTests
     public void Torneio_online_cobra_pelo_site()
     {
         using var ctx = TestInfra.NovoContexto();
-        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 150m, FormaPagamento = "Online" };
+        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 150m, FormaPagamento = "OnlineTodas" };
 
         Assert.True(NovoServico(ctx).PodeCobrar(torneio, RecebedorApto()));
     }
@@ -53,8 +54,32 @@ public class FormaPagamentoTorneioTests
     {
         var torneio = new Torneio { Nome = "T", Codigo = "T1" };
 
-        Assert.Equal("Online", torneio.FormaPagamento);
+        // Pix é o padrão: mais barato pro organizador, cai na hora, e é como quase todo
+        // mundo paga no padel.
+        Assert.Equal("OnlinePix", torneio.FormaPagamento);
         Assert.True(torneio.CobraPeloSite);
+        Assert.True(torneio.SomentePix);
+    }
+
+    [Fact]
+    public void Taxa_sobe_conforme_o_custo_da_forma_escolhida()
+    {
+        // Quem escolhe é o organizador, na criação — nunca o jogador no checkout, senão o
+        // organizador não saberia quanto recebe antes de anunciar o preço.
+        var t = new TaxasExibicao();
+
+        Assert.Equal(5m, t.PercentualDoTorneio("Externo"));
+        Assert.Equal(10m, t.PercentualDoTorneio("OnlinePix"));
+        Assert.Equal(15m, t.PercentualDoTorneio("OnlineTodas"));
+        Assert.True(t.ComissaoPercentualExterno < t.ComissaoPercentualSomentePix);
+        Assert.True(t.ComissaoPercentualSomentePix < t.ComissaoPercentualTodasFormas);
+    }
+
+    [Fact]
+    public void Forma_desconhecida_cai_na_taxa_mais_alta()
+    {
+        // Errar pra cima é seguro; errar pra baixo sairia do nosso bolso.
+        Assert.Equal(15m, new TaxasExibicao().PercentualDoTorneio("QualquerCoisa"));
     }
 
     [Fact]

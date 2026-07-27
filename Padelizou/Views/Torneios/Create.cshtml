@@ -106,16 +106,35 @@
                         <i class="bi bi-cash-coin me-1"></i> Como você vai receber as inscrições?
                     </label>
 
+                    @* A taxa muda com a escolha do ORGANIZADOR, nunca com a forma que o jogador
+                       escolhe no checkout: o split é fixado quando a cobrança nasce, e ele
+                       precisa saber quanto recebe antes de anunciar o preço. *@
                     <div class="form-check p-3 rounded mb-2" style="border: 1px solid var(--pdz-border);">
-                        <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="Online"
-                               id="pagOnline" checked onchange="pdzAtualizarSimulacao()" />
-                        <label class="form-check-label w-100" for="pagOnline">
-                            <span class="fw-bold">Pelo site</span> — o jogador paga na hora de se inscrever
+                        <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="OnlinePix"
+                               id="pagPix" checked onchange="pdzAtualizarSimulacao()" />
+                        <label class="form-check-label w-100" for="pagPix">
+                            <span class="fw-bold">Pelo site, só Pix</span>
+                            <span class="badge bg-success ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
-                                A vaga só é confirmada com o pagamento, então some o calote e o "depois eu te pago".
+                                O jogador paga por Pix na hora de se inscrever e a vaga já nasce confirmada.
+                                <strong>O dinheiro cai na sua conta na hora.</strong> É a opção mais barata —
+                                e no padel, Pix é como quase todo mundo paga.
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-check p-3 rounded mb-2" style="border: 1px solid var(--pdz-border);">
+                        <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="OnlineTodas"
+                               id="pagTodas" onchange="pdzAtualizarSimulacao()" />
+                        <label class="form-check-label w-100" for="pagTodas">
+                            <span class="fw-bold">Pelo site, todas as formas</span>
+                            <span class="badge bg-secondary ms-1">taxa @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
+                            <div class="small text-muted mt-1">
+                                Pix, boleto, débito e cartão de crédito — inclusive parcelado. Facilita pra quem
+                                não tem o valor à vista, mas custa mais e o cartão demora a cair.
                                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline"
                                         data-bs-toggle="modal" data-bs-target="#modalComoRecebo">
-                                    Como e quando eu recebo?
+                                    Ver os prazos
                                 </button>
                             </div>
                         </label>
@@ -125,16 +144,16 @@
                         <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="Externo"
                                id="pagExterno" onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagExterno">
-                            <span class="fw-bold">Por fora</span> — você combina Pix ou dinheiro direto com o jogador
+                            <span class="fw-bold">Por fora</span>
+                            <span class="badge bg-success ms-1">taxa @taxas.ComissaoPercentualExterno.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
-                                O Padelizou <strong>não toca no dinheiro</strong>: cuida só da organização — chaves,
-                                jogos, placar ao vivo e ranking. Você recebe na hora, sem esperar repasse.
-                                Depois, paga ao Padelizou <strong>@taxas.ComissaoPercentualExterno.ToString("0.#")%</strong>
-                                do que foi inscrito.
+                                Você combina Pix ou dinheiro direto com o jogador. O Padelizou
+                                <strong>não toca no dinheiro</strong>: cuida só da organização — chaves, jogos,
+                                placar ao vivo e ranking. Depois você paga a taxa sobre o que foi inscrito.
                             </div>
                             <div class="small text-muted mt-1">
                                 <i class="bi bi-info-circle"></i>
-                                Em compensação, a cobrança é por sua conta: o sistema não tem como saber quem pagou.
+                                Em compensação, cobrar é por sua conta: o sistema não tem como saber quem pagou.
                             </div>
                         </label>
                     </div>
@@ -486,15 +505,20 @@
    jogador paga e quanto sobra em cada opção. Números vindos do servidor pra tela e
    cobrança nunca divergirem. *@
 <script>
-    var pdzComissaoPct = @comissaoOnline.ToString(System.Globalization.CultureInfo.InvariantCulture);
     var pdzComissaoMin = @asaas.ComissaoMinima.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    var pdzComissaoExternoPct = @taxas.ComissaoPercentualExterno.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    // Uma taxa por forma de recebimento — a escolha é do organizador, então ele sabe o
+    // quanto recebe antes de anunciar o preço.
+    var pdzTaxaPorForma = {
+        OnlinePix: @taxas.ComissaoPercentualSomentePix.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        OnlineTodas: @taxas.ComissaoPercentualTodasFormas.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        Externo: @taxas.ComissaoPercentualExterno.ToString(System.Globalization.CultureInfo.InvariantCulture)
+    };
 
     function pdzMoeda(v) {
         return 'R$ ' + v.toFixed(2).replace('.', ',');
     }
 
-    function pdzAtualizarConta(paga, comissao, recebe, externo) {
+    function pdzAtualizarConta(paga, comissao, recebe, externo, pct) {
         var def = function (id, txt) {
             var e = document.getElementById(id);
             if (e) e.textContent = txt;
@@ -505,8 +529,8 @@
 
         // Por fora ele recebe tudo na hora e paga a taxa depois — "você recebe" mentiria.
         def('pdzComissaoRotulo', externo
-            ? '− Taxa do Padelizou (' + pdzComissaoExternoPct + '%, você paga depois)'
-            : '− Taxa do Padelizou (' + pdzComissaoPct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
+            ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
+            : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
         def('pdzRecebeRotulo', externo ? '= Fica com você, por jogador' : '= Você recebe, por jogador');
     }
 
@@ -515,22 +539,24 @@
         if (!caixa) return;
 
         var preco = parseFloat((document.getElementById('precoInscricao') || {}).value) || 0;
-        var externo = (document.getElementById('pagExterno') || {}).checked;
+        var escolhido = document.querySelector('input[name="FormaPagamento"]:checked');
+        var forma = escolhido ? escolhido.value : 'OnlinePix';
+        var externo = forma === 'Externo';
 
         if (preco <= 0) {
             caixa.textContent = 'Informe o valor da inscrição pra ver a conta.';
-            pdzAtualizarConta(0, 0, 0, false);
+            pdzAtualizarConta(0, 0, 0, false, 0);
             return;
         }
 
         // O jogador paga exatamente o valor anunciado; a taxa sai de dentro dele.
-        var pct = externo ? pdzComissaoExternoPct : pdzComissaoPct;
+        var pct = pdzTaxaPorForma[forma];
         var taxa = externo
             ? preco * pct / 100
             : Math.max(preco * pct / 100, pdzComissaoMin);
         var recebe = preco - taxa;
 
-        pdzAtualizarConta(preco, taxa, recebe, externo);
+        pdzAtualizarConta(preco, taxa, recebe, externo, pct);
 
         // Uma dupla são duas pessoas: quem se inscreve paga as duas de uma vez.
         caixa.innerHTML = externo
