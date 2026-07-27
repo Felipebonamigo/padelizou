@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Padelizou.Controllers;
+using padelizou.Controllers;   // AuthController ficou no namespace legado, em minúsculo
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
@@ -20,6 +21,33 @@ public static class TestInfra
             .UseInMemoryDatabase("padelizou_teste_" + Guid.NewGuid())
             .Options;
         return new DbPadelContext(options);
+    }
+
+    // AuthController pronto pra testar cadastro e edição de perfil. Serve pros caminhos de
+    // RECUSA: o final feliz das duas ações chama HttpContext.SignInAsync, que precisa da
+    // pilha de autenticação de verdade e não vale montar aqui.
+    public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0)
+    {
+        var controller = new AuthController(
+            ctx,
+            Substitute.For<IWebHostEnvironment>(),
+            new Microsoft.AspNetCore.Identity.PasswordHasher<Jogador>(),
+            new EstatisticasService(ctx),
+            Substitute.For<IEmailService>(),
+            NullLogger<AuthController>.Instance,
+            Microsoft.Extensions.Options.Options.Create(new SuporteSettings()));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        return controller;
     }
 
     // TorneiosController pronto pra uso nos testes: serviços de borda (e-mail, push,

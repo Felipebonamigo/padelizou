@@ -352,6 +352,20 @@ namespace padelizou.Controllers
                 return View(jogador);
             }
 
+            email = email.Trim();
+
+            // Sem esta checagem dava pra pôr o e-mail de outra pessoa na própria conta, e
+            // trancá-la fora da dela: a entrada casa e-mail OU login com FirstOrDefault, então
+            // com duas linhas respondendo pelo mesmo e-mail o banco escolhe sozinho qual —
+            // a vítima não entra (a senha confere contra a outra conta) e o link de recuperar
+            // senha vai pro e-mail de quem ocupou.
+            if (await IdentidadeJogador.EmUsoAsync(_context, email, jogadorId))
+            {
+                ViewBag.Erro = "Esse e-mail já está em uso por outra conta.";
+                await PopularDadosTimeAsync(jogadorId);
+                return View(jogador);
+            }
+
             // Se marcou "sou dono", precisa do nome do time (ao menos na primeira vez).
             var meuTime = await _context.Times.FirstOrDefaultAsync(t => t.DonoId == jogadorId);
             if (ehDonoTime && meuTime == null && string.IsNullOrWhiteSpace(nomeTime))
@@ -462,6 +476,7 @@ namespace padelizou.Controllers
             }
 
             login = login.Trim();
+            email = email.Trim();
 
             // Normaliza antes de qualquer consulta: o CPF é a chave usada pra reconhecer quem
             // já jogou torneio, e "111.444.777-35" nunca casaria com o "11144477735" gravado
@@ -476,44 +491,53 @@ namespace padelizou.Controllers
                 return View();
             }
 
-            // Login precisa ser único IGNORANDO maiúsculas — como a entrada aceita
-            // "Bona" e "bona" como a mesma coisa, deixar as duas se cadastrarem tornaria
-            // o login ambíguo (duas contas atenderiam pelo mesmo identificador).
-            var loginNormalizado = login.ToLower();
-            var loginEmUso = await _context.Jogadores
-                .AnyAsync(j => j.Login != null && j.Login.ToLower() == loginNormalizado && j.Cpf != cpf);
-            if (loginEmUso)
+            // 2. Verifica se o CPF já existe (se ele já jogou um torneio antes).
+            // Vem ANTES das checagens de unicidade porque é o que define quem é "eu mesmo":
+            // quem reivindica a própria conta de pré-cadastro não pode ser barrado pelo
+            // e-mail que o organizador já gravou nela.
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
+
+            // O CPF já existe. Duas situações MUITO diferentes:
+            //
+            // (a) jogador criado por um organizador ao inscrever a dupla, que nunca teve
+            //     senha — está reivindicando a própria conta, e isso é legítimo;
+            // (b) conta com senha, de alguém que já usa o site.
+            //
+            // No caso (b), deixar o cadastro sobrescrever a senha era uma tomada de conta:
+            // CPF não é segredo no Brasil, e quem soubesse o seu entrava como você, trocava
+            // o e-mail e pronto. Agora esse caminho manda pra recuperação de senha.
+            if (jogador != null && !string.IsNullOrEmpty(jogador.SenhaHash))
+            {
+                ViewBag.Erro = "Já existe uma conta com esse CPF. Entre com sua senha, ou use "
+                             + "\"Esqueci minha senha\" se não lembrar dela.";
+                await PopularCatalogosAsync();
+                return View();
+            }
+
+            // Login e e-mail são checados contra os DOIS campos (ver IdentidadeJogador): a
+            // entrada aceita e-mail OU login, então um login igual ao e-mail de outra pessoa
+            // deixaria a consulta ambígua — e a vítima sem entrar e sem recuperar a senha.
+            if (await IdentidadeJogador.EmUsoAsync(_context, login, jogador?.Id))
             {
                 ViewBag.Erro = "Esse login já está em uso. Escolha outro.";
                 await PopularCatalogosAsync();
                 return View();
             }
 
-            // A foto é opcional e não pode impedir o cadastro: se falhar, entra vazia.
-            string caminhoDaFotoParaBanco = await SalvarFotoPerfilAsync(foto) ?? "";
+            if (await IdentidadeJogador.EmUsoAsync(_context, email, jogador?.Id))
+            {
+                ViewBag.Erro = "Esse e-mail já está em uso. Entre com ele, ou use "
+                             + "\"Esqueci minha senha\" se não lembrar da senha.";
+                await PopularCatalogosAsync();
+                return View();
+            }
 
-            // 2. Verifica se o CPF já existe (se ele já jogou um torneio antes)
-            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
+            // A foto é opcional e não pode impedir o cadastro: se falhar, entra vazia.
+            // Fica depois das validações pra um cadastro recusado não deixar arquivo órfão.
+            string caminhoDaFotoParaBanco = await SalvarFotoPerfilAsync(foto) ?? "";
 
             if (jogador != null)
             {
-                // O CPF já existe. Duas situações MUITO diferentes:
-                //
-                // (a) jogador criado por um organizador ao inscrever a dupla, que nunca teve
-                //     senha — está reivindicando a própria conta, e isso é legítimo;
-                // (b) conta com senha, de alguém que já usa o site.
-                //
-                // No caso (b), deixar o cadastro sobrescrever a senha era uma tomada de conta:
-                // CPF não é segredo no Brasil, e quem soubesse o seu entrava como você, trocava
-                // o e-mail e pronto. Agora esse caminho manda pra recuperação de senha.
-                if (!string.IsNullOrEmpty(jogador.SenhaHash))
-                {
-                    ViewBag.Erro = "Já existe uma conta com esse CPF. Entre com sua senha, ou use "
-                                 + "\"Esqueci minha senha\" se não lembrar dela.";
-                    await PopularCatalogosAsync();
-                    return View();
-                }
-
                 jogador.Email = email;
                 jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha);
                 jogador.IsProfessor = isProfessor; // <- Salva se ele marcou a caixinha
