@@ -16,6 +16,10 @@
                     {
                         <div class="alert alert-danger text-center">@ViewBag.Erro</div>
                     }
+                    @if (TempData["Sucesso"] != null)
+                    {
+                        <div class="alert alert-success text-center">@TempData["Sucesso"]</div>
+                    }
 
                     <form asp-controller="Auth" asp-action="Login" method="post">
                         <div class="mb-3">
@@ -36,7 +40,10 @@
                             </div>
                         </div>
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Entrar na Quadra</button>
-                        <div class="text-center mt-4">
+                        <div class="text-center mt-3">
+                            <a asp-action="EsqueciSenha" class="small">Esqueci minha senha</a>
+                        </div>
+                        <div class="text-center mt-3">
                             <a asp-action="Cadastro" class="text-decoration-none fw-bold" style="color: var(--pdz-ink);">Ainda não tem conta? Cadastre-se</a>
                         </div>
                     </form>

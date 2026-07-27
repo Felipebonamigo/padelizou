@@ -1,0 +1,54 @@
+@{
+    ViewData["Title"] = "Esqueci minha senha - Padelizou";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <h3 class="fw-bold mb-2" style="color: var(--pdz-ink);">Esqueci minha senha</h3>
+
+                    @if (ViewBag.Enviado == true)
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-envelope-check"></i>
+                            Se existir uma conta com esse e-mail ou login, o link pra criar uma senha
+                            nova já está a caminho. Ele vale por 1 hora.
+                        </div>
+                        <p class="small text-muted">
+                            Não chegou? Confira a caixa de spam e confirme se digitou o mesmo e-mail
+                            do cadastro.
+                        </p>
+                        <a asp-action="Login" class="btn btn-outline-secondary rounded-pill w-100">Voltar</a>
+                    }
+                    else
+                    {
+                        @if (ViewBag.Erro != null)
+                        {
+                            <div class="alert alert-danger">@ViewBag.Erro</div>
+                        }
+
+                        <p class="text-muted">Escreva seu e-mail ou login e a gente manda um link pra você criar uma senha nova.</p>
+
+                        <form asp-action="EsqueciSenha" method="post">
+                            @Html.AntiForgeryToken()
+                            <label class="form-label fw-bold text-muted">E-mail ou login</label>
+                            <input type="text" name="email" class="form-control form-control-lg" required
+                                   autocapitalize="none" autocomplete="username"
+                                   placeholder="seu@email.com ou seu login" />
+
+                            <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-3">
+                                Enviar link
+                            </button>
+                        </form>
+
+                        <div class="text-center mt-3">
+                            <a asp-action="Login" class="small">Lembrei a senha, quero entrar</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

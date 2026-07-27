@@ -128,6 +128,97 @@ namespace padelizou.Controllers
             return View();
         }
 
+        // ── Esqueci minha senha ───────────────────────────────────────────────────────────
+        [AllowAnonymous]
+        [HttpGet]
+        public IActionResult EsqueciSenha() => View();
+
+        [AllowAnonymous]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EsqueciSenha(string email)
+        {
+            var jogador = await BuscaJogador.PorIdentificadorAsync(_context, email);
+
+            if (jogador != null && !string.IsNullOrWhiteSpace(jogador.Email))
+            {
+                RecuperacaoSenha.Emitir(jogador, DateTime.Now);
+                await _context.SaveChangesAsync();
+
+                var link = Url.Action("RedefinirSenha", "Auth",
+                    new { token = jogador.TokenRecuperacao }, Request.Scheme);
+
+                try
+                {
+                    await _email.EnviarAsync(jogador.Email!, jogador.Nome, "Recuperar senha - Padelizou",
+                        $@"<p>Olá {jogador.ComoChamar},</p>
+                           <p>Clique no link abaixo pra criar uma senha nova. Ele vale por 1 hora:</p>
+                           <p><a href=""{link}"">Criar nova senha</a></p>
+                           <p>Se não foi você que pediu, ignore este e-mail — sua senha continua a mesma.</p>");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Falha ao enviar e-mail de recuperação de senha.");
+                }
+            }
+
+            // Mesma resposta com ou sem conta: dizer "esse e-mail não existe" entregaria de
+            // graça quem está cadastrado no site.
+            ViewBag.Enviado = true;
+            return View();
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> RedefinirSenha(string? token)
+        {
+            var jogador = await AcharPorTokenAsync(token);
+            if (jogador == null)
+            {
+                ViewBag.Erro = "Esse link expirou ou já foi usado. Peça um novo.";
+                return View("EsqueciSenha");
+            }
+
+            ViewBag.Token = token;
+            return View();
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RedefinirSenha(string? token, string? senha)
+        {
+            var jogador = await AcharPorTokenAsync(token);
+            if (jogador == null)
+            {
+                ViewBag.Erro = "Esse link expirou ou já foi usado. Peça um novo.";
+                return View("EsqueciSenha");
+            }
+
+            var problema = RecuperacaoSenha.ProblemaComASenha(senha);
+            if (problema != null)
+            {
+                ViewBag.Erro = problema;
+                ViewBag.Token = token;
+                return View();
+            }
+
+            jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha!);
+            RecuperacaoSenha.Consumir(jogador);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Senha alterada! Entre com a senha nova.";
+            return RedirectToAction("Login");
+        }
+
+        private async Task<Jogador?> AcharPorTokenAsync(string? token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.TokenRecuperacao == token);
+            return jogador != null && RecuperacaoSenha.TokenValido(jogador, token, DateTime.Now) ? jogador : null;
+        }
+
         [HttpPost]
         public async Task<IActionResult> Login(string email, string senha)
         {
@@ -406,7 +497,23 @@ namespace padelizou.Controllers
 
             if (jogador != null)
             {
-                // Se já existe, atualizamos os dados de acesso e a flag de Professor
+                // O CPF já existe. Duas situações MUITO diferentes:
+                //
+                // (a) jogador criado por um organizador ao inscrever a dupla, que nunca teve
+                //     senha — está reivindicando a própria conta, e isso é legítimo;
+                // (b) conta com senha, de alguém que já usa o site.
+                //
+                // No caso (b), deixar o cadastro sobrescrever a senha era uma tomada de conta:
+                // CPF não é segredo no Brasil, e quem soubesse o seu entrava como você, trocava
+                // o e-mail e pronto. Agora esse caminho manda pra recuperação de senha.
+                if (!string.IsNullOrEmpty(jogador.SenhaHash))
+                {
+                    ViewBag.Erro = "Já existe uma conta com esse CPF. Entre com sua senha, ou use "
+                                 + "\"Esqueci minha senha\" se não lembrar dela.";
+                    await PopularCatalogosAsync();
+                    return View();
+                }
+
                 jogador.Email = email;
                 jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha);
                 jogador.IsProfessor = isProfessor; // <- Salva se ele marcou a caixinha

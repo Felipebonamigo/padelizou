@@ -18,6 +18,12 @@ public partial class Jogador
 
     public string Cpf { get; set; } = null!;
 
+    // Recuperação de senha: token de uso único, com validade curta. Guardado em claro
+    // porque só vale por uma hora e não abre nada sozinho — quem o tem ainda precisa
+    // definir uma senha nova, e o token morre no ato.
+    public string? TokenRecuperacao { get; set; }
+    public DateTime? TokenRecuperacaoExpiraEm { get; set; }
+
     // ---- Exibição ----
     // Duas formas, porque o contexto mudou o que é útil:
 
