@@ -87,9 +87,21 @@
     }
     else
     {
+        @* Antes esta tela dizia só "nenhuma partida marcada como Em Andamento" — status que
+           nem existe na interface (o nome lá é "Ao Vivo") e sem dizer ONDE marcar. No dia do
+           torneio o organizador abria a Mesa, via a tela vazia e ficava sem saber o caminho. *@
         <div class="alert alert-secondary text-center py-5">
             <i class="bi bi-info-circle display-4 d-block mb-3"></i>
-            Nenhuma partida marcada como "Em Andamento" neste torneio.
+            <p class="fw-bold mb-2">Nenhum jogo está Ao Vivo ainda.</p>
+            <p class="mb-3">
+                A Mesa mostra só os jogos em andamento. Para colocar um jogo no ar, abra
+                <strong>Jogos</strong>, escolha a partida e mude o status para
+                <strong>🔴 Ao Vivo</strong> — o cronômetro começa e ela aparece aqui.
+            </p>
+            <a asp-controller="Torneios" asp-action="Jogos" asp-route-id="@ViewBag.TorneioId"
+               class="btn btn-padel rounded-pill px-4">
+                <i class="bi bi-list-ul"></i> Ver os jogos do torneio
+            </a>
         </div>
     }
 </div>
