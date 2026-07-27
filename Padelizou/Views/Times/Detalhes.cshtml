@@ -40,6 +40,104 @@
         </div>
     </div>
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Administradores -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                <i class="bi bi-shield-check"></i> Quem administra
+            </h5>
+            <p class="small text-muted mb-3">
+                Um time pode ter mais de um administrador, e todos têm o mesmo poder.
+                Quem administra pode incluir outro.
+            </p>
+
+            @if (!Model.Administradores.Any())
+            {
+                <p class="small text-muted mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Este time ainda não tem administrador.
+                    @if (Model.SouAdminDoSistema)
+                    {
+                        <text>Escolha abaixo quem vai comandar.</text>
+                    }
+                    else
+                    {
+                        <text>Só um administrador do Padelizou pode designar o primeiro.</text>
+                    }
+                </p>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush mb-0">
+                    @foreach (var a in Model.Administradores)
+                    {
+                        <li class="list-group-item bg-transparent px-0 d-flex align-items-center gap-2 flex-wrap">
+                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@a.Jogador.Id"
+                               class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
+                                @a.Jogador.Nome
+                            </a>
+                            @if (!string.IsNullOrWhiteSpace(a.ConcedidoPor))
+                            {
+                                <small class="text-muted">incluído por @a.ConcedidoPor</small>
+                            }
+                            @if (Model.PossoGerenciar)
+                            {
+                                <form asp-action="RemoverAdministrador" method="post" class="ms-auto"
+                                      onsubmit="return confirm('Tirar @a.Jogador.Nome da administração do time? Ele continua no time.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="timeId" value="@Model.Time.Id" />
+                                    <input type="hidden" name="jogadorId" value="@a.Jogador.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                        <i class="bi bi-x-lg"></i> remover
+                                    </button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (Model.PossoGerenciar)
+            {
+                <form asp-action="IncluirAdministrador" method="post" class="mt-3 d-flex gap-2 flex-wrap align-items-end">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="timeId" value="@Model.Time.Id" />
+                    <div class="flex-grow-1" style="min-width: 220px;">
+                        <label class="form-label small fw-semibold mb-1">Incluir administrador</label>
+                        <select name="jogadorId" class="form-select" required>
+                            <option value="">Escolha o jogador...</option>
+                            @foreach (var j in (List<Padelizou.Models.Jogador>)ViewBag.JogadoresParaAdmin)
+                            {
+                                <option value="@j.Id">@j.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success rounded-pill">
+                        <i class="bi bi-plus-lg"></i> Incluir
+                    </button>
+                </form>
+                <p class="small text-muted mt-2 mb-0">
+                    Quem passa a administrar entra automaticamente no time.
+                </p>
+            }
+        </div>
+    </div>
+
     <!-- Membros -->
     <h5 class="fw-bold mb-3" style="color: var(--pdz-ink);">Quem veste a camisa</h5>
 
@@ -69,10 +167,10 @@
                     <div class="flex-grow-1 overflow-hidden">
                         <strong class="d-block text-truncate" style="color: var(--pdz-ink);">
                             @m.Jogador.Nome
-                            @if (m.EhDono)
+                            @if (m.EhAdministrador)
                             {
                                 <span class="badge rounded-pill ms-1" style="background:#fff6df;color:#8a6d00;">
-                                    <i class="bi bi-star-fill"></i> dono
+                                    <i class="bi bi-shield-fill"></i> administra
                                 </span>
                             }
                         </strong>

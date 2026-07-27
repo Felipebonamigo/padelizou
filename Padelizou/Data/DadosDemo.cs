@@ -48,9 +48,10 @@ public static class DadosDemo
         db.Jogadores.AddRange(rafael, diego, bruno, lucas, fernanda, camila, juliana, marina);
         db.SaveChanges();
 
-        // Donos dos times
-        nata.DonoId = rafael.Id;
-        feras.DonoId = fernanda.Id;
+        // Administradores dos times (um time pode ter vários; no seed basta um cada).
+        db.TimeAdministradores.AddRange(
+            new TimeAdministrador { TimeId = nata.Id, JogadorId = rafael.Id, ConcedidoPorId = rafael.Id, ConcedidoEm = DateTime.Now },
+            new TimeAdministrador { TimeId = feras.Id, JogadorId = fernanda.Id, ConcedidoPorId = fernanda.Id, ConcedidoEm = DateTime.Now });
         db.SaveChanges();
 
         // Cria um torneio com uma categoria Open Masculino e 4 duplas com a fase alcançada.

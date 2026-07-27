@@ -1,0 +1,62 @@
+using Microsoft.EntityFrameworkCore;
+using Padelizou.Models;
+
+namespace Padelizou.Services;
+
+// Quem pode mexer num time, e quem pode dar esse poder a outra pessoa.
+//
+// A regra do Felipe, em uma frase: um time pode ter VÁRIOS administradores; quem coloca o
+// primeiro é um admin do sistema, e a partir daí um administrador do time coloca o próximo.
+//
+// Fica num serviço, e não espalhado nos controllers, porque é regra de autorização: a
+// varredura de 26/07 achou dois buracos que existiam justamente por a checagem estar
+// copiada de um lado e esquecida do outro.
+public static class AdministracaoTime
+{
+    // Pode editar o time (nome, logo, clube) e mexer na lista de administradores?
+    public static bool PodeGerenciar(bool ehAdminDoSistema, bool ehAdminDoTime) =>
+        ehAdminDoSistema || ehAdminDoTime;
+
+    // Motivo pra recusar a concessão, ou null se pode conceder.
+    // Devolve texto porque quem chama mostra direto na tela — e um "não pode" sem motivo
+    // é o tipo de tela sem saída que a Mesa de Controle já foi.
+    public static string? ProblemaParaConceder(
+        bool quemPedeEhAdminDoSistema, bool quemPedeEhAdminDoTime, bool alvoJaEAdmin)
+    {
+        if (!PodeGerenciar(quemPedeEhAdminDoSistema, quemPedeEhAdminDoTime))
+            return "Só um administrador deste time (ou um administrador do Padelizou) pode incluir outro.";
+
+        if (alvoJaEAdmin)
+            return "Essa pessoa já administra o time.";
+
+        return null;
+    }
+
+    // Motivo pra recusar a remoção, ou null se pode remover.
+    public static string? ProblemaParaRemover(
+        bool quemPedeEhAdminDoSistema, bool quemPedeEhAdminDoTime, bool alvoEAdmin, int quantosAdministradores)
+    {
+        if (!PodeGerenciar(quemPedeEhAdminDoSistema, quemPedeEhAdminDoTime))
+            return "Só um administrador deste time (ou um administrador do Padelizou) pode remover outro.";
+
+        if (!alvoEAdmin)
+            return "Essa pessoa não administra o time.";
+
+        // Deixar o time sem ninguém devolveria ele pro estado dos 44 importados: só um admin
+        // do sistema conseguiria mexer de novo. Quem quer sair chama o outro administrador
+        // primeiro — e um admin do sistema sempre consegue destravar.
+        if (quantosAdministradores <= 1 && !quemPedeEhAdminDoSistema)
+            return "Este é o único administrador do time. Inclua outro antes de remover este.";
+
+        return null;
+    }
+
+    public static Task<bool> EhAdministradorAsync(DbPadelContext context, int timeId, int jogadorId) =>
+        context.Set<TimeAdministrador>().AnyAsync(a => a.TimeId == timeId && a.JogadorId == jogadorId);
+
+    public static Task<List<int>> TimesQueAdministraAsync(DbPadelContext context, int jogadorId) =>
+        context.Set<TimeAdministrador>()
+            .Where(a => a.JogadorId == jogadorId)
+            .Select(a => a.TimeId)
+            .ToListAsync();
+}

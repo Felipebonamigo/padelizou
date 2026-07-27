@@ -31,6 +31,7 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
+    public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
@@ -80,6 +81,28 @@ public partial class DbPadelContext : DbContext
     .HasForeignKey(j => j.TimeId)
     .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Jogador>().ToTable("Jogador");
+
+        modelBuilder.Entity<TimeAdministrador>(entity =>
+        {
+            // Chave composta: uma pessoa administra um time uma vez só. É a trava de
+            // duplicata no próprio banco, não só na tela.
+            entity.HasKey(e => new { e.TimeId, e.JogadorId });
+
+            // Cascade nos dois lados: sem o time, ou sem a pessoa, a linha não quer dizer
+            // mais nada. Não repete o problema que fez o DonoId nascer sem FK — aqui os
+            // caminhos partem de tabelas diferentes, e o PostgreSQL não tem a restrição de
+            // múltiplos caminhos de cascade que o SQL Server tinha.
+            entity.HasOne(e => e.Time)
+                .WithMany(t => t.Administradores)
+                .HasForeignKey(e => e.TimeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<GrupoPrivado>(entity =>
         {
             // Restrict: não pode excluir um Clube/CategoriaPadrao que ainda esteja em uso por um

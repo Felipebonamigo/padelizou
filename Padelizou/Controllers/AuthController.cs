@@ -310,14 +310,24 @@ namespace padelizou.Controllers
             return View(jogador);
         }
 
-        // Dados para a seção "Meu time" do editar perfil: times disponíveis (não-dono escolhe),
-        // clubes (sede opcional) e o time que este jogador é dono (se houver).
+        // Dados para a seção "Meu time" do editar perfil: times disponíveis (quem não
+        // administra nenhum escolhe da lista), clubes (sede opcional) e o time que este
+        // jogador administra (se houver).
         private async Task PopularDadosTimeAsync(int jogadorId)
         {
             ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
             ViewBag.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.MeuTimeDono = await _context.Times.FirstOrDefaultAsync(t => t.DonoId == jogadorId);
+            ViewBag.MeuTimeDono = await MeuTimeAsync(jogadorId);
         }
+
+        // O time que este jogador administra. Um time pode ter vários administradores, mas
+        // esta tela cuida de "o meu" — quem administra mais de um usa a página do time.
+        private async Task<Time?> MeuTimeAsync(int jogadorId) =>
+            await _context.TimeAdministradores
+                .Where(a => a.JogadorId == jogadorId)
+                .OrderBy(a => a.ConcedidoEm)
+                .Select(a => a.Time)
+                .FirstOrDefaultAsync();
 
         // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo.
         private async Task<string> SalvarLogoTimeAsync(IFormFile arquivo)
@@ -367,7 +377,7 @@ namespace padelizou.Controllers
             }
 
             // Se marcou "sou dono", precisa do nome do time (ao menos na primeira vez).
-            var meuTime = await _context.Times.FirstOrDefaultAsync(t => t.DonoId == jogadorId);
+            var meuTime = await MeuTimeAsync(jogadorId);
             if (ehDonoTime && meuTime == null && string.IsNullOrWhiteSpace(nomeTime))
             {
                 ViewBag.Erro = "Informe o nome do time (você marcou que é dono de um time).";
@@ -391,9 +401,10 @@ namespace padelizou.Controllers
             // --- Meu time ---
             if (ehDonoTime)
             {
+                bool acabouDeCriar = meuTime == null;
                 if (meuTime == null)
                 {
-                    meuTime = new Time { Nome = nomeTime!.Trim(), DonoId = jogadorId };
+                    meuTime = new Time { Nome = nomeTime!.Trim() };
                     _context.Times.Add(meuTime);
                 }
                 else if (!string.IsNullOrWhiteSpace(nomeTime))
@@ -406,7 +417,22 @@ namespace padelizou.Controllers
                     meuTime.Logo = await SalvarLogoTimeAsync(logoTime);
                 }
                 await _context.SaveChangesAsync(); // garante o Id do time recém-criado
-                jogador.TimeId = meuTime.Id;       // o dono também faz parte do próprio time
+
+                // Quem cria o time é o primeiro administrador dele. Só vale pra time NOVO:
+                // os 44 importados do ranking já existem, e entrar num deles pelo nome não
+                // dá cargo nenhum — quem manda lá é designado por um admin do Padelizou.
+                if (acabouDeCriar)
+                {
+                    _context.TimeAdministradores.Add(new TimeAdministrador
+                    {
+                        TimeId = meuTime.Id,
+                        JogadorId = jogadorId,
+                        ConcedidoPorId = jogadorId,   // criou, logo se concedeu
+                        ConcedidoEm = DateTime.Now,
+                    });
+                }
+
+                jogador.TimeId = meuTime.Id;       // quem administra também veste a camisa
             }
             else
             {
@@ -662,7 +688,7 @@ namespace padelizou.Controllers
 
             if (!string.IsNullOrWhiteSpace(nomeTime))
             {
-                var jaTenhoUm = await _context.Times.AnyAsync(t => t.DonoId == jogador.Id);
+                var jaTenhoUm = await _context.TimeAdministradores.AnyAsync(a => a.JogadorId == jogador.Id);
                 if (jaTenhoUm) return;
 
                 var alvo = nomeTime.ToLower();
@@ -670,6 +696,8 @@ namespace padelizou.Controllers
                 if (existente != null)
                 {
                     // Alguém já criou um time com esse nome: entra nele em vez de duplicar.
+                    // Sem cargo nenhum — é isto que impede que digitar "SINDAQUA" no cadastro
+                    // dê a alguém o comando de um dos times importados do ranking.
                     jogador.TimeId = existente.Id;
                 }
                 else
@@ -677,9 +705,18 @@ namespace padelizou.Controllers
                     if (nomeTime.Length > CatalogoLocais.TamanhoMaximoNome)
                         nomeTime = nomeTime[..CatalogoLocais.TamanhoMaximoNome];
 
-                    var time = new Time { Nome = nomeTime, DonoId = jogador.Id };
+                    var time = new Time { Nome = nomeTime };
                     _context.Times.Add(time);
                     await _context.SaveChangesAsync();
+
+                    // Criou um time novo: é o primeiro administrador dele.
+                    _context.TimeAdministradores.Add(new TimeAdministrador
+                    {
+                        TimeId = time.Id,
+                        JogadorId = jogador.Id,
+                        ConcedidoPorId = jogador.Id,
+                        ConcedidoEm = DateTime.Now,
+                    });
                     jogador.TimeId = time.Id;
                 }
             }

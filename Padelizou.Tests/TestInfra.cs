@@ -50,6 +50,23 @@ public static class TestInfra
         return controller;
     }
 
+    public static TimesController NovoTimesController(DbPadelContext ctx, int usuarioLogadoId)
+    {
+        var controller = new TimesController(ctx, new EstatisticasService(ctx));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        return controller;
+    }
+
     // TorneiosController pronto pra uso nos testes: serviços de borda (e-mail, push,
     // pagamentos...) viram dublês; estatísticas usa o banco de verdade (em memória).
     public static TorneiosController NovoTorneiosController(DbPadelContext ctx, int usuarioLogadoId)
