@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **26/07/2026** — primeiros testadores reais no dev; cadastro consertado (build-43 em dev, build-42 em prod).
+> Última atualização: **27/07/2026** — saiu do modo demonstração: primeiro pagamento real recebido, produção limpa, e o torneio agora se explica sozinho (build-54).
 
 ---
 
@@ -10,11 +10,11 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **169 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **260 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
-**Falta o principal:** ainda roda em *modo demonstração* — cobrança em sandbox e dados fictícios em produção.
-Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único bloqueio que separa o sistema de virar negócio.**
+**Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
+**Falta agora:** o primeiro torneio de verdade rodar de ponta a ponta, e a conta bancária do Asaas sair de `PENDING` (trava Pix e saque).
 
 ---
 
@@ -63,6 +63,20 @@ Nenhum torneio real passou pelo sistema com dinheiro de verdade. **É o único b
 - ⏳ **Limpeza da produção: pronta, não executada.** Script em `/opt/padelizou-deploy/limpar-demo-prod.sh` (faz backup antes). Apaga 144 jogadores fictícios e os 14 torneios de demo, preserva a conta do Felipe e os catálogos.
 - **Raquete Livre era outra coisa** (26/07, build-37): estava modelado como evento com hora de início **e fim obrigatórios**, e descrito no material comercial como "entrar de substituto". É rodízio: hora de começar, valor fixo por pessoa, sem dupla marcada, número inexato de gente e **muitas vezes sem hora pra acabar**. `DataHoraFim` virou anulável e as regras de exibição saíram pra `Services/SessaoRaqueteLivre` (sessão sem fim fica em cartaz por 6h após começar). **169 testes.**
 
+### 27/07/2026 — Dinheiro de verdade, e o torneio que se explica sozinho
+
+- **🎉 SAIU DO MODO DEMONSTRAÇÃO.** Asaas de produção configurado (chave + webhook), **primeiro pagamento real recebido** (R$ 9,00 no cartão) e a corrente inteira verificada nos logs: cobrança → webhook → inscrição confirmada → split. Produção limpa dos 144 jogadores fictícios (com backup antes).
+  ⚠️ **Pendente do Felipe:** conta bancária no Asaas está `bankAccountInfo: PENDING` — trava Pix e saque. E vale gerar chave e token novos agora que a configuração estabilizou.
+- **Como o organizador recebe** (build-46+): três formas na criação do torneio — **só Pix (10%)**, **todas as formas (15%)** ou **por fora (5%, ele cobra e paga a comissão depois)**. O preço é **por pessoa, sempre**. A conta aparece ao vivo enquanto ele digita: quanto o jogador paga, quanto é taxa do Padelizou, quanto sobra. Modal explica prazos (cartão só cai em 32 dias) sem nunca nomear o gateway — pro organizador é só "meio de pagamento", e a única taxa que existe é a do Padelizou.
+- **Status Pago por inscrição**: quem paga fica **Pago** na hora; o organizador escolhe se o pagamento é obrigatório na inscrição, define prazo, decide se quem não paga perde a vaga, e pode marcar pago/não pago a qualquer momento. Taxa opcional por **impedimento** (o organizador define se cobra e quanto).
+- **Recuperação de senha, e fim da tomada de conta por CPF** (build-53): não existia "esqueci minha senha", e quem esquecia se cadastrava de novo com o mesmo CPF — o cadastro **sobrescrevia a senha**. CPF não é segredo no Brasil: qualquer um que soubesse o do Felipe assumia a conta de admin. Agora tem link por e-mail (token de 32 bytes, 1 hora, uso único, resposta idêntica exista ou não a conta), e o cadastro só deixa reivindicar CPF que **nunca teve senha**.
+- **Grade de jogos** (build-52): o agendamento somava um jogo por vez a partir do início — ignorava as quadras, ignorava o expediente e reiniciava a cada categoria (jogo marcado às 3h40 da manhã). Virou `Services/GradeDeJogos`: N quadras em paralelo, para no fim do expediente e retoma no dia seguinte no horário de abertura, uma grade única pro torneio inteiro.
+- **Todo jogo do torneio nasce com horário** (build-54): os jogos de **mata-mata** são criados pelos robôs depois da fase de grupos e nasciam **sem hora nenhuma** — "a definir" justo na fase que mais importa. Agora emendam no último jogo já marcado, com as mesmas quadras e expediente, e viram o dia no horário de **abertura**. O **Americano** tinha o defeito antigo (fila indiana) e passou pela mesma grade. A tela de criar torneio agora **mostra a que horas começa o último jogo do dia**, calculado com a mesma conta da grade.
+- **Inscrição: o CPF manda nos campos**: nome, celular, cidade e UF nascem travados; CPF cadastrado traz os dados do perfil e mantém travado, CPF novo limpa e destrava avisando que é pré-cadastro. Travado é `readonly`, não `disabled` — `disabled` não vai no POST.
+- **Canal de opinião com nota 0–10**: link no rodapé de toda página, só pra quem está logado. Nasce **invisível**; nada aparece em tela até um admin ler e publicar, um a um (`/Admin/Feedbacks`). As notas são lidas como **NPS**, não média. Publicado, vai só o primeiro nome.
+- **Bug de produção corrigido na hora**: a página do torneio dava 500 quando alguém se inscrevia **sem parceiro** — `_JogadorChip` recebia `null`. Apareceu com a primeira inscrição real.
+- **260 testes.**
+
 ---
 
 ## 🎯 O que realmente falta (auditado em 26/07)
@@ -88,9 +102,11 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] **Backup também dos uploads** (fotos, logos, capas) ✅ 25/07
 - [x] **Ambiente local**: PostgreSQL 17 na máquina, `db_padel_local`, app em `localhost:5199` ✅ 26/07 — ver [AMBIENTE-LOCAL.md](AMBIENTE-LOCAL.md). Nunca rodava porque o `appsettings.json` ainda apontava pro SQL Server de antes da migração.
 
-### Fase 2 — Sair do modo demonstração `~1 semana` ⭐ *maior impacto*
-- [ ] **Asaas para produção** (trocar chave + URL, sem mexer no código) `1h` ← *precisa do Felipe*
-- [ ] **Limpar dados fictícios**: desligar seed de demo no startup + remover torneios `TEST*` e jogadores CPF `999*` `2h` ← *combinar o momento*
+### Fase 2 — Sair do modo demonstração ✅ *feita 27/07*
+- [x] **Asaas para produção** (chave + webhook) ✅ 27/07 — **primeiro pagamento real recebido**, corrente verificada nos logs
+- [x] **Limpar dados fictícios** ✅ 27/07 — 144 jogadores e os torneios de demo apagados de produção, com backup antes
+- [ ] ⏳ **Conta bancária no Asaas** (`bankAccountInfo: PENDING`) — trava Pix e saque ← *precisa do Felipe*
+- [ ] ⏳ **Gerar chave e token novos** do Asaas, agora que a configuração estabilizou ← *precisa do Felipe*
 - [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
 - [x] **Métricas de uso** no admin (`/Admin/Metricas`): cadastros, inscrições, pagamentos, série semanal e medidor do MEI ✅ 25/07
 - [x] **Lembrete automático de cobrança** (push + e-mail a 6h do vencimento, 1x só) ✅ 25/07
