@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
@@ -28,6 +29,23 @@ var builder = WebApplication.CreateBuilder(args);
 // Banco PostgreSQL (self-hosted no VPS). Migrado do Azure SQL para não depender de cota grátis.
 builder.Services.AddDbContext<DbPadelContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Chaves de proteção de dados em disco. Sem isso o ASP.NET Core gera um chaveiro NOVO a cada
+// start, e todo cookie de autenticação emitido antes vira lixo: cada deploy — e cada restart
+// do vigia de uptime — desloga TODO MUNDO. No meio de um torneio isso derruba o organizador
+// da Mesa de Controle com os jogadores esperando na quadra.
+//
+// O caminho vem de configuração porque prod e dev têm pastas próprias; sem ele (máquina de
+// desenvolvimento) segue o comportamento padrão do framework.
+var pastaDeChaves = builder.Configuration["DataProtection:CaminhoDasChaves"];
+if (!string.IsNullOrWhiteSpace(pastaDeChaves))
+{
+    Directory.CreateDirectory(pastaDeChaves);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(pastaDeChaves))
+        // Prod e dev compartilham o binário: nomes iguais fariam um decifrar o cookie do outro.
+        .SetApplicationName($"Padelizou-{builder.Environment.EnvironmentName}");
+}
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<GoogleCalendarSettings>(builder.Configuration.GetSection("GoogleCalendar"));
