@@ -116,33 +116,49 @@
                                 (mínimo @asaas.ComissaoMinima.ToString("C")) e repassa o resto pra você.
                             </div>
 
-                            @* A escolha da forma é do JOGADOR, não do organizador — então ele
-                               precisa ver o pior caso, não só o melhor. A coluna "sobra" é
-                               calculada ao vivo com o preço que ele digitou. *@
-                            <div class="table-responsive mt-2">
+                            @* A conta que interessa ao organizador, na ordem em que o dinheiro
+                               anda. O custo do meio de pagamento não aparece aqui de propósito:
+                               ele sai da conta do Padelizou (split por valor fixo), então o
+                               organizador recebe exatamente este valor. Quem processa o
+                               pagamento é problema nosso, não dele. *@
+                            <div class="border rounded p-2 mt-2 mb-2" style="background: var(--pdz-surface);">
+                                <table class="table table-sm small mb-0 align-middle">
+                                    <tbody>
+                                        <tr>
+                                            <td>O jogador paga</td>
+                                            <td class="text-end fw-bold" id="pdzJogadorPaga">—</td>
+                                        </tr>
+                                        <tr class="text-danger">
+                                            <td id="pdzComissaoRotulo">− Taxa do Padelizou (@comissaoOnline.ToString("0.#")%, mín. @asaas.ComissaoMinima.ToString("C"))</td>
+                                            <td class="text-end fw-bold" id="pdzComissaoValor">—</td>
+                                        </tr>
+                                        <tr class="border-top">
+                                            <td class="fw-bold" id="pdzRecebeRotulo">= Você recebe, por dupla</td>
+                                            <td class="text-end fw-bold fs-6 text-success" id="pdzVoceRecebe">—</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            @* Quem escolhe a forma é o JOGADOR. Pro organizador isso não muda o
+                               valor — muda só QUANDO o dinheiro chega, e é aí que mora o perigo. *@
+                            <div class="small fw-bold text-muted mt-3 mb-1">
+                                O valor é o mesmo em qualquer forma. O que muda é <u>quando</u> você recebe:
+                            </div>
+                            <div class="table-responsive">
                                 <table class="table table-sm small mb-1 align-middle">
                                     <thead>
                                         <tr>
                                             <th>Se o jogador pagar com…</th>
-                                            <th class="text-end">Taxa do Asaas</th>
-                                            <th class="text-end">Sobra pra você</th>
+                                            <th class="text-end">Você recebe</th>
                                             <th class="text-end">Cai em</th>
                                         </tr>
                                     </thead>
                                     <tbody id="pdzTabelaTaxas">
                                         @foreach (var forma in taxas.Todas)
                                         {
-                                            <tr class="@(forma.Demora ? "table-warning" : "")"
-                                                data-pct="@forma.Percentual.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                                data-fixo="@forma.ValorFixo.ToString(System.Globalization.CultureInfo.InvariantCulture)">
-                                                <td>
-                                                    @forma.Nome
-                                                    @if (forma.Observacao != null)
-                                                    {
-                                                        <span class="text-success d-block" style="font-size:.72rem;">@forma.Observacao</span>
-                                                    }
-                                                </td>
-                                                <td class="text-end">@forma.TaxaEscrita</td>
+                                            <tr class="@(forma.Demora ? "table-warning" : "")">
+                                                <td>@forma.Nome</td>
                                                 <td class="text-end fw-bold js-sobra">—</td>
                                                 <td class="text-end @(forma.Demora ? "fw-bold" : "")">@forma.PrazoEscrito</td>
                                             </tr>
@@ -154,20 +170,16 @@
                             <div class="small text-danger mb-1">
                                 <i class="bi bi-exclamation-triangle-fill"></i>
                                 <strong>Cartão de crédito só cai em @taxas.CreditoAVista.PrazoEscrito</strong>, à vista
-                                ou parcelado — e quanto mais parcelas, maior a taxa. Se a quadra, a bola e a premiação
-                                vencem antes disso, o caixa sai do seu bolso.
+                                ou parcelado. Se a quadra, a bola e a premiação vencem antes disso, o caixa sai do
+                                seu bolso.
                             </div>
                             <div class="small text-success">
                                 <i class="bi bi-check-circle-fill"></i>
-                                <strong>Pix é o melhor dos dois lados:</strong> cai na hora e
-                                @taxas.Pix.Observacao — num torneio de 32 duplas pagando por Pix, a taxa é zero.
+                                <strong>Pix cai na hora</strong> — se o seu caixa depende das inscrições
+                                pra pagar a quadra, é ele que você quer incentivar.
                             </div>
-                            @if (taxas.DescontoValidoAte.HasValue)
-                            {
-                                <div class="text-muted mt-1" style="font-size:.72rem;">
-                                    Taxas promocionais, válidas até @taxas.DescontoValidoAte.Value.ToString("dd/MM/yyyy"). Depois sobem.
-                                </div>
-                            }
+                            @* O prazo promocional das taxas do meio de pagamento é custo nosso,
+                               não dele — mostrar aqui só sugeriria que o repasse pode mudar. *@
 
                             <div class="mt-3">
                                 <span class="small fw-bold text-muted d-block mb-1">Quem paga a comissão?</span>
@@ -196,8 +208,8 @@
                             <span class="fw-bold">Por fora</span> — você combina Pix ou dinheiro direto com o jogador
                             <div class="small text-muted mt-1">
                                 O Padelizou <strong>não toca no dinheiro</strong>: cuida só da organização — chaves,
-                                jogos, placar ao vivo e ranking. Você recebe na hora, sem taxa de gateway e sem
-                                esperar repasse. Depois, paga ao Padelizou <strong>@taxas.ComissaoPercentualExterno.ToString("0.#")%</strong>
+                                jogos, placar ao vivo e ranking. Você recebe na hora, sem esperar repasse.
+                                Depois, paga ao Padelizou <strong>@taxas.ComissaoPercentualExterno.ToString("0.#")%</strong>
                                 do que foi inscrito.
                             </div>
                             <div class="small text-muted mt-1">
@@ -496,17 +508,30 @@
         return 'R$ ' + v.toFixed(2).replace('.', ',');
     }
 
-    // Preenche a coluna "sobra pra você" com o preço que o organizador acabou de digitar.
-    // O que ele recebe é o valor que CHEGA no Asaas menos a taxa da forma escolhida pelo
-    // jogador — e quem escolhe a forma é o jogador, não ele.
-    function pdzAtualizarTabela(valorQueChega) {
+    // O organizador recebe SEMPRE o mesmo valor, em qualquer forma de pagamento: o custo do
+    // meio de pagamento sai da conta do Padelizou, não da dele. Por isso a coluna repete o
+    // valor — a diferença entre as linhas está só no prazo.
+    function pdzAtualizarTabela(recebe) {
         document.querySelectorAll('#pdzTabelaTaxas tr').forEach(function (tr) {
             var celula = tr.querySelector('.js-sobra');
-            if (!celula) return;
-            if (!(valorQueChega > 0)) { celula.textContent = '—'; return; }
-            var custo = valorQueChega * parseFloat(tr.dataset.pct) / 100 + parseFloat(tr.dataset.fixo);
-            celula.textContent = pdzMoeda(valorQueChega - custo);
+            if (celula) celula.textContent = recebe > 0 ? pdzMoeda(recebe) : '—';
         });
+    }
+
+    function pdzAtualizarConta(paga, comissao, recebe, externo) {
+        var def = function (id, txt) {
+            var e = document.getElementById(id);
+            if (e) e.textContent = txt;
+        };
+        def('pdzJogadorPaga', paga > 0 ? (externo ? pdzMoeda(paga) + ' direto pra você' : pdzMoeda(paga)) : '—');
+        def('pdzComissaoValor', comissao > 0 ? '− ' + pdzMoeda(comissao) : '—');
+        def('pdzVoceRecebe', recebe > 0 ? pdzMoeda(recebe) : '—');
+
+        // Por fora ele recebe tudo na hora e paga a taxa depois — "você recebe" mentiria.
+        def('pdzComissaoRotulo', externo
+            ? '− Taxa do Padelizou (' + pdzComissaoExternoPct + '%, você paga depois)'
+            : '− Taxa do Padelizou (' + pdzComissaoPct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
+        def('pdzRecebeRotulo', externo ? '= Fica com você, por dupla' : '= Você recebe, por dupla');
     }
 
     function pdzAtualizarSimulacao() {
@@ -519,12 +544,14 @@
         if (preco <= 0) {
             caixa.innerHTML = 'Informe o preço da inscrição pra ver a simulação.';
             pdzAtualizarTabela(0);
+            pdzAtualizarConta(0, 0, 0, false);
             return;
         }
 
         if (externo) {
             var devido = preco * pdzComissaoExternoPct / 100;
             pdzAtualizarTabela(0);
+            pdzAtualizarConta(preco, devido, preco - devido, true);
             caixa.innerHTML =
                 '<strong>Por fora:</strong> o jogador te paga ' + pdzMoeda(preco) +
                 ' direto, sem taxa nenhuma e na hora. Por dupla inscrita, você deve ' +
@@ -537,25 +564,17 @@
         var comissao = Math.max(preco * pdzComissaoPct / 100, pdzComissaoMin);
         var somada = (document.getElementById('comissaoSomada') || {}).checked;
         var pagaJogador = somada ? preco + comissao : preco;
-        var chegaNoAsaas = somada ? preco : preco - comissao;
+        var recebeVoce = somada ? preco : preco - comissao;
 
-        pdzAtualizarTabela(chegaNoAsaas);
-
-        // Melhor e pior caso saem da própria tabela, pra resumo e tabela nunca discordarem.
-        var linhas = document.querySelectorAll('#pdzTabelaTaxas tr');
-        var melhor = linhas[0], pior = linhas[linhas.length - 1];
+        pdzAtualizarTabela(recebeVoce);
+        pdzAtualizarConta(pagaJogador, comissao, recebeVoce, false);
 
         caixa.innerHTML =
-            '<strong>Pelo site:</strong> o jogador paga <strong>' + pdzMoeda(pagaJogador) +
-            '</strong> por dupla. Depois da comissão do Padelizou sobram ' + pdzMoeda(chegaNoAsaas) +
-            ', e a taxa do Asaas sai daí.<br>' +
-            '<span class="text-muted">Quem escolhe a forma é o jogador. ' +
-            'Melhor caso (' + melhor.querySelectorAll('td')[0].childNodes[0].textContent.trim() + '): ' +
-            melhor.querySelector('.js-sobra').textContent + ' ' +
-            melhor.querySelectorAll('td')[3].textContent.trim() + '. ' +
-            'Pior caso (' + pior.querySelectorAll('td')[0].childNodes[0].textContent.trim() + '): ' +
-            pior.querySelector('.js-sobra').textContent + ' em ' +
-            pior.querySelectorAll('td')[3].textContent.trim() + '.</span>';
+            '<strong>Pelo site:</strong> você recebe <strong>' + pdzMoeda(recebeVoce) +
+            '</strong> por dupla, independente de como o jogador pagar.<br>' +
+            '<span class="text-muted">Em 16 duplas: ' + pdzMoeda(recebeVoce * 16) +
+            '. O risco não é no valor, é no prazo — se alguém pagar no crédito, esse dinheiro ' +
+            'só chega em 32 dias.</span>';
     }
 
     document.addEventListener('DOMContentLoaded', pdzAtualizarSimulacao);
