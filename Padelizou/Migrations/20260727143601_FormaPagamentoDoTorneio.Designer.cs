@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260727143601_FormaPagamentoDoTorneio")]
+    partial class FormaPagamentoDoTorneio
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -466,12 +469,6 @@ namespace Padelizou.Migrations
                     b.Property<int?>("Jogador2Id")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("Pago")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("PagoEm")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("UltimaFase")
                         .IsRequired()
                         .HasColumnType("text");
@@ -619,12 +616,6 @@ namespace Padelizou.Migrations
 
                     b.Property<int>("JogadorId")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("Pago")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("PagoEm")
-                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
@@ -1465,9 +1456,6 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("DataInicio")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<bool>("ExcluirSeNaoPagar")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("FormaPagamento")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1510,9 +1498,6 @@ namespace Padelizou.Migrations
                     b.Property<bool>("Oculto")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("PagamentoObrigatorioNaInscricao")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("PermiteImpedimentoSabadoManha")
                         .HasColumnType("boolean");
 
@@ -1527,9 +1512,6 @@ namespace Padelizou.Migrations
 
                     b.Property<bool>("PermiteMultiplasCategorias")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("PrazoPagamento")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<decimal>("PrecoInscricao")
                         .HasColumnType("numeric");

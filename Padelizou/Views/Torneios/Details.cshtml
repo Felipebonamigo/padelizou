@@ -15,14 +15,14 @@
         <i class="bi bi-cash text-success"></i>
         @{
             decimal? precoTotalTorneio = ViewBag.PrecoTotal;
-            decimal? taxaTorneio = ViewBag.TaxaServico;
         }
+        @* Só o valor final. Quem se inscreve não precisa fazer conta nem entender
+           comissão — ele quer saber quanto vai sair do bolso. A composição é assunto
+           do organizador, e aparece pra ele na tela de criar o torneio. *@
         @(precoTotalTorneio.HasValue ? precoTotalTorneio.Value.ToString("C") : Model.PrecoInscricao.ToString("C"))
-        @if (taxaTorneio > 0)
+        @if (!Model.CobraPeloSite && Model.PrecoInscricao > 0)
         {
-            <span class="small text-muted">
-                (@Model.PrecoInscricao.ToString("C") + @taxaTorneio.Value.ToString("C") de taxa)
-            </span>
+            <span class="small text-muted">— pagamento combinado com o organizador</span>
         }
     </p>
 </div>
@@ -711,10 +711,35 @@
                                             {
                                                 <span class="badge bg-info text-dark ms-2">Sem parceiro</span>
                                             }
+                                            @if (Model.PrecoInscricao > 0)
+                                            {
+                                                @if (dupla.Pago)
+                                                {
+                                                    <span class="badge bg-success ms-2" title="@(dupla.PagoEm?.ToString("dd/MM/yyyy HH:mm"))">
+                                                        <i class="bi bi-check-circle"></i> Pago
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger ms-2">Não pago</span>
+                                                }
+                                            }
                                         </span>
                                         @if (Model.Status == "Inscrições Abertas")
                                         {
-                                            <div class="d-flex gap-2">
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                @if (Model.PrecoInscricao > 0)
+                                                {
+                                                    @* A última palavra sobre quem pagou é do organizador: Pix direto,
+                                                       dinheiro na quadra — o site não tem como saber. *@
+                                                    <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
+                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                        <button type="submit" class="btn btn-sm @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
+                                                            <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
+                                                            @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
+                                                        </button>
+                                                    </form>
+                                                }
                                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                                         data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
                                                     <i class="bi bi-arrow-left-right"></i>

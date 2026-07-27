@@ -24,6 +24,36 @@ public partial class Torneio
     public bool PermiteImpedimentoSabadoManha { get; set; } = true;
     public bool PermiteImpedimentoSabadoTarde { get; set; } = true;
     public decimal PrecoInscricao { get; set; }
+
+    // Como o dinheiro da inscrição corre. Escolhido pelo organizador ao criar o torneio.
+    //
+    // "Online"  — o jogador paga pelo site. O Padelizou gera a cobrança, retém a comissão
+    //             na hora e repassa o resto. Custa mais caro e o cartão demora a cair.
+    // "Externo" — o Padelizou não toca no dinheiro: Pix, dinheiro, o que o organizador
+    //             combinar. Ele cuida só da organização, e o Padelizou cobra a comissão
+    //             do organizador depois, sobre o que foi inscrito.
+    public string FormaPagamento { get; set; } = "Online";
+
+    // Só vale com FormaPagamento = "Online". Quem paga a comissão:
+    // "Somada"     — o jogador paga inscrição + taxa, e o organizador recebe o valor cheio.
+    // "Descontada" — o jogador paga só a inscrição, e a comissão sai da fatia do organizador.
+    public string ModoComissao { get; set; } = "Somada";
+
+    [NotMapped]
+    public bool CobraPeloSite => FormaPagamento == "Online";
+
+    // Pagar é condição pra se inscrever, ou dá pra garantir a vaga e acertar depois?
+    // true (padrão) mantém o comportamento que já existia: sem pagar, sem inscrição.
+    public bool PagamentoObrigatorioNaInscricao { get; set; } = true;
+
+    // Data limite pra quitar quando o pagamento não é obrigatório na hora. Nulo = sem prazo.
+    public DateTime? PrazoPagamento { get; set; }
+
+    // O que acontece com quem não pagou até o prazo: sai do torneio ou só fica devendo.
+    // Padrão false — tirar alguém de um torneio é grave demais pra ser o comportamento
+    // implícito; o organizador liga isso conscientemente.
+    public bool ExcluirSeNaoPagar { get; set; }
+
     public string? LocalTorneio { get; set; }
     public string? ImagemCapa { get; set; }
     public int QuantidadeQuadras { get; set; }

@@ -436,7 +436,9 @@ namespace Padelizou.Controllers
                 // jogador vai pro checkout e ela nasce quando o webhook confirmar o pagamento
                 // (PagamentoInscricaoService.EfetivarAsync).
                 var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
-                if (_pagamentos.PodeCobrar(torneio, recebedor))
+                // Pagar na hora só é obrigatório se o organizador quis assim. Senão a inscrição
+            // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
+            if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
                 {
                     var dadosInscricao = new DadosInscricaoTorneio(
                         torneioId, categoriaId, jogador.Id, null, false, false, false);
@@ -539,6 +541,50 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
             TempData["Sucesso"] = "Dados do torneio atualizados!";
             return RedirectToAction("Details", new { id });
+        }
+
+        // A última palavra sobre quem pagou é sempre do organizador: muita inscrição é
+        // acertada em dinheiro na quadra ou por Pix direto, e o site não tem como saber.
+        // Vale nos dois sentidos — marcar e desmarcar.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarPagamentoDupla(int duplaId)
+        {
+            var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, jogadorId)) return Forbid();
+
+            dupla.Pago = !dupla.Pago;
+            dupla.PagoEm = dupla.Pago ? DateTime.Now : null;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = dupla.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarPagamentoAmericano(int inscricaoId)
+        {
+            var inscricao = await _context.InscricoesAmericanas
+                .Include(i => i.Categoria).FirstOrDefaultAsync(i => i.Id == inscricaoId);
+            if (inscricao == null) return NotFound();
+
+            int torneioId = inscricao.Categoria.TorneioId;
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(torneioId, jogadorId)) return Forbid();
+
+            inscricao.Pago = !inscricao.Pago;
+            inscricao.PagoEm = inscricao.Pago ? DateTime.Now : null;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = inscricao.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
+            return RedirectToAction("Details", new { id = torneioId });
         }
 
         // Aba "Gerenciar Torneio": remove um inscrito (só enquanto as inscrições estiverem abertas —
@@ -693,7 +739,9 @@ namespace Padelizou.Controllers
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será
             // cobrado no checkout, e não descobrir a taxa só depois de clicar.
             var recebedorTorneio = await _pagamentos.ObterRecebedorTorneioAsync(id);
-            var exibicao = _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio);
+            var exibicao = torneio.CobraPeloSite
+                ? _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio, torneio.ModoComissao)
+                : null;
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
 

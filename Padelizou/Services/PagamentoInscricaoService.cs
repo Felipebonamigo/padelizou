@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using padelizou.Models;
 using Padelizou.Models;
@@ -47,7 +47,7 @@ public interface IPagamentoInscricaoService
 
     // Quanto a tela deve anunciar: o valor que o jogador realmente vai pagar e a taxa embutida.
     // Null quando não há cobrança online — aí o preço do torneio/aula já é o valor final.
-    (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor);
+    (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor, string? modoComissao = null);
 
     Task EfetivarAsync(Pagamento pagamento);
 }
@@ -86,8 +86,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             ?? organizadores.FirstOrDefault()?.Jogador;
     }
 
+    // Torneio marcado como "por fora" nunca gera cobrança no site, mesmo com tudo
+    // configurado — a escolha do organizador vem antes da capacidade técnica.
     public bool PodeCobrar(Torneio torneio, Jogador? recebedor) =>
-        EstaApto(recebedor) && torneio.PrecoInscricao > 0;
+        torneio.CobraPeloSite && EstaApto(recebedor) && torneio.PrecoInscricao > 0;
 
     public bool PodeCobrarAula(JogoAula jogo, Jogador? professor) =>
         EstaApto(professor) && jogo.Preco > 0;
@@ -101,12 +103,13 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     public bool PodeCobrarQuadra(decimal? preco, Jogador? dono) =>
         EstaApto(dono) && preco > 0;
 
-    public (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor)
+    public (decimal Total, decimal Taxa)? CalcularExibicao(decimal preco, string tipoOperacao, Jogador? recebedor, string? modoComissao = null)
     {
         if (!EstaApto(recebedor) || preco <= 0) return null;
 
         // Mesmo cálculo usado pra gerar a cobrança, pra tela e checkout nunca divergirem.
-        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, recebedor!.ModoComissao);
+        // O modo vem do torneio quando informado; o do cadastro do recebedor é só o padrão.
+        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor!.ModoComissao);
         return (rateio.ValorTotal, rateio.ValorTotal - preco);
     }
 
@@ -120,7 +123,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         CriarCobrancaAsync(
             recebedor, pagador, torneio.PrecoInscricao, "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
-            torneioId: torneio.Id, jogoAulaId: null);
+            torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao);
 
     public Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor,
         Jogador pagador, DadosInscricaoAula dados) =>
@@ -138,9 +141,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
 
     private async Task<string?> CriarCobrancaAsync(Jogador recebedor, Jogador pagador, decimal preco,
         string tipoOperacao, string tipoPagamento, string descricao, object dados,
-        int? torneioId, int? jogoAulaId)
+        int? torneioId, int? jogoAulaId, string? modoComissao = null)
     {
-        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, recebedor.ModoComissao);
+        var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor.ModoComissao);
 
         var clienteId = await _asaas.ObterOuCriarClienteAsync(
             pagador.Nome, pagador.Cpf, pagador.Email, pagador.Celular);
@@ -280,7 +283,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 ImpedimentoSextaNoite = dados.ImpedimentoSextaNoite,
                 ImpedimentoSabadoManha = dados.ImpedimentoSabadoManha,
                 ImpedimentoSabadoTarde = dados.ImpedimentoSabadoTarde,
-                EmListaDeEspera = emListaDeEspera
+                EmListaDeEspera = emListaDeEspera,
+                // Chegou aqui porque o dinheiro entrou: a inscrição já nasce quitada.
+                Pago = true,
+                PagoEm = DateTime.Now,
             };
             _context.Duplas.Add(dupla);
             await _context.SaveChangesAsync();
@@ -292,7 +298,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             {
                 CategoriaId = dados.CategoriaId,
                 JogadorId = dados.Jogador1Id,
-                EmListaDeEspera = emListaDeEspera
+                EmListaDeEspera = emListaDeEspera,
+                Pago = true,
+                PagoEm = DateTime.Now,
             };
             _context.InscricoesAmericanas.Add(inscricao);
             await _context.SaveChangesAsync();

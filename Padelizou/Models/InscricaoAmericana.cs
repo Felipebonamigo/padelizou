@@ -19,4 +19,9 @@ public class InscricaoAmericana
     // Nulo = inscrição feita antes de 25/07/2026 (quando a coluna nasceu) — usado nas
     // métricas de uso do admin (inscrições por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;
+
+    // Mesma ideia do Dupla.Pago: vira true sozinho quando o webhook confirma, e o
+    // organizador pode virar na mão (muita inscrição é paga em dinheiro na quadra).
+    public bool Pago { get; set; }
+    public DateTime? PagoEm { get; set; }
 }

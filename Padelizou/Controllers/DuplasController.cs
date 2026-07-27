@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
@@ -199,7 +199,9 @@ namespace Padelizou.Controllers
             //    jogador vai pro checkout e a inscrição nasce quando o webhook confirmar o
             //    pagamento (PagamentoInscricaoService.EfetivarAsync).
             var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
-            if (_pagamentos.PodeCobrar(torneio, recebedor))
+            // Pagar na hora só é obrigatório se o organizador quis assim. Senão a inscrição
+            // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
+            if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
             {
                 // SemParceiro marca que isto é uma DUPLA aberta, não um americano — os dois
                 // chegam aqui com Jogador2Id nulo (ver DadosInscricaoTorneio).

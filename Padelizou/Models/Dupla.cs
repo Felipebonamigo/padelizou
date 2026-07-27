@@ -30,6 +30,12 @@ public partial class Dupla
     [NotMapped]
     public bool Completa => Jogador2Id != null;
 
+    // Situação do pagamento desta inscrição. Vira true sozinho quando o webhook do Asaas
+    // confirma, e o organizador pode virar na mão a qualquer momento — muita inscrição é
+    // paga em dinheiro na quadra, e a última palavra sobre quem pagou é sempre dele.
+    public bool Pago { get; set; }
+    public DateTime? PagoEm { get; set; }
+
     public virtual ICollection<Partida> PartidasDupla1 { get; set; } = new List<Partida>();
 
     public virtual ICollection<Partida> PartidasDupla2 { get; set; } = new List<Partida>(); 
