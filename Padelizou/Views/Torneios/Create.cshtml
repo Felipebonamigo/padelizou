@@ -104,6 +104,10 @@
                             <span class="input-group-text">até</span>
                             <input type="time" asp-for="HoraFimDoDia" class="form-control bg-light" required />
                         </div>
+                        @* O organizador escolhe a janela sem saber onde ela cai: com jogo de
+                           50 min e fim às 23h, o último começa 21h30 — não 22h20, porque o
+                           jogo tem que caber inteiro. Melhor ele ver isso antes de anunciar. *@
+                        <small id="pdzUltimoJogo" class="d-block mt-1 fw-bold" style="color: var(--pdz-ink);"></small>
                         <small class="text-muted d-block mt-1">Vale pra cada dia. O que não couber vai pro dia seguinte, no mesmo horário de abertura.</small>
                     </div>
                     <div class="col-md-4">
@@ -533,6 +537,62 @@
     }
 
     document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
+
+    // Mesma regra do GradeDeJogos: o jogo tem que caber INTEIRO na janela do dia.
+    function pdzEmMinutos(hhmm) {
+        var p = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');
+        return p ? parseInt(p[1], 10) * 60 + parseInt(p[2], 10) : null;
+    }
+
+    function pdzEmRelogio(minutos) {
+        var h = Math.floor(minutos / 60), m = minutos % 60;
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+    }
+
+    function pdzUltimoJogo() {
+        var alvo = document.getElementById('pdzUltimoJogo');
+        if (!alvo) return;
+
+        var duracao = parseInt((document.getElementById('TempoPrevistoPartidaMinutos') || {}).value, 10) || 0;
+        var quadras = Math.max(1, parseInt((document.getElementById('quantidadeQuadras') || {}).value, 10) || 1);
+        var inicio = pdzEmMinutos((document.getElementById('HoraInicioDoDia') || {}).value);
+        var fim = pdzEmMinutos((document.getElementById('HoraFimDoDia') || {}).value);
+
+        alvo.className = 'd-block mt-1 fw-bold';
+        alvo.style.color = 'var(--pdz-ink)';
+
+        if (duracao <= 0 || inicio === null || fim === null) { alvo.textContent = ''; return; }
+
+        if (fim <= inicio) {
+            alvo.style.color = 'var(--pdz-muted)';
+            alvo.textContent = 'Sem hora pra acabar: os jogos seguem emendando até o último.';
+            return;
+        }
+
+        var rodadas = Math.floor((fim - inicio) / duracao);
+        if (rodadas === 0) {
+            alvo.style.color = 'var(--bs-danger)';
+            alvo.textContent = 'Um jogo de ' + duracao + ' min não cabe entre '
+                + pdzEmRelogio(inicio) + ' e ' + pdzEmRelogio(fim) + '.';
+            return;
+        }
+
+        var ultimo = inicio + (rodadas - 1) * duracao;
+        alvo.innerHTML = '<i class="bi bi-clock-history me-1"></i>Último jogo do dia começa <strong>'
+            + pdzEmRelogio(ultimo) + '</strong> e termina ' + pdzEmRelogio(ultimo + duracao)
+            + ' — cabem ' + rodadas + (rodadas > 1 ? ' rodadas' : ' rodada') + ' por dia, '
+            + (rodadas * quadras) + (rodadas * quadras > 1 ? ' jogos' : ' jogo')
+            + ' com ' + quadras + (quadras > 1 ? ' quadras.' : ' quadra.');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        ['TempoPrevistoPartidaMinutos', 'HoraInicioDoDia', 'HoraFimDoDia', 'quantidadeQuadras']
+            .forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) { el.addEventListener('input', pdzUltimoJogo); el.addEventListener('change', pdzUltimoJogo); }
+            });
+        pdzUltimoJogo();
+    });
 </script>
 @* Simulação ao vivo: o organizador digita o preço e vê, com o número dele, quanto o
    jogador paga e quanto sobra em cada opção. Números vindos do servidor pra tela e

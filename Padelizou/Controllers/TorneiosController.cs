@@ -168,7 +168,10 @@ namespace Padelizou.Controllers
             ViewBag.CatalogoCategorias = catalogo;
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
-            return View();
+            // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
+            // obrigatórios de horário e duração nasceriam VAZIOS — o organizador teria que
+            // adivinhar o que preencher. Assim ele começa com 8h-22h e 50 min e só ajusta.
+            return View(new Torneio());
         }
 
         // 2. RECEBE OS DADOS E SALVA O TORNEIO
@@ -1451,6 +1454,39 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id });
         }
 
+        // TODO jogo do torneio nasce com horário previsto — inclusive os do mata-mata, que
+        // só existem depois que a fase de grupos acaba. Sem isso o jogador via "a definir" na
+        // fase que mais importa, e a Mesa de Controle não tinha ordem nenhuma pra seguir.
+        //
+        // A grade do mata-mata emenda no último jogo já marcado do torneio, respeitando as
+        // mesmas quadras e o mesmo expediente da fase de grupos.
+        private async Task AgendarNaGradeAsync(List<Partida> jogos, int? torneioId)
+        {
+            if (jogos.Count == 0 || torneioId == null) return;
+
+            var torneio = await _context.Torneios.FindAsync(torneioId.Value);
+            if (torneio == null) return;
+
+            var ultimoMarcado = await _context.Partidas
+                .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
+                .MaxAsync(p => p.HorarioPrevisto);
+
+            var inicio = ultimoMarcado == null
+                ? torneio.AberturaDaGrade
+                : GradeDeJogos.DepoisDe(ultimoMarcado.Value, torneio.HoraFimDoDia,
+                                        torneio.HoraInicioDoDia, torneio.TempoPrevistoPartidaMinutos);
+
+            var horarios = GradeDeJogos.Horarios(
+                inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
+                torneio.TempoPrevistoPartidaMinutos, jogos.Count,
+                abertura: torneio.HoraInicioDoDia).ToList();
+
+            for (int i = 0; i < jogos.Count; i++)
+            {
+                jogos[i].HorarioPrevisto = horarios[i];
+            }
+        }
+
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).
         private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int? torneioId, string faseConcluida)
         {
@@ -1467,10 +1503,9 @@ namespace Padelizou.Controllers
             if (vencedores.Count != ChaveamentoMataMata.JogosDaFase(faseConcluida)) return;
             if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
 
-            foreach (var confronto in ChaveamentoMataMata.ParearVencedores(vencedores))
-            {
+            var novos = ChaveamentoMataMata.ParearVencedores(vencedores)
                 // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
-                _context.Partidas.Add(new Partida
+                .Select(confronto => new Partida
                 {
                     TorneioId = torneioId,
                     CategoriaId = categoriaId,
@@ -1479,8 +1514,12 @@ namespace Padelizou.Controllers
                     Dupla1Id = confronto.Dupla1Id,
                     Dupla2Id = confronto.Dupla2Id,
                     Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                });
-            }
+                })
+                .ToList();
+
+            await AgendarNaGradeAsync(novos, torneioId);
+
+            _context.Partidas.AddRange(novos);
             await _context.SaveChangesAsync();
         }
 
@@ -1536,9 +1575,8 @@ namespace Padelizou.Controllers
             var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados);
             if (confrontos.Count == 0) return;
 
-            foreach (var confronto in confrontos)
-            {
-                _context.Partidas.Add(new Partida
+            var jogosDoMataMata = confrontos
+                .Select(confronto => new Partida
                 {
                     TorneioId = torneioId,
                     CategoriaId = categoriaId,
@@ -1547,9 +1585,13 @@ namespace Padelizou.Controllers
                     Status = "Agendada", // Nasce agendada para ir para a Mesa de Controle!
                     Fase = nomeFase,
                     Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() // NOT NULL no banco
-                });
-            }
+                })
+                .ToList();
 
+            // Nasce agendada E com hora: o mata-mata emenda no fim da fase de grupos.
+            await AgendarNaGradeAsync(jogosDoMataMata, torneioId);
+
+            _context.Partidas.AddRange(jogosDoMataMata);
             await _context.SaveChangesAsync();
         }
 
@@ -1668,9 +1710,9 @@ namespace Padelizou.Controllers
 
             var rng = new Random();
             int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
-            DateTime horarioAtual = dataHoraInicio;
             int totalPartidasGeradas = 0;
             int totalDeFora = 0;
+            var jogosDoAmericano = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias)
             {
@@ -1719,7 +1761,7 @@ namespace Padelizou.Controllers
                         _context.Duplas.Add(dupla2);
                         await _context.SaveChangesAsync(); // precisa dos Ids gerados antes de criar a Partida
 
-                        _context.Partidas.Add(new Partida
+                        jogosDoAmericano.Add(new Partida
                         {
                             TorneioId = torneioId,
                             CategoriaId = categoria.Id,
@@ -1727,14 +1769,25 @@ namespace Padelizou.Controllers
                             Dupla2Id = dupla2.Id,
                             Fase = $"Americano Rodada {rodada}",
                             Status = "Agendada",
-                            HorarioPrevisto = horarioAtual,
                             Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
                         });
-                        horarioAtual = horarioAtual.AddMinutes(tempoPartida);
                         totalPartidasGeradas++;
                     }
                 }
             }
+
+            // O Americano também somava um jogo por vez a partir do início: com 3 quadras,
+            // marcava em fila indiana e varava a noite. Mesma grade da fase de grupos.
+            var horariosAmericano = GradeDeJogos.Horarios(
+                dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
+                tempoPartida, jogosDoAmericano.Count,
+                abertura: torneio.HoraInicioDoDia).ToList();
+
+            for (int i = 0; i < jogosDoAmericano.Count; i++)
+            {
+                jogosDoAmericano[i].HorarioPrevisto = horariosAmericano[i];
+            }
+            _context.Partidas.AddRange(jogosDoAmericano);
 
             torneio.Status = "Fase de Grupos"; // reaproveita o mesmo status de "torneio em andamento"
             await _context.SaveChangesAsync();

@@ -35,7 +35,28 @@ namespace Padelizou.Controllers
                 TotalJogadores = await _context.Jogadores.CountAsync(),
                 TorneiosRealizados = await _context.Torneios.CountAsync(t => t.Status == "Finalizado"),
                 JogosDisputados = await _context.Partidas.CountAsync(p => p.VencedorId != null),
+
+                // Só o que um admin publicou. O feedback nasce invisível e continua invisível
+                // até alguém ler e liberar — a home nunca busca por "todos os feedbacks".
+                Depoimentos = await _context.FeedbacksSite
+                    .Where(f => f.Exibir)
+                    .OrderByDescending(f => f.ExibidoEm)
+                    .Take(6)
+                    .Select(f => new DepoimentoVM
+                    {
+                        PrimeiroNome = f.Jogador.Nome,
+                        Cidade = f.Jogador.Cidade,
+                        Nota = f.Nota,
+                        Texto = f.Texto
+                    })
+                    .ToListAsync(),
             };
+
+            // O corte do primeiro nome fica fora da consulta: Split não traduz pra SQL.
+            foreach (var d in vm.Depoimentos)
+            {
+                d.PrimeiroNome = d.PrimeiroNome.Split(' ')[0];
+            }
 
             if (User.Identity?.IsAuthenticated == true
                 && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var jogadorId))

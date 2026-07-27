@@ -1,0 +1,80 @@
+@{
+    ViewData["Title"] = "O que você achou do Padelizou?";
+    var nota = ViewBag.Nota as int?;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="mb-4">
+                <h2 class="fw-bold" style="color: var(--pdz-ink);">O que você achou do Padelizou?</h2>
+                <p class="text-muted mb-0">
+                    Opinião, sugestão ou crítica — <strong>todas são bem-vindas</strong>. É lendo o que
+                    você escreve que a gente constrói um sistema melhor. O que você mandar aqui vai
+                    direto pra quem toca o Padelizou e <strong>não aparece pra ninguém no site</strong>.
+                </p>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success d-flex gap-2 align-items-start">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div>@TempData["Sucesso"]</div>
+                </div>
+            }
+            @if (ViewBag.Erro != null)
+            {
+                <div class="alert alert-danger">@ViewBag.Erro</div>
+            }
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form asp-controller="Feedback" asp-action="Enviar" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <label class="form-label fw-bold text-muted small d-block">
+                            De 0 a 10, que nota você dá pro Padelizou? <span class="fw-normal">(opcional)</span>
+                        </label>
+
+                        @* Botão por nota, não campo numérico: no celular a pessoa dá a nota com um
+                           toque, e a escala inteira fica à vista. *@
+                        <div class="d-flex flex-wrap gap-1 mb-1" id="pdzNotas">
+                            @for (var n = 0; n <= 10; n++)
+                            {
+                                <input type="radio" class="btn-check" name="nota" value="@n" id="nota@(n)"
+                                       autocomplete="off" checked="@(nota == n)" />
+                                <label class="btn btn-outline-secondary flex-grow-1 px-2" for="nota@(n)">@n</label>
+                            }
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mb-4">
+                            <span>0 — não recomendo</span>
+                            <span>10 — recomendo demais</span>
+                        </div>
+
+                        <label class="form-label fw-bold text-muted small d-block" for="texto">Conta pra gente</label>
+                        <textarea class="form-control" name="texto" id="texto" rows="7" required
+                                  maxlength="2000"
+                                  placeholder="O que te ajudou, o que te atrapalhou, o que faltou. Pode ser sincero — crítica aqui é bem-vinda.">@ViewBag.Texto</textarea>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">
+                            <i class="bi bi-send me-1"></i> Enviar
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            @if (ViewBag.JaEnviados is int enviados && enviados > 0)
+            {
+                <p class="text-muted small text-center mt-3">
+                    <i class="bi bi-clock-history"></i>
+                    Você já mandou @enviados @(enviados == 1 ? "opinião" : "opiniões"). Pode mandar quantas quiser.
+                </p>
+            }
+
+            <p class="text-muted small text-center mt-3">
+                Achou um bug e quer resposta rápida?
+                <a asp-controller="Auth" asp-action="ReportarProblema">Fale com a gente no WhatsApp</a>.
+            </p>
+        </div>
+    </div>
+</div>

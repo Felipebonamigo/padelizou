@@ -131,6 +131,60 @@ namespace padelizou.Controllers
             return RedirectToAction("Administradores");
         }
 
+        // O que os jogadores acharam do site. Chega tudo invisível; publicar é decisão de
+        // admin, uma a uma, depois de ler.
+        [HttpGet]
+        public async Task<IActionResult> Feedbacks()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var feedbacks = await _context.FeedbacksSite
+                .Include(f => f.Jogador)
+                .OrderByDescending(f => f.CriadoEm)
+                .ToListAsync();
+
+            ViewBag.Nps = RegrasDeFeedback.Nps(feedbacks.Select(f => f.Nota));
+            ViewBag.NaoLidos = feedbacks.Count(f => !f.Lido);
+            ViewBag.Publicados = feedbacks.Count(f => f.Exibir);
+
+            return View(feedbacks);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarExibicaoFeedback(int id)
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var feedback = await _context.FeedbacksSite.FindAsync(id);
+            if (feedback == null) return NotFound();
+
+            feedback.Exibir = !feedback.Exibir;
+            feedback.ExibidoEm = feedback.Exibir ? DateTime.Now : null;
+            feedback.Lido = true;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = feedback.Exibir
+                ? "Publicado — agora aparece na página inicial."
+                : "Tirado do ar.";
+            return RedirectToAction("Feedbacks");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarcarFeedbackLido(int id)
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var feedback = await _context.FeedbacksSite.FindAsync(id);
+            if (feedback == null) return NotFound();
+
+            feedback.Lido = !feedback.Lido;
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Feedbacks");
+        }
+
         // Métricas de uso: os números que dizem se o sistema está crescendo e quanto a
         // plataforma já faturou no ano (controle do teto do MEI). CriadoEm nulo = registro
         // anterior a 25/07/2026 (antes da coluna existir) — entra nos totais, não nas séries.

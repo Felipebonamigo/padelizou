@@ -196,6 +196,14 @@
                     <img src="~/image/logo-icon.png" alt="Padelizou" style="height: 26px; width: 26px;" />
                     <span class="fw-semibold">Padelizou</span>
                 </div>
+                @* Canal de opinião do site: fica no rodapé de toda página, mas só quem está
+                   logado escreve — feedback anônimo não dá pra responder nem conferir. *@
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a asp-controller="Feedback" asp-action="Index" class="small fw-semibold">
+                        <i class="bi bi-chat-heart"></i> O que você achou do Padelizou?
+                    </a>
+                }
                 <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidade</a></span>
             </div>
         </div>

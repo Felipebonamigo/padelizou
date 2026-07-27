@@ -14,6 +14,9 @@ public class HomeVM
     public int TorneiosRealizados { get; set; }
     public int JogosDisputados { get; set; }
 
+    // Só o que um admin liberou, uma a uma. O que o jogador escreve nasce invisível.
+    public List<DepoimentoVM> Depoimentos { get; set; } = new();
+
     // ----- só pra quem está logado -----
 
     public string? PrimeiroNome { get; set; }
@@ -33,6 +36,16 @@ public class HomeVM
     public PainelClubeHomeVM? Clube { get; set; }
 
     public bool TemAlgumPapel => Professor != null || Organizador != null || Clube != null;
+}
+
+// Opinião publicada na vitrine. Vai só o primeiro nome: quem escreveu topou falar do site,
+// não expor o nome inteiro na página inicial.
+public class DepoimentoVM
+{
+    public string PrimeiroNome { get; set; } = "";
+    public string? Cidade { get; set; }
+    public int? Nota { get; set; }
+    public string Texto { get; set; } = "";
 }
 
 // "Meu dia" do professor, direto na entrada.

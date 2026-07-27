@@ -1,0 +1,127 @@
+@model List<Padelizou.Models.FeedbackSite>
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Opiniões dos jogadores - Admin";
+    var nps = ViewBag.Nps as int?;
+    var naoLidos = (int)ViewBag.NaoLidos;
+    var publicados = (int)ViewBag.Publicados;
+}
+
+<div class="container mt-4 mb-5">
+    <a asp-controller="Admin" asp-action="Index" class="small text-decoration-none">&larr; Painel Admin</a>
+
+    <div class="mb-4 mt-2">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Opiniões dos jogadores</h2>
+        <p class="text-muted mb-0">
+            Nada disso aparece no site até você marcar <strong>Publicar</strong>.
+        </p>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@Model.Count</div>
+                    <div class="small text-muted">opiniões</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@(nps?.ToString() ?? "—")</div>
+                    @* NPS, não média: dez notas 8 e dez notas 4 dariam a mesma média que vinte
+                       notas 6, e são situações bem diferentes. *@
+                    <div class="small text-muted">NPS (-100 a 100)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@naoLidos</div>
+                    <div class="small text-muted">por ler</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@publicados</div>
+                    <div class="small text-muted">publicadas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-secondary">Ninguém escreveu ainda.</div>
+    }
+
+    @foreach (var f in Model)
+    {
+        var classificacao = RegrasDeFeedback.Classificacao(f.Nota);
+        var cor = classificacao switch
+        {
+            "Promotor" => "success",
+            "Neutro" => "warning",
+            "Detrator" => "danger",
+            _ => "secondary"
+        };
+
+        <div class="card shadow-sm border-0 mb-3 @(f.Lido ? "" : "border-start border-4 border-primary")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <span class="fw-bold" style="color: var(--pdz-ink);">@f.Jogador.Nome</span>
+                        <span class="text-muted small ms-2">@f.CriadoEm.ToString("dd/MM/yyyy HH:mm")</span>
+                        @if (!f.Lido)
+                        {
+                            <span class="badge bg-primary ms-2">novo</span>
+                        }
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (f.Nota.HasValue)
+                        {
+                            <span class="badge bg-@cor">Nota @f.Nota — @classificacao</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Sem nota</span>
+                        }
+                        @if (f.Exibir)
+                        {
+                            <span class="badge bg-success"><i class="bi bi-eye"></i> No ar</span>
+                        }
+                    </div>
+                </div>
+
+                <p class="mb-3" style="white-space: pre-wrap;">@f.Texto</p>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <form asp-controller="Admin" asp-action="AlternarExibicaoFeedback" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@f.Id" />
+                        <button type="submit" class="btn btn-sm rounded-pill px-3 @(f.Exibir ? "btn-outline-danger" : "btn-padel")">
+                            <i class="bi @(f.Exibir ? "bi-eye-slash" : "bi-eye")"></i>
+                            @(f.Exibir ? "Tirar do ar" : "Publicar na página inicial")
+                        </button>
+                    </form>
+                    <form asp-controller="Admin" asp-action="MarcarFeedbackLido" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@f.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                            @(f.Lido ? "Marcar como não lido" : "Marcar como lido")
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -115,6 +115,77 @@ public class TorneioFluxoTests
         Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
+    // TODO jogo do torneio nasce com horário previsto. Os do mata-mata só existem depois que a
+    // fase de grupos acaba, e nasciam sem hora nenhuma: o jogador via "a definir" justo na fase
+    // que mais importa.
+    [Fact]
+    public async Task Todo_jogo_do_torneio_nasce_com_horario_previsto()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        torneio.QuantidadeQuadras = 2;
+        torneio.TempoPrevistoPartidaMinutos = 50;
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        var grupos = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
+        Assert.All(grupos, p => Assert.NotNull(p.HorarioPrevisto));
+        var fimDosGrupos = grupos.Max(p => p.HorarioPrevisto!.Value);
+
+        foreach (var jogo in grupos)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        // Semifinal criada pelo robô: com hora, e DEPOIS do último jogo de grupo.
+        var semis = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal").ToListAsync();
+        Assert.All(semis, p => Assert.NotNull(p.HorarioPrevisto));
+        Assert.All(semis, p => Assert.True(p.HorarioPrevisto > fimDosGrupos));
+        // 2 quadras: as duas semis rodam juntas.
+        Assert.Single(semis.Select(p => p.HorarioPrevisto).Distinct());
+
+        foreach (var semi in semis)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, semi, 9, 5);
+
+        var final = await ctx.Partidas
+            .SingleAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Final");
+        Assert.NotNull(final.HorarioPrevisto);
+        Assert.True(final.HorarioPrevisto > semis.Max(p => p.HorarioPrevisto));
+
+        // Nenhum jogo do torneio, em fase nenhuma, ficou sem hora.
+        Assert.Empty(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto == null).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Mata_mata_respeita_o_expediente_e_vira_o_dia()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        // Uma quadra só, expediente curto: os 6 jogos de grupo enchem o dia e o mata-mata
+        // tem que cair no dia seguinte no horário de abertura, não às 3h da manhã.
+        torneio.QuantidadeQuadras = 1;
+        torneio.TempoPrevistoPartidaMinutos = 60;
+        torneio.HoraInicioDoDia = new TimeSpan(9, 0, 0);
+        torneio.HoraFimDoDia = new TimeSpan(15, 0, 0);
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        foreach (var jogo in await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync())
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var semis = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal").ToListAsync();
+
+        // 6 jogos de 1h numa quadra enchem 9h..14h; às 15h não cabe mais (terminaria 16h),
+        // então o mata-mata abre o dia seguinte às 9h — o horário de abertura, não 15h.
+        Assert.Equal(new DateTime(2026, 7, 2, 9, 0, 0), semis.Min(p => p.HorarioPrevisto));
+        Assert.All(semis, p => Assert.Equal(new DateTime(2026, 7, 2), p.HorarioPrevisto!.Value.Date));
+        Assert.All(semis, p => Assert.True(p.HorarioPrevisto!.Value.TimeOfDay < new TimeSpan(15, 0, 0)));
+    }
+
     // Motor genérico (25/07/2026): antes o mata-mata só fechava com 1/2/4/8 grupos.
     // Agora QUALQUER nº de grupos fecha: todos os 1ºs + melhores 2ºs completam o quadro.
     [Theory]

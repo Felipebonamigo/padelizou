@@ -267,10 +267,12 @@
                 <p class="text-muted small">No Torneio Americano a inscrição é individual — o sistema sorteia os parceiros a cada rodada.</p>
 
                 <div class="mb-3">
+                    <label class="form-label fw-bold small mb-1">CPF do jogador</label>
                     <input type="text" name="cpf" class="form-control mb-1 js-cpf" data-alvo="ind"
                            placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                     <div class="small mb-2 js-cpf-status" data-alvo="ind"></div>
                     <input type="text" name="nome" class="form-control" placeholder="Nome Completo" required />
+                    <small class="text-muted d-block mt-1">Comece pelo CPF: se já houver cadastro, o nome vem sozinho.</small>
                 </div>
 
                 @if (Model.Restrito)
@@ -306,6 +308,14 @@
             </div>
 
             <!-- Dados dos Jogadores -->
+            <div class="alert alert-secondary small d-flex gap-2 align-items-start">
+                <i class="bi bi-person-vcard"></i>
+                <div>
+                    Comece pelo <strong>CPF</strong>. Se o jogador já tiver cadastro, nome, celular e
+                    cidade vêm do perfil dele e ficam travados. Se for CPF novo, os campos abrem pra
+                    você preencher.
+                </div>
+            </div>
             <div class="row">
                 <!-- JOGADOR 1 -->
                 <div class="col-md-6">
@@ -1142,6 +1152,13 @@
 <script>
     // Inscrição: ao completar o CPF, puxa os dados de quem já é cadastrado e avisa quando é
     // gente nova (que entra como pré-cadastro ao confirmar a inscrição).
+    //
+    // Os campos nascem TRAVADOS e o CPF manda neles: quem já é cadastrado tem os dados vindos
+    // do próprio perfil, e quem inscreve a dupla não reescreve o nome nem o telefone do
+    // parceiro por engano. Só um CPF novo destrava a digitação.
+    //
+    // Travar é 'readonly', nunca 'disabled': campo disabled não vai no POST, e o servidor
+    // receberia nome e cidade vazios.
     (function () {
         var urlBusca = '@Url.Action("BuscarJogadorPorCpf", "Torneios")';
 
@@ -1149,19 +1166,32 @@
             return document.querySelector('[name="' + nome + (alvo === 'ind' ? '' : alvo) + '"]');
         }
 
+        function camposDe(alvo) {
+            // Individual (americano) só tem nome; a dupla tem o resto.
+            return ['nome', 'celular', 'cidade', 'estado']
+                .map(function (n) { return campo(n, alvo); })
+                .filter(Boolean);
+        }
+
+        function travar(alvo, travado) {
+            camposDe(alvo).forEach(function (el) {
+                el.readOnly = travado;
+                el.style.backgroundColor = travado ? 'var(--pdz-surface-alt)' : '';
+                el.title = travado ? 'Vem do cadastro do jogador. Para mudar, é no perfil dele.' : '';
+            });
+        }
+
         document.querySelectorAll('.js-cpf').forEach(function (inputCpf) {
             var alvo = inputCpf.dataset.alvo;
             var status = document.querySelector('.js-cpf-status[data-alvo="' + alvo + '"]');
+            var ultimoConsultado = '';
 
-            // A formatação é do mascaras.js (data-mascara="cpf"), que também limpa o valor no
-            // submit — aqui só se limpa o aviso enquanto o CPF ainda está incompleto.
-            inputCpf.addEventListener('input', function () {
-                if (inputCpf.value.replace(/\D/g, '').length < 11) status.innerHTML = '';
-            });
+            travar(alvo, true);
 
-            inputCpf.addEventListener('blur', function () {
+            function consultar() {
                 var cpf = inputCpf.value.replace(/\D/g, '');
-                if (cpf.length !== 11) return;
+                if (cpf.length !== 11 || cpf === ultimoConsultado) return;
+                ultimoConsultado = cpf;
 
                 status.innerHTML = '<span class="text-muted">Consultando…</span>';
 
@@ -1174,7 +1204,6 @@
                                 + '<i class="bi bi-check-circle-fill"></i> ' + dados.nome + ' — já cadastrado</span>';
                             if (nome) nome.value = dados.nome;
 
-                            // Individual (americano) só tem nome; a dupla tem o resto.
                             var celular = campo('celular', alvo);
                             var cidade = campo('cidade', alvo);
                             var estado = campo('estado', alvo);
@@ -1186,15 +1215,46 @@
                             }
                             if (cidade && dados.cidade) cidade.value = dados.cidade;
                             if (estado && dados.estado) estado.value = dados.estado;
+
+                            // Cadastro antigo pode não ter celular/cidade; o que veio vazio
+                            // segue editável pra inscrição não empacar num campo obrigatório.
+                            travar(alvo, true);
+                            camposDe(alvo).forEach(function (el) {
+                                if (!el.value) { el.readOnly = false; el.style.backgroundColor = ''; el.title = ''; }
+                            });
                         } else {
                             status.innerHTML = '<span class="text-warning-emphasis">'
-                                + '<i class="bi bi-person-plus-fill"></i> Jogador ainda não cadastrado — '
-                                + 'preencha os dados e ele entra como pré-cadastro.</span>';
-                            if (nome) nome.value = '';
+                                + '<i class="bi bi-person-plus-fill"></i> CPF ainda não cadastrado — '
+                                + 'preencha os dados abaixo e ele entra como pré-cadastro.</span>';
+                            camposDe(alvo).forEach(function (el) { el.value = ''; });
+                            travar(alvo, false);
+                            if (nome) nome.focus();
                         }
                     })
-                    .catch(function () { status.innerHTML = ''; });
+                    .catch(function () {
+                        // Sem resposta do servidor, deixar tudo trancado impediria a inscrição.
+                        ultimoConsultado = '';
+                        status.innerHTML = '<span class="text-danger">Não deu pra consultar o CPF agora — '
+                            + 'confira os dados e siga.</span>';
+                        travar(alvo, false);
+                    });
+            }
+
+            // A formatação é do mascaras.js (data-mascara="cpf"), que também limpa o valor no
+            // submit — aqui só se limpa o aviso enquanto o CPF ainda está incompleto.
+            inputCpf.addEventListener('input', function () {
+                if (inputCpf.value.replace(/\D/g, '').length < 11) {
+                    status.innerHTML = '';
+                    ultimoConsultado = '';
+                    camposDe(alvo).forEach(function (el) { el.value = ''; });
+                    travar(alvo, true);
+                } else {
+                    // No celular o blur às vezes não chega antes do envio.
+                    consultar();
+                }
             });
+
+            inputCpf.addEventListener('blur', consultar);
         });
     })();
 

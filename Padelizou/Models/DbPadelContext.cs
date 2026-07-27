@@ -64,6 +64,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
+    public DbSet<FeedbackSite> FeedbacksSite { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 

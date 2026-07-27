@@ -134,4 +134,69 @@ public class GradeDeJogosTests
         Assert.Equal(Sabado8h.AddMinutes(50 * 7), grade.Last());
         Assert.All(grade, h => Assert.Equal(Sabado8h.Date, h.Date));
     }
+
+    // ── A dica que a tela de criar torneio mostra ──────────────────────────────────────
+    // O organizador escolhe "das 19h às 23h" sem calcular onde isso cai. Se a tela disser um
+    // horário e a grade marcar outro, a dica vira mentira — por isso a conta é a mesma.
+
+    [Fact]
+    public void Ultimo_jogo_do_dia_e_o_ultimo_que_cabe_INTEIRO()
+    {
+        // 19h-23h com jogo de 50 min: 21h30 é o último que termina dentro (22h20).
+        // 22h20 até caberia começar, mas terminaria 23h10 — fora do expediente.
+        var ultimo = GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(23, 0, 0), 50);
+
+        Assert.Equal(new TimeSpan(21, 30, 0), ultimo);
+    }
+
+    [Fact]
+    public void A_dica_bate_com_o_horario_que_a_grade_realmente_marca()
+    {
+        var abertura = new TimeSpan(19, 0, 0);
+        var fim = new TimeSpan(23, 0, 0);
+        var sabado19h = Sabado8h.Date.Add(abertura);
+
+        // 2 quadras, 8 jogos = 4 rodadas, exatamente o que cabe no dia.
+        var grade = Grade(quadras: 2, duracao: 50, quantidade: 8, inicio: sabado19h, fim: fim);
+
+        Assert.Equal(sabado19h.Date.Add(GradeDeJogos.UltimoInicioDoDia(abertura, fim, 50)!.Value), grade.Last());
+        Assert.Equal(4, GradeDeJogos.RodadasPorDia(abertura, fim, 50));
+    }
+
+    [Fact]
+    public void O_jogo_seguinte_ao_ultimo_ja_cai_no_dia_seguinte()
+    {
+        var abertura = new TimeSpan(19, 0, 0);
+        var fim = new TimeSpan(23, 0, 0);
+        var sabado19h = Sabado8h.Date.Add(abertura);
+
+        // Um jogo a mais que o dia comporta: 2 quadras x 4 rodadas = 8, então o 9º vira o dia.
+        var grade = Grade(quadras: 2, duracao: 50, quantidade: 9, inicio: sabado19h, fim: fim);
+
+        Assert.Equal(sabado19h.AddDays(1), grade.Last());
+    }
+
+    [Fact]
+    public void Dia_sem_hora_pra_acabar_nao_tem_ultimo_jogo()
+    {
+        // Fim antes ou igual ao início = expediente aberto; nada a avisar.
+        Assert.Null(GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 0, 0), 50));
+        Assert.Null(GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(8, 0, 0), 50));
+    }
+
+    [Fact]
+    public void Janela_menor_que_um_jogo_nao_comporta_nem_o_primeiro()
+    {
+        // 19h-19h30 com jogo de 50 min: a tela precisa avisar em vez de fingir um horário.
+        Assert.Equal(0, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
+        Assert.Null(GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
+    }
+
+    [Fact]
+    public void Janela_exata_de_um_jogo_comporta_um_jogo()
+    {
+        Assert.Equal(1, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 50, 0), 50));
+        Assert.Equal(new TimeSpan(19, 0, 0),
+            GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 50, 0), 50));
+    }
 }
