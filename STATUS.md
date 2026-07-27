@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **27/07/2026** — saiu do modo demonstração: primeiro pagamento real recebido, produção limpa, e o torneio agora se explica sozinho (build-54).
+> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa) e passou no **ensaio geral** de ponta a ponta (build-58).
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **260 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **279 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -75,7 +75,10 @@ As áreas de **professor, clube e organizador estão completas**; a entrada se a
 - **Inscrição: o CPF manda nos campos**: nome, celular, cidade e UF nascem travados; CPF cadastrado traz os dados do perfil e mantém travado, CPF novo limpa e destrava avisando que é pré-cadastro. Travado é `readonly`, não `disabled` — `disabled` não vai no POST.
 - **Canal de opinião com nota 0–10**: link no rodapé de toda página, só pra quem está logado. Nasce **invisível**; nada aparece em tela até um admin ler e publicar, um a um (`/Admin/Feedbacks`). As notas são lidas como **NPS**, não média. Publicado, vai só o primeiro nome.
 - **Bug de produção corrigido na hora**: a página do torneio dava 500 quando alguém se inscrevia **sem parceiro** — `_JogadorChip` recebia `null`. Apareceu com a primeira inscrição real.
-- **260 testes.**
+- **Ensaio geral no dev** (27/07, build-57/58): torneio completo do zero ao campeão — conta nova, 8 duplas, 7 jogos de grupo, mata-mata automático, campeão com 100 pts — mais o Americano inteiro. **Zero jogos sem horário, zero erro 500 em 20 telas, nada nos logs.** O fluxo do jogo passou; os dois defeitos achados estavam *em volta* dele:
+  - **Mesa de Controle sem saída**: ela só mostra jogos *Ao Vivo* e as partidas nascem *Agendada*, então abria vazia no dia do torneio dizendo "nenhuma partida marcada como **Em Andamento**" — status que não existe na interface — e sem dizer onde marcar. Agora nomeia o status certo, explica o passo e leva pros Jogos.
+  - **🔴 Todo deploy deslogava TODO MUNDO** (descoberto por acidente, ao publicar a correção acima e cair na tela de login). Faltava `PersistKeysToFileSystem`: o chaveiro de proteção de dados nascia novo a cada start, invalidando o cookie de todos — inclusive nos restarts automáticos do vigia de uptime. No meio de um torneio derrubaria o organizador da Mesa com os jogadores esperando. Chaves agora em disco por ambiente (`/opt/padelizou-shared/{env}/dataprotection-keys`, 700 www-data) + `SetApplicationName` por ambiente. **Verificado ao vivo: serviço reiniciado, sessão de pé.**
+- **279 testes.**
 
 ---
 
