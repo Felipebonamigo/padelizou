@@ -127,13 +127,23 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, string tipo, DadosInscricaoTorneio dados) =>
         CriarCobrancaAsync(
-            recebedor, pagador, torneio.ValorCobrado(inscricaoDeDupla: tipo == "TorneioDupla"),
+            recebedor, pagador,
+            torneio.ValorCobrado(
+                inscricaoDeDupla: tipo == "TorneioDupla",
+                impedimentos: ContarImpedimentos(dados)),
             "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: _taxas.PercentualDoTorneio(torneio.FormaPagamento),
             // Não existe "Pix + boleto" no gateway: ou trava numa forma, ou libera todas.
             billingType: torneio.SomentePix ? "PIX" : "UNDEFINED");
+
+    // Cada impedimento marcado tira uma janela da grade do organizador — quando ele cobra
+    // por isso, é este número que multiplica a taxa.
+    private static int ContarImpedimentos(DadosInscricaoTorneio dados) =>
+        (dados.ImpedimentoSextaNoite ? 1 : 0)
+        + (dados.ImpedimentoSabadoManha ? 1 : 0)
+        + (dados.ImpedimentoSabadoTarde ? 1 : 0);
 
     public Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor,
         Jogador pagador, DadosInscricaoAula dados) =>

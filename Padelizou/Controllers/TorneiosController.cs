@@ -191,6 +191,13 @@ namespace Padelizou.Controllers
                 return View(torneio);
             }
 
+            // O local do torneio é o clube: pedir os dois era pedir o mesmo dado duas vezes.
+            if (string.IsNullOrWhiteSpace(torneio.LocalTorneio))
+            {
+                torneio.LocalTorneio = clubeNovo?.Nome
+                    ?? (await _context.Clubes.FindAsync(torneio.ClubeId))?.Nome;
+            }
+
             // Validação de Segurança: Se for formato único, iguala todas as fases à Fase de Grupos
             if (torneio.FormatoUnico)
             {

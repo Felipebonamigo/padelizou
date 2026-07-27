@@ -373,6 +373,15 @@
                     <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
                     <p class="mb-3 text-muted small">Marque abaixo apenas se a dupla for <strong>absolutamente incapaz</strong> de jogar nestes turnos. O excesso de impedimentos dificulta o chaveamento.</p>
 
+                    @if (Model.TaxaPorImpedimento > 0)
+                    {
+                        <p class="mb-3 fw-bold small">
+                            <i class="bi bi-cash-coin"></i>
+                            Cada impedimento marcado custa <strong>@Model.TaxaPorImpedimento.ToString("C")</strong> a mais na inscrição.
+                            <span id="pdzTotalImpedimentos" class="d-block fw-normal text-muted"></span>
+                        </p>
+                    }
+
                     @if (Model.PermiteImpedimentoSextaNoite)
                     {
                         <div class="form-check form-switch mb-2">
@@ -395,6 +404,32 @@
                         </div>
                     }
                 </div>
+
+                @if (Model.TaxaPorImpedimento > 0)
+                {
+                    @* Mostra o acréscimo enquanto a pessoa marca, pra ela não descobrir só
+                       no checkout que a inscrição ficou mais cara. *@
+                    <script>
+                        (function () {
+                            var taxa = @Model.TaxaPorImpedimento.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            var caixas = ['impSexta', 'impSabManha', 'impSabTarde']
+                                .map(function (id) { return document.getElementById(id); })
+                                .filter(Boolean);
+                            var aviso = document.getElementById('pdzTotalImpedimentos');
+
+                            function atualizar() {
+                                var n = caixas.filter(function (c) { return c.checked; }).length;
+                                aviso.textContent = n === 0
+                                    ? ''
+                                    : n + (n === 1 ? ' impedimento marcado: ' : ' impedimentos marcados: ')
+                                      + '+ R$ ' + (n * taxa).toFixed(2).replace('.', ',') + ' na inscrição.';
+                            }
+
+                            caixas.forEach(function (c) { c.addEventListener('change', atualizar); });
+                            atualizar();
+                        })();
+                    </script>
+                }
             }
 
             @{

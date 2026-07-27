@@ -41,14 +41,12 @@
                         <small class="text-muted d-block mt-1">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
                     </div>
                 </div>
+                @* "Local / Clube" saiu daqui: era o mesmo dado do "Clube Responsável" logo
+                   abaixo, pedido duas vezes. O local do torneio passa a vir do clube. *@
                 <div class="row mb-3">
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label fw-bold small">Nome do Torneio</label>
                         <input type="text" asp-for="Nome" class="form-control bg-light" required placeholder="Ex: Padel Garden Open" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small">Local / Clube</label>
-                        <input type="text" asp-for="LocalTorneio" class="form-control bg-light" required placeholder="Ex: Padel Garden - Gravataí" />
                     </div>
                 </div>
                 <div class="row mb-3">
@@ -240,6 +238,24 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoSabadoTarde" id="impSabTarde">
                                 <label class="form-check-label" for="impSabTarde">Sábado à tarde</label>
+                            </div>
+
+                            @* Cada impedimento tira uma janela da grade. Cobrar por isso faz
+                               quem realmente precisa pagar pela flexibilidade que tirou, e
+                               desestimula quem marca "por via das dúvidas". *@
+                            <div class="mt-3" style="max-width: 320px;">
+                                <label class="form-label fw-bold small mb-1" for="taxaImpedimento">
+                                    Cobrar a mais por impedimento?
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" asp-for="TaxaPorImpedimento" id="taxaImpedimento"
+                                           step="0.01" min="0" class="form-control" placeholder="0,00" />
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    Cobrado <strong>por impedimento marcado</strong>, somado à inscrição.
+                                    Deixe zerado pra não cobrar nada.
+                                </small>
                             </div>
                         </div>
                     </div>

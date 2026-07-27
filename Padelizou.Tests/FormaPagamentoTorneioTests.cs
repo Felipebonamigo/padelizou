@@ -100,6 +100,36 @@ public class FormaPagamentoTorneioTests
     }
 
     [Fact]
+    public void Torneio_novo_nao_cobra_por_impedimento()
+    {
+        // Zero = de graça, que é como todo torneio que já existia se comportava.
+        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 75m };
+
+        Assert.Equal(0m, torneio.TaxaPorImpedimento);
+        Assert.Equal(150m, torneio.ValorCobrado(inscricaoDeDupla: true, impedimentos: 3));
+    }
+
+    [Theory]
+    [InlineData(0, 150)]   // dupla sem impedimento
+    [InlineData(1, 170)]   // um impedimento: + R$ 20
+    [InlineData(3, 210)]   // os três: + R$ 60
+    public void Cada_impedimento_marcado_soma_a_taxa(int impedimentos, decimal esperado)
+    {
+        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 75m, TaxaPorImpedimento = 20m };
+
+        Assert.Equal(esperado, torneio.ValorCobrado(inscricaoDeDupla: true, impedimentos));
+    }
+
+    [Fact]
+    public void Impedimento_negativo_nao_abate_a_inscricao()
+    {
+        // Defensivo: contagem torta não pode virar desconto.
+        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 75m, TaxaPorImpedimento = 20m };
+
+        Assert.Equal(150m, torneio.ValorCobrado(inscricaoDeDupla: true, impedimentos: -5));
+    }
+
+    [Fact]
     public void Americano_conta_uma_pessoa_por_inscricao()
     {
         Assert.Equal(1, new Torneio { Nome = "T", Codigo = "T1", Formato = "Americano" }.PessoasPorInscricao);

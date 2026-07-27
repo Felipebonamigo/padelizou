@@ -29,13 +29,23 @@ public partial class Torneio
     // não é somada por cima.
     public decimal PrecoInscricao { get; set; }
 
+    // Quanto a mais custa CADA impedimento de horário marcado na inscrição. Zero = de graça.
+    //
+    // Impedimento não é capricho do sistema: cada um deles tira uma janela da grade e obriga
+    // o organizador a montar os jogos em volta. Cobrar por isso é o jeito honesto de fazer
+    // quem realmente precisa marcar pagar pela flexibilidade que tirou de todo mundo — e de
+    // desestimular quem marca "por via das dúvidas".
+    public decimal TaxaPorImpedimento { get; set; }
+
     // Quantas pessoas entram numa inscrição deste formato.
     [NotMapped]
     public int PessoasPorInscricao => Formato == "Americano" ? 1 : 2;
 
-    // O que é efetivamente cobrado de quem se inscreve.
-    public decimal ValorCobrado(bool inscricaoDeDupla) =>
-        PrecoInscricao * (inscricaoDeDupla ? 2 : 1);
+    // O que é efetivamente cobrado de quem se inscreve: o preço por pessoa vezes o número
+    // de pessoas, mais a taxa de cada impedimento marcado.
+    public decimal ValorCobrado(bool inscricaoDeDupla, int impedimentos = 0) =>
+        PrecoInscricao * (inscricaoDeDupla ? 2 : 1)
+        + TaxaPorImpedimento * Math.Max(impedimentos, 0);
 
     // Como o dinheiro da inscrição corre. Escolhido pelo organizador ao criar o torneio, e
     // é ele quem define a taxa — porque a escolha é dele, não do jogador. A forma que o
