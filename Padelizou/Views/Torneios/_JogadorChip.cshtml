@@ -1,6 +1,10 @@
 @model Padelizou.Models.Jogador
 @using Padelizou.ViewModels
 @{
+    // Dupla sem parceiro chega aqui com null. Um chip vazio é um detalhe; derrubar a
+    // página inteira do torneio por causa dele não é.
+    if (Model == null) { return; }
+
     var historico = ViewData["Historico"] as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>;
     var categoriaAtual = ViewData["CategoriaAtual"] as string;
     HistoricoCategoriaVM? h = null;

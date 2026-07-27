@@ -184,7 +184,19 @@
                             <div class="col">
                                 <div class="border rounded p-3 h-100">
                                     <partial name="_JogadorChip" model="dupla.Jogador1" />
-                                    <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                    @* Inscrição sem parceiro tem Jogador2 nulo — o chip
+                                       espera um jogador de verdade e explodia a tela toda. *@
+                                    @if (dupla.Jogador2 != null)
+                                    {
+                                        <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                    }
+                                    else
+                                    {
+                                        <span class="d-flex align-items-center gap-2 text-muted small">
+                                            <i class="bi bi-person-plus" style="font-size: 1.4rem;"></i>
+                                            Procurando parceiro
+                                        </span>
+                                    }
                                 </div>
                             </div>
                         }
@@ -912,7 +924,10 @@
                                                             <tr style="border-bottom: 1px solid #f0f0f0;">
                                                                 <td class="text-start ps-3 py-3" style="max-width: 180px;">
                                                                     <partial name="_JogadorChip" model="dupla.Jogador1" />
-                                                                    <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                                                    @if (dupla.Jogador2 != null)
+                                                                    {
+                                                                        <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                                                    }
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
