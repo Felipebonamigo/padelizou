@@ -171,8 +171,23 @@ namespace Padelizou.Controllers
         // 2. RECEBE OS DADOS E SALVA O TORNEIO
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria)
+        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null)
         {
+            // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
+            // obrigatório e vazio impediria de criar o primeiro torneio.
+            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
+            if (clubeNovo != null) torneio.ClubeId = clubeNovo.Id;
+
+            // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário
+            // inteiro perdido. Melhor recusar aqui, explicando o que fazer.
+            if (torneio.ClubeId <= 0)
+            {
+                ViewBag.Erro = "Escolha o clube responsável, ou escreva o nome dele no campo abaixo do seletor.";
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                return View(torneio);
+            }
+
             // Validação de Segurança: Se for formato único, iguala todas as fases à Fase de Grupos
             if (torneio.FormatoUnico)
             {
