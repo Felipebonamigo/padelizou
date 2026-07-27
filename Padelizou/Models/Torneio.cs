@@ -99,11 +99,23 @@ public partial class Torneio
     public Clube Clube { get; set; }
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
 
-    // Janela de jogos de cada dia. DataInicio guarda só a data — sem a hora de abertura a
-    // grade começava à meia-noite. Ao bater no fim, o que sobra vai pro dia seguinte, na
-    // hora de abertura: torneio não vira a noite.
-    public TimeSpan HoraInicioDoDia { get; set; } = new(8, 0, 0);
-    public TimeSpan HoraFimDoDia { get; set; } = new(22, 0, 0);
+    // Janela de jogos. DataInicio guarda só a data — sem a hora de abertura a grade
+    // começava à meia-noite.
+    //
+    // São DUAS aberturas porque o torneio de fim de semana tem duas: sexta começa à noite
+    // (todo mundo trabalha de dia) e sábado/domingo começam cedo. Uma hora só obrigaria a
+    // escolher entre marcar jogo às 8h de uma sexta útil ou desperdiçar a manhã de sábado.
+    public TimeSpan HoraInicioDoDia { get; set; } = new(18, 0, 0);
+    public TimeSpan HoraInicioDiasSeguintes { get; set; } = new(8, 0, 0);
+
+    // Hora limite pra um jogo COMEÇAR — não pra terminar. O jogo das 23h50 varando a
+    // madrugada é o normal do torneio, e ninguém quer somar 23h50 + 50 min pra preencher
+    // um campo.
+    public TimeSpan HoraFimDoDia { get; set; } = new(23, 50, 0);
+
+    // Até quando o organizador tem a quadra. Opcional: sem isso o sistema ainda diz quando
+    // o torneio termina, só não tem contra o que comparar pra avisar que não cabe.
+    public DateTime? DataFim { get; set; }
 
     // Quando o primeiro jogo entra na quadra.
     [NotMapped]

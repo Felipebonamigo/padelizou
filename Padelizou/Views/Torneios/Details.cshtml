@@ -545,6 +545,37 @@
                         <div class="alert alert-info border-info">
                             <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
                         </div>
+
+                        @* Antes de apertar o botão, o organizador vê onde essa grade termina.
+                           Aqui os números são REAIS — as duplas já estão inscritas —, então
+                           não é estimativa como na tela de criação. *@
+                        @if (ViewBag.PrevisaoGrade is Padelizou.ViewModels.PrevisaoGradeVM prev && prev.TotalDeJogos > 0)
+                        {
+                            <div class="p-3 rounded mb-3" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                                <div class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                                    <i class="bi bi-calendar-check me-1"></i> Como essa grade vai ficar
+                                </div>
+                                <div class="small">
+                                    <strong>@prev.Duplas duplas</strong> em @prev.Grupos grupos =
+                                    @prev.JogosDeGrupo jogos de grupo + @prev.JogosDeMataMata de mata-mata =
+                                    <strong>@prev.TotalDeJogos jogos</strong>, em @Model.QuantidadeQuadras
+                                    @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras") de @Model.TempoPrevistoPartidaMinutos min.
+                                    <br />
+                                    Começa <strong>@prev.Inicio.ToString("dddd dd/MM 'às' HH:mm")</strong> e o último jogo
+                                    termina <strong>@prev.FimPrevisto.ToString("dddd dd/MM 'às' HH:mm")</strong>
+                                    — @prev.Dias @(prev.Dias == 1 ? "dia" : "dias") de quadra.
+                                </div>
+                                @if (prev.EstouraOPrazo)
+                                {
+                                    <div class="alert alert-danger mt-2 mb-0 py-2 px-3 small">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        <strong>Passa do dia @Model.DataFim!.Value.ToString("dd/MM")</strong>, que você marcou como limite.
+                                        Dá pra resolver com mais quadras, jogo mais curto ou começando mais cedo — é só editar o torneio.
+                                    </div>
+                                }
+                            </div>
+                        }
+
                         <form asp-controller="Torneios" asp-action="GerarChaves" method="post">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-primary fw-bold shadow-sm">

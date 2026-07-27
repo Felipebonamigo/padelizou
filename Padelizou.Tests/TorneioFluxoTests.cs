@@ -162,12 +162,13 @@ public class TorneioFluxoTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
-        // Uma quadra só, expediente curto: os 6 jogos de grupo enchem o dia e o mata-mata
-        // tem que cair no dia seguinte no horário de abertura, não às 3h da manhã.
+        // Uma quadra só, dia curto: os 6 jogos de grupo enchem o dia (9h..14h, teto de 14h)
+        // e o mata-mata tem que cair no dia seguinte na abertura dos DEMAIS dias.
         torneio.QuantidadeQuadras = 1;
         torneio.TempoPrevistoPartidaMinutos = 60;
         torneio.HoraInicioDoDia = new TimeSpan(9, 0, 0);
-        torneio.HoraFimDoDia = new TimeSpan(15, 0, 0);
+        torneio.HoraInicioDiasSeguintes = new TimeSpan(7, 0, 0);
+        torneio.HoraFimDoDia = new TimeSpan(14, 0, 0);
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
@@ -179,11 +180,12 @@ public class TorneioFluxoTests
         var semis = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal").ToListAsync();
 
-        // 6 jogos de 1h numa quadra enchem 9h..14h; às 15h não cabe mais (terminaria 16h),
-        // então o mata-mata abre o dia seguinte às 9h — o horário de abertura, não 15h.
-        Assert.Equal(new DateTime(2026, 7, 2, 9, 0, 0), semis.Min(p => p.HorarioPrevisto));
+        // 6 jogos de 1h numa quadra enchem 9h..14h; o próximo passaria do teto, então o
+        // mata-mata abre o dia seguinte às 7h — a abertura dos DEMAIS dias, não as 9h da
+        // sexta nem as 15h em que a fase de grupos parou.
+        Assert.Equal(new DateTime(2026, 7, 2, 7, 0, 0), semis.Min(p => p.HorarioPrevisto));
         Assert.All(semis, p => Assert.Equal(new DateTime(2026, 7, 2), p.HorarioPrevisto!.Value.Date));
-        Assert.All(semis, p => Assert.True(p.HorarioPrevisto!.Value.TimeOfDay < new TimeSpan(15, 0, 0)));
+        Assert.All(semis, p => Assert.True(p.HorarioPrevisto!.Value.TimeOfDay <= new TimeSpan(14, 0, 0)));
     }
 
     // Motor genérico (25/07/2026): antes o mata-mata só fechava com 1/2/4/8 grupos.

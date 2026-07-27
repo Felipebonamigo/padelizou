@@ -711,6 +711,13 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // "Cabe?" — enquanto as chaves não foram sorteadas ainda dá pra mudar quadras,
+            // duração ou horário. Depois, remarcar significa avisar todo mundo de novo.
+            if (torneio.Status == "Chaves em Sorteio" && torneio.Formato != "Americano")
+            {
+                ViewBag.PrevisaoGrade = MontarPrevisaoDaGrade(torneio);
+            }
+
             // SELOS HISTÓRICOS: melhor colocação + títulos de cada jogador nas mesmas categorias
             // (por Categoria.Nome), considerando torneios anteriores a este.
             var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();
@@ -974,7 +981,8 @@ namespace Padelizou.Controllers
                 torneio.HoraFimDoDia,
                 torneio.QuantidadeQuadras,
                 torneio.TempoPrevistoPartidaMinutos,
-                jogosPraAgendar.Count).ToList();
+                jogosPraAgendar.Count,
+                aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             for (int i = 0; i < jogosPraAgendar.Count; i++)
             {
@@ -1454,6 +1462,52 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id });
         }
 
+        // Projeta a grade inteira ANTES do sorteio: quantos jogos saem das duplas já
+        // inscritas e a que horas o último termina. Cada categoria tem os próprios grupos e
+        // o próprio mata-mata, mas todas dividem as mesmas quadras — por isso os jogos se
+        // somam antes de virar horário.
+        private static PrevisaoGradeVM MontarPrevisaoDaGrade(Torneio torneio)
+        {
+            int duplas = 0, grupos = 0, jogosDeGrupo = 0, jogosDeMataMata = 0;
+
+            foreach (var categoria in torneio.Categorias)
+            {
+                // Dupla sem parceiro ainda não é uma dupla: não entra em grupo nenhum.
+                int daCategoria = categoria.Duplas.Count(d => d.Jogador2Id != null);
+                var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
+
+                duplas += daCategoria;
+                grupos += g;
+                jogosDeGrupo += jogos;
+                jogosDeMataMata += PrevisaoDoTorneio.MataMata(g);
+            }
+
+            int total = jogosDeGrupo + jogosDeMataMata;
+            var inicio = torneio.AberturaDaGrade;
+
+            var ultimo = PrevisaoDoTorneio.UltimoJogo(
+                inicio, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes,
+                torneio.QuantidadeQuadras, torneio.TempoPrevistoPartidaMinutos, total);
+
+            var duracao = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            var fim = ultimo?.AddMinutes(duracao) ?? inicio;
+
+            return new PrevisaoGradeVM
+            {
+                Duplas = duplas,
+                Grupos = grupos,
+                JogosDeGrupo = jogosDeGrupo,
+                JogosDeMataMata = jogosDeMataMata,
+                TotalDeJogos = total,
+                Inicio = inicio,
+                FimPrevisto = fim,
+                Dias = ultimo == null ? 1 : PrevisaoDoTorneio.DiasOcupados(inicio, ultimo.Value),
+                // Comparação por DIA: o limite é "até domingo", não "até domingo às 00h".
+                EstouraOPrazo = torneio.DataFim != null && ultimo != null
+                                && ultimo.Value.Date > torneio.DataFim.Value.Date
+            };
+        }
+
         // TODO jogo do torneio nasce com horário previsto — inclusive os do mata-mata, que
         // só existem depois que a fase de grupos acaba. Sem isso o jogador via "a definir" na
         // fase que mais importa, e a Mesa de Controle não tinha ordem nenhuma pra seguir.
@@ -1471,15 +1525,17 @@ namespace Padelizou.Controllers
                 .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
                 .MaxAsync(p => p.HorarioPrevisto);
 
+            // Vira o dia na abertura dos DIAS SEGUINTES: o mata-mata quase sempre cai no
+            // domingo, que começa cedo — não às 18h da sexta em que o torneio abriu.
             var inicio = ultimoMarcado == null
                 ? torneio.AberturaDaGrade
                 : GradeDeJogos.DepoisDe(ultimoMarcado.Value, torneio.HoraFimDoDia,
-                                        torneio.HoraInicioDoDia, torneio.TempoPrevistoPartidaMinutos);
+                                        torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
 
             var horarios = GradeDeJogos.Horarios(
                 inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
                 torneio.TempoPrevistoPartidaMinutos, jogos.Count,
-                abertura: torneio.HoraInicioDoDia).ToList();
+                aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             for (int i = 0; i < jogos.Count; i++)
             {
@@ -1781,7 +1837,7 @@ namespace Padelizou.Controllers
             var horariosAmericano = GradeDeJogos.Horarios(
                 dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
                 tempoPartida, jogosDoAmericano.Count,
-                abertura: torneio.HoraInicioDoDia).ToList();
+                aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             for (int i = 0; i < jogosDoAmericano.Count; i++)
             {

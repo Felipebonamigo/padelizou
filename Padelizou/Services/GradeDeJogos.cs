@@ -8,34 +8,45 @@ namespace Padelizou.Services;
 //
 //   1. ignorava as QUADRAS: com 3 quadras rodando em paralelo, 3 jogos começam no mesmo
 //      horário, e o relógio só anda quando as quadras enchem;
-//   2. ignorava o EXPEDIENTE: torneio não vira a noite. Ao bater o horário de encerramento
-//      do dia, o que sobra vai pro dia seguinte, no horário de abertura.
+//   2. ignorava o EXPEDIENTE: torneio não vira a noite. Ao passar do último horário do dia,
+//      o que sobra vai pro dia seguinte.
+//
+// O padrão de um torneio de fim de semana (27/07/2026, descrito pelo Felipe):
+//
+//   sexta   — começa 18h (todo mundo trabalha de dia), últimos jogos 23h / 23h50
+//   sábado  — começa 8h, vai até 23h / 23h50
+//   domingo — começa 8h e vai até acabar, normalmente à tarde
+//
+// Daí duas coisas que a grade precisa saber e que uma hora só não expressa:
+//
+//   • o PRIMEIRO dia abre num horário e os DEMAIS em outro (18h × 8h);
+//   • o corte do dia é a hora em que o último jogo COMEÇA, não em que termina — um jogo
+//     das 23h50 varando a madrugada é normal, e ninguém quer calcular 23h50 + 50 min
+//     pra preencher um campo.
 public static class GradeDeJogos
 {
     // Um horário por jogo, na ordem em que os jogos foram passados.
     //
-    // inicio        — quando o torneio começa (data + hora).
-    // horaFimDoDia  — a que horas para de encaixar jogo. Se for menor ou igual à hora de
-    //                 início, o dia é tratado como aberto (sem virada), pra nunca entrar
-    //                 em laço infinito por configuração torta.
-    // quadras       — quantos jogos rodam ao mesmo tempo.
-    // abertura      — a que horas o dia SEGUINTE recomeça. Só precisa ser informada quando a
-    //                 grade não começa na abertura do torneio: o mata-mata entra emendado na
-    //                 fase de grupos (14h40, digamos) e, se virar o dia, tem que recomeçar às
-    //                 8h como todo mundo, não às 14h40.
+    // inicio               — quando o torneio começa (data + hora da sexta, por exemplo).
+    // ultimoInicioDoDia    — a hora limite pra COMEÇAR um jogo. Se for menor ou igual à
+    //                        abertura dos dias seguintes, o dia é tratado como aberto (sem
+    //                        virada), pra nunca entrar em laço infinito por configuração torta.
+    // quadras              — quantos jogos rodam ao mesmo tempo.
+    // aberturaDiasSeguintes— a que horas o dia seguinte recomeça. Omitida, repete a hora de
+    //                        início — serve pro mata-mata, que entra emendado no meio do dia.
     public static IEnumerable<DateTime> Horarios(
-        DateTime inicio, TimeSpan horaFimDoDia, int quadras, int duracaoMinutos, int quantidade,
-        TimeSpan? abertura = null)
+        DateTime inicio, TimeSpan ultimoInicioDoDia, int quadras, int duracaoMinutos, int quantidade,
+        TimeSpan? aberturaDiasSeguintes = null)
     {
         if (quantidade <= 0) yield break;
 
         quadras = Math.Max(quadras, 1);
         duracaoMinutos = duracaoMinutos > 0 ? duracaoMinutos : 50;
 
-        var horaAbertura = abertura ?? inicio.TimeOfDay;
-        // Expediente inválido (fim antes do início, ou igual) = dia sem limite.
-        bool viraODia = horaFimDoDia > horaAbertura;
+        var abertura = aberturaDiasSeguintes ?? inicio.TimeOfDay;
+        bool viraODia = ultimoInicioDoDia > abertura;
 
+        var aberturaDoDia = inicio;   // quando o dia corrente abriu
         var horario = inicio;
         int naQuadra = 0;
 
@@ -47,10 +58,13 @@ public static class GradeDeJogos
                 horario = horario.AddMinutes(duracaoMinutos);
                 naQuadra = 0;
 
-                // O jogo tem que caber inteiro dentro do expediente.
-                if (viraODia && horario.TimeOfDay.Add(TimeSpan.FromMinutes(duracaoMinutos)) > horaFimDoDia)
+                // Comparação em data cheia, não em hora do dia: o jogo das 23h50 empurra o
+                // próximo pra 0h40, que já é OUTRA data — comparar só TimeOfDay diria
+                // "0h40 é cedo, cabe" e marcaria jogo na madrugada.
+                if (viraODia && horario > aberturaDoDia.Date.Add(ultimoInicioDoDia))
                 {
-                    horario = horario.Date.AddDays(1).Add(horaAbertura);
+                    aberturaDoDia = aberturaDoDia.Date.AddDays(1).Add(abertura);
+                    horario = aberturaDoDia;
                 }
             }
 
@@ -59,41 +73,41 @@ public static class GradeDeJogos
         }
     }
 
-    // Quantas rodadas cabem num dia de expediente.
-    // null = dia sem hora pra acabar; 0 = nem um jogo cabe na janela escolhida.
-    public static int? RodadasPorDia(TimeSpan horaAbertura, TimeSpan horaFimDoDia, int duracaoMinutos)
+    // Quantas rodadas cabem num dia que abre às `abertura`.
+    // null = dia sem hora pra acabar.
+    public static int? RodadasPorDia(TimeSpan abertura, TimeSpan ultimoInicioDoDia, int duracaoMinutos)
     {
-        if (horaFimDoDia <= horaAbertura) return null;
+        if (ultimoInicioDoDia <= abertura) return null;
 
         duracaoMinutos = duracaoMinutos > 0 ? duracaoMinutos : 50;
-        return (int)((horaFimDoDia - horaAbertura).TotalMinutes / duracaoMinutos);
+        return (int)((ultimoInicioDoDia - abertura).TotalMinutes / duracaoMinutos) + 1;
     }
 
-    // A que horas começa o ÚLTIMO jogo do dia — o jogo tem que caber inteiro dentro do
-    // expediente, então às 23h com jogo de 50 min o último começa 21h30, não 22h20.
-    // null quando o dia é aberto ou quando nem um jogo cabe.
-    public static TimeSpan? UltimoInicioDoDia(TimeSpan horaAbertura, TimeSpan horaFimDoDia, int duracaoMinutos)
+    // A que horas começa de fato o ÚLTIMO jogo do dia. Não é o limite digitado: o limite é
+    // um teto, e o jogo só começa nos horários que a cadência alcança — com jogos de 1h a
+    // partir das 18h, o teto de 23h50 vira 23h, porque 23h50 não é múltiplo da cadência.
+    // null quando o dia é aberto.
+    public static TimeSpan? UltimoInicioDoDia(TimeSpan abertura, TimeSpan ultimoInicioDoDia, int duracaoMinutos)
     {
-        var rodadas = RodadasPorDia(horaAbertura, horaFimDoDia, duracaoMinutos);
-        if (rodadas is null or 0) return null;
+        var rodadas = RodadasPorDia(abertura, ultimoInicioDoDia, duracaoMinutos);
+        if (rodadas == null) return null;
 
         duracaoMinutos = duracaoMinutos > 0 ? duracaoMinutos : 50;
-        return horaAbertura + TimeSpan.FromMinutes((rodadas.Value - 1) * duracaoMinutos);
+        return abertura + TimeSpan.FromMinutes((rodadas.Value - 1) * duracaoMinutos);
     }
 
     // Quando a próxima partida pode começar, dado o último jogo já marcado — usado pra
     // encaixar o mata-mata logo depois da fase de grupos, em vez de recomeçar do zero em
     // cima dela.
-    public static DateTime DepoisDe(DateTime ultimoJogo, TimeSpan horaFimDoDia, TimeSpan horaAbertura, int duracaoMinutos)
+    public static DateTime DepoisDe(DateTime ultimoJogo, TimeSpan ultimoInicioDoDia,
+        TimeSpan aberturaDiasSeguintes, int duracaoMinutos)
     {
         duracaoMinutos = duracaoMinutos > 0 ? duracaoMinutos : 50;
         var proximo = ultimoJogo.AddMinutes(duracaoMinutos);
 
-        // Mesma regra da grade: o jogo tem que caber INTEIRO no expediente.
-        if (horaFimDoDia > horaAbertura
-            && proximo.TimeOfDay.Add(TimeSpan.FromMinutes(duracaoMinutos)) > horaFimDoDia)
+        if (ultimoInicioDoDia > aberturaDiasSeguintes && proximo > ultimoJogo.Date.Add(ultimoInicioDoDia))
         {
-            proximo = proximo.Date.AddDays(1).Add(horaAbertura);
+            proximo = ultimoJogo.Date.AddDays(1).Add(aberturaDiasSeguintes);
         }
 
         return proximo;

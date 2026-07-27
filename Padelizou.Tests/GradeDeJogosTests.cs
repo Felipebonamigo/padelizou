@@ -46,37 +46,58 @@ public class GradeDeJogosTests
     [Fact]
     public void Nada_e_marcado_depois_do_fim_do_expediente()
     {
-        // 1 quadra, 60 min, das 8h às 22h = 14 jogos cabem no dia.
+        // 1 quadra, 60 min, abrindo 8h com teto de 22h: os jogos começam de 8h a 22h.
         var grade = Grade(quadras: 1, duracao: 60, quantidade: 40);
 
-        Assert.All(grade, h => Assert.InRange(h.TimeOfDay, new TimeSpan(8, 0, 0), new TimeSpan(21, 0, 0)));
+        Assert.All(grade, h => Assert.InRange(h.TimeOfDay, new TimeSpan(8, 0, 0), new TimeSpan(22, 0, 0)));
     }
 
     [Fact]
     public void O_que_nao_cabe_vai_pro_dia_seguinte_no_horario_de_abertura()
     {
-        var grade = Grade(quadras: 1, duracao: 60, quantidade: 16);
+        var grade = Grade(quadras: 1, duracao: 60, quantidade: 17);
 
-        // 14 jogos no sábado (8h..21h), o 15º abre o domingo às 8h.
-        Assert.Equal(Sabado8h.Date, grade[13].Date);
-        Assert.Equal(Sabado8h.Date.AddDays(1).AddHours(8), grade[14]);
-        Assert.Equal(Sabado8h.Date.AddDays(1).AddHours(9), grade[15]);
+        // 15 jogos no sábado (8h..22h), o 16º abre o domingo às 8h.
+        Assert.Equal(Sabado8h.Date, grade[14].Date);
+        Assert.Equal(new TimeSpan(22, 0, 0), grade[14].TimeOfDay);
+        Assert.Equal(Sabado8h.Date.AddDays(1).AddHours(8), grade[15]);
+        Assert.Equal(Sabado8h.Date.AddDays(1).AddHours(9), grade[16]);
+    }
+
+    // O padrão real do torneio de fim de semana (descrito pelo Felipe em 27/07/2026):
+    // sexta começa 18h e os últimos jogos são 23h / 23h50; sábado e domingo começam 8h.
+    [Fact]
+    public void O_limite_e_a_hora_de_COMECAR__o_jogo_pode_virar_a_madrugada()
+    {
+        // Teto às 23h50 com jogo de 50 min: o das 23h50 acontece e termina 0h40 — normal
+        // numa sexta. O seguinte já é do dia seguinte, na abertura do sábado.
+        var sexta18h = new DateTime(2026, 8, 21, 18, 0, 0);
+        var grade = GradeDeJogos.Horarios(sexta18h, new TimeSpan(23, 50, 0), 1, 50, 9,
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0)).ToList();
+
+        Assert.Equal(new DateTime(2026, 8, 21, 23, 50, 0), grade[7]);
+        Assert.Equal(new DateTime(2026, 8, 22, 8, 0, 0), grade[8]);
     }
 
     [Fact]
-    public void O_jogo_precisa_caber_inteiro_no_expediente()
+    public void O_primeiro_dia_abre_num_horario_e_os_demais_em_outro()
     {
-        // Das 8h às 9h, jogo de 50 min: só o das 8h cabe — o das 8h50 terminaria 9h40.
-        var grade = Grade(quadras: 1, duracao: 50, quantidade: 2, fim: new TimeSpan(9, 0, 0));
+        var sexta18h = new DateTime(2026, 8, 21, 18, 0, 0);
+        var grade = GradeDeJogos.Horarios(sexta18h, new TimeSpan(23, 50, 0), 2, 50, 40,
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0)).ToList();
 
-        Assert.Equal(Sabado8h, grade[0]);
-        Assert.Equal(Sabado8h.Date.AddDays(1).AddHours(8), grade[1]);
+        // Sexta: 8 rodadas de 18h a 23h50, 2 jogos por rodada = 16 jogos.
+        Assert.Equal(16, grade.Count(h => h.Date == new DateTime(2026, 8, 21)));
+        // Sábado abre às 8h, não às 18h — e nada cai de madrugada.
+        Assert.Equal(new DateTime(2026, 8, 22, 8, 0, 0), grade[16]);
+        Assert.DoesNotContain(grade, h => h.Date > new DateTime(2026, 8, 21)
+                                       && h.TimeOfDay < new TimeSpan(8, 0, 0));
     }
 
     [Fact]
     public void Expediente_invalido_nao_trava_o_sorteio()
     {
-        // Fim antes do início seria laço infinito procurando um dia que cabe. Vira dia aberto.
+        // Teto antes da abertura seria laço infinito procurando um dia que cabe. Vira dia aberto.
         var grade = Grade(quadras: 2, duracao: 50, quantidade: 6, fim: new TimeSpan(6, 0, 0));
 
         Assert.Equal(6, grade.Count);
@@ -121,7 +142,9 @@ public class GradeDeJogosTests
     {
         var torneio = new Padelizou.Models.Torneio { Nome = "T", Codigo = "T1", DataInicio = null };
 
-        Assert.Equal(DateTime.Today.AddHours(8), torneio.AberturaDaGrade);
+        // 18h é o padrão do primeiro dia: torneio costuma abrir numa sexta à noite.
+        Assert.Equal(DateTime.Today.AddHours(18), torneio.AberturaDaGrade);
+        Assert.Equal(new TimeSpan(8, 0, 0), torneio.HoraInicioDiasSeguintes);
     }
 
     [Fact]
@@ -140,63 +163,61 @@ public class GradeDeJogosTests
     // horário e a grade marcar outro, a dica vira mentira — por isso a conta é a mesma.
 
     [Fact]
-    public void Ultimo_jogo_do_dia_e_o_ultimo_que_cabe_INTEIRO()
+    public void O_ultimo_jogo_e_o_ultimo_que_a_CADENCIA_alcanca()
     {
-        // 19h-23h com jogo de 50 min: 21h30 é o último que termina dentro (22h20).
-        // 22h20 até caberia começar, mas terminaria 23h10 — fora do expediente.
-        var ultimo = GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(23, 0, 0), 50);
+        // Teto de 23h50 com jogos de 50 min a partir das 18h: 23h50 é alcançado na régua.
+        Assert.Equal(new TimeSpan(23, 50, 0),
+            GradeDeJogos.UltimoInicioDoDia(new TimeSpan(18, 0, 0), new TimeSpan(23, 50, 0), 50));
 
-        Assert.Equal(new TimeSpan(21, 30, 0), ultimo);
+        // Mesmo teto, jogos de 1h: a régua para em 23h — 23h50 não é múltiplo da cadência.
+        // É exatamente isso que o organizador não calcula de cabeça.
+        Assert.Equal(new TimeSpan(23, 0, 0),
+            GradeDeJogos.UltimoInicioDoDia(new TimeSpan(18, 0, 0), new TimeSpan(23, 50, 0), 60));
     }
 
     [Fact]
     public void A_dica_bate_com_o_horario_que_a_grade_realmente_marca()
     {
-        var abertura = new TimeSpan(19, 0, 0);
-        var fim = new TimeSpan(23, 0, 0);
-        var sabado19h = Sabado8h.Date.Add(abertura);
+        var abertura = new TimeSpan(18, 0, 0);
+        var teto = new TimeSpan(23, 50, 0);
+        var sexta18h = new DateTime(2026, 8, 21, 18, 0, 0);
 
-        // 2 quadras, 8 jogos = 4 rodadas, exatamente o que cabe no dia.
-        var grade = Grade(quadras: 2, duracao: 50, quantidade: 8, inicio: sabado19h, fim: fim);
+        // 8 rodadas cabem na sexta; com 2 quadras são 16 jogos.
+        Assert.Equal(8, GradeDeJogos.RodadasPorDia(abertura, teto, 50));
 
-        Assert.Equal(sabado19h.Date.Add(GradeDeJogos.UltimoInicioDoDia(abertura, fim, 50)!.Value), grade.Last());
-        Assert.Equal(4, GradeDeJogos.RodadasPorDia(abertura, fim, 50));
+        var grade = GradeDeJogos.Horarios(sexta18h, teto, 2, 50, 16,
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0)).ToList();
+
+        Assert.Equal(sexta18h.Date.Add(GradeDeJogos.UltimoInicioDoDia(abertura, teto, 50)!.Value), grade.Last());
     }
 
     [Fact]
     public void O_jogo_seguinte_ao_ultimo_ja_cai_no_dia_seguinte()
     {
-        var abertura = new TimeSpan(19, 0, 0);
-        var fim = new TimeSpan(23, 0, 0);
-        var sabado19h = Sabado8h.Date.Add(abertura);
+        var sexta18h = new DateTime(2026, 8, 21, 18, 0, 0);
 
-        // Um jogo a mais que o dia comporta: 2 quadras x 4 rodadas = 8, então o 9º vira o dia.
-        var grade = Grade(quadras: 2, duracao: 50, quantidade: 9, inicio: sabado19h, fim: fim);
+        // Um jogo a mais que a sexta comporta: 2 quadras x 8 rodadas = 16, o 17º vira o dia.
+        var grade = GradeDeJogos.Horarios(sexta18h, new TimeSpan(23, 50, 0), 2, 50, 17,
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0)).ToList();
 
-        Assert.Equal(sabado19h.AddDays(1), grade.Last());
+        Assert.Equal(new DateTime(2026, 8, 22, 8, 0, 0), grade.Last());
     }
 
     [Fact]
     public void Dia_sem_hora_pra_acabar_nao_tem_ultimo_jogo()
     {
-        // Fim antes ou igual ao início = expediente aberto; nada a avisar.
+        // Teto antes ou igual à abertura = dia aberto; nada a avisar.
         Assert.Null(GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 0, 0), 50));
         Assert.Null(GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(8, 0, 0), 50));
     }
 
     [Fact]
-    public void Janela_menor_que_um_jogo_nao_comporta_nem_o_primeiro()
+    public void Teto_apertado_ainda_comporta_o_jogo_de_abertura()
     {
-        // 19h-19h30 com jogo de 50 min: a tela precisa avisar em vez de fingir um horário.
-        Assert.Equal(0, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
-        Assert.Null(GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
-    }
-
-    [Fact]
-    public void Janela_exata_de_um_jogo_comporta_um_jogo()
-    {
-        Assert.Equal(1, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 50, 0), 50));
+        // Abre 19h, teto 19h30, jogo de 50 min: o das 19h começa e termina 19h50. É 1 jogo,
+        // não zero — o teto é a hora de COMEÇAR.
+        Assert.Equal(1, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
         Assert.Equal(new TimeSpan(19, 0, 0),
-            GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 50, 0), 50));
+            GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
     }
 }

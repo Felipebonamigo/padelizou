@@ -81,6 +81,11 @@
 
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label fw-bold small">Precisa terminar até <span class="fw-normal">(opcional)</span></label>
+                        <input type="date" asp-for="DataFim" class="form-control bg-light" />
+                        <small class="text-muted d-block mt-1">Até quando você tem a quadra. Serve pro sistema avisar se os jogos não couberem.</small>
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label fw-bold small">Inscrição <span class="fw-normal">(por pessoa)</span></label>
                         <input type="number" asp-for="PrecoInscricao" id="precoInscricao" step="0.01" class="form-control bg-light" required placeholder="Ex: 75,00" oninput="pdzAtualizarSimulacao()" />
                         <small class="text-muted d-block mt-1">É o valor que cada jogador paga. Uma dupla paga o dobro.</small>
@@ -97,18 +102,56 @@
                             <span class="input-group-text">min</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Jogos de que horas até que horas?</label>
-                        <div class="input-group">
-                            <input type="time" asp-for="HoraInicioDoDia" class="form-control bg-light" required />
-                            <span class="input-group-text">até</span>
-                            <input type="time" asp-for="HoraFimDoDia" class="form-control bg-light" required />
+                    @* Duas aberturas porque o torneio de fim de semana tem duas: sexta à
+                       noite (todo mundo trabalha de dia) e sábado/domingo cedo. *@
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold small">Horários dos jogos</label>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">1º dia</span>
+                                    <input type="time" asp-for="HoraInicioDoDia" class="form-control bg-light" required />
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">demais</span>
+                                    <input type="time" asp-for="HoraInicioDiasSeguintes" class="form-control bg-light" required />
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">último jogo até</span>
+                                    <input type="time" asp-for="HoraFimDoDia" class="form-control bg-light" required />
+                                </div>
+                            </div>
                         </div>
                         @* O organizador escolhe a janela sem saber onde ela cai: com jogo de
-                           50 min e fim às 23h, o último começa 21h30 — não 22h20, porque o
-                           jogo tem que caber inteiro. Melhor ele ver isso antes de anunciar. *@
+                           1h a partir das 18h, o teto de 23h50 vira 23h — a cadência não
+                           alcança 23h50. Melhor ele ver isso antes de anunciar. *@
                         <small id="pdzUltimoJogo" class="d-block mt-1 fw-bold" style="color: var(--pdz-ink);"></small>
-                        <small class="text-muted d-block mt-1">Vale pra cada dia. O que não couber vai pro dia seguinte, no mesmo horário de abertura.</small>
+                        <small class="text-muted d-block mt-1">
+                            É a hora em que o último jogo <strong>começa</strong> — ele pode virar a madrugada.
+                            O que não couber no dia vai pro seguinte.
+                        </small>
+                    </div>
+
+                    @* "Cabe?" é a pergunta que nenhum campo responde sozinho: depende do número
+                       de jogos, que depende de quantas duplas entram. Na criação ninguém sabe
+                       ainda, então o organizador estima e o sistema mostra onde isso termina. *@
+                    <div class="col-12">
+                        <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                            <label class="form-label fw-bold small mb-2" style="color: var(--pdz-ink);">
+                                <i class="bi bi-calendar-check me-1"></i> Vai caber?
+                            </label>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="small text-muted">Você espera quantas duplas?</span>
+                                <input type="number" id="pdzDuplasEsperadas" min="2" max="256" value="16"
+                                       class="form-control form-control-sm" style="width: 90px;" />
+                                <span class="small text-muted">(só pra simular — não é limite)</span>
+                            </div>
+                            <div id="pdzPrevisao" class="mt-2 small"></div>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Limite total de duplas no torneio (opcional)</label>
@@ -538,15 +581,23 @@
 
     document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
 
-    // Mesma regra do GradeDeJogos: o jogo tem que caber INTEIRO na janela do dia.
+    // Mesma regra do GradeDeJogos: o limite é a hora em que o último jogo COMEÇA, e ele só
+    // começa nos horários que a cadência alcança.
     function pdzEmMinutos(hhmm) {
         var p = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');
         return p ? parseInt(p[1], 10) * 60 + parseInt(p[2], 10) : null;
     }
 
     function pdzEmRelogio(minutos) {
-        var h = Math.floor(minutos / 60), m = minutos % 60;
+        var h = Math.floor(minutos / 60) % 24, m = minutos % 60;
         return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+    }
+
+    // Quantas rodadas cabem e a que horas o último jogo começa, num dia que abre às `abre`.
+    function pdzDia(abre, teto, duracao) {
+        if (teto <= abre) return null;
+        var rodadas = Math.floor((teto - abre) / duracao) + 1;
+        return { rodadas: rodadas, ultimo: abre + (rodadas - 1) * duracao };
     }
 
     function pdzUltimoJogo() {
@@ -555,43 +606,157 @@
 
         var duracao = parseInt((document.getElementById('TempoPrevistoPartidaMinutos') || {}).value, 10) || 0;
         var quadras = Math.max(1, parseInt((document.getElementById('quantidadeQuadras') || {}).value, 10) || 1);
-        var inicio = pdzEmMinutos((document.getElementById('HoraInicioDoDia') || {}).value);
-        var fim = pdzEmMinutos((document.getElementById('HoraFimDoDia') || {}).value);
+        var primeiro = pdzEmMinutos((document.getElementById('HoraInicioDoDia') || {}).value);
+        var seguintes = pdzEmMinutos((document.getElementById('HoraInicioDiasSeguintes') || {}).value);
+        var teto = pdzEmMinutos((document.getElementById('HoraFimDoDia') || {}).value);
 
-        alvo.className = 'd-block mt-1 fw-bold';
         alvo.style.color = 'var(--pdz-ink)';
 
-        if (duracao <= 0 || inicio === null || fim === null) { alvo.textContent = ''; return; }
+        if (duracao <= 0 || primeiro === null || seguintes === null || teto === null) {
+            alvo.textContent = '';
+            return;
+        }
 
-        if (fim <= inicio) {
+        if (teto <= seguintes) {
             alvo.style.color = 'var(--pdz-muted)';
             alvo.textContent = 'Sem hora pra acabar: os jogos seguem emendando até o último.';
             return;
         }
 
-        var rodadas = Math.floor((fim - inicio) / duracao);
-        if (rodadas === 0) {
-            alvo.style.color = 'var(--bs-danger)';
-            alvo.textContent = 'Um jogo de ' + duracao + ' min não cabe entre '
-                + pdzEmRelogio(inicio) + ' e ' + pdzEmRelogio(fim) + '.';
+        function frase(rotulo, dia) {
+            if (dia === null) return rotulo + ': o primeiro jogo já passa do limite do dia.';
+            var jogos = dia.rodadas * quadras;
+            return rotulo + ': último jogo começa <strong>' + pdzEmRelogio(dia.ultimo)
+                + '</strong> (termina ' + pdzEmRelogio(dia.ultimo + duracao) + ') — '
+                + dia.rodadas + (dia.rodadas > 1 ? ' rodadas' : ' rodada') + ', '
+                + jogos + (jogos > 1 ? ' jogos' : ' jogo') + '.';
+        }
+
+        var d1 = pdzDia(primeiro, teto, duracao);
+        var d2 = pdzDia(seguintes, teto, duracao);
+
+        alvo.innerHTML = '<i class="bi bi-clock-history me-1"></i>'
+            + frase('1º dia', d1)
+            + (primeiro === seguintes ? '' : '<br><i class="bi bi-arrow-return-right me-1"></i>' + frase('Dias seguintes', d2))
+            + '<br><span class="fw-normal text-muted">Com ' + quadras
+            + (quadras > 1 ? ' quadras.' : ' quadra.') + '</span>';
+    }
+
+    // ── "Vai caber?" ────────────────────────────────────────────────────────────────────
+    // Espelha PrevisaoDoTorneio e GradeDeJogos. Se as duas contas divergirem, a tela mente.
+
+    function pdzFaseDeGrupos(duplas) {
+        if (duplas < 2) return { grupos: 0, jogos: 0 };
+        if (duplas < 3) return { grupos: 1, jogos: 1 };
+        var resto = duplas % 3;
+        var gruposDeDois = resto === 1 ? 2 : (resto === 2 ? 1 : 0);
+        var gruposDeTres = (duplas - gruposDeDois * 2) / 3;
+        return { grupos: gruposDeDois + gruposDeTres, jogos: gruposDeDois + gruposDeTres * 3 };
+    }
+
+    function pdzMataMata(grupos) {
+        if (grupos <= 0) return 0;
+        if (grupos === 1) return 1;
+        var quadro = 1;
+        while (quadro * 2 <= grupos * 2) quadro *= 2;
+        return quadro - 1;
+    }
+
+    // Mesma marcha do GradeDeJogos: N quadras em paralelo, vira o dia ao passar do teto.
+    function pdzUltimoHorario(inicio, teto, aberturaSeguintes, quadras, duracao, jogos) {
+        var aberturaDoDia = new Date(inicio.getTime());
+        var horario = new Date(inicio.getTime());
+        var naQuadra = 0;
+        var viraODia = teto > aberturaSeguintes;
+
+        for (var i = 0; i < jogos; i++) {
+            if (naQuadra === quadras) {
+                horario = new Date(horario.getTime() + duracao * 60000);
+                naQuadra = 0;
+                if (viraODia) {
+                    var limite = new Date(aberturaDoDia.getFullYear(), aberturaDoDia.getMonth(),
+                                          aberturaDoDia.getDate(), 0, teto, 0);
+                    if (horario > limite) {
+                        aberturaDoDia = new Date(aberturaDoDia.getFullYear(), aberturaDoDia.getMonth(),
+                                                 aberturaDoDia.getDate() + 1, 0, aberturaSeguintes, 0);
+                        horario = new Date(aberturaDoDia.getTime());
+                    }
+                }
+            }
+            naQuadra++;
+        }
+        return horario;
+    }
+
+    function pdzDataHora(d) {
+        var dias = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+        var dd = ('0' + d.getDate()).slice(-2), mm = ('0' + (d.getMonth() + 1)).slice(-2);
+        var hh = ('0' + d.getHours()).slice(-2), mi = ('0' + d.getMinutes()).slice(-2);
+        return dias[d.getDay()] + ' ' + dd + '/' + mm + ' às ' + hh + ':' + mi;
+    }
+
+    function pdzPrevisao() {
+        var alvo = document.getElementById('pdzPrevisao');
+        if (!alvo) return;
+
+        var duplas = parseInt((document.getElementById('pdzDuplasEsperadas') || {}).value, 10) || 0;
+        var duracao = parseInt((document.getElementById('TempoPrevistoPartidaMinutos') || {}).value, 10) || 0;
+        var quadras = Math.max(1, parseInt((document.getElementById('quantidadeQuadras') || {}).value, 10) || 1);
+        var abre = pdzEmMinutos((document.getElementById('HoraInicioDoDia') || {}).value);
+        var seguintes = pdzEmMinutos((document.getElementById('HoraInicioDiasSeguintes') || {}).value);
+        var teto = pdzEmMinutos((document.getElementById('HoraFimDoDia') || {}).value);
+        var dataInicio = (document.getElementById('DataInicio') || {}).value;
+        var dataFim = (document.getElementById('DataFim') || {}).value;
+
+        if (!duplas || duplas < 2 || !duracao || abre === null || seguintes === null || teto === null || !dataInicio) {
+            alvo.innerHTML = '<span class="text-muted">Preencha a data de início, os horários e a duração pra ver a conta.</span>';
             return;
         }
 
-        var ultimo = inicio + (rodadas - 1) * duracao;
-        alvo.innerHTML = '<i class="bi bi-clock-history me-1"></i>Último jogo do dia começa <strong>'
-            + pdzEmRelogio(ultimo) + '</strong> e termina ' + pdzEmRelogio(ultimo + duracao)
-            + ' — cabem ' + rodadas + (rodadas > 1 ? ' rodadas' : ' rodada') + ' por dia, '
-            + (rodadas * quadras) + (rodadas * quadras > 1 ? ' jogos' : ' jogo')
-            + ' com ' + quadras + (quadras > 1 ? ' quadras.' : ' quadra.');
+        var g = pdzFaseDeGrupos(duplas);
+        var jogosMata = pdzMataMata(g.grupos);
+        var total = g.jogos + jogosMata;
+
+        var partes = dataInicio.split('-');
+        var inicio = new Date(+partes[0], +partes[1] - 1, +partes[2], 0, abre, 0);
+        var ultimo = pdzUltimoHorario(inicio, teto, seguintes, quadras, duracao, total);
+        var fimReal = new Date(ultimo.getTime() + duracao * 60000);
+        var dias = Math.round((new Date(ultimo.getFullYear(), ultimo.getMonth(), ultimo.getDate())
+                             - new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate())) / 86400000) + 1;
+
+        var texto = '<strong>' + duplas + ' duplas</strong> = ' + g.grupos + ' grupos, '
+            + g.jogos + ' jogos de grupo + ' + jogosMata + ' de mata-mata = <strong>' + total + ' jogos</strong>.'
+            + '<br>Começa ' + pdzDataHora(inicio) + ' e o último jogo termina <strong>' + pdzDataHora(fimReal) + '</strong>'
+            + ' — ' + dias + (dias > 1 ? ' dias de quadra.' : ' dia de quadra.');
+
+        if (dataFim) {
+            var pf = dataFim.split('-');
+            var limite = new Date(+pf[0], +pf[1] - 1, +pf[2], 23, 59, 59);
+            if (ultimo > limite) {
+                texto += '<div class="alert alert-danger mt-2 mb-0 py-2 px-3">'
+                    + '<i class="bi bi-exclamation-triangle-fill"></i> <strong>Não cabe até ' + pf[2] + '/' + pf[1] + '.</strong> '
+                    + 'Aumente as quadras, encurte o jogo, comece mais cedo ou estenda o prazo.</div>';
+            } else {
+                texto += '<div class="alert alert-success mt-2 mb-0 py-2 px-3">'
+                    + '<i class="bi bi-check-circle-fill"></i> Cabe dentro do prazo.</div>';
+            }
+        }
+
+        alvo.innerHTML = texto;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        ['TempoPrevistoPartidaMinutos', 'HoraInicioDoDia', 'HoraFimDoDia', 'quantidadeQuadras']
+        ['TempoPrevistoPartidaMinutos', 'HoraInicioDoDia', 'HoraInicioDiasSeguintes',
+         'HoraFimDoDia', 'quantidadeQuadras', 'pdzDuplasEsperadas', 'DataInicio', 'DataFim']
             .forEach(function (id) {
                 var el = document.getElementById(id);
-                if (el) { el.addEventListener('input', pdzUltimoJogo); el.addEventListener('change', pdzUltimoJogo); }
+                if (!el) return;
+                ['input', 'change'].forEach(function (evt) {
+                    el.addEventListener(evt, function () { pdzUltimoJogo(); pdzPrevisao(); });
+                });
             });
         pdzUltimoJogo();
+        pdzPrevisao();
     });
 </script>
 @* Simulação ao vivo: o organizador digita o preço e vê, com o número dele, quanto o

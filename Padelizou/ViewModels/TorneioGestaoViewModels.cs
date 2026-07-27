@@ -81,3 +81,24 @@ public class PodioCategoriaVM
     public List<string> Semifinalistas { get; set; } = new();
     public int Duplas { get; set; }
 }
+
+// "Cabe?" — a conta que o organizador precisa ver ANTES de sortear as chaves, quando ainda
+// dá pra mudar quadras, duração ou horário. Depois do sorteio a grade já está marcada e
+// remarcar significa avisar todo mundo de novo.
+public class PrevisaoGradeVM
+{
+    public int Duplas { get; set; }
+    public int Grupos { get; set; }
+    public int JogosDeGrupo { get; set; }
+    public int JogosDeMataMata { get; set; }
+    public int TotalDeJogos { get; set; }
+
+    public DateTime Inicio { get; set; }
+
+    // Quando o último jogo TERMINA (o começo mais a duração) — é o que o organizador precisa
+    // pra saber a que horas devolve a quadra.
+    public DateTime FimPrevisto { get; set; }
+
+    public int Dias { get; set; }
+    public bool EstouraOPrazo { get; set; }
+}
