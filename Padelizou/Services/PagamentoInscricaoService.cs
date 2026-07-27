@@ -118,10 +118,13 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         && recebedor is { ReceberPagamentoOnline: true }
         && !string.IsNullOrWhiteSpace(recebedor.AsaasWalletId);
 
+    // O preço do torneio é POR PESSOA: a inscrição de uma dupla cobra as duas de uma vez,
+    // de quem está se inscrevendo. Americano é individual, então cobra uma.
     public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, string tipo, DadosInscricaoTorneio dados) =>
         CriarCobrancaAsync(
-            recebedor, pagador, torneio.PrecoInscricao, "Torneio", tipo,
+            recebedor, pagador, torneio.ValorCobrado(inscricaoDeDupla: tipo == "TorneioDupla"),
+            "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao);
 

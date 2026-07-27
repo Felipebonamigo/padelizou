@@ -23,7 +23,19 @@ public partial class Torneio
     public bool PermiteImpedimentoSextaNoite { get; set; } = true;
     public bool PermiteImpedimentoSabadoManha { get; set; } = true;
     public bool PermiteImpedimentoSabadoTarde { get; set; } = true;
+    // Valor que UMA PESSOA paga pra se inscrever — sempre por pessoa, nunca por dupla.
+    // A inscrição de uma dupla cobra o dobro (ver ValorCobrado); a de um americano, uma vez.
+    // É este valor que o jogador vê anunciado: a taxa do Padelizou sai daqui de dentro,
+    // não é somada por cima.
     public decimal PrecoInscricao { get; set; }
+
+    // Quantas pessoas entram numa inscrição deste formato.
+    [NotMapped]
+    public int PessoasPorInscricao => Formato == "Americano" ? 1 : 2;
+
+    // O que é efetivamente cobrado de quem se inscreve.
+    public decimal ValorCobrado(bool inscricaoDeDupla) =>
+        PrecoInscricao * (inscricaoDeDupla ? 2 : 1);
 
     // Como o dinheiro da inscrição corre. Escolhido pelo organizador ao criar o torneio.
     //
@@ -34,10 +46,11 @@ public partial class Torneio
     //             do organizador depois, sobre o que foi inscrito.
     public string FormaPagamento { get; set; } = "Online";
 
-    // Só vale com FormaPagamento = "Online". Quem paga a comissão:
-    // "Somada"     — o jogador paga inscrição + taxa, e o organizador recebe o valor cheio.
-    // "Descontada" — o jogador paga só a inscrição, e a comissão sai da fatia do organizador.
-    public string ModoComissao { get; set; } = "Somada";
+    // Fixo em "Descontada" desde 27/07/2026: o jogador paga exatamente o valor anunciado e a
+    // taxa do Padelizou sai de dentro dele. Já foi uma escolha do organizador ("Somada" somava
+    // a taxa por cima), mas obrigá-lo a decidir isso só atrapalhava quem queria anunciar um
+    // preço redondo. A coluna continua porque o cálculo do rateio a consome.
+    public string ModoComissao { get; set; } = "Descontada";
 
     [NotMapped]
     public bool CobraPeloSite => FormaPagamento == "Online";

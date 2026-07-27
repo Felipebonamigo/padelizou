@@ -51,13 +51,34 @@ public class FormaPagamentoTorneioTests
     [Fact]
     public void Torneio_novo_nasce_cobrando_pelo_site()
     {
-        // Igual ao que a migração grava nos torneios que já existiam: mexer no padrão
-        // mudaria silenciosamente o comportamento de quem já estava cobrando.
         var torneio = new Torneio { Nome = "T", Codigo = "T1" };
 
         Assert.Equal("Online", torneio.FormaPagamento);
-        Assert.Equal("Somada", torneio.ModoComissao);
         Assert.True(torneio.CobraPeloSite);
+    }
+
+    [Fact]
+    public void Jogador_paga_exatamente_o_valor_anunciado()
+    {
+        // A taxa sai de dentro do preço, nunca por cima: o organizador anuncia R$ 75 e o
+        // jogador paga R$ 75. Deixou de ser escolha em 27/07/2026.
+        Assert.Equal("Descontada", new Torneio { Nome = "T", Codigo = "T1" }.ModoComissao);
+    }
+
+    [Fact]
+    public void Preco_e_por_pessoa_entao_a_dupla_paga_o_dobro()
+    {
+        var torneio = new Torneio { Nome = "T", Codigo = "T1", PrecoInscricao = 75m };
+
+        Assert.Equal(150m, torneio.ValorCobrado(inscricaoDeDupla: true));
+        Assert.Equal(75m, torneio.ValorCobrado(inscricaoDeDupla: false));
+    }
+
+    [Fact]
+    public void Americano_conta_uma_pessoa_por_inscricao()
+    {
+        Assert.Equal(1, new Torneio { Nome = "T", Codigo = "T1", Formato = "Americano" }.PessoasPorInscricao);
+        Assert.Equal(2, new Torneio { Nome = "T", Codigo = "T1", Formato = "Padrao" }.PessoasPorInscricao);
     }
 
     [Fact]

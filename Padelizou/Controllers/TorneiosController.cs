@@ -739,6 +739,7 @@ namespace Padelizou.Controllers
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será
             // cobrado no checkout, e não descobrir a taxa só depois de clicar.
             var recebedorTorneio = await _pagamentos.ObterRecebedorTorneioAsync(id);
+            // Preço por pessoa: quem vê a tela quer saber quanto sai do bolso dele.
             var exibicao = torneio.CobraPeloSite
                 ? _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio, torneio.ModoComissao)
                 : null;
