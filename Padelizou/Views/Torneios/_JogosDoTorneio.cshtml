@@ -26,6 +26,9 @@
     var aoVivoList = ViewBag.AoVivo as List<Partida> ?? new();
     var agendadasList = ViewBag.Agendadas as List<Partida> ?? new();
     var finalizadasList = ViewBag.Finalizadas as List<Partida> ?? new();
+    // Só existe no Americano — nos outros formatos a aba nem aparece.
+    var classificacaoAmericano = ViewBag.ClassificacaoAmericano
+        as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
     bool defaultAoVivo = aoVivoList.Count > 0;
     var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
     int? meuId = ViewBag.MeuId as int?;
@@ -75,6 +78,16 @@
             ✅ Finalizadas (@finalizadasList.Count)
         </button>
     </li>
+    @* No Americano a classificação é o placar do torneio. Vivia numa página separada, sem
+       botão de voltar — aba aqui é onde o pessoal já está olhando. *@
+    @if (classificacaoAmericano != null)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="classificacao-tab" data-bs-toggle="tab" data-bs-target="#classificacao" type="button" role="tab">
+                🏅 Classificação
+            </button>
+        </li>
+    }
 </ul>
 
 <!-- Conteúdo das Sub-Abas -->
@@ -313,4 +326,68 @@
             }
         </div>
     </div>
+
+    @* SUB-ABA: CLASSIFICAÇÃO (só Americano) *@
+    @if (classificacaoAmericano != null)
+    {
+        <div class="tab-pane fade" id="classificacao" role="tabpanel">
+            <p class="text-muted small">
+                No Americano vence quem somar mais <strong>games</strong> ao longo do torneio —
+                o parceiro muda a cada rodada, então a conta é individual.
+            </p>
+
+            @foreach (var (categoria, linhas) in classificacaoAmericano)
+            {
+                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@categoria</h6>
+
+                @if (linhas.Count == 0)
+                {
+                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th style="width: 3rem;">#</th>
+                                    <th>Jogador</th>
+                                    <th class="text-center">Jogos</th>
+                                    <th class="text-end">Games</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < linhas.Count; i++)
+                                {
+                                    var l = linhas[i];
+                                    <tr class="@(l.Empatado ? "table-warning" : "")">
+                                        <td class="fw-bold">@(i + 1)º</td>
+                                        <td>
+                                            @if (i == 0 && !l.Empatado) { <span>🏅 </span> }
+                                            @l.Jogador.Nome
+                                            @if (l.Empatado)
+                                            {
+                                                <span class="badge bg-warning text-dark ms-1">empatado</span>
+                                            }
+                                        </td>
+                                        <td class="text-center text-muted">@l.Jogos</td>
+                                        <td class="text-end fw-bold">@l.TotalGames</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (linhas.Any(l => l.Empatado))
+                    {
+                        <div class="alert alert-warning small">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Empate na liderança.</strong> Se o regulamento do torneio previr desempate,
+                            os empatados escolhem um parceiro e sai uma partida final.
+                        </div>
+                    }
+                }
+            }
+        </div>
+    }
 </div>

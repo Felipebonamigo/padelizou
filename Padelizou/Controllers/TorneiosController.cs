@@ -1740,8 +1740,22 @@ namespace Padelizou.Controllers
 
             ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeFiltroId);
             ViewBag.TimeAtual = timeFiltroId;
-            ViewBag.CategoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == torneioId).OrderBy(c => c.Nome).ToListAsync();
+            var categoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == torneioId).OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CategoriasDoTorneio = categoriasDoTorneio;
             ViewBag.CategoriaFiltroAtual = categoriaFiltroIds ?? Array.Empty<int>();
+
+            // No Americano a classificação É o placar do torneio — quem somou mais games.
+            // Ela morava numa página separada, sem botão de voltar; agora é uma aba aqui,
+            // ao lado de Ao Vivo, que é onde o pessoal já está olhando.
+            var torneioDaTela = await _context.Torneios.FindAsync(torneioId);
+            if (torneioDaTela?.Formato == "Americano")
+            {
+                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
+
+                ViewBag.ClassificacaoAmericano = categoriasDoTorneio.ToDictionary(
+                    c => c.Nome,
+                    c => TabelaDoAmericano.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+            }
 
             // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
             int? meuId = User.Identity?.IsAuthenticated == true
@@ -1777,42 +1791,25 @@ namespace Padelizou.Controllers
                     .Select(i => i.JogadorId)
                     .ToListAsync();
 
-                int usaveis = inscritos.Count - (inscritos.Count % 4);
+                int usaveis = RodadasAmericano.Aproveitaveis(inscritos.Count);
                 if (usaveis < 4) continue; // categoria sem jogadores suficientes pra fechar um grupo de 4
 
                 var jogadoresEmbaralhados = inscritos.OrderBy(_ => rng.Next()).ToList();
                 var jogadoresUsados = jogadoresEmbaralhados.Take(usaveis).ToList();
                 totalDeFora += jogadoresEmbaralhados.Count - usaveis;
 
-                var jaParceiros = new HashSet<(int, int)>();
-                (int, int) NormalizarPar(int a, int b) => a < b ? (a, b) : (b, a);
+                // O sorteio vive em Services/RodadasAmericano: método do círculo, que GARANTE
+                // cada jogador fazendo dupla com cada um dos outros exatamente uma vez. O
+                // código que estava aqui era guloso e olhava só 4 jogadores por vez — medido
+                // num ensaio de 8, deixava 4 parcerias repetidas e 4 sem acontecer.
+                var rodadasSorteadas = RodadasAmericano.Montar(jogadoresUsados);
 
-                int numRodadas = usaveis - 1;
-
-                for (int rodada = 1; rodada <= numRodadas; rodada++)
+                for (int rodada = 1; rodada <= rodadasSorteadas.Count; rodada++)
                 {
-                    var ordemRodada = jogadoresUsados.OrderBy(_ => rng.Next()).ToList();
-
-                    for (int g = 0; g + 4 <= ordemRodada.Count; g += 4)
+                    foreach (var confronto in rodadasSorteadas[rodada - 1])
                     {
-                        var quarteto = ordemRodada.GetRange(g, 4);
-                        var opcoes = new[]
-                        {
-                            (D1: (quarteto[0], quarteto[1]), D2: (quarteto[2], quarteto[3])),
-                            (D1: (quarteto[0], quarteto[2]), D2: (quarteto[1], quarteto[3])),
-                            (D1: (quarteto[0], quarteto[3]), D2: (quarteto[1], quarteto[2]))
-                        };
-
-                        var melhorOpcao = opcoes
-                            .OrderBy(o => (jaParceiros.Contains(NormalizarPar(o.D1.Item1, o.D1.Item2)) ? 1 : 0)
-                                        + (jaParceiros.Contains(NormalizarPar(o.D2.Item1, o.D2.Item2)) ? 1 : 0))
-                            .First();
-
-                        jaParceiros.Add(NormalizarPar(melhorOpcao.D1.Item1, melhorOpcao.D1.Item2));
-                        jaParceiros.Add(NormalizarPar(melhorOpcao.D2.Item1, melhorOpcao.D2.Item2));
-
-                        var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = melhorOpcao.D1.Item1, Jogador2Id = melhorOpcao.D1.Item2 };
-                        var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = melhorOpcao.D2.Item1, Jogador2Id = melhorOpcao.D2.Item2 };
+                        var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.A1, Jogador2Id = confronto.A2 };
+                        var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.B1, Jogador2Id = confronto.B2 };
                         _context.Duplas.Add(dupla1);
                         _context.Duplas.Add(dupla2);
                         await _context.SaveChangesAsync(); // precisa dos Ids gerados antes de criar a Partida
@@ -1868,30 +1865,11 @@ namespace Padelizou.Controllers
                 .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status == "Finalizada")
                 .ToListAsync();
 
-            var pontosPorJogador = new Dictionary<int, (Jogador Jogador, int TotalGames)>();
-            void Somar(Jogador jogador, int games)
-            {
-                if (pontosPorJogador.TryGetValue(jogador.Id, out var atual))
-                {
-                    pontosPorJogador[jogador.Id] = (atual.Jogador, atual.TotalGames + games);
-                }
-                else
-                {
-                    pontosPorJogador[jogador.Id] = (jogador, games);
-                }
-            }
-
-            foreach (var p in partidas)
-            {
-                Somar(p.Dupla1.Jogador1, p.GamesDupla1 ?? 0);
-                Somar(p.Dupla1.Jogador2, p.GamesDupla1 ?? 0);
-                Somar(p.Dupla2.Jogador1, p.GamesDupla2 ?? 0);
-                Somar(p.Dupla2.Jogador2, p.GamesDupla2 ?? 0);
-            }
-
-            var classificacao = pontosPorJogador.Values
-                .OrderByDescending(v => v.TotalGames)
-                .Select(v => new ClassificacaoAmericanoItemVM { Jogador = v.Jogador, TotalGames = v.TotalGames })
+            // A conta vive em Services/TabelaDoAmericano — a mesma que alimenta a aba
+            // "Classificação" na tela de Jogos. Duas contas separadas divergiriam mais cedo
+            // ou mais tarde, e aí o torneio teria dois campeões diferentes na mesma tela.
+            var classificacao = TabelaDoAmericano.Montar(partidas)
+                .Select(l => new ClassificacaoAmericanoItemVM { Jogador = l.Jogador, TotalGames = l.TotalGames })
                 .ToList();
 
             ViewBag.Torneio = torneio;
