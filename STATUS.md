@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa) e passou no **ensaio geral** de ponta a ponta (build-58).
+> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa), passou no **ensaio geral** de ponta a ponta (build-58) e recebeu os **44 times reais do ranking do "Quanto Tá"** com bandeira (build-63).
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **279 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **362 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -80,6 +80,18 @@ As áreas de **professor, clube e organizador estão completas**; a entrada se a
   - **🔴 Todo deploy deslogava TODO MUNDO** (descoberto por acidente, ao publicar a correção acima e cair na tela de login). Faltava `PersistKeysToFileSystem`: o chaveiro de proteção de dados nascia novo a cada start, invalidando o cookie de todos — inclusive nos restarts automáticos do vigia de uptime. No meio de um torneio derrubaria o organizador da Mesa com os jogadores esperando. Chaves agora em disco por ambiente (`/opt/padelizou-shared/{env}/dataprotection-keys`, 700 www-data) + `SetApplicationName` por ambiente. **Verificado ao vivo: serviço reiniciado, sessão de pé.**
 - **279 testes.**
 
+### 27/07/2026 (noite) — Identificador único e os times reais
+
+- **🔴 E-mail, CPF e login: um identificador, uma pessoa** (build-63). A entrada casa **e-mail OU login** na mesma consulta, com `FirstOrDefault` — mas só o cadastro checava unicidade, e só de *login contra login*. A **edição de perfil gravava e-mail sem checar nada**. Dava pra pegar o e-mail de outra pessoa e **trancá-la fora da conta dela**: ela não entra (a senha confere contra a outra linha) e não recupera (o link vai pro e-mail de quem ocupou). Mesma família do buraco de CPF fechado de manhã: identificador que deveria ser único e não era.
+  Regra centralizada em `Services/IdentidadeJogador` — toda checagem compara contra os **dois** campos, porque e-mail e login vivem no mesmo espaço de nomes.
+  No banco: CPF já era único; **Login era único mas sensível a maiúscula** ("Bona" e "bona" cabiam os dois); **Email não tinha índice nenhum**. Migração cria índices únicos por `LOWER()`, parciais pra não esbarrar em pré-cadastro sem e-mail/login. Os três bancos foram conferidos sem duplicado **antes** — a migração roda no start do app, e falhar ali deixaria o app fora do ar.
+  De quebra: a foto só é salva **depois** das validações, então cadastro recusado não deixa mais arquivo órfão no disco.
+- **44 times reais, com bandeira.** Os times de teste saíram e entraram os 44 do ranking do "Quanto Tá" (a lista do Felipe tinha 36; a página tem 44). Bandeiras baixadas e servidas em `/uploads/logos-time/` nos dois ambientes. `DELETE`, nunca `TRUNCATE CASCADE` — e a única FK que aponta pra `Times` é `Jogador.TimeId` com `ON DELETE SET NULL`, então ninguém sumiu. Backup em `/tmp/backup-times-{prod,dev}.csv`; de prod só saiu o "Nata Padel".
+- **Time com vários administradores** (build-63): `Time.DonoId` (um só) virou a tabela `TimeAdministradores`. O primeiro administrador de cada time só entra pela mão de um **admin do Padelizou**; daí em diante um administrador do time inclui o próximo. Regra em `Services/AdministracaoTime`, fora dos controllers.
+  ⚠️ **A migração precisou ser corrigida à mão:** o EF gerou o `DropColumn` do `DonoId` **antes** de criar a tabela nova, o que jogaria os donos fora. Ficou: cria, copia, e só então derruba. A cópia faz `JOIN` com `Jogador` porque `DonoId` era coluna solta, sem FK — podia apontar pra quem não existe mais.
+  **Trava que importa:** entrar num time pelo nome no cadastro **não dá cargo nenhum**. É isso que impede alguém de digitar "SINDAQUA" e sair comandando um dos times importados.
+- **362 testes** (+83 no dia).
+
 ---
 
 ## 🎯 O que realmente falta (auditado em 26/07)
@@ -108,7 +120,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 ### Fase 2 — Sair do modo demonstração ✅ *feita 27/07*
 - [x] **Asaas para produção** (chave + webhook) ✅ 27/07 — **primeiro pagamento real recebido**, corrente verificada nos logs
 - [x] **Limpar dados fictícios** ✅ 27/07 — 144 jogadores e os torneios de demo apagados de produção, com backup antes
-- [ ] ⏳ **Conta bancária no Asaas** (`bankAccountInfo: PENDING`) — trava Pix e saque ← *precisa do Felipe*
+- [ ] ⏳ **Conta bancária no Asaas** (`bankAccountInfo: PENDING`) — trava **só o saque**; as chaves Pix estão ATIVAS e o dinheiro cai normal ← *precisa do Felipe*
 - [ ] ⏳ **Gerar chave e token novos** do Asaas, agora que a configuração estabilizou ← *precisa do Felipe*
 - [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
 - [x] **Métricas de uso** no admin (`/Admin/Metricas`): cadastros, inscrições, pagamentos, série semanal e medidor do MEI ✅ 25/07
@@ -163,6 +175,12 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] **Código morto removido** ✅ 26/07 (build-28) — CRUD scaffolded de Jogadores (9 ações + 5 views), `RankingCategorias`, `RankingPorTorneio`, `GerarFaseGrupos` (77 linhas) e a entidade `Organizador` (tabela vazia, dropada por migração). **~800 linhas a menos.**
       ⚠️ **Achado de segurança no caminho:** nenhuma ação do CRUD tinha `[Authorize]` — `/Jogadores/Delete/5` apagava jogador. O gate de Acesso Antecipado barrava anônimo, mas qualquer usuário logado alcançava, e ficaria aberto ao mundo no dia em que o gate saísse. Fechado.
 - [ ] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** — cópias de emergência da migração de deploy, ocupando **184 MB**. Já passou tempo suficiente; podem ir `5min`
+
+## 🔎 Achados da varredura de 27/07 (noite) — ainda abertos
+- **`Ranking.cshtml` desreferencia `Jogador2` sem checar nulo** (linhas 387, 421, 487). É a forma exata do 500 que apareceu em produção dia 27. **Hoje não quebra**: o parceiro nunca volta a ser nulo depois de definido e o sorteio só aceita dupla completa, então dupla sem parceiro não acumula vitória pra chegar nessa tabela. Mas todo o resto do sistema já se protege disso — essas 3 linhas ficaram de fora. `3 linhas`
+- **Exportação de calendário** (`AgendaController:359`) monta `"Ana" + "/" + null` → vira "Ana/" no evento. Feio, não quebra. `5min`
+- **Adversários do Americano**: com 8 jogadores alguém pega o mesmo rival 4 dos 7 jogos. Parceiros está perfeito (cada um com cada um, exatamente uma vez); adversário exigiria outro desenho matemático (whist design).
+- **Botão "colocar no ar" na lista de Jogos**: hoje é uma tela por partida; numa rodada de 4 quadras são 4 aberturas. Único atrito real no dia do torneio.
 
 ## 📋 Backlog consciente (fazer depois)
 - Banners/avisos da plataforma
