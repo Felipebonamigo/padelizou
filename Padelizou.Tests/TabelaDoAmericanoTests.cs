@@ -124,6 +124,56 @@ public class TabelaDoAmericanoTests
         Assert.Empty(TabelaDoAmericano.EmpatadosNaLideranca(tabela));
     }
 
+    // ── Partida de desempate ──────────────────────────────────────────────────────────
+    // Regra do organizador: empatou em games na liderança, os dois escolhem um parceiro e
+    // sai um jogo só pra decidir o título.
+
+    [Fact]
+    public void Com_dois_empatados_e_tudo_jogado_o_desempate_pode_ser_criado()
+    {
+        Assert.Null(TabelaDoAmericano.ProblemaParaDesempatar(
+            torneioPermite: true, rodadasPendentes: 0, quantosEmpatados: 2));
+    }
+
+    [Fact]
+    public void Torneio_que_nao_previu_desempate_nao_cria_partida()
+    {
+        var problema = TabelaDoAmericano.ProblemaParaDesempatar(false, 0, 2);
+
+        Assert.NotNull(problema);
+        Assert.Contains("não previu", problema);
+    }
+
+    [Fact]
+    public void Nao_desempata_com_jogo_pendente()
+    {
+        // Criar antes de acabar congelaria uma liderança que ainda vai mudar.
+        var problema = TabelaDoAmericano.ProblemaParaDesempatar(true, rodadasPendentes: 3, quantosEmpatados: 2);
+
+        Assert.NotNull(problema);
+        Assert.Contains("3", problema);
+    }
+
+    [Fact]
+    public void Sem_empate_nao_ha_o_que_desempatar()
+    {
+        Assert.NotNull(TabelaDoAmericano.ProblemaParaDesempatar(true, 0, 1));
+        Assert.NotNull(TabelaDoAmericano.ProblemaParaDesempatar(true, 0, 0));
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(7)]
+    public void Com_mais_de_dois_empatados_uma_partida_so_nao_decide(int quantos)
+    {
+        // Inventar um chaveiro aqui seria decidir por uma regra que o organizador não deu.
+        var problema = TabelaDoAmericano.ProblemaParaDesempatar(true, 0, quantos);
+
+        Assert.NotNull(problema);
+        Assert.Contains("organizador", problema);
+    }
+
     [Fact]
     public void Dupla_sem_parceiro_nao_derruba_a_tabela()
     {

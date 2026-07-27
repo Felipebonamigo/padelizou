@@ -39,6 +39,21 @@
                             </div>
                         </div>
                         <small class="text-muted d-block mt-1">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
+
+                        @* Só faz sentido no Americano — no formato de duplas o mata-mata já
+                           resolve quem é campeão. *@
+                        <div id="opcoesAmericano" class="mt-3 p-3 rounded" style="display: none; background-color: var(--pdz-surface-alt);">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" asp-for="DesempateAmericano" id="desempateAmericano" />
+                                <label class="form-check-label fw-bold" for="desempateAmericano">
+                                    Se der empate em games na liderança, jogar uma partida final
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Cada empatado escolhe um parceiro e sai um jogo só, pra decidir o título.
+                                Desligado, o critério do empate fica com você.
+                            </small>
+                        </div>
                     </div>
                 </div>
                 @* "Local / Clube" saiu daqui: era o mesmo dado do "Clube Responsável" logo
@@ -580,6 +595,20 @@
     }
 
     document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
+
+    // As opções do Americano só aparecem quando o formato é Americano.
+    function pdzOpcoesAmericano() {
+        var bloco = document.getElementById('opcoesAmericano');
+        var americano = document.getElementById('formatoAmericano');
+        if (bloco && americano) bloco.style.display = americano.checked ? 'block' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[name="Formato"]').forEach(function (r) {
+            r.addEventListener('change', pdzOpcoesAmericano);
+        });
+        pdzOpcoesAmericano();
+    });
 
     // Mesma regra do GradeDeJogos: o limite é a hora em que o último jogo COMEÇA, e ele só
     // começa nos horários que a cadência alcança.

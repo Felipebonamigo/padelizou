@@ -1,0 +1,104 @@
+@model List<Padelizou.Services.TabelaDoAmericano.Linha>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var categoriaId = (int)ViewBag.CategoriaId;
+    var empatados = ViewBag.Empatados as List<Padelizou.Models.Jogador> ?? new();
+    var parceiros = ViewBag.PossiveisParceiros as List<Padelizou.Models.Jogador> ?? new();
+    var problema = ViewBag.Problema as string;
+    ViewData["Title"] = $"Desempate - {torneio.Nome}";
+}
+
+<div class="container mt-4 mb-5">
+    <a asp-action="Jogos" asp-route-id="@torneio.Id" class="small text-decoration-none">&larr; Voltar pros jogos</a>
+
+    <div class="mb-4 mt-2">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Partida de desempate</h2>
+        <p class="text-muted mb-0">@torneio.Nome</p>
+    </div>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @if (problema != null)
+    {
+        <div class="alert alert-warning d-flex gap-2 align-items-start">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>@problema</div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                <p>
+                    <strong>@empatados[0].Nome</strong> e <strong>@empatados[1].Nome</strong> terminaram
+                    empatados em <strong>@Model[0].TotalGames games</strong>. Cada um escolhe um parceiro
+                    e sai uma partida só — quem vencer leva o título.
+                </p>
+
+                <form asp-action="CriarDesempateAmericano" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@torneio.Id" />
+                    <input type="hidden" name="categoriaId" value="@categoriaId" />
+
+                    <div class="row g-3">
+                        @for (var i = 0; i < 2; i++)
+                        {
+                            var empatado = empatados[i];
+                            var campo = $"parceiro{i + 1}";
+                            <div class="col-md-6">
+                                <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                                    <div class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                                        <i class="bi bi-person-fill"></i> @empatado.Nome
+                                    </div>
+                                    <label class="form-label small text-muted">joga com</label>
+                                    <select name="@campo" class="form-select" required>
+                                        <option value="">-- escolha o parceiro --</option>
+                                        @foreach (var p in parceiros)
+                                        {
+                                            <option value="@p.Id">@p.Nome</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">
+                        <i class="bi bi-trophy"></i> Criar a partida de desempate
+                    </button>
+                    <small class="text-muted d-block text-center mt-2">
+                        Ela entra na grade logo depois do último jogo já marcado.
+                    </small>
+                </form>
+            </div>
+        </div>
+    }
+
+    <h6 class="fw-bold" style="color: var(--pdz-ink);">Como terminou</h6>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr class="small text-muted">
+                    <th style="width: 3rem;">#</th>
+                    <th>Jogador</th>
+                    <th class="text-center">Jogos</th>
+                    <th class="text-end">Games</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < Model.Count; i++)
+                {
+                    <tr class="@(Model[i].Empatado ? "table-warning" : "")">
+                        <td class="fw-bold">@(i + 1)º</td>
+                        <td>@Model[i].Jogador.Nome</td>
+                        <td class="text-center text-muted">@Model[i].Jogos</td>
+                        <td class="text-end fw-bold">@Model[i].TotalGames</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

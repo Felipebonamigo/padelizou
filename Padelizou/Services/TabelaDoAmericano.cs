@@ -55,4 +55,30 @@ public static class TabelaDoAmericano
         var empatados = lista.Where(l => l.TotalGames == lista[0].TotalGames).ToList();
         return empatados.Count > 1 ? empatados.Select(l => l.Jogador).ToList() : new List<Jogador>();
     }
+
+    public const string FaseDesempate = "Desempate";
+
+    // Por que o desempate ainda não pode ser criado — null quando pode.
+    //
+    // Só nasce com o torneio inteiro jogado: criar antes congelaria uma liderança que ainda
+    // vai mudar. E só resolve empate de DOIS: com três ou mais, uma partida só não coroa
+    // ninguém, e inventar um chaveiro aqui seria decidir por regra que o organizador não deu.
+    public static string? ProblemaParaDesempatar(
+        bool torneioPermite, int rodadasPendentes, int quantosEmpatados)
+    {
+        if (!torneioPermite)
+            return "Este torneio não previu partida de desempate. O critério é do organizador.";
+
+        if (rodadasPendentes > 0)
+            return $"Ainda faltam {rodadasPendentes} jogo(s) pra terminar. A liderança pode mudar.";
+
+        if (quantosEmpatados < 2)
+            return "Não há empate na liderança.";
+
+        if (quantosEmpatados > 2)
+            return $"São {quantosEmpatados} empatados. Uma partida só não decide entre mais de dois — " +
+                   "o critério fica com o organizador.";
+
+        return null;
+    }
 }

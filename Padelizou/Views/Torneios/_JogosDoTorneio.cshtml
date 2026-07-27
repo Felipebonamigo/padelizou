@@ -29,6 +29,8 @@
     // Só existe no Americano — nos outros formatos a aba nem aparece.
     var classificacaoAmericano = ViewBag.ClassificacaoAmericano
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
+    bool desempatePrevisto = ViewBag.DesempateAmericano == true;
+    bool ehOrganizador = ViewBag.EhOrganizador == true;
     bool defaultAoVivo = aoVivoList.Count > 0;
     var palpites = ViewBag.Palpites as Dictionary<int, PalpiteResumoVM> ?? new Dictionary<int, PalpiteResumoVM>();
     int? meuId = ViewBag.MeuId as int?;
@@ -380,10 +382,27 @@
 
                     @if (linhas.Any(l => l.Empatado))
                     {
+                        var idCategoria = categoriasDoTorneio.FirstOrDefault(c => c.Nome == categoria)?.Id;
                         <div class="alert alert-warning small">
                             <i class="bi bi-exclamation-triangle-fill"></i>
-                            <strong>Empate na liderança.</strong> Se o regulamento do torneio previr desempate,
-                            os empatados escolhem um parceiro e sai uma partida final.
+                            <strong>Empate na liderança.</strong>
+                            @if (desempatePrevisto && ehOrganizador && idCategoria != null)
+                            {
+                                <span>Os empatados escolhem um parceiro e sai uma partida final.</span>
+                                <a asp-action="DesempateAmericano" asp-route-id="@Model.TorneioId"
+                                   asp-route-categoriaId="@idCategoria"
+                                   class="btn btn-sm btn-padel rounded-pill ms-2">
+                                    <i class="bi bi-trophy"></i> Montar o desempate
+                                </a>
+                            }
+                            else if (desempatePrevisto)
+                            {
+                                <span>O organizador vai montar a partida final entre os empatados.</span>
+                            }
+                            else
+                            {
+                                <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
+                            }
                         </div>
                     }
                 }

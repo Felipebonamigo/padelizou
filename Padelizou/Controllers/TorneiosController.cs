@@ -1755,6 +1755,10 @@ namespace Padelizou.Controllers
                 ViewBag.ClassificacaoAmericano = categoriasDoTorneio.ToDictionary(
                     c => c.Nome,
                     c => TabelaDoAmericano.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+
+                // O botão "montar o desempate" é só do organizador; o jogador vê o aviso.
+                ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
+                ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
             }
 
             // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.
@@ -1848,6 +1852,116 @@ namespace Padelizou.Controllers
             string avisoDeFora = totalDeFora > 0 ? $" {totalDeFora} jogador(es) ficaram de fora por não fechar grupos de 4." : "";
             TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDeFora}";
             return RedirectToAction("Jogos", new { id = torneioId });
+        }
+
+        // Americano: partida final entre os dois empatados na liderança. Cada um escolhe um
+        // parceiro entre os outros inscritos, e sai um jogo só — quem vencer é o campeão.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> DesempateAmericano(int id, int categoriaId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null || torneio.Formato != "Americano") return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var (classificacao, empatados, pendentes) = await ApurarAmericanoAsync(id, categoriaId);
+
+            ViewBag.Torneio = torneio;
+            ViewBag.CategoriaId = categoriaId;
+            ViewBag.Empatados = empatados;
+            ViewBag.Problema = TabelaDoAmericano.ProblemaParaDesempatar(
+                torneio.DesempateAmericano, pendentes, empatados.Count);
+
+            // Parceiro pode ser qualquer inscrito da categoria que não seja um dos empatados.
+            ViewBag.PossiveisParceiros = classificacao
+                .Where(l => empatados.All(e => e.Id != l.Jogador.Id))
+                .Select(l => l.Jogador)
+                .ToList();
+
+            return View(classificacao);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CriarDesempateAmericano(
+            int id, int categoriaId, int parceiro1, int parceiro2)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null || torneio.Formato != "Americano") return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var (_, empatados, pendentes) = await ApurarAmericanoAsync(id, categoriaId);
+
+            // Revalida no POST: entre abrir a tela e clicar, um resultado pode ter mudado a
+            // liderança — e o formulário guarda a foto antiga.
+            var problema = TabelaDoAmericano.ProblemaParaDesempatar(
+                torneio.DesempateAmericano, pendentes, empatados.Count);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            if (await _context.Partidas.AnyAsync(p =>
+                    p.TorneioId == id && p.CategoriaId == categoriaId
+                    && p.Fase == TabelaDoAmericano.FaseDesempate))
+            {
+                TempData["Erro"] = "O desempate desta categoria já foi criado.";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            var escolhidos = new[] { parceiro1, parceiro2 };
+            if (escolhidos.Distinct().Count() != 2 || escolhidos.Any(p => empatados.Any(e => e.Id == p)))
+            {
+                TempData["Erro"] = "Cada empatado precisa de um parceiro diferente, e o parceiro não pode ser o outro empatado.";
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            var dupla1 = new Dupla { CategoriaId = categoriaId, Jogador1Id = empatados[0].Id, Jogador2Id = parceiro1 };
+            var dupla2 = new Dupla { CategoriaId = categoriaId, Jogador1Id = empatados[1].Id, Jogador2Id = parceiro2 };
+            _context.Duplas.AddRange(dupla1, dupla2);
+            await _context.SaveChangesAsync();   // precisa dos Ids antes de criar a Partida
+
+            var jogo = new Partida
+            {
+                TorneioId = id,
+                CategoriaId = categoriaId,
+                Dupla1Id = dupla1.Id,
+                Dupla2Id = dupla2.Id,
+                Fase = TabelaDoAmericano.FaseDesempate,
+                Status = "Agendada",
+                Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()   // NOT NULL no banco
+            };
+
+            await AgendarNaGradeAsync(new List<Partida> { jogo }, id);
+            _context.Partidas.Add(jogo);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Desempate criado: {empatados[0].Nome} e {empatados[1].Nome} decidem o título. " +
+                                  $"Começa {jogo.HorarioPrevisto:dd/MM 'às' HH:mm}.";
+            return RedirectToAction("Jogos", new { id });
+        }
+
+        // Tabela, empatados na liderança e quantos jogos ainda faltam — a mesma apuração
+        // serve pra tela do desempate e pra decisão de criar a partida.
+        private async Task<(List<TabelaDoAmericano.Linha> Classificacao, List<Jogador> Empatados, int Pendentes)>
+            ApurarAmericanoAsync(int torneioId, int categoriaId)
+        {
+            var doAmericano = await _context.Partidas
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId
+                         && p.Fase.StartsWith("Americano"))
+                .ToListAsync();
+
+            var classificacao = TabelaDoAmericano.Montar(doAmericano.Where(p => p.Status == "Finalizada"));
+
+            return (classificacao,
+                    TabelaDoAmericano.EmpatadosNaLideranca(classificacao),
+                    doAmericano.Count(p => p.Status != "Finalizada"));
         }
 
         // GET: Torneios/ClassificacaoAmericano/5?categoriaId=1 — soma de games por jogador

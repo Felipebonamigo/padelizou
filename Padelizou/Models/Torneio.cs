@@ -113,6 +113,11 @@ public partial class Torneio
     // um campo.
     public TimeSpan HoraFimDoDia { get; set; } = new(23, 50, 0);
 
+    // Americano: se der empate em games na liderança, jogam uma partida final pra decidir.
+    // Os empatados escolhem um parceiro cada e sai um jogo só. Fica desligado por padrão —
+    // tem torneio que resolve empate no critério, sem quadra extra.
+    public bool DesempateAmericano { get; set; }
+
     // Até quando o organizador tem a quadra. Opcional: sem isso o sistema ainda diz quando
     // o torneio termina, só não tem contra o que comparar pra avisar que não cabe.
     public DateTime? DataFim { get; set; }
