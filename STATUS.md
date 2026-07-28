@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-69**, 399 testes.
+> Última atualização: **28/07/2026** — os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-71**, 415 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **399 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **415 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -139,7 +139,11 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] **Check-in de duplas** (lista de presença por categoria) ✅ 25/07 (build-25)
 - [x] **Relatório pós-torneio** (pódio + público + financeiro, imprime em PDF) ✅ 25/07 (build-25)
 - [x] **Financeiro do torneio por categoria** ✅ 25/07 (build-25)
-- [ ] Faltam 2 momentos de push: **chaves publicadas** e **seu jogo é o próximo** `4h`
+- [x] **Push de chaves publicadas e "seu jogo é o próximo"** ✅ 28/07 (build-71).
+      *Chaves:* cada inscrito recebe o horário do **próprio** primeiro jogo — "as chaves saíram" sozinho obriga a pessoa a ir procurar.
+      *Próximo:* disparado pelo **fim do jogo anterior na mesma quadra**, não por relógio. Torneio atrasa, e um aviso preso ao `HorarioPrevisto` chegaria com o jogador ainda almoçando (ou depois de ele já ter jogado). Quadra sem nome casa com quadra sem nome, senão torneio pequeno nunca receberia o aviso.
+      ⚠️ **Defeito achado ao testar em tela:** o aviso saía sempre que o status era "Finalizada", e **corrigir placar de jogo já encerrado é rotina**. Cada correção chamaria a partida seguinte de novo — e, como a primeira já fica marcada, chamaria a *seguinte da seguinte*. Agora só dispara na **transição**.
+      ⚠️ **E um teste que passava sem testar nada:** `Url.Action` estoura em controller de teste sem `UrlHelper`, e como as chamadas de push vivem em `try/catch` (push é acessório, não pode derrubar o placar), o teste ficava verde sem executar o trecho. `TestInfra` agora injeta um `IUrlHelper`.
 - [ ] **Aviso de quadra atrasada** (o sistema já sabe previsto × real) `1 dia` 💡
 - [ ] **Placar que funciona sem internet** (sincroniza depois) `2 dias` 💡
 
