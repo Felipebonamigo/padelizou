@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-76**, 485 testes.
+> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-76**, 485 testes.
 
 ---
 
@@ -123,6 +123,12 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   Recusa também o que não é imagem de verdade (arquivo renomeado pra `.png`), o que é grande demais e o "decompression bomb" (PNG de 2 MB declarando 50000×50000).
   **`SkiaSharp`, não `ImageSharp`:** o ImageSharp 4 passou a exigir chave de licença paga no build. SkiaSharp é MIT, sem limite de faturamento e sem chave. O nativo `runtimes/linux-x64/native/libSkiaSharp.so` foi conferido no `publish` — se faltasse, todo upload falharia **em silêncio**, porque o processamento nunca derruba um cadastro.
   De quebra: `wwwroot/uploads/` entrou no `.gitignore` (tinha **uma foto de perfil versionada** no repositório; em produção a pasta é symlink pro `padelizou-shared`, então nada ali precisa ser versionado).
+- **🔴 Backup fora do servidor, no Google Drive do `padelizou@gmail.com`** (4h30, meia hora depois do backup local). O backup de `/var/backups/padelizou` mora **no mesmo disco do banco**: se o VPS morrer, morrem os dois juntos. Enquanto era só dado de teste, tudo bem; com gente de verdade usando, não dá.
+  Vai **criptografado** (`rclone crypt`) — o pacote leva `appsettings.json` (chave do meio de pagamento, senha do SMTP) e o banco com CPF/telefone/e-mail de gente real. O Google guarda só o embaralhado; nem os nomes dos arquivos aparecem. **A chave está em `/root/padelizou-chave-backup.txt` e no gerenciador de senhas do Felipe — sem ela o backup é inútil**, essa é a troca que a criptografia impõe.
+  **Espelho incremental, não pacote diário**: mandar o `.tar.gz` todo dia daria ~8 GB/ano da mesma foto subindo 365 vezes; assim são 12,7 MB hoje e só o delta depois. O `sync` usa `--backup-dir` datado — no sync puro, apagar uma foto aqui apagaria a cópia lá, e o backup deixaria de proteger justamente contra apagar sem querer.
+  **Restauração testada de verdade** (não só "o arquivo subiu"): dump baixado *do Drive* → banco descartável → 49 tabelas, 0 erros, contagens batendo com o `db_padel`; um `.jpg` voltou byte a byte idêntico. O dump das 4h ainda tinha 1 torneio/categoria/clube apagados depois — a prova de que serve pra desfazer engano.
+  Um defeito meu apareceu na 1ª execução: a checagem "está autorizado?" usava `rclone lsd`, que **também** falha quando a pasta ainda não existe — o script se declararia não-autorizado pra sempre, um backup que nunca roda e não reclama. Virou `rclone mkdir` (idempotente, só falha quando o Google recusa).
+  ⏳ **Pendência com prazo:** o remote usa o `client_id` compartilhado do rclone, que o Google **aposenta durante 2026**. Precisa de um client_id próprio antes disso, senão o backup para sozinho.
 - **485 testes** (+86 no dia 28).
 
 ---
