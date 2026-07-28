@@ -1,25 +1,46 @@
-﻿@model ErrorViewModel
+@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "Ops! Algo deu errado - Padelizou";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+@*
+    Esta era o template padrão do ASP.NET: em inglês, e explicando ao usuário final como definir
+    a variável ASPNETCORE_ENVIRONMENT. Quem cai aqui é jogador de padel, não desenvolvedor.
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+    Na prática o que roda é a Views/Home/Error.cshtml (é pra lá que o UseExceptionHandler aponta).
+    Esta fica como rede: se algum outro controller devolver View("Error"), o que aparece é
+    português com a cara do site, e não instrução de configuração de servidor.
+*@
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 text-center p-4">
+                <div class="card-body">
+                    <img src="~/image/pnatinha.webp" asp-append-version="true" alt=""
+                         class="img-fluid rounded-3 mb-2" style="max-width:340px;" />
+
+                    <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Ops! Algo deu errado</h2>
+                    <p class="text-muted mt-2">
+                        Tivemos um problema pra carregar essa página. Pode ter sido algo passageiro —
+                        tenta de novo em alguns segundos.
+                    </p>
+
+                    @if (Model?.ShowRequestId == true)
+                    {
+                        <p class="text-muted small mt-3 mb-0">
+                            Código de referência: <code>@Model.RequestId</code>
+                        </p>
+                        <p class="text-muted small">
+                            Se continuar, mande esse código junto em "Sugestão, bug ou crítica".
+                        </p>
+                    }
+
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-padel rounded-pill mt-4 px-4 fw-bold">
+                        Voltar ao Início
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

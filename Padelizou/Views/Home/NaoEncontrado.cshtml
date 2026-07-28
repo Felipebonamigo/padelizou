@@ -1,0 +1,56 @@
+@{
+    ViewData["Title"] = "Página não encontrada - Padelizou";
+    var codigo = ViewBag.Codigo as int? ?? 404;
+}
+
+@*
+    Antes desta tela, um endereço errado caía na página crua do navegador ("HTTP ERROR 404"),
+    sem menu, sem identidade e sem caminho de volta — a pessoa saía do site. Link velho
+    compartilhado no grupo do WhatsApp é o caso mais comum disso.
+*@
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 text-center p-4">
+                <div class="card-body">
+                    <img src="~/image/pnatinha.webp" asp-append-version="true" alt=""
+                         class="img-fluid rounded-3 mb-2" style="max-width:340px;" />
+
+                    @if (codigo == 404)
+                    {
+                        <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Essa bola saiu</h2>
+                        <p class="text-muted mt-2 mb-0">
+                            A página que você procurou não existe (ou mudou de lugar). Se você veio
+                            por um link antigo, ele pode ter sido de um torneio que já terminou.
+                        </p>
+                    }
+                    else if (codigo == 403)
+                    {
+                        <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Essa área não é sua</h2>
+                        <p class="text-muted mt-2 mb-0">
+                            Esta página é de quem organiza o torneio ou administra o clube. Se você
+                            deveria ter acesso, peça pra quem organiza te incluir.
+                        </p>
+                    }
+                    else
+                    {
+                        <h2 class="fw-bold mt-3" style="color: var(--pdz-ink);">Não foi dessa vez</h2>
+                        <p class="text-muted mt-2 mb-0">
+                            Não conseguimos carregar essa página (erro @codigo).
+                        </p>
+                    }
+
+                    <div class="d-flex gap-2 justify-content-center flex-wrap mt-4">
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-padel rounded-pill px-4 fw-bold">
+                            Voltar ao Início
+                        </a>
+                        <a asp-controller="Torneios" asp-action="Index" class="btn btn-outline-primary rounded-pill px-4">
+                            Ver torneios
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

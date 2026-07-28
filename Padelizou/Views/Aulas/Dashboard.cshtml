@@ -209,7 +209,7 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Nenhum aluno ainda.</p>
+                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhum aluno ainda. Quando alguém marcar aula com você, aparece aqui."))' />
                     }
                 </div>
             </div>
@@ -238,7 +238,7 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Nenhuma aula marcada nos próximos dias.</p>
+                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma aula marcada nos próximos dias."))' />
                     }
                 </div>
             </div>
@@ -265,7 +265,7 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Nenhum local cadastrado ainda.</p>
+                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhum local cadastrado ainda. Sem local, o aluno não consegue marcar.", "Cadastrar local", "Aulas", "MeusLocais"))' />
                     }
                 </div>
             </div>
@@ -288,10 +288,7 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">
-                            Você ainda não cadastrou cidades.
-                            <a asp-controller="Aulas" asp-action="MinhasCidades">Cadastrar agora</a>.
-                        </p>
+                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma cidade cadastrada. É por ela que o aluno começa a busca.", "Definir cidade", "Aulas", "MinhasCidades"))' />
                     }
                 </div>
             </div>

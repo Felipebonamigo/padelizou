@@ -325,5 +325,19 @@ namespace Padelizou.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        // Endereço que não existe (404) e afins. Sem isto, o navegador mostrava a própria tela de
+        // erro — sem menu, sem identidade e sem caminho de volta, então a pessoa saía do site.
+        // O código chega pela URL porque quem chama é o UseStatusCodePagesWithReExecute.
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult NaoEncontrado(int codigo = 404)
+        {
+            ViewBag.Codigo = codigo;
+
+            // Devolve o status original: se respondesse 200, buscador e monitoramento passariam a
+            // tratar página inexistente como página boa.
+            Response.StatusCode = codigo;
+            return View();
+        }
     }
 }

@@ -192,6 +192,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Endereço inexistente caía na tela do próprio navegador ("HTTP ERROR 404"), sem menu e sem
+// caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.
+// "ReExecute" reexecuta o pipeline mantendo a URL que a pessoa digitou na barra, em vez de
+// redirecionar: quem chegou por um link errado consegue ver qual era o link errado.
+app.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}");
+
 app.UseHttpsRedirection();
 // MapStaticAssets() (abaixo) só serve os arquivos que já existiam em wwwroot no momento do
 // publish (manifest gerado em build) — uploads feitos em runtime (foto de perfil, etc.) não

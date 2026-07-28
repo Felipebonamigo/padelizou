@@ -1,0 +1,27 @@
+@model Padelizou.ViewModels.EstadoVazio
+
+@*
+    Estado vazio com o Pnatinha. Um componente só pros ~14 lugares que diziam "Nenhum X ainda."
+    em texto cinza — assim todos ficam iguais e trocar o desenho depois mexe num arquivo só.
+
+    `alt` vazio de propósito: o mascote é decoração, e quem usa leitor de tela já vai ouvir a
+    mensagem logo abaixo. Descrever o desenho aqui só faria a pessoa ouvir duas vezes.
+
+    `width`/`height` fixos evitam a página "pular" enquanto a imagem carrega.
+*@
+
+<div class="text-center py-4">
+    <img src="~/image/pnatinha-vazio.webp" asp-append-version="true" alt=""
+         width="132" height="147" loading="lazy"
+         class="mb-3" style="opacity:.85;" />
+
+    <p class="text-muted mb-0">@Model.Mensagem</p>
+
+    @if (Model.TemBotao)
+    {
+        <a asp-controller="@Model.Controller" asp-action="@Model.Acao"
+           class="btn btn-sm btn-padel rounded-pill px-4 mt-3 fw-bold">
+            @Model.TextoDoBotao
+        </a>
+    }
+</div>
