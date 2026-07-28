@@ -993,7 +993,63 @@ namespace Padelizou.Controllers
             torneio.Status = "Fase de Grupos";
             await _context.SaveChangesAsync();
 
+            await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
+
             return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // Push de "chaves publicadas". É o momento em que o torneio deixa de ser uma lista de
+        // inscritos e vira jogo com hora marcada — e até agora o jogador só descobria isso
+        // abrindo o site por conta própria.
+        //
+        // O aviso vai personalizado com o horário do PRIMEIRO jogo de cada um: "as chaves
+        // saíram" sozinho obriga a pessoa a ir procurar; "você joga sábado às 9h" resolve.
+        private async Task AvisarChavesPublicadasAsync(Torneio torneio, List<Partida> jogos)
+        {
+            try
+            {
+                // Primeiro jogo de cada dupla, e daí de cada jogador.
+                var primeiroPorDupla = jogos
+                    .Where(p => p.HorarioPrevisto != null)
+                    .SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }.Select(d => (DuplaId: d, p.HorarioPrevisto)))
+                    .GroupBy(x => x.DuplaId)
+                    .ToDictionary(g => g.Key, g => g.Min(x => x.HorarioPrevisto));
+
+                var duplas = await _context.Duplas
+                    .Where(d => primeiroPorDupla.Keys.Contains(d.Id))
+                    .Select(d => new { d.Id, d.Jogador1Id, d.Jogador2Id })
+                    .ToListAsync();
+
+                // Um jogador pode estar em mais de uma categoria: vale o jogo mais cedo.
+                var primeiroPorJogador = new Dictionary<int, DateTime?>();
+                foreach (var d in duplas)
+                {
+                    var quando = primeiroPorDupla.GetValueOrDefault(d.Id);
+                    foreach (var jogadorId in new[] { d.Jogador1Id, d.Jogador2Id })
+                    {
+                        if (jogadorId == null) continue;
+                        var atual = primeiroPorJogador.GetValueOrDefault(jogadorId.Value);
+                        if (atual == null || (quando != null && quando < atual))
+                            primeiroPorJogador[jogadorId.Value] = quando;
+                    }
+                }
+
+                var url = Url.Action("Jogos", "Torneios", new { id = torneio.Id });
+
+                foreach (var (jogadorId, quando) in primeiroPorJogador)
+                {
+                    await _pushService.EnviarParaJogadorAsync(jogadorId,
+                        $"Chaves do {torneio.Nome} saíram!",
+                        AvisosDoDiaDeJogo.CorpoDasChaves(quando),
+                        url);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Push é acessório: as chaves já estão sorteadas e gravadas. Derrubar o
+                // sorteio por causa de uma notificação seria trocar o essencial pelo enfeite.
+                _logger.LogWarning(ex, "Falha ao avisar chaves publicadas do torneio {TorneioId}.", torneio.Id);
+            }
         }
         // 1. TELA DA MESA DE CONTROLE (Onde o ajudante fica no celular)
         [HttpGet]

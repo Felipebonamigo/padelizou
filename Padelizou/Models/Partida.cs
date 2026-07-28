@@ -53,4 +53,8 @@ public partial class Partida
     public string? NomeQuadra { get; set; } // Ex: "Quadra Central", "Quadra 1"
     public string? LinkTransmissao { get; set; } // Ex: "https://youtube.com/live/..."
 
+    // Quando saiu o aviso "seu jogo é o próximo" pros jogadores desta partida.
+    // Existe pra ele sair UMA vez: o organizador finalizar sem querer e desfazer é comum
+    // no meio do torneio, e sem esta marca cada desfazer mandaria o push de novo.
+    public DateTime? AvisoProximoEnviadoEm { get; set; }
 }

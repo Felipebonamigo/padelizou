@@ -17,19 +17,8 @@ namespace Padelizou.Tests;
 // Como é ação que GRAVA, vale a regra 0 do projeto: [Authorize] E checagem de organizador.
 public class ColocarNoArTests
 {
-    private static PartidasController NovoController(DbPadelContext ctx, int? usuarioLogadoId)
-    {
-        var c = new PartidasController(ctx, Substitute.For<IPalpiteService>());
-
-        var user = usuarioLogadoId == null
-            ? new ClaimsPrincipal(new ClaimsIdentity())
-            : new ClaimsPrincipal(new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.Value.ToString()) }, "Teste"));
-
-        c.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = user } };
-        c.TempData = new TempDataDictionary(c.HttpContext, Substitute.For<ITempDataProvider>());
-        return c;
-    }
+    private static PartidasController NovoController(DbPadelContext ctx, int? usuarioLogadoId) =>
+        TestInfra.NovoPartidasController(ctx, usuarioLogadoId);
 
     private static (Partida partida, Jogador organizador, Jogador estranho) MontarAgendada(DbPadelContext ctx)
     {
@@ -125,6 +114,54 @@ public class ColocarNoArTests
         var (_, organizador, _) = MontarAgendada(ctx);
 
         Assert.IsType<NotFoundResult>(await NovoController(ctx, organizador.Id).ColocarNoAr(9999));
+    }
+
+    [Fact]
+    public async Task Corrigir_placar_de_jogo_ja_encerrado_nao_chama_a_proxima_partida_de_novo()
+    {
+        // Corrigir placar de jogo já encerrado é rotina no meio do torneio. Se o aviso
+        // "seu jogo é o próximo" saísse a cada correção, ele chamaria a partida seguinte
+        // outra vez — e, como a primeira já está marcada como avisada, chamaria a SEGUINTE
+        // da seguinte, tirando da beira da quadra gente que ainda vai demorar a jogar.
+        using var ctx = TestInfra.NovoContexto();
+        var (partida, organizador, _) = MontarAgendada(ctx);
+
+        var seguinte = new Partida
+        {
+            CategoriaId = partida.CategoriaId,
+            TorneioId = partida.TorneioId,
+            Codigo = "P2",
+            Fase = "Grupo A",
+            Dupla1Id = partida.Dupla1Id,
+            Dupla2Id = partida.Dupla2Id,
+            Status = "Agendada",
+            HorarioPrevisto = partida.HorarioPrevisto!.Value.AddMinutes(50),
+        };
+        var depoisDela = new Partida
+        {
+            CategoriaId = partida.CategoriaId,
+            TorneioId = partida.TorneioId,
+            Codigo = "P3",
+            Fase = "Grupo A",
+            Dupla1Id = partida.Dupla1Id,
+            Dupla2Id = partida.Dupla2Id,
+            Status = "Agendada",
+            HorarioPrevisto = partida.HorarioPrevisto!.Value.AddMinutes(100),
+        };
+        ctx.Partidas.AddRange(seguinte, depoisDela);
+        await ctx.SaveChangesAsync();
+
+        var controller = NovoController(ctx, organizador.Id);
+
+        // Termina de verdade: a seguinte é avisada.
+        await controller.ControlePlacar(partida.Id, "Finalizada", 9, 4, null, null);
+        Assert.NotNull((await ctx.Partidas.FindAsync(seguinte.Id))!.AvisoProximoEnviadoEm);
+        Assert.Null((await ctx.Partidas.FindAsync(depoisDela.Id))!.AvisoProximoEnviadoEm);
+
+        // Corrige o placar do jogo que já estava encerrado: ninguém mais é chamado.
+        await controller.ControlePlacar(partida.Id, "Finalizada", 9, 5, null, null);
+
+        Assert.Null((await ctx.Partidas.FindAsync(depoisDela.Id))!.AvisoProximoEnviadoEm);
     }
 
     [Fact]

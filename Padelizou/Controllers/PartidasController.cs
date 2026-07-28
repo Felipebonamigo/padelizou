@@ -11,11 +11,19 @@ namespace Padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IPalpiteService _palpites;
+        private readonly IPushNotificationService _pushService;
+        private readonly ILogger<PartidasController> _logger;
 
-        public PartidasController(DbPadelContext context, IPalpiteService palpites)
+        public PartidasController(
+            DbPadelContext context,
+            IPalpiteService palpites,
+            IPushNotificationService pushService,
+            ILogger<PartidasController> logger)
         {
             _context = context;
             _palpites = palpites;
+            _pushService = pushService;
+            _logger = logger;
         }
 
         private int? ObterJogadorIdLogado()
@@ -98,6 +106,45 @@ namespace Padelizou.Controllers
             return View(partida);
         }
 
+        // Push de "seu jogo é o próximo", disparado pelo FIM do jogo anterior — não por
+        // relógio. Torneio atrasa, e um aviso preso ao horário previsto chegaria com o
+        // jogador ainda almoçando, ou depois de ele já ter jogado. Quem sabe de verdade que
+        // a quadra vagou é a partida que acabou de terminar nela.
+        private async Task AvisarProximoDaQuadraAsync(Partida terminada)
+        {
+            if (terminada.TorneioId == null) return;
+
+            try
+            {
+                var agendadas = await _context.Partidas
+                    .Include(p => p.Dupla1)
+                    .Include(p => p.Dupla2)
+                    .Where(p => p.TorneioId == terminada.TorneioId && p.Status == "Agendada")
+                    .ToListAsync();
+
+                var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas);
+                if (proxima == null) return;
+
+                var url = Url.Action("Jogos", "Torneios", new { id = terminada.TorneioId });
+
+                foreach (var jogadorId in AvisosDoDiaDeJogo.JogadoresDa(proxima))
+                {
+                    await _pushService.EnviarParaJogadorAsync(jogadorId,
+                        "Seu jogo é o próximo!",
+                        AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
+                        url);
+                }
+
+                proxima.AvisoProximoEnviadoEm = DateTime.Now;
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // O placar já está salvo e o mata-mata já avançou. Push é acessório.
+                _logger.LogWarning(ex, "Falha ao avisar o próximo jogo da quadra depois da partida {PartidaId}.", terminada.Id);
+            }
+        }
+
         // POST: Partidas/ColocarNoAr/5
         //
         // Um clique pra começar a partida, direto da lista de Jogos. Existe porque no dia do
@@ -143,6 +190,13 @@ namespace Padelizou.Controllers
 
             // Sem isto, qualquer um que alcançasse a rota mudava o placar de qualquer jogo.
             if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+
+            // Guardado ANTES de mexer no status: "acabou de terminar" é diferente de "está
+            // terminada". Corrigir o placar de um jogo já encerrado é rotina no meio do
+            // torneio, e sem esta distinção cada correção chamaria os jogadores da partida
+            // seguinte de novo — e, pior, a seguinte da seguinte, porque a primeira já
+            // estaria marcada como avisada.
+            bool acabouDeTerminar = status == "Finalizada" && partida.Status != "Finalizada";
 
             partida.GamesDupla1 = gamesDupla1;
             partida.GamesDupla2 = gamesDupla2;
@@ -240,6 +294,10 @@ namespace Padelizou.Controllers
 
                     await _context.SaveChangesAsync();
                 }
+
+                // A quadra acabou de vagar: chama quem joga nela agora. Só na transição —
+                // ver `acabouDeTerminar` lá em cima.
+                if (acabouDeTerminar) await AvisarProximoDaQuadraAsync(partida);
             }
 
             return RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });

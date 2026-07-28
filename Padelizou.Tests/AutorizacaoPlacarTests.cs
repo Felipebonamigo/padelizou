@@ -13,21 +13,8 @@ namespace Padelizou.Tests;
 // que alcançasse a rota mudava o placar de qualquer jogo.
 public class AutorizacaoPlacarTests
 {
-    private static PartidasController NovoController(DbPadelContext ctx, int? usuarioLogadoId)
-    {
-        var c = new PartidasController(ctx, Substitute.For<IPalpiteService>());
-
-        var user = usuarioLogadoId == null
-            ? new ClaimsPrincipal(new ClaimsIdentity())
-            : new ClaimsPrincipal(new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.Value.ToString()) }, "Teste"));
-
-        c.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext { User = user },
-        };
-        return c;
-    }
+    private static PartidasController NovoController(DbPadelContext ctx, int? usuarioLogadoId) =>
+        TestInfra.NovoPartidasController(ctx, usuarioLogadoId);
 
     // Monta torneio + 1 partida, devolvendo o organizador e um estranho.
     private static (Partida partida, Jogador organizador, Jogador estranho) MontarPartida(DbPadelContext ctx)

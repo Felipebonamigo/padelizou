@@ -50,6 +50,42 @@ public static class TestInfra
         return controller;
     }
 
+    // PartidasController com os serviços de borda dublados. Fica aqui, e não repetido em
+    // cada arquivo de teste, porque toda vez que o construtor ganha uma dependência os
+    // testes quebram em vários lugares ao mesmo tempo — foi o que aconteceu ao injetar push.
+    public static PartidasController NovoPartidasController(DbPadelContext ctx, int? usuarioLogadoId)
+    {
+        var controller = new PartidasController(
+            ctx,
+            Substitute.For<IPalpiteService>(),
+            Substitute.For<IPushNotificationService>(),
+            NullLogger<PartidasController>.Instance);
+
+        var user = usuarioLogadoId == null
+            ? new ClaimsPrincipal(new ClaimsIdentity())
+            : new ClaimsPrincipal(new ClaimsIdentity(
+                new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.Value.ToString()) }, "Teste"));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
+    // Sem isto, `Url.Action(...)` estoura NullReferenceException dentro do controller — e
+    // como as chamadas de push ficam em try/catch (push é acessório, não pode derrubar o
+    // placar), o teste passaria verde sem nunca ter executado o trecho que interessa.
+    public static Microsoft.AspNetCore.Mvc.IUrlHelper UrlDeTeste()
+    {
+        var url = Substitute.For<Microsoft.AspNetCore.Mvc.IUrlHelper>();
+        url.Action(Arg.Any<Microsoft.AspNetCore.Mvc.Routing.UrlActionContext>()).Returns("/rota/de/teste");
+        return url;
+    }
+
     public static TimesController NovoTimesController(DbPadelContext ctx, int usuarioLogadoId)
     {
         var controller = new TimesController(ctx, new EstatisticasService(ctx));
@@ -90,6 +126,7 @@ public static class TestInfra
                     new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
             },
         };
+        controller.Url = UrlDeTeste();
         return controller;
     }
 
