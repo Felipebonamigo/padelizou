@@ -30,8 +30,24 @@ public class VigiaDoBackupBackgroundService : BackgroundService
         _logger = logger;
     }
 
+    // Espera curta antes da primeira checagem: dá tempo do app terminar de subir, e faz com que
+    // um restart valide o vigia em minutos em vez de horas. Vigia que só se manifesta 6h depois
+    // de subir é vigia que ninguém consegue testar — e no que não se testa, não se confia.
+    private static readonly TimeSpan EsperaInicial = TimeSpan.FromMinutes(2);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        try
+        {
+            await Task.Delay(EsperaInicial, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;   // app desligando antes da primeira checagem
+        }
+
+        await VerificarAsync(stoppingToken);
+
         using var timer = new PeriodicTimer(IntervaloTick);
 
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
