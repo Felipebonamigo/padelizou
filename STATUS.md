@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **509 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **518 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -157,7 +157,12 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   **3. Página de erro e 404.** `Views/Shared/Error.cshtml` ainda era o template padrão do ASP.NET: **em inglês**, ensinando o usuário final a configurar `ASPNETCORE_ENVIRONMENT`. E **não havia `UseStatusCodePages`** — endereço errado caía na tela crua do navegador, sem menu e sem volta (link velho de torneio no WhatsApp é o caso comum). Agora `/Home/NaoEncontrado` com o mascote, texto por código (404 "Essa bola saiu", 403 "Essa área não é sua"), **devolvendo o status certo** — responder 200 faria buscador e monitoramento tratarem página inexistente como boa. Usa `ReExecute` pra manter na barra a URL que a pessoa digitou.
   **4. Pnatinha feliz** (chegou no mesmo dia): `pnatinha-feliz.webp` (600×328, 69 KB) e `pnatinha-feliz-recorte.webp` (386×400, 50 KB), do mesmo original de 8,2 MB. Entra **no campeão da chave**, e só quando existe campeão de verdade — chave em aberto continua com o troféu, porque comemorar antes da final estraga o momento em que a comemoração vale.
   Deliberadamente **não** foi espalhado: o relatório pós-torneio é feito pra impressão (`@media print`) e mascote grande ali gasta tinta; o onboarding some quando conclui, então não há tela de conclusão pra comemorar. Usar em cinco lugares só pra usar seria pior que usar bem em um.
-- **509 testes** (+110 no dia 28).
+- **Agora o professor é OBRIGADO a declarar cidade e local** (build seguinte). O aviso no topo do painel não bastava — continuava sendo possível ignorar e seguir invisível. A regra virou `Services/CadastroDeProfessor`, num lugar só e testável:
+  **Onde cobra:** (a) ao marcar "sou professor" no perfil, a pessoa vai direto pra Minhas Cidades em vez de voltar achando que terminou; (b) o painel do professor **redireciona** pro que falta antes de abrir.
+  **A ordem segue a escada da tela do aluno** (cidade → professor → local → tipo → horário), não a preferência de quem programou: cobrar o local antes deixaria o professor fora da lista do mesmo jeito.
+  **Sem risco de laço:** `MinhasCidades` e `MeusLocais` não têm a checagem, e as duas salvam e devolvem. Testado no navegador de ponta a ponta — pedi o painel, fui parar em Minhas Cidades; salvei a cidade, pedi o painel, fui parar em Meus Locais; salvei o local, pedi o painel e **ele abriu**. Depois disso a cidade apareceu no seletor da tela do aluno, que era o objetivo.
+  As duas telas mostram **por que** a pessoa foi trazida: redirecionamento sem explicação parece defeito, e ela tenta voltar em vez de resolver. **518 testes.**
+- **518 testes** (+119 no dia 28).
 
 ---
 

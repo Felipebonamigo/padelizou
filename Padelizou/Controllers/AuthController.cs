@@ -363,6 +363,11 @@ namespace padelizou.Controllers
             // resolve espaço sobrando e duplicado; acento continua por conta de quem digita.
             jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : NomeDeCidade.Arrumar(cidade);
             jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+
+            // Guardado ANTES de sobrescrever: quem acabou de marcar "sou professor" vai direto
+            // definir a cidade, em vez de voltar pro perfil achando que terminou. Marcar a
+            // caixinha não coloca ninguém na tela de marcar aula — falta cidade e local.
+            var acabouDeVirarProfessor = isProfessor && !jogador.IsProfessor;
             jogador.IsProfessor = isProfessor;
 
             // --- Meu time ---
@@ -428,6 +433,17 @@ namespace padelizou.Controllers
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 
             TempData["Sucesso"] = "Perfil atualizado!";
+
+            // Recém-chegado ao ofício vai direto pro que falta. O painel do professor cobraria
+            // isso de qualquer forma, mas pedir agora — enquanto a pessoa ainda está mexendo no
+            // cadastro — é bem menos irritante do que interceptá-la depois.
+            if (acabouDeVirarProfessor)
+            {
+                TempData["AvisoCadastroProfessor"] =
+                    CadastroDeProfessor.MensagemPara(PendenciaDoProfessor.Cidade);
+                return RedirectToAction("MinhasCidades", "Aulas");
+            }
+
             return RedirectToAction("Perfil");
         }
 

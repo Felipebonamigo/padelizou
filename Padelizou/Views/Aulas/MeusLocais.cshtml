@@ -12,6 +12,16 @@
         <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill">Voltar à Agenda</a>
     </div>
 
+    @* Quem chegou aqui empurrado pelo painel precisa saber por quê — redirecionamento sem
+       explicação parece defeito, e a pessoa tenta voltar em vez de resolver. *@
+    @if (TempData["AvisoCadastroProfessor"] != null)
+    {
+        <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            @TempData["AvisoCadastroProfessor"]
+        </div>
+    }
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Novo local</h6>

@@ -17,6 +17,16 @@
         <div class="alert alert-success">@TempData["Sucesso"]</div>
     }
 
+    @* Quem chegou aqui empurrado pelo painel precisa saber por quê — redirecionamento sem
+       explicação parece defeito, e a pessoa tenta voltar em vez de resolver. *@
+    @if (TempData["AvisoCadastroProfessor"] != null)
+    {
+        <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            @TempData["AvisoCadastroProfessor"]
+        </div>
+    }
+
     <div class="card shadow-sm border-0">
         <div class="card-body">
             <form asp-controller="Aulas" asp-action="AtualizarCidades" method="post">
