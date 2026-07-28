@@ -1748,6 +1748,13 @@ namespace Padelizou.Controllers
             // Ela morava numa página separada, sem botão de voltar; agora é uma aba aqui,
             // ao lado de Ao Vivo, que é onde o pessoal já está olhando.
             var torneioDaTela = await _context.Torneios.FindAsync(torneioId);
+
+            // Quem organiza vê os botões de mexer no jogo ("colocar no ar", editar placar).
+            // Fica FORA do if do Americano de propósito: nasceu lá dentro, quando só o
+            // desempate precisava dele, e o resultado era que num torneio de duplas — a
+            // maioria — a flag nem existia, e o organizador não via botão nenhum.
+            ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
+
             if (torneioDaTela?.Formato == "Americano")
             {
                 var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
@@ -1758,7 +1765,6 @@ namespace Padelizou.Controllers
 
                 // O botão "montar o desempate" é só do organizador; o jogador vê o aviso.
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
-                ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
             }
 
             // PALPITRÔMETRO: resumo de votos de cada partida exibida, num único lote.

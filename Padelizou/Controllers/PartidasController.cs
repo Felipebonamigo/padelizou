@@ -98,6 +98,40 @@ namespace Padelizou.Controllers
             return View(partida);
         }
 
+        // POST: Partidas/ColocarNoAr/5
+        //
+        // Um clique pra começar a partida, direto da lista de Jogos. Existe porque no dia do
+        // torneio o organizador tem 4 quadras virando ao mesmo tempo e gente esperando: abrir
+        // a tela de placar, escolher o status e salvar, uma partida por vez, é atrito na hora
+        // errada. O placar continua na tela de sempre — aqui só se dá a largada.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ColocarNoAr(int id)
+        {
+            var partida = await _context.Partidas.FindAsync(id);
+            if (partida == null) return NotFound();
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+
+            // Idempotente: dois toques no botão (celular, dedo grande, 3G lento) não podem
+            // zerar o cronômetro de uma partida que já começou.
+            if (partida.Status != "AoVivo")
+            {
+                partida.Status = "AoVivo";
+                partida.HorarioInicioReal ??= DateTime.Now;
+                partida.HorarioFimReal = null;
+                partida.SendoTransmitida = !string.IsNullOrEmpty(partida.LinkTransmissao);
+
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = "Partida no ar!";
+            }
+
+            // Partida fora de torneio não tem lista de Jogos pra onde voltar.
+            return partida.TorneioId.HasValue
+                ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
+                : RedirectToAction("ControlePlacar", new { id });
+        }
+
         // POST: Partidas/ControlePlacar/5
         [HttpPost]
         [Authorize]

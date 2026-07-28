@@ -16,6 +16,24 @@
         _ => $"<span class=\"text-muted\">{pos}º</span>"
     };
 
+    // Os dois nomes da dupla, com link pro perfil de cada um.
+    //
+    // O parceiro pode ser NULO: desde build-17 dá pra se inscrever sozinho e definir o
+    // parceiro depois. Hoje uma dupla incompleta não chega a acumular vitória (o sorteio
+    // só aceita dupla completa), então isto aqui é cinto e suspensório — mas foi
+    // exatamente um Jogador2 nulo que derrubou a página do torneio em produção no dia
+    // 27/07, e nesta view a mesma desatenção estava repetida em três lugares.
+    static string NomesDaDupla(Jogador jogador1, Jogador? jogador2)
+    {
+        static string Link(Jogador j) =>
+            $"<a href=\"/Jogadores/Perfil/{j.Id}\" class=\"text-decoration-none fw-semibold\" " +
+            $"style=\"color: var(--pdz-ink);\">{System.Net.WebUtility.HtmlEncode(j.Nome)}</a>";
+
+        return jogador2 == null
+            ? Link(jogador1) + " <span class=\"text-muted small\">(sem parceiro)</span>"
+            : Link(jogador1) + " <span class=\"text-muted\">/</span> " + Link(jogador2);
+    }
+
     static string Periodo(DateTime? de, DateTime? ate)
     {
         if (de == null) return "—";
@@ -381,11 +399,7 @@
                         {
                             <tr>
                                 <td class="text-center fw-bold">@Html.Raw(PosBadge(posG))</td>
-                                <td>
-                                    <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
-                                    <span class="text-muted">/</span>
-                                    <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
-                                </td>
+                                <td>@Html.Raw(NomesDaDupla(d.Jogador1, d.Jogador2))</td>
                                 <td class="small text-muted">@d.Categoria<br><span class="text-secondary">@d.Torneio</span></td>
                                 <td class="text-center fw-bold text-success">@d.Vitorias</td>
                                 <td class="text-center text-muted">@d.Jogos</td>
@@ -415,11 +429,7 @@
                                     {
                                         <tr>
                                             <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                            <td>
-                                                <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
-                                                <span class="text-muted">/</span>
-                                                <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
-                                            </td>
+                                            <td>@Html.Raw(NomesDaDupla(d.Jogador1, d.Jogador2))</td>
                                             <td class="small text-muted">@d.Torneio</td>
                                             <td class="text-center fw-bold text-success">@d.Vitorias</td>
                                             <td class="text-center text-muted">@d.Jogos</td>
@@ -482,9 +492,7 @@
                                     <tr>
                                         <td class="text-center fw-bold">@Html.Raw(PosBadge(posd))</td>
                                         <td>
-                                            <a asp-action="Perfil" asp-route-id="@d.Jogador1.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador1.Nome</a>
-                                            <span class="text-muted">/</span>
-                                            <a asp-action="Perfil" asp-route-id="@d.Jogador2.Id" class="text-decoration-none fw-semibold" style="color: var(--pdz-ink);">@d.Jogador2.Nome</a>
+                                            @Html.Raw(NomesDaDupla(d.Jogador1, d.Jogador2))
                                             <div class="small text-muted">@d.Categoria</div>
                                         </td>
                                         <td class="text-center"><span class="badge bg-danger-subtle text-danger fw-bold">@d.SequenciaInvicta <i class="bi bi-fire"></i></span></td>

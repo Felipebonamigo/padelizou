@@ -38,6 +38,14 @@
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
 }
 
+@if (TempData["Sucesso"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill"></i> @TempData["Sucesso"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
 <!-- Filtro de Times e Categorias -->
 <form asp-action="@Model.TargetAction" method="get" class="d-flex align-items-center gap-2 flex-wrap mb-3">
     <input type="hidden" name="id" value="@Model.TorneioId" />
@@ -230,9 +238,23 @@
                 <div class="col-md-6 mb-3">
                     <div class="card border-primary shadow-sm">
                         <div class="card-body text-center">
-                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
-                                ✏️ Editar Jogo
-                            </a>
+                            @* Só o organizador mexe no jogo. O ControlePlacar já recusa quem
+                               não pode, mas mostrar o botão pra todo mundo era ruído — e um
+                               convite a clicar e levar "acesso negado" na cara. *@
+                            @if (ehOrganizador)
+                            {
+                                <div class="d-flex justify-content-center gap-2 mb-2">
+                                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-danger fw-bold">
+                                            ▶ Colocar no ar
+                                        </button>
+                                    </form>
+                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning">
+                                        ✏️ Editar
+                                    </a>
+                                </div>
+                            }
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="badge bg-secondary">
                                     📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra a definir" : jogo.NomeQuadra)
@@ -284,9 +306,12 @@
                 <div class="col-md-6 mb-3">
                     <div class="card border-success shadow-sm">
                         <div class="card-body text-center">
-                            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
-                                ✏️ Editar Jogo
-                            </a>
+                            @if (ehOrganizador)
+                            {
+                                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
+                                    ✏️ Corrigir placar
+                                </a>
+                            }
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="badge bg-secondary">
                                     📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Não informada" : jogo.NomeQuadra)

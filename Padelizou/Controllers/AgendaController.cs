@@ -356,17 +356,26 @@ namespace padelizou.Controllers
                         CategoriaNome = p.Categoria.Nome,
                         TorneioLocal = p.Categoria.Torneio.LocalTorneio,
                         DuracaoMinutos = p.Categoria.Torneio.TempoPrevistoPartidaMinutos,
-                        Dupla1 = p.Dupla1.Jogador1.Nome + "/" + p.Dupla1.Jogador2.Nome,
-                        Dupla2 = p.Dupla2.Jogador1.Nome + "/" + p.Dupla2.Jogador2.Nome
+                        // Nomes separados, montados na memória logo abaixo: quem se inscreveu
+                        // sozinho ainda não tem parceiro, e concatenar aqui viraria "Ana/" no
+                        // evento do calendário (ou o nome sumiria inteiro, dependendo de como o
+                        // PostgreSQL trata o NULL na concatenação).
+                        D1J1 = p.Dupla1.Jogador1.Nome,
+                        D1J2 = p.Dupla1.Jogador2 != null ? p.Dupla1.Jogador2.Nome : null,
+                        D2J1 = p.Dupla2.Jogador1.Nome,
+                        D2J2 = p.Dupla2.Jogador2 != null ? p.Dupla2.Jogador2.Nome : null
                     })
                     .ToListAsync();
+
+                static string Dupla(string jogador1, string? jogador2) =>
+                    string.IsNullOrWhiteSpace(jogador2) ? jogador1 : $"{jogador1}/{jogador2}";
 
                 eventos.AddRange(partidas.Select(p => new IcsEvent(
                     Uid: $"padelizou-partida-{p.Id}@padelizou.com.br",
                     Inicio: p.HorarioPrevisto!.Value,
                     Fim: p.HorarioPrevisto.Value.AddMinutes(p.DuracaoMinutos),
                     DiaInteiro: false,
-                    Resumo: $"Partida: {p.Dupla1} x {p.Dupla2}",
+                    Resumo: $"Partida: {Dupla(p.D1J1, p.D1J2)} x {Dupla(p.D2J1, p.D2J2)}",
                     Local: p.NomeQuadra != null ? $"{p.NomeQuadra} — {p.TorneioLocal}" : p.TorneioLocal,
                     Descricao: $"{p.Fase} — {p.CategoriaNome}")));
             }
