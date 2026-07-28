@@ -1,37 +1,43 @@
-﻿@model IEnumerable<Aula>
+@model Padelizou.ViewModels.AgendaProfessorVM
 @{
     ViewData["Title"] = "Minha Agenda - Padelizou";
-    bool googleConectado = ViewBag.GoogleConectado == true;
 
-    var todasAulas = Model?.ToList() ?? new List<Aula>();
-    var seriesPendentes = todasAulas
-        .Where(a => a.Status == "Pendente" && a.RecorrenciaId != null)
+    // Cor por status, igual nos três modos de ver — o professor aprende uma vez só.
+    string CorDe(string status) => status switch
+    {
+        "Pendente" => "#f0ad4e",
+        "Confirmada" => "#2c6fbb",
+        "Realizada" => "#2e9e5b",
+        _ => "#b34a4a",
+    };
+
+    string NomeDoAluno(Aula a) => a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso";
+
+    var hoje = DateTime.Today;
+
+    // Séries pendentes ganham bloco próprio: aceitar 12 aulas uma a uma seria castigo.
+    var seriesPendentes = Model.Pendentes
+        .Where(a => a.RecorrenciaId != null)
         .GroupBy(a => a.RecorrenciaId!.Value)
         .ToList();
     var idsEmSerie = seriesPendentes.SelectMany(g => g.Select(a => a.Id)).ToHashSet();
-    var aulasIndividuais = todasAulas.Where(a => !idsEmSerie.Contains(a.Id)).ToList();
+    var pendentesAvulsas = Model.Pendentes.Where(a => !idsEmSerie.Contains(a.Id)).ToList();
 }
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold" style="color: var(--pdz-ink);">Minha Agenda</h2>
-            <p class="text-muted mb-0">Gerencie seus locais, horários e alunos marcados.</p>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Minha Agenda</h2>
+            <p class="text-muted mb-0 small">Seus compromissos, no calendário ou em lista.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <a asp-controller="Aulas" asp-action="AdicionarManual" class="btn btn-padel rounded-pill btn-sm">
+            <a asp-action="AdicionarManual" class="btn btn-padel rounded-pill btn-sm">
                 <i class="bi bi-plus-lg"></i> Adicionar Aula
             </a>
-            <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm">
-                <i class="bi bi-geo-alt"></i> Meus Locais
-            </a>
-            <a asp-controller="Aulas" asp-action="MeusHorarios" class="btn btn-outline-primary rounded-pill btn-sm">
-                <i class="bi bi-clock"></i> Meus Horários
-            </a>
-            <a asp-controller="Aulas" asp-action="Relatorio" class="btn btn-outline-primary rounded-pill btn-sm">
-                <i class="bi bi-graph-up"></i> Relatório
-            </a>
-            @if (googleConectado)
+            <a asp-action="MeusLocais" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-geo-alt"></i> Locais</a>
+            <a asp-action="MeusHorarios" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-clock"></i> Horários</a>
+            <a asp-action="Relatorio" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-graph-up"></i> Relatório</a>
+            @if (Model.GoogleConectado)
             {
                 <span class="btn btn-sm btn-success rounded-pill disabled"><i class="bi bi-check-circle"></i> Google Agenda conectada</span>
             }
@@ -41,10 +47,7 @@
                     <i class="bi bi-google"></i> Conectar Google Agenda
                 </a>
             }
-            <a asp-controller="Aulas" asp-action="MinhasCidades" class="btn btn-outline-primary rounded-pill btn-sm">
-                <i class="bi bi-pin-map"></i> Minhas Cidades
-            </a>
-            <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">Voltar ao Painel</a>
+            <a asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill btn-sm">Voltar ao Painel</a>
         </div>
     </div>
 
@@ -66,179 +69,420 @@
         </div>
     }
 
-    @if (seriesPendentes.Any())
+    @* ── Barra de controle: navegar, escolher período, trocar de vista ───────────────── *@
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-1">
+                <a class="btn btn-sm btn-outline-secondary rounded-circle" title="Anterior"
+                   asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                   asp-route-data="@PeriodoAgenda.Deslocar(Model.Periodo, Model.Referencia, -1).ToString("yyyy-MM-dd")">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+                <a class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                   asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo">Hoje</a>
+                <a class="btn btn-sm btn-outline-secondary rounded-circle" title="Próximo"
+                   asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@Model.Periodo"
+                   asp-route-data="@PeriodoAgenda.Deslocar(Model.Periodo, Model.Referencia, 1).ToString("yyyy-MM-dd")">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <strong class="ms-2 text-capitalize" style="color: var(--pdz-ink);">@Model.Titulo</strong>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Período">
+                    @foreach (var (valor, rotulo) in new[] { (PeriodoAgenda.Dia, "Dia"), (PeriodoAgenda.Semana, "Semana"), (PeriodoAgenda.Mes, "Mês") })
+                    {
+                        <a class="btn @(Model.Periodo == valor ? "btn-primary" : "btn-outline-primary")"
+                           asp-action="MinhaAgenda" asp-route-vista="@Model.Vista" asp-route-periodo="@valor"
+                           asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">@rotulo</a>
+                    }
+                </div>
+
+                <div class="btn-group btn-group-sm" role="group" aria-label="Modo de exibição">
+                    <a class="btn @(Model.Vista == PeriodoAgenda.VistaCalendario ? "btn-secondary" : "btn-outline-secondary")"
+                       asp-action="MinhaAgenda" asp-route-vista="@PeriodoAgenda.VistaCalendario"
+                       asp-route-periodo="@Model.Periodo" asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
+                        <i class="bi bi-calendar3"></i> Calendário
+                    </a>
+                    <a class="btn @(Model.Vista == PeriodoAgenda.VistaLista ? "btn-secondary" : "btn-outline-secondary")"
+                       asp-action="MinhaAgenda" asp-route-vista="@PeriodoAgenda.VistaLista"
+                       asp-route-periodo="@Model.Periodo" asp-route-data="@Model.Referencia.ToString("yyyy-MM-dd")">
+                        <i class="bi bi-list-ul"></i> Lista
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Pendências (sempre visíveis, de qualquer data) ──────────────────────────────── *@
+    @if (seriesPendentes.Any() || pendentesAvulsas.Any())
     {
-        <div class="row">
-            @foreach (var serie in seriesPendentes)
-            {
-                var aulasDaSerie = serie.OrderBy(a => a.DataHora).ToList();
-                var primeira = aulasDaSerie[0];
-                var nomeAlunoSerie = primeira.Aluno?.Nome ?? primeira.NomeAlunoAvulso ?? "Aluno avulso";
+        <div class="card border-0 shadow-sm mb-3" style="border-left: 5px solid #f0ad4e !important;">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                    <i class="bi bi-hourglass-split text-warning"></i>
+                    Esperando sua resposta (@(seriesPendentes.Count + pendentesAvulsas.Count))
+                </h6>
+                <p class="small text-muted mb-3">Aparecem aqui em qualquer data, pra não vencerem enquanto você olha outra semana.</p>
 
-                <div class="col-12 mb-4">
-                    <div class="card shadow-sm border-0" style="border-left: 5px solid var(--pdz-navy-fixed);">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                                <h5 class="fw-bold mb-0" style="color: var(--pdz-ink);">
-                                    <i class="bi bi-arrow-repeat"></i> Série de @aulasDaSerie.Count aula(s) — @nomeAlunoSerie
-                                </h5>
-                                <span class="text-muted small"><i class="bi bi-geo-alt-fill text-danger"></i> @primeira.LocalAula.Nome</span>
-                            </div>
-
-                            <ul class="list-unstyled small text-muted mb-3">
-                                @foreach (var aula in aulasDaSerie)
-                                {
-                                    <li class="d-flex justify-content-between align-items-center py-1 flex-wrap gap-2 border-bottom">
-                                        <span>@aula.DataHora.ToString("dd/MM/yyyy HH:mm") — @aula.Preco.ToString("C")</span>
-                                        <div class="d-flex gap-1">
-                                            <form asp-action="ConfirmarSolicitacao" method="post">
-                                                <input type="hidden" name="aulaId" value="@aula.Id" />
-                                                <input type="hidden" name="aceitar" value="true" />
-                                                <button type="submit" class="btn btn-sm btn-outline-success" title="Aceitar só esta"><i class="bi bi-check2"></i></button>
-                                            </form>
-                                            <form asp-action="ConfirmarSolicitacao" method="post">
-                                                <input type="hidden" name="aulaId" value="@aula.Id" />
-                                                <input type="hidden" name="aceitar" value="false" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Recusar só esta"><i class="bi bi-x"></i></button>
-                                            </form>
-                                        </div>
-                                    </li>
-                                }
-                            </ul>
-
-                            <div class="d-flex gap-2">
-                                <form asp-action="ConfirmarSerie" method="post" class="w-50">
-                                    <input type="hidden" name="recorrenciaId" value="@serie.Key" />
-                                    <input type="hidden" name="aceitar" value="true" />
-                                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-check2-all"></i> Aceitar todas</button>
-                                </form>
-                                <form asp-action="ConfirmarSerie" method="post" class="w-50">
-                                    <input type="hidden" name="recorrenciaId" value="@serie.Key" />
-                                    <input type="hidden" name="aceitar" value="false" />
-                                    <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Recusar todas</button>
-                                </form>
-                            </div>
+                @foreach (var serie in seriesPendentes)
+                {
+                    var aulasDaSerie = serie.OrderBy(a => a.DataHora).ToList();
+                    var primeira = aulasDaSerie[0];
+                    <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <strong><i class="bi bi-arrow-repeat"></i> Série de @aulasDaSerie.Count aula(s) — @NomeDoAluno(primeira)</strong>
+                            <span class="text-muted small">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @primeira.LocalAula.Nome
+                                · @primeira.DataHora.ToString("dd/MM") a @aulasDaSerie[^1].DataHora.ToString("dd/MM")
+                            </span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <form asp-action="ConfirmarSerie" method="post">
+                                <input type="hidden" name="recorrenciaId" value="@serie.Key" />
+                                <input type="hidden" name="aceitar" value="true" />
+                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check2-all"></i> Aceitar todas</button>
+                            </form>
+                            <form asp-action="ConfirmarSerie" method="post">
+                                <input type="hidden" name="recorrenciaId" value="@serie.Key" />
+                                <input type="hidden" name="aceitar" value="false" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Recusar todas</button>
+                            </form>
                         </div>
                     </div>
-                </div>
-            }
+                }
+
+                @foreach (var aula in pendentesAvulsas)
+                {
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom py-2">
+                        <span>
+                            <strong>@NomeDoAluno(aula)</strong>
+                            <span class="text-muted small">
+                                · @aula.DataHora.ToString("dd/MM/yyyy HH:mm")
+                                · @aula.LocalAula.Nome · @aula.Preco.ToString("C")
+                            </span>
+                        </span>
+                        <div class="d-flex gap-1">
+                            <form asp-action="ConfirmarSolicitacao" method="post">
+                                <input type="hidden" name="aulaId" value="@aula.Id" />
+                                <input type="hidden" name="aceitar" value="true" />
+                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Aceitar</button>
+                            </form>
+                            <form asp-action="ConfirmarSolicitacao" method="post">
+                                <input type="hidden" name="aulaId" value="@aula.Id" />
+                                <input type="hidden" name="aceitar" value="false" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     }
 
-    <div class="row">
-        @if (aulasIndividuais.Any())
+    @* ══ CALENDÁRIO ══════════════════════════════════════════════════════════════════ *@
+    @if (Model.Vista == PeriodoAgenda.VistaCalendario)
+    {
+        @if (Model.Periodo == PeriodoAgenda.Mes)
         {
-            @foreach (var aula in aulasIndividuais)
+            var grade = PeriodoAgenda.GradeDoMes(Model.Referencia);
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 pdz-mes">
+                        <thead>
+                            <tr>
+                                @for (int d = 0; d < 7; d++)
+                                {
+                                    <th class="text-center small text-uppercase text-muted py-2">@PeriodoAgenda.DiaCurto((DayOfWeek)d)</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < grade.Count; i += 7)
+                            {
+                                <tr>
+                                    @for (int d = 0; d < 7; d++)
+                                    {
+                                        var dia = grade[i + d];
+                                        var doMes = dia.Month == Model.Referencia.Month;
+                                        var ehHoje = dia == hoje;
+                                        <td class="align-top p-1 @(doMes ? "" : "pdz-fora-do-mes")" style="height: 108px; width: 14.28%;">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small @(ehHoje ? "pdz-hoje" : "text-muted")">@dia.Day</span>
+                                            </div>
+                                            @foreach (var aula in Model.Do(dia))
+                                            {
+                                                <button type="button" class="pdz-chip" data-aula="@aula.Id"
+                                                        style="background:@CorDe(aula.Status);"
+                                                        title="@aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)">
+                                                    @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
+                                                </button>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            var dias = new List<DateTime>();
+            for (var d = Model.Inicio; d < Model.Fim; d = d.AddDays(1)) dias.Add(d);
+            var (primeiraHora, ultimaHora) = PeriodoAgenda.FaixaDeHoras(Model.NoPeriodo.Select(a => a.DataHora));
+
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 pdz-horas">
+                        <thead>
+                            <tr>
+                                <th style="width:64px;"></th>
+                                @foreach (var dia in dias)
+                                {
+                                    <th class="text-center small py-2 @(dia == hoje ? "pdz-col-hoje" : "")">
+                                        <div class="text-uppercase text-muted">@PeriodoAgenda.DiaCurto(dia.DayOfWeek)</div>
+                                        <div class="@(dia == hoje ? "pdz-hoje d-inline-block" : "fw-bold")">@dia.Day</div>
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int h = primeiraHora; h <= ultimaHora; h++)
+                            {
+                                <tr>
+                                    <td class="text-end text-muted small align-top" style="width:64px;">@h.ToString("00"):00</td>
+                                    @foreach (var dia in dias)
+                                    {
+                                        <td class="align-top p-1 @(dia == hoje ? "pdz-col-hoje" : "")" style="height:52px;">
+                                            @foreach (var aula in Model.Em(dia, h))
+                                            {
+                                                <button type="button" class="pdz-chip" data-aula="@aula.Id"
+                                                        style="background:@CorDe(aula.Status);"
+                                                        title="@aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)">
+                                                    @aula.DataHora.ToString("HH:mm") @NomeDoAluno(aula)
+                                                </button>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        @if (!Model.NoPeriodo.Any())
+        {
+            <p class="text-center text-muted small mt-3 mb-0">
+                <i class="bi bi-calendar-x"></i> Nenhuma aula neste período.
+            </p>
+        }
+    }
+    else
+    {
+        @* ══ LISTA ═══════════════════════════════════════════════════════════════════ *@
+        @if (!Model.NoPeriodo.Any())
+        {
+            <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+                <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
+                <h5 class="fw-bold text-secondary">Nenhuma aula neste período</h5>
+                <p class="text-muted mb-0">Use as setas ou troque o filtro pra ver outro intervalo.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var grupo in Model.PorDia())
             {
-                var badgeClass = aula.Status switch
-                {
-                    "Pendente" => "bg-warning text-dark",
-                    "Confirmada" => "bg-primary",
-                    "Realizada" => "bg-success",
-                    _ => "bg-danger"
-                };
-
-                var nomeAluno = aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno avulso";
-                var telefoneAluno = aula.Aluno?.Celular ?? aula.TelefoneAlunoAvulso;
-                var mensagemWhats = $"Olá, {nomeAluno}! Tudo certo para a nossa aula de Padel dia {aula.DataHora:dd/MM}?";
-                var linkWhatsApp = string.IsNullOrEmpty(telefoneAluno) ? null : WhatsAppLinkHelper.GerarLink(telefoneAluno, mensagemWhats);
-
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--padel-green);">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="badge @badgeClass text-uppercase shadow-sm">@aula.Status</span>
-                                <span class="text-muted fw-bold small"><i class="bi bi-clock-history"></i> @aula.DataHora.ToString("dd/MM/yyyy HH:mm")</span>
-                            </div>
-
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                                <i class="bi bi-person-bounding-box text-muted me-1"></i> @nomeAluno
-                                @if (aula.RecorrenciaId != null)
-                                {
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill ms-1" style="font-size:0.65rem;">
-                                        <i class="bi bi-arrow-repeat"></i> Recorrente
-                                    </span>
-                                }
-                            </h5>
-
-                            <p class="text-muted small mb-1">
-                                <i class="bi bi-geo-alt-fill text-danger"></i> @aula.LocalAula.Nome
-                            </p>
-                            <p class="text-muted small mb-3">
-                                <i class="bi bi-cash text-success"></i> @aula.Preco.ToString("C")
-                            </p>
-
-                            <div class="d-grid gap-2">
-                                @if (aula.Status == "Pendente")
-                                {
-                                    <div class="d-flex gap-2">
-                                        <form asp-action="ConfirmarSolicitacao" method="post" class="w-50">
-                                            <input type="hidden" name="aulaId" value="@aula.Id" />
-                                            <input type="hidden" name="aceitar" value="true" />
-                                            <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check2"></i> Aceitar</button>
-                                        </form>
-                                        <form asp-action="ConfirmarSolicitacao" method="post" class="w-50">
-                                            <input type="hidden" name="aulaId" value="@aula.Id" />
-                                            <input type="hidden" name="aceitar" value="false" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x"></i> Recusar</button>
-                                        </form>
-                                    </div>
-                                }
-                                else if (linkWhatsApp != null)
-                                {
-                                    <a href="@linkWhatsApp" target="_blank" class="btn btn-sm btn-success rounded-pill fw-bold">
-                                        <i class="bi bi-whatsapp"></i> Chamar Aluno
-                                    </a>
-                                }
-
-                                @if (aula.Status == "Confirmada")
-                                {
-                                    <div class="d-flex gap-2 mt-2">
-                                        <form asp-action="AtualizarStatus" method="post" class="w-50">
-                                            <input type="hidden" name="aulaId" value="@aula.Id" />
-                                            <input type="hidden" name="novoStatus" value="Realizada" />
-                                            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-check2-all"></i> Concluir</button>
-                                        </form>
-
-                                        <form asp-action="AtualizarStatus" method="post" class="w-50 form-cancelar-aula" data-datahora="@aula.DataHora.ToString("o")">
-                                            <input type="hidden" name="aulaId" value="@aula.Id" />
-                                            <input type="hidden" name="novoStatus" value="Cancelada" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Cancelar</button>
-                                        </form>
-                                    </div>
-                                }
-                            </div>
-                        </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold text-uppercase small text-muted mb-2">
+                        @PeriodoAgenda.DiaCurto(grupo.Key.DayOfWeek), @grupo.Key.Day de @PeriodoAgenda.NomeDoMes(grupo.Key.Month)
+                        @if (grupo.Key == hoje)
+                        {
+                            <span class="badge rounded-pill bg-primary ms-1">hoje</span>
+                        }
+                    </h6>
+                    <div class="list-group shadow-sm">
+                        @foreach (var aula in grupo.OrderBy(a => a.DataHora))
+                        {
+                            <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                                    data-aula="@aula.Id">
+                                <span class="fw-bold" style="min-width:52px; color: var(--pdz-ink);">@aula.DataHora.ToString("HH:mm")</span>
+                                <span class="rounded-circle flex-shrink-0" style="width:10px;height:10px;background:@CorDe(aula.Status);"></span>
+                                <span class="flex-grow-1 text-start">
+                                    <strong style="color: var(--pdz-ink);">@NomeDoAluno(aula)</strong>
+                                    <small class="d-block text-muted">
+                                        <i class="bi bi-geo-alt-fill text-danger"></i> @aula.LocalAula.Nome
+                                        · @aula.Preco.ToString("C")
+                                        @if (aula.RecorrenciaId != null)
+                                        {
+                                            <span class="ms-1"><i class="bi bi-arrow-repeat"></i> recorrente</span>
+                                        }
+                                    </small>
+                                </span>
+                                <span class="badge" style="background:@CorDe(aula.Status);">@aula.Status</span>
+                            </button>
+                        }
                     </div>
                 </div>
             }
         }
-        else if (!seriesPendentes.Any())
+    }
+
+    @* Legenda: as cores só ajudam se alguém disser o que elas querem dizer. *@
+    <div class="d-flex gap-3 flex-wrap mt-3 small text-muted">
+        @foreach (var s in new[] { "Pendente", "Confirmada", "Realizada", "Cancelada" })
         {
-            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
-                <i class="bi bi-calendar-x display-4 text-muted mb-3"></i>
-                <h4 class="fw-bold text-secondary">Sua agenda está livre!</h4>
-                <p class="text-muted">Nenhum aluno agendou aulas com você ainda.</p>
-            </div>
+            <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:@CorDe(s);"></span>@s</span>
         }
     </div>
 </div>
 
+@* Um modal só, preenchido por JS: com 30 aulas na tela, 30 modais seria peso à toa. *@
+<div class="modal fade" id="modalAula" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mAluno">Aula</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1"><i class="bi bi-clock"></i> <span id="mQuando"></span></p>
+                <p class="mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> <span id="mLocal"></span></p>
+                <p class="mb-1"><i class="bi bi-cash text-success"></i> <span id="mPreco"></span></p>
+                <p class="mb-0"><span class="badge" id="mStatus"></span></p>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <a href="#" id="mWhats" class="btn btn-sm btn-success rounded-pill fw-bold d-none" target="_blank">
+                    <i class="bi bi-whatsapp"></i> Chamar aluno
+                </a>
+
+                <form asp-action="ConfirmarSolicitacao" method="post" class="d-none" id="fAceitar">
+                    <input type="hidden" name="aulaId" id="mAceitarId" />
+                    <input type="hidden" name="aceitar" value="true" />
+                    <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Aceitar</button>
+                </form>
+                <form asp-action="ConfirmarSolicitacao" method="post" class="d-none" id="fRecusar">
+                    <input type="hidden" name="aulaId" id="mRecusarId" />
+                    <input type="hidden" name="aceitar" value="false" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i> Recusar</button>
+                </form>
+                <form asp-action="AtualizarStatus" method="post" class="d-none" id="fConcluir">
+                    <input type="hidden" name="aulaId" id="mConcluirId" />
+                    <input type="hidden" name="novoStatus" value="Realizada" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all"></i> Concluir</button>
+                </form>
+                <form asp-action="AtualizarStatus" method="post" class="d-none" id="fCancelar">
+                    <input type="hidden" name="aulaId" id="mCancelarId" />
+                    <input type="hidden" name="novoStatus" value="Cancelada" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* O _Layout só tem seção "Scripts" — o CSS fica no corpo mesmo, em vez de mudar um
+   layout que todas as telas usam por causa de uma. *@
+<style>
+        .pdz-chip {
+            display: block; width: 100%; border: 0; border-radius: 4px;
+            color: #fff; font-size: .72rem; line-height: 1.25;
+            padding: 2px 5px; margin-bottom: 2px; text-align: left;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            cursor: pointer;
+        }
+        .pdz-chip:hover { filter: brightness(1.12); }
+        .pdz-fora-do-mes { background: rgba(128,128,128,.07); }
+        .pdz-col-hoje { background: rgba(44,111,187,.06); }
+        .pdz-hoje {
+            background: var(--padel-green, #2e9e5b); color: #fff;
+            border-radius: 50%; width: 22px; height: 22px;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .pdz-mes td, .pdz-horas td { vertical-align: top; }
+        /* O mês não cabe em tela de celular sem encolher: 7 colunas com nome de aluno. */
+        @@media (max-width: 576px) {
+            .pdz-mes td { height: 82px !important; }
+            .pdz-chip { font-size: .62rem; }
+        }
+</style>
+
 @section Scripts {
     <script>
-        $(function () {
-            $('.form-cancelar-aula').on('submit', function (e) {
-                var dataHora = new Date($(this).data('datahora'));
-                var horasRestantes = (dataHora - new Date()) / (1000 * 60 * 60);
+        (function () {
+            // Os dados das aulas vêm do servidor de uma vez: clicar num chip não pode
+            // depender de rede, senão no ginásio (3G ruim) o professor clica e não abre nada.
+            var AULAS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.NoPeriodo.Select(a => new {
+                    id = a.Id,
+                    aluno = a.Aluno != null ? a.Aluno.Nome : (a.NomeAlunoAvulso ?? "Aluno avulso"),
+                    quando = a.DataHora.ToString("dd/MM/yyyy 'às' HH:mm"),
+                    local = a.LocalAula.Nome,
+                    preco = a.Preco.ToString("C"),
+                    status = a.Status,
+                    iso = a.DataHora.ToString("o"),
+                    whats = string.IsNullOrEmpty(a.Aluno != null ? a.Aluno.Celular : a.TelefoneAlunoAvulso)
+                        ? null
+                        : WhatsAppLinkHelper.GerarLink(
+                            (a.Aluno != null ? a.Aluno.Celular : a.TelefoneAlunoAvulso)!,
+                            $"Olá, {(a.Aluno != null ? a.Aluno.Nome : a.NomeAlunoAvulso)}! Tudo certo para a nossa aula de Padel dia {a.DataHora:dd/MM}?")
+                })));
 
-                var mensagem = horasRestantes < 24
+            var porId = {};
+            AULAS.forEach(function (a) { porId[a.id] = a; });
+
+            var modalEl = document.getElementById('modalAula');
+            var modal = new bootstrap.Modal(modalEl);
+            var cores = { 'Pendente': '#f0ad4e', 'Confirmada': '#2c6fbb', 'Realizada': '#2e9e5b' };
+
+            function mostrar(id) {
+                var a = porId[id];
+                if (!a) return;
+
+                document.getElementById('mAluno').textContent = a.aluno;
+                document.getElementById('mQuando').textContent = a.quando;
+                document.getElementById('mLocal').textContent = a.local;
+                document.getElementById('mPreco').textContent = a.preco;
+
+                var badge = document.getElementById('mStatus');
+                badge.textContent = a.status;
+                badge.style.background = cores[a.status] || '#b34a4a';
+
+                // Cada ação aparece só onde faz sentido: aceitar/recusar em Pendente,
+                // concluir/cancelar em Confirmada. Aula Realizada ou Cancelada não volta.
+                function alterna(formId, campoId, visivel) {
+                    document.getElementById(formId).classList.toggle('d-none', !visivel);
+                    document.getElementById(campoId).value = a.id;
+                }
+                alterna('fAceitar', 'mAceitarId', a.status === 'Pendente');
+                alterna('fRecusar', 'mRecusarId', a.status === 'Pendente');
+                alterna('fConcluir', 'mConcluirId', a.status === 'Confirmada');
+                alterna('fCancelar', 'mCancelarId', a.status === 'Confirmada');
+
+                var whats = document.getElementById('mWhats');
+                whats.classList.toggle('d-none', !a.whats || a.status === 'Pendente');
+                if (a.whats) whats.href = a.whats;
+
+                modal.show();
+            }
+
+            document.querySelectorAll('[data-aula]').forEach(function (el) {
+                el.addEventListener('click', function () { mostrar(parseInt(el.dataset.aula, 10)); });
+            });
+
+            // Mesma política de 24h que já existia: cancelar em cima da hora cobra o aluno,
+            // e o professor precisa saber disso ANTES de confirmar.
+            document.getElementById('fCancelar').addEventListener('submit', function (e) {
+                var a = porId[parseInt(document.getElementById('mCancelarId').value, 10)];
+                var horas = a ? (new Date(a.iso) - new Date()) / 36e5 : 99;
+                var msg = horas < 24
                     ? 'Essa aula é em menos de 24 horas. Pela política do Padelizou, o aluno deve ser cobrado normalmente mesmo com o cancelamento. Confirmar o cancelamento mesmo assim?'
                     : 'Confirmar o cancelamento desta aula?';
-
-                if (!confirm(mensagem)) {
-                    e.preventDefault();
-                }
+                if (!confirm(msg)) e.preventDefault();
             });
-        });
+        })();
     </script>
 }

@@ -873,22 +873,45 @@ namespace padelizou.Controllers
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
         [HttpGet]
-        public async Task<IActionResult> MinhaAgenda()
+        public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            var agenda = await _context.Aulas
+            var referencia = (data ?? DateTime.Today).Date;
+            var (inicio, fim) = PeriodoAgenda.Janela(periodo, referencia);
+
+            var noPeriodo = await _context.Aulas
                 .Include(a => a.Aluno)
                 .Include(a => a.LocalAula)
-                .Where(a => a.ProfessorId == professorId)
-                .OrderBy(a => a.Status == "Pendente" ? 0 : 1)
-                .ThenBy(a => a.DataHora)
+                .Where(a => a.ProfessorId == professorId
+                         && a.DataHora >= inicio && a.DataHora < fim)
+                .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
-            ViewBag.GoogleConectado = await _googleCalendarService.EstaConectadoAsync(professorId.Value);
+            // Pendentes de QUALQUER data: uma solicitação pro mês que vem sumiria da tela de
+            // quem está olhando esta semana, e o professor perderia o prazo sem nunca ver.
+            var pendentes = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId && a.Status == "Pendente")
+                .OrderBy(a => a.DataHora)
+                .ToListAsync();
 
-            return View(agenda);
+            var vm = new AgendaProfessorVM
+            {
+                Vista = PeriodoAgenda.NormalizarVista(vista),
+                Periodo = PeriodoAgenda.Normalizar(periodo),
+                Referencia = referencia,
+                Inicio = inicio,
+                Fim = fim,
+                Titulo = PeriodoAgenda.Titulo(periodo, referencia),
+                NoPeriodo = noPeriodo,
+                Pendentes = pendentes,
+                GoogleConectado = await _googleCalendarService.EstaConectadoAsync(professorId.Value),
+            };
+
+            return View(vm);
         }
 
         // 4. ATUALIZAR STATUS DA AULA (Finalizar ou Cancelar) — só a partir de uma aula já Confirmada
