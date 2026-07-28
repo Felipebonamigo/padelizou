@@ -659,16 +659,24 @@ namespace padelizou.Controllers
 
             if (!string.IsNullOrWhiteSpace(novaCidadeNome))
             {
-                var nomeNormalizado = novaCidadeNome.Trim();
-                var cidadeExistente = await _context.Cidades
-                    .FirstOrDefaultAsync(c => c.Nome.ToLower() == nomeNormalizado.ToLower());
+                var nomeNormalizado = NomeDeCidade.Arrumar(novaCidadeNome);
+
+                // A comparação de antes era só `ToLower()`: pegava a caixa e deixava o acento
+                // passar, então "gravatai" criava uma cidade NOVA ao lado de "Gravataí". Agora
+                // compara sem acento e sem caixa, do jeito que uma pessoa compararia.
+                //
+                // A conta roda na memória porque `Chave` não vira SQL. Cidades é catálogo — dezenas
+                // de linhas, não milhares — então trazer a lista é mais barato que instalar
+                // `unaccent` no banco só pra isto.
+                var cidadesExistentes = await _context.Cidades.ToListAsync();
+                var cidadeExistente = cidadesExistentes.FirstOrDefault(c => NomeDeCidade.Mesma(c.Nome, nomeNormalizado));
 
                 if (cidadeExistente == null)
                 {
                     cidadeExistente = new Cidade
                     {
                         Nome = nomeNormalizado,
-                        Estado = string.IsNullOrWhiteSpace(novaCidadeUf) ? null : novaCidadeUf.Trim()
+                        Estado = NomeDeCidade.ArrumarEstado(novaCidadeUf)
                     };
                     _context.Cidades.Add(cidadeExistente);
                     await _context.SaveChangesAsync();

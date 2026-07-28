@@ -216,7 +216,7 @@
                             @for (int i = 0; i < esperaAmericano.Count; i++)
                             {
                                 <div class="col">
-                                    <div class="border border-warning rounded p-3 h-100" style="background-color: #fffbf0;">
+                                    <div class="border border-warning rounded p-3 h-100 pdz-tinta-ambar">
                                         <span class="badge bg-warning text-dark mb-1">@(i + 1)º na fila</span>
                                         <partial name="_JogadorChip" model="esperaAmericano[i].Jogador" />
                                     </div>
@@ -230,7 +230,7 @@
                             @for (int i = 0; i < duplasEspera.Count; i++)
                             {
                                 <div class="col">
-                                    <div class="border border-warning rounded p-3 h-100" style="background-color: #fffbf0;">
+                                    <div class="border border-warning rounded p-3 h-100 pdz-tinta-ambar">
                                         <span class="badge bg-warning text-dark mb-1">@(i + 1)º na fila</span>
                                         <partial name="_JogadorChip" model="duplasEspera[i].Jogador1" />
                                         <partial name="_JogadorChip" model="duplasEspera[i].Jogador2" />
@@ -770,7 +770,7 @@
             }
             @if (pedidoRegistro != null || registroHabilitado)
             {
-                <div class="card border-0 shadow-sm mt-4" style="background:#f3f8ff;">
+                <div class="card border-0 shadow-sm mt-4 pdz-tinta-azul">
                     <div class="card-body">
                         <h6 class="fw-bold text-uppercase mb-2" style="color: var(--pdz-ink);">
                             🙋 Nós registramos os resultados

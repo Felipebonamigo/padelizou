@@ -277,8 +277,17 @@
                         @foreach (var periodo in periodos)
                         {
                             var valor = $"{dia}|{periodo}";
-                            <td>
-                                <input class="form-check-input diahorario-check" type="checkbox" name="diasHorariosSelecionados" value="@valor" @(Model.DiasHorariosSelecionados.Contains(valor) ? "checked" : "") />
+                            @* A <label> em volta faz a CÉLULA INTEIRA virar o alvo do clique. Sem
+                               ela, o alvo era o quadradinho de 16px — e errar por 3px não fazia
+                               nada, sem nem uma pista de que faltou pouco. Era o único checkbox
+                               da tela sem label; os outros já tinham o texto ao lado pra clicar.
+                               O texto escondido dá nome ao campo pra quem usa leitor de tela: um
+                               checkbox solto não tem como ser anunciado. *@
+                            <td class="p-0">
+                                <label class="pdz-alvo-horario">
+                                    <input class="form-check-input diahorario-check" type="checkbox" name="diasHorariosSelecionados" value="@valor" @(Model.DiasHorariosSelecionados.Contains(valor) ? "checked" : "") />
+                                    <span class="visually-hidden">@diasSemana[dia] de @periodo</span>
+                                </label>
                             </td>
                         }
                     </tr>

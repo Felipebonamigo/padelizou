@@ -12,6 +12,54 @@
         <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
     </div>
 
+    @*
+        Sem cidade OU sem local, o professor NÃO APARECE na tela de marcar aula — o aluno abre a
+        página, o primeiro seletor vem vazio e não há como seguir. Isso já valia pra 7 professores
+        de 7 nos três ambientes: ninguém tinha cidade, e portanto ninguém no site inteiro
+        conseguia marcar uma aula.
+
+        Já existia um "você ainda não cadastrou cidades" no meio da página. Não bastou, e dá pra
+        entender: informava o fato e não a consequência. Quem lê "não cadastrei cidades" pensa
+        "depois eu vejo"; quem lê "nenhum aluno consegue te achar" vai lá agora.
+    *@
+    @{
+        var semCidade = !Model.MinhasCidades.Any();
+        var semLocal = !Model.Locais.Any();
+    }
+    @if (semCidade || semLocal)
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap gap-3 align-items-center mb-4">
+            <div class="flex-grow-1">
+                <div class="fw-bold mb-1">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    Nenhum aluno consegue te achar ainda
+                </div>
+                <div class="small mb-0">
+                    A tela de marcar aula pergunta primeiro a cidade, depois o professor, depois o local.
+                    Faltando
+                    @if (semCidade && semLocal) { <strong>cidade e local</strong>; }
+                    else if (semCidade) { <strong>a cidade</strong>; }
+                    else { <strong>o local</strong>; }
+                    , você não entra nessa lista — e o aluno nem chega a ver seu nome.
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                @if (semCidade)
+                {
+                    <a asp-controller="Aulas" asp-action="MinhasCidades" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                        <i class="bi bi-pin-map me-1"></i> Definir cidade
+                    </a>
+                }
+                @if (semLocal)
+                {
+                    <a asp-controller="Aulas" asp-action="MeusLocais" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                        <i class="bi bi-geo-alt me-1"></i> Cadastrar local
+                    </a>
+                }
+            </div>
+        </div>
+    }
+
     <div class="row mb-4">
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card border-0 bg-light p-3 text-center h-100">
@@ -26,13 +74,13 @@
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="card border-0 p-3 text-center h-100" style="background-color:#fff8e1;">
+            <div class="card border-0 p-3 text-center h-100 pdz-tinta-ambar">
                 <div class="fs-3 fw-bold text-warning">@Model.AulasPendentes</div>
                 <div class="small text-muted">Aguardando aceite</div>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="card border-0 p-3 text-center h-100" style="background-color:#e9f7ef;">
+            <div class="card border-0 p-3 text-center h-100 pdz-tinta-verde">
                 <div class="fs-3 fw-bold text-success">@Model.FinanceiroMesAtual.TotalRecebido.ToString("C")</div>
                 <div class="small text-muted">
                     Ganho no mês

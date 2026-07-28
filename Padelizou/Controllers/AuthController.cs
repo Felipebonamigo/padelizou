@@ -358,7 +358,10 @@ namespace padelizou.Controllers
             jogador.Apelido = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim();
             jogador.Email = email;
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
-            jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
+            // A cidade do perfil é texto livre e alimenta o filtro do ranking. Sem arrumar na
+            // entrada, "Gravataí ", "Gravataí" e "gravataí " viram três opções na lista. Isto
+            // resolve espaço sobrando e duplicado; acento continua por conta de quem digita.
+            jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : NomeDeCidade.Arrumar(cidade);
             jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
             jogador.IsProfessor = isProfessor;
 

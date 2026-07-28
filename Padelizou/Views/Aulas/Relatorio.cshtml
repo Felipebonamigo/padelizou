@@ -40,13 +40,13 @@
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="card border-0 p-3 text-center h-100" style="background-color: #e9f7ef;">
+            <div class="card border-0 p-3 text-center h-100 pdz-tinta-verde">
                 <div class="fs-3 fw-bold text-success">@Model.TotalRecebido.ToString("C")</div>
                 <div class="small text-muted">Total recebido</div>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3 mb-3">
-            <div class="card border-0 p-3 text-center h-100" style="background-color: #fdecea;">
+            <div class="card border-0 p-3 text-center h-100 pdz-tinta-vermelha">
                 <div class="fs-3 fw-bold text-danger">@(Model.TotalGasto.HasValue ? Model.TotalGasto.Value.ToString("C") : "—")</div>
                 <div class="small text-muted">Total gasto com locais</div>
             </div>

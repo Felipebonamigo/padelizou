@@ -244,6 +244,52 @@ a:hover { color: var(--pdz-lime-600); }
     .pdz-user-chip { max-width: 120px; }
 }
 
+/* ── Fundos tingidos (cards de destaque e selos) ──────────────────────────────────────
+   Estes fundos eram cor fixa no style inline das views (#f3f8ff, #fff8e6...). Fundo fixo +
+   texto que MUDA com o tema = claro sobre claro no modo escuro: o card "nós registramos os
+   resultados" ficava com o título ilegível, e o selo de melhor campanha sumia por completo.
+   Selo com `color` escuro cravado (ex.: #8a6d00) não entra aqui — aquele funciona nos dois. */
+.pdz-tinta-azul  { background: #f3f8ff; }
+.pdz-tinta-ambar { background: #fff8e6; }
+.pdz-tinta-verde { background: #eefaf1; }
+.pdz-tinta-cinza { background: #eef2f8; }
+.pdz-tinta-vermelha { background: #fdecea; }
+
+:root[data-bs-theme="dark"] .pdz-tinta-azul  { background: rgba(96, 145, 255, .13); }
+:root[data-bs-theme="dark"] .pdz-tinta-ambar { background: rgba(255, 193, 7, .13); }
+:root[data-bs-theme="dark"] .pdz-tinta-verde { background: rgba(163, 216, 39, .13); }
+:root[data-bs-theme="dark"] .pdz-tinta-cinza { background: rgba(255, 255, 255, .09); }
+:root[data-bs-theme="dark"] .pdz-tinta-vermelha { background: rgba(220, 53, 69, .16); }
+
+/* Grade de dias × períodos (preferências): a célula inteira é o alvo do clique, não o quadradinho
+   de 16px. E o quadrado precisa APARECER — no tema escuro a borda padrão do Bootstrap some no
+   fundo, e o usuário não tem como saber que ali existe algo pra clicar. */
+.pdz-alvo-horario {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;          /* alvo de dedo */
+    margin: 0;
+    cursor: pointer;
+    border-radius: .4rem;
+    transition: background-color .12s ease;
+}
+.pdz-alvo-horario:hover { background: rgba(163, 216, 39, .14); }
+.pdz-alvo-horario .form-check-input {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-width: 2px;
+    margin: 0;
+}
+:root[data-bs-theme="dark"] .pdz-alvo-horario .form-check-input {
+    border-color: rgba(255, 255, 255, .5);
+    background-color: rgba(255, 255, 255, .06);
+}
+:root[data-bs-theme="dark"] .pdz-alvo-horario .form-check-input:checked {
+    background-color: var(--pdz-lime-600);
+    border-color: var(--pdz-lime-600);
+}
+
 /* No celular o submenu de "Jogos" nascia com 30px de altura — o padrão de alvo de toque é 44px,
    e os itens de primeiro nível do menu já têm 41px. Quem abre o menu está com o celular na mão,
    muitas vezes na beira da quadra. */
