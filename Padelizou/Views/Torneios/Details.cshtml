@@ -1220,14 +1220,20 @@
 
                                     <div class="bracket-column" style="justify-content: center; min-width: 200px;">
                                         <div class="text-center">
-                                            <i class="bi bi-award-fill text-warning" style="font-size: 4rem; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));"></i>
-                                            <h5 class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</h5>
+                                            @* O mascote só entra quando existe campeão de verdade. Chave
+                                               ainda em aberto continua com o troféu: comemorar antes da
+                                               final estraga o momento em que a comemoração vale. *@
                                             @if (campea != null)
                                             {
+                                                <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
+                                                     width="120" height="124" class="rounded-3 mb-1" />
+                                                <h5 class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</h5>
                                                 <p class="fw-bold mb-0" style="color: var(--padel-green);">@nomeDupla(campea)</p>
                                             }
                                             else
                                             {
+                                                <i class="bi bi-award-fill text-warning" style="font-size: 4rem; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));"></i>
+                                                <h5 class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</h5>
                                                 <p class="text-muted small">Aguardando...</p>
                                             }
                                         </div>
