@@ -39,34 +39,8 @@ namespace padelizou.Controllers
         // a pessoa preenche um formulário longo, escolhe a foto e recebe "Ops! Algo deu
         // errado", perdendo tudo. Foi exatamente o que aconteceu quando a pasta de uploads
         // do dev estava sem permissão de escrita.
-        private async Task<string?> SalvarFotoPerfilAsync(IFormFile? foto)
-        {
-            if (foto == null || foto.Length == 0) return null;
-
-            // Só a extensão do arquivo enviado é aproveitada — o nome vem do usuário e não
-            // tem por que virar caminho no servidor.
-            var extensao = Path.GetExtension(foto.FileName)?.ToLowerInvariant();
-            if (extensao is not (".jpg" or ".jpeg" or ".png" or ".webp")) return null;
-
-            try
-            {
-                var pasta = Path.Combine(_env.WebRootPath, "uploads", "fotos-perfil");
-                Directory.CreateDirectory(pasta);
-
-                var nomeArquivo = Guid.NewGuid() + extensao;
-                using (var stream = new FileStream(Path.Combine(pasta, nomeArquivo), FileMode.Create))
-                {
-                    await foto.CopyToAsync(stream);
-                }
-
-                return "/uploads/fotos-perfil/" + nomeArquivo;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Falha ao salvar foto de perfil — seguindo sem ela.");
-                return null;
-            }
-        }
+        private Task<string?> SalvarFotoPerfilAsync(IFormFile? foto) =>
+            ImagemEnviada.SalvarAsync(foto, _env.WebRootPath, "fotos-perfil", FormatoDeImagem.FotoPerfil, _logger);
 
         // Sugestão, bug ou crítica: aberto pra qualquer visitante, inclusive deslogado —
         // no beta, boa parte dos problemas acontece justamente antes de conseguir entrar.
@@ -329,20 +303,10 @@ namespace padelizou.Controllers
                 .Select(a => a.Time)
                 .FirstOrDefaultAsync();
 
-        // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo.
-        private async Task<string> SalvarLogoTimeAsync(IFormFile arquivo)
-        {
-            string pasta = Path.Combine(_env.WebRootPath, "uploads", "logos-time");
-            if (!Directory.Exists(pasta)) Directory.CreateDirectory(pasta);
-
-            string nomeArquivo = Guid.NewGuid().ToString() + "_" + arquivo.FileName;
-            string caminho = Path.Combine(pasta, nomeArquivo);
-            using (var stream = new FileStream(caminho, FileMode.Create))
-            {
-                await arquivo.CopyToAsync(stream);
-            }
-            return "/uploads/logos-time/" + nomeArquivo;
-        }
+        // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo,
+        // ou null se a imagem não pôde ser processada.
+        private Task<string?> SalvarLogoTimeAsync(IFormFile arquivo) =>
+            ImagemEnviada.SalvarAsync(arquivo, _env.WebRootPath, "logos-time", FormatoDeImagem.LogoTime, _logger);
 
         [Authorize]
         [HttpPost]
@@ -414,7 +378,10 @@ namespace padelizou.Controllers
                 meuTime.ClubeId = clubeSedeId; // clube sede é opcional
                 if (logoTime != null && logoTime.Length > 0)
                 {
-                    meuTime.Logo = await SalvarLogoTimeAsync(logoTime);
+                    // Se o processamento falhar, o logo que já estava lá continua — trocar por
+                    // nulo apagaria o escudo do time por causa de um envio ruim.
+                    var logoSalvo = await SalvarLogoTimeAsync(logoTime);
+                    if (logoSalvo != null) meuTime.Logo = logoSalvo;
                 }
                 await _context.SaveChangesAsync(); // garante o Id do time recém-criado
 

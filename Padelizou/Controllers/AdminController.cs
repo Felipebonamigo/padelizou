@@ -389,5 +389,36 @@ namespace padelizou.Controllers
                 : "Ninguém tem o app instalado com notificações ativas ainda.";
             return RedirectToAction("Index");
         }
+
+        // Refaz as imagens antigas no padrão novo (o ImagemEnviada cuida das que chegam daqui
+        // pra frente). Idempotente: rodar de novo pula tudo que já está no tamanho certo.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OtimizarImagens([FromServices] OtimizacaoDeImagens otimizacao)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var r = await otimizacao.RodarAsync();
+
+            if (r.Otimizadas == 0)
+            {
+                TempData["Sucesso"] = r.ComProblema > 0
+                    ? $"Nenhuma imagem precisou mudar. {r.ComProblema} não puderam ser lidas."
+                    : "Nenhuma imagem precisou mudar — está tudo já no tamanho certo.";
+            }
+            else
+            {
+                var texto = $"{r.Otimizadas} imagem(ns) otimizada(s): "
+                          + $"{OtimizacaoDeImagens.Resultado.EmMegas(r.BytesAntes)} viraram "
+                          + $"{OtimizacaoDeImagens.Resultado.EmMegas(r.BytesDepois)} "
+                          + $"({OtimizacaoDeImagens.Resultado.EmMegas(r.BytesEconomizados)} a menos).";
+
+                if (r.ComProblema > 0) texto += $" {r.ComProblema} não puderam ser lidas.";
+
+                TempData["Sucesso"] = texto;
+            }
+
+            return RedirectToAction("Index");
+        }
     }
 }

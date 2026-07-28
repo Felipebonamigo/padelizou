@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-71**, 415 testes.
+> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-76**, 485 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **415 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **485 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -109,6 +109,21 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   **Verificado rodando local** com 16 aulas de teste: semana (domingo a sábado, faixa de horas esticando pra 05:00), mês (5 semanas, dia 31 presente, hoje destacado), dia, lista agrupada, modal por status, e `Confirmada → Realizada` gravando de verdade. Sem erro de console; no celular a página não rola na horizontal.
 - **Nomes dos times em caixa normal** ("Joel Padel Trainer", não "JOEL PADEL TRAINER"), por `UPDATE` que preserva Ids e administradores. Siglas seguem maiúsculas (ER, SL, MMC, TNT, POA) e os acentos voltaram — o site de origem tira acento de tudo ("CAMPEAO"), então a falta deles era artefato da fonte.
 - **399 testes** (+120 nos dias 27–28).
+
+### 28/07/2026 — Serviço de registro de resultados, e imagens que pesavam demais
+
+- **Pacote "nós registramos os resultados pra você"** (build-74/75). O organizador contrata a nossa equipe pra lançar os jogos durante o torneio — marcando na criação do torneio ou depois, na página dele. É **solicitação, não compra**: o botão diz "verificar disponibilidade", porque pode não haver ninguém livre naquela data e naquela cidade. Admin responde em `/Admin/RegistroResultados` (confirma com pessoas e valor, ou devolve "sem disponibilidade"), e o organizador acompanha o status.
+  **Preço por JOGO, não por dia** (decisão do Felipe): **R$ 12,00 por jogo, mínimo R$ 500,00**, custo nosso de R$ 10,00 por jogo. Cobrar por dia erraria os dois extremos — um Americano de um dia pode ter mais jogos que um torneio de duplas de três. O número de jogos vem do `PrevisaoDoTorneio`, o mesmo cálculo do sorteio.
+  ⚠️ **O mínimo domina até 42 jogos** — abaixo disso todo torneio paga R$ 500, e é onde a margem é maior. Acima, a margem é fixa em R$ 2/jogo (1/6 do preço): torneio grande dá mais trabalho por real. O painel avisa isso na tela pra não parecer conta errada quando dois pedidos diferentes derem o mesmo valor.
+  A regra fica **congelada no pedido** (`PrecoPorJogoCotado`, `ValorMinimoCotado`, `JogosPrevistos`): mudar o preço amanhã não muda o que quem pediu ontem leu na tela. O campo de valor já vem preenchido pela regra e é ajustável quando o clube for longe.
+- **🔴 Toda imagem enviada passou a ser redimensionada** (build-76). Achado medindo o backup: **uma única capa de torneio de 8 MB em produção era 60% de todo o armazenamento** — e era baixada inteira por quem abrisse aquele torneio no 4G. Os três pontos de upload (foto de perfil, logo de time, capa) gravavam o arquivo cru como veio do celular.
+  Agora tudo passa por `Services/ImagemEnviada`: **redimensiona** (perfil e logo 512px, capa 1600px), **recodifica em WebP**, **apaga os metadados** — foto de celular carrega coordenada de GPS embutida, e publicar a foto de perfil de alguém junto com o lugar onde foi tirada é vazar endereço — e **ignora o nome do arquivo enviado**, que antes ia colado no caminho em disco (`"guid_" + FileName`, e um nome com `../` sairia da pasta de uploads).
+  Medido de verdade: 4000×3000 / 2,3 MB → **512×384 / 120 KB, 19× menor**, renderizando no navegador.
+  Botão **"Otimizar imagens"** no painel admin refaz o que já estava no disco. É **idempotente por formato, não por tamanho**: a conta ingênua ("ficou menor? troca") faria a imagem perder qualidade a cada rodada, porque WebP com perdas recomprimido sempre encolhe mais. Um teste roda a otimização três vezes e exige que o arquivo não mude depois da primeira.
+  Recusa também o que não é imagem de verdade (arquivo renomeado pra `.png`), o que é grande demais e o "decompression bomb" (PNG de 2 MB declarando 50000×50000).
+  **`SkiaSharp`, não `ImageSharp`:** o ImageSharp 4 passou a exigir chave de licença paga no build. SkiaSharp é MIT, sem limite de faturamento e sem chave. O nativo `runtimes/linux-x64/native/libSkiaSharp.so` foi conferido no `publish` — se faltasse, todo upload falharia **em silêncio**, porque o processamento nunca derruba um cadastro.
+  De quebra: `wwwroot/uploads/` entrou no `.gitignore` (tinha **uma foto de perfil versionada** no repositório; em produção a pasta é symlink pro `padelizou-shared`, então nada ali precisa ser versionado).
+- **485 testes** (+86 no dia 28).
 
 ---
 

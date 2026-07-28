@@ -79,5 +79,21 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-images"></i> Otimizar imagens</h5>
+                    <p class="text-muted small mb-3">
+                        Refaz fotos, logos e capas antigas no tamanho novo. Toda imagem enviada de agora
+                        em diante já entra pronta — isto é só pro que ficou pra trás. Pode rodar de novo
+                        à vontade: o que já está certo é pulado.
+                    </p>
+                    <form asp-controller="Admin" asp-action="OtimizarImagens" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Otimizar agora</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

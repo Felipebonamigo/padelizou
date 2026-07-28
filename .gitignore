@@ -16,3 +16,8 @@ Migrations_old_20260721_backup/
 # Backups do appsettings — guardam os mesmos segredos do original
 appsettings.json.bak
 *.bak
+
+# Imagens enviadas por usuários: em produção a pasta é um symlink pra /opt/padelizou-shared
+# (o deploy apaga e recria), então nada aqui precisa ser versionado — e foto de gente real
+# não deve entrar no repositório.
+Padelizou/wwwroot/uploads/

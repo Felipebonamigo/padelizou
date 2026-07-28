@@ -74,6 +74,7 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
+builder.Services.AddScoped<OtimizacaoDeImagens>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
