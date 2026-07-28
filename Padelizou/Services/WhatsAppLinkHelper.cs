@@ -19,4 +19,15 @@ public static class WhatsAppLinkHelper
     {
         return $"https://wa.me/55{LimparNumero(celular)}?text={WebUtility.UrlEncode(mensagem)}";
     }
+
+    // "51992395650" -> "(51) 99239-5650". Serve pra MOSTRAR o número; o link usa o limpo.
+    // Se vier num tamanho que não reconheço, devolvo como está: melhor um número sem máscara
+    // do que um número embaralhado por uma regra que não previa aquele caso.
+    public static string Formatar(string? celular)
+    {
+        var n = LimparNumero(celular);
+        if (n.Length == 11) return $"({n[..2]}) {n[2..7]}-{n[7..]}";   // celular com o 9
+        if (n.Length == 10) return $"({n[..2]}) {n[2..6]}-{n[6..]}";   // fixo
+        return n;
+    }
 }

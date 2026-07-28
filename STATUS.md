@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-76**, 485 testes.
+> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-76**, 492 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **485 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **492 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -129,7 +129,11 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   **Restauração testada de verdade** (não só "o arquivo subiu"): dump baixado *do Drive* → banco descartável → 49 tabelas, 0 erros, contagens batendo com o `db_padel`; um `.jpg` voltou byte a byte idêntico. O dump das 4h ainda tinha 1 torneio/categoria/clube apagados depois — a prova de que serve pra desfazer engano.
   Um defeito meu apareceu na 1ª execução: a checagem "está autorizado?" usava `rclone lsd`, que **também** falha quando a pasta ainda não existe — o script se declararia não-autorizado pra sempre, um backup que nunca roda e não reclama. Virou `rclone mkdir` (idempotente, só falha quando o Google recusa).
   ⏳ **Pendência com prazo:** o remote usa o `client_id` compartilhado do rclone, que o Google **aposenta durante 2026**. Precisa de um client_id próprio antes disso, senão o backup para sozinho.
-- **485 testes** (+86 no dia 28).
+- **Contato do Padelizou no WhatsApp: `(51) 99239-5650`.** Item **"Entre em contato"** no menu (abre o WhatsApp já com a mensagem começada e identificando quem é — do outro lado chega um número desconhecido) e o número **escrito** no rodapé, porque em celular não existe passar o mouse pra ver e tem quem prefira salvar o contato.
+  ⚠️ **O número que estava no código era outro** (`51994854884`): tudo que já existia — o botão "Sugestão, bug ou crítica" da faixa de beta — apontava pra lá. O número vive só no default de `SuporteSettings` (não há seção `Suporte` em nenhum `appsettings`), então trocar no código valeu pros três ambientes.
+  `WhatsAppLinkHelper.Formatar` separa o número de mostrar do de linkar — quem lê precisa da máscara, o `wa.me` a recusa — e devolve sem máscara o que não reconhece, porque número feio é melhor que número errado.
+- **⚠️ Achado de layout (pré-existente, NÃO consertado):** em janela de **1280px** a barra de navegação **estoura 370px** e a página rola na horizontal. Não é o item novo — medido escondendo ele, o estouro continua: são 10 itens + o chip de usuário num container de 1140px. As duas saídas custam algo e a escolha é do Felipe: `navbar-expand-xxl` zera o estouro mas **esconde o menu atrás do hambúrguer até 1400px**, e deixar quebrar em duas linhas também zera mas **dobra a altura da barra (68 → 141px)**, que é fixa no topo. Em celular está tudo certo (hambúrguer, sem rolagem, alvo de 41px).
+- **492 testes** (+93 no dia 28).
 
 ---
 

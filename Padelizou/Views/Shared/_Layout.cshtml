@@ -1,7 +1,9 @@
 @using System.Security.Claims
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.BetaSettings> BetaOpcoes
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @{
     var beta = BetaOpcoes.Value;
+    var suporte = SuporteOpcoes.Value;
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
     string NavActive(params string[] controllers) => controllers.Contains(currentController) ? "active" : "";
@@ -10,6 +12,13 @@
     var minhaFoto = User.Identity?.IsAuthenticated == true ? User.FindFirstValue("FotoPerfil") : null;
     var souProfessor = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsProfessor") == "true";
     var souAdmin = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsAdmin") == "true";
+
+    @* A mensagem já sai identificando quem é: do outro lado chega um número desconhecido, e
+       saber o nome antes de responder economiza a primeira pergunta de toda conversa. *@
+    var linkContato = Padelizou.Services.WhatsAppLinkHelper.GerarLink(suporte.WhatsApp,
+        string.IsNullOrWhiteSpace(nomeUsuario)
+            ? "Olá! Estou no site do Padelizou e queria falar com vocês."
+            : $"Olá! Aqui é {nomeUsuario}, do Padelizou.");
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -133,6 +142,14 @@
                                 <i class="bi bi-shield-fill"></i> Times
                             </a>
                         </li>
+                        @* Contato direto no WhatsApp. Sai do site (target _blank) porque o
+                           wa.me abre o app: sem isso, quem volta perde a página onde estava. *@
+                        <li class="nav-item">
+                            <a class="nav-link" href="@linkContato" target="_blank" rel="noopener"
+                               title="Falar com o Padelizou no WhatsApp — @suporte.WhatsAppFormatado">
+                                <i class="bi bi-whatsapp"></i> Entre em contato
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="d-flex align-items-center gap-2 pdz-authbar">
@@ -204,6 +221,12 @@
                         <i class="bi bi-chat-heart"></i> O que você achou do Padelizou?
                     </a>
                 }
+                @* No menu o contato é um botão; aqui o número aparece ESCRITO. Em celular não
+                   existe passar o mouse pra ver o title, e tem quem prefira salvar o contato
+                   a clicar no link. *@
+                <a href="@linkContato" target="_blank" rel="noopener" class="small fw-semibold text-decoration-none">
+                    <i class="bi bi-whatsapp"></i> @suporte.WhatsAppFormatado
+                </a>
                 <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidade</a></span>
             </div>
         </div>
