@@ -39,6 +39,19 @@ public partial class Jogador
 
     public string? Login { get; set; }
 
+    // Quando a pessoa pediu a exclusão da conta (LGPD). A linha CONTINUA existindo, com os
+    // dados pessoais raspados — apagar de verdade é impossível e seria errado:
+    //   · "Pagamento.JogadorId" é ON DELETE CASCADE, e apagar a conta levaria junto o
+    //     registro fiscal que o MEI obriga a guardar;
+    //   · "Dupla.Jogador1Id" é NO ACTION, então o banco RECUSA apagar quem já jogou;
+    //   · o resultado de um jogo é dado de quatro pessoas, não de uma.
+    // A LGPD permite guardar o que é obrigação legal e o que toca direito de terceiro —
+    // o que ela exige é que a pessoa deixe de ser identificável, e é isso que se faz.
+    public DateTime? ExcluidoEm { get; set; }
+
+    [NotMapped]
+    public bool Excluido => ExcluidoEm != null;
+
     public string? Codigo { get; set; }
 
     public virtual ICollection<Dupla> DuplaJogador1s { get; set; } = new List<Dupla>();

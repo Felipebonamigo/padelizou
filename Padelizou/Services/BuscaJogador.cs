@@ -24,10 +24,16 @@ public static class BuscaJogador
         return Documentos.SomenteDigitos(termo).Length == 11;
     }
 
-    // Aplica o termo sobre uma consulta de jogadores. Devolve a consulta intocada
-    // quando o termo é vazio, pra quem chama poder combinar com outros filtros.
+    // Aplica o termo sobre uma consulta de jogadores. Sem termo, devolve a consulta só com
+    // o filtro de conta excluída, pra quem chama poder combinar com outros filtros.
     public static IQueryable<Jogador> Filtrar(IQueryable<Jogador> query, string? termo)
     {
+        // Quem pediu exclusão da conta (LGPD) nunca aparece numa busca — a linha continua
+        // existindo pro histórico dos jogos, mas a pessoa não pode ser encontrada,
+        // convidada nem inscrita de novo. Vale mesmo sem termo: é o contrário do que ela
+        // pediu que ela apareça numa lista.
+        query = query.Where(j => j.ExcluidoEm == null);
+
         if (string.IsNullOrWhiteSpace(termo)) return query;
 
         termo = termo.Trim();

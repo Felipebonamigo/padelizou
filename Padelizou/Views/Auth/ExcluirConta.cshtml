@@ -1,0 +1,100 @@
+@model Jogador
+@{
+    ViewData["Title"] = "Excluir minha conta - Padelizou";
+    var problema = ViewBag.Problema as string;
+    var erro = ViewBag.Erro as string;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+    <a asp-action="Perfil" class="btn btn-sm btn-outline-secondary rounded-pill mb-3">
+        <i class="bi bi-arrow-left"></i> Voltar ao perfil
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">Excluir minha conta</h2>
+    <p class="text-muted">Esta ação não tem volta. Leia com calma o que acontece.</p>
+
+    @if (erro != null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> @erro</div>
+    }
+
+    @if (problema != null)
+    {
+        <div class="alert alert-warning">
+            <strong><i class="bi bi-shield-exclamation"></i> Ainda não dá pra excluir.</strong>
+            <p class="mb-0 mt-2">@problema</p>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-danger mb-3"><i class="bi bi-trash3"></i> O que é apagado</h6>
+                    <ul class="small mb-0 ps-3">
+                        <li>Seu nome, CPF, e-mail, login e senha</li>
+                        <li>Telefone, cidade, Instagram e apelido</li>
+                        <li>Sua foto de perfil (o arquivo sai do servidor)</li>
+                        <li>Comentários que você escreveu</li>
+                        <li>Suas preferências (categorias, clubes, horários)</li>
+                        <li>Avisos de jogo e de parceiro que você criou</li>
+                        <li>Notificações no celular</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-archive"></i> O que continua</h6>
+                    <ul class="small mb-0 ps-3">
+                        <li><strong>Os resultados dos jogos que você disputou</strong> — sem seu nome, como
+                            "Jogador removido". Um placar é de quatro pessoas, não de uma: apagá-lo
+                            estragaria o histórico dos outros três.</li>
+                        <li><strong>Os pagamentos</strong>, porque a nota fiscal tem prazo legal de
+                            guarda. Ficam ligados a uma conta sem identificação.</li>
+                    </ul>
+                    <p class="small text-muted mt-3 mb-0">
+                        É o que a LGPD permite manter: obrigação legal e dado que também é de
+                        outra pessoa. O que ela exige — que você deixe de ser identificável — é feito.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-danger shadow-sm">
+        <div class="card-body">
+            <form method="post" asp-action="ExcluirConta">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Confirme sua senha</label>
+                    <input type="password" name="senha" class="form-control" required
+                           autocomplete="current-password" @(problema != null ? "disabled" : "") />
+                    <div class="form-text">Pedimos a senha pra ninguém excluir sua conta com o seu celular na mão.</div>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="confirmo" value="true" id="confirmo"
+                           required @(problema != null ? "disabled" : "") />
+                    <label class="form-check-label" for="confirmo">
+                        Entendi que <strong>não dá pra desfazer</strong> e que meus dados pessoais serão apagados.
+                    </label>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-danger fw-bold" @(problema != null ? "disabled" : "")>
+                        <i class="bi bi-trash3"></i> Excluir minha conta
+                    </button>
+                    <a asp-action="Perfil" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <p class="small text-muted mt-3 mb-0">
+        Prefere só parar de receber avisos? Dá pra desligar tudo em
+        <a asp-action="EditarPerfil">editar perfil</a>, sem perder seu histórico.
+    </p>
+</div>

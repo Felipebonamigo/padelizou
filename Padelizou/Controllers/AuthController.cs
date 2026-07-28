@@ -461,6 +461,147 @@ namespace padelizou.Controllers
             return RedirectToAction("Perfil");
         }
 
+        // ── Excluir a própria conta (LGPD) ────────────────────────────────────────────────
+
+        // Quantos torneios ainda não finalizados dependem SÓ desta pessoa como organizador.
+        private async Task<int> TorneiosOrfaosSeEuSairAsync(int jogadorId)
+        {
+            var meus = await _context.TorneioOrganizadores
+                .Where(o => o.JogadorId == jogadorId)
+                .Select(o => o.TorneioId)
+                .ToListAsync();
+
+            if (meus.Count == 0) return 0;
+
+            var abertos = await _context.Torneios
+                .Where(t => meus.Contains(t.Id) && t.Status != "Finalizado")
+                .Select(t => t.Id)
+                .ToListAsync();
+
+            if (abertos.Count == 0) return 0;
+
+            var comOutroOrganizador = await _context.TorneioOrganizadores
+                .Where(o => abertos.Contains(o.TorneioId) && o.JogadorId != jogadorId)
+                .Select(o => o.TorneioId)
+                .Distinct()
+                .ToListAsync();
+
+            return abertos.Count(id => !comOutroOrganizador.Contains(id));
+        }
+
+        private async Task<string?> ProblemaParaExcluirAsync(Jogador jogador)
+        {
+            var souAdmin = jogador.IsAdminGeral || jogador.IsAdminRaiz;
+            var outrosAdmins = souAdmin
+                ? await _context.Jogadores.CountAsync(j =>
+                    j.Id != jogador.Id && j.ExcluidoEm == null && (j.IsAdminGeral || j.IsAdminRaiz))
+                : 1;
+
+            return ExclusaoDeConta.ProblemaParaExcluir(
+                ehUnicoAdminDoSistema: souAdmin && outrosAdmins == 0,
+                torneiosEmQueEhUnicoOrganizador: await TorneiosOrfaosSeEuSairAsync(jogador.Id));
+        }
+
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> ExcluirConta()
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            ViewBag.Problema = await ProblemaParaExcluirAsync(jogador);
+            return View(jogador);
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExcluirConta(string senha, bool confirmo)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            async Task<IActionResult> Recusar(string erro)
+            {
+                ViewBag.Erro = erro;
+                ViewBag.Problema = await ProblemaParaExcluirAsync(jogador);
+                return View(jogador);
+            }
+
+            if (!confirmo)
+                return await Recusar("Marque a confirmação para excluir a conta.");
+
+            // Senha antes de qualquer coisa: sem isto, um celular destravado esquecido na
+            // mesa apagaria a conta de alguém em dois toques.
+            if (string.IsNullOrEmpty(jogador.SenhaHash) ||
+                _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash, senha ?? "")
+                    == PasswordVerificationResult.Failed)
+            {
+                return await Recusar("Senha incorreta.");
+            }
+
+            var problema = await ProblemaParaExcluirAsync(jogador);
+            if (problema != null) return await Recusar(problema);
+
+            // 1. Some o que é conteúdo pessoal e não é histórico de ninguém.
+            //    Texto livre é o que mais carrega dado pessoal por acidente (um comentário
+            //    pode citar telefone, endereço, o nome de um filho), e é dela.
+            _context.ComentariosPerfil.RemoveRange(
+                _context.ComentariosPerfil.Where(c => c.AutorId == jogadorId));
+            _context.FeedbacksSite.RemoveRange(
+                _context.FeedbacksSite.Where(f => f.JogadorId == jogadorId));
+
+            // Preferências, avisos abertos, quem ela seguia e os aparelhos que recebiam push:
+            // nada disso é histórico de terceiro, e mantê-los seria continuar perfilando
+            // alguém que pediu pra sair.
+            _context.JogadorCategorias.RemoveRange(_context.JogadorCategorias.Where(x => x.JogadorId == jogadorId));
+            _context.JogadorClubes.RemoveRange(_context.JogadorClubes.Where(x => x.JogadorId == jogadorId));
+            _context.JogadorCidades.RemoveRange(_context.JogadorCidades.Where(x => x.JogadorId == jogadorId));
+            _context.JogadorDiasHorarios.RemoveRange(_context.JogadorDiasHorarios.Where(x => x.JogadorId == jogadorId));
+            _context.PushSubscriptionsJogador.RemoveRange(_context.PushSubscriptionsJogador.Where(x => x.JogadorId == jogadorId));
+            _context.SeguidoresJogador.RemoveRange(_context.SeguidoresJogador.Where(x => x.SeguidorId == jogadorId));
+            _context.AvisosJogo.RemoveRange(_context.AvisosJogo.Where(x => x.CriadorId == jogadorId));
+            _context.AvisosParceiro.RemoveRange(_context.AvisosParceiro.Where(x => x.CriadorId == jogadorId));
+
+            // Sai da administração de times: o time continua, sem ela.
+            _context.TimeAdministradores.RemoveRange(_context.TimeAdministradores.Where(x => x.JogadorId == jogadorId));
+
+            // 2. Apaga o arquivo da foto do disco. Só tirar o caminho do banco deixaria o
+            //    rosto da pessoa servido numa URL pública pra sempre.
+            ApagarArquivoDeUpload(jogador.FotoPerfil);
+
+            // 3. Raspa a identidade, mantendo a linha viva pro histórico dos outros.
+            ExclusaoDeConta.Anonimizar(jogador, DateTime.Now);
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Conta {JogadorId} excluída a pedido do titular (LGPD).", jogadorId);
+
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            TempData["Sucesso"] = "Sua conta foi excluída. Obrigado por ter jogado com a gente.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        private void ApagarArquivoDeUpload(string? caminhoRelativo)
+        {
+            if (string.IsNullOrWhiteSpace(caminhoRelativo)) return;
+
+            try
+            {
+                var caminho = Path.Combine(_env.WebRootPath, caminhoRelativo.TrimStart('/', '\\')
+                    .Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(caminho)) System.IO.File.Delete(caminho);
+            }
+            catch (Exception ex)
+            {
+                // Não pode impedir a exclusão: o dado no banco é o que identifica a pessoa,
+                // e um arquivo órfão é problema de faxina, não de privacidade em aberto.
+                _logger.LogWarning(ex, "Falha ao apagar arquivo de upload {Caminho}.", caminhoRelativo);
+            }
+        }
+
         // 4. LOGOUT
         public async Task<IActionResult> Logout()
         {
