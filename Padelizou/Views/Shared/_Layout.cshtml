@@ -101,29 +101,35 @@
                                 <i class="bi bi-calendar-plus"></i> Aula
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link @NavActive("Avisos")" asp-area="" asp-controller="Avisos" asp-action="Index">
-                                <i class="bi bi-megaphone"></i> Buscar Jogo
+                        @* Três coisas que eram itens soltos e disputavam espaço no topo. São o mesmo
+                           assunto — jogar — então viraram um menu só. A Agenda saiu daqui: ela é
+                           pessoal, e o lugar dela é dentro do perfil. *@
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle @NavActive("Avisos", "MarcarJogo", "Grupos")"
+                               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-dribbble"></i> Jogos
                             </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-controller="Avisos" asp-action="Index">
+                                        <i class="bi bi-megaphone me-1"></i> Buscar jogo
+                                    </a>
+                                </li>
+                                @if (User.Identity?.IsAuthenticated == true)
+                                {
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="MarcarJogo" asp-action="Index">
+                                            <i class="bi bi-calendar2-plus me-1"></i> Marcar jogo
+                                        </a>
+                                    </li>
+                                }
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-controller="Grupos" asp-action="Index">
+                                        <i class="bi bi-shield-lock me-1"></i> Grupos
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link @NavActive("Grupos")" asp-area="" asp-controller="Grupos" asp-action="Index">
-                                <i class="bi bi-shield-lock"></i> Grupos
-                            </a>
-                        </li>
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link @NavActive("MarcarJogo")" asp-controller="MarcarJogo" asp-action="Index">
-                                    <i class="bi bi-calendar2-plus"></i> Marcar Jogo
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link @NavActive("Agenda")" asp-controller="Agenda" asp-action="Index">
-                                    <i class="bi bi-calendar3"></i> Agenda
-                                </a>
-                            </li>
-                        }
                         @if (souAdmin)
                         {
                             <li class="nav-item">
@@ -133,13 +139,19 @@
                             </li>
                         }
                         <li class="nav-item">
-                            <a class="nav-link @NavActive("Jogadores")" asp-controller="Jogadores" asp-action="Ranking">
+                            @* Aqui é por AÇÃO, não por controller: Ranking e Buscar moram os dois
+                               em Jogadores, e marcar pelo controller acenderia os dois juntos. *@
+                            <a class="nav-link @(currentController == "Jogadores" && currentAction == "Ranking" ? "active" : "")"
+                               asp-controller="Jogadores" asp-action="Ranking">
                                 <i class="bi bi-graph-up-arrow"></i> Ranking
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @NavActive("Times")" asp-controller="Times" asp-action="Index">
-                                <i class="bi bi-shield-fill"></i> Times
+                            @* Era "Times". Virou "Buscar" porque a tela acha jogador E time — quem
+                               procura alguém pra jogar não pensa "vou no menu Times". *@
+                            <a class="nav-link @(currentController == "Times" || (currentController == "Jogadores" && currentAction == "Buscar") ? "active" : "")"
+                               asp-controller="Jogadores" asp-action="Buscar">
+                                <i class="bi bi-search"></i> Buscar
                             </a>
                         </li>
                         @* Contato direto no WhatsApp. Sai do site (target _blank) porque o
@@ -158,7 +170,8 @@
                         </button>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil">
+                            @* O nome vai no title porque o chip corta com reticências no desktop. *@
+                            <a class="pdz-user-chip" asp-controller="Auth" asp-action="Perfil" title="Meu perfil — @nomeUsuario">
                                 @if (!string.IsNullOrWhiteSpace(minhaFoto))
                                 {
                                     <img src="@minhaFoto" alt="" class="rounded-circle" style="width:22px;height:22px;object-fit:cover;" />

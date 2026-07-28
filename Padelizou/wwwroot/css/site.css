@@ -235,6 +235,25 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-user-chip:hover { background: rgba(255, 255, 255, .16); color: #fff; }
 .pdz-user-chip i { color: var(--pdz-lime-300); font-size: 1.15rem; }
 
+/* No desktop o chip precisa ser mais curto que os 190px de cima: entre 992px e ~1400px a barra
+   inteira mal cabe, e o nome do usuário era a peça que decidia se cabia ou não. Com "Felipe" a
+   página não rolava de lado; com "Felipe Carboni Bonamigo dos Santos" rolava 58px. Layout que
+   depende do tamanho do nome de quem entrou quebra sem ninguém mexer em nada. O `text-truncate`
+   do span corta com reticências, e o nome inteiro continua no `title`. */
+@media (min-width: 992px) {
+    .pdz-user-chip { max-width: 120px; }
+}
+
+/* No celular o submenu de "Jogos" nascia com 30px de altura — o padrão de alvo de toque é 44px,
+   e os itens de primeiro nível do menu já têm 41px. Quem abre o menu está com o celular na mão,
+   muitas vezes na beira da quadra. */
+@media (max-width: 991.98px) {
+    .pdz-navbar .dropdown-item {
+        padding-top: .55rem;
+        padding-bottom: .55rem;
+    }
+}
+
 .pdz-btn-ghost {
     color: #fff;
     border: 1px solid rgba(255, 255, 255, .28);

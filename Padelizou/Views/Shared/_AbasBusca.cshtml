@@ -1,0 +1,23 @@
+@*
+    Jogador e time eram duas telas que se linkavam por um botão no canto. Viraram uma coisa só
+    com duas abas, porque no menu existe um item só: "Buscar".
+
+    A aba ativa sai do controller da vez — assim o parcial não precisa de parâmetro e não tem
+    como alguém esquecer de passar o certo numa das duas telas.
+*@
+@{
+    var naDeTimes = ViewContext.RouteData.Values["controller"]?.ToString() == "Times";
+}
+
+<ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+        <a class="nav-link @(naDeTimes ? "" : "active")" asp-controller="Jogadores" asp-action="Buscar">
+            <i class="bi bi-person-fill me-1"></i> Jogadores
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(naDeTimes ? "active" : "")" asp-controller="Times" asp-action="Index">
+            <i class="bi bi-shield-fill me-1"></i> Times
+        </a>
+    </li>
+</ul>

@@ -139,6 +139,12 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   ✅ **Rodado depois do conserto:** *"38 imagem(ns) otimizada(s): 3,5 MB viraram 0,7 MB"*. Os uploads de produção caíram de **13 MB para 9,9 MB**, zero erro. **6 logos foram pulados de propósito** — eram JPEG pequenos e já bem comprimidos, e o WebP em qualidade 95 ficaria *maior*; a rede de segurança do `nova.Length >= original.Length` recusou trocar. Rodado 3×: os arquivos mantiveram o timestamp da primeira passada, então a idempotência vale em produção, não só no teste.
   ⚠️ **Mas a mensagem de retorno é intermitente** — apareceu na 1ª vez e não nas seguintes, com a ação rodando normalmente (confirmado no journal). Não é o Service Worker (ele só intercepta `css/js/imagens`; páginas vão direto pra rede). Causa ainda não achada — é da mesma família do upload que falha calado: **o sistema faz o trabalho e não conta**.
   ⚠️ **A capa de 8 MB não sai pelo botão**: `Torneio.ImagemCapa` não tem nenhuma linha desde a zeragem, então o arquivo é **órfão** — o otimizador varre o banco, e o que ninguém referencia ele nunca vê. Apagar arquivo órfão é outro trabalho.
+- **Menu reorganizado** (28/07). Eram 10 itens no topo disputando espaço; agora são 7:
+  **"Times" virou "Buscar"** — quem procura alguém pra jogar não pensa "vou no menu Times". A tela acha **jogador e time**, e as duas que existiam (`Times/Index` e `Jogadores/Buscar`) viraram uma só com abas (`Shared/_AbasBusca`). O botão de ida-e-volta que cada uma tinha no canto sumiu: botão esconde o caminho de volta, aba mostra as duas opções o tempo todo. A aba ativa sai do controller da vez, então não tem como esquecer de passar o parâmetro certo numa das telas.
+  **"Buscar jogo", "Marcar jogo" e "Grupos" viraram o menu "Jogos"** — é tudo o mesmo assunto.
+  **"Agenda" saiu do topo** e ficou só no perfil, onde o botão "Minha Agenda" já existia. É informação pessoal, não navegação do site.
+  ✅ **Isso resolveu de graça o estouro de 370px** que estava esperando decisão: caiu para 23px só com a reorganização, e para **0** ao limitar o chip do usuário a 120px no desktop. Esse limite conserta um defeito à parte: a barra dependia do **tamanho do nome de quem entrou** — com "Felipe" não rolava de lado, com "Felipe Carboni Bonamigo dos Santos" rolava 58px. O nome cortado agora aparece inteiro no `title`.
+  Também subiu o alvo de toque do submenu no celular de 30px para 39px (os itens de primeiro nível têm 41px, e o padrão de dedo é 44px).
 - **492 testes** (+93 no dia 28).
 
 ---
