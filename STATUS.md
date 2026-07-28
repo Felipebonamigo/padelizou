@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa), passou no **ensaio geral** de ponta a ponta (build-58) e recebeu os **44 times reais do ranking do "Quanto Tá"** com bandeira (build-63).
+> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa), passou no **ensaio geral** de ponta a ponta (build-58), recebeu os **44 times reais do ranking do "Quanto Tá"** com bandeira e ganhou o **calendário da agenda do professor** (build-65).
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **362 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **380 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -90,7 +90,12 @@ As áreas de **professor, clube e organizador estão completas**; a entrada se a
 - **Time com vários administradores** (build-63): `Time.DonoId` (um só) virou a tabela `TimeAdministradores`. O primeiro administrador de cada time só entra pela mão de um **admin do Padelizou**; daí em diante um administrador do time inclui o próximo. Regra em `Services/AdministracaoTime`, fora dos controllers.
   ⚠️ **A migração precisou ser corrigida à mão:** o EF gerou o `DropColumn` do `DonoId` **antes** de criar a tabela nova, o que jogaria os donos fora. Ficou: cria, copia, e só então derruba. A cópia faz `JOIN` com `Jogador` porque `DonoId` era coluna solta, sem FK — podia apontar pra quem não existe mais.
   **Trava que importa:** entrar num time pelo nome no cadastro **não dá cargo nenhum**. É isso que impede alguém de digitar "SINDAQUA" e sair comandando um dos times importados.
-- **362 testes** (+83 no dia).
+- **Agenda do professor virou calendário** (build-65). "Minha Agenda" era um monte de cartão solto, sem noção de tempo — não dava pra ver a semana nem saber se terça está cheia. Agora é **calendário no estilo Google** (grade de horas no dia/semana, quadro do mês) **ou lista de eventos em ordem** agrupada por dia, nos dois casos filtrando por **dia, semana ou mês**, com setas e botão "Hoje". Clicar num evento abre um modal único, preenchido por JS a partir de dados que já vieram do servidor (no ginásio com 3G ruim, clicar e não abrir nada seria pior que não ter o modal). Cada ação aparece só onde faz sentido, e a política de 24h continua igual.
+  **Pendências ficam fora da janela de propósito:** solicitação pro mês que vem sumiria da tela de quem está olhando esta semana, e o professor perderia o prazo sem nunca ver.
+  Conta de datas em `Services/PeriodoAgenda`, com 18 testes — é o tipo de coisa que erra em silêncio (semana começando no dia errado, dia 31 fora da grade, 31/01 + 1 mês pulando fevereiro). Nomes de mês escritos à mão em vez de `CultureInfo`: o servidor não tem cultura pt-BR garantida.
+  **Verificado rodando local** com 16 aulas de teste: semana (domingo a sábado, faixa de horas esticando pra 05:00), mês (5 semanas, dia 31 presente, hoje destacado), dia, lista agrupada, modal por status, e `Confirmada → Realizada` gravando de verdade. Sem erro de console; no celular a página não rola na horizontal.
+- **Nomes dos times em caixa normal** ("Joel Padel Trainer", não "JOEL PADEL TRAINER"), por `UPDATE` que preserva Ids e administradores. Siglas seguem maiúsculas (ER, SL, MMC, TNT, POA) e os acentos voltaram — o site de origem tira acento de tudo ("CAMPEAO"), então a falta deles era artefato da fonte.
+- **380 testes** (+101 no dia).
 
 ---
 
