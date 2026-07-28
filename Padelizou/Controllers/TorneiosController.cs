@@ -20,12 +20,14 @@ namespace Padelizou.Controllers
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
         private readonly TaxasExibicao _taxas;
+        private readonly RegistroResultadosSettings _registro;
         private readonly ILogger<TorneiosController> _logger;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
             IWebHostEnvironment env, IEmailService emailService, IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
+            Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger)
         {
             _context = context;
@@ -36,6 +38,7 @@ namespace Padelizou.Controllers
             _pushService = pushService;
             _pagamentos = pagamentos;
             _taxas = taxas.Value;
+            _registro = registro.Value;
             _logger = logger;
         }
 
@@ -168,16 +171,131 @@ namespace Padelizou.Controllers
             ViewBag.CatalogoCategorias = catalogo;
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
+            // Pacote adicional de registro de resultados: some da tela quando o serviço está
+            // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
+            ViewBag.RegistroHabilitado = _registro.Habilitado;
+            ViewBag.RegistroQuadrasPorPessoa = _registro.QuadrasPorPessoa;
+
             // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
             // obrigatórios de horário e duração nasceriam VAZIOS — o organizador teria que
             // adivinhar o que preencher. Assim ele começa com 8h-22h e 50 min e só ajusta.
             return View(new Torneio());
         }
 
+        // ── Pacote "nós registramos os resultados para você" ──────────────────────────────
+        // O organizador contrata o Padelizou pra mandar gente lançar os jogos durante o
+        // torneio. É SOLICITAÇÃO, não compra: pode não haver ninguém livre naquela data e
+        // naquela cidade, e por isso o botão diz "verificar disponibilidade".
+
+        private async Task<string?> CriarSolicitacaoRegistroAsync(Torneio torneio, string? observacoes)
+        {
+            var jaTemAberta = await _context.SolicitacoesRegistroResultados.AnyAsync(s =>
+                s.TorneioId == torneio.Id &&
+                (s.Status == SolicitacaoRegistroResultados.Solicitada ||
+                 s.Status == SolicitacaoRegistroResultados.Confirmada));
+
+            var problema = RegistroDeResultados.ProblemaParaSolicitar(
+                _registro.Habilitado, jaTemAberta, torneio.DataInicio, DateTime.Today,
+                _registro.AntecedenciaMinimaDias);
+
+            if (problema != null) return problema;
+
+            var dias = RegistroDeResultados.DiasDoTorneio(torneio.DataInicio, torneio.DataFim);
+            var pessoas = RegistroDeResultados.PessoasSugeridas(
+                torneio.QuantidadeQuadras, _registro.QuadrasPorPessoa);
+
+            _context.SolicitacoesRegistroResultados.Add(new SolicitacaoRegistroResultados
+            {
+                TorneioId = torneio.Id,
+                Status = SolicitacaoRegistroResultados.Solicitada,
+                QuadrasNaSolicitacao = torneio.QuantidadeQuadras,
+                DiasNaSolicitacao = dias,
+                PessoasSugeridas = pessoas,
+                Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim(),
+                SolicitadoPorId = ObterJogadorIdLogado() ?? 0,
+                SolicitadaEm = DateTime.Now,
+            });
+
+            await _context.SaveChangesAsync();
+
+            // Avisa quem responde. Sem isto o pedido ficaria esperando alguém lembrar de
+            // abrir o painel — e o organizador contando com uma equipe que ninguém viu pedir.
+            try
+            {
+                var admins = await _context.Jogadores
+                    .Where(j => (j.IsAdminGeral || j.IsAdminRaiz) && j.ExcluidoEm == null)
+                    .ToListAsync();
+
+                var url = Url.Action("RegistroResultados", "Admin");
+                foreach (var admin in admins)
+                {
+                    await _pushService.EnviarParaJogadorAsync(admin.Id,
+                        "Pedido de equipe para registrar resultados",
+                        $"{torneio.Nome}: {pessoas} pessoa(s) por {dias} dia(s).", url);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar admins do pedido de registro do torneio {TorneioId}.", torneio.Id);
+            }
+
+            return null;
+        }
+
+        // Pedir depois da criação: o organizador pode não ter decidido na hora, ou o torneio
+        // pode ter crescido de 2 pra 6 quadras e virado outra história.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SolicitarRegistroResultados(int id, string? observacoes)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var problema = await CriarSolicitacaoRegistroAsync(torneio, observacoes);
+
+            TempData[problema == null ? "Sucesso" : "Erro"] = problema
+                ?? "Pedido enviado! Vamos verificar a disponibilidade e responder por aqui.";
+
+            return RedirectToAction("Details", new { id });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelarRegistroResultados(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var solicitacao = await _context.SolicitacoesRegistroResultados
+                .Where(s => s.TorneioId == id)
+                .OrderByDescending(s => s.SolicitadaEm)
+                .FirstOrDefaultAsync();
+
+            if (solicitacao == null) return RedirectToAction("Details", new { id });
+
+            var problema = RegistroDeResultados.ProblemaParaCancelar(solicitacao.Status);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("Details", new { id });
+            }
+
+            solicitacao.Status = SolicitacaoRegistroResultados.Cancelada;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Pedido cancelado.";
+            return RedirectToAction("Details", new { id });
+        }
+
         // 2. RECEBE OS DADOS E SALVA O TORNEIO
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null)
+        public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
+            bool querRegistroDeResultados = false, string? observacoesRegistro = null)
         {
             // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
             // obrigatório e vazio impediria de criar o primeiro torneio.
@@ -281,6 +399,15 @@ namespace Padelizou.Controllers
                     }
                 }
                 await _context.SaveChangesAsync();
+            }
+
+            // Pacote "nós registramos os resultados": vira uma solicitação, não uma compra.
+            if (querRegistroDeResultados)
+            {
+                var problema = await CriarSolicitacaoRegistroAsync(torneio, observacoesRegistro);
+                TempData[problema == null ? "Sucesso" : "Erro"] = problema
+                    ?? "Torneio criado! Recebemos seu pedido de equipe para registrar os resultados "
+                     + "e vamos confirmar a disponibilidade em breve.";
             }
 
             // Avisa quem tem NotificarTorneiosAbertos marcado que um torneio novo abriu.
@@ -768,6 +895,13 @@ namespace Padelizou.Controllers
             ViewBag.TaxaServico = exibicao?.Taxa;
 
             ViewBag.PodeGerenciar = jogadorLogadoId.HasValue && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
+
+            // Pedido de equipe pra registrar os resultados: o mais recente manda na tela.
+            ViewBag.RegistroHabilitado = _registro.Habilitado;
+            ViewBag.PedidoRegistro = await _context.SolicitacoesRegistroResultados
+                .Where(s => s.TorneioId == id)
+                .OrderByDescending(s => s.SolicitadaEm)
+                .FirstOrDefaultAsync();
             if (ViewBag.PodeGerenciar == true)
             {
                 ViewBag.Organizadores = await _context.TorneioOrganizadores

@@ -116,6 +116,7 @@ public static class TestInfra
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
+            Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()),
             NullLogger<TorneiosController>.Instance);
 
         controller.ControllerContext = new ControllerContext

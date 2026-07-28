@@ -1,0 +1,169 @@
+@using Padelizou.Services
+@model List<Padelizou.Models.SolicitacaoRegistroResultados>
+@{
+    ViewData["Title"] = "Registro de resultados - Admin";
+    var solicitantes = ViewBag.Solicitantes as Dictionary<int, string> ?? new();
+    var cfg = ViewBag.Config as RegistroResultadosSettings ?? new();
+    var abertos = Model.Count(p => p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada);
+}
+
+<div class="container mt-4 mb-5">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill mb-3">
+        <i class="bi bi-arrow-left"></i> Voltar ao painel
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">Nós registramos os resultados</h2>
+    <p class="text-muted">
+        Pedidos de organizadores que querem a nossa equipe lançando os jogos.
+        @if (abertos > 0)
+        {
+            <strong class="text-warning">@abertos esperando resposta.</strong>
+        }
+    </p>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+            <i class="bi bi-inbox display-4 text-muted mb-3"></i>
+            <h5 class="fw-bold text-secondary">Nenhum pedido ainda</h5>
+            <p class="text-muted mb-0">
+                O organizador pede na criação do torneio, ou depois, na página do torneio.
+            </p>
+        </div>
+    }
+
+    @foreach (var p in Model)
+    {
+        var custo = RegistroDeResultados.CustoEstimado(
+            p.PessoasSugeridas, p.DiasNaSolicitacao, cfg.CustoPorPessoaPorDia);
+        var aberto = p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada;
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            <a asp-controller="Torneios" asp-action="Details" asp-route-id="@p.TorneioId"
+                               class="text-decoration-none" style="color: inherit;">@p.Torneio.Nome</a>
+                        </h5>
+                        <div class="small text-muted">
+                            @(p.Torneio.DataInicio?.ToString("dd/MM/yyyy") ?? "sem data")
+                            · @p.Torneio.LocalTorneio
+                            · pedido por @(solicitantes.GetValueOrDefault(p.SolicitadoPorId) ?? "—")
+                            em @p.SolicitadaEm.ToString("dd/MM HH:mm")
+                        </div>
+                    </div>
+                    <span class="badge bg-@RegistroDeResultados.CorDoStatus(p.Status) fs-6">@p.Status</span>
+                </div>
+
+                <div class="row g-3 mb-2">
+                    <div class="col-md-6">
+                        <div class="border rounded p-2 h-100">
+                            <div class="small text-muted text-uppercase fw-bold mb-1">O que o torneio pede</div>
+                            <div><strong>@p.PessoasSugeridas</strong> pessoa(s) × <strong>@p.DiasNaSolicitacao</strong> dia(s)</div>
+                            <div class="small text-muted">@p.QuadrasNaSolicitacao quadra(s), 1 pessoa a cada @cfg.QuadrasPorPessoa</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-2 h-100" style="background:#fff8e6;">
+                            <div class="small text-muted text-uppercase fw-bold mb-1">Nosso custo estimado</div>
+                            <div class="fs-5 fw-bold">@custo.ToString("C")</div>
+                            <div class="small text-muted">
+                                a @cfg.CustoPorPessoaPorDia.ToString("C") por pessoa/dia — é o piso,
+                                abaixo disso a gente paga pra trabalhar
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(p.Observacoes))
+                {
+                    <div class="alert alert-light border small mb-2">
+                        <strong>Recado do organizador:</strong> @p.Observacoes
+                    </div>
+                }
+
+                @if (aberto)
+                {
+                    <form asp-action="ResponderRegistroResultados" method="post" class="border-top pt-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@p.Id" />
+
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-1">Pessoas</label>
+                                <input type="number" name="pessoas" class="form-control form-control-sm"
+                                       value="@p.PessoasSugeridas" min="1" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-1">Valor ao organizador (R$)</label>
+                                <input type="number" name="valor" class="form-control form-control-sm"
+                                       step="0.01" min="0" placeholder="Ex: 250,00" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold mb-1">Recado (vai pro organizador)</label>
+                                <input type="text" name="resposta" class="form-control form-control-sm"
+                                       placeholder="Quem vai, ou por que não dá" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3 flex-wrap">
+                            <button type="submit" name="temDisponibilidade" value="true" class="btn btn-sm btn-success fw-bold">
+                                <i class="bi bi-check2"></i> Temos equipe — confirmar
+                            </button>
+                            <button type="submit" name="temDisponibilidade" value="false" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-x"></i> Sem disponibilidade
+                            </button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <div class="border-top pt-2 small">
+                        @if (p.ValorCombinado != null)
+                        {
+                            <div>
+                                Combinado: <strong>@p.PessoasConfirmadas pessoa(s)</strong> por
+                                <strong>@p.ValorCombinado.Value.ToString("C")</strong>
+                                @{
+                                    var margem = p.ValorCombinado.Value - custo;
+                                }
+                                <span class="@(margem >= 0 ? "text-success" : "text-danger")">
+                                    (sobra @margem.ToString("C"))
+                                </span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(p.Resposta))
+                        {
+                            <div class="text-muted"><em>"@p.Resposta"</em></div>
+                        }
+                        @if (p.RespondidaEm != null)
+                        {
+                            <div class="text-muted">respondido em @p.RespondidaEm.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        }
+
+                        @if (p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Confirmada)
+                        {
+                            <form asp-action="ConcluirRegistroResultados" method="post" class="mt-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@p.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
+                                    Marcar como concluído
+                                </button>
+                            </form>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

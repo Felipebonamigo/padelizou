@@ -763,6 +763,96 @@
                 </div>
             </div>
 
+            <!-- NÓS REGISTRAMOS OS RESULTADOS PRA VOCÊ -->
+            @{
+                var pedidoRegistro = ViewBag.PedidoRegistro as Padelizou.Models.SolicitacaoRegistroResultados;
+                var registroHabilitado = ViewBag.RegistroHabilitado == true;
+            }
+            @if (pedidoRegistro != null || registroHabilitado)
+            {
+                <div class="card border-0 shadow-sm mt-4" style="background:#f3f8ff;">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-uppercase mb-2" style="color: var(--pdz-ink);">
+                            🙋 Nós registramos os resultados
+                        </h6>
+
+                        @if (pedidoRegistro == null)
+                        {
+                            <p class="small text-muted">
+                                Mandamos gente ao seu torneio para lançar os jogos na hora. Você cuida
+                                do torneio, a gente cuida do sistema.
+                            </p>
+                            <form asp-action="SolicitarRegistroResultados" asp-route-id="@Model.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <textarea name="observacoes" class="form-control form-control-sm bg-white mb-2" rows="2"
+                                          placeholder="Algo que a gente precise saber? (horários reais, distância, seu telefone)"></textarea>
+                                <button type="submit" class="btn btn-sm btn-primary rounded-pill">
+                                    Verificar disponibilidade
+                                </button>
+                                <div class="form-text">É um pedido, não uma compra. Nada é cobrado agora.</div>
+                            </form>
+                        }
+                        else
+                        {
+                            var cor = Padelizou.Services.RegistroDeResultados.CorDoStatus(pedidoRegistro.Status);
+                            <p class="mb-2">
+                                <span class="badge bg-@cor">@pedidoRegistro.Status</span>
+                                <span class="small text-muted ms-1">
+                                    pedido em @pedidoRegistro.SolicitadaEm.ToString("dd/MM/yyyy")
+                                </span>
+                            </p>
+
+                            <p class="small mb-2">
+                                @pedidoRegistro.PessoasSugeridas pessoa(s) por @pedidoRegistro.DiasNaSolicitacao dia(s),
+                                para @pedidoRegistro.QuadrasNaSolicitacao quadra(s).
+                            </p>
+
+                            @if (pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada)
+                            {
+                                <p class="small text-muted mb-2">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    Estamos verificando a disponibilidade e respondemos por aqui.
+                                </p>
+                            }
+
+                            @if (pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Confirmada)
+                            {
+                                <div class="alert alert-success small py-2 mb-2">
+                                    <strong>Confirmado:</strong>
+                                    @pedidoRegistro.PessoasConfirmadas pessoa(s) por
+                                    <strong>@pedidoRegistro.ValorCombinado?.ToString("C")</strong>.
+                                </div>
+                            }
+
+                            @if (pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.SemDisponibilidade)
+                            {
+                                <div class="alert alert-secondary small py-2 mb-2">
+                                    Não conseguimos equipe para essa data. Você mesmo (ou alguém da sua
+                                    organização) pode lançar os resultados — a Mesa de Controle está pronta.
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(pedidoRegistro.Resposta))
+                            {
+                                <p class="small mb-2"><em>"@pedidoRegistro.Resposta"</em></p>
+                            }
+
+                            @if (pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada
+                              || pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Confirmada)
+                            {
+                                <form asp-action="CancelarRegistroResultados" asp-route-id="@Model.Id" method="post"
+                                      onsubmit="return confirm('Cancelar o pedido de equipe?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill">
+                                        Cancelar pedido
+                                    </button>
+                                </form>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
             <!-- GERENCIAR INSCRITOS -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">

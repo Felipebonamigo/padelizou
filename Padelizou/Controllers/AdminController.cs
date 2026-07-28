@@ -16,13 +16,19 @@ namespace padelizou.Controllers
         private readonly DbPadelContext _context;
         private readonly IPushNotificationService _pushNotificationService;
         private readonly IConfiguration _configuration;
+        private readonly RegistroResultadosSettings _registro;
+        private readonly ILogger<AdminController>? _logger;
 
         public AdminController(DbPadelContext context, IPushNotificationService pushNotificationService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
+            ILogger<AdminController>? logger = null)
         {
             _context = context;
             _pushNotificationService = pushNotificationService;
             _configuration = configuration;
+            _registro = registro.Value;
+            _logger = logger;
         }
 
         // Qualquer administrador (raiz ou nomeado) — usado pelas ações que administradores
@@ -54,6 +60,113 @@ namespace padelizou.Controllers
 
             ViewBag.EhRaiz = admin.IsAdminRaiz;
             return View();
+        }
+
+        // ── Pedidos de "nós registramos os resultados para você" ──────────────────────────
+        // O organizador pede a equipe; aqui é onde a gente olha se dá e responde. O valor
+        // sai SÓ nesta resposta: antes de saber quem vai e de onde vem, qualquer preço na
+        // tela do organizador seria chute virando promessa.
+
+        [HttpGet]
+        public async Task<IActionResult> RegistroResultados()
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var pedidos = await _context.SolicitacoesRegistroResultados
+                .Include(s => s.Torneio)
+                .OrderBy(s => s.Status == SolicitacaoRegistroResultados.Solicitada ? 0 : 1)
+                .ThenBy(s => s.Torneio.DataInicio)
+                .ToListAsync();
+
+            // Nome de quem pediu, numa consulta só.
+            var ids = pedidos.Select(p => p.SolicitadoPorId).Distinct().ToList();
+            ViewBag.Solicitantes = await _context.Jogadores
+                .Where(j => ids.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            ViewBag.Config = _registro;
+            return View(pedidos);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResponderRegistroResultados(
+            int id, bool temDisponibilidade, int? pessoas, decimal? valor, string? resposta)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var pedido = await _context.SolicitacoesRegistroResultados
+                .Include(s => s.Torneio)
+                .FirstOrDefaultAsync(s => s.Id == id);
+            if (pedido == null) return NotFound();
+
+            var problema = RegistroDeResultados.ProblemaParaResponder(pedido.Status);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("RegistroResultados");
+            }
+
+            if (temDisponibilidade && (valor == null || valor <= 0))
+            {
+                TempData["Erro"] = "Informe o valor combinado para confirmar o pedido.";
+                return RedirectToAction("RegistroResultados");
+            }
+
+            pedido.Status = temDisponibilidade
+                ? SolicitacaoRegistroResultados.Confirmada
+                : SolicitacaoRegistroResultados.SemDisponibilidade;
+            pedido.PessoasConfirmadas = temDisponibilidade ? (pessoas ?? pedido.PessoasSugeridas) : null;
+            pedido.ValorCombinado = temDisponibilidade ? valor : null;
+            pedido.Resposta = string.IsNullOrWhiteSpace(resposta) ? null : resposta.Trim();
+            pedido.RespondidaEm = DateTime.Now;
+            pedido.RespondidaPorId = admin.Id;
+
+            await _context.SaveChangesAsync();
+
+            // O organizador está esperando esta resposta pra decidir se arruma alguém por
+            // conta própria. Deixá-la só na tela seria fazê-lo descobrir tarde demais.
+            try
+            {
+                await _pushNotificationService.EnviarParaJogadorAsync(pedido.SolicitadoPorId,
+                    temDisponibilidade ? "Temos equipe para o seu torneio!" : "Sem equipe disponível",
+                    temDisponibilidade
+                        ? $"{pedido.Torneio.Nome}: {pedido.PessoasConfirmadas} pessoa(s), R$ {pedido.ValorCombinado:N2}."
+                        : $"{pedido.Torneio.Nome}: não conseguimos equipe para essa data.",
+                    Url.Action("Details", "Torneios", new { id = pedido.TorneioId }));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Falha ao avisar o organizador da resposta do pedido {PedidoId}.", pedido.Id);
+            }
+
+            TempData["Sucesso"] = temDisponibilidade ? "Pedido confirmado." : "Pedido marcado como sem disponibilidade.";
+            return RedirectToAction("RegistroResultados");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConcluirRegistroResultados(int id)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var pedido = await _context.SolicitacoesRegistroResultados.FindAsync(id);
+            if (pedido == null) return NotFound();
+
+            if (pedido.Status != SolicitacaoRegistroResultados.Confirmada)
+            {
+                TempData["Erro"] = "Só dá pra concluir um pedido confirmado.";
+                return RedirectToAction("RegistroResultados");
+            }
+
+            pedido.Status = SolicitacaoRegistroResultados.Concluida;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Pedido concluído.";
+            return RedirectToAction("RegistroResultados");
         }
 
         [HttpGet]

@@ -24,7 +24,8 @@ public class Fase2Tests
             .Build();
 
         var controller = new padelizou.Controllers.AdminController(
-            ctx, Substitute.For<IPushNotificationService>(), config);
+            ctx, Substitute.For<IPushNotificationService>(), config,
+            Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()));
         controller.ControllerContext = ContextoLogado(usuarioLogadoId);
         return controller;
     }

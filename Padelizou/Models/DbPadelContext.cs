@@ -32,6 +32,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
+    public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
@@ -81,6 +82,21 @@ public partial class DbPadelContext : DbContext
     .HasForeignKey(j => j.TimeId)
     .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Jogador>().ToTable("Jogador");
+
+        modelBuilder.Entity<SolicitacaoRegistroResultados>(entity =>
+        {
+            // Cascade: sem o torneio, o pedido de equipe não quer dizer nada.
+            entity.HasOne(e => e.Torneio)
+                .WithMany()
+                .HasForeignKey(e => e.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // SolicitadoPorId e RespondidaPorId são colunas simples, sem FK pra Jogador, de
+            // propósito: já existe caminho de cascade demais saindo de Jogador, e aqui o que
+            // importa é o registro histórico de quem pediu e quem respondeu — não vale
+            // arriscar o pedido sumir junto com uma conta excluída pela LGPD.
+            entity.Property(e => e.Status).HasMaxLength(30);
+        });
 
         modelBuilder.Entity<TimeAdministrador>(entity =>
         {

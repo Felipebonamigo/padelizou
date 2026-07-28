@@ -298,6 +298,44 @@
                         <div id="camposNomesQuadras" class="row g-2"></div>
                     </div>
                 </div>
+
+                @* ── Pacote adicional: nós registramos os resultados ───────────────────── *@
+                @if (ViewBag.RegistroHabilitado == true)
+                {
+                    <div class="card border-0 shadow-sm mb-4" style="background:#f3f8ff;">
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="querRegistroDeResultados"
+                                       value="true" id="registroSwitch" onchange="toggleRegistro()"
+                                       style="transform: scale(1.3); margin-right: 10px;">
+                                <label class="form-check-label fw-bold" for="registroSwitch" style="color: var(--pdz-ink);">
+                                    🙋 Nós registramos os resultados para você
+                                    <span class="text-muted fw-normal">(verificar disponibilidade)</span>
+                                </label>
+                            </div>
+
+                            <p class="small text-muted mb-2 ps-4">
+                                Mandamos gente ao seu torneio para lançar os jogos na hora: placar, quem
+                                ganhou, chaves andando sozinhas. Você cuida do torneio, a gente cuida do sistema.
+                            </p>
+
+                            <div id="blocoRegistro" class="ps-4" style="display:none;">
+                                <div class="alert alert-light border small mb-3">
+                                    <strong>Pelo que você preencheu até aqui:</strong>
+                                    <span id="pdzRegistroResumo">—</span>
+                                    <div class="text-muted mt-1">
+                                        Isto é um <strong>pedido</strong>, não uma compra: vamos verificar se temos
+                                        equipe para a sua data e responder com o valor. Nada é cobrado agora.
+                                    </div>
+                                </div>
+
+                                <label class="form-label fw-bold small">Algo que a gente precise saber?</label>
+                                <textarea name="observacoesRegistro" class="form-control bg-light" rows="2"
+                                          placeholder="Ex: sábado começa 8h e vai até tarde, o ginásio fica a 40 min do centro, meu telefone é..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                }
                 <div class="row mb-4">
                     <div class="col-md-12">
                         <div class="form-check form-switch mb-2">
@@ -573,6 +611,44 @@
             document.getElementById('ocultoCheck').checked = false;
         }
     }
+
+    // ── Pacote "nós registramos os resultados" ───────────────────────────────────────
+    // O resumo mostra o que é FATO (quantas pessoas o torneio pede, por quantos dias) e
+    // não inventa preço: quanto custa depende de quem consegue ir e de onde vem, e um
+    // valor estimado aqui viraria promessa na cabeça do organizador.
+    function toggleRegistro() {
+        var ligado = document.getElementById('registroSwitch').checked;
+        document.getElementById('blocoRegistro').style.display = ligado ? 'block' : 'none';
+        if (ligado) atualizarResumoRegistro();
+    }
+
+    function atualizarResumoRegistro() {
+        var alvo = document.getElementById('pdzRegistroResumo');
+        if (!alvo) return;
+
+        var quadras = Math.max(1, parseInt((document.getElementById('quantidadeQuadras') || {}).value, 10) || 1);
+        var porPessoa = @(ViewBag.RegistroQuadrasPorPessoa ?? 2);
+        var pessoas = Math.ceil(quadras / porPessoa);
+
+        var inicio = (document.querySelector('[name="DataInicio"]') || {}).value;
+        var fim = (document.querySelector('[name="DataFim"]') || {}).value;
+        var dias = 1;
+        if (inicio && fim) {
+            var d = Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1;
+            if (d > 1) dias = d;
+        }
+
+        alvo.textContent = pessoas + (pessoas === 1 ? ' pessoa' : ' pessoas')
+            + ' por ' + dias + (dias === 1 ? ' dia' : ' dias')
+            + ' (' + quadras + (quadras === 1 ? ' quadra' : ' quadras') + ').';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        ['quantidadeQuadras', 'DataInicio', 'DataFim'].forEach(function (nome) {
+            var el = document.getElementById(nome) || document.querySelector('[name="' + nome + '"]');
+            if (el) el.addEventListener('change', atualizarResumoRegistro);
+        });
+    });
 
     function gerarCamposQuadra() {
         var quantidade = Math.max(0, Math.min(26, parseInt(document.getElementById('quantidadeQuadras').value, 10) || 0));
