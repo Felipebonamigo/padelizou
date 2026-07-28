@@ -73,12 +73,17 @@ public class VigiaDoBackupTests
         try
         {
             var arquivo = Path.Combine(pasta, "ultimo.txt");
-            File.WriteAllText(arquivo, "2026-07-28T21:24:31-03:00\n");
+            const string gravadoPeloScript = "2026-07-28T21:24:31-03:00";
+            File.WriteAllText(arquivo, gravadoPeloScript + "\n");
 
             var lido = VigiaDoBackup.LerUltimoSucesso(arquivo);
 
+            // Comparado com o MESMO instante convertido pro fuso da máquina, e não com uma data
+            // escrita à mão: o servidor roda em UTC e a máquina de desenvolvimento em UTC-3, então
+            // "o dia 28" é dia diferente em cada uma. Um teste que passa aqui e falha no CI não
+            // encontrou bug nenhum — só o fuso de quem o escreveu.
             Assert.NotNull(lido);
-            Assert.Equal(new DateTime(2026, 7, 28), lido!.Value.Date);
+            Assert.Equal(DateTimeOffset.Parse(gravadoPeloScript).LocalDateTime, lido!.Value);
         }
         finally
         {
