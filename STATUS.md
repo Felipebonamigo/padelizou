@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **27/07/2026** — saiu do modo demonstração (primeiro pagamento real recebido, produção limpa), passou no **ensaio geral** de ponta a ponta (build-58), recebeu os **44 times reais do ranking do "Quanto Tá"** com bandeira e ganhou o **calendário da agenda do professor** (build-65).
+> Última atualização: **28/07/2026** — LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-69**, 399 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **380 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **399 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -95,7 +95,7 @@ As áreas de **professor, clube e organizador estão completas**; a entrada se a
   Conta de datas em `Services/PeriodoAgenda`, com 18 testes — é o tipo de coisa que erra em silêncio (semana começando no dia errado, dia 31 fora da grade, 31/01 + 1 mês pulando fevereiro). Nomes de mês escritos à mão em vez de `CultureInfo`: o servidor não tem cultura pt-BR garantida.
   **Verificado rodando local** com 16 aulas de teste: semana (domingo a sábado, faixa de horas esticando pra 05:00), mês (5 semanas, dia 31 presente, hoje destacado), dia, lista agrupada, modal por status, e `Confirmada → Realizada` gravando de verdade. Sem erro de console; no celular a página não rola na horizontal.
 - **Nomes dos times em caixa normal** ("Joel Padel Trainer", não "JOEL PADEL TRAINER"), por `UPDATE` que preserva Ids e administradores. Siglas seguem maiúsculas (ER, SL, MMC, TNT, POA) e os acentos voltaram — o site de origem tira acento de tudo ("CAMPEAO"), então a falta deles era artefato da fonte.
-- **380 testes** (+101 no dia).
+- **399 testes** (+120 nos dias 27–28).
 
 ---
 
@@ -181,16 +181,32 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
       ⚠️ **Achado de segurança no caminho:** nenhuma ação do CRUD tinha `[Authorize]` — `/Jogadores/Delete/5` apagava jogador. O gate de Acesso Antecipado barrava anônimo, mas qualquer usuário logado alcançava, e ficaria aberto ao mundo no dia em que o gate saísse. Fechado.
 - [x] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** ✅ 28/07 — conferido, as duas pastas já não existem. Disco do VPS em 7% (6,3 GB de 97 GB).
 
-## 🔎 Achados da varredura de 27/07 (noite) — ainda abertos
-- **`Ranking.cshtml` desreferencia `Jogador2` sem checar nulo** (linhas 387, 421, 487). É a forma exata do 500 que apareceu em produção dia 27. **Hoje não quebra**: o parceiro nunca volta a ser nulo depois de definido e o sorteio só aceita dupla completa, então dupla sem parceiro não acumula vitória pra chegar nessa tabela. Mas todo o resto do sistema já se protege disso — essas 3 linhas ficaram de fora. `3 linhas`
-- **Exportação de calendário** (`AgendaController:359`) monta `"Ana" + "/" + null` → vira "Ana/" no evento. Feio, não quebra. `5min`
-- **Adversários do Americano**: com 8 jogadores alguém pega o mesmo rival 4 dos 7 jogos. Parceiros está perfeito (cada um com cada um, exatamente uma vez); adversário exigiria outro desenho matemático (whist design).
-- **Botão "colocar no ar" na lista de Jogos**: hoje é uma tela por partida; numa rodada de 4 quadras são 4 aberturas. Único atrito real no dia do torneio.
+## 🔎 Achados da varredura de 27/07 (noite)
+- [x] **`Ranking.cshtml` desreferenciava `Jogador2` sem checar nulo** (3 lugares) ✅ 28/07 (build-67) — viraram um helper só, `NomesDaDupla`. Verificado forçando o caso no banco local: a dupla sem parceiro agora sai como "(sem parceiro)" em vez de derrubar a página.
+- [x] **Exportação de calendário** montava `"Ana" + "/" + null` ✅ 28/07 (build-67) — nomes separados na consulta, juntados na memória.
+- [x] **Botão "colocar no ar" na lista de Jogos** ✅ 28/07 (build-67) — um toque começa a partida sem sair da tela; idempotente, dois toques não reiniciam o cronômetro.
+      ⚠️ **Bug achado ao testar em tela:** `ViewBag.EhOrganizador` só era definido DENTRO do `if` do Americano. Em torneio de duplas — a maioria — a flag nem existia, então o botão novo nunca apareceria e o "Editar Jogo" aparecia pra todo mundo. Movido pra fora do `if`. Os 386 testes não pegariam isso; só rodar a tela pegou.
+- [ ] **Adversários do Americano**: com 8 jogadores alguém pega o mesmo rival 4 dos 7 jogos. Parceiros está perfeito (cada um com cada um, exatamente uma vez); adversário exigiria outro desenho matemático (whist design).
+
+## 🔒 LGPD — exclusão de conta ✅ 28/07 (build-69)
+A pessoa exclui a própria conta em `/Auth/ExcluirConta` (link discreto no perfil). A conta é
+**anonimizada, não apagada** — e isso não é atalho: das 45 FKs que apontam pra `Jogador`,
+`Pagamento.JogadorId` é `ON DELETE CASCADE` (apagar levaria junto o registro fiscal que o MEI
+obriga a guardar) e `Dupla.Jogador1Id` é `NO ACTION` (o banco **recusa** apagar quem já jogou).
+Além disso o placar de uma partida é dado de quatro pessoas.
+
+Somem: nome, CPF, e-mail, login, telefone, cidade, Instagram, foto (o arquivo sai do disco),
+senha e token de recuperação, comentários que escreveu, feedback do site, preferências, avisos
+abertos, quem seguia, aparelhos com push e a administração de times. Fica: resultado dos jogos
+(como "Jogador removido") e os pagamentos.
+
+Duas travas, ambas sobre **não deixar outras pessoas na mão**: último administrador do sistema,
+e organizador único de torneio não finalizado. Verificado em tela ponta a ponta, inclusive
+postando direto no servidor com o formulário desabilitado — a recusa aguentou.
 
 ## 📋 Backlog consciente (fazer depois)
 - Banners/avisos da plataforma
 - Fila de denúncias de comentários
-- **Exclusão de conta pelo usuário** — ⚠️ vira obrigação legal (LGPD) quando a base crescer
 - Quebrar os controllers gigantes (`TorneiosController`)
 
 ---
