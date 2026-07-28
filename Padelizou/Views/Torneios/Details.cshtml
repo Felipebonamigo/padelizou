@@ -778,9 +778,17 @@
 
                         @if (pedidoRegistro == null)
                         {
-                            <p class="small text-muted">
+                            <p class="small text-muted mb-2">
                                 Mandamos gente ao seu torneio para lançar os jogos na hora. Você cuida
                                 do torneio, a gente cuida do sistema.
+                            </p>
+                            <p class="mb-2">
+                                <strong>@(((decimal)(ViewBag.RegistroPrecoPorJogo ?? 12m)).ToString("C")) por jogo</strong>,
+                                mínimo de <strong>@(((decimal)(ViewBag.RegistroValorMinimo ?? 500m)).ToString("C"))</strong>.
+                                <span class="d-block small text-muted">
+                                    O total sai do tamanho real do torneio. Clube longe pode mudar o valor —
+                                    confirmamos antes.
+                                </span>
                             </p>
                             <form asp-action="SolicitarRegistroResultados" asp-route-id="@Model.Id" method="post">
                                 @Html.AntiForgeryToken()
@@ -803,8 +811,16 @@
                             </p>
 
                             <p class="small mb-2">
-                                @pedidoRegistro.PessoasSugeridas pessoa(s) por @pedidoRegistro.DiasNaSolicitacao dia(s),
-                                para @pedidoRegistro.QuadrasNaSolicitacao quadra(s).
+                                @pedidoRegistro.PrecoPorJogoCotado.ToString("C") por jogo,
+                                mínimo @pedidoRegistro.ValorMinimoCotado.ToString("C").
+                                @if (pedidoRegistro.JogosPrevistos != null)
+                                {
+                                    <text>Na data do pedido: @pedidoRegistro.JogosPrevistos jogo(s).</text>
+                                }
+                                <span class="d-block text-muted">
+                                    @pedidoRegistro.PessoasSugeridas pessoa(s) por @pedidoRegistro.DiasNaSolicitacao dia(s),
+                                    para @pedidoRegistro.QuadrasNaSolicitacao quadra(s).
+                                </span>
                             </p>
 
                             @if (pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada)

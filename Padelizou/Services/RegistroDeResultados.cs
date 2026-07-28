@@ -37,10 +37,28 @@ public static class RegistroDeResultados
         return (int)(fim.Value.Date - inicio.Value.Date).TotalDays + 1;
     }
 
+    // Quantos jogos o torneio inteiro vai ter — a soma das categorias.
+    //
+    // É o número que manda no preço, porque o custo é POR JOGO: quem vai registrar ganha por
+    // jogo lançado. Um Americano de um dia pode ter mais jogos que um torneio de duplas de
+    // três — cobrar por dia erraria os dois.
+    public static int JogosPrevistos(IEnumerable<int> duplasPorCategoria) =>
+        duplasPorCategoria.Where(d => d >= 2).Sum(PrevisaoDoTorneio.TotalDeJogos);
+
     // Nosso custo com a equipe. Não aparece pro organizador — é o piso pra quem responde a
     // solicitação saber por quanto NÃO vale a pena aceitar.
-    public static decimal CustoEstimado(int pessoas, int dias, decimal custoPorPessoaPorDia) =>
-        pessoas * dias * custoPorPessoaPorDia;
+    public static decimal CustoEstimado(int jogos, decimal custoPorJogo) =>
+        Math.Max(0, jogos) * custoPorJogo;
+
+    // O preço pela regra publicada. O mínimo existe porque mandar alguém passar o dia custa
+    // o dia inteiro, tendo 10 ou 40 jogos — sem ele, torneio pequeno sairia no prejuízo.
+    public static decimal PrecoSugerido(int jogos, decimal precoPorJogo, decimal valorMinimo) =>
+        Math.Max(Math.Max(0, jogos) * precoPorJogo, valorMinimo);
+
+    // A partir de quantos jogos o preço por jogo passa o mínimo. Abaixo disso todo torneio
+    // paga o mesmo — e quem responde precisa saber disso pra não achar que errou a conta.
+    public static int JogosParaSairDoMinimo(decimal precoPorJogo, decimal valorMinimo) =>
+        precoPorJogo <= 0 ? 0 : (int)Math.Ceiling(valorMinimo / precoPorJogo);
 
     public static string? ProblemaParaSolicitar(
         bool servicoHabilitado, bool jaTemSolicitacaoAberta,
@@ -93,12 +111,21 @@ public class RegistroResultadosSettings
 {
     public bool Habilitado { get; set; } = true;
 
-    // Quantas quadras uma pessoa consegue acompanhar sozinha.
+    // Quantas quadras uma pessoa consegue acompanhar sozinha. Não entra no preço — serve só
+    // pra saber quanta gente mandar.
     public int QuadrasPorPessoa { get; set; } = 2;
 
-    // O que pagamos a cada pessoa por dia de torneio. R$ 10 é a referência do mercado — é o
-    // que o sistema concorrente paga a quem vai registrar. Só aparece no painel do admin.
-    public decimal CustoPorPessoaPorDia { get; set; } = 10m;
+    // O que pagamos POR JOGO registrado. R$ 10 é a referência do mercado — é o que o sistema
+    // concorrente paga a quem vai lançar os resultados. Só aparece no painel do admin.
+    public decimal CustoPorJogo { get; set; } = 10m;
+
+    // O que cobramos do organizador, por jogo. Margem de R$ 2 sobre o custo.
+    public decimal PrecoPorJogo { get; set; } = 12m;
+
+    // Piso do serviço. Mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos.
+    // Também é o amortecedor de distância: clube longe encarece, e quem responde ajusta o
+    // valor final no painel.
+    public decimal ValorMinimo { get; set; } = 500m;
 
     // Antecedência mínima pra conseguir montar equipe.
     public int AntecedenciaMinimaDias { get; set; } = 7;

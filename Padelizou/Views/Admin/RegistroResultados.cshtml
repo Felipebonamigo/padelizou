@@ -41,10 +41,24 @@
         </div>
     }
 
+    @{
+        var jogosPraSairDoMinimo = RegistroDeResultados.JogosParaSairDoMinimo(cfg.PrecoPorJogo, cfg.ValorMinimo);
+    }
+    <div class="alert alert-light border small">
+        Regra publicada: <strong>@cfg.PrecoPorJogo.ToString("C") por jogo</strong>,
+        mínimo <strong>@cfg.ValorMinimo.ToString("C")</strong> — nosso custo é
+        @cfg.CustoPorJogo.ToString("C") por jogo.
+        <strong>Abaixo de @jogosPraSairDoMinimo jogos todo torneio paga o mínimo</strong>, então é
+        ali que a margem é maior. Clube longe: ajuste o valor na mão.
+    </div>
+
     @foreach (var p in Model)
     {
-        var custo = RegistroDeResultados.CustoEstimado(
-            p.PessoasSugeridas, p.DiasNaSolicitacao, cfg.CustoPorPessoaPorDia);
+        var jogos = p.JogosPrevistos ?? 0;
+        var custo = RegistroDeResultados.CustoEstimado(jogos, cfg.CustoPorJogo);
+        var sugerido = RegistroDeResultados.PrecoSugerido(
+            jogos, p.PrecoPorJogoCotado > 0 ? p.PrecoPorJogoCotado : cfg.PrecoPorJogo,
+            p.ValorMinimoCotado > 0 ? p.ValorMinimoCotado : cfg.ValorMinimo);
         var aberto = p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada;
 
         <div class="card border-0 shadow-sm mb-3">
@@ -66,20 +80,43 @@
                 </div>
 
                 <div class="row g-3 mb-2">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="border rounded p-2 h-100">
-                            <div class="small text-muted text-uppercase fw-bold mb-1">O que o torneio pede</div>
-                            <div><strong>@p.PessoasSugeridas</strong> pessoa(s) × <strong>@p.DiasNaSolicitacao</strong> dia(s)</div>
-                            <div class="small text-muted">@p.QuadrasNaSolicitacao quadra(s), 1 pessoa a cada @cfg.QuadrasPorPessoa</div>
+                            <div class="small text-muted text-uppercase fw-bold mb-1">Tamanho</div>
+                            @if (p.JogosPrevistos != null)
+                            {
+                                <div><strong>@p.JogosPrevistos</strong> jogo(s)</div>
+                            }
+                            else
+                            {
+                                <div class="text-muted">sem inscrito ainda</div>
+                            }
+                            <div class="small text-muted">
+                                @p.PessoasSugeridas pessoa(s) × @p.DiasNaSolicitacao dia(s),
+                                @p.QuadrasNaSolicitacao quadra(s)
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="border rounded p-2 h-100" style="background:#fff8e6;">
-                            <div class="small text-muted text-uppercase fw-bold mb-1">Nosso custo estimado</div>
+                            <div class="small text-muted text-uppercase fw-bold mb-1">Nosso custo</div>
                             <div class="fs-5 fw-bold">@custo.ToString("C")</div>
                             <div class="small text-muted">
-                                a @cfg.CustoPorPessoaPorDia.ToString("C") por pessoa/dia — é o piso,
-                                abaixo disso a gente paga pra trabalhar
+                                @cfg.CustoPorJogo.ToString("C") por jogo — é o piso, abaixo disso
+                                a gente paga pra trabalhar
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-2 h-100" style="background:#eefaf1;">
+                            <div class="small text-muted text-uppercase fw-bold mb-1">Preço pela regra</div>
+                            <div class="fs-5 fw-bold">@sugerido.ToString("C")</div>
+                            <div class="small text-muted">
+                                sobra @((sugerido - custo).ToString("C"))
+                                @if (jogos > 0 && jogos < jogosPraSairDoMinimo)
+                                {
+                                    <text> · no mínimo</text>
+                                }
                             </div>
                         </div>
                     </div>
@@ -107,7 +144,8 @@
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold mb-1">Valor ao organizador (R$)</label>
                                 <input type="number" name="valor" class="form-control form-control-sm"
-                                       step="0.01" min="0" placeholder="Ex: 250,00" />
+                                       step="0.01" min="0" value="@sugerido.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+                                <div class="form-text">Já vem pela regra. Ajuste se o clube for longe.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small fw-bold mb-1">Recado (vai pro organizador)</label>

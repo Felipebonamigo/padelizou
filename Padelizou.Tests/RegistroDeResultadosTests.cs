@@ -65,16 +65,71 @@ public class RegistroDeResultadosTests
         Assert.Equal(1, dias);
     }
 
-    // ── Nosso custo ───────────────────────────────────────────────────────────────────
+    // ── Dinheiro: o custo é por JOGO ──────────────────────────────────────────────────
 
     [Fact]
-    public void Custo_e_pessoas_vezes_dias_vezes_o_que_pagamos_a_cada_um()
+    public void Jogos_do_torneio_e_a_soma_das_categorias()
     {
-        // 4 quadras num fim de semana de 3 dias: 2 pessoas × 3 dias × R$ 10 = R$ 60.
-        var pessoas = RegistroDeResultados.PessoasSugeridas(4, 2);
-        var dias = RegistroDeResultados.DiasDoTorneio(new DateTime(2026, 9, 4), new DateTime(2026, 9, 6));
+        // 4 categorias de 12 duplas: 4 × 19 = 76 jogos.
+        Assert.Equal(76, RegistroDeResultados.JogosPrevistos(new[] { 12, 12, 12, 12 }));
+    }
 
-        Assert.Equal(60m, RegistroDeResultados.CustoEstimado(pessoas, dias, 10m));
+    [Fact]
+    public void Categoria_sem_gente_nao_soma_jogo()
+    {
+        // Categoria criada e vazia é comum (o organizador abre 6 e enchem 4).
+        Assert.Equal(RegistroDeResultados.JogosPrevistos(new[] { 12 }),
+                     RegistroDeResultados.JogosPrevistos(new[] { 12, 0, 1 }));
+    }
+
+    [Fact]
+    public void Custo_e_dez_reais_por_jogo_independente_dos_dias()
+    {
+        // A mudança que importa: um Americano de UM dia pode ter mais jogos que um torneio
+        // de duplas de três. Cobrar por dia erraria os dois.
+        Assert.Equal(760m, RegistroDeResultados.CustoEstimado(76, 10m));
+        Assert.Equal(0m, RegistroDeResultados.CustoEstimado(0, 10m));
+    }
+
+    [Fact]
+    public void Preco_segue_a_regra_por_jogo_quando_o_torneio_e_grande()
+    {
+        // 76 jogos × R$ 12 = R$ 912, bem acima do mínimo.
+        Assert.Equal(912m, RegistroDeResultados.PrecoSugerido(76, 12m, 500m));
+    }
+
+    [Fact]
+    public void Torneio_pequeno_paga_o_minimo()
+    {
+        // 20 jogos × R$ 12 = R$ 240, mas mandar alguém passar o dia custa o dia inteiro.
+        // Sem o mínimo, torneio pequeno sairia no prejuízo.
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(20, 12m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(0, 12m, 500m));
+    }
+
+    [Fact]
+    public void Da_pra_saber_onde_o_minimo_para_de_mandar()
+    {
+        // Quem responde precisa saber que abaixo disso todo torneio paga igual — senão acha
+        // que a conta está errada quando dois pedidos diferentes dão o mesmo valor.
+        var corte = RegistroDeResultados.JogosParaSairDoMinimo(12m, 500m);
+
+        Assert.Equal(42, corte);
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(corte - 1, 12m, 500m));
+        Assert.True(RegistroDeResultados.PrecoSugerido(corte, 12m, 500m) > 500m);
+    }
+
+    [Fact]
+    public void Acima_do_minimo_a_margem_e_sempre_a_mesma_fatia()
+    {
+        // R$ 12 cobrado, R$ 10 de custo: sobra 1/6 do preço, seja o torneio médio ou grande.
+        foreach (var jogos in new[] { 50, 76, 126 })
+        {
+            var preco = RegistroDeResultados.PrecoSugerido(jogos, 12m, 500m);
+            var custo = RegistroDeResultados.CustoEstimado(jogos, 10m);
+
+            Assert.Equal(jogos * 2m, preco - custo);
+        }
     }
 
     // ── Quem pode pedir ───────────────────────────────────────────────────────────────

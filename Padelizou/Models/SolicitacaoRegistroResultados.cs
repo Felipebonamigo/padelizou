@@ -30,6 +30,16 @@ public class SolicitacaoRegistroResultados
     public int DiasNaSolicitacao { get; set; }
     public int PessoasSugeridas { get; set; }
 
+    // Quantos jogos o torneio devia ter quando o pedido foi feito. É o que manda no preço,
+    // porque o custo é por jogo. Fica NULO enquanto ninguém se inscreveu — aí a tela mostra
+    // só a regra ("R$ 12 por jogo, mínimo R$ 500") em vez de um total inventado.
+    public int? JogosPrevistos { get; set; }
+
+    // A regra vigente no dia do pedido, congelada aqui. Se amanhã o preço por jogo mudar,
+    // quem pediu ontem continua valendo pelo que leu na tela.
+    public decimal PrecoPorJogoCotado { get; set; }
+    public decimal ValorMinimoCotado { get; set; }
+
     // Recado do organizador: horários reais, contato, particularidades do local.
     public string? Observacoes { get; set; }
 

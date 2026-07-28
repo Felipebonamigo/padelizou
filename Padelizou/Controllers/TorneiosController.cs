@@ -175,6 +175,8 @@ namespace Padelizou.Controllers
             // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
             ViewBag.RegistroHabilitado = _registro.Habilitado;
             ViewBag.RegistroQuadrasPorPessoa = _registro.QuadrasPorPessoa;
+            ViewBag.RegistroPrecoPorJogo = _registro.PrecoPorJogo;
+            ViewBag.RegistroValorMinimo = _registro.ValorMinimo;
 
             // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
             // obrigatórios de horário e duração nasceriam VAZIOS — o organizador teria que
@@ -204,6 +206,16 @@ namespace Padelizou.Controllers
             var pessoas = RegistroDeResultados.PessoasSugeridas(
                 torneio.QuantidadeQuadras, _registro.QuadrasPorPessoa);
 
+            // Quantos jogos, pelas duplas JÁ inscritas em cada categoria. Num torneio recém
+            // criado isso é zero, e aí o número fica nulo de propósito: melhor mostrar só a
+            // regra do que um total que vai mudar a cada inscrição.
+            var duplasPorCategoria = await _context.Categorias
+                .Where(c => c.TorneioId == torneio.Id)
+                .Select(c => c.Duplas.Count(d => !d.EmListaDeEspera))
+                .ToListAsync();
+
+            var jogos = RegistroDeResultados.JogosPrevistos(duplasPorCategoria);
+
             _context.SolicitacoesRegistroResultados.Add(new SolicitacaoRegistroResultados
             {
                 TorneioId = torneio.Id,
@@ -211,6 +223,9 @@ namespace Padelizou.Controllers
                 QuadrasNaSolicitacao = torneio.QuantidadeQuadras,
                 DiasNaSolicitacao = dias,
                 PessoasSugeridas = pessoas,
+                JogosPrevistos = jogos > 0 ? jogos : null,
+                PrecoPorJogoCotado = _registro.PrecoPorJogo,
+                ValorMinimoCotado = _registro.ValorMinimo,
                 Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim(),
                 SolicitadoPorId = ObterJogadorIdLogado() ?? 0,
                 SolicitadaEm = DateTime.Now,
