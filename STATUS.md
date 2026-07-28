@@ -179,7 +179,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] Push de **nova solicitação de aula** pro professor ✅ 25/07
 - [x] **Código morto removido** ✅ 26/07 (build-28) — CRUD scaffolded de Jogadores (9 ações + 5 views), `RankingCategorias`, `RankingPorTorneio`, `GerarFaseGrupos` (77 linhas) e a entidade `Organizador` (tabela vazia, dropada por migração). **~800 linhas a menos.**
       ⚠️ **Achado de segurança no caminho:** nenhuma ação do CRUD tinha `[Authorize]` — `/Jogadores/Delete/5` apagava jogador. O gate de Acesso Antecipado barrava anônimo, mas qualquer usuário logado alcançava, e ficaria aberto ao mundo no dia em que o gate saísse. Fechado.
-- [ ] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** — cópias de emergência da migração de deploy, ocupando **184 MB**. Já passou tempo suficiente; podem ir `5min`
+- [x] **Apagar `/opt/padelizou-legado` e `/opt/padelizou-dev-legado` no VPS** ✅ 28/07 — conferido, as duas pastas já não existem. Disco do VPS em 7% (6,3 GB de 97 GB).
 
 ## 🔎 Achados da varredura de 27/07 (noite) — ainda abertos
 - **`Ranking.cshtml` desreferencia `Jogador2` sem checar nulo** (linhas 387, 421, 487). É a forma exata do 500 que apareceu em produção dia 27. **Hoje não quebra**: o parceiro nunca volta a ser nulo depois de definido e o sorteio só aceita dupla completa, então dupla sem parceiro não acumula vitória pra chegar nessa tabela. Mas todo o resto do sistema já se protege disso — essas 3 linhas ficaram de fora. `3 linhas`
