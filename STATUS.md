@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-77**, 492 testes.
+> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-81**, 509 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **492 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **509 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -145,7 +145,12 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   **"Agenda" saiu do topo** e ficou só no perfil, onde o botão "Minha Agenda" já existia. É informação pessoal, não navegação do site.
   ✅ **Isso resolveu de graça o estouro de 370px** que estava esperando decisão: caiu para 23px só com a reorganização, e para **0** ao limitar o chip do usuário a 120px no desktop. Esse limite conserta um defeito à parte: a barra dependia do **tamanho do nome de quem entrou** — com "Felipe" não rolava de lado, com "Felipe Carboni Bonamigo dos Santos" rolava 58px. O nome cortado agora aparece inteiro no `title`.
   Também subiu o alvo de toque do submenu no celular de 30px para 39px (os itens de primeiro nível têm 41px, e o padrão de dedo é 44px).
-- **492 testes** (+93 no dia 28).
+- **🔴 Ninguém conseguia marcar aula no site — em nenhum ambiente** (build-81). A tela de marcar aula pergunta a cidade primeiro, e a lista sai de quem é professor **e** declarou cidade. `ProfessorCidade` estava **vazia nos três bancos**: 0 de 7 professores. Lista vazia = primeiro seletor não abre = os outros quatro nunca destravam. Virar professor não pede cidade em momento nenhum, então a pessoa se cadastra e some do site sem saber. Já havia um "você ainda não cadastrou cidades" no meio do painel — informava o **fato**, não a **consequência**; agora o aviso está no topo e diz **"nenhum aluno consegue te achar ainda"**, com botão pra cidade e pra local.
+- **Contraste no tema escuro** (build-81): fundo claro cravado no `style` inline (`#f3f8ff`, `#fff8e6`…) com texto que **muda** de cor no tema = claro sobre claro. Achados **9 lugares** varrendo o projeto, não só o que apareceu. Viraram classes `.pdz-tinta-*` com variante escura. Ficaram de fora, de propósito, os selos com cor escura cravada (`#8a6d00`, funcionam nos dois) e o relatório de impressão (branco é o certo).
+- **Cidades duplicadas** (build-81): "Gravatai", "Gravataí" e "gravatai" conviviam no filtro do ranking. A comparação era `ToLower()` — pegava a caixa e **deixava o acento passar**. `Services/NomeDeCidade` compara sem acento e sem caixa, como uma pessoa compararia, e **preserva** o acento de quem digitou certo (o banco continua guardando "Gravataí"). ⏳ Impede novas; juntar as que já existem é script à parte, mexe em dado real.
+- **Grade de dias × períodos**: a célula inteira virou o alvo do clique (44px em vez de 16px) e o quadrado ficou visível no escuro. Era o **único** checkbox da tela sem `<label>` — os outros já tinham texto ao lado pra clicar.
+- **⚠️ Apaguei o mascote e o backup salvou.** A capa órfã de 8 MB que eu classifiquei como lixo era o **Pnatinha**, mascote do site. A checagem estava certa (0 referências no dump inteiro) e o julgamento errado: "ninguém referencia" ≠ "não serve pra nada". Restaurado do Drive byte a byte. **A regra que funcionou foi conferir o backup ANTES de apagar** — sem ela, o arquivo tinha ido embora. ⏳ Ele segue solto em `uploads/` (órfão de novo, e 8 MB): o lugar dele é `wwwroot/image/`, versionado e otimizado.
+- **509 testes** (+110 no dia 28).
 
 ---
 

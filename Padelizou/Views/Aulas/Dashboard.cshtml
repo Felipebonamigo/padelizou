@@ -34,13 +34,17 @@
                     <i class="bi bi-exclamation-triangle-fill me-1"></i>
                     Nenhum aluno consegue te achar ainda
                 </div>
+                @{
+                    // Montado como texto, não como blocos soltos no meio da frase: com @if inline
+                    // o Razor deixa a quebra de linha virar espaço, e saía "cidade e local ,".
+                    var oQueFalta = semCidade && semLocal ? "cidade e local"
+                                  : semCidade ? "a cidade"
+                                  : "o local";
+                }
                 <div class="small mb-0">
                     A tela de marcar aula pergunta primeiro a cidade, depois o professor, depois o local.
-                    Faltando
-                    @if (semCidade && semLocal) { <strong>cidade e local</strong>; }
-                    else if (semCidade) { <strong>a cidade</strong>; }
-                    else { <strong>o local</strong>; }
-                    , você não entra nessa lista — e o aluno nem chega a ver seu nome.
+                    Faltando <strong>@oQueFalta</strong>, você não entra nessa lista — e o aluno nem
+                    chega a ver seu nome.
                 </div>
             </div>
             <div class="d-flex gap-2 flex-wrap">
