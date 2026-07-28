@@ -14,7 +14,20 @@ Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `depl
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
-**Falta agora:** o primeiro torneio de verdade rodar de ponta a ponta, e a conta bancária do Asaas sair de `PENDING` (trava Pix e saque).
+
+**Produção zerada em 28/07** — folha em branco, esperando o primeiro torneio de verdade. Ficou só o necessário:
+| Fica | Por quê |
+|---|---|
+| A conta do Felipe (admin) | sem ela ninguém administra |
+| 20 categorias padrão | catálogo do sistema |
+| 44 times com bandeira | dados reais do ranking "Quanto Tá" |
+| 1 pagamento de R$ 9,00 | **dinheiro real que entrou** — o MEI obriga a guardar registro de receita |
+
+Saíram o torneio "teste felipe " (com categoria, dupla, quadras e vínculo de organizador) e o clube "Chakra padel" que nasceu junto dele, sem dono nem contato.
+⚠️ **A ordem do DELETE não é arbitrária:** `Categoria.TorneioId` e `Dupla.CategoriaId` são `NO ACTION` (têm que sair antes), e **`Torneio.ClubeId` é `CASCADE`** — apagar o clube arrastaria o torneio de carona. Por isso o torneio saiu explicitamente antes. O pagamento sobreviveu sozinho porque **não tem FK pro torneio**.
+Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728-1207.sql.gz`. As 7 telas principais conferidas depois: 200, sem erro, 44 bandeiras na vitrine. **Dev ficou como estava**, de propósito — é onde se testa.
+
+**Falta agora:** o primeiro torneio de verdade rodar de ponta a ponta, e a conta bancária do Asaas sair de `PENDING` (trava só o saque; o Pix cai normal).
 
 ---
 
