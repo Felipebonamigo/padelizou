@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-81**, 509 testes.
+> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-85**, 522 testes.
 
 ---
 
@@ -10,7 +10,7 @@
 Sistema no ar em **padelizou.com.br** (+ `dev.` para testes e `admin.` para o painel).
 Stack: ASP.NET Core 10 · PostgreSQL no VPS · PWA instalável. Deploy por `deploy.sh` / `deploy-dev.sh`.
 
-**Estado:** funcionalmente rico e tecnicamente protegido (git + **518 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
+**Estado:** funcionalmente rico e tecnicamente protegido (git + **522 testes** + CI + monitoramento + rollback em 1 comando + varredura de autorização feita).
 As áreas de **professor, clube e organizador estão completas**; a entrada se adapta ao papel de quem entra.
 
 **Saiu do modo demonstração em 27/07:** Asaas de produção ligado, **primeiro pagamento real recebido** (R$ 9,00) e produção limpa dos dados fictícios.
@@ -162,7 +162,10 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   **A ordem segue a escada da tela do aluno** (cidade → professor → local → tipo → horário), não a preferência de quem programou: cobrar o local antes deixaria o professor fora da lista do mesmo jeito.
   **Sem risco de laço:** `MinhasCidades` e `MeusLocais` não têm a checagem, e as duas salvam e devolvem. Testado no navegador de ponta a ponta — pedi o painel, fui parar em Minhas Cidades; salvei a cidade, pedi o painel, fui parar em Meus Locais; salvei o local, pedi o painel e **ele abriu**. Depois disso a cidade apareceu no seletor da tela do aluno, que era o objetivo.
   As duas telas mostram **por que** a pessoa foi trazida: redirecionamento sem explicação parece defeito, e ela tenta voltar em vez de resolver. **518 testes.**
-- **518 testes** (+119 no dia 28).
+- **O terceiro degrau da escada do professor** (achado ao levantar o que faltava): produção tinha 1 professor **com cidade**, 0 locais e **0 horários**. Cobrar só cidade e local deixaria o aluno percorrer quatro degraus — cidade, professor, local, tipo — pra descobrir no quinto que não há horário nenhum. `PendenciaDoProfessor` ganhou `Horario`, e o painel cobra os três em ordem.
+- **🔴 Fim do upload de imagem que falhava calado.** `SalvarAsync` devolvia `null` tanto pra "não mandou foto" quanto pra "não deu pra salvar", e o chamador tratava tudo como ausência: a pessoa escolhia o arquivo, salvava e ia embora achando que a foto estava lá. Foi isso que escondeu por um dia inteiro a pasta de logos com dono errado. Agora devolve `ResultadoDaImagem` (**ausência ≠ falha**), com mensagem em português por motivo — grande demais, formato recusado, ilegível, erro ao gravar. O aviso é renderizado **no `_Layout`**, não em cada tela: são 3 telas com upload e cada uma redireciona pra um lugar diferente, então repetir o bloco seria esquecer numa. O cadastro continua seguindo sem a imagem (perder um formulário longo por causa de uma foto é pior) — mas agora **contando**.
+- **Numeração da tela de marcar aula** (o "1, 2, 3, 5" do print): "Tipo de aula" só surge depois de escolher o local, e o número estava cravado no HTML. Agora o JS numera **o que está visível**; se o script não rodar, os rótulos continuam legíveis sem número — degradar assim é melhor que quebrar.
+- **522 testes** (+123 no dia 28).
 
 ---
 

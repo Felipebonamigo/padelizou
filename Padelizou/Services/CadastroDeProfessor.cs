@@ -13,17 +13,24 @@ public enum PendenciaDoProfessor
 {
     Nenhuma,
     Cidade,
-    Local
+    Local,
+    Horario
 }
 
 public static class CadastroDeProfessor
 {
     // A ordem segue a escada da tela de marcar aula, não a preferência de quem programou:
     // cidade primeiro porque é por ela que o aluno começa a busca.
-    public static PendenciaDoProfessor Pendencia(bool temCidade, bool temLocal)
+    //
+    // O horário entrou depois, e por um motivo que só apareceu com dados reais: em produção havia
+    // 1 professor com cidade, 0 locais e 0 horários. Cobrar só cidade e local deixaria o aluno
+    // chegar até o passo 5 — escolher cidade, professor, local, tipo — e não achar horário nenhum.
+    // Andar quatro degraus pra descobrir que não dá é pior que parar no primeiro.
+    public static PendenciaDoProfessor Pendencia(bool temCidade, bool temLocal, bool temHorario)
     {
         if (!temCidade) return PendenciaDoProfessor.Cidade;
         if (!temLocal) return PendenciaDoProfessor.Local;
+        if (!temHorario) return PendenciaDoProfessor.Horario;
         return PendenciaDoProfessor.Nenhuma;
     }
 
@@ -31,6 +38,7 @@ public static class CadastroDeProfessor
     {
         PendenciaDoProfessor.Cidade => "MinhasCidades",
         PendenciaDoProfessor.Local => "MeusLocais",
+        PendenciaDoProfessor.Horario => "MeusHorarios",
         _ => "Dashboard"
     };
 
@@ -45,6 +53,10 @@ public static class CadastroDeProfessor
         PendenciaDoProfessor.Local =>
             "Falta o local: depois de escolher você, o aluno precisa saber onde a aula acontece. "
             + "Sem nenhum cadastrado, ele não consegue concluir a marcação.",
+
+        PendenciaDoProfessor.Horario =>
+            "Último passo: diga os dias e horas em que você dá aula. É a lista final que o aluno "
+            + "vê — sem ela, ele chega até o fim da marcação e não encontra nenhum horário livre.",
 
         _ => null
     };

@@ -60,20 +60,36 @@ public static class ImagemEnviada
     // ("guid_" + arquivo.FileName), e um nome com "../" escaparia da pasta de uploads.
     public static string NomeDeArquivo() => Guid.NewGuid().ToString("N") + ExtensaoDeSaida;
 
-    // Processa e grava. Devolve o caminho relativo pra gravar no banco, ou null se não deu.
+    // Processa e grava.
     //
     // Nunca lança: a imagem é sempre opcional e derrubar um cadastro inteiro por causa dela custa
-    // caro — a pessoa preenche um formulário longo, escolhe a foto e perde tudo.
-    public static async Task<string?> SalvarAsync(
+    // caro — a pessoa preenche um formulário longo, escolhe a foto e perde tudo. Mas "não derrubar"
+    // não pode virar "não contar": o cadastro segue, e a pessoa é avisada de que a foto ficou pra trás.
+    //
+    // Devolve um RESULTADO, e não só o caminho, porque "não mandou foto" e "a foto não pôde ser
+    // salva" são coisas diferentes que antes viravam o mesmo `null`. O chamador não tinha como
+    // distinguir, então tratava tudo como ausência — e o cadastro seguia sem a imagem, calado.
+    //
+    // Isso escondeu um problema real por um dia inteiro: a pasta de logos pertencia a outro
+    // usuário do sistema, nenhum upload gravava, e ninguém via erro nenhum. O sintoma só apareceu
+    // quando um botão de manutenção não fez efeito.
+    public static async Task<ResultadoDaImagem> SalvarAsync(
         IFormFile? arquivo,
         string webRootPath,
         string subpasta,
         FormatoDeImagem formato,
         ILogger? logger = null)
     {
-        if (arquivo == null || arquivo.Length == 0) return null;
-        if (arquivo.Length > BytesMaximos) return null;
-        if (!ExtensaoAceita(arquivo.FileName)) return null;
+        if (arquivo == null || arquivo.Length == 0) return ResultadoDaImagem.SemArquivo;
+
+        if (arquivo.Length > BytesMaximos)
+            return ResultadoDaImagem.Falhou(
+                $"A imagem tem {arquivo.Length / 1024 / 1024} MB e o limite é {BytesMaximos / 1024 / 1024} MB. "
+                + "Tente uma foto menor.");
+
+        if (!ExtensaoAceita(arquivo.FileName))
+            return ResultadoDaImagem.Falhou(
+                "Esse arquivo não é uma imagem que a gente aceita. Use JPG, PNG ou WEBP.");
 
         try
         {
@@ -86,7 +102,9 @@ public static class ImagemEnviada
             }
 
             var recodificada = Recodificar(bytes, formato, logger);
-            if (recodificada == null) return null;
+            if (recodificada == null)
+                return ResultadoDaImagem.Falhou(
+                    "Não conseguimos ler essa imagem. Ela pode estar corrompida ou não ser uma imagem de verdade.");
 
             var pasta = Path.Combine(webRootPath, "uploads", subpasta);
             Directory.CreateDirectory(pasta);
@@ -94,12 +112,15 @@ public static class ImagemEnviada
 
             await File.WriteAllBytesAsync(Path.Combine(pasta, nomeArquivo), recodificada);
 
-            return "/uploads/" + subpasta + "/" + nomeArquivo;
+            return ResultadoDaImagem.Ok("/uploads/" + subpasta + "/" + nomeArquivo);
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Falha ao processar imagem enviada pra {Subpasta} — seguindo sem ela.", subpasta);
-            return null;
+            logger?.LogError(ex, "Falha ao processar imagem enviada pra {Subpasta}.", subpasta);
+
+            // A pessoa não precisa saber que foi permissão de pasta ou disco cheio, mas precisa
+            // saber que NÃO salvou — senão vai embora achando que a foto está lá.
+            return ResultadoDaImagem.Falhou("Não deu pra salvar a imagem agora. Tente de novo em instantes.");
         }
     }
 
@@ -193,4 +214,20 @@ public sealed record FormatoDeImagem(int LadoMaximo, int Qualidade)
 
     // Banner no topo da página do torneio — o único que ocupa a largura toda da tela.
     public static readonly FormatoDeImagem CapaTorneio = new(1600, 82);
+}
+
+// O que aconteceu com a imagem que a pessoa mandou.
+//
+// Existe pra separar dois casos que antes eram o mesmo `null`: não veio arquivo nenhum (normal,
+// o campo é opcional) e veio mas não deu pra salvar (precisa avisar). Tratar os dois igual faz o
+// sistema mentir — a pessoa escolhe a foto, salva, e o cadastro segue sem ela sem dizer nada.
+public sealed record ResultadoDaImagem(string? Caminho, string? Erro)
+{
+    public static readonly ResultadoDaImagem SemArquivo = new(null, null);
+
+    public static ResultadoDaImagem Ok(string caminho) => new(caminho, null);
+    public static ResultadoDaImagem Falhou(string motivo) => new(null, motivo);
+
+    public bool Salvou => Caminho != null;
+    public bool DeuErro => Erro != null;
 }

@@ -39,7 +39,7 @@ namespace padelizou.Controllers
         // a pessoa preenche um formulário longo, escolhe a foto e recebe "Ops! Algo deu
         // errado", perdendo tudo. Foi exatamente o que aconteceu quando a pasta de uploads
         // do dev estava sem permissão de escrita.
-        private Task<string?> SalvarFotoPerfilAsync(IFormFile? foto) =>
+        private Task<ResultadoDaImagem> SalvarFotoPerfilAsync(IFormFile? foto) =>
             ImagemEnviada.SalvarAsync(foto, _env.WebRootPath, "fotos-perfil", FormatoDeImagem.FotoPerfil, _logger);
 
         // Sugestão, bug ou crítica: aberto pra qualquer visitante, inclusive deslogado —
@@ -305,7 +305,7 @@ namespace padelizou.Controllers
 
         // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo,
         // ou null se a imagem não pôde ser processada.
-        private Task<string?> SalvarLogoTimeAsync(IFormFile arquivo) =>
+        private Task<ResultadoDaImagem> SalvarLogoTimeAsync(IFormFile arquivo) =>
             ImagemEnviada.SalvarAsync(arquivo, _env.WebRootPath, "logos-time", FormatoDeImagem.LogoTime, _logger);
 
         [Authorize]
@@ -350,7 +350,8 @@ namespace padelizou.Controllers
             }
 
             var fotoSalva = await SalvarFotoPerfilAsync(foto);
-            if (fotoSalva != null) jogador.FotoPerfil = fotoSalva;
+            if (fotoSalva.Salvou) jogador.FotoPerfil = fotoSalva.Caminho;
+            else if (fotoSalva.DeuErro) TempData["ErroImagem"] = fotoSalva.Erro;
 
             jogador.Nome = nome;
             // Apelido em branco volta a ser nulo — "sem apelido" e "apelido vazio" viram
@@ -389,7 +390,8 @@ namespace padelizou.Controllers
                     // Se o processamento falhar, o logo que já estava lá continua — trocar por
                     // nulo apagaria o escudo do time por causa de um envio ruim.
                     var logoSalvo = await SalvarLogoTimeAsync(logoTime);
-                    if (logoSalvo != null) meuTime.Logo = logoSalvo;
+                    if (logoSalvo.Salvou) meuTime.Logo = logoSalvo.Caminho;
+                    else if (logoSalvo.DeuErro) TempData["ErroImagem"] = logoSalvo.Erro;
                 }
                 await _context.SaveChangesAsync(); // garante o Id do time recém-criado
 
@@ -687,7 +689,9 @@ namespace padelizou.Controllers
 
             // A foto é opcional e não pode impedir o cadastro: se falhar, entra vazia.
             // Fica depois das validações pra um cadastro recusado não deixar arquivo órfão.
-            string caminhoDaFotoParaBanco = await SalvarFotoPerfilAsync(foto) ?? "";
+            var fotoDoCadastro = await SalvarFotoPerfilAsync(foto);
+            string caminhoDaFotoParaBanco = fotoDoCadastro.Caminho ?? "";
+            if (fotoDoCadastro.DeuErro) TempData["ErroImagem"] = fotoDoCadastro.Erro + " Sua conta foi criada — dá pra colocar a foto depois em Editar Perfil.";
 
             if (jogador != null)
             {

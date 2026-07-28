@@ -215,6 +215,24 @@
 
     <main role="main" class="pdz-main">
         <div class="container">
+            @*
+                Falha ao salvar imagem aparece AQUI, e não em cada tela. São três telas que aceitam
+                upload (perfil, time, capa de torneio) e cada uma redireciona pra um lugar diferente
+                depois de salvar — repetir o bloco em todas seria esquecer numa.
+
+                O cadastro segue mesmo quando a imagem falha (perder um formulário longo por causa
+                de uma foto é pior), mas seguir calado fazia o sistema mentir: a pessoa escolhia o
+                arquivo, salvava e ia embora achando que a foto estava lá.
+            *@
+            @if (TempData["ErroImagem"] != null)
+            {
+                <div class="alert alert-warning alert-dismissible border-0 shadow-sm mt-3" role="alert">
+                    <i class="bi bi-image me-1"></i>
+                    @TempData["ErroImagem"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            }
+
             @RenderBody()
         </div>
     </main>

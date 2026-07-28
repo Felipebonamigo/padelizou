@@ -474,7 +474,8 @@ namespace padelizou.Controllers
             // laço: MinhasCidades e MeusLocais não têm esta checagem, e as duas salvam e voltam.
             var pendencia = CadastroDeProfessor.Pendencia(
                 temCidade: await _context.ProfessorCidades.AnyAsync(pc => pc.ProfessorId == professorId),
-                temLocal: await _context.LocaisAula.AnyAsync(l => l.ProfessorId == professorId));
+                temLocal: await _context.LocaisAula.AnyAsync(l => l.ProfessorId == professorId),
+                temHorario: await _context.HorariosDisponiveis.AnyAsync(h => h.ProfessorId == professorId && h.Ativo));
 
             if (pendencia != PendenciaDoProfessor.Nenhuma)
             {

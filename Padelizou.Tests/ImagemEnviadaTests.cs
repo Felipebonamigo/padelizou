@@ -93,8 +93,8 @@ public class ImagemEnviadaTests : IDisposable
         var original = ImagemDeRuido(2000, 1500);
         Assert.True(original.Length > 1_000_000, $"o teste precisa de uma imagem grande, veio {original.Length} bytes");
 
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(original, "capa-do-celular.png"), _webRoot, "capas-torneio", FormatoDeImagem.CapaTorneio);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(original, "capa-do-celular.png"), _webRoot, "capas-torneio", FormatoDeImagem.CapaTorneio)).Caminho;
 
         Assert.NotNull(caminho);
         var (largura, altura, bytes) = LerSalva(caminho!);
@@ -108,8 +108,8 @@ public class ImagemEnviadaTests : IDisposable
     [Fact]
     public async Task Sai_sempre_em_webp_seja_qual_for_a_entrada()
     {
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(ImagemDeRuido(300, 300), "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(ImagemDeRuido(300, 300), "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil)).Caminho;
 
         Assert.NotNull(caminho);
         Assert.EndsWith(".webp", caminho);
@@ -122,8 +122,8 @@ public class ImagemEnviadaTests : IDisposable
     public async Task Logo_pequeno_nao_e_esticado()
     {
         // Escudo de time costuma vir pequeno e já pronto. Aumentar só borraria.
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(ImagemDeRuido(120, 90), "escudo.png"), _webRoot, "logos-time", FormatoDeImagem.LogoTime);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(ImagemDeRuido(120, 90), "escudo.png"), _webRoot, "logos-time", FormatoDeImagem.LogoTime)).Caminho;
 
         Assert.NotNull(caminho);
         var (largura, altura, _) = LerSalva(caminho!);
@@ -136,8 +136,8 @@ public class ImagemEnviadaTests : IDisposable
     public async Task Logo_com_fundo_transparente_continua_transparente()
     {
         // Achatar o alfa deixaria um retângulo preto em volta de todo escudo de time.
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(ImagemComTransparencia(200, 200), "escudo.png"), _webRoot, "logos-time", FormatoDeImagem.LogoTime);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(ImagemComTransparencia(200, 200), "escudo.png"), _webRoot, "logos-time", FormatoDeImagem.LogoTime)).Caminho;
 
         Assert.NotNull(caminho);
 
@@ -154,8 +154,8 @@ public class ImagemEnviadaTests : IDisposable
         var lixo = new byte[5000];
         Random.Shared.NextBytes(lixo);
 
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(lixo, "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(lixo, "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil)).Caminho;
 
         Assert.Null(caminho);
     }
@@ -167,14 +167,19 @@ public class ImagemEnviadaTests : IDisposable
         // servidor inteiro enquanto fosse processada.
         var gordo = Arquivo(new byte[16], "foto.png", tamanhoDeclarado: ImagemEnviada.BytesMaximos + 1);
 
-        Assert.Null(await ImagemEnviada.SalvarAsync(gordo, _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil));
+        var r = await ImagemEnviada.SalvarAsync(gordo, _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+
+        Assert.False(r.Salvou);
+        // Recusar não basta: a pessoa precisa saber por quê, senão fica tentando o mesmo arquivo.
+        Assert.True(r.DeuErro);
+        Assert.Contains("MB", r.Erro);
     }
 
     [Fact]
     public async Task Nome_com_travessia_de_pasta_nao_escapa_dos_uploads()
     {
-        var caminho = await ImagemEnviada.SalvarAsync(
-            Arquivo(ImagemDeRuido(100, 100), "../../../evil.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+        var caminho = (await ImagemEnviada.SalvarAsync(
+            Arquivo(ImagemDeRuido(100, 100), "../../../evil.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil)).Caminho;
 
         Assert.NotNull(caminho);
         Assert.StartsWith("/uploads/fotos-perfil/", caminho);
@@ -191,9 +196,33 @@ public class ImagemEnviadaTests : IDisposable
     public async Task Sem_arquivo_nao_e_erro_e_sim_ausencia_de_foto()
     {
         // A foto é sempre opcional: derrubar um cadastro longo por causa dela custa caro.
-        Assert.Null(await ImagemEnviada.SalvarAsync(null, _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil));
-        Assert.Null(await ImagemEnviada.SalvarAsync(
-            Arquivo(Array.Empty<byte>(), "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil));
+        // E "não mandou foto" NÃO pode virar mensagem de erro — quem deixou o campo vazio de
+        // propósito não fez nada de errado.
+        var semNada = await ImagemEnviada.SalvarAsync(null, _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+        var vazio = await ImagemEnviada.SalvarAsync(
+            Arquivo(Array.Empty<byte>(), "foto.png"), _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+
+        foreach (var r in new[] { semNada, vazio })
+        {
+            Assert.False(r.Salvou);
+            Assert.False(r.DeuErro);   // ausência não é falha
+            Assert.Null(r.Erro);
+        }
+    }
+
+    [Fact]
+    public async Task Arquivo_que_nao_e_imagem_de_verdade_avisa_em_vez_de_sumir_calado()
+    {
+        // O caso que motivou tudo: por um dia inteiro o upload de logo falhou sem dizer nada,
+        // porque falha e ausência devolviam o mesmo `null` e o chamador tratava tudo como
+        // ausência. Quem tenta salvar uma imagem ruim precisa ouvir isso.
+        var r = await ImagemEnviada.SalvarAsync(
+            Arquivo(System.Text.Encoding.UTF8.GetBytes("isto aqui é texto, não imagem"), "foto.png"),
+            _webRoot, "fotos-perfil", FormatoDeImagem.FotoPerfil);
+
+        Assert.False(r.Salvou);
+        Assert.True(r.DeuErro);
+        Assert.False(string.IsNullOrWhiteSpace(r.Erro));
     }
 
     // ── Apoio ─────────────────────────────────────────────────────────────────────────

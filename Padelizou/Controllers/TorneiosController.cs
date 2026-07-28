@@ -95,7 +95,7 @@ namespace Padelizou.Controllers
 
         // Salva a capa do torneio (redimensionada e recodificada) e devolve o caminho relativo
         // pra gravar no banco, ou null se a imagem não pôde ser processada.
-        private Task<string?> SalvarCapaAsync(IFormFile arquivo) =>
+        private Task<ResultadoDaImagem> SalvarCapaAsync(IFormFile arquivo) =>
             ImagemEnviada.SalvarAsync(arquivo, _env.WebRootPath, "capas-torneio", FormatoDeImagem.CapaTorneio, _logger);
 
         // Confere se o jogador logado é organizador (criador ou adicionado) deste torneio específico
@@ -334,7 +334,9 @@ namespace Padelizou.Controllers
 
             if (capa != null && capa.Length > 0)
             {
-                torneio.ImagemCapa = await SalvarCapaAsync(capa);
+                var capaNova = await SalvarCapaAsync(capa);
+                torneio.ImagemCapa = capaNova.Caminho;
+                if (capaNova.DeuErro) TempData["ErroImagem"] = capaNova.Erro + " O torneio foi criado — dá pra pôr a capa depois, editando.";
             }
 
             // Salva o Torneio primeiro para gerar o ID dele
@@ -655,7 +657,8 @@ namespace Padelizou.Controllers
                 // Falhou o processamento: fica a capa antiga. Zerar aqui apagaria a arte do
                 // torneio por causa de um envio que não deu certo.
                 var capaSalva = await SalvarCapaAsync(capa);
-                if (capaSalva != null) torneio.ImagemCapa = capaSalva;
+                if (capaSalva.Salvou) torneio.ImagemCapa = capaSalva.Caminho;
+                else if (capaSalva.DeuErro) TempData["ErroImagem"] = capaSalva.Erro;
             }
 
             // Reconcilia a lista de Quadras com a nova quantidade/nomes (por posição)

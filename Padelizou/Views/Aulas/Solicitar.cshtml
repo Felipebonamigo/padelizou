@@ -21,7 +21,7 @@
 
                     <form asp-controller="Aulas" asp-action="Solicitar" method="post" id="form-solicitar">
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">1. Cidade</label>
+                            <label class="form-label fw-bold text-muted small pdz-passo">Cidade</label>
                             <select id="select-cidade" name="cidadeId" class="form-select bg-light" required>
                                 <option value="">-- Escolha uma cidade --</option>
                                 @foreach (var cidade in Model.Cidades)
@@ -36,21 +36,21 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">2. Professor</label>
+                            <label class="form-label fw-bold text-muted small pdz-passo">Professor</label>
                             <select id="select-professor" name="professorId" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha uma cidade primeiro --</option>
                             </select>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small">3. Local</label>
+                            <label class="form-label fw-bold text-muted small pdz-passo">Local</label>
                             <select id="select-local" name="localId" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um professor primeiro --</option>
                             </select>
                         </div>
 
                         <div id="opcoes-tipo" class="mb-3" style="display:none;">
-                            <label class="form-label fw-bold text-muted small">4. Tipo de aula</label>
+                            <label class="form-label fw-bold text-muted small pdz-passo">Tipo de aula</label>
 
                             <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:var(--pdz-surface-alt); display:none;">
                                 <div class="form-check">
@@ -82,7 +82,7 @@
                         <input type="hidden" name="semanasRecorrencia" id="hidden-semanas" value="1" />
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">5. Horário disponível</label>
+                            <label class="form-label fw-bold text-muted small pdz-passo">Horário disponível</label>
                             <select id="select-horario" name="dataHora" class="form-select bg-light" required disabled>
                                 <option value="">-- Escolha um local primeiro --</option>
                             </select>
@@ -119,10 +119,30 @@
             var $campoSemanas = $('#campo-semanas');
             var $inputSemanas = $('#input-semanas');
 
+            // Os números não ficam escritos no HTML: o passo "Tipo de aula" só aparece depois de
+            // escolher o local, e com número fixo a tela mostrava "1, 2, 3, 5" — parece defeito.
+            // Aqui numeramos o que está VISÍVEL, a cada mudança. Se este script não rodar, os
+            // rótulos continuam legíveis, só sem número — degradar assim é melhor que quebrar.
+            function renumerarPassos() {
+                var n = 0;
+                $('.pdz-passo').each(function () {
+                    var $rotulo = $(this);
+                    if ($rotulo.is(':visible')) {
+                        n++;
+                        $rotulo.text(n + '. ' + ($rotulo.data('texto') || $rotulo.text()));
+                    }
+                });
+            }
+
+            // Guarda o texto puro antes de qualquer numeração, senão a segunda passada
+            // produziria "2. 1. Cidade".
+            $('.pdz-passo').each(function () { $(this).data('texto', $.trim($(this).text())); });
+            renumerarPassos();
+
             function resetAPartirDoProfessor() {
                 $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
                 $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
-                $opcoesTipo.hide();
+                $opcoesTipo.hide(); renumerarPassos();
                 $opcaoPacote.hide();
                 $btn.prop('disabled', true);
             }
@@ -183,7 +203,7 @@
                 var professorId = $professor.val();
                 var localId = $(this).val();
                 $btn.prop('disabled', true);
-                $opcoesTipo.hide();
+                $opcoesTipo.hide(); renumerarPassos();
                 $opcaoPacote.hide();
                 $('input[name="tipoAula"][value="avulsa"]').prop('checked', true);
 
@@ -201,7 +221,7 @@
                     return;
                 }
 
-                $opcoesTipo.show();
+                $opcoesTipo.show(); renumerarPassos();
                 $horario.html('<option value="">Carregando...</option>').prop('disabled', true);
 
                 $.getJSON('/Aulas/ObterHorarios', { professorId: professorId, localId: localId }, function (horarios) {
