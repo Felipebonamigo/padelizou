@@ -145,10 +145,19 @@
             }
             else
             {
-                <div class="d-flex align-items-baseline gap-2 mb-2">
-                    <span class="fs-3 fw-bold" style="color: var(--pdz-ink);">@AvaliacaoDoProfessor.MediaFormatada(Model.MediaNota!.Value)</span>
-                    <span class="small text-muted">média de @Model.TotalAvaliacoes nota(s) de alunos</span>
-                </div>
+                @* Distribuição por estrela, de 5 pra 1. *@
+                @for (int n = 5; n >= 1; n--)
+                {
+                    var qtd = Model.NotasPorEstrela.GetValueOrDefault(n);
+                    var pct = Model.TotalAvaliacoes == 0 ? 0 : (int)Math.Round(qtd * 100.0 / Model.TotalAvaliacoes);
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <small class="text-nowrap" style="width: 42px;">@n <span style="color:#ffc107;">★</span></small>
+                        <div class="progress flex-grow-1" style="height: 8px;">
+                            <div class="progress-bar" style="width: @pct%; background: #ffc107;"></div>
+                        </div>
+                        <small class="text-muted" style="width: 28px; text-align: right;">@qtd</small>
+                    </div>
+                }
 
                 @if (Model.Depoimentos.Any())
                 {
@@ -158,7 +167,7 @@
                             <div class="border-top py-2">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <strong class="small" style="color: var(--pdz-ink);">@d.Aluno.Nome</strong>
-                                    <span class="badge bg-warning-subtle text-dark border">@d.Nota/10</span>
+                                    <span style="color:#ffc107;">@AvaliacaoDoProfessor.Estrelas(d.Nota)</span>
                                 </div>
                                 <p class="small text-muted mb-0">@d.Depoimento</p>
                             </div>
@@ -202,12 +211,12 @@
                 <form asp-action="Avaliar" method="post">
                     <input type="hidden" name="professorId" value="@Model.Professor.Id" />
                     <div class="mb-2">
-                        <label class="form-label small fw-bold text-muted">Nota (0 a 10)</label>
+                        <label class="form-label small fw-bold text-muted">Nota</label>
                         <select name="nota" class="form-select">
-                            @for (int n = 10; n >= 0; n--)
+                            @for (int n = 5; n >= 1; n--)
                             {
                                 <option value="@n" selected="@(Model.MinhaAvaliacao?.Nota == n)">
-                                    @n@(n == 10 ? " — Excelente" : n == 7 ? " — Muito bom" : n == 5 ? " — Regular" : n == 0 ? " — Péssimo" : "")
+                                    @n — @(n == 5 ? "Excelente" : n == 4 ? "Muito bom" : n == 3 ? "Bom" : n == 2 ? "Regular" : "Ruim")
                                 </option>
                             }
                         </select>

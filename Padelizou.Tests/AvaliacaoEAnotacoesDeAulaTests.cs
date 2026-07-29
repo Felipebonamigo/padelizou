@@ -7,16 +7,18 @@ namespace Padelizou.Tests;
 // da aula. As duas regras moram em serviços puros; aqui se confere cada borda.
 public class AvaliacaoEAnotacoesDeAulaTests
 {
-    // ---- Nota 0-10 ----
+    // ---- Nota em estrelas (1-5) ----
 
     [Theory]
-    [InlineData(0, true)]
-    [InlineData(10, true)]
-    [InlineData(7, true)]
-    [InlineData(-1, false)]
-    [InlineData(11, false)]
-    public void Nota_vale_de_0_a_10_inclusive(int nota, bool esperado)
+    [InlineData(1, true)]
+    [InlineData(5, true)]
+    [InlineData(3, true)]
+    [InlineData(0, false)]
+    [InlineData(6, false)]
+    public void Nota_vale_de_1_a_5_estrelas(int nota, bool esperado)
     {
+        // Quase virou 0-10 em 29/07/2026; o Felipe preferiu manter as estrelas que o site
+        // já falava. Zero não existe: estrela vazia é ausência de avaliação, não nota.
         Assert.Equal(esperado, AvaliacaoDoProfessor.NotaValida(nota));
     }
 
@@ -37,10 +39,11 @@ public class AvaliacaoEAnotacoesDeAulaTests
     }
 
     [Fact]
-    public void A_media_sai_no_formato_brasileiro_com_uma_casa()
+    public void As_estrelas_desenham_a_media_arredondada()
     {
-        Assert.Equal("9,2/10", AvaliacaoDoProfessor.MediaFormatada(9.24));
-        Assert.Equal("10,0/10", AvaliacaoDoProfessor.MediaFormatada(10));
+        Assert.Equal("★★★★☆", AvaliacaoDoProfessor.Estrelas(4.2));
+        Assert.Equal("★★★★★", AvaliacaoDoProfessor.Estrelas(4.5));   // arredonda pra cima
+        Assert.Equal("☆☆☆☆☆", AvaliacaoDoProfessor.Estrelas(null));  // sem média, sem estrela
     }
 
     // ---- Caderno da aula ----

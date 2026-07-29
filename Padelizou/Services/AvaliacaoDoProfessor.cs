@@ -25,11 +25,15 @@ public static class AvaliacaoDoProfessor
         return string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
     }
 
-    // "★★★★☆" a partir da média (arredonda pro inteiro mais próximo). Mora aqui, e não
-    // solto em cada view, porque duas telas desenham estrelas e divergir seria pior.
+    // "★★★★☆" a partir da média. Mora aqui, e não solto em cada view, porque duas telas
+    // desenham estrelas e divergir seria pior.
+    //
+    // AwayFromZero porque o Math.Round pelado arredonda pra PAR (4,5 viraria 4 estrelas —
+    // o "arredondamento do banqueiro", certo pra estatística e surpreendente pra gente).
     public static string Estrelas(double? media)
     {
-        int cheias = media == null ? 0 : Math.Clamp((int)Math.Round(media.Value), 0, NotaMaxima);
+        int cheias = media == null ? 0
+            : Math.Clamp((int)Math.Round(media.Value, MidpointRounding.AwayFromZero), 0, NotaMaxima);
         return string.Concat(Enumerable.Range(1, NotaMaxima).Select(i => i <= cheias ? "★" : "☆"));
     }
 }
