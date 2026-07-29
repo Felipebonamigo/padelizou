@@ -2,7 +2,7 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **29/07/2026 (tarde)** — **aviso de quadra atrasada** (build-102, 563 testes, Fase 3 só falta o placar offline), **Americano com adversários perfeitos** (whist, build-100, 551 testes), cidades duplicadas fechadas, **logo novo no ar** (build-98: raquetes soltas na barra/rodapé/capa, logo completo no fundo claro) e o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
-> ⏳ Continua pendente do Felipe: conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
+> ✅ **Os dois pendentes com o Google/pagamento fecharam em 29/07:** app do Google **publicado** ("Em produção" — o token do backup não expira mais a cada 7 dias, sem custo e sem verificação) e o **mistério do webhook resolvido**: era mesmo sobra do sandbox apontando pra produção, e o Asaas já o tinha interrompido sozinho. Apagado; produção nunca falhou (recusou um impostor, como devia).
 
 ---
 
@@ -238,6 +238,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 - [x] **Limpar dados fictícios** ✅ 27/07 — 144 jogadores e os torneios de demo apagados de produção, com backup antes
 - [x] ✅ **Google: app publicado ("Em produção") 29/07** — o token do backup fora do servidor não expira mais a cada 7 dias. Sem custo (API gratuita; 22,7 MB de 15 GB no Drive) e sem verificação do Google (escopo `drive.file` não é restrito).
 - [ ] ⏳ **Conta bancária no Asaas** (`bankAccountInfo: PENDING`) — trava **só o saque**; as chaves Pix estão ATIVAS e o dinheiro cai normal ← *precisa do Felipe*
+- [x] ✅ **Webhook auditado pela API em 29/07**: produção tem **1 só** webhook, ativo, não interrompido, 0 requisições penalizadas. As recusas de hora em hora vinham de um webhook do **sandbox** apontando pra URL de produção (o Asaas já o havia marcado `interrupted`) — apagado com autorização. O "Atomatiza" no sandbox é de outro projeto do Felipe e não foi tocado.
 - [ ] ⏳ **Gerar chave e token novos** do Asaas, agora que a configuração estabilizou ← *precisa do Felipe*
 - [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
 - [x] **Métricas de uso** no admin (`/Admin/Metricas`): cadastros, inscrições, pagamentos, série semanal e medidor do MEI ✅ 25/07
