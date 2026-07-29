@@ -472,10 +472,7 @@ namespace padelizou.Controllers
             // Antes de abrir o painel, cobra o que falta pro aluno conseguir marcar. Um aviso no
             // topo já existia e não bastou — professor nenhum tinha cidade. Não dá pra entrar em
             // laço: MinhasCidades e MeusLocais não têm esta checagem, e as duas salvam e voltam.
-            var pendencia = CadastroDeProfessor.Pendencia(
-                temCidade: await _context.ProfessorCidades.AnyAsync(pc => pc.ProfessorId == professorId),
-                temLocal: await _context.LocaisAula.AnyAsync(l => l.ProfessorId == professorId),
-                temHorario: await _context.HorariosDisponiveis.AnyAsync(h => h.ProfessorId == professorId && h.Ativo));
+            var pendencia = await CadastroDeProfessor.PendenciaAsync(_context, professorId.Value);
 
             if (pendencia != PendenciaDoProfessor.Nenhuma)
             {

@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Padelizou.Models;
+
 namespace Padelizou.Services;
 
 // O que falta pro professor existir de verdade pro aluno.
@@ -32,6 +35,24 @@ public static class CadastroDeProfessor
         if (!temLocal) return PendenciaDoProfessor.Local;
         if (!temHorario) return PendenciaDoProfessor.Horario;
         return PendenciaDoProfessor.Nenhuma;
+    }
+
+    // A consulta mora AQUI, junto da regra, e não solta no controller — foi ali que ela errou.
+    //
+    // A pergunta certa não é "existe local cadastrado?", é "o ALUNO consegue chegar até aqui?".
+    // A tela do aluno só enxerga local e horário ATIVOS, e a versão antiga desta checagem não
+    // filtrava `Ativo`: um clique em "Desativar" (que não pede confirmação) deixava o painel do
+    // professor abrindo normalmente enquanto o aluno batia em "nenhum local cadastrado para este
+    // professor" — exatamente o silêncio que a escada existe pra impedir.
+    //
+    // Horário pendurado em local desativado também não conta: ele não aparece pro aluno.
+    public static async Task<PendenciaDoProfessor> PendenciaAsync(DbPadelContext context, int professorId)
+    {
+        return Pendencia(
+            temCidade: await context.ProfessorCidades.AnyAsync(pc => pc.ProfessorId == professorId),
+            temLocal: await context.LocaisAula.AnyAsync(l => l.ProfessorId == professorId && l.Ativo),
+            temHorario: await context.HorariosDisponiveis.AnyAsync(h =>
+                h.ProfessorId == professorId && h.Ativo && h.LocalAula.Ativo));
     }
 
     public static string AcaoPara(PendenciaDoProfessor pendencia) => pendencia switch
