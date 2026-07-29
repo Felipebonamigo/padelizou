@@ -5,17 +5,22 @@
 }
 
 <div class="container mt-3 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
         <h3 class="fw-bold text-danger"><i class="bi bi-broadcast"></i> Mesa de Controle (Ao Vivo)</h3>
         <a asp-action="Details" asp-route-id="@ViewBag.TorneioId" class="btn btn-outline-secondary">Voltar</a>
     </div>
+
+    @* O selo que conta a verdade sobre a rede. No ginásio o 3G morre toda hora; a Mesa segue
+       funcionando e o organizador precisa SABER disso — senão para de marcar achando que
+       quebrou, e é exatamente aí que os placares se perdem. *@
+    <div id="mesaStatus" class="pdz-mesa-status pdz-mesa-ok mb-3">Placar sincronizado</div>
 
     @if (Model != null && Model.Any())
     {
         <div class="row">
             @foreach (var partida in Model)
             {
-                <div class="col-md-6 col-lg-4 mb-4">
+                <div class="col-md-6 col-lg-4 mb-4" id="cartao_@partida.Id">
                     <div class="card shadow border-0" style="border-top: 5px solid red;">
                         <div class="card-header bg-white text-center fw-bold text-danger">
                             <span class="spinner-grow spinner-grow-sm me-1" role="status"></span> AO VIVO
@@ -33,17 +38,17 @@
                                     <div class="text-center">
                                         <small class="text-muted d-block fw-bold">SETS</small>
                                         <div class="btn-group">
-                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Set', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'sets1', -1)" class="btn btn-sm btn-outline-secondary">-</button>
                                             <span class="btn btn-sm btn-light fw-bold fs-5 px-3" id="setsA_@partida.Id">@partida.SetsDupla1</span>
-                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Set', 1)" class="btn btn-sm btn-success">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'sets1', 1)" class="btn btn-sm btn-success">+</button>
                                         </div>
                                     </div>
                                     <div class="text-center">
                                         <small class="text-muted d-block fw-bold">GAMES</small>
                                         <div class="btn-group">
-                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Game', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', -1)" class="btn btn-sm btn-outline-secondary">-</button>
                                             <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesA_@partida.Id">@partida.GamesDupla1</span>
-                                            <button onclick="atualizarPlacar(@partida.Id, 'A', 'Game', 1)" class="btn btn-sm btn-primary">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', 1)" class="btn btn-sm btn-primary">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -59,21 +64,21 @@
                                 <div class="d-flex justify-content-between align-items-center mt-3">
                                     <div class="text-center">
                                         <div class="btn-group">
-                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Set', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'sets2', -1)" class="btn btn-sm btn-outline-secondary">-</button>
                                             <span class="btn btn-sm btn-light fw-bold fs-5 px-3" id="setsB_@partida.Id">@partida.SetsDupla2</span>
-                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Set', 1)" class="btn btn-sm btn-success">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'sets2', 1)" class="btn btn-sm btn-success">+</button>
                                         </div>
                                     </div>
                                     <div class="text-center">
                                         <div class="btn-group">
-                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Game', -1)" class="btn btn-sm btn-outline-secondary">-</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', -1)" class="btn btn-sm btn-outline-secondary">-</button>
                                             <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesB_@partida.Id">@partida.GamesDupla2</span>
-                                            <button onclick="atualizarPlacar(@partida.Id, 'B', 'Game', 1)" class="btn btn-sm btn-primary">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', 1)" class="btn btn-sm btn-primary">+</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <form asp-action="FinalizarPartida" method="post" class="mt-3">
+                            <form asp-action="FinalizarPartida" method="post" class="mt-3" onsubmit="return MesaOffline.finalizar(event, @partida.Id)">
                                 <input type="hidden" name="partidaId" value="@partida.Id" />
                                 <button type="submit" class="btn btn-dark w-100 fw-bold" id="btnFim_@partida.Id">
                                     <i class="bi bi-flag-fill"></i> Finalizar Partida
@@ -106,33 +111,14 @@
     }
 </div>
 
-<!-- SCRIPT DE ALTA PERFORMANCE (AJAX) -->
+@* A Mesa funciona sem internet: cada toque atualiza a tela na hora e entra numa fila no
+   aparelho, entregue quando a rede deixar. A regra e a fila moram em mesa-offline.js;
+   aqui só se diz QUAIS partidas estão na tela. *@
+<script src="~/js/mesa-offline.js" asp-append-version="true"></script>
 <script>
-    // Pegando a regra do torneio (Ex: 9 games)
-    // OBS: Você precisa passar o Torneio na ViewBag lá no Controller para isso funcionar dinamicamente
-    // const limiteGames = @(ViewBag.Torneio?.GamesFaseGrupos ?? 9);
-    const limiteGames = 9;
-
-    async function atualizarPlacar(partidaId, equipe, tipo, valor) {
-        const response = await fetch('/Torneios/AtualizarPlacarAoVivo', {
-            method: 'POST',
-            headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
-            body: `partidaId=${partidaId}&equipe=${equipe}&tipo=${tipo}&valor=${valor}`
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById(`gamesA_${partidaId}`).innerText = data.games1;
-            document.getElementById(`gamesB_${partidaId}`).innerText = data.games2;
-            document.getElementById(`setsA_${partidaId}`).innerText = data.sets1;
-            document.getElementById(`setsB_${partidaId}`).innerText = data.sets2;
-
-            // INTELIGÊNCIA DA REGRA DE JOGO
-            if (data.games1 >= limiteGames || data.games2 >= limiteGames) {
-                document.getElementById(`btnFim_${partidaId}`).classList.replace('btn-dark', 'btn-success');
-                document.getElementById(`btnFim_${partidaId}`).classList.add('shadow-lg');
-                alert("Atenção: O limite de games configurado para esta fase foi atingido! Você já pode finalizar a partida.");
-            }
-        }
-    }
+    MesaOffline.iniciar({
+        torneioId: @ViewBag.TorneioId,
+        limiteGames: 9,
+        partidas: [@string.Join(",", (Model ?? Enumerable.Empty<Padelizou.Models.Partida>()).Select(p => p.Id))]
+    });
 </script>

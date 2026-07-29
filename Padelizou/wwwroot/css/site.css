@@ -163,6 +163,21 @@ a:hover { color: var(--pdz-lime-600); }
     z-index: 1030;
 }
 
+/* Selo de rede da Mesa de Controle. Grande e sempre visível: o organizador sob pressão
+   precisa saber num relance se pode continuar marcando (pode — a fila guarda). */
+.pdz-mesa-status {
+    padding: .5rem .9rem;
+    border-radius: .6rem;
+    font-weight: 600;
+    font-size: .9rem;
+}
+.pdz-mesa-ok { background: rgba(25, 135, 84, .12); color: #198754; border: 1px solid rgba(25, 135, 84, .35); }
+.pdz-mesa-offline { background: rgba(255, 193, 7, .15); color: #8a6d00; border: 1px solid rgba(255, 193, 7, .5); }
+.pdz-mesa-enviando { background: rgba(13, 110, 253, .12); color: #0d6efd; border: 1px solid rgba(13, 110, 253, .35); }
+:root[data-bs-theme="dark"] .pdz-mesa-offline { color: #ffd75e; }
+:root[data-bs-theme="dark"] .pdz-mesa-ok { color: #4cd08a; }
+:root[data-bs-theme="dark"] .pdz-mesa-enviando { color: #6ea8fe; }
+
 .pdz-brand-logo {
     /* Raquetes soltas (imagem transparente, mais larga que alta). Largura fixa em 38px porque
        era a largura do logo antigo: a conta do estouro da navbar em 1280px foi fechada com esse

@@ -60,4 +60,9 @@ public partial class Partida
 
     // Push de "sua quadra está atrasada" já saiu? (um por partida — aviso repetido vira ruído)
     public DateTime? AvisoAtrasoEnviadoEm { get; set; }
+
+    // Quando o placar foi marcado NA MESA (relógio do aparelho do organizador). É o que deixa
+    // a sincronização offline ser "o último estado vence": um placar guardado no celular sem
+    // internet não pode atropelar um mais novo vindo de outro aparelho.
+    public DateTime? PlacarMarcadoEm { get; set; }
 }

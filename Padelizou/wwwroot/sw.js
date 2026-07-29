@@ -38,11 +38,31 @@ self.addEventListener("activate", (event) => {
 // Só faz cache de assets estáticos (css/js/imagens). Páginas .cshtml renderizadas
 // no servidor (torneios, aulas, agenda etc.) sempre vão direto pra rede, pra não
 // mostrar dado desatualizado quando offline vira online de novo.
+//
+// UMA página é exceção: a Mesa de Controle. No ginásio sem sinal, o celular trava a
+// tela, o navegador descarta a página e o organizador recarrega — sem cache ele veria
+// erro de conexão e perderia a Mesa no meio do torneio. Rede primeiro (dado fresco
+// quando há rede); a cópia só aparece quando a rede FALHA. O placar que ela mostra é
+// corrigido na hora pelo mesa-offline.js, que guarda no aparelho o que foi marcado.
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+
+  if (url.pathname.startsWith("/Torneios/MesaControle")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
   const isStaticAsset = /\.(css|js|png|jpg|jpeg|svg|ico|woff2?)$/.test(url.pathname);
   if (!isStaticAsset) return;
 

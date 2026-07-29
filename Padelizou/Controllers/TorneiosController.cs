@@ -1214,36 +1214,39 @@ namespace Padelizou.Controllers
             return View(partidasEmAndamento);
         }
 
-        // 1. ATUALIZAR PLACAR AO VIVO (Corrigido para Dupla1 e Dupla2)
+        // 1. SINCRONIZAR O PLACAR DA MESA (funciona offline)
+        //
+        // Recebe o placar INTEIRO, não o "+1" — era assim que o endpoint antigo trabalhava, e
+        // incremento não sobrevive a fila offline: o mesmo toque reentregue dobra o game.
+        // Placar absoluto reenviado dá sempre no mesmo lugar. `marcadoEm` é o relógio do
+        // aparelho de quem marcou (epoch ms): entre dois placares vence o marcado por último
+        // NA QUADRA, mesmo que o mais velho chegue depois por ter ficado sem sinal.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> AtualizarPlacarAoVivo(int partidaId, string equipe, string tipo, int valor)
+        public async Task<IActionResult> SincronizarPlacar(int partidaId, int games1, int games2,
+            int sets1, int sets2, long marcadoEm)
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
             if (partida.TorneioId == null || !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            if (equipe == "A")
+            var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
+                DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime);
+
+            if (resultado.Aplicado) await _context.SaveChangesAsync();
+
+            // Recusa também responde 200 com o placar vigente: pro aparelho da fila, "o
+            // servidor já tem coisa mais nova" é sucesso — pode esvaziar a fila em paz.
+            return Json(new
             {
-                if (tipo == "Game") partida.GamesDupla1 += valor;
-                if (tipo == "Set") partida.SetsDupla1 += valor;
-            }
-            else if (equipe == "B")
-            {
-                if (tipo == "Game") partida.GamesDupla2 += valor;
-                if (tipo == "Set") partida.SetsDupla2 += valor;
-            }
-
-            // Contagem de games não passa de 9 (regra do torneio).
-            partida.GamesDupla1 = Math.Clamp(partida.GamesDupla1 ?? 0, 0, 9);
-            partida.GamesDupla2 = Math.Clamp(partida.GamesDupla2 ?? 0, 0, 9);
-            partida.SetsDupla1 = Math.Max(0, partida.SetsDupla1 ?? 0);
-            partida.SetsDupla2 = Math.Max(0, partida.SetsDupla2 ?? 0);
-
-            partida.SendoTransmitida = true;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, games1 = partida.GamesDupla1, games2 = partida.GamesDupla2, sets1 = partida.SetsDupla1, sets2 = partida.SetsDupla2 });
+                aplicado = resultado.Aplicado,
+                motivo = resultado.Motivo,
+                games1 = partida.GamesDupla1,
+                games2 = partida.GamesDupla2,
+                sets1 = partida.SetsDupla1,
+                sets2 = partida.SetsDupla2,
+                finalizada = partida.Status == "Finalizada"
+            });
         }
 
         [HttpPost]
@@ -1259,6 +1262,14 @@ namespace Padelizou.Controllers
             if (partida != null && partida.TorneioId != null && !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
             {
                 return Forbid();
+            }
+
+            // Já finalizada = nada a fazer. A fila offline da Mesa pode reentregar o mesmo
+            // "finalizar" (rede que cai entre o servidor aplicar e o aparelho confirmar), e
+            // rodar isto duas vezes redispararia robôs de mata-mata e avisos.
+            if (partida != null && partida.Status == "Finalizada")
+            {
+                return RedirectToAction("MesaControle", new { id = partida.TorneioId });
             }
 
             if (partida != null)
