@@ -228,6 +228,21 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 
 ---
 
+## 🤝 Pipeline de clientes (informado pelo Felipe em 29/07/2026)
+
+Quase confirmados, em três frentes:
+
+| Frente | Quem | Modelo de cobrança | Dá pra vender hoje? |
+|---|---|---|---|
+| **Torneios** | Loberos, Corneteiros, Golden Point, Nata Padel, Chakra, Er Padel | régua 5/10/15% já no ar | ✅ produto completo, pagamento real já testado |
+| **Professores** | Jonatas Portal, Gabriel Reis "Índio" | assinante R$ 49,90/mês + 3% Pix / 6% cartão | ⚠️ modelo decidido mas **não implementado** — entram como fundadores (1º mês grátis) enquanto se constrói |
+| **Clubes** | Golden Point, Er Padel, Chakra Padel | mensalidade caso a caso (âncora R$ 59–99/quadra) | ⚠️ preço não fechado; a porta de entrada é o torneio deles |
+
+- **Golden Point, Chakra e Er Padel aparecem em DUAS frentes** (clube + torneio): entrar pelo torneio (pronto, sem mensalidade) e a conversa de clube vem depois, com o sistema já em uso na casa.
+- Antes do primeiro cliente externo entrar: decidir o **portão de Acesso Antecipado** (dar a senha ou abrir), gerar **chave+token novos do Asaas**, e decidir o **"externo 5%"** (hoje na prática é grátis — pode virar argumento de venda em vez de furo).
+
+---
+
 ## 🔜 Próximos passos, em ordem
 
 ### Fase 1 — Terminar a blindagem `~3-5 dias`
