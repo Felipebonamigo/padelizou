@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026** — pacote "nós registramos os resultados" (R$ 12/jogo, mínimo R$ 500), redimensionamento de toda imagem enviada, backup criptografado fora do servidor (Drive), contato no WhatsApp, os 2 pushes do dia de jogo, LGPD (exclusão de conta pelo titular), botão "colocar no ar" no dia do torneio, calendário da agenda do professor, 44 times reais com bandeira e identificador único de conta. **build-87**, 532 testes.
+> Última atualização: **28/07/2026 (noite)** — revisão completa do sistema (PDF na Área de Trabalho): 532/532 testes verdes, produção sem erro em 24h, backups provados. **2 achados novos**: (1) CSRF — 61 de 114 POSTs sem `ValidateAntiForgeryToken` e sem filtro global, hoje só o `SameSite=Lax` segura; (2) webhook do Asaas recusado de hora em hora (13×/24h, aos :28) — provável webhook do sandbox ainda apontando pra produção, conferir no painel. Menores: 50 warnings do compilador (46 de nulabilidade), EF 10.0.4×10.0.10 em conflito no projeto de testes, `GoogleCalendarService` usa API obsoleta. **build-90**, 532 testes.
 
 ---
 
