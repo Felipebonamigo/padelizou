@@ -852,6 +852,11 @@ namespace Padelizou.Controllers
                 ViewBag.PrevisaoGrade = MontarPrevisaoDaGrade(torneio);
             }
 
+            // Torneio "por fora" com inscrições fechadas: o botão de sortear dá lugar ao
+            // caminho do pagamento enquanto a taxa não for quitada/negociada.
+            ViewBag.TaxaExternoPendente = torneio.Status == "Chaves em Sorteio"
+                && await TaxaExternoImpedeChavesAsync(torneio);
+
             // SELOS HISTÓRICOS: melhor colocação + títulos de cada jogador nas mesmas categorias
             // (por Categoria.Nome), considerando torneios anteriores a este.
             var nomesCategorias = torneio.Categorias.Select(c => c.Nome).Distinct().ToList();
@@ -959,6 +964,117 @@ namespace Padelizou.Controllers
 
             return RedirectToAction("Details", new { id = torneio.Id });
         }
+
+        // ---- A taxa dos 5% do torneio "por fora" (Services/TaxaDoTorneioExterno) ----
+
+        // Pessoas inscritas no torneio inteiro, pela régua do serviço (dupla completa = 2,
+        // sem parceiro = 1, lista de espera fora). Busca as listas planas e delega — a regra
+        // mora num lugar só.
+        private async Task<int> PessoasInscritasAsync(int torneioId)
+        {
+            var duplas = await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == torneioId).ToListAsync();
+            var americanas = await _context.InscricoesAmericanas
+                .Where(i => i.Categoria.TorneioId == torneioId).ToListAsync();
+            return TaxaDoTorneioExterno.PessoasInscritas(duplas, americanas);
+        }
+
+        // A trava em si: o sorteio para aqui se a taxa do Externo não foi paga nem negociada.
+        // Torneio que fechou sem ninguém inscrito não tem o que taxar — não trava.
+        private async Task<bool> TaxaExternoImpedeChavesAsync(Torneio torneio)
+        {
+            if (TaxaDoTorneioExterno.ChavesLiberadas(torneio)) return false;
+            return await PessoasInscritasAsync(torneio.Id) > 0;
+        }
+
+        // A área de pagamento do organizador: a conta na frente (inscritos × preço × 5%),
+        // o botão de pagar e o caminho da negociação.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> TaxaPlataforma(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+            if (!ehAdmin && !await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (!TaxaDoTorneioExterno.SeAplica(torneio)) return RedirectToAction("Details", new { id });
+
+            int pessoas = await PessoasInscritasAsync(id);
+            ViewBag.Pessoas = pessoas;
+            ViewBag.Percentual = _taxas.ComissaoPercentualExterno;
+            ViewBag.Valor = TaxaDoTorneioExterno.Valor(pessoas, torneio.PrecoInscricao, _taxas.ComissaoPercentualExterno);
+            ViewBag.EhAdmin = ehAdmin;
+            ViewBag.CobrancaPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+                p.Tipo == "TaxaTorneio" && p.TorneioId == id && p.Status == "Pendente" && p.InvoiceUrl != null);
+
+            return View(torneio);
+        }
+
+        // Gera (ou reaproveita) a cobrança da taxa e manda o organizador pra fatura.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> PagarTaxaPlataforma(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var meuId = ObterJogadorIdLogado() ?? 0;
+            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+
+            if (!TaxaDoTorneioExterno.SeAplica(torneio) || TaxaDoTorneioExterno.ChavesLiberadas(torneio))
+                return RedirectToAction("Details", new { id });
+
+            // O valor final só existe com a lista fechada: pagar com inscrição aberta
+            // cobraria um número que ainda vai mudar.
+            if (torneio.Status == "Inscrições Abertas")
+            {
+                TempData["Erro"] = "Encerre as inscrições primeiro — o valor da taxa é calculado com a lista fechada.";
+                return RedirectToAction("TaxaPlataforma", new { id });
+            }
+
+            int pessoas = await PessoasInscritasAsync(id);
+            var valor = TaxaDoTorneioExterno.Valor(pessoas, torneio.PrecoInscricao, _taxas.ComissaoPercentualExterno);
+            if (valor <= 0)
+            {
+                TempData["Erro"] = "Não há inscrições pra taxar — as chaves já estão liberadas.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            var organizador = await _context.Jogadores.FindAsync(meuId);
+            if (organizador == null) return NotFound();
+
+            var url = await _pagamentos.IniciarCobrancaTaxaExternoAsync(torneio, organizador, valor);
+            if (url == null)
+            {
+                TempData["Erro"] = "Não foi possível gerar a cobrança agora. Tente de novo em instantes — ou fale com a gente pra negociar.";
+                return RedirectToAction("TaxaPlataforma", new { id });
+            }
+
+            return Redirect(url);
+        }
+
+        // O outro caminho da condição: "mediante pagamento OU NEGOCIAÇÃO com o sistema".
+        // Só um admin do Padelizou registra — é o Padelizou abrindo mão da cobrança
+        // automática, não o organizador se liberando sozinho.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> RegistrarNegociacaoTaxa(int id, string? observacao)
+        {
+            if (User.FindFirstValue("IsAdmin") != "true") return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            torneio.TaxaExternoNegociadaEm = DateTime.Now;
+            torneio.TaxaExternoNegociadaObs = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Negociação registrada — as chaves estão liberadas.";
+            return RedirectToAction("TaxaPlataforma", new { id });
+        }
+
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> GerarChaves(int id)
@@ -974,6 +1090,15 @@ namespace Padelizou.Controllers
 
             if (torneio == null || torneio.Status != "Chaves em Sorteio") return NotFound();
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // A condição do "por fora", escrita na criação, vale aqui: sem a taxa paga (ou
+            // negociada), o sorteio não sai. Esconder o botão não basta — POST montado à mão
+            // tem que esbarrar na mesma parede.
+            if (await TaxaExternoImpedeChavesAsync(torneio))
+            {
+                TempData["Erro"] = "As chaves são liberadas depois do pagamento da taxa do Padelizou.";
+                return RedirectToAction("TaxaPlataforma", new { id });
+            }
 
             // Pontos reais de todo mundo inscrito, numa consulta só. Antes isto usava
             // Jogador.PontuacaoGlobal, campo morto que é sempre 0 — na prática os cabeças de
@@ -2000,6 +2125,13 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.Include(t => t.Categorias).FirstOrDefaultAsync(t => t.Id == torneioId);
             if (torneio == null || torneio.Formato != "Americano") return NotFound();
             if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // Mesma trava do GerarChaves: no Americano o sorteio das rodadas É a chave.
+            if (await TaxaExternoImpedeChavesAsync(torneio))
+            {
+                TempData["Erro"] = "As rodadas são liberadas depois do pagamento da taxa do Padelizou.";
+                return RedirectToAction("TaxaPlataforma", new { id = torneioId });
+            }
 
             var rng = new Random();
             int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;

@@ -161,4 +161,15 @@ public partial class Torneio
     // Default true = comportamento que sempre existiu (não havia trava nenhuma).
     // Desligar é útil pra evitar choque de horário: o jogador fica preso a uma categoria só.
     public bool PermiteMultiplasCategorias { get; set; } = true;
+
+    // ---- A condição do "por fora" (5%) ----
+    // No Externo o dinheiro não passa pelo sistema, então a taxa depende de o organizador
+    // pagar — e a moeda de troca é a chave: sortear grupos/rodadas só depois de quitar (ou
+    // de o Padelizou registrar uma negociação). Regras em Services/TaxaDoTorneioExterno.
+    public DateTime? TaxaExternoPagaEm { get; set; }
+    public DateTime? TaxaExternoNegociadaEm { get; set; }
+
+    // Registro de COMO foi negociado ("isento — primeiro torneio", "acertado em 3x"...),
+    // preenchido pelo admin que registrou. É o que evita a pergunta "quem liberou isso?".
+    public string? TaxaExternoNegociadaObs { get; set; }
 }

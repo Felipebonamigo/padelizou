@@ -1,0 +1,165 @@
+@model Padelizou.Models.Torneio
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Taxa do Padelizou - Padelizou";
+
+    int pessoas = ViewBag.Pessoas ?? 0;
+    decimal percentual = ViewBag.Percentual ?? 5m;
+    decimal valor = ViewBag.Valor ?? 0m;
+    bool ehAdmin = ViewBag.EhAdmin ?? false;
+    var cobrancaPendente = ViewBag.CobrancaPendente as Padelizou.Models.Pagamento;
+
+    bool liberadas = TaxaDoTorneioExterno.ChavesLiberadas(Model);
+    bool inscricoesAbertas = Model.Status == "Inscrições Abertas";
+
+    var linkNegociar = WhatsAppLinkHelper.GerarLink(
+        SuporteOpcoes.Value.WhatsApp,
+        $"Olá! Sou organizador do torneio {Model.Nome} (código {Model.Codigo}) e quero conversar sobre a taxa do Padelizou.");
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Taxa do Padelizou</h2>
+                    <div class="text-muted">@Model.Nome</div>
+                </div>
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary rounded-pill">
+                    Voltar ao torneio
+                </a>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Erro"]</div>
+            }
+
+            @if (liberadas)
+            {
+                <div class="alert alert-success d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill fs-4"></i>
+                    <div>
+                        <strong>Tudo certo — as chaves estão liberadas.</strong><br />
+                        @if (Model.TaxaExternoPagaEm != null)
+                        {
+                            <span class="small">Taxa paga em @Model.TaxaExternoPagaEm.Value.ToString("dd/MM/yyyy 'às' HH:mm").</span>
+                        }
+                        else if (Model.TaxaExternoNegociadaEm != null)
+                        {
+                            <span class="small">
+                                Negociação registrada em @Model.TaxaExternoNegociadaEm.Value.ToString("dd/MM/yyyy").
+                                @if (ehAdmin && !string.IsNullOrWhiteSpace(Model.TaxaExternoNegociadaObs))
+                                {
+                                    <em>(@Model.TaxaExternoNegociadaObs)</em>
+                                }
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                @* A conta inteira na frente. Quem paga uma taxa calculada por fórmula que não
+                   vê sente que está pagando um número arbitrário. *@
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-muted text-uppercase mb-3">Como a taxa é calculada</h6>
+                        <div class="d-flex justify-content-between py-1">
+                            <span>Pessoas inscritas</span>
+                            <strong>@pessoas</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span>Inscrição por pessoa</span>
+                            <strong>@Model.PrecoInscricao.ToString("C")</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span>Taxa do Padelizou</span>
+                            <strong>@percentual.ToString("0.#")%</strong>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold fs-5">Total a pagar</span>
+                            <span class="fw-bold fs-3" style="color: var(--padel-green);">@valor.ToString("C")</span>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            Dupla completa conta 2 pessoas; inscrição ainda sem parceiro conta 1.
+                            Lista de espera e taxas de impedimento ficam de fora.
+                        </div>
+                    </div>
+                </div>
+
+                @if (inscricoesAbertas)
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-unlock"></i>
+                        <strong>As inscrições ainda estão abertas.</strong> O valor acima ainda pode mudar —
+                        encerre as inscrições na página do torneio e volte aqui pra pagar o valor final.
+                    </div>
+                }
+                else if (cobrancaPendente != null)
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-hourglass-split"></i>
+                        <strong>Já existe uma cobrança aguardando pagamento</strong>
+                        (@cobrancaPendente.Valor.ToString("C"), gerada em @cobrancaPendente.CriadoEm.ToString("dd/MM 'às' HH:mm")).
+                        Assim que o pagamento confirmar, as chaves liberam sozinhas.
+                    </div>
+                    <a href="@cobrancaPendente.InvoiceUrl" target="_blank" rel="noopener"
+                       class="btn btn-padel btn-lg w-100 rounded-pill fw-bold">
+                        <i class="bi bi-credit-card"></i> Abrir a cobrança e pagar
+                    </a>
+                }
+                else
+                {
+                    <form asp-action="PagarTaxaPlataforma" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill fw-bold"
+                                @(valor <= 0 ? "disabled" : "")>
+                            <i class="bi bi-credit-card"></i> Pagar @valor.ToString("C") agora
+                        </button>
+                    </form>
+                    <div class="small text-muted text-center mt-2">
+                        Pix, boleto ou cartão — as chaves liberam sozinhas assim que o pagamento confirmar.
+                    </div>
+                }
+
+                @* O outro caminho da condição, escrito desde a criação do torneio: "pagamento
+                   OU negociação". Esconder essa porta transformaria a taxa em pedágio sem
+                   conversa — e conversa é exatamente como o Padelizou quer tratar organizador. *@
+                <div class="text-center mt-4">
+                    <a href="@linkNegociar" target="_blank" rel="noopener" class="btn btn-outline-success rounded-pill">
+                        <i class="bi bi-whatsapp"></i> Prefiro negociar com o Padelizou
+                    </a>
+                </div>
+            }
+
+            @if (ehAdmin && !liberadas)
+            {
+                @* Só o admin do Padelizou libera sem pagamento — é o sistema abrindo mão da
+                   cobrança, não o organizador se liberando sozinho. *@
+                <div class="card border-warning mt-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-uppercase text-muted mb-2">
+                            <i class="bi bi-shield-lock"></i> Área do admin
+                        </h6>
+                        <form asp-action="RegistrarNegociacaoTaxa" method="post" class="d-flex gap-2 flex-wrap">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="text" name="observacao" class="form-control flex-grow-1" style="min-width: 220px;"
+                                   placeholder="Como foi negociado (ex.: isento — primeiro torneio)" />
+                            <button type="submit" class="btn btn-warning fw-bold">Registrar negociação e liberar</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

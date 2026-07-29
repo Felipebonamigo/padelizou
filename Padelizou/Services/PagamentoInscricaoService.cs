@@ -25,6 +25,10 @@ public record DadosInscricaoTorneio(
 
 public record DadosInscricaoAula(int JogoAulaId, int JogadorId);
 
+// Cobrança da taxa de 5% do torneio "por fora" — o pagamento que destrava o sorteio das
+// chaves (ver Services/TaxaDoTorneioExterno).
+public record DadosTaxaExterno(int TorneioId);
+
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
 public interface IPagamentoInscricaoService
@@ -37,6 +41,10 @@ public interface IPagamentoInscricaoService
         string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
         DadosInscricaoAula dados);
+
+    // A taxa dos 5% do torneio "por fora": quem paga é o ORGANIZADOR, e o valor inteiro fica
+    // com o Padelizou (sem split). Devolve a URL da fatura, ou null se o gateway falhou.
+    Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
 
     // Quem recebe a quadra é o dono do clube. Null = clube sem dono definido, então não há
     // pra quem repassar e a marcação segue gratuita.
@@ -151,6 +159,62 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         + (dados.ImpedimentoSabadoManha ? 1 : 0)
         + (dados.ImpedimentoSabadoTarde ? 1 : 0);
 
+    public async Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor)
+    {
+        if (!_asaas.Configurado || valor <= 0) return null;
+
+        // Dois cliques não podem virar duas cobranças: se já existe uma pendente pra este
+        // torneio, é ela que o organizador tem que pagar.
+        var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == "TaxaTorneio" && p.TorneioId == torneio.Id
+            && p.Status == "Pendente" && p.InvoiceUrl != null);
+        if (pendente != null) return pendente.InvoiceUrl;
+
+        var clienteId = await _asaas.ObterOuCriarClienteAsync(
+            organizador.Nome, organizador.Cpf, organizador.Email, organizador.Celular);
+        if (clienteId == null) return null;
+
+        var pagamento = new Pagamento
+        {
+            Tipo = "TaxaTorneio",
+            TorneioId = torneio.Id,
+            JogadorId = organizador.Id,
+            RecebedorId = null,          // o valor inteiro é do Padelizou — não há repasse
+            Valor = valor,
+            ValorRepasse = 0m,
+            Comissao = valor,
+            AsaasCustomerId = clienteId,
+            DadosInscricao = JsonSerializer.Serialize(new DadosTaxaExterno(torneio.Id)),
+            // Sem ExpiraEm de propósito: aqui não há vaga sendo segurada. A cobrança espera
+            // o quanto precisar — e as chaves continuam travadas até ela ser paga.
+            Status = "Pendente"
+        };
+        _context.Pagamentos.Add(pagamento);
+        await _context.SaveChangesAsync();
+
+        var cobranca = await _asaas.CriarCobrancaAsync(
+            clienteId,
+            new RateioComissao(valor, 0m, valor),
+            $"Taxa do Padelizou — {torneio.Nome}",
+            pagamento.Id.ToString(),
+            DateTime.Today.AddDays(3),
+            walletIdRecebedor: null,
+            billingType: "UNDEFINED");
+
+        if (cobranca == null)
+        {
+            _context.Pagamentos.Remove(pagamento);
+            await _context.SaveChangesAsync();
+            return null;
+        }
+
+        pagamento.AsaasPaymentId = cobranca.PaymentId;
+        pagamento.InvoiceUrl = cobranca.InvoiceUrl;
+        await _context.SaveChangesAsync();
+
+        return cobranca.InvoiceUrl;
+    }
+
     public Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor,
         Jogador pagador, DadosInscricaoAula dados) =>
         CriarCobrancaAsync(
@@ -234,9 +298,45 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             case "Jogo":
                 await EfetivarMarcacaoAsync(pagamento);
                 break;
+            case "TaxaTorneio":
+                await EfetivarTaxaExternoAsync(pagamento);
+                break;
             default:
                 await EfetivarTorneioAsync(pagamento);
                 break;
+        }
+    }
+
+    // A taxa dos 5% entrou: destrava o sorteio das chaves do torneio "por fora".
+    private async Task EfetivarTaxaExternoAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosTaxaExterno>(pagamento);
+        if (dados == null) return;
+
+        var torneio = await _context.Torneios.FindAsync(dados.TorneioId);
+        if (torneio == null)
+        {
+            _logger.LogWarning("Pagamento {Id} (taxa do externo) confirmado, mas o torneio sumiu.", pagamento.Id);
+            return;
+        }
+
+        torneio.TaxaExternoPagaEm ??= DateTime.Now;
+        pagamento.ReferenciaId = torneio.Id;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Pagamento {Id} efetivado — taxa do externo do torneio {TorneioId} quitada, chaves liberadas.",
+            pagamento.Id, torneio.Id);
+
+        try
+        {
+            await _push.EnviarParaJogadorAsync(pagamento.JogadorId,
+                "Chaves liberadas!",
+                $"{torneio.Nome}: a taxa do Padelizou foi recebida. Pode sortear os grupos.",
+                $"/Torneios/Details/{torneio.Id}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao notificar liberação das chaves do torneio {TorneioId}.", torneio.Id);
         }
     }
 

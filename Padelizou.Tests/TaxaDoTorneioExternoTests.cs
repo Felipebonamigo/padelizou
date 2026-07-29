@@ -1,0 +1,85 @@
+using Padelizou.Models;
+using Padelizou.Services;
+
+namespace Padelizou.Tests;
+
+// A condição do torneio "por fora" (5%): chaves só saem com a taxa paga ou negociada.
+// É a única cobrança do sistema que não tem webhook de inscrição pra se defender — a trava
+// no sorteio é o mecanismo inteiro, então cada borda dela precisa estar escrita aqui.
+public class TaxaDoTorneioExternoTests
+{
+    private static Torneio Externo(decimal preco = 100m) => new()
+    {
+        Nome = "Copa Teste",
+        Codigo = "TST",
+        FormaPagamento = "Externo",
+        PrecoInscricao = preco,
+    };
+
+    [Fact]
+    public void So_se_aplica_ao_externo_pago()
+    {
+        Assert.True(TaxaDoTorneioExterno.SeAplica(Externo()));
+
+        // Gratuito não deve nada; formas online cobram a taxa dentro de cada inscrição.
+        Assert.False(TaxaDoTorneioExterno.SeAplica(Externo(preco: 0m)));
+        Assert.False(TaxaDoTorneioExterno.SeAplica(new Torneio
+        {
+            Nome = "x", Codigo = "x", FormaPagamento = "OnlinePix", PrecoInscricao = 100m
+        }));
+    }
+
+    [Fact]
+    public void Chaves_travadas_ate_pagar_ou_negociar()
+    {
+        var torneio = Externo();
+        Assert.False(TaxaDoTorneioExterno.ChavesLiberadas(torneio));
+
+        torneio.TaxaExternoPagaEm = DateTime.Now;
+        Assert.True(TaxaDoTorneioExterno.ChavesLiberadas(torneio));
+
+        var negociado = Externo();
+        negociado.TaxaExternoNegociadaEm = DateTime.Now;
+        Assert.True(TaxaDoTorneioExterno.ChavesLiberadas(negociado));
+    }
+
+    [Fact]
+    public void Torneio_online_nunca_e_travado_por_esta_regra()
+    {
+        var online = new Torneio
+        {
+            Nome = "x", Codigo = "x", FormaPagamento = "OnlineTodas", PrecoInscricao = 100m
+        };
+        Assert.True(TaxaDoTorneioExterno.ChavesLiberadas(online));
+    }
+
+    [Fact]
+    public void Conta_gente_de_verdade_dupla_2_sem_parceiro_1_espera_0()
+    {
+        var duplas = new[]
+        {
+            new Dupla { Jogador1Id = 1, Jogador2Id = 2 },                          // completa: 2
+            new Dupla { Jogador1Id = 3, Jogador2Id = null },                       // sem parceiro: 1
+            new Dupla { Jogador1Id = 4, Jogador2Id = 5, EmListaDeEspera = true },  // espera: 0
+        };
+        var americanas = new[]
+        {
+            new InscricaoAmericana { JogadorId = 6 },                              // 1
+            new InscricaoAmericana { JogadorId = 7, EmListaDeEspera = true },      // 0
+        };
+
+        Assert.Equal(4, TaxaDoTorneioExterno.PessoasInscritas(duplas, americanas));
+    }
+
+    [Fact]
+    public void O_valor_e_pessoas_vezes_preco_vezes_percentual()
+    {
+        // 24 pessoas × R$ 100 × 5% = R$ 120.
+        Assert.Equal(120m, TaxaDoTorneioExterno.Valor(24, 100m, 5m));
+
+        // Centavos arredondados: 7 × R$ 85 × 5% = R$ 29,75.
+        Assert.Equal(29.75m, TaxaDoTorneioExterno.Valor(7, 85m, 5m));
+
+        Assert.Equal(0m, TaxaDoTorneioExterno.Valor(0, 100m, 5m));
+    }
+}

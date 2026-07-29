@@ -530,6 +530,21 @@
                             </button>
                         </form>
                     }
+                    else if (Model.Status == "Chaves em Sorteio" && (ViewBag.TaxaExternoPendente == true))
+                    {
+                        @* A condição do "por fora" chegou na prática: em vez do botão de sortear,
+                           o caminho do pagamento. O texto é o mesmo prometido na criação. *@
+                        <div class="alert alert-warning border-warning">
+                            <i class="bi bi-key-fill"></i>
+                            <strong>Falta um passo pra sortear:</strong> neste torneio o pagamento é por fora,
+                            e as chaves são liberadas mediante o pagamento da taxa do Padelizou — ou negociação
+                            com a gente. Leva um minuto.
+                        </div>
+                        <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
+                           class="btn btn-warning fw-bold shadow-sm">
+                            <i class="bi bi-credit-card"></i> Ver e pagar a taxa
+                        </a>
+                    }
                     else if (Model.Status == "Chaves em Sorteio" && Model.Formato == "Americano")
                     {
                         <div class="alert alert-info border-info">
