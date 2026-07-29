@@ -163,6 +163,28 @@ a:hover { color: var(--pdz-lime-600); }
     z-index: 1030;
 }
 
+/* Convite "Quero meu clube aqui" (tela Marcar Jogo). Fundo navy fixo nos dois temas: é um
+   convite comercial, e trocar de cor com o tema deixaria ele parecendo mais um cartão da
+   lista. O brilho verde no canto é o mesmo recurso do herói da home. */
+.pdz-convite-clube {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    padding: 1.75rem;
+    background: linear-gradient(120deg, var(--pdz-navy-900) 0%, var(--pdz-navy-fixed) 55%, #29396a 100%);
+    border: 1px solid rgba(163, 216, 39, .25);
+}
+.pdz-convite-clube-brilho {
+    position: absolute;
+    top: -60px;
+    right: -40px;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(163, 216, 39, .35) 0%, transparent 70%);
+    pointer-events: none;
+}
+
 /* Selo de rede da Mesa de Controle. Grande e sempre visível: o organizador sob pressão
    precisa saber num relance se pode continuar marcando (pode — a fila guarda). */
 .pdz-mesa-status {

@@ -1,6 +1,17 @@
 ﻿@model List<Clube>
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @{
     ViewData["Title"] = "Marcar Jogo - Padelizou";
+
+    @* A marcação de quadra é serviço de assinatura, negociado caso a caso com o clube — então
+       a tela precisa ter uma porta pra quem quer o clube dele aqui. Quem chega, não acha o
+       próprio clube e vai embora não deixa rastro; com o convite, essa pessoa vira contato.
+       A mensagem já sai identificando quem é e de onde veio. *@
+    var linkQueroMeuClube = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+        SuporteOpcoes.Value.WhatsApp,
+        User.Identity?.IsAuthenticated == true
+            ? $"Olá! Aqui é {User.Identity!.Name}. Quero colocar o meu clube no Padelizou pra receber marcação de quadra pelo site."
+            : "Olá! Quero colocar o meu clube no Padelizou pra receber marcação de quadra pelo site.");
 }
 
 <div class="container mt-4 mb-5">
@@ -43,5 +54,34 @@
                 <partial name="_Vazio" model='@(new EstadoVazio("Nenhum clube com marcação ativa ainda. Estamos em fase de testes — em breve mais clubes."))' />
             </div>
         }
+    </div>
+
+    @* Convite pro clube. Fica DEPOIS da lista de propósito: quem veio marcar jogo resolve o
+       que veio fazer primeiro, e só então encontra o convite. Antes da lista, ele competiria
+       com a tarefa da pessoa. *@
+    <div class="pdz-convite-clube mt-4">
+        <div class="pdz-convite-clube-brilho"></div>
+        <div class="row align-items-center g-3 position-relative">
+            <div class="col-md-8">
+                <span class="badge rounded-pill mb-2" style="background: rgba(163,216,39,.2); color: var(--padel-green);">
+                    <i class="bi bi-building-add"></i> PRA DONOS DE CLUBE
+                </span>
+                <h4 class="fw-bold mb-2 text-white">Quero meu clube aqui</h4>
+                <p class="mb-0" style="color: rgba(255,255,255,.85);">
+                    Sua quadra recebendo marcação online, com agenda, mensalista, política de
+                    cancelamento e o financeiro por quadra — tudo num lugar. O plano é conversado
+                    caso a caso, do tamanho do seu clube.
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="@linkQueroMeuClube" target="_blank" rel="noopener"
+                   class="btn btn-padel rounded-pill px-4 fw-bold w-100 w-md-auto">
+                    <i class="bi bi-whatsapp me-1"></i> Falar com a gente
+                </a>
+                <div class="small mt-2" style="color: rgba(255,255,255,.6);">
+                    Resposta pelo WhatsApp @SuporteOpcoes.Value.WhatsAppFormatado
+                </div>
+            </div>
+        </div>
     </div>
 </div>
