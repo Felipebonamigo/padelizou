@@ -2,13 +2,14 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v2";
+const CACHE_NAME = "padelizou-static-v3";
 const STATIC_ASSETS = [
   "/css/site.css",
   "/js/site.js",
   "/lib/bootstrap/dist/css/bootstrap.min.css",
   "/lib/bootstrap/dist/js/bootstrap.bundle.min.js",
   "/lib/jquery/dist/jquery.min.js",
+  "/image/logo-raquetes.webp",
   "/image/logo-icon.webp",
   "/image/favicon-32.png",
   "/image/icon-512.png",

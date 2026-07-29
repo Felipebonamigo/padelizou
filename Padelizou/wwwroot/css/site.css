@@ -164,14 +164,14 @@ a:hover { color: var(--pdz-lime-600); }
 }
 
 .pdz-brand-logo {
-    height: 38px;
+    /* Raquetes soltas (imagem transparente, mais larga que alta). Largura fixa em 38px porque
+       era a largura do logo antigo: a conta do estouro da navbar em 1280px foi fechada com esse
+       número, e crescer aqui reabriria a rolagem lateral. Altura sai da proporção (~31px). */
     width: 38px;
-    /* O logo virou redondo — com 10px sobrava canto vazio recortando o disco. */
-    border-radius: 50%;
-    /* O disco do logo é escuro e a barra também, então sombra escura não separa nada. Um aro
-       fininho na cor de destaque (a mesma da borda da barra) desenha o contorno do círculo. */
-    border: 1px solid rgba(163, 216, 39, .35);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+    height: auto;
+    /* border/box-shadow desenhariam um RETÂNGULO em volta da área transparente da imagem.
+       drop-shadow segue o contorno do desenho. */
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .35));
 }
 
 .pdz-wordmark {

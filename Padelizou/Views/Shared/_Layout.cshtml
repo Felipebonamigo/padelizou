@@ -68,7 +68,10 @@
         <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/image/logo-icon.webp" asp-append-version="true" alt="Padelizou" class="pdz-brand-logo" />
+                    @* Na barra vão as raquetes SOLTAS, não o logo completo: o disco do logo é
+                       escuro (#3C404B) e a barra também — contraste de 1,7:1, o círculo some.
+                       O logo completo continua onde o fundo é claro (login, relatório, ícones). *@
+                    <img src="~/image/logo-raquetes.webp" asp-append-version="true" alt="Padelizou" class="pdz-brand-logo" />
                     <span class="pdz-wordmark">Padelizou</span>
                     @if (beta.Habilitado)
                     {
@@ -246,7 +249,8 @@
         <div class="container">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <div class="d-flex align-items-center gap-2">
-                    <img src="~/image/logo-icon.webp" asp-append-version="true" alt="Padelizou" style="height: 26px; width: 26px;" />
+                    @* Raquetes soltas: a 26px o disco completo vira um borrão escuro. *@
+                    <img src="~/image/logo-raquetes.webp" asp-append-version="true" alt="Padelizou" style="width: 26px;" />
                     <span class="fw-semibold">Padelizou</span>
                 </div>
                 @* Canal de opinião do site: fica no rodapé de toda página, mas só quem está
