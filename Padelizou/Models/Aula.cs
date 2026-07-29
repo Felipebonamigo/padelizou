@@ -23,6 +23,16 @@ public partial class Aula
     // Agrupa as aulas geradas de uma mesma série semanal recorrente (null se avulsa/única)
     public Guid? RecorrenciaId { get; set; }
 
+    // Nome com que o aluno se apresenta NESTA aula. O cadastro pode dizer "Felipe C. B. dos
+    // Santos" e o professor conhecer outro nome — e o professor precisa saber quem chega na
+    // quadra, não quem está no banco.
+    public string? NomeCompletoAluno { get; set; }
+
+    // Quem mais vem nesta aula. Texto livre de propósito: aula de padel é frequentemente em
+    // dupla ou trio, e exigir que cada acompanhante tenha conta no site travaria a marcação
+    // por causa de quem nem usa o app. O professor só precisa saber quantos e quem.
+    public string? Acompanhantes { get; set; }
+
     // Token opaco usado no link de aceitar/recusar enviado por e-mail (sem exigir login)
     public Guid TokenConfirmacao { get; set; } = Guid.NewGuid();
 

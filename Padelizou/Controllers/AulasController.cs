@@ -135,7 +135,10 @@ namespace padelizou.Controllers
         // avulsa, uma série de pacote (quantidade fixa do local) ou uma série fixa semanal.
         [HttpPost]
         public async Task<IActionResult> Solicitar(int professorId, int localId, DateTime dataHora,
-            bool ehPacote, bool recorrente, int semanasRecorrencia)
+            bool ehPacote, bool recorrente, int semanasRecorrencia,
+            // Quem chega na quadra: o nome com que o aluno se apresenta nesta aula e quem mais
+            // vem com ele. O professor precisa saber isso ANTES de aceitar.
+            string? nomeCompleto = null, string? acompanhantes = null)
         {
             var alunoIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(alunoIdValue, out var alunoId))
@@ -202,7 +205,11 @@ namespace padelizou.Controllers
                     DataHora = horario,
                     Preco = preco,
                     Status = "Pendente",
-                    RecorrenciaId = recorrenciaId
+                    RecorrenciaId = recorrenciaId,
+                    // Vazio vira nulo: string em branco no banco depois exige checar as duas
+                    // coisas em toda tela que exibe.
+                    NomeCompletoAluno = string.IsNullOrWhiteSpace(nomeCompleto) ? null : nomeCompleto.Trim(),
+                    Acompanhantes = string.IsNullOrWhiteSpace(acompanhantes) ? null : acompanhantes.Trim(),
                 });
             }
 
@@ -231,8 +238,13 @@ namespace padelizou.Controllers
                     await _emailService.EnviarAsync(professor!.Email!, professor.Nome,
                         "Nova solicitação de aula - Padelizou",
                         $@"<p>Olá {professor.Nome},</p>
-                           <p><strong>{aluno!.Nome}</strong> solicitou uma aula em <strong>{local.Nome}</strong>
+                           <p><strong>{aula.NomeCompletoAluno ?? aluno!.Nome}</strong> solicitou uma aula em
+                           <strong>{local.Nome}</strong>
                            no dia <strong>{aula.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>
+                           {(aula.Acompanhantes == null ? "" :
+                             // Quantos vêm muda o treino e quantas bolas levar — então vai no
+                             // e-mail, que é onde o professor decide se aceita.
+                             $"<p><strong>Vem mais gente:</strong> {aula.Acompanhantes}</p>")}
                            <p>
                              <a href=""{linkAceitar}"" style=""padding:10px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;"">Aceitar</a>
                              &nbsp;

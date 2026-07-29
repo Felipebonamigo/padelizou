@@ -224,7 +224,8 @@
                         <ul class="list-unstyled mb-0">
                             @foreach (var aula in Model.ProximasAulas)
                             {
-                                var nomeAluno = aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno avulso";
+                                // O nome dado na solicitação vem primeiro (ver MinhaAgenda).
+                                var nomeAluno = aula.NomeCompletoAluno ?? aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno avulso";
                                 var badgeClass = aula.Status == "Pendente" ? "bg-warning text-dark" : "bg-primary";
                                 <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
                                     <div>

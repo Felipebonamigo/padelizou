@@ -11,7 +11,9 @@
         _ => "#b34a4a",
     };
 
-    string NomeDoAluno(Aula a) => a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso";
+    // O nome que o aluno deu NA SOLICITAÇÃO vem primeiro: é como ele se apresenta pra esta
+    // aula, e pode não ser o nome do cadastro.
+    string NomeDoAluno(Aula a) => a.NomeCompletoAluno ?? a.Aluno?.Nome ?? a.NomeAlunoAvulso ?? "Aluno avulso";
 
     var hoje = DateTime.Today;
 
@@ -352,6 +354,10 @@
                 <p class="mb-1"><i class="bi bi-clock"></i> <span id="mQuando"></span></p>
                 <p class="mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> <span id="mLocal"></span></p>
                 <p class="mb-1"><i class="bi bi-cash text-success"></i> <span id="mPreco"></span></p>
+                @* Quantos vêm muda o treino e quantas bolas levar — some quando o aluno vem só. *@
+                <p class="mb-1 d-none" id="mAcompanhantesLinha">
+                    <i class="bi bi-people-fill"></i> Vem mais gente: <span id="mAcompanhantes"></span>
+                </p>
                 <p class="mb-0"><span class="badge" id="mStatus"></span></p>
             </div>
             <div class="modal-footer flex-wrap gap-2">
@@ -421,7 +427,8 @@
             var AULAS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.NoPeriodo.Select(a => new {
                     id = a.Id,
-                    aluno = a.Aluno != null ? a.Aluno.Nome : (a.NomeAlunoAvulso ?? "Aluno avulso"),
+                    aluno = a.NomeCompletoAluno ?? (a.Aluno != null ? a.Aluno.Nome : (a.NomeAlunoAvulso ?? "Aluno avulso")),
+                    acompanhantes = a.Acompanhantes,
                     quando = a.DataHora.ToString("dd/MM/yyyy 'às' HH:mm"),
                     local = a.LocalAula.Nome,
                     preco = a.Preco.ToString("C"),
@@ -449,6 +456,9 @@
                 document.getElementById('mQuando').textContent = a.quando;
                 document.getElementById('mLocal').textContent = a.local;
                 document.getElementById('mPreco').textContent = a.preco;
+
+                document.getElementById('mAcompanhantesLinha').classList.toggle('d-none', !a.acompanhantes);
+                document.getElementById('mAcompanhantes').textContent = a.acompanhantes || '';
 
                 var badge = document.getElementById('mStatus');
                 badge.textContent = a.status;

@@ -88,6 +88,33 @@
                             </select>
                         </div>
 
+                        @* Quem chega na quadra. O nome do cadastro pode não ser o nome pelo qual
+                           o professor conhece a pessoa, e aula de padel é muitas vezes em dupla
+                           ou trio — sem isso o professor aceita sem saber quantos vêm. Os
+                           acompanhantes são texto livre de propósito: exigir conta no site pra
+                           cada um travaria a marcação por causa de quem nem usa o app. *@
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small pdz-passo" for="input-nome-completo">
+                                Seu nome completo
+                            </label>
+                            <input type="text" name="nomeCompleto" id="input-nome-completo" class="form-control bg-light"
+                                   maxlength="120" required
+                                   value="@(User.Identity?.IsAuthenticated == true ? User.Identity!.Name : "")"
+                                   placeholder="Como o professor vai te chamar na quadra" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small" for="input-acompanhantes">
+                                Mais alguém vem? <span class="fw-normal">(opcional)</span>
+                            </label>
+                            <input type="text" name="acompanhantes" id="input-acompanhantes" class="form-control bg-light"
+                                   maxlength="200" placeholder="Ex: Marcos e a Júlia" />
+                            <small class="text-muted d-block mt-1">
+                                O professor precisa saber quantos vão pra levar bola e montar o treino.
+                                Não precisa ter conta no Padelizou.
+                            </small>
+                        </div>
+
                         <div class="alert alert-warning small d-flex gap-2 align-items-start" role="alert">
                             <i class="bi bi-clock-history mt-1"></i>
                             <span>Ao confirmar, essa vaga fica reservada só pra você — cancelamentos com menos de
