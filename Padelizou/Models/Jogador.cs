@@ -175,4 +175,16 @@ public partial class Jogador
     // Nulo = cadastrado antes de 25/07/2026 (quando a coluna nasceu) — usado nas métricas
     // de uso do admin (cadastros por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;
+
+    // ---- Plano do professor (Services/PlanoDoProfessor) ----
+    // Nulo = ainda não escolheu. "Assinante" = mensalidade + taxa menor por aula.
+    // "Avulso" = sem mensalidade, taxa cheia por aula.
+    public string? PlanoProfessor { get; set; }
+
+    // Início dos 15 dias de teste com condições de assinante. Marcado na primeira visita
+    // ao painel do professor — não no cadastro, senão o relógio corre antes de ele saber.
+    public DateTime? TesteProfessorInicio { get; set; }
+
+    // Até quando a mensalidade de assinante está quitada. Nulo = nunca pagou.
+    public DateTime? AssinaturaProfessorPagaAte { get; set; }
 }

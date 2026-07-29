@@ -64,6 +64,42 @@
         </div>
     }
 
+    @* O plano só grita quando pede decisão: em teste (o relógio corre) ou em atraso (a taxa
+       subiu). Em dia/avulso, vira só um link discreto no fim da página. *@
+    @if (ViewBag.SituacaoPlano is Padelizou.Services.PlanoDoProfessor.Situacao situacaoPlano)
+    {
+        if (situacaoPlano == Padelizou.Services.PlanoDoProfessor.Situacao.EmTeste
+            && ViewBag.FimDoTestePlano is DateTime fimTeste)
+        {
+            var diasTeste = Math.Max(0, (int)Math.Ceiling((fimTeste - DateTime.Now).TotalDays));
+            <div class="alert alert-info border-0 shadow-sm d-flex flex-wrap gap-3 align-items-center mb-4">
+                <div class="flex-grow-1">
+                    <div class="fw-bold mb-1"><i class="bi bi-stars me-1"></i> Você está no período de teste do plano</div>
+                    <div class="small mb-0">
+                        Condições de Assinante sem mensalidade por mais
+                        <strong>@diasTeste @(diasTeste == 1 ? "dia" : "dias")</strong> — depois disso,
+                        escolha entre Assinante e Avulso.
+                    </div>
+                </div>
+                <a asp-controller="PlanoProfessor" asp-action="Index" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                    Ver os planos
+                </a>
+            </div>
+        }
+        else if (situacaoPlano == Padelizou.Services.PlanoDoProfessor.Situacao.AssinanteEmAtraso)
+        {
+            <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap gap-3 align-items-center mb-4">
+                <div class="flex-grow-1">
+                    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Sua mensalidade está em aberto</div>
+                    <div class="small mb-0">Enquanto ela não entra, suas aulas voltam pra taxa cheia.</div>
+                </div>
+                <a asp-controller="PlanoProfessor" asp-action="Index" class="btn btn-sm btn-warning rounded-pill px-3 fw-bold">
+                    Regularizar
+                </a>
+            </div>
+        }
+    }
+
     <div class="row mb-4">
         <div class="col-sm-6 col-lg-3 mb-3">
             <div class="card border-0 bg-light p-3 text-center h-100">
@@ -124,6 +160,9 @@
         </a>
         <a asp-controller="JogoAula" asp-action="Publicar" class="btn btn-outline-primary rounded-pill btn-sm">
             <i class="bi bi-megaphone"></i> Publicar Jogo Aula
+        </a>
+        <a asp-controller="PlanoProfessor" asp-action="Index" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-award"></i> Meu Plano
         </a>
     </div>
 

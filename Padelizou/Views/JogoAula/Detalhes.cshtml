@@ -59,6 +59,45 @@
                         {
                             <form asp-controller="JogoAula" asp-action="Inscrever" method="post">
                                 <input type="hidden" name="id" value="@Model.Id" />
+
+                                @* Professor assinante: a taxa de serviço muda com a forma de
+                                   pagamento, então o aluno declara aqui e a cobrança nasce
+                                   travada — mesma régua do torneio (CobrancaDoTorneio). *@
+                                @if (ViewBag.EscolheFormaAula == true)
+                                {
+                                    decimal? totalPix = ViewBag.PrecoTotal;
+                                    decimal? totalCartao = ViewBag.PrecoTotalCartao;
+
+                                    <div class="border rounded p-3 mb-3" style="background: var(--pdz-surface); max-width: 420px;">
+                                        <label class="form-label fw-bold small mb-2">
+                                            <i class="bi bi-credit-card-2-front"></i> Como você vai pagar?
+                                        </label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="formaPagamentoEscolhida"
+                                                   value="Pix" id="aulaFormaPix" checked required />
+                                            <label class="form-check-label" for="aulaFormaPix">
+                                                <span class="fw-semibold"><i class="bi bi-lightning-charge-fill"></i> Pix</span>
+                                                <span class="badge rounded-pill ms-1" style="background: var(--padel-green); color: #14261a;">taxa menor</span>
+                                                @if (totalPix.HasValue)
+                                                {
+                                                    <span class="d-block small text-muted">Total: @totalPix.Value.ToString("C")</span>
+                                                }
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="formaPagamentoEscolhida"
+                                                   value="Cartao" id="aulaFormaCartao" />
+                                            <label class="form-check-label" for="aulaFormaCartao">
+                                                <span class="fw-semibold"><i class="bi bi-credit-card"></i> Cartão de crédito</span>
+                                                @if (totalCartao.HasValue)
+                                                {
+                                                    <span class="d-block small text-muted">Total: @totalCartao.Value.ToString("C")</span>
+                                                }
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+
                                 <button type="submit" class="btn btn-padel rounded-pill">Quero participar</button>
                             </form>
                         }

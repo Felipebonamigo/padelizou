@@ -29,6 +29,9 @@ public record DadosInscricaoAula(int JogoAulaId, int JogadorId);
 // chaves (ver Services/TaxaDoTorneioExterno).
 public record DadosTaxaExterno(int TorneioId);
 
+// Mensalidade do professor assinante (ver Services/PlanoDoProfessor).
+public record DadosAssinaturaProfessor(int ProfessorId);
+
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
 public interface IPagamentoInscricaoService
@@ -40,11 +43,14 @@ public interface IPagamentoInscricaoService
     Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
         string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
-        DadosInscricaoAula dados);
+        DadosInscricaoAula dados, string? formaEscolhida = null);
 
     // A taxa dos 5% do torneio "por fora": quem paga é o ORGANIZADOR, e o valor inteiro fica
     // com o Padelizou (sem split). Devolve a URL da fatura, ou null se o gateway falhou.
     Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
+
+    // Mensalidade do professor assinante — também fica inteira com o Padelizou.
+    Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor);
 
     // Quem recebe a quadra é o dono do clube. Null = clube sem dono definido, então não há
     // pra quem repassar e a marcação segue gratuita.
@@ -69,17 +75,20 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private readonly IAsaasService _asaas;
     private readonly AsaasSettings _settings;
     private readonly TaxasExibicao _taxas;
+    private readonly PlanoProfessorSettings _plano;
     private readonly ILogger<PagamentoInscricaoService> _logger;
     private readonly IPushNotificationService _push;
 
     public PagamentoInscricaoService(DbPadelContext context, IAsaasService asaas,
         IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger,
-        IPushNotificationService push, IOptions<TaxasExibicao> taxas)
+        IPushNotificationService push, IOptions<TaxasExibicao> taxas,
+        IOptions<PlanoProfessorSettings> plano)
     {
         _context = context;
         _asaas = asaas;
         _settings = settings.Value;
         _taxas = taxas.Value;
+        _plano = plano.Value;
         _logger = logger;
         _push = push;
     }
@@ -215,12 +224,75 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         return cobranca.InvoiceUrl;
     }
 
+    // A taxa da aula depende do plano do professor: assinante em dia (ou em teste) paga a
+    // taxa menor DA FORMA que o aluno declarou; avulso paga a taxa cheia com a forma aberta.
     public Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor,
-        Jogador pagador, DadosInscricaoAula dados) =>
-        CriarCobrancaAsync(
+        Jogador pagador, DadosInscricaoAula dados, string? formaEscolhida = null)
+    {
+        var cobranca = PlanoDoProfessor.CobrancaDaAula(professor, formaEscolhida, DateTime.Now, _plano);
+
+        return CriarCobrancaAsync(
             professor, pagador, jogo.Preco ?? 0m, "Aula", "Aula",
             $"Aula {jogo.DataHora:dd/MM HH:mm} — {professor.Nome}", dados,
-            torneioId: null, jogoAulaId: jogo.Id);
+            torneioId: null, jogoAulaId: jogo.Id, modoComissao: null,
+            percentual: cobranca.Percentual,
+            billingType: cobranca.BillingType);
+    }
+
+    // A mensalidade do assinante. Sem split (é receita do Padelizou) e sem ExpiraEm — quem
+    // decide quando pagar é o professor; enquanto não paga, a taxa por aula volta pra cheia
+    // sozinha (PlanoDoProfessor).
+    public async Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor)
+    {
+        if (!_asaas.Configurado) return null;
+
+        var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == "AssinaturaProfessor" && p.JogadorId == professor.Id
+            && p.Status == "Pendente" && p.InvoiceUrl != null);
+        if (pendente != null) return pendente.InvoiceUrl;
+
+        var clienteId = await _asaas.ObterOuCriarClienteAsync(
+            professor.Nome, professor.Cpf, professor.Email, professor.Celular);
+        if (clienteId == null) return null;
+
+        var valor = _plano.MensalidadeAssinante;
+        var pagamento = new Pagamento
+        {
+            Tipo = "AssinaturaProfessor",
+            JogadorId = professor.Id,
+            RecebedorId = null,
+            Valor = valor,
+            ValorRepasse = 0m,
+            Comissao = valor,
+            AsaasCustomerId = clienteId,
+            DadosInscricao = JsonSerializer.Serialize(new DadosAssinaturaProfessor(professor.Id)),
+            Status = "Pendente"
+        };
+        _context.Pagamentos.Add(pagamento);
+        await _context.SaveChangesAsync();
+
+        var cobranca = await _asaas.CriarCobrancaAsync(
+            clienteId,
+            new RateioComissao(valor, 0m, valor),
+            $"Padelizou Professor — mensalidade",
+            pagamento.Id.ToString(),
+            DateTime.Today.AddDays(3),
+            walletIdRecebedor: null,
+            billingType: "UNDEFINED");
+
+        if (cobranca == null)
+        {
+            _context.Pagamentos.Remove(pagamento);
+            await _context.SaveChangesAsync();
+            return null;
+        }
+
+        pagamento.AsaasPaymentId = cobranca.PaymentId;
+        pagamento.InvoiceUrl = cobranca.InvoiceUrl;
+        await _context.SaveChangesAsync();
+
+        return cobranca.InvoiceUrl;
+    }
 
     public Task<string?> IniciarCobrancaQuadraAsync(Clube clube, Jogador dono, Jogador pagador,
         decimal preco, DadosMarcacaoJogo dados) =>
@@ -301,9 +373,46 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             case "TaxaTorneio":
                 await EfetivarTaxaExternoAsync(pagamento);
                 break;
+            case "AssinaturaProfessor":
+                await EfetivarAssinaturaAsync(pagamento);
+                break;
             default:
                 await EfetivarTorneioAsync(pagamento);
                 break;
+        }
+    }
+
+    // A mensalidade entrou: estende a assinatura em 1 mês a partir de onde ela estiver.
+    private async Task EfetivarAssinaturaAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosAssinaturaProfessor>(pagamento);
+        if (dados == null) return;
+
+        var professor = await _context.Jogadores.FindAsync(dados.ProfessorId);
+        if (professor == null)
+        {
+            _logger.LogWarning("Pagamento {Id} (assinatura) confirmado, mas o professor sumiu.", pagamento.Id);
+            return;
+        }
+
+        professor.AssinaturaProfessorPagaAte =
+            PlanoDoProfessor.NovaDataPagaAte(professor.AssinaturaProfessorPagaAte, DateTime.Now);
+        pagamento.ReferenciaId = professor.Id;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Pagamento {Id} efetivado — assinatura do professor {ProfessorId} paga até {PagaAte}.",
+            pagamento.Id, professor.Id, professor.AssinaturaProfessorPagaAte);
+
+        try
+        {
+            await _push.EnviarParaJogadorAsync(professor.Id,
+                "Mensalidade recebida!",
+                $"Seu plano Assinante está em dia até {professor.AssinaturaProfessorPagaAte:dd/MM}. Boas aulas!",
+                "/PlanoProfessor");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao notificar assinatura do professor {ProfessorId}.", professor.Id);
         }
     }
 

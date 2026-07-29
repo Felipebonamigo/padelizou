@@ -1,0 +1,206 @@
+@model Jogador
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Meu Plano de Professor - Padelizou";
+
+    var cfg = (PlanoProfessorSettings)ViewBag.Cfg;
+    var situacao = (PlanoDoProfessor.Situacao)ViewBag.Situacao;
+    DateTime? fimDoTeste = ViewBag.FimDoTeste;
+    var cobrancaPendente = ViewBag.CobrancaPendente as Padelizou.Models.Pagamento;
+
+    int diasRestantes = fimDoTeste.HasValue
+        ? Math.Max(0, (int)Math.Ceiling((fimDoTeste.Value - DateTime.Now).TotalDays)) : 0;
+
+    // Exemplo com números redondos pra comparação ser conta de padaria, não planilha:
+    // 20 aulas de R$ 100 no mês.
+    decimal exemploAulas = 20, exemploPreco = 100m;
+    decimal custoAvulso = exemploAulas * exemploPreco * cfg.PercentualAvulso / 100m;
+    decimal custoAssinante = cfg.MensalidadeAssinante + exemploAulas * exemploPreco * cfg.PercentualAssinantePix / 100m;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Meu plano</h2>
+                    <div class="text-muted">Como o Padelizou cobra pelas suas aulas.</div>
+                </div>
+                <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">
+                    Voltar ao painel
+                </a>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Erro"]</div>
+            }
+
+            @* ---- Onde você está agora ---- *@
+            @switch (situacao)
+            {
+                case PlanoDoProfessor.Situacao.EmTeste:
+                    <div class="alert alert-info d-flex align-items-center gap-2">
+                        <i class="bi bi-hourglass-split fs-4"></i>
+                        <div>
+                            <strong>Você está no período de teste</strong> — condições de Assinante, sem pagar mensalidade,
+                            até <strong>@fimDoTeste!.Value.ToString("dd/MM")</strong>
+                            (@diasRestantes @(diasRestantes == 1 ? "dia" : "dias")).
+                            Escolha seu plano até lá; sem escolha, você segue no Avulso.
+                        </div>
+                    </div>
+                    break;
+                case PlanoDoProfessor.Situacao.AssinanteEmDia:
+                    <div class="alert alert-success d-flex align-items-center gap-2">
+                        <i class="bi bi-patch-check-fill fs-4"></i>
+                        <div>
+                            <strong>Assinante em dia</strong> — mensalidade quitada até
+                            <strong>@Model.AssinaturaProfessorPagaAte!.Value.ToString("dd/MM/yyyy")</strong>.
+                            Taxa por aula: @cfg.PercentualAssinantePix.ToString("0.#")% no Pix/boleto,
+                            @cfg.PercentualAssinanteCartao.ToString("0.#")% no cartão.
+                        </div>
+                    </div>
+                    break;
+                case PlanoDoProfessor.Situacao.AssinanteEmAtraso:
+                    <div class="alert alert-warning d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        <div>
+                            <strong>Mensalidade em aberto.</strong> Enquanto ela não entra, suas aulas voltam
+                            pra taxa de @cfg.PercentualAvulso.ToString("0.#")% — pague abaixo e a taxa menor
+                            volta na hora.
+                        </div>
+                    </div>
+                    break;
+                case PlanoDoProfessor.Situacao.Avulso:
+                    <div class="alert alert-secondary d-flex align-items-center gap-2">
+                        <i class="bi bi-person-check fs-4"></i>
+                        <div>
+                            <strong>Plano Avulso</strong> — sem mensalidade, taxa de
+                            @cfg.PercentualAvulso.ToString("0.#")% por aula. Dá pra virar Assinante quando quiser.
+                        </div>
+                    </div>
+                    break;
+                default:
+                    <div class="alert alert-secondary d-flex align-items-center gap-2">
+                        <i class="bi bi-info-circle fs-4"></i>
+                        <div>
+                            <strong>Seu período de teste terminou</strong> e você ainda não escolheu um plano —
+                            por enquanto vale o Avulso (@cfg.PercentualAvulso.ToString("0.#")% por aula).
+                        </div>
+                    </div>
+                    break;
+            }
+
+            @* ---- Os dois pacotes, lado a lado ---- *@
+            <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm @(Model.PlanoProfessor == PlanoDoProfessor.Assinante ? "border-success" : "border-0")">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="fw-bold">Assinante</h5>
+                                @if (Model.PlanoProfessor == PlanoDoProfessor.Assinante)
+                                {
+                                    <span class="badge bg-success">seu plano</span>
+                                }
+                            </div>
+                            <div class="fs-3 fw-bold" style="color: var(--padel-green);">
+                                @cfg.MensalidadeAssinante.ToString("C")<span class="fs-6 text-muted fw-normal">/mês</span>
+                            </div>
+                            <ul class="list-unstyled small mt-2 mb-3">
+                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
+                                    <strong>@cfg.PercentualAssinantePix.ToString("0.#")%</strong> por aula no Pix e boleto</li>
+                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
+                                    <strong>@cfg.PercentualAssinanteCartao.ToString("0.#")%</strong> no cartão</li>
+                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
+                                    Previsível: mês cheio não aumenta a mordida</li>
+                            </ul>
+                            <div class="mt-auto">
+                                @if (Model.PlanoProfessor != PlanoDoProfessor.Assinante)
+                                {
+                                    <form asp-action="Escolher" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="plano" value="@PlanoDoProfessor.Assinante" />
+                                        <button type="submit" class="btn btn-padel w-100 rounded-pill fw-bold">Quero ser Assinante</button>
+                                    </form>
+                                }
+                                else if (cobrancaPendente != null)
+                                {
+                                    <a href="@cobrancaPendente.InvoiceUrl" target="_blank" rel="noopener"
+                                       class="btn btn-padel w-100 rounded-pill fw-bold">
+                                        <i class="bi bi-credit-card"></i> Pagar a mensalidade em aberto
+                                    </a>
+                                }
+                                else
+                                {
+                                    <form asp-action="PagarMensalidade" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-padel w-100 rounded-pill fw-bold">
+                                            <i class="bi bi-credit-card"></i> Pagar mensalidade (@cfg.MensalidadeAssinante.ToString("C"))
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100 shadow-sm @(Model.PlanoProfessor == PlanoDoProfessor.Avulso ? "border-success" : "border-0")">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="fw-bold">Avulso</h5>
+                                @if (Model.PlanoProfessor == PlanoDoProfessor.Avulso)
+                                {
+                                    <span class="badge bg-success">seu plano</span>
+                                }
+                            </div>
+                            <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">
+                                R$ 0<span class="fs-6 text-muted fw-normal">/mês</span>
+                            </div>
+                            <ul class="list-unstyled small mt-2 mb-3">
+                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
+                                    Sem compromisso mensal</li>
+                                <li class="mb-1"><i class="bi bi-dash-circle text-muted"></i>
+                                    <strong>@cfg.PercentualAvulso.ToString("0.#")%</strong> por aula, em qualquer forma</li>
+                                <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
+                                    Bom pra quem dá poucas aulas pelo app</li>
+                            </ul>
+                            <div class="mt-auto">
+                                @if (Model.PlanoProfessor != PlanoDoProfessor.Avulso)
+                                {
+                                    <form asp-action="Escolher" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="plano" value="@PlanoDoProfessor.Avulso" />
+                                        <button type="submit" class="btn btn-outline-secondary w-100 rounded-pill fw-bold">Ficar no Avulso</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <div class="text-center small text-muted">Este é o seu plano atual.</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* A conta que decide: no exemplo de 20 aulas de R$ 100, o assinante paga quase
+               a metade. Mostrar o número pronto evita que a mensalidade pareça "mais um custo". *@
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body small">
+                    <strong><i class="bi bi-calculator"></i> Na prática:</strong>
+                    com @exemploAulas.ToString("0") aulas de @exemploPreco.ToString("C") no mês (todas no Pix),
+                    o Avulso paga <strong>@custoAvulso.ToString("C")</strong> de taxa;
+                    o Assinante paga <strong>@custoAssinante.ToString("C")</strong>
+                    (@cfg.MensalidadeAssinante.ToString("C") + @cfg.PercentualAssinantePix.ToString("0.#")%).
+                    Quanto mais aulas, maior a diferença.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

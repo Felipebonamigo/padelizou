@@ -18,7 +18,8 @@ public class FormaPagamentoTorneioTests
             ctx, asaas, Options.Create(new AsaasSettings()),
             NullLogger<PagamentoInscricaoService>.Instance,
             Substitute.For<IPushNotificationService>(),
-            Options.Create(new TaxasExibicao()));
+            Options.Create(new TaxasExibicao()),
+            Options.Create(new PlanoProfessorSettings()));
     }
 
     private static Jogador RecebedorApto() => new()

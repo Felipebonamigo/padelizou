@@ -16,6 +16,7 @@ namespace padelizou.Controllers
         private readonly IEmailService _emailService;
         private readonly IGoogleCalendarService _googleCalendarService;
         private readonly IPushNotificationService _pushService;
+        private readonly PlanoProfessorSettings _plano;
         private readonly ILogger<AulasController> _logger;
 
         private const int DuracaoPadraoMinutos = 60;
@@ -26,12 +27,14 @@ namespace padelizou.Controllers
             IEmailService emailService,
             IGoogleCalendarService googleCalendarService,
             IPushNotificationService pushService,
+            Microsoft.Extensions.Options.IOptions<PlanoProfessorSettings> plano,
             ILogger<AulasController> logger)
         {
             _context = context;
             _emailService = emailService;
             _googleCalendarService = googleCalendarService;
             _pushService = pushService;
+            _plano = plano.Value;
             _logger = logger;
         }
 
@@ -552,7 +555,21 @@ namespace padelizou.Controllers
             };
 
             ViewBag.ProfessorId = professorId;
-            ViewBag.Professor = await _context.Jogadores.FindAsync(professorId);
+            var professor = await _context.Jogadores.FindAsync(professorId);
+            ViewBag.Professor = professor;
+
+            // O relógio dos 15 dias de teste do plano começa na primeira visita ao painel —
+            // é aqui que o professor passa a ver a contagem (ver Services/PlanoDoProfessor).
+            if (professor != null)
+            {
+                if (professor.TesteProfessorInicio == null)
+                {
+                    professor.TesteProfessorInicio = DateTime.Now;
+                    await _context.SaveChangesAsync();
+                }
+                ViewBag.SituacaoPlano = PlanoDoProfessor.SituacaoDe(professor, DateTime.Now, _plano);
+                ViewBag.FimDoTestePlano = PlanoDoProfessor.FimDoTeste(professor, _plano);
+            }
 
             return View(painel);
         }

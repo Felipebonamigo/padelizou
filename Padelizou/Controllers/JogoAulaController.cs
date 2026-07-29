@@ -17,16 +17,19 @@ namespace padelizou.Controllers
         private readonly IEmailService _emailService;
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
+        private readonly PlanoProfessorSettings _plano;
         private readonly ILogger<JogoAulaController> _logger;
 
         public JogoAulaController(DbPadelContext context, IEmailService emailService,
             IPushNotificationService pushService, IPagamentoInscricaoService pagamentos,
+            Microsoft.Extensions.Options.IOptions<PlanoProfessorSettings> plano,
             ILogger<JogoAulaController> logger)
         {
             _context = context;
             _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
+            _plano = plano.Value;
             _logger = logger;
         }
 
@@ -75,9 +78,28 @@ namespace padelizou.Controllers
 
             // Valor final anunciado: o aluno precisa ver na tela o mesmo que será cobrado no
             // checkout, e não descobrir a taxa só depois de clicar em inscrever.
-            var exibicao = _pagamentos.CalcularExibicao(jogo.Preco ?? 0m, "Aula", jogo.Professor);
+            //
+            // Professor com condições de assinante: a taxa muda com a forma que o aluno
+            // declarar (Pix/boleto mais barato que cartão) — a tela pergunta e mostra o
+            // total de cada opção. Avulso: taxa única, forma aberta, nada a perguntar.
+            bool condAssinante = PlanoDoProfessor.CondicoesDeAssinante(jogo.Professor, DateTime.Now, _plano);
+            bool cobraOnline = _pagamentos.PodeCobrarAula(jogo, jogo.Professor);
+            ViewBag.EscolheFormaAula = condAssinante && cobraOnline;
+
+            var cobrancaPadrao = PlanoDoProfessor.CobrancaDaAula(
+                jogo.Professor, CobrancaDoTorneio.EscolhaPix, DateTime.Now, _plano);
+            var exibicao = _pagamentos.CalcularExibicao(jogo.Preco ?? 0m, "Aula", jogo.Professor,
+                percentual: condAssinante ? cobrancaPadrao.Percentual : null);
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
+
+            if (condAssinante)
+            {
+                var cobrancaCartao = PlanoDoProfessor.CobrancaDaAula(
+                    jogo.Professor, CobrancaDoTorneio.EscolhaCartao, DateTime.Now, _plano);
+                ViewBag.PrecoTotalCartao = _pagamentos.CalcularExibicao(jogo.Preco ?? 0m, "Aula",
+                    jogo.Professor, percentual: cobrancaCartao.Percentual)?.Total;
+            }
 
             return View(jogo);
         }
@@ -167,7 +189,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Inscrever(int id)
+        public async Task<IActionResult> Inscrever(int id, string? formaPagamentoEscolhida = null)
         {
             var meuId = ObterJogadorIdLogado();
             var jogo = await _context.JogosAula.FindAsync(id);
@@ -185,7 +207,7 @@ namespace padelizou.Controllers
                 if (aluno != null && _pagamentos.PodeCobrarAula(jogo, professor))
                 {
                     var checkout = await _pagamentos.IniciarCobrancaAulaAsync(
-                        jogo, professor!, aluno, new DadosInscricaoAula(id, meuId));
+                        jogo, professor!, aluno, new DadosInscricaoAula(id, meuId), formaPagamentoEscolhida);
 
                     if (checkout != null) return Redirect(checkout);
 
