@@ -48,8 +48,8 @@
     <title>@tituloAba</title>
     <meta name="theme-color" content="#141d33" />
     <link rel="manifest" href="~/manifest.json" />
-    <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" />
-    <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -68,7 +68,7 @@
         <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
             <div class="container">
                 <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/image/logo-icon.png" alt="Padelizou" class="pdz-brand-logo" />
+                    <img src="~/image/logo-icon.webp" asp-append-version="true" alt="Padelizou" class="pdz-brand-logo" />
                     <span class="pdz-wordmark">Padelizou</span>
                     @if (beta.Habilitado)
                     {
@@ -246,7 +246,7 @@
         <div class="container">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <div class="d-flex align-items-center gap-2">
-                    <img src="~/image/logo-icon.png" alt="Padelizou" style="height: 26px; width: 26px;" />
+                    <img src="~/image/logo-icon.webp" asp-append-version="true" alt="Padelizou" style="height: 26px; width: 26px;" />
                     <span class="fw-semibold">Padelizou</span>
                 </div>
                 @* Canal de opinião do site: fica no rodapé de toda página, mas só quem está
