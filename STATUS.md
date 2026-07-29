@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/07/2026** — o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
+> Última atualização: **29/07/2026** — **logo novo no ar** (build-95) e o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
 > ⏳ Continua pendente do Felipe: publicar o app no Google (o backup morre em 7 dias sem isso) e conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
 
 ---
@@ -188,6 +188,13 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 - **EF dos testes fixado em 10.0.10.** O projeto de testes resolvia **Relational 10.0.4** enquanto produção roda **10.0.10** — os testes estavam aprovando um motor de banco diferente do que está no ar.
 - **Mascote em 17 telas de estado vazio** (eram 4). A produção foi zerada, então quase toda tela é um estado vazio esta semana. **Onde NÃO foi aplicado, de propósito:** busca sem resultado — "nenhum time encontrado para *xyz*" não é "nenhum time existe", e quem digitou precisa corrigir o que digitou, não ser consolado. `Times/Index` e `Professores/Index` tinham os dois casos na mesma linha e agora estão separados. Também ficaram de fora relatórios financeiros (tom errado), o painel `/Admin` (ferramenta interna) e avisos inline dentro de formulário.
 - **539 testes.**
+- **Logo novo em todo o sistema** (build-95). O arquivo entregue é um **círculo escuro com raquetes verdes, em JPEG sobre fundo branco** — e as duas medidas da imagem mandaram no resultado:
+  **(1) O fundo branco tinha que sair.** São 21,4% da área (os cantos fora do disco) e virariam uma moldura branca em volta do logo na barra escura. Recorte circular com transparência.
+  **(2) As raquetes ocupam só 44% da largura do círculo.** A 38px na barra isso as deixa com **17px**, e sobra disco vazio. Comparei 1,00 / 1,20 / 1,35 / 1,50 lado a lado nos dois extremos de uso (38px da barra e 64px do card): **1,35** lê bem no pequeno sem encostar na borda no grande. É o mesmo logo, só opticamente ajustado — o que todo conjunto de ícone faz.
+  Cada ícone derivado respeita a exigência da sua plataforma: `logo-icon.webp` transparente (**WebP porque carrega em TODA página: 257 KB → 18 KB**), favicon ainda mais aproximado (a 32px o enquadramento original vira uma mancha verde), `apple-touch-icon` **opaco** (o iOS pinta preto atrás de transparência) e `icon-512` com fundo cheio e raquetes nos 60% centrais (o Android recorta a *maskable* num círculo).
+  No CSS o `border-radius` foi de 10px pra **50%** (o logo virou redondo) e a sombra escura — que não separa nada numa barra escura — ganhou um **aro fininho na cor de destaque**.
+  ⚠️ **`CACHE_NAME` do Service Worker foi de v1 pra v2.** Ele pré-guarda os ícones **pelo caminho**, e o `activate` só descarta cache de nome diferente: sem virar a versão, quem já instalou o app ficaria com o logo antigo **pra sempre**. Todo `<img>`/`<link>` ganhou `asp-append-version`.
+  ⏳ Sobraram em `wwwroot/image/` os dois JPEG de origem (`logo-novo.jpeg` e `logo-novo-padel.jpeg`, 216 KB) — são a arte original, mas estão numa pasta pública e ninguém os usa. Valia moverem pra fora do `wwwroot`.
 
 ---
 
