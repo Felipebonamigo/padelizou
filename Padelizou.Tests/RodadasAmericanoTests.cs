@@ -29,6 +29,9 @@ public class RodadasAmericanoTests
     [InlineData(16)]
     [InlineData(20)]
     [InlineData(24)]
+    [InlineData(28)]
+    [InlineData(32)]
+    [InlineData(36)]   // 36 não tem tabela de whist embutida: exercita o caminho antigo
     public void Cada_jogador_faz_dupla_com_cada_um_dos_outros_exatamente_uma_vez(int n)
     {
         var rodadas = RodadasAmericano.Montar(Jogadores(n), new Random(7));
@@ -91,19 +94,9 @@ public class RodadasAmericanoTests
         }
     }
 
-    [Fact]
-    public void Ninguem_fica_preso_enfrentando_sempre_o_mesmo_rival()
+    private static Dictionary<(int, int), int> ContarConfrontos(List<List<RodadasAmericano.Confronto>> rodadas)
     {
-        // O círculo garante o PARCEIRO; o adversário é o que sobra. Com 8 jogadores são 56
-        // encontros pra 28 pares — o ideal seria 2 pra cada, e existe um desenho matemático
-        // que consegue isso (whist tournament). O que temos aqui não chega lá: mesmo
-        // testando 200 ordens diferentes, o pior caso fica em 4 dos 7 jogos contra o mesmo
-        // rival. É aceitável (a regra que o organizador pediu é sobre parceiros, e essa
-        // está perfeita), mas é o teto conhecido — se um dia virar reclamação, o caminho é
-        // trocar o círculo por um whist design.
-        var rodadas = RodadasAmericano.Montar(Jogadores(8), new Random(7));
         var conta = new Dictionary<(int, int), int>();
-
         foreach (var c in rodadas.SelectMany(r => r))
             foreach (var x in new[] { c.A1, c.A2 })
                 foreach (var y in new[] { c.B1, c.B2 })
@@ -111,11 +104,63 @@ public class RodadasAmericanoTests
                     var k = Par(x, y);
                     conta[k] = conta.GetValueOrDefault(k) + 1;
                 }
+        return conta;
+    }
 
-        Assert.Equal(56, conta.Values.Sum());
-        Assert.True(conta.Count >= 24, $"só {conta.Count} pares distintos se enfrentaram");
-        Assert.True(conta.Values.Max() <= 4,
-            $"alguém enfrentou o mesmo rival {conta.Values.Max()} vezes");
+    [Theory]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(12)]
+    [InlineData(16)]
+    [InlineData(20)]
+    [InlineData(24)]
+    [InlineData(28)]
+    [InlineData(32)]
+    public void Cada_jogador_enfrenta_cada_um_dos_outros_exatamente_duas_vezes(int n)
+    {
+        // Este teste já foi mais humilde: até 28/07 ele aceitava que com 8 jogadores alguém
+        // enfrentasse o mesmo rival em 4 das 7 rodadas, e anotava que o caminho pra melhorar
+        // era um "whist design". O caminho foi feito em 29/07: as tabelas de whist foram
+        // ENCONTRADAS por busca (fora do sistema) e estão embutidas no serviço como dado.
+        //
+        // "Exatamente 2" não é meta, é o único número possível num torneio justo: cada
+        // rodada te dá 2 adversários, são n-1 rodadas e n-1 rivais — 2(n-1) encontros pra
+        // n-1 pessoas fecha só com 2 pra cada. Qualquer 3 força um 1 em outro lugar.
+        //
+        // De quebra este teste confere a INTEGRIDADE das tabelas embutidas: um dígito errado
+        // numa base cíclica quebra a conta pra alguma dupla, e ele acusa.
+        var conta = ContarConfrontos(RodadasAmericano.Montar(Jogadores(n), new Random(7)));
+
+        Assert.Equal(n * (n - 1) / 2, conta.Count);          // todo mundo cruza com todo mundo
+        Assert.All(conta, p => Assert.Equal(2, p.Value));    // e exatamente 2 vezes
+    }
+
+    [Fact]
+    public void Sorteios_diferentes_dao_tabelas_diferentes()
+    {
+        // O desenho do whist é fixo; o sorteio decide quem veste qual número. Dois torneios
+        // com os mesmos inscritos não podem sair iguais — senão o "sorteio" da tela é teatro.
+        var a = RodadasAmericano.Montar(Jogadores(8), new Random(1));
+        var b = RodadasAmericano.Montar(Jogadores(8), new Random(2));
+
+        var textoA = string.Join("|", a.SelectMany(r => r).Select(c => $"{c.A1},{c.A2}x{c.B1},{c.B2}"));
+        var textoB = string.Join("|", b.SelectMany(r => r).Select(c => $"{c.A1},{c.A2}x{c.B1},{c.B2}"));
+        Assert.NotEqual(textoA, textoB);
+    }
+
+    [Fact]
+    public void Tamanho_sem_tabela_embutida_continua_com_parceiros_perfeitos_e_rivais_controlados()
+    {
+        // 36 jogadores não tem tabela de whist embutida (e um Americano desse tamanho é
+        // teórico) — cai no método antigo. Parceiro segue perfeito por construção; pros
+        // adversários o compromisso documentado é "ninguém preso no mesmo rival o torneio
+        // inteiro": o pior caso tem que ficar bem abaixo das 35 rodadas.
+        var rodadas = RodadasAmericano.Montar(Jogadores(36), new Random(7));
+        var conta = ContarConfrontos(rodadas);
+
+        Assert.Equal(35, rodadas.Count);
+        Assert.True(conta.Values.Max() <= 6,
+            $"alguém enfrentou o mesmo rival {conta.Values.Max()} vezes em 35 rodadas");
     }
 
     [Theory]
