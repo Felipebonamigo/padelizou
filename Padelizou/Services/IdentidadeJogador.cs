@@ -35,6 +35,19 @@ public static class IdentidadeJogador
              (j.Login != null && j.Login.ToLower() == alvo)));
     }
 
+    // Mínimo definido pelo Felipe em 29/07/2026. Login curto demais vira sigla ambígua num
+    // espaço de nomes que ele divide com os e-mails, e é o identificador que organizadores
+    // digitam pra te achar — "jo" acharia o João errado com muita facilidade.
+    public const int TamanhoMinimoDoLogin = 4;
+
+    // Devolve a mensagem de recusa, ou null se o login serve. O chamador decide onde mostrar.
+    public static string? ValidarLogin(string? login)
+    {
+        if ((login ?? "").Trim().Length < TamanhoMinimoDoLogin)
+            return $"O login precisa ter pelo menos {TamanhoMinimoDoLogin} caracteres.";
+        return null;
+    }
+
     // O crachá que vai no cookie: quem é a pessoa e o que ela pode ver. A navbar lê daqui, não
     // do banco, então o que faltar neste conjunto some da tela (menu de professor, painel admin).
     //

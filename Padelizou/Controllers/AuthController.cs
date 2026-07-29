@@ -616,6 +616,26 @@ namespace padelizou.Controllers
             login = login.Trim();
             email = email.Trim();
 
+            // Cadastro recusado NÃO apaga o que a pessoa digitou: o formulário volta
+            // preenchido, com o erro por cima. Sem isso a recusa parecia sumiço — a pessoa
+            // via a tela limpa, achava que deu certo e ia embora sem conta (aconteceu no
+            // teste de 29/07). A senha é a exceção: senha nunca volta pro HTML.
+            ViewBag.FormNome = nome;
+            ViewBag.FormApelido = apelido;
+            ViewBag.FormCpf = cpf;
+            ViewBag.FormLogin = login;
+            ViewBag.FormEmail = email;
+            ViewBag.FormCelular = celular;
+            ViewBag.FormIsProfessor = isProfessor;
+
+            var erroDeLogin = IdentidadeJogador.ValidarLogin(login);
+            if (erroDeLogin != null)
+            {
+                ViewBag.Erro = erroDeLogin;
+                await PopularCatalogosAsync();
+                return View();
+            }
+
             // Normaliza antes de qualquer consulta: o CPF é a chave usada pra reconhecer quem
             // já jogou torneio, e "111.444.777-35" nunca casaria com o "11144477735" gravado
             // na inscrição — criaria um segundo cadastro pra mesma pessoa.
@@ -657,14 +677,14 @@ namespace padelizou.Controllers
             // deixaria a consulta ambígua — e a vítima sem entrar e sem recuperar a senha.
             if (await IdentidadeJogador.EmUsoAsync(_context, login, jogador?.Id))
             {
-                ViewBag.Erro = "Esse login já está em uso. Escolha outro.";
+                ViewBag.Erro = "Já foi criado um login com esse nome — escolha outro.";
                 await PopularCatalogosAsync();
                 return View();
             }
 
             if (await IdentidadeJogador.EmUsoAsync(_context, email, jogador?.Id))
             {
-                ViewBag.Erro = "Esse e-mail já está em uso. Entre com ele, ou use "
+                ViewBag.Erro = "Já tem alguém cadastrado com esse e-mail. Entre com ele, ou use "
                              + "\"Esqueci minha senha\" se não lembrar da senha.";
                 await PopularCatalogosAsync();
                 return View();

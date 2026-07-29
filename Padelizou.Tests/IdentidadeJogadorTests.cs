@@ -128,6 +128,31 @@ public class IdentidadeJogadorTests
         Assert.False(await IdentidadeJogador.EmUsoAsync(ctx, "   "));
     }
 
+    // ---- Tamanho mínimo do login (regra do Felipe, 29/07/2026) ----
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("jo")]
+    [InlineData("  ab  ")]   // espaço em volta não conta como caractere
+    [InlineData("")]
+    [InlineData(null)]
+    public void Login_com_menos_de_4_caracteres_e_recusado_dizendo_o_minimo(string? curto)
+    {
+        var erro = IdentidadeJogador.ValidarLogin(curto);
+
+        Assert.NotNull(erro);
+        Assert.Contains("4 caracteres", erro);
+    }
+
+    [Theory]
+    [InlineData("abcd")]
+    [InlineData("felipe.bona")]
+    [InlineData("  bona  ")]   // 4 de verdade depois do trim
+    public void Login_com_4_ou_mais_passa(string login)
+    {
+        Assert.Null(IdentidadeJogador.ValidarLogin(login));
+    }
+
     // ---- O crachá que vai no cookie (ClaimsDe) ----
 
     [Fact]
