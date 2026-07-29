@@ -354,16 +354,22 @@ Gerados em 26/07/2026 (PDFs na Área de Trabalho + artifacts no claude.ai):
 - **Apresentação comercial** — página de venda com o posicionamento "o padel cresceu,
   chegou a plataforma à altura"; falta trocar o WhatsApp de exemplo do botão final.
   Artifact: `claude.ai/code/artifact/05bdbad2-ff8c-411f-99a2-675455a21756`
-- **Análise de monetização — MODELO OFICIAL decidido em 29/07/2026:**
-  · Torneio: comissão 15% como já construído (Asaas sai da nossa fatia)
-  · Professor: **100% assinante** — R$ 49,90/mês ou R$ 499,90/ano + **3% Pix / 6% cartão**
-    na cobrança de aula; sem taxa mínima (aula < R$ 60 é rara; válvula "mínimo R$ 1,50"
-    anotada pro jogo-aula); 1º mês grátis; professores fundadores; carência na saída
+- **Análise de monetização — 2ª edição 29/07/2026, alinhada ao código:**
+  · Torneio: MANTÉM a régua já construída — organizador escolhe: externo 5% / só Pix 10% /
+    todas as formas 15%, taxa descontada. ⚠️ o 5% do "externo" NÃO tem mecanismo de
+    cobrança (na prática é grátis) — decidir: zerar oficialmente ou construir faturamento
+  · Professor (decidido, AINDA NÃO IMPLEMENTADO): **100% assinante** — R$ 49,90/mês ou
+    R$ 499,90/ano + **3% Pix / 6% cartão**; 1º mês grátis; fundadores; carência na saída.
+    Implementação sugerida: régua por forma de recebimento como no torneio (só Pix 3% /
+    todas 6%), modo descontado, mínimo próprio (~R$ 2 — o piso global de R$ 4 atropela
+    o 3% até aula de R$ 133) + assinatura recorrente via Asaas
   · Clube: mensalidade negociada caso a caso (âncora interna R$ 59–99/quadra; falta
     decidir o cruzamento com a comissão de reserva)
   · Jogador: nunca paga
-  Exige implementar: taxa por forma de pagamento na aula (hoje o split cobra igual em
-  qualquer forma) + assinatura recorrente do professor via Asaas (trial + carência).
+  Taxas reais do Asaas (conferidas 27/07, promocionais até 27/10/2026): Pix R$ 0,99
+  (100 primeiros do mês grátis), crédito à vista 1,99%+0,49, 21× 3,29%+0,49; depois
+  Pix R$ 1,99, à vista 2,99% — **27/10/2026 é data de recálculo dos pisos**.
+  Vigia do teto MEI já existe (AlertaMeiBackgroundService, e-mail aos 70% e 90%).
   Artifact: `claude.ai/code/artifact/128ee0e3-a783-4bfa-9ff8-d7b24f8f6c43`
 
 > ⚠️ Os 3 documentos refletem o diagnóstico de **25/07 de manhã** e envelheceram: a maior
