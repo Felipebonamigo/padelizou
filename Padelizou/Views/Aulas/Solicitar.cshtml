@@ -119,6 +119,12 @@
             var $campoSemanas = $('#campo-semanas');
             var $inputSemanas = $('#input-semanas');
 
+            // toFixed(2) escreve "120.00" — ponto. O resto do site mostra "R$ 120,00" (ToString("C")),
+            // e só estas duas linhas, montadas em JS, fugiam do padrão brasileiro.
+            function emReais(valor) {
+                return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
             // Os números não ficam escritos no HTML: o passo "Tipo de aula" só aparece depois de
             // escolher o local, e com número fixo a tela mostrava "1, 2, 3, 5" — parece defeito.
             // Aqui numeramos o que está VISÍVEL, a cada mudança. Se este script não rodar, os
@@ -193,7 +199,7 @@
                             ' data-pacote-ativo="' + (l.pacoteAtivo ? '1' : '0') + '"' +
                             ' data-pacote-qtd="' + (l.pacoteQuantidadeAulas || '') + '"' +
                             ' data-pacote-preco="' + (l.pacotePreco || '') + '"' +
-                            '>' + l.nome + ' (R$ ' + l.precoPadrao.toFixed(2) + ')</option>';
+                            '>' + l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')</option>';
                     });
                     $local.html(options).prop('disabled', false);
                 });
@@ -211,7 +217,7 @@
                 if (localId && $selected.data('pacote-ativo') == '1' && $selected.data('pacote-preco')) {
                     var qtd = $selected.data('pacote-qtd');
                     var preco = Number($selected.data('pacote-preco'));
-                    $infoPacoteTexto.text('Pacote de ' + qtd + ' aulas por R$ ' + preco.toFixed(2) +
+                    $infoPacoteTexto.text('Pacote de ' + qtd + ' aulas por R$ ' + emReais(preco) +
                         ' (aulas semanais, combinado direto com o professor, ex: Pix)');
                     $opcaoPacote.show();
                 }
