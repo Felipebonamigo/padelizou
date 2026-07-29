@@ -2,7 +2,7 @@
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **29/07/2026 (tarde)** — **aviso de quadra atrasada** (build-102, 563 testes, Fase 3 só falta o placar offline), **Americano com adversários perfeitos** (whist, build-100, 551 testes), cidades duplicadas fechadas, **logo novo no ar** (build-98: raquetes soltas na barra/rodapé/capa, logo completo no fundo claro) e o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
-> ⏳ Continua pendente do Felipe: publicar o app no Google (o backup morre em 7 dias sem isso) e conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
+> ⏳ Continua pendente do Felipe: conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
 
 ---
 
@@ -236,6 +236,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 ### Fase 2 — Sair do modo demonstração ✅ *feita 27/07*
 - [x] **Asaas para produção** (chave + webhook) ✅ 27/07 — **primeiro pagamento real recebido**, corrente verificada nos logs
 - [x] **Limpar dados fictícios** ✅ 27/07 — 144 jogadores e os torneios de demo apagados de produção, com backup antes
+- [x] ✅ **Google: app publicado ("Em produção") 29/07** — o token do backup fora do servidor não expira mais a cada 7 dias. Sem custo (API gratuita; 22,7 MB de 15 GB no Drive) e sem verificação do Google (escopo `drive.file` não é restrito).
 - [ ] ⏳ **Conta bancária no Asaas** (`bankAccountInfo: PENDING`) — trava **só o saque**; as chaves Pix estão ATIVAS e o dinheiro cai normal ← *precisa do Felipe*
 - [ ] ⏳ **Gerar chave e token novos** do Asaas, agora que a configuração estabilizou ← *precisa do Felipe*
 - [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
