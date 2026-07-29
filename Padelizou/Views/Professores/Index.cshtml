@@ -30,10 +30,20 @@
 
     @if (!Model.Any())
     {
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-mortarboard fs-1 d-block mb-2 opacity-50"></i>
-            <p class="mb-0">Nenhum professor cadastrado@(cidadeId != null ? " nessa cidade" : "") ainda.</p>
-        </div>
+        @* Com filtro de cidade isto é "sua busca não achou" — quem está aí precisa trocar a
+           cidade, não de um mascote consolando. Sem filtro é "ainda não existe", que é o
+           estado vazio de verdade. *@
+        @if (cidadeId != null)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-mortarboard fs-1 d-block mb-2 opacity-50"></i>
+                <p class="mb-0">Nenhum professor cadastrado nessa cidade ainda.</p>
+            </div>
+        }
+        else
+        {
+            <partial name="_Vazio" model='@(new EstadoVazio("Nenhum professor cadastrado ainda. Dá aula? Marque isso no seu perfil e apareça aqui.", "Editar perfil", "Auth", "EditarPerfil"))' />
+        }
     }
     else
     {

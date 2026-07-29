@@ -108,7 +108,14 @@
                     }
                     else
                     {
-                        <tr><td colspan="7" class="text-center text-muted py-4">Nenhum horário cadastrado.</td></tr>
+                        @* Último degrau da escada do professor: com cidade e local prontos mas
+                           sem nenhum horário, o aluno percorre quatro telas pra descobrir na
+                           quinta que não há quando marcar. *@
+                        <tr>
+                            <td colspan="7" class="border-0">
+                                <partial name="_Vazio" model='@(new EstadoVazio("Nenhum horário cadastrado. Enquanto não houver, o aluno chega até você e não consegue marcar."))' />
+                            </td>
+                        </tr>
                     }
                 </tbody>
             </table>

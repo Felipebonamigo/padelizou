@@ -51,7 +51,9 @@
                 }
                 else
                 {
-                    <p class="text-muted small">Nenhuma cidade cadastrada ainda. Adicione a sua abaixo.</p>
+                    @* Sem botão: o formulário de adicionar está logo abaixo, e um botão que rola
+                       a página até três centímetros adiante seria só um passo a mais. *@
+                    <partial name="_Vazio" model='@(new EstadoVazio("Nenhuma cidade cadastrada ainda — e sem cidade nenhum aluno consegue te achar. Adicione a sua abaixo."))' />
                 }
 
                 <h6 class="fw-bold text-muted mb-2">Não encontrou sua cidade?</h6>

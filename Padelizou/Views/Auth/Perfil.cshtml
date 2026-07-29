@@ -225,7 +225,7 @@
                 </div>
                 @if (!historicoTorneios.Any())
                 {
-                    <p class="text-muted small mb-0"><i class="bi bi-info-circle"></i> Nenhum torneio registrado ainda.</p>
+                    <partial name="_Vazio" model='@(new EstadoVazio("Você ainda não jogou nenhum torneio. Quando jogar, o histórico e os pontos aparecem aqui.", "Ver torneios abertos", "Torneios", "Index"))' />
                 }
                 else
                 {

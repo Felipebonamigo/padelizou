@@ -54,7 +54,7 @@
                     }
                     else
                     {
-                        <p class="text-muted">Nenhum membro ainda.</p>
+                        <partial name="_Vazio" model='@(new EstadoVazio("Nenhum membro ainda."))' />
                     }
                 </div>
             </div>
@@ -137,8 +137,8 @@
     }
     else
     {
-        <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
-            <p class="text-muted mb-0">Nenhum jogo registrado ainda.</p>
+        <div class="col-12">
+            <partial name="_Vazio" model='@(new EstadoVazio("Nenhum jogo registrado ainda. Registre o primeiro e o grupo começa a ter ranking."))' />
         </div>
     }
 </div>

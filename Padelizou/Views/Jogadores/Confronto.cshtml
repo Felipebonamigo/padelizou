@@ -38,7 +38,7 @@
 
     @if (!Model.Partidas.Any())
     {
-        <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhuma partida registrada entre vocês ainda.</p>
+        <partial name="_Vazio" model='@(new EstadoVazio("Vocês ainda não se enfrentaram. Quando jogarem, o retrospecto aparece aqui."))' />
     }
     else
     {

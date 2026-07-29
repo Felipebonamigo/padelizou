@@ -34,14 +34,19 @@
 
     @if (!Model.Any())
     {
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-shield fs-1 d-block mb-2 opacity-50"></i>
-            <p class="mb-1">@(string.IsNullOrWhiteSpace(q) ? "Nenhum time cadastrado ainda." : $"Nenhum time encontrado para \"{q}\".")</p>
-            @if (string.IsNullOrWhiteSpace(q))
-            {
-                <p class="small mb-0">Crie o seu em <a asp-controller="Auth" asp-action="EditarPerfil">Editar Perfil</a>.</p>
-            }
-        </div>
+        @* Busca sem resultado continua em texto seco: quem digitou um nome precisa corrigir o
+           que digitou, e o mascote só empurraria o campo de busca pra fora da tela. *@
+        @if (!string.IsNullOrWhiteSpace(q))
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-shield fs-1 d-block mb-2 opacity-50"></i>
+                <p class="mb-0">Nenhum time encontrado para "@q".</p>
+            </div>
+        }
+        else
+        {
+            <partial name="_Vazio" model='@(new EstadoVazio("Nenhum time cadastrado ainda.", "Criar o meu time", "Auth", "EditarPerfil"))' />
+        }
     }
     else
     {

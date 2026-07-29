@@ -40,9 +40,8 @@
         }
         else
         {
-            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
-                <i class="bi bi-megaphone display-4 text-muted mb-3"></i>
-                <h4 class="fw-bold text-secondary">Nenhum jogo aula publicado no momento</h4>
+            <div class="col-12">
+                <partial name="_Vazio" model='@(new EstadoVazio("Nenhum jogo aula publicado no momento."))' />
             </div>
         }
     </div>
