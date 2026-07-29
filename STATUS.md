@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **28/07/2026 (noite)** — revisão completa do sistema (PDF na Área de Trabalho): 532/532 testes verdes, produção sem erro em 24h, backups provados. **2 achados novos**: (1) CSRF — 61 de 114 POSTs sem `ValidateAntiForgeryToken` e sem filtro global, hoje só o `SameSite=Lax` segura; (2) webhook do Asaas recusado de hora em hora (13×/24h, aos :28) — provável webhook do sandbox ainda apontando pra produção, conferir no painel. Menores: 50 warnings do compilador (46 de nulabilidade), EF 10.0.4×10.0.10 em conflito no projeto de testes, `GoogleCalendarService` usa API obsoleta. **build-90**, 532 testes.
+> Última atualização: **29/07/2026** — o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
+> ⏳ Continua pendente do Felipe: publicar o app no Google (o backup morre em 7 dias sem isso) e conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
 
 ---
 
@@ -170,6 +171,23 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   ⚠️ **Modo Teste expira o refresh token em 7 dias.** Se a tela de consentimento não for publicada ("Em produção"), o backup morre na oitava noite — e em silêncio. Trocaríamos um prazo de meses por um de uma semana.
   **Daí o `VigiaDoBackup`**: o `backup-drive.sh` grava um carimbo em `/var/lib/padelizou/ultimo-backup-drive` **só quando a cópia termina inteira**, e um `BackgroundService` manda e-mail pros admins se passar de 2 dias sem atualizar. Fica **dentro do app** porque o e-mail já funciona lá, com a senha do SMTP num lugar só — script separado precisaria de uma segunda cópia dela. **"Nunca houve backup" conta como o pior caso**, não o mais inofensivo: servidor onde nunca funcionou parece igual a um onde funciona todo dia. Aviso 1×/semana (alerta repetido vira ruído). Ligado por config, **só em prod** via drop-in do systemd — o dev não faz backup e mandaria alerta todo dia.
 - **532 testes** (+133 no dia 28).
+
+### 29/07/2026 — Fechando os achados da revisão
+
+- **🔴 Carimbo antifalsificação (CSRF) agora é global** (build-93). Eram **61 de 114** ações que gravam sem `[ValidateAntiForgeryToken]`, e nenhum filtro global: a única coisa segurando um site externo de fazer o navegador de quem está logado aqui enviar um formulário escondido era o `SameSite=Lax` do navegador — **uma** linha de defesa onde a prática manda ter duas.
+  Virou `AutoValidateAntiforgeryTokenAttribute` no `Program.cs`: **protegido passou a ser o padrão, e a exceção é que precisa ser escrita**. Isso importa mais que os 61: quem escrever a ação 115ª não tem como lembrar de algo que não está em lugar nenhum.
+  **Única exceção:** o webhook do meio de pagamento, que vem de fora sem cookie e já se defende pelo token próprio.
+  As 7 chamadas por `fetch()` (adicionar clube ×3, placar ao vivo, palpitrômetro, ligar/desligar push) passaram a mandar o valor no cabeçalho, por um auxiliar só em `site.js` — o carimbo é renderizado uma vez no `_Layout`.
+  **Provado nos dois sentidos, e nos três ambientes:** com carimbo 200, sem carimbo 400. Em dev testei o **portão de acesso** de propósito — se ele quebrasse, o site inteiro ficaria trancado.
+  ⚠️ **O 400 aparece como 302 pra quem está fora do portão**: a página de erro é reexecutada e o visitante anônimo é barrado de novo. Confundi os dois por um minuto; quem for testar de novo precisa olhar o `Location`, não o status.
+  **3 testes** vigiam a lista de exceções — o risco real não é o filtro sumir, é alguém colar `[IgnoreAntiforgeryToken]` numa ação pra calar um erro que não entendeu.
+- **🔴 Quem não tem e-mail não conseguia entrar.** `new Claim(tipo, null)` lança exceção, e o bloco de claims estava copiado em **4 lugares** — três no `AuthController` e um no middleware, mantidos iguais por um comentário pedindo que ficassem iguais. Não ficaram: **só a cópia do middleware tratava e-mail nulo**. Pré-cadastro (jogador inscrito pelo organizador) nasce exatamente sem e-mail, então a tela de login caía inteira. Centralizado em `IdentidadeJogador.ClaimsDe`, com 4 testes.
+- **🔴 O robô do mata-mata usava o torneio sem checar se existe** — e estourava *dentro* do salvamento do placar, ou seja, a Mesa de Controle daria erro no meio de um torneio por causa de outro torneio.
+- **Mais dois que só apareceriam com o usuário na frente:** a tela de confirmar aula pelo e-mail caía com **aluno avulso** (sem conta no sistema, `Aluno` nulo) — justo o link que o professor abre fora do site, sem caminho de volta; e `DuplaContagemVM` prometia um parceiro que pode não existir (inscrição sozinho).
+- **25 avisos do compilador → 0.** Não por `!` espalhado: cada um foi lido, e o `!` só ficou onde é verdade (o EF lê a expressão do `Include`, não executa). O único **suprimido de propósito** é a API obsoleta do Google Agenda: trocar pro `DateTimeOffset` usaria o fuso da máquina — que em produção é **UTC** — e as 14h do professor virariam 11h na agenda do aluno. Fica com o comentário explicando, pra ser trocado junto com um teste que prove o horário.
+- **EF dos testes fixado em 10.0.10.** O projeto de testes resolvia **Relational 10.0.4** enquanto produção roda **10.0.10** — os testes estavam aprovando um motor de banco diferente do que está no ar.
+- **Mascote em 17 telas de estado vazio** (eram 4). A produção foi zerada, então quase toda tela é um estado vazio esta semana. **Onde NÃO foi aplicado, de propósito:** busca sem resultado — "nenhum time encontrado para *xyz*" não é "nenhum time existe", e quem digitou precisa corrigir o que digitou, não ser consolado. `Times/Index` e `Professores/Index` tinham os dois casos na mesma linha e agora estão separados. Também ficaram de fora relatórios financeiros (tom errado), o painel `/Admin` (ferramenta interna) e avisos inline dentro de formulário.
+- **539 testes.**
 
 ---
 
