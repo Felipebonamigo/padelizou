@@ -161,11 +161,15 @@
                 @foreach (var c in conquistas)
                 {
                     <div class="col-3 text-center">
-                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")">
+                        @* `title` com a descrição: conquista bloqueada é uma meta, e "bloqueado"
+                           sem explicação não diz o que fazer. No celular não há hover, mas a
+                           legenda embaixo já troca "bloqueado" pela dica curta. *@
+                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")"
+                             title="@c.Descricao">
                             <i class="bi @c.Icone fs-4 @(c.Conquistada ? "text-warning" : "text-muted")"></i>
                             <div class="small fw-bold mt-1">@c.Titulo</div>
                             <div style="font-size: 0.65rem;" class="@(c.Conquistada ? "text-success" : "text-muted")">
-                                @(c.Conquistada ? "✓ conquistado" : "bloqueado")
+                                @(c.Conquistada ? "✓ conquistado" : c.Descricao)
                             </div>
                         </div>
                     </div>

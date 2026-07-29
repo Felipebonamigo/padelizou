@@ -145,6 +145,10 @@ public class ConquistaVM
     public string Titulo { get; set; } = "";
     public string Icone { get; set; } = "";
     public bool Conquistada { get; set; }
+
+    // Como se destrava. Conquista bloqueada é uma META — "Mensalista" cinza sem explicação
+    // não diz o que fazer; "jogue 4 jogos fixos" diz.
+    public string Descricao { get; set; } = "";
 }
 
 // Elogio agregado por tipo, pra exibir no perfil ("3 Smash Bom")

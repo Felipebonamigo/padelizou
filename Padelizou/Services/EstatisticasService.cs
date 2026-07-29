@@ -901,17 +901,23 @@ public class EstatisticasService : IEstatisticasService
             j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId ||
             j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId);
         bool ehOrganizador = await _context.TorneioOrganizadores.AnyAsync(o => o.JogadorId == jogadorId);
+        int elogiosRecebidos = await _context.Elogios.CountAsync(e => e.ParaJogadorId == jogadorId);
+        int aulasComoAluno = await _context.Aulas.CountAsync(a => a.AlunoId == jogadorId && a.Status == "Realizada");
         var resumo = await ObterResumoJogadorAsync(jogadorId);
 
-        return new List<ConquistaVM>
-        {
-            new() { Codigo = "Estreia", Titulo = "Estreia", Icone = "bi-flag-fill", Conquistada = temDupla || totalJogosSemanais > 0 },
-            new() { Codigo = "Mensalista", Titulo = "Mensalista", Icone = "bi-calendar2-check-fill", Conquistada = totalJogosSemanais >= 4 },
-            new() { Codigo = "Organizador", Titulo = "Organizador", Icone = "bi-clipboard-check-fill", Conquistada = ehOrganizador },
-            new() { Codigo = "DoTime", Titulo = "Do time", Icone = "bi-shield-fill", Conquistada = jogador.TimeId != null },
-            new() { Codigo = "Campeao", Titulo = "Campeão", Icone = "bi-trophy-fill", Conquistada = resumo.Titulos > 0 },
-            new() { Codigo = "Professor", Titulo = "Professor", Icone = "bi-mortarboard-fill", Conquistada = jogador.IsProfessor },
-        };
+        // Aqui só se COLETA; a regra de cada conquista mora no CatalogoConquistas, puro.
+        return CatalogoConquistas.Montar(new DadosParaConquistas(
+            JogouAlgumaVez: temDupla,
+            JogosSemanais: totalJogosSemanais,
+            EhOrganizador: ehOrganizador,
+            TemTime: jogador.TimeId != null,
+            EhProfessor: jogador.IsProfessor,
+            Titulos: resumo.Titulos,
+            Finais: resumo.Finais,
+            TotalTorneios: resumo.TotalTorneios,
+            Vitorias: resumo.Vitorias,
+            ElogiosRecebidos: elogiosRecebidos,
+            AulasComoAluno: aulasComoAluno));
     }
 
     public async Task<HeadToHeadVM> ObterHeadToHeadAsync(int jogadorId, int oponenteId)
