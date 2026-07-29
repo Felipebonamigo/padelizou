@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/07/2026** — **logo novo no ar** (build-95) e o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
+> Última atualização: **29/07/2026** — **logo novo no ar** (build-98: raquetes soltas na barra/rodapé/capa, logo completo no fundo claro) e o achado nº 1 da revisão foi fechado: **carimbo antifalsificação (CSRF) global**, mais 2 defeitos reais que estavam escondidos nos avisos do compilador (login de quem não tem e-mail; robô do mata-mata sem checar o torneio), 25 avisos → **0**, e o mascote em **17 telas** de estado vazio. **build-93**, **539 testes**, publicado em dev e prod.
 > ⏳ Continua pendente do Felipe: publicar o app no Google (o backup morre em 7 dias sem isso) e conferir o **webhook do meio de pagamento recusado de hora em hora** (13×/24h, aos :28 — provável sobra do sandbox apontando pra produção).
 
 ---
@@ -194,7 +194,8 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
   Cada ícone derivado respeita a exigência da sua plataforma: `logo-icon.webp` transparente (**WebP porque carrega em TODA página: 257 KB → 18 KB**), favicon ainda mais aproximado (a 32px o enquadramento original vira uma mancha verde), `apple-touch-icon` **opaco** (o iOS pinta preto atrás de transparência) e `icon-512` com fundo cheio e raquetes nos 60% centrais (o Android recorta a *maskable* num círculo).
   No CSS o `border-radius` foi de 10px pra **50%** (o logo virou redondo) e a sombra escura — que não separa nada numa barra escura — ganhou um **aro fininho na cor de destaque**.
   ⚠️ **`CACHE_NAME` do Service Worker foi de v1 pra v2.** Ele pré-guarda os ícones **pelo caminho**, e o `activate` só descarta cache de nome diferente: sem virar a versão, quem já instalou o app ficaria com o logo antigo **pra sempre**. Todo `<img>`/`<link>` ganhou `asp-append-version`.
-  ⏳ Sobraram em `wwwroot/image/` os dois JPEG de origem (`logo-novo.jpeg` e `logo-novo-padel.jpeg`, 216 KB) — são a arte original, mas estão numa pasta pública e ninguém os usa. Valia moverem pra fora do `wwwroot`.
+  ~~⏳ Sobraram em `wwwroot/image/` os dois JPEG de origem~~ ✅ movidos pra `antigo/` na raiz do repo (fora do `wwwroot`), junto com o logo anterior recuperado do histórico e um `LEIA-ME.md`.
+- **Segunda rodada do logo, por decisão do Felipe** (build-98): na barra o disco escuro sumia (1,7:1 contra o navy) e dependia do aro pra existir. Agora **onde o fundo é o azul do site vão as raquetes SOLTAS** (`logo-raquetes.webp`, recorte por máscara de cor `G−max(R,B)` com rampa 10..50) — barra (38px), rodapé (26px, disco nesse tamanho vira borrão) e capa de torneio sem imagem (gradiente navy fixo). **Logo completo fica onde o fundo é claro**: login, portão, relatório impresso, favicon e ícones de app. Sem o disco de moldura o desenho fica **65% maior nos mesmos 38px**. Barra mantida em 38px de largura **de propósito** (a conta do estouro em 1280px fechou com esse número — conferido: estouro 0). `border`/`box-shadow` saíram do `.pdz-brand-logo`: desenhariam um **retângulo** em volta da área transparente; `drop-shadow` segue o contorno. **`CACHE_NAME` v2 → v3.** Conferido em tela nos dois temas, e em produção.
 
 ---
 
