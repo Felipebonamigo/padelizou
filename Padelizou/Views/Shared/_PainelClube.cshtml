@@ -1,7 +1,7 @@
 @model Padelizou.ViewModels.PainelClubeHomeVM
 @*
-    Painel do dono/administrador de clube. Por enquanto entrega a ocupação de hoje —
-    o mapa da semana inteira ainda está por fazer (ver STATUS.md, bloco Clube).
+    Resumo do clube na home de quem é dono/administrador. O painel completo (agenda com
+    quem agendou, quadras, financeiro e política) fica em ClubeGestao/Painel.
 *@
 <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid #0dcaf0 !important;">
     <div class="card-body">
@@ -11,8 +11,8 @@
             </h6>
             @if (Model.Clubes.Count == 1)
             {
-                <a asp-controller="ClubeGestao" asp-action="Ocupacao" asp-route-id="@Model.Clubes[0].Id"
-                   class="small text-decoration-none fw-bold">Mapa da semana →</a>
+                <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@Model.Clubes[0].Id"
+                   class="small text-decoration-none fw-bold">Abrir painel →</a>
             }
             else
             {
@@ -42,8 +42,8 @@
                     <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@c.Nome</span>
                     <small class="text-muted">@c.ReservasHoje reserva(s) hoje · @c.Quadras quadra(s)</small>
                 </div>
-                <a asp-controller="ClubeGestao" asp-action="Ocupacao" asp-route-id="@c.Id"
-                   class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">Ocupação</a>
+                <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@c.Id"
+                   class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">Painel</a>
             </div>
         }
     </div>

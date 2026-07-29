@@ -4,6 +4,46 @@ namespace Padelizou.ViewModels;
 
 // Mapa de ocupação: a semana inteira, quadra por quadra, num relance. É a tela que o
 // dono abre pra saber se vale abrir mais horário ou fazer promoção na terça de manhã.
+// A casa do dono de clube. As telas de gestão (mapa da semana, horários e preços, financeiro,
+// política) já existiam, mas soltas — não havia um lugar que respondesse "como está o meu
+// clube hoje" nem mostrasse QUEM agendou, que é a primeira coisa que o dono quer ver.
+public class PainelClubeVM
+{
+    public Clube Clube { get; set; } = null!;
+
+    public int ReservasHoje { get; set; }
+    public int ReservasNaSemana { get; set; }
+    public int QuadrasAtivas { get; set; }
+    public int HorariosPublicados { get; set; }
+    public decimal ReceitaDoMes { get; set; }
+
+    // Ocupação da semana corrente, mesmo cálculo do mapa — serve de termômetro na entrada.
+    public int PercentualOcupacaoSemana { get; set; }
+
+    public List<ReservaDoPainelVM> Proximas { get; set; } = new();
+
+    // Sem quadra ou sem horário publicado, o clube não aparece pra ninguém marcar — é a
+    // mesma armadilha da escada do professor, e o painel precisa dizer isso na cara.
+    public bool PrecisaDeQuadra => QuadrasAtivas == 0;
+    public bool PrecisaDeHorario => QuadrasAtivas > 0 && HorariosPublicados == 0;
+    public bool InvisivelPraMarcacao => !Clube.MarcacaoHorariosAtiva || PrecisaDeQuadra || PrecisaDeHorario;
+}
+
+public class ReservaDoPainelVM
+{
+    public int MarcacaoId { get; set; }
+    public DateTime DataHora { get; set; }
+    public string Quadra { get; set; } = "";
+    public string Jogador { get; set; } = "";
+    public string? Celular { get; set; }
+    public bool EhMensalista { get; set; }
+    public bool EhBloqueio { get; set; }
+    public string? MotivoBloqueio { get; set; }
+    public decimal? Valor { get; set; }
+
+    public bool EhHoje => DataHora.Date == DateTime.Today;
+}
+
 public class OcupacaoClubeVM
 {
     public Clube Clube { get; set; } = null!;

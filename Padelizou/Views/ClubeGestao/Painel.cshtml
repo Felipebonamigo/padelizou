@@ -1,0 +1,223 @@
+@model Padelizou.ViewModels.PainelClubeVM
+@using System.Globalization
+@{
+    ViewData["Title"] = Model.Clube.Nome + " — Painel do Clube";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    string[] diasCurtos = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-shop"></i> @Model.Clube.Nome
+            </h2>
+            <p class="text-muted mb-0">Painel do clube — agenda, quadras e financeiro num lugar.</p>
+        </div>
+        <a asp-controller="MarcarJogo" asp-action="Clube" asp-route-clubeId="@Model.Clube.Id"
+           class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-eye"></i> Ver como o jogador vê
+        </a>
+    </div>
+
+    @* Sem quadra ou sem horário publicado o clube não aparece pra ninguém marcar — a mesma
+       armadilha da escada do professor. O painel diz isso na entrada, com o caminho. *@
+    @if (Model.PrecisaDeQuadra)
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex gap-2 align-items-start">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>
+                <strong>Nenhuma quadra cadastrada.</strong> Enquanto não houver, ninguém consegue
+                marcar jogo no seu clube.
+                <a asp-controller="HorarioMarcacao" asp-action="Index" asp-route-clubeId="@Model.Clube.Id"
+                   class="fw-bold">Cadastrar quadra →</a>
+            </div>
+        </div>
+    }
+    else if (Model.PrecisaDeHorario)
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex gap-2 align-items-start">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>
+                <strong>Nenhum horário publicado.</strong> A quadra existe, mas sem horário o
+                jogador abre a sua página e não encontra nada pra marcar.
+                <a asp-controller="HorarioMarcacao" asp-action="Index" asp-route-clubeId="@Model.Clube.Id"
+                   class="fw-bold">Publicar horários →</a>
+            </div>
+        </div>
+    }
+    else if (!Model.Clube.MarcacaoHorariosAtiva)
+    {
+        <div class="alert alert-secondary border-0 shadow-sm d-flex gap-2 align-items-start">
+            <i class="bi bi-pause-circle-fill mt-1"></i>
+            <div>
+                <strong>Marcação desligada.</strong> Seus horários existem, mas o clube não aparece
+                na tela de Marcar Jogo. É assim que se pausa sem apagar nada.
+            </div>
+        </div>
+    }
+
+    <!-- NÚMEROS -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 text-center p-3">
+                <div class="fw-bold fs-3" style="color: var(--pdz-ink);">@Model.ReservasHoje</div>
+                <small class="text-muted">reserva(s) hoje</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 text-center p-3">
+                <div class="fw-bold fs-3" style="color: var(--pdz-ink);">@Model.ReservasNaSemana</div>
+                <small class="text-muted">nesta semana</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 text-center p-3">
+                <div class="fw-bold fs-3" style="color: var(--padel-green);">@Model.PercentualOcupacaoSemana%</div>
+                <small class="text-muted">ocupação da semana</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 text-center p-3">
+                <div class="fw-bold fs-3" style="color: var(--pdz-ink);">@Model.ReceitaDoMes.ToString("C0", ptBr)</div>
+                <small class="text-muted">no mês</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- QUEM AGENDOU -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                        <i class="bi bi-calendar-check"></i> Próximas reservas
+                    </h6>
+
+                    @if (!Model.Proximas.Any())
+                    {
+                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma reserva pra frente. Quando alguém marcar, aparece aqui com nome e contato."))' />
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var r in Model.Proximas)
+                            {
+                                <div class="list-group-item px-0 d-flex gap-3 align-items-center">
+                                    <div class="text-center flex-shrink-0" style="width: 54px;">
+                                        <div class="fw-bold" style="color: var(--pdz-ink);">@r.DataHora.ToString("HH:mm")</div>
+                                        <small class="@(r.EhHoje ? "fw-bold" : "text-muted")" style="font-size:.72rem;">
+                                            @(r.EhHoje ? "hoje" : $"{diasCurtos[(int)r.DataHora.DayOfWeek]} {r.DataHora:dd/MM}")
+                                        </small>
+                                    </div>
+                                    <div class="flex-grow-1 overflow-hidden">
+                                        @if (r.EhBloqueio)
+                                        {
+                                            <span class="fw-semibold text-muted">
+                                                <i class="bi bi-lock-fill"></i> @(r.MotivoBloqueio ?? "Bloqueado")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-semibold d-block text-truncate" style="color: var(--pdz-ink);">
+                                                @r.Jogador
+                                                @if (r.EhMensalista)
+                                                {
+                                                    <span class="badge rounded-pill ms-1" style="background: rgba(13,202,240,.18); color:#0aa2c0;">mensalista</span>
+                                                }
+                                            </span>
+                                        }
+                                        <small class="text-muted">
+                                            <i class="bi bi-geo-alt"></i> @r.Quadra
+                                            @if (r.Valor > 0)
+                                            {
+                                                <span>· @r.Valor!.Value.ToString("C", ptBr)</span>
+                                            }
+                                        </small>
+                                    </div>
+                                    @* O contato é o que o clube usa quando precisa avisar de chuva
+                                       ou de troca de quadra — por isso fica a um toque, não escondido. *@
+                                    @if (!string.IsNullOrWhiteSpace(r.Celular))
+                                    {
+                                        <a href="https://wa.me/55@(new string(r.Celular.Where(char.IsDigit).ToArray()))"
+                                           target="_blank" rel="noopener"
+                                           class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0"
+                                           title="Falar com @r.Jogador no WhatsApp">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </a>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id"
+                           class="btn btn-sm btn-outline-secondary rounded-pill mt-3">
+                            Ver o mapa da semana inteira →
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- ATALHOS -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                        <i class="bi bi-sliders"></i> Administrar
+                    </h6>
+
+                    <div class="list-group list-group-flush">
+                        <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
+                            <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                <i class="bi bi-grid-3x3"></i> Mapa da semana
+                            </span>
+                            <small class="d-block text-muted">Quem está em cada quadra e hora. Bloquear horário e criar mensalista.</small>
+                        </a>
+                        <a asp-controller="HorarioMarcacao" asp-action="Index" asp-route-clubeId="@Model.Clube.Id"
+                           class="list-group-item list-group-item-action px-0">
+                            <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                <i class="bi bi-clock-history"></i> Quadras, horários e preços
+                            </span>
+                            <small class="d-block text-muted">
+                                @Model.QuadrasAtivas quadra(s) · @Model.HorariosPublicados horário(s) publicado(s).
+                                <strong>Virou fixo? Desligue o horário</strong> — ele sai da tela do jogador sem apagar nada.
+                            </small>
+                        </a>
+                        <a asp-action="Financeiro" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
+                            <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                <i class="bi bi-cash-coin"></i> Financeiro
+                            </span>
+                            <small class="d-block text-muted">Receita por quadra e por dia da semana, cancelamentos e faltas.</small>
+                        </a>
+                        <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
+                            <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                <i class="bi bi-shield-check"></i> Política de cancelamento
+                            </span>
+                            <small class="d-block text-muted">
+                                Hoje: cancelamento até @Model.Clube.HorasMinimasCancelamento h antes;
+                                falta @(Model.Clube.CobraNoShow ? "é cobrada" : "não é cobrada").
+                            </small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            @* O plano é conversado caso a caso — então o painel não inventa número, só abre a
+               conversa. Sem isto, o dono não tem por onde pedir mudança. *@
+            <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--padel-green) !important;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                        <i class="bi bi-patch-check-fill" style="color: var(--padel-green);"></i> Seu plano
+                    </h6>
+                    <p class="small text-muted mb-2">
+                        A marcação de quadra pelo Padelizou é um serviço combinado com o clube.
+                        Quer mudar algo do seu plano, incluir quadra ou tirar dúvida de cobrança?
+                    </p>
+                    <a asp-controller="Auth" asp-action="ReportarProblema" class="btn btn-sm btn-padel rounded-pill px-3">
+                        Falar com o Padelizou
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

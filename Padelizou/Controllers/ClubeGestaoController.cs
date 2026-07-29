@@ -39,6 +39,86 @@ public class ClubeGestaoController : Controller
             || await _context.ClubeAdministradores.AnyAsync(a => a.ClubeId == clubeId && a.JogadorId == id);
     }
 
+    // ===================== PAINEL (a casa do clube) =====================
+    //
+    // As telas de gestão existiam soltas — mapa da semana, horários e preços, financeiro,
+    // política — sem um lugar que respondesse "como está meu clube hoje" nem mostrasse QUEM
+    // agendou. Este painel é essa casa: números do dia, próximas reservas com nome e contato,
+    // e os atalhos pro resto.
+    [HttpGet]
+    public async Task<IActionResult> Painel(int id)
+    {
+        if (!await PodeGerenciarAsync(id)) return Forbid();
+
+        var clube = await _context.Clubes.FindAsync(id);
+        if (clube == null) return NotFound();
+
+        var hoje = DateTime.Today;
+        var inicioSemana = hoje.AddDays(-(int)hoje.DayOfWeek);
+        var fimSemana = inicioSemana.AddDays(7);
+        var inicioMes = new DateTime(hoje.Year, hoje.Month, 1);
+
+        var quadras = await _context.QuadrasClube.CountAsync(q => q.ClubeId == id && q.Ativa);
+
+        // O preço não fica gravado na reserva: sai da regra do horário publicado (quadra +
+        // dia da semana + faixa). Por isso as regras vêm inteiras e a conta usa o MESMO
+        // PrecoDe do Financeiro — dois cálculos de receita divergiriam com o tempo.
+        var regras = await _context.HorariosMarcacaoDisponivel
+            .Where(h => h.ClubeId == id)
+            .ToListAsync();
+
+        // Só reserva de gente conta como reserva; bloqueio é o clube fechando a própria
+        // agenda e apareceria como movimento que não existe.
+        var reservasDoClube = await _context.MarcacoesJogo
+            .Where(m => m.ClubeId == id && m.Status != "Cancelada" && !m.EhBloqueio
+                     && m.DataHora >= inicioMes && m.DataHora < fimSemana.AddDays(31))
+            .ToListAsync();
+
+        var vm = new PainelClubeVM
+        {
+            Clube = clube,
+            QuadrasAtivas = quadras,
+            HorariosPublicados = regras.Count(h => h.Ativo),
+            ReservasHoje = reservasDoClube.Count(m => m.DataHora >= hoje && m.DataHora < hoje.AddDays(1)),
+            ReservasNaSemana = reservasDoClube.Count(m => m.DataHora >= inicioSemana && m.DataHora < fimSemana),
+            ReceitaDoMes = reservasDoClube
+                .Where(m => m.DataHora >= inicioMes && m.DataHora < inicioMes.AddMonths(1))
+                .Sum(m => PrecoDe(regras, m)),
+        };
+
+        // Termômetro de ocupação: quanto do que está publicado pra semana já foi tomado.
+        // Aproximação de propósito — o número exato por faixa é o mapa da semana.
+        var slotsDaSemana = vm.HorariosPublicados * 7;
+        vm.PercentualOcupacaoSemana = slotsDaSemana == 0
+            ? 0
+            : Math.Min(100, (int)Math.Round(vm.ReservasNaSemana * 100.0 / slotsDaSemana));
+
+        // A lista que o dono abre o painel pra ver. Bloqueio ENTRA aqui (diferente dos
+        // números): quem olha a agenda precisa ver a manutenção de sábado junto das reservas.
+        var proximas = await _context.MarcacoesJogo
+            .Include(m => m.QuadraClube)
+            .Include(m => m.Jogador)
+            .Where(m => m.ClubeId == id && m.Status != "Cancelada" && m.DataHora >= DateTime.Now)
+            .OrderBy(m => m.DataHora)
+            .Take(12)
+            .ToListAsync();
+
+        vm.Proximas = proximas.Select(m => new ReservaDoPainelVM
+        {
+            MarcacaoId = m.Id,
+            DataHora = m.DataHora,
+            Quadra = m.QuadraClube.Nome,
+            Jogador = m.EhBloqueio ? "" : m.Jogador.Nome,
+            Celular = m.EhBloqueio ? null : m.Jogador.Celular,
+            EhMensalista = m.MensalidadeId != null,
+            EhBloqueio = m.EhBloqueio,
+            MotivoBloqueio = m.MotivoBloqueio,
+            Valor = m.EhBloqueio ? null : PrecoDe(regras, m),
+        }).ToList();
+
+        return View(vm);
+    }
+
     // ===================== MAPA DE OCUPAÇÃO =====================
 
     [HttpGet]
