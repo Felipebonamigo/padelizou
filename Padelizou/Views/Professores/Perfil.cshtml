@@ -30,9 +30,8 @@
                 @if (Model.MediaNota != null)
                 {
                     <p class="mb-1">
-                        <strong style="color: #ffc107; font-size: 1.15rem;">
-                            <i class="bi bi-star-fill"></i> @AvaliacaoDoProfessor.MediaFormatada(Model.MediaNota.Value)
-                        </strong>
+                        <span style="color: #ffc107; font-size: 1.1rem;">@AvaliacaoDoProfessor.Estrelas(Model.MediaNota)</span>
+                        <strong class="ms-1">@Model.MediaNota.Value.ToString("0.0", ptBr)</strong>
                         <span class="text-light opacity-75 small">(@Model.TotalAvaliacoes avaliação(ões))</span>
                     </p>
                 }

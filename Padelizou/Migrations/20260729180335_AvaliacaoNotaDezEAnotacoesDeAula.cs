@@ -22,10 +22,10 @@ namespace Padelizou.Migrations
                 nullable: false,
                 defaultValue: true);
 
-            // A escala mudou de 1-5 (estrelas) pra 0-10 (nota). As avaliações antigas são
-            // convertidas na mesma proporção: 5 estrelas = nota 10, 3 = 6, 1 = 2. Sem isto,
-            // um professor 5 estrelas viraria "5/10" — nota de reprovação — da noite pro dia.
-            migrationBuilder.Sql("""UPDATE "AvaliacaoProfessor" SET "Nota" = "Nota" * 2 WHERE "Nota" <= 5;""");
+            // (Aqui houve por algumas horas um UPDATE convertendo as notas 1-5 pra 0-10.
+            // Saiu ANTES de a migração rodar em qualquer ambiente além do local — o Felipe
+            // preferiu manter as estrelas. Editar migração já aplicada em prod seria outro
+            // caso: essa nunca chegou lá.)
 
             migrationBuilder.CreateTable(
                 name: "AnotacaoAula",

@@ -31,6 +31,8 @@ public static class CatalogoElogios
         new("BomParceiro", "Bom Parceiro de Dupla", "bi-people-fill"),
         new("BoaVibra", "Boa Vibe", "bi-emoji-laughing-fill"),
         new("FairPlay", "Fair Play", "bi-hand-thumbs-up"),
+        // Padel tem moda: entrar na quadra bem vestido é meio caminho da vitória moral.
+        new("LookBonito", "Look Bonito", "bi-sunglasses"),
     };
 
     public static TipoElogio? Obter(string codigo) => Todos.FirstOrDefault(t => t.Codigo == codigo);

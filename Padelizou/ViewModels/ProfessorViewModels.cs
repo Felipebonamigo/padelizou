@@ -22,6 +22,9 @@ public class ProfessorPublicoVM
     public List<AvaliacaoProfessor> Depoimentos { get; set; } = new();
     public bool DepoimentosHabilitados { get; set; } = true;
 
+    // Distribuição de notas (5 → 1), pras barrinhas.
+    public Dictionary<int, int> NotasPorEstrela { get; set; } = new();
+
     public string PoliticaCancelamento { get; set; } = "";
 
     // Preenchidos só quando há alguém logado olhando.

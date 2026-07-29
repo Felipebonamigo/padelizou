@@ -104,6 +104,7 @@ public class ProfessoresController : Controller
                 ? avaliacoes.Where(a => !string.IsNullOrWhiteSpace(a.Depoimento)).Take(10).ToList()
                 : new List<AvaliacaoProfessor>(),
             DepoimentosHabilitados = professor.DepoimentosDeAulaHabilitados,
+            NotasPorEstrela = Enumerable.Range(1, 5).ToDictionary(n => n, n => avaliacoes.Count(a => a.Nota == n)),
             PoliticaCancelamento = PoliticaAula.DescreverPolitica(professor),
         };
 
@@ -131,7 +132,7 @@ public class ProfessoresController : Controller
 
         if (!AvaliacaoDoProfessor.NotaValida(nota))
         {
-            TempData["Erro"] = "A nota precisa ser de 0 a 10.";
+            TempData["Erro"] = "A nota precisa ser de 1 a 5 estrelas.";
             return RedirectToAction("Perfil", new { id = professorId });
         }
 
@@ -177,7 +178,7 @@ public class ProfessoresController : Controller
                 var aluno = await _context.Jogadores.FindAsync(alunoId);
                 await _pushService.EnviarParaJogadorAsync(professorId,
                     "Você recebeu uma avaliação",
-                    $"{aluno?.Nome ?? "Um aluno"} te deu nota {nota}/10.",
+                    $"{aluno?.Nome ?? "Um aluno"} te deu {nota} estrela(s).",
                     Url.Action("Perfil", "Professores", new { id = professorId }));
             }
             catch (Exception ex)

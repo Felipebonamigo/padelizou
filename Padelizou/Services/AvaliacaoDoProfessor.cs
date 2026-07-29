@@ -1,6 +1,9 @@
 namespace Padelizou.Services;
 
-// Regras da avaliação de professor (nota 0-10 + depoimento opcional).
+// Regras da avaliação de professor (1 a 5 estrelas + depoimento com interruptor).
+//
+// A escala é a de ESTRELAS que o sistema sempre teve (o Felipe cogitou 0-10 em 29/07 e
+// voltou atrás no mesmo dia — a tela de estrelas já existia e já era a linguagem do site).
 //
 // A NOTA nunca se desliga: é o dado que protege o próximo aluno na hora de escolher.
 // O DEPOIMENTO é vitrine, e vitrine é do dono — o professor escolhe se a página dele
@@ -8,8 +11,8 @@ namespace Padelizou.Services;
 // se ele religar.
 public static class AvaliacaoDoProfessor
 {
-    public const int NotaMinima = 0;
-    public const int NotaMaxima = 10;
+    public const int NotaMinima = 1;
+    public const int NotaMaxima = 5;
 
     public static bool NotaValida(int nota) => nota is >= NotaMinima and <= NotaMaxima;
 
@@ -22,8 +25,11 @@ public static class AvaliacaoDoProfessor
         return string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
     }
 
-    // "9,2/10" — uma casa, no formato que o Brasil lê. A média nunca some por causa do
-    // interruptor de depoimentos.
-    public static string MediaFormatada(double media) =>
-        $"{Math.Round(media, 1).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"))}/10";
+    // "★★★★☆" a partir da média (arredonda pro inteiro mais próximo). Mora aqui, e não
+    // solto em cada view, porque duas telas desenham estrelas e divergir seria pior.
+    public static string Estrelas(double? media)
+    {
+        int cheias = media == null ? 0 : Math.Clamp((int)Math.Round(media.Value), 0, NotaMaxima);
+        return string.Concat(Enumerable.Range(1, NotaMaxima).Select(i => i <= cheias ? "★" : "☆"));
+    }
 }

@@ -11,10 +11,11 @@ namespace Padelizou.Tests;
 public class BuscaJogadoresTests
 {
     private static async Task<BuscaJogadoresVM> Buscar(DbPadelContext ctx,
-        string? q = null, int? categoriaId = null, string? estado = null, string? cidade = null, int? clubeId = null)
+        string? q = null, int? categoriaId = null, string? estado = null, string? cidade = null, int? clubeId = null,
+        int pagina = 1)
     {
         var controller = new JogadoresController(ctx, new EstatisticasService(ctx));
-        var result = (ViewResult)await controller.Buscar(q, categoriaId, estado, cidade, clubeId);
+        var result = (ViewResult)await controller.Buscar(q, categoriaId, estado, cidade, clubeId, pagina);
         return (BuscaJogadoresVM)result.Model!;
     }
 
@@ -27,16 +28,58 @@ public class BuscaJogadoresTests
     }
 
     [Fact]
-    public async Task Sem_filtro_nenhum_nao_lista_ninguem()
+    public async Task Sem_filtro_nenhum_lista_todo_mundo_paginado()
     {
+        // A regra era o contrário ("a tela abre convidando a filtrar") e mudou por decisão
+        // do Felipe em 29/07/2026: quem abre a busca querendo "ver quem tem por aqui" não
+        // deveria precisar adivinhar um nome primeiro. O que protege a tela e o banco de
+        // "todo mundo" crescer é a paginação, não a recusa.
         using var ctx = TestInfra.NovoContexto();
         NovoJogador(ctx, "Ana", "1", "Caxias do Sul", "RS");
+        NovoJogador(ctx, "Beto", "2");
 
         var vm = await Buscar(ctx);
 
-        // A tela abre convidando a filtrar, não despejando o banco inteiro.
         Assert.False(vm.TemFiltro);
-        Assert.Empty(vm.Resultados);
+        Assert.Equal(2, vm.TotalEncontrado);
+        Assert.Equal(2, vm.Resultados.Count);
+    }
+
+    [Fact]
+    public async Task A_pagina_corta_em_30_e_a_segunda_traz_o_resto()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        for (int i = 1; i <= 35; i++)
+        {
+            NovoJogador(ctx, $"Jogador {i:00}", i.ToString());
+        }
+
+        var primeira = await Buscar(ctx);
+        var segunda = await Buscar(ctx, pagina: 2);
+
+        Assert.Equal(35, primeira.TotalEncontrado);
+        Assert.Equal(2, primeira.TotalPaginas);
+        Assert.Equal(30, primeira.Resultados.Count);
+        Assert.Equal(5, segunda.Resultados.Count);
+
+        // Ninguém aparece em duas páginas nem some entre elas.
+        var todos = primeira.Resultados.Concat(segunda.Resultados).Select(r => r.Jogador.Id).ToList();
+        Assert.Equal(35, todos.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Pagina_fora_do_intervalo_vai_pra_mais_proxima_que_existe()
+    {
+        // Link velho de "página 9" continua funcionando depois que a base encolher.
+        using var ctx = TestInfra.NovoContexto();
+        NovoJogador(ctx, "Ana", "1");
+
+        var alem = await Buscar(ctx, pagina: 9);
+        var aquem = await Buscar(ctx, pagina: -3);
+
+        Assert.Equal(1, alem.Pagina);
+        Assert.Single(alem.Resultados);
+        Assert.Equal(1, aquem.Pagina);
     }
 
     [Fact]

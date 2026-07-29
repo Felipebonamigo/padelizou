@@ -261,6 +261,44 @@
                 </div>
             }
         </div>
+
+        @if (Model.TotalPaginas > 1)
+        {
+            @* Janela de páginas: primeira, vizinhas da atual e última — 40 páginas numeradas
+               numa linha não ajudam ninguém. As reticências marcam o que foi pulado. *@
+            string UrlPagina(int p) => Url.Action("Buscar", new
+            {
+                q = Model.Termo, categoriaId = Model.CategoriaId, estado = Model.Estado,
+                cidade = Model.Cidade, clubeId = Model.ClubeId, pagina = p
+            })!;
+
+            var vizinhas = Enumerable.Range(1, Model.TotalPaginas)
+                .Where(p => p == 1 || p == Model.TotalPaginas || Math.Abs(p - Model.Pagina) <= 2)
+                .ToList();
+
+            <nav aria-label="Páginas do resultado" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <li class="page-item @(Model.Pagina == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@UrlPagina(Model.Pagina - 1)">Anterior</a>
+                    </li>
+                    @{ int anterior = 0; }
+                    @foreach (var p in vizinhas)
+                    {
+                        @if (p - anterior > 1)
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                        <li class="page-item @(p == Model.Pagina ? "active" : "")">
+                            <a class="page-link" href="@UrlPagina(p)">@p</a>
+                        </li>
+                        anterior = p;
+                    }
+                    <li class="page-item @(Model.Pagina == Model.TotalPaginas ? "disabled" : "")">
+                        <a class="page-link" href="@UrlPagina(Model.Pagina + 1)">Próxima</a>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
 </div>
 
