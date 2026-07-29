@@ -57,4 +57,7 @@ public partial class Partida
     // Existe pra ele sair UMA vez: o organizador finalizar sem querer e desfazer é comum
     // no meio do torneio, e sem esta marca cada desfazer mandaria o push de novo.
     public DateTime? AvisoProximoEnviadoEm { get; set; }
+
+    // Push de "sua quadra está atrasada" já saiu? (um por partida — aviso repetido vira ruído)
+    public DateTime? AvisoAtrasoEnviadoEm { get; set; }
 }
