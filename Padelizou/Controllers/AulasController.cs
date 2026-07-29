@@ -738,8 +738,11 @@ namespace padelizou.Controllers
             return View(horarios);
         }
 
+        // Vários dias de uma vez ("segunda, quarta e sexta das 8h ao meio-dia") — um dia por
+        // vez tornava o cadastro da semana uma novela de sete capítulos. A decisão de quais
+        // criar/reativar/pular mora em Services/NovoHorarioDoProfessor, testável sem banco.
         [HttpPost]
-        public async Task<IActionResult> CriarHorario(int localAulaId, int diaSemana, TimeSpan horaInicio, TimeSpan horaFim, int duracaoMinutos)
+        public async Task<IActionResult> CriarHorario(int localAulaId, int[] diasSemana, TimeSpan horaInicio, TimeSpan horaFim, int duracaoMinutos)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -750,17 +753,43 @@ namespace padelizou.Controllers
                 return RedirectToAction("MeusHorarios");
             }
 
-            _context.HorariosDisponiveis.Add(new HorarioDisponivel
+            var duracao = duracaoMinutos <= 0 ? DuracaoPadraoMinutos : duracaoMinutos;
+            var existentes = await _context.HorariosDisponiveis
+                .Where(h => h.ProfessorId == professorId)
+                .ToListAsync();
+
+            var plano = NovoHorarioDoProfessor.Planejar(
+                diasSemana ?? Array.Empty<int>(), horaInicio, horaFim, duracao, localAulaId, existentes);
+
+            if (!plano.Valido)
             {
-                ProfessorId = professorId.Value,
-                LocalAulaId = localAulaId,
-                DiaSemana = diaSemana,
-                HoraInicio = horaInicio,
-                HoraFim = horaFim,
-                DuracaoMinutos = duracaoMinutos <= 0 ? DuracaoPadraoMinutos : duracaoMinutos,
-                Ativo = true
-            });
+                TempData["ErroHorario"] = plano.Erro;
+                return RedirectToAction("MeusHorarios");
+            }
+
+            foreach (var dia in plano.DiasParaCriar)
+            {
+                _context.HorariosDisponiveis.Add(new HorarioDisponivel
+                {
+                    ProfessorId = professorId.Value,
+                    LocalAulaId = localAulaId,
+                    DiaSemana = dia,
+                    HoraInicio = horaInicio,
+                    HoraFim = horaFim,
+                    DuracaoMinutos = duracao,
+                    Ativo = true
+                });
+            }
+
+            foreach (var dia in plano.DiasParaReativar)
+            {
+                var pausado = existentes.First(h => h.LocalAulaId == localAulaId && h.DiaSemana == dia
+                    && h.HoraInicio == horaInicio && h.HoraFim == horaFim);
+                pausado.Ativo = true;
+            }
+
             await _context.SaveChangesAsync();
+            TempData["SucessoHorario"] = NovoHorarioDoProfessor.Resumo(plano);
 
             return RedirectToAction("MeusHorarios");
         }
@@ -1244,6 +1273,85 @@ namespace padelizou.Controllers
 
             var jogador = await _context.Jogadores.FindAsync(userId);
             return jogador != null && jogador.IsProfessor ? userId : null;
+        }
+
+        // ------------------------------------------------------------------
+        // Anotações da aula: o caderno compartilhado entre professor e aluno.
+        // Cada linha guarda quem escreveu — a regra de quem participa mora em
+        // Services/AnotacoesDeAula.
+        // ------------------------------------------------------------------
+
+        [Authorize]
+        public async Task<IActionResult> Anotacoes(int id)
+        {
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId))
+                return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas
+                .Include(a => a.Professor)
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (aula == null) return NotFound();
+            if (!AnotacoesDeAula.PodeParticipar(aula, meuId)) return Forbid();
+
+            ViewBag.Anotacoes = await _context.AnotacoesAula
+                .Include(n => n.Autor)
+                .Where(n => n.AulaId == id)
+                .OrderBy(n => n.CriadoEm)
+                .ToListAsync();
+            ViewBag.MeuId = meuId;
+
+            return View(aula);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AdicionarAnotacao(int aulaId, string? texto)
+        {
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId))
+                return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas.FindAsync(aulaId);
+            if (aula == null) return NotFound();
+            if (!AnotacoesDeAula.PodeParticipar(aula, meuId)) return Forbid();
+
+            if (!AnotacoesDeAula.TextoValido(texto))
+            {
+                TempData["Erro"] = $"Escreva algo (até {AnotacoesDeAula.TamanhoMaximo} caracteres).";
+                return RedirectToAction(nameof(Anotacoes), new { id = aulaId });
+            }
+
+            _context.AnotacoesAula.Add(new AnotacaoAula
+            {
+                AulaId = aulaId,
+                AutorId = meuId,
+                Texto = texto!.Trim(),
+            });
+            await _context.SaveChangesAsync();
+
+            // Anotação avisa o OUTRO lado da aula — professor escreve, aluno fica sabendo,
+            // e vice-versa. Aula avulsa (aluno sem conta) não tem quem avisar.
+            var destinatario = AnotacoesDeAula.QuemAvisar(aula, meuId);
+            if (destinatario != null)
+            {
+                try
+                {
+                    var autor = await _context.Jogadores.FindAsync(meuId);
+                    await _pushService.EnviarParaJogadorAsync(destinatario.Value,
+                        "Nova anotação na aula",
+                        $"{autor?.Nome ?? "Alguém"} anotou algo sobre a aula de {aula.DataHora:dd/MM}.",
+                        Url.Action(nameof(Anotacoes), "Aulas", new { id = aulaId }));
+                }
+                catch (Exception ex)
+                {
+                    // A anotação já está salva; push é acessório.
+                    _logger.LogWarning(ex, "Falha ao avisar anotação da aula {AulaId}.", aulaId);
+                }
+            }
+
+            return RedirectToAction(nameof(Anotacoes), new { id = aulaId });
         }
     }
 }

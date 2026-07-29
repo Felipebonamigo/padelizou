@@ -83,6 +83,12 @@ public partial class Jogador
     // Texto livre que aparece pro aluno na hora de marcar e na página pública.
     public string? PoliticaCancelamentoTexto { get; set; }
 
+    // O professor escolhe se a página pública dele aceita COMENTÁRIO nas avaliações.
+    // A NOTA não se desliga — nota é o dado que protege o próximo aluno; o texto é vitrine,
+    // e vitrine é do dono. Desligado: novos comentários não são aceitos e os antigos saem
+    // de exibição (ficam guardados — religou, voltam).
+    public bool DepoimentosDeAulaHabilitados { get; set; } = true;
+
     // ---- Página pública do professor ----
     public string? ApresentacaoProfessor { get; set; }   // "sobre mim", o que vende a aula
     public string? ExperienciaProfessor { get; set; }    // formação/tempo de quadra

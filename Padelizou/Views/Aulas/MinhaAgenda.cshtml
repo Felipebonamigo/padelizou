@@ -358,6 +358,9 @@
                 <a href="#" id="mWhats" class="btn btn-sm btn-success rounded-pill fw-bold d-none" target="_blank">
                     <i class="bi bi-whatsapp"></i> Chamar aluno
                 </a>
+                <a href="#" id="mAnotacoes" class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
+                    <i class="bi bi-journal-text"></i> Anotações
+                </a>
 
                 <form asp-action="ConfirmarSolicitacao" method="post" class="d-none" id="fAceitar">
                     <input type="hidden" name="aulaId" id="mAceitarId" />
@@ -465,6 +468,10 @@
                 var whats = document.getElementById('mWhats');
                 whats.classList.toggle('d-none', !a.whats || a.status === 'Pendente');
                 if (a.whats) whats.href = a.whats;
+
+                // O caderno da aula: sempre disponível — anotar vale antes ("focar na
+                // bandeja") e depois ("evoluiu no voleio") da aula acontecer.
+                document.getElementById('mAnotacoes').href = '/Aulas/Anotacoes/' + a.id;
 
                 modal.show();
             }

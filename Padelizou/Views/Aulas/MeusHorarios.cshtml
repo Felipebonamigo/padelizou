@@ -35,34 +35,57 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <h6 class="fw-bold text-muted mb-3">Novo horário</h6>
-                <form asp-controller="Aulas" asp-action="CriarHorario" method="post" class="row g-2">
-                    <div class="col-md-3">
-                        <select name="localAulaId" class="form-select" required>
-                            @foreach (var local in locais)
-                            {
-                                <option value="@local.Id">@local.Nome</option>
-                            }
-                        </select>
+
+                @if (TempData["ErroHorario"] != null)
+                {
+                    <div class="alert alert-warning border-0 shadow-sm py-2">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroHorario"]
                     </div>
-                    <div class="col-md-2">
-                        <select name="diaSemana" class="form-select" required>
-                            @for (int i = 0; i < diasSemana.Length; i++)
-                            {
-                                <option value="@i">@diasSemana[i]</option>
-                            }
-                        </select>
+                }
+                @if (TempData["SucessoHorario"] != null)
+                {
+                    <div class="alert alert-success border-0 shadow-sm py-2">
+                        <i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoHorario"]
                     </div>
-                    <div class="col-md-2">
-                        <input type="time" name="horaInicio" class="form-control" required />
+                }
+
+                <form asp-controller="Aulas" asp-action="CriarHorario" method="post">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Local</label>
+                            <select name="localAulaId" class="form-select" required>
+                                @foreach (var local in locais)
+                                {
+                                    <option value="@local.Id">@local.Nome</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Começa</label>
+                            <input type="time" name="horaInicio" class="form-control" required />
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label small text-muted mb-1">Termina</label>
+                            <input type="time" name="horaFim" class="form-control" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Aula de (min)</label>
+                            <input type="number" name="duracaoMinutos" class="form-control" value="60" min="15" step="15" required />
+                        </div>
                     </div>
-                    <div class="col-md-2">
-                        <input type="time" name="horaFim" class="form-control" required />
-                    </div>
-                    <div class="col-md-2">
-                        <input type="number" name="duracaoMinutos" class="form-control" value="60" min="15" step="15" required />
-                    </div>
-                    <div class="col-md-1">
-                        <button type="submit" class="btn btn-padel w-100 rounded-pill">+</button>
+
+                    @* Vários dias de uma vez: quem dá aula seg/qua/sex no mesmo horário marca os
+                       três e cadastra a semana num clique, em vez de repetir o formulário 3x. *@
+                    <label class="form-label small text-muted mb-1 d-block">Dias da semana (marque quantos quiser)</label>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        @for (int i = 0; i < diasSemana.Length; i++)
+                        {
+                            <input type="checkbox" class="btn-check" name="diasSemana" value="@i" id="diaHorario_@i" autocomplete="off" />
+                            <label class="btn btn-outline-secondary btn-sm rounded-pill px-3" for="diaHorario_@i">@diasSemana[i]</label>
+                        }
+                        <button type="submit" class="btn btn-padel rounded-pill px-4 ms-auto">
+                            <i class="bi bi-plus-lg"></i> Adicionar
+                        </button>
                     </div>
                 </form>
             </div>

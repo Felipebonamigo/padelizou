@@ -17,10 +17,10 @@ public class ProfessorPublicoVM
 
     public double? MediaNota { get; set; }
     public int TotalAvaliacoes { get; set; }
-    public List<AvaliacaoProfessor> Depoimentos { get; set; } = new();
 
-    // Distribuição de notas (5 → 1), pras barrinhas.
-    public Dictionary<int, int> NotasPorEstrela { get; set; } = new();
+    // Já vem filtrado: vazio quando o professor desligou a exibição de comentários.
+    public List<AvaliacaoProfessor> Depoimentos { get; set; } = new();
+    public bool DepoimentosHabilitados { get; set; } = true;
 
     public string PoliticaCancelamento { get; set; } = "";
 

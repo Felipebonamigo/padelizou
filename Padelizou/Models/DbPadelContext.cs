@@ -68,6 +68,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
+    public DbSet<AnotacaoAula> AnotacoesAula { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -297,6 +298,20 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.ParaJogador)
                 .WithMany()
                 .HasForeignKey(e => e.ParaJogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<AnotacaoAula>(entity =>
+        {
+            // Apagar a aula leva as anotações junto (são sobre ela); o autor fica Restrict —
+            // mesmo raciocínio do Elogio: dois caminhos de cascade pra Jogador conflitam.
+            entity.HasOne(a => a.Aula)
+                .WithMany()
+                .HasForeignKey(a => a.AulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.Autor)
+                .WithMany()
+                .HasForeignKey(a => a.AutorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<AvaliacaoProfessor>(entity =>

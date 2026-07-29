@@ -25,11 +25,16 @@ public class BuscaJogadoresVM
     public List<JogadorEncontradoVM> Resultados { get; set; } = new();
     public int TotalEncontrado { get; set; }
 
+    // Paginação: sem filtro a busca lista TODO MUNDO, e "todo mundo" cresce — a página
+    // protege a tela e o banco ao mesmo tempo. 30 por página: cabe numa rolada de celular.
+    public const int TamanhoDaPagina = 30;
+    public int Pagina { get; set; } = 1;
+    public int TotalPaginas { get; set; } = 1;
+
     // A busca filtrou por categoria e/ou clube (as que dependem de o jogador ter
     // declarado a preferência), e quantos de fato declararam.
     public bool FiltraPreferencia { get; set; }
     public int QtdDeclarou { get; set; }
-    public bool Truncado => TotalEncontrado > Resultados.Count;
 
     // Nenhum filtro preenchido: a tela mostra o convite em vez de "nada encontrado".
     public bool TemFiltro =>

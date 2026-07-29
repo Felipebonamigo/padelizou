@@ -1,0 +1,67 @@
+@model padelizou.Models.Aula
+@{
+    ViewData["Title"] = "Anotações da aula";
+    var anotacoes = ViewBag.Anotacoes as List<Padelizou.Models.AnotacaoAula> ?? new();
+    int meuId = (int)ViewBag.MeuId;
+    var nomeAluno = Model.Aluno?.Nome ?? Model.NomeAlunoAvulso ?? "aluno avulso";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 680px;">
+    @if (TempData["Erro"] != null) { <div class="alert alert-warning">@TempData["Erro"]</div> }
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                <i class="bi bi-journal-text"></i> Anotações da aula
+            </h5>
+            <p class="small text-muted mb-0">
+                @Model.DataHora.ToString("dddd, dd/MM 'às' HH:mm") · Prof. @Model.Professor.Nome com @nomeAluno
+                @if (Model.LocalAula != null) { <text>· @Model.LocalAula.Nome</text> }
+            </p>
+            <p class="small text-muted mb-0 mt-1">
+                O que foi trabalhado, o que evoluiu, o que fica pra próxima — professor e aluno
+                escrevem no mesmo caderno, cada um assinando o que escreveu.
+            </p>
+        </div>
+    </div>
+
+    @if (!anotacoes.Any())
+    {
+        <partial name="_Vazio" model='@(new EstadoVazio("Nenhuma anotação nesta aula ainda. A primeira pode ser sua."))' />
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                @foreach (var n in anotacoes)
+                {
+                    var ehProfessor = n.AutorId == Model.ProfessorId;
+                    var ehMinha = n.AutorId == meuId;
+                    <div class="py-2 @(n != anotacoes.First() ? "border-top" : "")">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>
+                                <span class="badge @(ehProfessor ? "bg-primary-subtle text-primary-emphasis" : "bg-success-subtle text-success-emphasis") border">
+                                    @AnotacoesDeAula.RotuloDoAutor(Model, n.AutorId)
+                                </span>
+                                <strong class="small ms-1" style="color: var(--pdz-ink);">@n.Autor.Nome@(ehMinha ? " (você)" : "")</strong>
+                            </span>
+                            <small class="text-muted">@n.CriadoEm.ToString("dd/MM HH:mm")</small>
+                        </div>
+                        <p class="small mb-0" style="color: var(--pdz-ink); white-space: pre-line;">@n.Texto</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--padel-green) !important;">
+        <div class="card-body">
+            <form asp-action="AdicionarAnotacao" method="post">
+                <input type="hidden" name="aulaId" value="@Model.Id" />
+                <textarea name="texto" class="form-control mb-2" rows="3" maxlength="@AnotacoesDeAula.TamanhoMaximo"
+                          placeholder="Ex: trabalhamos bandeja e saída de parede; na próxima, víbora."></textarea>
+                <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">Anotar</button>
+            </form>
+        </div>
+    </div>
+</div>

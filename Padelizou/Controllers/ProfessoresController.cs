@@ -98,8 +98,12 @@ public class ProfessoresController : Controller
                 .ToListAsync(),
             TotalAvaliacoes = avaliacoes.Count,
             MediaNota = avaliacoes.Any() ? Math.Round(avaliacoes.Average(a => a.Nota), 1) : null,
-            Depoimentos = avaliacoes.Where(a => !string.IsNullOrWhiteSpace(a.Depoimento)).Take(10).ToList(),
-            NotasPorEstrela = Enumerable.Range(1, 5).ToDictionary(n => n, n => avaliacoes.Count(a => a.Nota == n)),
+            // O interruptor do professor decide se TEXTO aparece; a nota e a média ficam
+            // sempre — são o dado que protege o próximo aluno.
+            Depoimentos = professor.DepoimentosDeAulaHabilitados
+                ? avaliacoes.Where(a => !string.IsNullOrWhiteSpace(a.Depoimento)).Take(10).ToList()
+                : new List<AvaliacaoProfessor>(),
+            DepoimentosHabilitados = professor.DepoimentosDeAulaHabilitados,
             PoliticaCancelamento = PoliticaAula.DescreverPolitica(professor),
         };
 
@@ -125,9 +129,9 @@ public class ProfessoresController : Controller
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var alunoId))
             return RedirectToAction("Perfil", "Auth");
 
-        if (nota < 1 || nota > 5)
+        if (!AvaliacaoDoProfessor.NotaValida(nota))
         {
-            TempData["Erro"] = "A nota precisa ser de 1 a 5.";
+            TempData["Erro"] = "A nota precisa ser de 0 a 10.";
             return RedirectToAction("Perfil", new { id = professorId });
         }
 
@@ -156,8 +160,13 @@ public class ProfessoresController : Controller
             existente.AtualizadoEm = DateTime.Now;
         }
 
+        // O interruptor do professor vale também pra quem manda o POST direto, sem
+        // passar pela tela — desligado, texto não entra por porta nenhuma.
+        var professorAvaliado = await _context.Jogadores.FindAsync(professorId);
+
         existente.Nota = nota;
-        existente.Depoimento = string.IsNullOrWhiteSpace(depoimento) ? null : depoimento.Trim();
+        existente.Depoimento = AvaliacaoDoProfessor.DepoimentoFinal(
+            professorAvaliado?.DepoimentosDeAulaHabilitados ?? true, depoimento);
 
         await _context.SaveChangesAsync();
 
@@ -168,7 +177,7 @@ public class ProfessoresController : Controller
                 var aluno = await _context.Jogadores.FindAsync(alunoId);
                 await _pushService.EnviarParaJogadorAsync(professorId,
                     "Você recebeu uma avaliação",
-                    $"{aluno?.Nome ?? "Um aluno"} te deu {nota} estrela(s).",
+                    $"{aluno?.Nome ?? "Um aluno"} te deu nota {nota}/10.",
                     Url.Action("Perfil", "Professores", new { id = professorId }));
             }
             catch (Exception ex)
@@ -179,6 +188,27 @@ public class ProfessoresController : Controller
 
         TempData["Sucesso"] = ehNova ? "Avaliação enviada. Obrigado!" : "Sua avaliação foi atualizada.";
         return RedirectToAction("Perfil", new { id = professorId });
+    }
+
+    // O interruptor dos comentários: só o próprio professor liga/desliga a exibição de
+    // depoimentos na página dele. A nota não passa por aqui — nota não se desliga.
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> AlternarDepoimentos()
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId))
+            return RedirectToAction("Perfil", "Auth");
+
+        var professor = await _context.Jogadores.FindAsync(meuId);
+        if (professor == null || !professor.IsProfessor) return Forbid();
+
+        professor.DepoimentosDeAulaHabilitados = !professor.DepoimentosDeAulaHabilitados;
+        await _context.SaveChangesAsync();
+
+        TempData["Sucesso"] = professor.DepoimentosDeAulaHabilitados
+            ? "Comentários de alunos voltaram a aparecer na sua página."
+            : "Comentários de alunos não aparecem mais na sua página (as notas continuam).";
+        return RedirectToAction("Perfil", new { id = meuId });
     }
 
     [HttpPost]

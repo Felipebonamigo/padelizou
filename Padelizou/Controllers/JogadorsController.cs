@@ -253,10 +253,8 @@ public class JogadoresController : Controller
     // É a tela de "achar parceiro" — por isso os filtros são os mesmos critérios que
     // alguém usa pra escolher com quem jogar.
     [HttpGet]
-    public async Task<IActionResult> Buscar(string? q, int? categoriaId, string? estado, string? cidade, int? clubeId)
+    public async Task<IActionResult> Buscar(string? q, int? categoriaId, string? estado, string? cidade, int? clubeId, int pagina = 1)
     {
-        const int limite = 60;
-
         var vm = new BuscaJogadoresVM
         {
             Termo = q,
@@ -273,8 +271,9 @@ public class JogadoresController : Controller
         vm.Categorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
         vm.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
-        if (!vm.TemFiltro) return View(vm);
-
+        // Sem filtro nenhum a busca lista TODO MUNDO (pedido do Felipe, 29/07/2026): quem
+        // abre a tela querendo "ver quem tem por aqui" não deveria precisar adivinhar um
+        // nome primeiro. A paginação logo abaixo é o que torna isso barato.
         var query = _context.Jogadores.AsQueryable();
 
         // Nome, apelido ou CPF — mesma regra do resto do sistema (Services/BuscaJogador).
@@ -305,10 +304,20 @@ public class JogadoresController : Controller
 
         vm.TotalEncontrado = await query.CountAsync();
 
+        // Página fora do intervalo não dá erro: vai pra mais próxima que existe. Link velho
+        // de "página 9" continua funcionando depois que a base encolher.
+        vm.TotalPaginas = Math.Max(1, (int)Math.Ceiling(vm.TotalEncontrado / (double)BuscaJogadoresVM.TamanhoDaPagina));
+        vm.Pagina = Math.Clamp(pagina, 1, vm.TotalPaginas);
+
+        // A página corta pela ordem ALFABÉTICA (que o banco sabe ordenar); o selo "combina"
+        // e os pontos reordenam só DENTRO da página — pontos vêm de um cálculo em memória e
+        // ordenar o total por eles obrigaria a carregar todo mundo, desfazendo a paginação.
         var jogadores = await query
             .Include(j => j.Time)
             .OrderBy(j => j.Nome)
-            .Take(limite)
+            .ThenBy(j => j.Id)
+            .Skip((vm.Pagina - 1) * BuscaJogadoresVM.TamanhoDaPagina)
+            .Take(BuscaJogadoresVM.TamanhoDaPagina)
             .ToListAsync();
 
         var ids = jogadores.Select(j => j.Id).ToList();

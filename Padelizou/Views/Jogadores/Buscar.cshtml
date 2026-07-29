@@ -148,26 +148,27 @@
     }
 
     <!-- RESULTADO -->
-    @if (!Model.TemFiltro)
+    @* Sem filtro a tela lista todo mundo (paginado) — quem abre querendo "ver quem tem por
+       aqui" não precisa adivinhar um nome primeiro. *@
+    @if (!Model.Resultados.Any())
     {
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
-            <p class="mb-1">Escolha um filtro acima pra começar.</p>
-            <p class="small mb-0">Dá pra combinar: categoria + cidade + clube ao mesmo tempo.</p>
-        </div>
-    }
-    else if (!Model.Resultados.Any())
-    {
-        <div class="text-center text-muted py-5">
-            <i class="bi bi-emoji-neutral fs-1 d-block mb-2 opacity-50"></i>
-            <p class="mb-1">Nenhum jogador encontrado com esses filtros.</p>
-            <p class="small mb-0">Tente tirar um dos filtros — o botão "x" em cada etiqueta acima remove um de cada vez.</p>
-        </div>
+        @if (Model.TemFiltro)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-emoji-neutral fs-1 d-block mb-2 opacity-50"></i>
+                <p class="mb-1">Nenhum jogador encontrado com esses filtros.</p>
+                <p class="small mb-0">Tente tirar um dos filtros — o botão "x" em cada etiqueta acima remove um de cada vez.</p>
+            </div>
+        }
+        else
+        {
+            <partial name="_Vazio" model='@(new EstadoVazio("Nenhum jogador cadastrado ainda."))' />
+        }
     }
     else
     {
         <p class="small text-muted mb-2">
-            @Model.TotalEncontrado jogador(es) encontrado(s)@(Model.Truncado ? $" — mostrando os {Model.Resultados.Count} primeiros, refine os filtros pra ver os demais" : "")
+            @Model.TotalEncontrado jogador(es) encontrado(s)@(Model.TotalPaginas > 1 ? $" — página {Model.Pagina} de {Model.TotalPaginas}" : "")
         </p>
 
         @if (Model.FiltraPreferencia)
