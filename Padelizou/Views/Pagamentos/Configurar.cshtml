@@ -2,13 +2,16 @@
 @{
     ViewData["Title"] = "Receber Pagamentos - Padelizou";
     var comissoes = ViewBag.ComissoesPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
+    var minimas = ViewBag.MinimasPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
     decimal minima = ViewBag.ComissaoMinima ?? 4m;
+    decimal minimaTorneio = minimas.TryGetValue("Torneio", out var mt) ? mt : minima;
+    decimal minimaAula = minimas.TryGetValue("Aula", out var ma) ? ma : minima;
     string modoAtual = Model.ModoComissao ?? (string)(ViewBag.ModoPadrao ?? "Somada");
 
     // Exemplo com um torneio de R$ 100 só pra deixar concreto o que muda entre os dois modos.
     decimal percentualExemplo = comissoes.TryGetValue("Torneio", out var pct) ? pct : 15m;
     decimal exemploValor = 100m;
-    decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualExemplo / 100m, 2), minima);
+    decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualExemplo / 100m, 2), minimaTorneio);
 }
 
 <div class="container mt-4 mb-5">
@@ -68,7 +71,8 @@
                                 <div class="text-muted small mb-3">
                                     O Padelizou fica com
                                     @string.Join(", ", comissoes.Select(c => $"{c.Value.ToString("0.##")}% em {c.Key.ToLower()}s"))
-                                    — com mínimo de @minima.ToString("C"). Você escolhe como isso aparece:
+                                    — com mínimo de @minimaTorneio.ToString("C") em torneios e
+                                    @minimaAula.ToString("C") em aulas e jogos. Você escolhe como isso aparece:
                                 </div>
 
                                 <div class="form-check border rounded-3 p-3 mb-2">

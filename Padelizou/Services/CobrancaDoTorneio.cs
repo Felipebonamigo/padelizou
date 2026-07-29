@@ -40,7 +40,10 @@ public static class CobrancaDoTorneio
             {
                 EscolhaPix => new Cobranca("PIX", taxas.ComissaoPercentualSomentePix),
                 EscolhaCartao => new Cobranca("CREDIT_CARD", taxas.ComissaoPercentualTodasFormas),
-                EscolhaBoleto => new Cobranca("BOLETO", taxas.ComissaoPercentualTodasFormas),
+
+                // Boleto paga a taxa do Pix (Felipe, 29/07/2026): pro meio de pagamento os dois
+                // custam o mesmo valor fixo em centavos — o que encarece é o cartão.
+                EscolhaBoleto => new Cobranca("BOLETO", taxas.ComissaoPercentualSomentePix),
 
                 // Escolha ausente ou desconhecida (formulário antigo em cache, requisição
                 // montada à mão): cai no comportamento de sempre — todas as formas liberadas,
@@ -63,7 +66,7 @@ public static class CobrancaDoTorneio
         EscolhaCartao => $"Dá pra parcelar. O organizador recebe em {taxas.CreditoAVista.DiasParaReceber} dias. " +
                          $"Taxa do Padelizou: {Pct(taxas.ComissaoPercentualTodasFormas)}.",
         EscolhaBoleto => $"Vence em alguns dias e leva 1 dia útil pra compensar. " +
-                         $"Taxa do Padelizou: {Pct(taxas.ComissaoPercentualTodasFormas)}.",
+                         $"Taxa do Padelizou: {Pct(taxas.ComissaoPercentualSomentePix)} — a mesma do Pix.",
         _ => "",
     };
 

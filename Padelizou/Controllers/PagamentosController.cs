@@ -42,6 +42,7 @@ public class PagamentosController : Controller
 
         ViewBag.ComissoesPorTipo = _settings.ComissaoPercentualPorTipo;
         ViewBag.ComissaoMinima = _settings.ComissaoMinima;
+        ViewBag.MinimasPorTipo = _settings.ComissaoMinimaPorTipo;
         ViewBag.ModoPadrao = _settings.ModoComissaoPadrao;
         return View(jogador);
     }

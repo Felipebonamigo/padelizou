@@ -218,7 +218,7 @@
                             <div class="small mt-1" style="color: var(--padel-green);">
                                 <i class="bi bi-check-circle-fill"></i>
                                 <strong>Você paga a taxa da forma que o jogador escolher:</strong>
-                                quem pagar por Pix custa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%,
+                                quem pagar por Pix ou boleto custa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%,
                                 não @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%.
                             </div>
                             <div class="small text-muted mt-1">
@@ -917,7 +917,8 @@
    jogador paga e quanto sobra em cada opção. Números vindos do servidor pra tela e
    cobrança nunca divergirem. *@
 <script>
-    var pdzComissaoMin = @asaas.ComissaoMinima.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    var pdzComissaoMin = @((asaas.ComissaoMinimaPorTipo.TryGetValue("Torneio", out var pisoTorneio)
+        ? pisoTorneio : asaas.ComissaoMinima).ToString(System.Globalization.CultureInfo.InvariantCulture));
     // Uma taxa por forma de recebimento — a escolha é do organizador, então ele sabe o
     // quanto recebe antes de anunciar o preço.
     var pdzTaxaPorForma = {

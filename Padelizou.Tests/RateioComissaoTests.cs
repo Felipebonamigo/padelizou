@@ -51,17 +51,31 @@ public class RateioComissaoTests
     [Fact]
     public void Comissao_minima_vale_quando_o_percentual_ficaria_abaixo()
     {
-        // 10% de R$20 = R$2, abaixo da mínima de R$4 → cobra R$4.
-        var r = NovoServico(comissaoMinima: 4m).CalcularRateio(20m, "Jogo", "Somada");
+        // 15% de R$20 = R$3, abaixo do piso de R$4 do torneio → cobra R$4.
+        var r = NovoServico().CalcularRateio(20m, "Torneio", "Somada");
         Assert.Equal(4m, r.Comissao);
         Assert.Equal(24m, r.ValorTotal);
+    }
+
+    [Fact]
+    public void Piso_e_por_tipo_de_operacao_e_nao_transforma_3_por_cento_em_ficcao()
+    {
+        // O bug que o piso único de R$ 4 causaria: 3% de uma aula de R$ 100 são R$ 3 — com
+        // piso global o professor assinante pagaria R$ 4 (4%) achando que pagava 3%. O piso
+        // da aula é R$ 1 (só cobre o custo fixo do Pix), então os R$ 3 valem de verdade.
+        var r = NovoServico().CalcularRateio(100m, "Aula", "Somada", percentual: 3m);
+        Assert.Equal(3m, r.Comissao);
+
+        // E o piso da aula ainda segura cobrança de centavos: 3% de R$ 20 = R$ 0,60 → R$ 1.
+        var barata = NovoServico().CalcularRateio(20m, "Aula", "Somada", percentual: 3m);
+        Assert.Equal(1m, barata.Comissao);
     }
 
     [Fact]
     public void Modo_Descontada_nunca_deixa_repasse_negativo()
     {
         // Preço menor que a comissão mínima: comissão vira o próprio preço, repasse zera.
-        var r = NovoServico(comissaoMinima: 4m).CalcularRateio(3m, "Jogo", "Descontada");
+        var r = NovoServico().CalcularRateio(3m, "Torneio", "Descontada");
         Assert.Equal(3m, r.Comissao);
         Assert.Equal(0m, r.ValorRepasse);
         Assert.True(r.ValorRepasse >= 0);

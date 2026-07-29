@@ -33,15 +33,25 @@ public class CobrancaDoTorneioTests
         Assert.Equal(10m, c.Percentual);
     }
 
-    [Theory]
-    [InlineData(CobrancaDoTorneio.EscolhaCartao, "CREDIT_CARD")]
-    [InlineData(CobrancaDoTorneio.EscolhaBoleto, "BOLETO")]
-    public void Quem_escolhe_cartao_ou_boleto_paga_a_taxa_cheia(string escolha, string billingEsperado)
+    [Fact]
+    public void Quem_escolhe_cartao_paga_a_taxa_cheia()
     {
-        var c = CobrancaDoTorneio.Montar("OnlineTodas", escolha, Taxas);
+        var c = CobrancaDoTorneio.Montar("OnlineTodas", CobrancaDoTorneio.EscolhaCartao, Taxas);
 
-        Assert.Equal(billingEsperado, c.BillingType);
+        Assert.Equal("CREDIT_CARD", c.BillingType);
         Assert.Equal(15m, c.Percentual);
+    }
+
+    [Fact]
+    public void Boleto_paga_a_taxa_do_Pix()
+    {
+        // Decisão do Felipe (29/07/2026): pro meio de pagamento, boleto e Pix custam o mesmo
+        // valor fixo em centavos — quem encarece é o cartão. Então o boleto não pode carregar
+        // a taxa do cartão.
+        var c = CobrancaDoTorneio.Montar("OnlineTodas", CobrancaDoTorneio.EscolhaBoleto, Taxas);
+
+        Assert.Equal("BOLETO", c.BillingType);
+        Assert.Equal(10m, c.Percentual);
     }
 
     [Theory]
@@ -62,8 +72,8 @@ public class CobrancaDoTorneioTests
     [Fact]
     public void A_forma_travada_e_a_taxa_cobrada_nunca_se_contradizem()
     {
-        // O teste que justifica o serviço existir: PIX travado tem que vir com taxa de Pix,
-        // e taxa de Pix só pode vir com PIX travado — em qualquer combinação de entrada.
+        // O teste que justifica o serviço existir: forma barata (Pix/boleto) tem que vir com
+        // a taxa menor, e a taxa menor só pode vir com forma barata — em qualquer combinação.
         var entradas = new[] { CobrancaDoTorneio.EscolhaPix, CobrancaDoTorneio.EscolhaCartao,
                                CobrancaDoTorneio.EscolhaBoleto, "", "lixo", null };
 
@@ -71,7 +81,8 @@ public class CobrancaDoTorneioTests
             foreach (var escolha in entradas)
             {
                 var c = CobrancaDoTorneio.Montar(forma, escolha, Taxas);
-                Assert.Equal(c.BillingType == "PIX", c.Percentual == Taxas.ComissaoPercentualSomentePix);
+                Assert.Equal(c.BillingType is "PIX" or "BOLETO",
+                             c.Percentual == Taxas.ComissaoPercentualSomentePix);
             }
     }
 
@@ -90,10 +101,12 @@ public class CobrancaDoTorneioTests
     {
         var pix = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaPix, Taxas);
         var cartao = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaCartao, Taxas);
+        var boleto = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaBoleto, Taxas);
 
         Assert.Contains("na hora", pix);
         Assert.Contains("10%", pix);
         Assert.Contains("32 dias", cartao);   // o prazo do crédito é o que mais pesa na escolha
         Assert.Contains("15%", cartao);
+        Assert.Contains("10%", boleto);       // boleto compartilha a taxa do Pix
     }
 }

@@ -31,7 +31,7 @@ public class AsaasService : IAsaasService
     {
         var comissao = Math.Max(
             Math.Round(preco * (percentual ?? PercentualDe(tipoOperacao)) / 100m, 2),
-            _settings.ComissaoMinima);
+            MinimaDe(tipoOperacao));
 
         var modo = string.IsNullOrWhiteSpace(modoComissao) ? _settings.ModoComissaoPadrao : modoComissao;
 
@@ -55,6 +55,15 @@ public class AsaasService : IAsaasService
             if (string.Equals(par.Key, tipoOperacao, StringComparison.OrdinalIgnoreCase)) return par.Value;
         }
         return _settings.ComissaoPercentualPadrao;
+    }
+
+    private decimal MinimaDe(string tipoOperacao)
+    {
+        foreach (var par in _settings.ComissaoMinimaPorTipo)
+        {
+            if (string.Equals(par.Key, tipoOperacao, StringComparison.OrdinalIgnoreCase)) return par.Value;
+        }
+        return _settings.ComissaoMinima;
     }
 
     public async Task<string?> ObterOuCriarClienteAsync(string nome, string cpf, string? email, string? celular)

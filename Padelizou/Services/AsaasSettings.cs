@@ -35,8 +35,19 @@ public class AsaasSettings
     // Vale quando o tipo não está no dicionário acima (frente nova ainda sem percentual).
     public decimal ComissaoPercentualPadrao { get; set; } = 10m;
 
-    // Piso em reais. A taxa do Asaas no Pix é fixa (R$ 1,99), então sem um mínimo a comissão
-    // de uma inscrição barata não se paga.
+    // Piso em reais, POR TIPO de operação. O piso existe porque o custo do Pix é fixo em
+    // centavos — sem mínimo, a comissão de uma cobrança barata não se paga. Mas um piso único
+    // de R$ 4 tornava qualquer taxa baixa ficção nas frentes de valor pequeno: 3% de uma aula
+    // de R$ 100 são R$ 3, e o piso atropelava — o professor pagava 4% achando que pagava 3%.
+    // Aula e Jogo ficam em R$ 1 (cobre o custo do Pix e nada mais); Torneio mantém os R$ 4.
+    public Dictionary<string, decimal> ComissaoMinimaPorTipo { get; set; } = new()
+    {
+        ["Torneio"] = 4m,
+        ["Aula"] = 1m,
+        ["Jogo"] = 1m
+    };
+
+    // Vale quando o tipo não está no dicionário acima.
     public decimal ComissaoMinima { get; set; } = 4m;
 
     // Quem decide como a comissão é cobrada é o dono do torneio/aula — a escolha fica gravada
