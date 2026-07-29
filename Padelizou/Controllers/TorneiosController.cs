@@ -521,7 +521,8 @@ namespace Padelizou.Controllers
         // Inscrição individual (Torneio Americano) — achar-ou-criar Jogador por CPF, mesmo
         // padrão de DuplasController.Create, só que sem parceiro fixo.
         [HttpPost]
-        public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf, string? chaveAcesso = null)
+        public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf,
+            string? chaveAcesso = null, string? formaPagamentoEscolhida = null)
         {
             // Mesma limpeza de DuplasController.Create: CPF com máscara estoura a coluna de
             // 11 chars e derruba a página em vez de avisar o jogador.
@@ -585,7 +586,7 @@ namespace Padelizou.Controllers
                         torneioId, categoriaId, jogador.Id, null, false, false, false);
 
                     var checkout = await _pagamentos.IniciarCobrancaTorneioAsync(
-                        torneio, recebedor!, jogador, "TorneioAmericano", dadosInscricao);
+                        torneio, recebedor!, jogador, "TorneioAmericano", dadosInscricao, formaPagamentoEscolhida);
 
                     if (checkout != null) return Redirect(checkout);
 

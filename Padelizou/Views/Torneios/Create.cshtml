@@ -207,10 +207,21 @@
                                id="pagTodas" onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagTodas">
                             <span class="fw-bold">Pelo site, todas as formas</span>
-                            <span class="badge bg-secondary ms-1">taxa @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
+                            <span class="badge bg-secondary ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")% a @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
                                 Pix, boleto, débito e cartão de crédito — inclusive parcelado. Facilita pra quem
-                                não tem o valor à vista, mas custa mais e o cartão demora a cair.
+                                não tem o valor à vista, mas o cartão demora a cair.
+                            </div>
+                            @* A régua por forma efetiva é o que faz esta opção deixar de ser um
+                               castigo: aceitar cartão não encarece mais as inscrições que vierem
+                               por Pix, que na prática são a maioria. *@
+                            <div class="small mt-1" style="color: var(--padel-green);">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <strong>Você paga a taxa da forma que o jogador escolher:</strong>
+                                quem pagar por Pix custa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%,
+                                não @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%.
+                            </div>
+                            <div class="small text-muted mt-1">
                                 <button type="button" class="btn btn-link btn-sm p-0 align-baseline"
                                         data-bs-toggle="modal" data-bs-target="#modalComoRecebo">
                                     Ver os prazos

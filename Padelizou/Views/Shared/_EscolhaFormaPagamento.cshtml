@@ -1,0 +1,65 @@
+@model Padelizou.Models.Torneio
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
+@using Padelizou.Services
+
+@*
+    A escolha da forma de pagamento pelo JOGADOR, dentro do nosso checkout.
+
+    Só aparece quando o organizador abriu TODAS as formas: aí a taxa do Padelizou passa a ser
+    a da forma efetivamente escolhida (Pix mais barato que cartão), e pra isso a cobrança
+    precisa nascer já travada numa forma — o rateio é fixado no momento em que ela é criada,
+    então "escolhe depois, no meio de pagamento" chegaria tarde.
+
+    Em "só Pix" não há o que perguntar. Em "por fora" não existe cobrança pelo site.
+
+    É um parcial porque os DOIS formulários de inscrição (dupla e americano) precisam dele —
+    duplicar seria garantir que um dos dois ficaria pra trás numa mudança futura.
+*@
+
+@if (Model.FormaPagamento == "OnlineTodas" && Model.PagamentoObrigatorioNaInscricao && Model.PrecoInscricao > 0)
+{
+    var taxas = TaxasOpcoes.Value;
+
+    <div class="border rounded p-3 mb-3" style="background: var(--pdz-surface);">
+        <label class="form-label fw-bold small mb-2">
+            <i class="bi bi-credit-card-2-front"></i> Como você vai pagar?
+        </label>
+
+        @foreach (var escolha in new[] { CobrancaDoTorneio.EscolhaPix, CobrancaDoTorneio.EscolhaCartao, CobrancaDoTorneio.EscolhaBoleto })
+        {
+            var rotulo = escolha switch
+            {
+                CobrancaDoTorneio.EscolhaPix => "Pix",
+                CobrancaDoTorneio.EscolhaCartao => "Cartão de crédito",
+                _ => "Boleto",
+            };
+            var icone = escolha switch
+            {
+                CobrancaDoTorneio.EscolhaPix => "bi-lightning-charge-fill",
+                CobrancaDoTorneio.EscolhaCartao => "bi-credit-card",
+                _ => "bi-upc-scan",
+            };
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="formaPagamentoEscolhida"
+                       value="@escolha" id="forma_@(escolha)_@Model.Id"
+                       checked="@(escolha == CobrancaDoTorneio.EscolhaPix)" required />
+                <label class="form-check-label w-100" for="forma_@(escolha)_@Model.Id">
+                    <span class="fw-semibold"><i class="bi @icone"></i> @rotulo</span>
+                    @if (escolha == CobrancaDoTorneio.EscolhaPix)
+                    {
+                        <span class="badge rounded-pill ms-1" style="background: var(--padel-green); color: #14261a;">mais barato</span>
+                    }
+                    @* Ao jogador interessa o prazo e o meio; a taxa aparece porque é ela que
+                       muda com a escolha, e esconder isso faria o total mudar sem explicação. *@
+                    <span class="d-block small text-muted">@CobrancaDoTorneio.ExplicacaoDaEscolha(escolha, taxas)</span>
+                </label>
+            </div>
+        }
+
+        <div class="small text-muted mt-2">
+            <i class="bi bi-info-circle"></i>
+            A forma escolhida aqui é a que abre na tela de pagamento.
+        </div>
+    </div>
+}

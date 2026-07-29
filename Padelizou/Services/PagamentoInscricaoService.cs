@@ -34,7 +34,7 @@ public interface IPagamentoInscricaoService
     bool PodeCobrarAula(JogoAula jogo, Jogador? professor);
 
     Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
-        string tipo, DadosInscricaoTorneio dados);
+        string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
         DadosInscricaoAula dados);
 
@@ -124,9 +124,15 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
 
     // O preço do torneio é POR PESSOA: a inscrição de uma dupla cobra as duas de uma vez,
     // de quem está se inscrevendo. Americano é individual, então cobra uma.
+    // `formaEscolhida` é a forma que o JOGADOR declarou no nosso checkout (Pix / cartão /
+    // boleto). Ela decide as duas coisas juntas — o que a cobrança trava e a taxa que fica —
+    // porque o rateio é fixado quando a cobrança nasce. Ver Services/CobrancaDoTorneio.
     public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
-        Jogador pagador, string tipo, DadosInscricaoTorneio dados) =>
-        CriarCobrancaAsync(
+        Jogador pagador, string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null)
+    {
+        var cobranca = CobrancaDoTorneio.Montar(torneio.FormaPagamento, formaEscolhida, _taxas);
+
+        return CriarCobrancaAsync(
             recebedor, pagador,
             torneio.ValorCobrado(
                 inscricaoDeDupla: tipo == "TorneioDupla",
@@ -134,9 +140,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
-            percentual: _taxas.PercentualDoTorneio(torneio.FormaPagamento),
-            // Não existe "Pix + boleto" no gateway: ou trava numa forma, ou libera todas.
-            billingType: torneio.SomentePix ? "PIX" : "UNDEFINED");
+            percentual: cobranca.Percentual,
+            billingType: cobranca.BillingType);
+    }
 
     // Cada impedimento marcado tira uma janela da grade do organizador — quando ele cobra
     // por isso, é este número que multiplica a taxa.

@@ -87,7 +87,10 @@ namespace Padelizou.Controllers
             string nome1, string cpf1, string? celular1, string? cidade1, string? estado1,
             string? nome2, string? cpf2, string? celular2, string? cidade2, string? estado2,
             bool impSextaNoite, bool impSabadoManha, bool impSabadoTarde,
-            bool semParceiro = false, bool ignorarBloqueio = false, string? chaveAcesso = null)
+            bool semParceiro = false, bool ignorarBloqueio = false, string? chaveAcesso = null,
+            // Forma que o jogador declarou no checkout. Só é perguntada quando o organizador
+            // abriu todas as formas — é ela que decide a taxa (ver CobrancaDoTorneio).
+            string? formaPagamentoEscolhida = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -210,7 +213,7 @@ namespace Padelizou.Controllers
                     impSextaNoite, impSabadoManha, impSabadoTarde, SemParceiro: semParceiro);
 
                 var checkout = await _pagamentos.IniciarCobrancaTorneioAsync(
-                    torneio, recebedor!, jogador1, "TorneioDupla", dadosInscricao);
+                    torneio, recebedor!, jogador1, "TorneioDupla", dadosInscricao, formaPagamentoEscolhida);
 
                 if (checkout != null) return Redirect(checkout);
 
