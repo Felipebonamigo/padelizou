@@ -1152,7 +1152,7 @@
                             var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
 
                             var partidaFinal = jogosMata.FirstOrDefault(p => p.Fase == "Final");
-                            Padelizou.Models.Dupla campea = null;
+                            Padelizou.Models.Dupla? campea = null;
                             if (partidaFinal != null && partidaFinal.Status == "Finalizada" && partidaFinal.VencedorId != null)
                             {
                                 campea = partidaFinal.VencedorId == partidaFinal.Dupla1Id ? partidaFinal.Dupla1 : partidaFinal.Dupla2;

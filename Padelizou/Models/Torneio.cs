@@ -96,7 +96,9 @@ public partial class Torneio
     public int SetsFaseFinal { get; set; }
     public int GamesFaseFinal { get; set; }
     public int ClubeId { get; set; }
-    public Clube Clube { get; set; }
+    // Propriedade de navegação: só tem valor em consulta que fez Include. `null!` é o combinado
+    // do EF pra isso — quem usa sem Include recebe nulo, e é assim mesmo.
+    public Clube Clube { get; set; } = null!;
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
 
     // Janela de jogos. DataInicio guarda só a data — sem a hora de abertura a grade

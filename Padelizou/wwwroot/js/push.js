@@ -25,7 +25,7 @@ async function ativarNotificacoesPush() {
   const json = subscription.toJSON();
   await fetch("/Push/Subscribe", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: cabecalhoAntifalsificacao({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
@@ -45,7 +45,7 @@ async function desativarNotificacoesPush() {
   const json = subscription.toJSON();
   await fetch("/Push/Unsubscribe", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: cabecalhoAntifalsificacao({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,

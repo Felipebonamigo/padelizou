@@ -789,7 +789,8 @@ namespace Padelizou.Controllers
                             .ThenInclude(j => j.Time)
                 .Include(t => t.Categorias)
                     .ThenInclude(c => c.Duplas)
-                        .ThenInclude(d => d.Jogador2)
+                        // `Jogador2!`: dupla sem parceiro é caso normal; o EF só lê a expressão.
+                        .ThenInclude(d => d.Jogador2!)
                             .ThenInclude(j => j.Time)
                 // NOVOS INCLUDES: Puxando os Grupos que o algoritmo sorteou!
                 .Include(t => t.Categorias)
@@ -1195,7 +1196,8 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> MesaControle(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            // `!`: ação [Authorize], e o cookie sempre carrega o identificador (IdentidadeJogador.ClaimsDe).
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             // SEGURANÇA: Só o Dono do Torneio ou um Ajudante (TorneioOrganizador) pode acessar a Mesa de Controle
             if (!await EhOrganizadorAsync(id, userId)) return Forbid();
@@ -1909,16 +1911,20 @@ namespace Padelizou.Controllers
             var query = _context.Partidas
                 .Include(p => p.Categoria)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
+                // `Jogador2!`: quem se inscreveu sozinho ainda não tem parceiro. O EF lê a
+                // expressão pra montar o JOIN, não executa o acesso.
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2!).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2).ThenInclude(j => j.Time)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2!).ThenInclude(j => j.Time)
                 .Where(p => p.TorneioId == torneioId);
 
             if (timeFiltroId.HasValue)
             {
+                // Vira SQL, não roda em memória: dupla sem parceiro compara contra NULO e
+                // simplesmente não casa, que é o resultado certo pro filtro por time.
                 query = query.Where(p =>
-                    (p.Dupla1.Jogador1.TimeId == timeFiltroId || p.Dupla1.Jogador2.TimeId == timeFiltroId) ||
-                    (p.Dupla2.Jogador1.TimeId == timeFiltroId || p.Dupla2.Jogador2.TimeId == timeFiltroId)
+                    (p.Dupla1.Jogador1.TimeId == timeFiltroId || p.Dupla1.Jogador2!.TimeId == timeFiltroId) ||
+                    (p.Dupla2.Jogador1.TimeId == timeFiltroId || p.Dupla2.Jogador2!.TimeId == timeFiltroId)
                 );
             }
 

@@ -1,10 +1,10 @@
 @model Padelizou.ViewModels.DestaquesJogadorVM
-@{
-    // Só renderiza se houver pelo menos um destaque.
-    bool temAlgo = Model != null && (Model.MaisJogouJunto != null || Model.MaisEnfrentou != null
-        || Model.MaisTeVenceu != null || Model.VoceMaisVenceu != null);
-}
-@if (temAlgo)
+@* Só renderiza se houver pelo menos um destaque. A condição fica inteira aqui, e não numa
+   variável `bool` calculada acima, pra que o compilador enxergue que Model não é nulo lá
+   dentro — com o bool ele não enxerga, e o aviso que sobrava era o mesmo tipo de descuido
+   que já derrubou a tela do Ranking. *@
+@if (Model != null && (Model.MaisJogouJunto != null || Model.MaisEnfrentou != null
+    || Model.MaisTeVenceu != null || Model.VoceMaisVenceu != null))
 {
     <div class="card border-0 shadow-sm mb-4 p-3">
         <h6 class="fw-bold mb-1"><i class="bi bi-stars text-warning"></i> Destaques</h6>

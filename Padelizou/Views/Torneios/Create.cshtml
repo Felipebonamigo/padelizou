@@ -3,7 +3,9 @@
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.AsaasSettings> AsaasOpcoes
 @{
     ViewData["Title"] = "Criar Novo Torneio";
-    var catalogo = ViewBag.CatalogoCategorias as List<padelizou.Models.CategoriaPadrao>;
+    // Lista vazia em vez de nulo: são 3 laços em cima disto, e um catálogo faltando derrubaria a
+    // tela inteira de criar torneio em vez de mostrar a parte que funciona.
+    var catalogo = ViewBag.CatalogoCategorias as List<padelizou.Models.CategoriaPadrao> ?? new List<padelizou.Models.CategoriaPadrao>();
     var catalogoClubes = ViewBag.CatalogoClubes as List<Padelizou.Models.Clube>;
     var taxas = TaxasOpcoes.Value;
     var asaas = AsaasOpcoes.Value;

@@ -7,7 +7,7 @@ async function votarPalpite(el) {
 
     const response = await fetch('/Partidas/Votar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
         body: `partidaId=${partidaId}&duplaId=${duplaId}`
     });
 

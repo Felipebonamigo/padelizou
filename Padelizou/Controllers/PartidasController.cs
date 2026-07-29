@@ -319,6 +319,12 @@ namespace Padelizou.Controllers
             if (mataMataJaGerado) return;
 
             var torneio = await _context.Torneios.FindAsync(torneioId);
+
+            // Torneio apagado enquanto os jogos rodavam: sem ele não há expediente nem tempo de
+            // partida pra montar horário, e insistir estoura DENTRO do salvamento do placar —
+            // a mesa de controle daria erro no meio do torneio por causa de outro torneio.
+            if (torneio == null) return;
+
             var duplas = await _context.Duplas.Where(d => d.Categoria.TorneioId == torneioId && d.CategoriaId == categoriaId && d.Grupo != null).ToListAsync();
             var partidasGrupos = await _context.Partidas.Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId
                 && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))).ToListAsync();

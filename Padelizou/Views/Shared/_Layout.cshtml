@@ -59,6 +59,11 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @* Carimbo antifalsificação de onde o JavaScript tira o valor (ver `cabecalhoAntifalsificacao`
+       em site.js). Fica no layout porque as chamadas por fetch() estão espalhadas em 4 telas, e
+       repetir isto em cada uma seria esquecer numa. É o PRIMEIRO do documento de propósito: a
+       busca do JS pega o primeiro que encontra, então a origem fica sempre a mesma. *@
+    @Html.AntiForgeryToken()
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
             <div class="container">

@@ -10,6 +10,11 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.10" />
+    <!-- Fixado na MESMA versão que o app publica. Sem isto o projeto de testes resolvia
+         Relational 10.0.4 enquanto produção roda 10.0.10: os testes estariam aprovando um motor
+         de banco diferente do que está no ar, que é o tipo de diferença que só aparece depois
+         de publicar. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="NSubstitute" Version="6.0.0" />
     <PackageReference Include="xunit" Version="2.9.3" />

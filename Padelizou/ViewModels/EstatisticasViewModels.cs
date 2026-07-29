@@ -245,7 +245,10 @@ public class JogadorContagemVM
 public class DuplaContagemVM
 {
     public Jogador Jogador1 { get; set; } = null!;
-    public Jogador Jogador2 { get; set; } = null!;
+    // Anulável porque dá pra se inscrever sem parceiro e definir depois. Quem exibe isto
+    // (Ranking) já passa pelo helper NomesDaDupla, que devolve "(sem parceiro)" — o tipo é que
+    // ainda prometia alguém que podia não existir.
+    public Jogador? Jogador2 { get; set; }
     public string Categoria { get; set; } = "";
     public string Torneio { get; set; } = "";
     public int Vitorias { get; set; }

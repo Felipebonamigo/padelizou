@@ -71,8 +71,16 @@ public class GoogleCalendarService : IGoogleCalendarService
         {
             Summary = $"Aula de Padel - {aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno"}",
             Location = aula.LocalAula.Endereco,
+            // `DateTime` está marcado como obsoleto pela biblioteca do Google, que recomenda
+            // `DateTimeDateTimeOffset`. Ficamos no antigo DE PROPÓSITO: `aula.DataHora` é hora
+            // local sem fuso embutido (Kind=Unspecified), e converter pra DateTimeOffset usa o
+            // fuso da MÁQUINA — que em produção é UTC. As 14h do professor virariam 11h na agenda
+            // do aluno. Do jeito atual, mandamos a hora e o `TimeZone` separados e quem resolve é
+            // o Google. Só trocar junto com um teste que prove o horário na agenda de verdade.
+#pragma warning disable CS0618
             Start = new EventDateTime { DateTime = aula.DataHora, TimeZone = "America/Sao_Paulo" },
             End = new EventDateTime { DateTime = aula.DataHora.AddMinutes(duracaoMinutos), TimeZone = "America/Sao_Paulo" },
+#pragma warning restore CS0618
             Attendees = string.IsNullOrEmpty(aula.Aluno?.Email)
                 ? null
                 : new List<EventAttendee> { new EventAttendee { Email = aula.Aluno.Email, DisplayName = aula.Aluno.Nome } }

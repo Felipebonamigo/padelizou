@@ -3,6 +3,19 @@
 
 // Write your JavaScript code.
 
+// O servidor exige um carimbo antifalsificação em toda chamada que grava (filtro global no
+// Program.cs). Formulário do Razor leva o campo escondido sozinho; fetch() não leva nada, então
+// o valor vai pelo cabeçalho — que é onde o ASP.NET Core procura quando o corpo não é formulário.
+//
+// O carimbo é renderizado uma vez no _Layout, logo no começo do body, então qualquer tela tem.
+// Definido aqui porque site.js é o primeiro script do layout: quem vier depois já encontra.
+function cabecalhoAntifalsificacao(outros) {
+    var campo = document.querySelector('input[name="__RequestVerificationToken"]');
+    var cabecalhos = Object.assign({}, outros || {});
+    cabecalhos['RequestVerificationToken'] = campo ? campo.value : '';
+    return cabecalhos;
+}
+
 // Adiciona um clube novo via AJAX (sem recarregar a página, pra não perder o resto do formulário)
 // e insere um checkbox já marcado na lista. Usado em Cadastro, Preferências e Criar Aviso.
 function adicionarClube(nomeInputId, listaContainerId, checkboxName) {
@@ -12,7 +25,7 @@ function adicionarClube(nomeInputId, listaContainerId, checkboxName) {
 
     fetch('/Clubes/Criar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
         body: 'nome=' + encodeURIComponent(nome)
     })
         .then(function (res) { return res.json(); })

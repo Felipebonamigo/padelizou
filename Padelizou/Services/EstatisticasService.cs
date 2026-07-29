@@ -249,7 +249,10 @@ public class EstatisticasService : IEstatisticasService
         var duplas = await _context.Duplas
             .Where(d => d.Categoria.TorneioId == torneioId)
             .Include(d => d.Jogador1).ThenInclude(j => j.Time)
-            .Include(d => d.Jogador2).ThenInclude(j => j.Time)
+            // `Jogador2!` porque a dupla pode não ter parceiro (inscrição sozinho). O `!` é seguro
+            // aqui: o EF lê a expressão pra montar o JOIN, não executa o acesso — quem não tem
+            // parceiro simplesmente não traz linha.
+            .Include(d => d.Jogador2!).ThenInclude(j => j.Time)
             .ToListAsync();
 
         var acc = new Dictionary<int, PontosTimeTorneioVM>();
@@ -375,8 +378,12 @@ public class EstatisticasService : IEstatisticasService
                 if (dupla == null) continue;
 
                 // Filtro regional: a dupla entra se ao menos um dos jogadores for do local.
+                // Jogador1 sempre existe: a chave estrangeira é obrigatória e a consulta faz
+                // Include dele. Só Jogador2 é de verdade opcional (inscrição sem parceiro). O
+                // teste de nulo no primeiro era engano, e fazia o compilador achar que a linha
+                // seguinte podia guardar um jogador inexistente na tela do ranking.
                 bool duplaNoFiltro = filtro == null
-                    || (dupla.Jogador1 != null && filtro.Contains(dupla.Jogador1.Id))
+                    || filtro.Contains(dupla.Jogador1.Id)
                     || (dupla.Jogador2 != null && filtro.Contains(dupla.Jogador2.Id));
                 if (!duplaNoFiltro) continue;
 

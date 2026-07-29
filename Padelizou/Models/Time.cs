@@ -3,7 +3,7 @@ namespace Padelizou.Models;
 public class Time
 {
     public int Id { get; set; }
-    public string Nome { get; set; } // Ex: "Nata Padel"
+    public string Nome { get; set; } = string.Empty; // Ex: "Nata Padel"
 
     // Clube "sede" do time — opcional (o dono pode ou não informar).
     public int? ClubeId { get; set; }

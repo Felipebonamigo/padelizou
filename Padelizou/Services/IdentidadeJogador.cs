@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 
@@ -32,6 +33,30 @@ public static class IdentidadeJogador
             (exceto == null || j.Id != exceto.Value) &&
             ((j.Email != null && j.Email.ToLower() == alvo) ||
              (j.Login != null && j.Login.ToLower() == alvo)));
+    }
+
+    // O crachá que vai no cookie: quem é a pessoa e o que ela pode ver. A navbar lê daqui, não
+    // do banco, então o que faltar neste conjunto some da tela (menu de professor, painel admin).
+    //
+    // Existe num lugar só porque existia em QUATRO — três cópias iguais no AuthController
+    // (entrar, salvar perfil, cadastrar) e uma no middleware de acesso antecipado, mantidas em
+    // sincronia por um comentário pedindo que ficassem iguais. Não ficaram: só a do middleware
+    // tratava e-mail nulo, e as outras três estouravam no `new Claim` — ou seja, **quem não tem
+    // e-mail não conseguia entrar**, e o erro caía na tela de login. Pré-cadastro (jogador
+    // inscrito pelo organizador) nasce exatamente assim, sem e-mail.
+    public static List<Claim> ClaimsDe(Jogador jogador)
+    {
+        return new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
+            new Claim(ClaimTypes.Name, jogador.Nome),
+            // `?? ""` em tudo que é anulável no modelo: `new Claim(tipo, null)` lança exceção.
+            new Claim(ClaimTypes.Email, jogador.Email ?? ""),
+            new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
+            new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
+            new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
+            new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
+        };
     }
 }
 

@@ -4,6 +4,14 @@
     var torneio = ViewBag.Torneio as Torneio;
 }
 
+@if (torneio == null)
+{
+    @* `as` devolve nulo se a ação esquecer de preencher a ViewBag — e aí a página inteira caía
+       em erro 500. Vazio com explicação é ruim; erro 500 é pior, e some o menu junto. *@
+    <partial name="_Vazio" model='@(new EstadoVazio("Não consegui carregar este torneio.", "Ver todos os torneios", "Torneios", "Index"))' />
+    return;
+}
+
 <div class="mb-4">
     <h2>🏆 @torneio.Nome - Partidas</h2>
 </div>

@@ -87,7 +87,7 @@
 
             fetch('/Clubes/Criar', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
                 body: 'nome=' + encodeURIComponent(nome)
             })
                 .then(function (res) { return res.json(); })

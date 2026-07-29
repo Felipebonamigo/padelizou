@@ -208,16 +208,7 @@ namespace padelizou.Controllers
                 return View();
             }
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
-                new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
-                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
-                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
-                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
-            };
+            var claims = IdentidadeJogador.ClaimsDe(jogador);
 
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identidade);
@@ -231,8 +222,9 @@ namespace padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> Perfil()
         {
-            // Pega o ID do cara que está logado no cookie
-            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            // Pega o ID do cara que está logado no cookie. O `!` vale porque a ação é [Authorize]
+            // e quem emite o cookie é o ClaimsDe() aqui do lado, que sempre grava o identificador.
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             // Busca os dados dele e os grupos que ele participa
             var jogador = await _context.Jogadores
@@ -421,16 +413,7 @@ namespace padelizou.Controllers
 
             // Renova o cookie com nome/e-mail atualizados (o chip do usuário na navbar lê da claim,
             // não do banco — sem isso ficaria com o nome antigo até o próximo login).
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
-                new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
-                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
-                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
-                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
-            };
+            var claims = IdentidadeJogador.ClaimsDe(jogador);
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 
@@ -734,16 +717,7 @@ namespace padelizou.Controllers
             await DefinirTimeAsync(jogador, timeId, nomeTime);
 
             // 3. Loga o usuário automaticamente e manda pro Perfil
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, jogador.Id.ToString()),
-                new Claim(ClaimTypes.Name, jogador.Nome),
-                new Claim(ClaimTypes.Email, jogador.Email),
-                new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
-                new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
-                new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
-                new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
-            };
+            var claims = IdentidadeJogador.ClaimsDe(jogador);
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 

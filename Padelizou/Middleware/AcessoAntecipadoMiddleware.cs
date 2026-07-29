@@ -79,19 +79,11 @@ public class AcessoAntecipadoMiddleware
             var jogadorDemo = await db.Jogadores.FirstOrDefaultAsync(j => j.Cpf == settings.LoginAutomaticoCpf);
             if (jogadorDemo != null)
             {
-                // Mesmo conjunto de claims do login normal (AuthController) — sem isso os menus
-                // condicionais (Painel do Professor, Painel Admin) não apareciam nesse modo, já
-                // que dependiam de IsProfessor/IsAdmin que faltavam aqui.
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, jogadorDemo.Id.ToString()),
-                    new Claim(ClaimTypes.Name, jogadorDemo.Nome),
-                    new Claim(ClaimTypes.Email, jogadorDemo.Email ?? ""),
-                    new Claim("FotoPerfil", jogadorDemo.FotoPerfil ?? ""),
-                    new Claim("IsProfessor", jogadorDemo.IsProfessor ? "true" : "false"),
-                    new Claim("IsAdmin", (jogadorDemo.IsAdminGeral || jogadorDemo.IsAdminRaiz) ? "true" : "false"),
-                    new Claim("IsAdminRaiz", jogadorDemo.IsAdminRaiz ? "true" : "false")
-                };
+                // Mesmo conjunto de claims do login normal — sem isso os menus condicionais
+                // (Painel do Professor, Painel Admin) não apareciam nesse modo, já que dependiam
+                // de IsProfessor/IsAdmin que faltavam aqui. Agora vem de IdentidadeJogador, então
+                // ficar igual deixou de depender de alguém lembrar.
+                var claims = IdentidadeJogador.ClaimsDe(jogadorDemo);
                 var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 var principal = new ClaimsPrincipal(identidade);
                 await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties

@@ -5,9 +5,11 @@ namespace Padelizou.Models;
 public class Clube
 {
     public int Id { get; set; }
-    public string Nome { get; set; }
-    public string Endereco { get; set; }
-    public string Contato { get; set; }
+    // Os três são NOT NULL no banco (IsRequired), então string vazia é o padrão honesto: o EF
+    // sobrescreve ao ler, e quem cria um clube sem endereço grava "" em vez de estourar no insert.
+    public string Nome { get; set; } = string.Empty;
+    public string Endereco { get; set; } = string.Empty;
+    public string Contato { get; set; } = string.Empty;
 
     // Dono do clube — atribuído só por um administrador do sistema (AdminController).
     public int? DonoId { get; set; }

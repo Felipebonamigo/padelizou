@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Padelizou.Middleware;
@@ -88,7 +89,22 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Auth/AcessoNegado";
     });
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+//
+// Carimbo antifalsificação (CSRF) em TODA ação que grava — POST, PUT, PATCH e DELETE. Sem ele,
+// um site qualquer consegue fazer o navegador de quem está logado aqui enviar um formulário sem
+// a pessoa saber: cancelar aula, mudar placar, trocar dado de perfil.
+//
+// Por que global e não um atributo por ação: eram 61 de 114 ações sem o atributo, e essa conta
+// só piora — quem escreve a 115ª ação não tem como lembrar de algo que não está em lugar nenhum.
+// Com o filtro global a proteção é o padrão e a exceção é que precisa ser escrita
+// ([IgnoreAntiforgeryToken]), que é a ordem certa: esquecer passa a ser seguro.
+//
+// Formulário do Razor já manda o campo escondido sozinho; chamada por fetch() manda no cabeçalho
+// (ver `cabecalhoAntifalsificacao` em site.js).
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});
 
 var app = builder.Build();
 

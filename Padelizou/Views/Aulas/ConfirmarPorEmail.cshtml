@@ -4,6 +4,12 @@
     bool jaProcessada = ViewBag.JaProcessada == true;
     bool? aceitou = ViewBag.Aceitou as bool?;
     string? linkWhatsApp = ViewBag.WhatsAppLink as string;
+
+    // Aula lançada à mão pro aluno sem conta no sistema tem `Aluno` nulo e o nome em
+    // `NomeAlunoAvulso` — a tela dizia `Model.Aluno.Nome` direto e cairia em erro 500 justo no
+    // link que o professor abre pelo e-mail, fora do site e sem caminho de volta.
+    var nomeDoAluno = Model.Aluno?.Nome ?? Model.NomeAlunoAvulso ?? "seu aluno";
+    var nomeDoLocal = Model.LocalAula?.Nome ?? "o local combinado";
 }
 
 <div class="container mt-5">
@@ -21,8 +27,8 @@
                     <i class="bi bi-check-circle-fill display-3 text-success mb-3"></i>
                     <h3 class="fw-bold" style="color: var(--pdz-ink);">Aula confirmada!</h3>
                     <p class="text-muted">
-                        Você confirmou a aula com <strong>@Model.Aluno.Nome</strong> em
-                        <strong>@Model.LocalAula.Nome</strong> no dia
+                        Você confirmou a aula com <strong>@nomeDoAluno</strong> em
+                        <strong>@nomeDoLocal</strong> no dia
                         <strong>@Model.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
                         Um e-mail de confirmação já foi enviado ao aluno.
                     </p>
@@ -38,7 +44,7 @@
                     <i class="bi bi-x-circle-fill display-3 text-danger mb-3"></i>
                     <h3 class="fw-bold">Solicitação recusada</h3>
                     <p class="text-muted">
-                        Avisamos <strong>@Model.Aluno.Nome</strong> por e-mail que essa aula não vai poder
+                        Avisamos <strong>@nomeDoAluno</strong> por e-mail que essa aula não vai poder
                         acontecer no horário solicitado.
                     </p>
                     @if (!string.IsNullOrEmpty(linkWhatsApp))
