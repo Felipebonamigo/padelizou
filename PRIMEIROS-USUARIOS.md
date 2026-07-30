@@ -1,0 +1,72 @@
+# Primeiros usuários — o que mandar, e o que esperar
+
+> Escrito em 30/07/2026 para a liberação do **primeiro organizador de torneio** e do
+> **primeiro professor**. O sistema está em beta fechado: o portão continua ligado, e quem
+> entra precisa da senha compartilhada.
+
+## Como funciona a entrada (importante entender antes de mandar)
+
+São **duas portas em sequência**, e elas são coisas diferentes:
+
+1. **O portão do beta** (`padelizou` + a senha compartilhada). É uma senha só, igual pra todo
+   mundo, e serve só pra manter o site fora do ar público. Passa uma vez e o navegador lembra
+   por 90 dias.
+2. **A conta da pessoa** (login e senha que *ela* escolhe, criados por ela no Cadastro). É essa
+   que diz quem ela é — o torneio, as aulas e o dinheiro ficam pendurados nela.
+
+✅ Verificado em 30/07: quem passa pelo portão entra **deslogado** e cria a própria conta. O
+antigo "modo demonstração" (que fazia todo visitante entrar como o Felipe) está **desligado**
+em produção — sem isso, o organizador entraria na sua conta de administrador.
+
+## Mensagem pronta pro organizador
+
+> Fala! O Padelizou tá no ar pra você já ir montando teu torneio de verdade.
+>
+> 1. Entra em **padelizou.com.br**
+> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `padelizou`, senha `______`
+> 3. Clica em **Cadastre-se** e cria a **tua** conta (login e senha que você escolher)
+> 4. Depois é só ir em **Torneios → Criar torneio**
+>
+> Qualquer coisa estranha, me chama que eu resolvo. Tá em beta, então tua opinião vale ouro.
+
+## Mensagem pronta pro professor
+
+> Fala! O Padelizou tá no ar pra você começar a receber aluno.
+>
+> 1. Entra em **padelizou.com.br**
+> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `padelizou`, senha `______`
+> 3. Clica em **Cadastre-se**, cria a **tua** conta e marca a opção **"sou professor"**
+> 4. O sistema vai te pedir, nessa ordem: **cidade → local → horário**. Enquanto faltar um
+>    desses, nenhum aluno consegue te achar — por isso ele insiste.
+>
+> Você tem **15 dias de teste** com as condições de assinante. Depois escolhe: mensalidade de
+> R$ 49,90 + 3% por aula no Pix (6% no cartão), ou sem mensalidade pagando 10% por aula.
+
+## O que eles VÃO encontrar (pra você não ser pego de surpresa)
+
+- **O site está vazio.** A produção foi zerada em 28/07: 0 torneios, 1 jogador (você). Eles vão
+  ver telas vazias com o Pnatinha até criarem as próprias coisas. É esperado.
+- **O professor é obrigado a cadastrar cidade, local e horário** antes de o painel abrir. Não é
+  travamento: é a escada que impede professor invisível.
+- **Pra receber inscrição pelo site, o organizador precisa da conta dele no meio de pagamento**
+  (a tela Pagamentos → Configurar pede o identificador de recebimento). Enquanto ele não tiver,
+  as opções que funcionam são **"por fora"** (ele cobra direto e paga 5% depois, com as chaves
+  liberando após o acerto) ou **torneio sem cobrança**.
+- **Muitas tentativas seguidas** no portão ou no login mostram um aviso pedindo 5 minutos. É a
+  proteção contra robô, ligada em 30/07 — cada ação tem sua própria contagem, então errar a
+  senha do portão não atrapalha o cadastro.
+
+## Se algo travar
+
+- **"Usuário ou senha incorretos" no portão** — a senha do portão não é a da conta dele.
+- **"Já tem alguém cadastrado com esse e-mail/login"** — o formulário volta preenchido, é só
+  trocar o campo apontado.
+- **Esqueceu a senha da conta** — tem "Esqueci minha senha" na tela de entrar; chega por e-mail.
+- **Erro de verdade (tela de Ops)** — o link "Sugestão, bug ou crítica" na faixa de beta manda
+  direto pro seu WhatsApp com a mensagem já começada.
+
+## Depois da primeira noite, vale conferir
+
+- `/Admin/Metricas` — cadastros e inscrições que apareceram.
+- `/Admin/Feedbacks` — o que eles escreveram (nada aparece no site até você publicar).
+- O journal do servidor, se alguém relatar erro: `journalctl -u padelizou --since '1 hour ago'`.

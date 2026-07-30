@@ -28,7 +28,15 @@ namespace padelizou.Controllers
         [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public IActionResult Entrar(string usuario, string senha, string? returnUrl)
         {
-            if (usuario == _settings.Usuario && senha == _settings.Senha)
+            // O usuário do portão NÃO é segredo (o segredo é a senha) — e ele chega por
+            // WhatsApp, digitado num celular que decide sozinho se capitaliza a primeira
+            // letra. Comparar com caixa exigiria acertar "Corneteiros" e não "corneteiros",
+            // o que viraria chamado de suporte na primeira noite. A senha continua exata.
+            //
+            // O Trim vale pros dois: copiar de uma mensagem quase sempre traz espaço colado,
+            // e recusar por causa disso é recusar quem digitou certo.
+            if (string.Equals(usuario?.Trim(), _settings.Usuario?.Trim(), StringComparison.OrdinalIgnoreCase)
+                && senha?.Trim() == _settings.Senha?.Trim())
             {
                 Response.Cookies.Append(AcessoAntecipadoMiddleware.NomeCookie, AcessoAntecipadoMiddleware.CalcularHash(_settings), new CookieOptions
                 {
