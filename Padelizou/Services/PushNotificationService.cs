@@ -91,6 +91,65 @@ public class PushNotificationService : IPushNotificationService
         }
     }
 
+    public async Task<ResultadoTesteNotificacao> EnviarTesteAsync(int jogadorId, bool porPush,
+        bool porWhatsApp, string titulo, string corpo, string? url = null)
+    {
+        var jogador = await _context.Jogadores
+            .Where(j => j.Id == jogadorId)
+            .Select(j => new { j.Celular, j.NotificarWhatsApp })
+            .FirstOrDefaultAsync();
+
+        var push = ResultadoDoCanal.NaoPedido;
+        var aparelhos = 0;
+
+        if (porPush)
+        {
+            aparelhos = await _context.Set<PushSubscriptionJogador>()
+                .CountAsync(s => s.JogadorId == jogadorId);
+
+            if (aparelhos == 0)
+            {
+                push = ResultadoDoCanal.SemAppInstalado;
+            }
+            else
+            {
+                await EnviarPushAsync(jogadorId, titulo, corpo, url);
+                push = ResultadoDoCanal.Enviado;
+            }
+        }
+
+        var whats = ResultadoDoCanal.NaoPedido;
+        string? numero = null;
+
+        if (porWhatsApp)
+        {
+            // A ordem das recusas é a ordem em que o admin consegue AGIR: o que ele muda no
+            // servidor vem antes do que depende do jogador.
+            if (!_whatsApp.Configurado)
+                whats = ResultadoDoCanal.CanalDesligadoNesteAmbiente;
+            else if (jogador == null || !jogador.NotificarWhatsApp)
+                whats = ResultadoDoCanal.PreferenciaDesmarcada;
+            else if (!AvisoPorWhatsApp.PodeReceber(true, jogador.Celular))
+                whats = ResultadoDoCanal.SemNumeroNoCadastro;
+            else
+            {
+                var texto = AvisoPorWhatsApp.Montar(titulo, corpo, url, _site.Url);
+                whats = await _whatsApp.EnviarAsync(jogador.Celular, texto)
+                    ? ResultadoDoCanal.Enviado
+                    : ResultadoDoCanal.FalhouNoEnvio;
+                numero = WhatsAppLinkHelper.Formatar(jogador.Celular);
+            }
+        }
+
+        return new ResultadoTesteNotificacao
+        {
+            Push = push,
+            Aparelhos = aparelhos,
+            WhatsApp = whats,
+            Numero = whats == ResultadoDoCanal.Enviado ? numero : null,
+        };
+    }
+
     // Só push, sem WhatsApp — de propósito. O único uso disto é o botão de notificação de
     // TESTE do painel, cujo texto fala do app instalado. Mandar um teste no celular de todo
     // mundo é o tipo de aviso que faz a pessoa desligar o canal (e ainda custa envio).

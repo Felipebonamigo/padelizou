@@ -79,12 +79,25 @@
             </div>
         }
         <div class="col-md-6">
+            <a asp-controller="Admin" asp-action="NotificacaoTeste" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-send-check"></i> Teste de aviso (WhatsApp e push)</h5>
+                        <p class="text-muted small mb-0">Manda pra <strong>uma pessoa só</strong>, pelo login dela, e diz por que não chegou quando não chega.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
                     <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-bell"></i> Notificação de teste (push)</h5>
+                    @* Este manda pra TODO MUNDO com o app, e só push — nunca WhatsApp. Teste
+                       chegando no celular de todo mundo é o jeito mais rápido de fazer a
+                       pessoa desligar o canal. Pra testar de verdade, use o card ao lado. *@
                     <p class="text-muted small mb-3">Manda um push de teste pra todo mundo que instalou o app e ativou notificações.</p>
                     <form asp-controller="Admin" asp-action="EnviarNotificacaoTeste" method="post">
-                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Enviar teste</button>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Enviar pra todos</button>
                     </form>
                 </div>
             </div>

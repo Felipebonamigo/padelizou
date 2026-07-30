@@ -1,0 +1,102 @@
+@model Padelizou.ViewModels.TesteDeNotificacaoVM
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Teste de aviso - Painel Admin - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 760px;">
+    <a asp-controller="Admin" asp-action="Index" class="small text-decoration-none">&larr; Painel Admin</a>
+
+    <div class="mb-4 mt-2">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Teste de aviso</h2>
+        <p class="text-muted mb-0">
+            Manda um aviso de mentira pra <strong>uma pessoa só</strong>, pelos canais que você
+            escolher. Serve pra conferir a corrente inteira sem incomodar mais ninguém.
+        </p>
+    </div>
+
+    @if (Model.Erro != null)
+    {
+        <div class="alert alert-warning border-0 shadow-sm">
+            <i class="bi bi-exclamation-triangle"></i> @Model.Erro
+        </div>
+    }
+
+    @if (Model.Resultado != null && Model.Alvo != null)
+    {
+        var r = Model.Resultado;
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1">
+                <i class="bi bi-send-check"></i> Mandei para @Model.Alvo.Nome
+            </h6>
+            <p class="text-muted small mb-3">
+                @Model.Alvo.Login@(string.IsNullOrWhiteSpace(Model.Alvo.Email) ? "" : $" · {Model.Alvo.Email}")
+            </p>
+
+            <div class="d-flex align-items-start gap-2 mb-2">
+                <i class="bi @(TextoDoTeste.DeuCerto(r.Push) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
+                <div>
+                    <strong>Notificação (app):</strong>
+                    <span class="@(TextoDoTeste.DeuCerto(r.Push) ? "" : "text-muted")">
+                        @TextoDoTeste.Frase(r.Push, r.Aparelhos)
+                    </span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi @(TextoDoTeste.DeuCerto(r.WhatsApp) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
+                <div>
+                    <strong>WhatsApp:</strong>
+                    <span class="@(TextoDoTeste.DeuCerto(r.WhatsApp) ? "" : "text-muted")">
+                        @TextoDoTeste.Frase(r.WhatsApp, numero: r.Numero)
+                    </span>
+                </div>
+            </div>
+        </div>
+    }
+
+    <form method="post" class="card border-0 shadow-sm p-3">
+        @Html.AntiForgeryToken()
+
+        <div class="mb-3">
+            <label class="form-label fw-bold" for="identificador">Login ou e-mail de quem vai receber</label>
+            <input type="text" class="form-control" id="identificador" name="identificador"
+                   value="@Model.Identificador" placeholder="ex.: prof.escada" autocomplete="off" required />
+            <div class="form-text">O mesmo que a pessoa digita pra entrar no site.</div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold d-block">Por onde mandar</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="porPush" value="true"
+                       id="porPush" @(Model.PorPush ? "checked" : "") />
+                <label class="form-check-label" for="porPush">
+                    Notificação do app <span class="text-muted small">— só chega em quem instalou</span>
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="porWhatsApp" value="true"
+                       id="porWhatsApp" @(Model.PorWhatsApp ? "checked" : "") />
+                <label class="form-check-label" for="porWhatsApp">
+                    WhatsApp <span class="text-muted small">— chega em quem tem número e aceitou</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold" for="mensagem">Mensagem <span class="fw-normal text-muted">(opcional)</span></label>
+            <input type="text" class="form-control" id="mensagem" name="mensagem"
+                   value="@Model.Mensagem" maxlength="300" placeholder="deixe vazio pro texto padrão de teste" />
+        </div>
+
+        <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">
+            <i class="bi bi-send"></i> Enviar teste
+        </button>
+    </form>
+
+    <p class="text-muted small mt-3 mb-0">
+        <i class="bi bi-info-circle"></i>
+        O WhatsApp fica desligado no ambiente de teste de propósito — lá, um teste viraria
+        mensagem no celular de gente de verdade.
+    </p>
+</div>

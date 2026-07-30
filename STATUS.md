@@ -6,7 +6,7 @@
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
 > dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação, por
 > uma **Evolution API no nosso próprio VPS (R$ 0/mês)** — falta só o chip pré-pago e o QR code.
-> **789 testes.**
+> **802 testes.**
 > Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
@@ -435,7 +435,16 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   senão um teste manda mensagem pro celular de gente de verdade.
   ⏳ **Falta um passo, e é físico:** comprar um **chip pré-pago** (nunca o número pessoal — se
   a Meta banir, o número morre) e ler o QR code. O comando está no STATUS abaixo.
-- **789 testes.**
+- **Painel: "Teste de aviso" dirigido a UMA pessoa.** Digita o **login (ou e-mail)** de quem
+  vai receber, marca **WhatsApp e/ou notificação do app**, manda. O botão antigo continua lá,
+  mas ele é outra coisa: dispara pra todo mundo com o app, e **só push**.
+  O que essa tela tem de diferente é o **diagnóstico**: "não chegou" tinha meia dúzia de
+  causas que na tela viravam a mesma coisa. Agora ela diz **qual** — jogador sem o app,
+  número em branco no cadastro, preferência desmarcada pelo próprio jogador, canal desligado
+  no ambiente, ou provedor recusando. Cada motivo tem frase própria (tem teste garantindo que
+  não se repetem), e o envio bem-sucedido mostra **o número de volta** — digitar login na mão
+  erra fácil, e é assim que se percebe antes de sair contando que o canal funciona.
+- **802 testes.**
 
 ---
 

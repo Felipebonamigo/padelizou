@@ -23,6 +23,8 @@ public class EvolutionApiService : IWhatsAppService
         _logger = logger;
     }
 
+    public bool Configurado => _settings.Configurado;
+
     public async Task<bool> EnviarAsync(string? celular, string mensagem)
     {
         // Debug, não Warning: hoje TODA notificação passa por aqui, e no localhost/dev o canal

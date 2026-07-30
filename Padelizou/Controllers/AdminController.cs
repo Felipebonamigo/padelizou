@@ -456,6 +456,58 @@ namespace padelizou.Controllers
             return RedirectToAction("Index");
         }
 
+        // Teste dirigido: escolhe UMA pessoa (pelo login ou e-mail) e quais canais tentar.
+        // O botão de cima manda pra todo mundo com o app e serve pra outra coisa; este aqui
+        // é pra conferir a corrente inteira sem incomodar ninguém além de quem você escolheu.
+        [HttpGet]
+        public async Task<IActionResult> NotificacaoTeste()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            return View(new TesteDeNotificacaoVM());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> NotificacaoTeste(string? identificador, bool porPush = false,
+            bool porWhatsApp = false, string? mensagem = null)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var vm = new TesteDeNotificacaoVM
+            {
+                Identificador = identificador,
+                PorPush = porPush,
+                PorWhatsApp = porWhatsApp,
+                Mensagem = mensagem,
+            };
+
+            if (!porPush && !porWhatsApp)
+            {
+                vm.Erro = "Escolha pelo menos um canal — sem isso o teste não testa nada.";
+                return View(vm);
+            }
+
+            // Mesma consulta do login (e-mail OU login, sem diferenciar maiúsculas): se aqui
+            // fosse diferente, um admin digitaria o que a pessoa usa pra entrar e não acharia.
+            var alvo = await BuscaJogador.PorIdentificadorAsync(_context, identificador);
+            if (alvo == null)
+            {
+                vm.Erro = "Não achei ninguém com esse login ou e-mail.";
+                return View(vm);
+            }
+
+            var texto = string.IsNullOrWhiteSpace(mensagem)
+                ? "Notificação de teste — se você recebeu isso, o aviso do Padelizou está chegando certinho."
+                : mensagem.Trim();
+
+            vm.Alvo = alvo;
+            vm.Resultado = await _pushNotificationService.EnviarTesteAsync(
+                alvo.Id, porPush, porWhatsApp, "Padelizou", texto, "/");
+
+            return View(vm);
+        }
+
         // Refaz as imagens antigas no padrão novo (o ImagemEnviada cuida das que chegam daqui
         // pra frente). Idempotente: rodar de novo pula tudo que já está no tamanho certo.
         [HttpPost]
