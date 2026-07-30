@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **30/07/2026 (tarde)** — **primeira liberação pra gente de verdade hoje à noite**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
+> Última atualização: **30/07/2026 (noite)** — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. **727 testes.**
+> Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
 > ✅ **Chave do backup guardada fora do servidor** (29/07): o Felipe copiou pro gerenciador de senhas dele. Conferido antes que o arquivo existe (337 bytes, 9 linhas, chmod 600) e que a chave em uso ABRE o cofre — ele copiou a certa, não uma versão velha. Fecha o furo em que o backup seria inútil justo quando o servidor morresse.
@@ -350,6 +351,34 @@ pro **primeiro professor**. Ensaio e ajustes:
   dias**; a conta do Felipe em prod é **admin raiz** (com o campo `Login` vazio — ele entra pelo
   **e-mail**); e o botão "Criar seu Torneio" aparece pra qualquer pessoa logada.
 - **703 testes.**
+
+### 30/07/2026 (noite) — 🎉 O PRIMEIRO USUÁRIO REAL ENTROU
+
+**Lucas Almeida Coelho** (login `Foka`, professor) criou conta em produção às **15:46** — o
+primeiro usuário de verdade do Padelizou, fora o Felipe. Em minutos ele já tinha criado
+torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma hora:
+
+- **🔴 Criou o mesmo torneio DUAS vezes** ("Amigos do Eder"). Formulário longo, botão apertado
+  de novo por não ter certeza se salvou — e o sistema aceitou os dois em silêncio. Dois torneios
+  iguais dividem as inscrições e ninguém sabe em qual entrar.
+  **Agora é barrado**, por organizador e só enquanto o torneio está de pé (`Services/NomeDoTorneio`):
+  quem faz o mesmo torneio todo mês precisa criar a próxima edição depois que a anterior termina,
+  e "Copa de Verão" não pertence a ninguém — bloquear no sistema inteiro recusaria o torneio de
+  um clube por causa do nome escolhido por outro. Compara **como uma pessoa compara** (sem caixa,
+  sem acento, espaços colapsados).
+  De quebra: as recusas da criação passaram a acontecer **todas antes** de achar-ou-criar o clube
+  — antes, cada tentativa recusada deixava um clube novo no catálogo.
+- **A inscrição criou um pré-cadastro** para o parceiro ("Giacomello"): é o comportamento
+  desenhado (inscrever quem ainda não tem conta), e vale lembrar que **o convite por link**,
+  publicado hoje de manhã, é o caminho que evita digitar o CPF do outro.
+- **Limpeza pedida pelo Felipe**, feita com backup antes
+  (`/opt/padelizou-shared/backup-prod-antes-limpeza-20260730-1716.sql.gz`): os 2 torneios, suas
+  4 categorias, 2 quadras, a 1 dupla e o pré-cadastro Giacomello. Tudo em **uma transação** e na
+  ordem das chaves estrangeiras, conferindo antes quem apontava pro jogador (só a dupla).
+  **Preservados de propósito:** a conta do Lucas, os clubes que ele cadastrou e o **pagamento
+  real de R$ 9** (o MEI obriga a guardar registro de receita).
+  A pontuação do Lucas zerou junto — ela é **calculada** dos torneios, não guardada.
+- **727 testes.**
 
 ---
 
