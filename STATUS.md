@@ -521,6 +521,37 @@ existe), Apple US$ 99/**ano** + Mac pra publicar, com risco de recusa por "site 
   nativa do Android e o "Adicionar à Tela de Início" do iPhone foram simulados e conferidos
   estado por estado, mas quem confirma é o Felipe instalando no aparelho dele.
 
+### 30/07/2026 (noite) — O clube vira balcão
+
+O Felipe pediu a melhor proposta pra área do clube ("pode ser a parte de maior lucro depois
+dos torneios"). O diagnóstico: as telas de gestão já existiam, mas faltava **a cena mais comum
+da vida real** — toca o WhatsApp, "tem quadra amanhã às 19h?", e o dono não tinha onde
+registrar. Bloquear escondia nome e receita; deixar livre arriscava venda dupla pelo site.
+Resultado: o clube mantinha o caderninho JUNTO com o sistema, e ninguém paga mensalidade pra
+ter dois controles. Proposta aprovada (mockup antes de codar) e implementada inteira:
+
+- **Reserva de balcão**: horário livre (no mapa E no Hoje) abre "Marcar pra alguém" — nome e
+  celular **texto livre, sem exigir conta** (decisão do Felipe). Celular que bate com uma
+  conta liga a reserva a ela por baixo (aparece no "minhas marcações" do cliente), mas **o
+  nome digitado continua mandando na tela** — é o nome que o dono conhece. Conflito recusado
+  com a mesma régua do site; cancelar só de balcão (a do site envolve conta e dinheiro do
+  jogador).
+- **Pago / paga lá**: balcão nasce "paga lá" (a vida real do telefone); "recebi" carimba e
+  **não desmarca** — sumir com receita registrada não pode ser um clique. Site via checkout
+  nasce "pago" (webhook); sem cobrança online nasce "paga lá". **Reserva antiga fica sem
+  selo**: não dá pra saber como foi acertada, e chutar mentiria pra um lado ou pro outro.
+- **O painel abre no HOJE**: o dia em ordem de hora — reservas com selo e WhatsApp, livres
+  clicáveis com o botão de marcar. O dono opera o dia, não o mês. "Próximos dias" abaixo.
+- **Financeiro**: receita dividida **site × balcão** e o card **"A receber no balcão"** — o
+  número que o dono compara com o bolso no fim do dia.
+- Migração de 4 colunas anuláveis em `MarcacaoJogo`; regra pura em `Services/ReservaDeBalcao`.
+  Provado em tela de ponta a ponta no local (marcar → selo no mapa → a receber → recebi).
+  **845 testes.**
+- ⚠️ **Copa/estoque/contas a pagar**: o Felipe perguntou; análise respondida na conversa —
+  resumo: PDV fiscal e estoque são outro produto (não vale agora); um **caixa simples de
+  lançamentos avulsos** (outras receitas/despesas no financeiro) é barato e cobre a dor de
+  "quanto o clube deu no mês" — fica como candidato quando um clube real pedir.
+
 ---
 
 ## 🎯 O que realmente falta (auditado em 26/07)
