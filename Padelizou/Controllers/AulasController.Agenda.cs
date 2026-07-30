@@ -9,8 +9,8 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // A agenda do professor: aula lanÃ§ada Ã  mÃ£o (aluno avulso, sem conta), o calendÃ¡rio
-    // (dia/semana/mÃªs, ver Services/PeriodoAgenda) e a troca de status.
+    // A agenda do professor: aula lançada à mão (aluno avulso, sem conta), o calendário
+    // (dia/semana/mês, ver Services/PeriodoAgenda) e a troca de status.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController
     {

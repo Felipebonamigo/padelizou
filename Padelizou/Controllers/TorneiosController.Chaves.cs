@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // O sorteio: grupos, grade de horÃ¡rios, previsÃ£o e o mata-mata automÃ¡tico.
+    // O sorteio: grupos, grade de horários, previsão e o mata-mata automático.
     public partial class TorneiosController
     {
         [HttpPost]

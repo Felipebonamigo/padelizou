@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // Dia de jogo, bastidores: financeiro, relatÃ³rio, check-in e comunicado em massa.
+    // Dia de jogo, bastidores: financeiro, relatório, check-in e comunicado em massa.
     public partial class TorneiosController
     {
         // Arrecadado, pendente e estornado por categoria, numa tela só. Antes o

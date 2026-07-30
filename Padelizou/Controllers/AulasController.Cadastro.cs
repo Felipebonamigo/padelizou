@@ -9,8 +9,8 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // O que o professor cadastra pra existir pro aluno: locais, cidades, horÃ¡rios e a polÃ­tica
-    // de cancelamento. Ã‰ a "escada do professor" de Services/CadastroDeProfessor.
+    // O que o professor cadastra pra existir pro aluno: locais, cidades, horários e a política
+    // de cancelamento. É a "escada do professor" de Services/CadastroDeProfessor.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController
     {

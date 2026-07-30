@@ -9,8 +9,8 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // Dinheiro e presenÃ§a: quanto entrou, quem estÃ¡ devendo, presenÃ§a/falta com a regra de
-    // cobranÃ§a, e o relatÃ³rio por perÃ­odo.
+    // Dinheiro e presença: quanto entrou, quem está devendo, presença/falta com a regra de
+    // cobrança, e o relatório por período.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController
     {

@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // Dia de jogo, quadra: Mesa de Controle, placar sincronizado (offline-first) e finalizaÃ§Ã£o com robÃ´s.
+    // Dia de jogo, quadra: Mesa de Controle, placar sincronizado (offline-first) e finalização com robôs.
     public partial class TorneiosController
     {
         // 1. TELA DA MESA DE CONTROLE (Onde o ajudante fica no celular)

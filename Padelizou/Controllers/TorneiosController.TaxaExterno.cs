@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // A taxa dos 5% do torneio "por fora": Ã¡rea de pagamento, negociaÃ§Ã£o e a trava das chaves (Services/TaxaDoTorneioExterno).
+    // A taxa dos 5% do torneio "por fora": área de pagamento, negociação e a trava das chaves (Services/TaxaDoTorneioExterno).
     public partial class TorneiosController
     {
         // Pessoas inscritas no torneio inteiro, pela régua do serviço (dupla completa = 2,

@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // CriaÃ§Ã£o e ediÃ§Ã£o do torneio: formulÃ¡rio, capa, organizadores e o pacote de registro de resultados.
+    // Criação e edição do torneio: formulário, capa, organizadores e o pacote de registro de resultados.
     public partial class TorneiosController
     {
         // 1. ABRE A TELA DE CRIAÇÃO (Carrega o Catálogo)

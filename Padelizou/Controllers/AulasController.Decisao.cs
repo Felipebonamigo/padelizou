@@ -9,7 +9,7 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // A decisÃ£o do PROFESSOR sobre a solicitaÃ§Ã£o: aceitar/recusar uma aula, a sÃ©rie inteira,
+    // A decisão do PROFESSOR sobre a solicitação: aceitar/recusar uma aula, a série inteira,
     // ou pelo link do e-mail (que ele abre fora do site) â€” tudo por ProcessarDecisaoAsync.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController

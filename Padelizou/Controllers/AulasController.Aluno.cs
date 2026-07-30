@@ -9,8 +9,8 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // O lado do ALUNO: a escada de marcar aula (cidade -> professor -> local -> tipo -> horÃ¡rio),
-    // a solicitaÃ§Ã£o, "Minhas Aulas" e o cancelamento pela polÃ­tica de 24h.
+    // O lado do ALUNO: a escada de marcar aula (cidade -> professor -> local -> tipo -> horário),
+    // a solicitação, "Minhas Aulas" e o cancelamento pela política de 24h.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController
     {

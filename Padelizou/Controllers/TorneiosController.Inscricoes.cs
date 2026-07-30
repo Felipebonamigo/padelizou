@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // InscriÃ§Ãµes: inscrever pelo balcÃ£o, pago/nÃ£o pago, remover dupla e encerrar as inscriÃ§Ãµes.
+    // Inscrições: inscrever pelo balcão, pago/não pago, remover dupla e encerrar as inscrições.
     public partial class TorneiosController
     {
         // Inscrição individual (Torneio Americano) — achar-ou-criar Jogador por CPF, mesmo

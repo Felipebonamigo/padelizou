@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace Padelizou.Controllers
 {
-    // Formato Americano: rodadas de whist, desempate e classificaÃ§Ã£o.
+    // Formato Americano: rodadas de whist, desempate e classificação.
     public partial class TorneiosController
     {
         // Torneio Americano: sorteia as rodadas de todas as categorias do torneio, trocando os
