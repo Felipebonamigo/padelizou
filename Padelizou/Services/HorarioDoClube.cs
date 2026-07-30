@@ -54,4 +54,33 @@ public static class HorarioDoClube
 
         return null;
     }
+
+    // ---- Montar a grade de uma vez ----
+    // O clube novo tem 3 quadras × 7 dias: cadastrar regra por regra são 21 formulários
+    // iguais, e é exatamente onde ele desiste no meio e fica invisível pro jogador. O
+    // gerador cria tudo num clique; esta decisão diz o que fazer em cada (quadra, dia).
+
+    public enum DecisaoDaGrade { Criar, Religar, Pular }
+
+    // O que fazer num (quadra, dia) dado o que JÁ existe ali:
+    // - regra IDÊNTICA (mesma janela e duração) pausada → religa: recadastrar a grade depois
+    //   das férias faz o que a pessoa quis, sem linha duplicada (mesma regra do professor);
+    // - idêntica ativa → pula: já está no ar;
+    // - qualquer outra ATIVA que se sobreponha à janela → pula: gerar por cima venderia o
+    //   mesmo horário duas vezes com durações diferentes. Pausada sobreposta não impede.
+    public static (DecisaoDaGrade Decisao, Models.HorarioMarcacaoDisponivel? Alvo) DecidirSlot(
+        IEnumerable<Models.HorarioMarcacaoDisponivel> existentesDaQuadraEDia,
+        TimeSpan inicio, TimeSpan fim, int duracaoMinutos)
+    {
+        var identica = existentesDaQuadraEDia.FirstOrDefault(h =>
+            h.HoraInicio == inicio && h.HoraFim == fim && h.DuracaoMinutos == duracaoMinutos);
+
+        if (identica != null)
+            return identica.Ativo ? (DecisaoDaGrade.Pular, null) : (DecisaoDaGrade.Religar, identica);
+
+        bool sobrepoeAtiva = existentesDaQuadraEDia.Any(h =>
+            h.Ativo && h.HoraInicio < fim && inicio < h.HoraFim);
+
+        return sobrepoeAtiva ? (DecisaoDaGrade.Pular, null) : (DecisaoDaGrade.Criar, null);
+    }
 }

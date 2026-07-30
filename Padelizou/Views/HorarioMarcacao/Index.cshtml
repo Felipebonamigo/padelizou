@@ -65,6 +65,68 @@
     }
     else
     {
+        @* O caminho principal do clube novo: monta a semana inteira num clique. Os três
+           botões JÁ SÃO o envio — escolher duração num select e clicar em "gerar" seria
+           um passo a mais pra decisão que o botão inteiro consegue dizer sozinho. *@
+        <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--padel-green) !important;">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-1"><i class="bi bi-lightning-charge"></i> Montar a grade de uma vez</h6>
+                <p class="small text-muted mb-3">
+                    Escolha o período de funcionamento e clique na duração do jogo — os horários são
+                    criados pra cada dia e quadra marcados. O que já existir naquela faixa é preservado.
+                </p>
+                <form asp-controller="HorarioMarcacao" asp-action="GerarGrade" method="post">
+                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">Quadra</label>
+                            <select name="quadraClubeId" class="form-select form-select-sm">
+                                <option value="">Todas as quadras</option>
+                                @foreach (var quadra in quadras)
+                                {
+                                    <option value="@quadra.Id">Só @quadra.Nome</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small fw-bold text-muted mb-1">Abre às</label>
+                            <input type="time" name="horaInicio" class="form-control form-control-sm" value="07:00" required />
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small fw-bold text-muted mb-1">Fecha às</label>
+                            <input type="time" name="horaFim" class="form-control form-control-sm" value="23:00" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold text-muted mb-1">Preço por jogo</label>
+                            <input type="number" name="preco" class="form-control form-control-sm" min="0" step="0.01" placeholder="Vazio = grátis" />
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 align-items-center mt-2">
+                        <span class="small fw-bold text-muted">Dias:</span>
+                        @for (int d = 0; d < diasSemana.Length; d++)
+                        {
+                            <div class="form-check form-check-inline m-0">
+                                <input class="form-check-input" type="checkbox" name="dias" value="@d"
+                                       id="grade-dia-@d" checked>
+                                <label class="form-check-label small" for="grade-dia-@d">@diasSemana[d].Substring(0, 3)</label>
+                            </div>
+                        }
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="submit" name="duracaoMinutos" value="30" class="btn btn-outline-secondary rounded-pill px-3">
+                            Gerar jogos de <strong>30 min</strong>
+                        </button>
+                        <button type="submit" name="duracaoMinutos" value="60" class="btn btn-padel rounded-pill px-3">
+                            Gerar jogos de <strong>1h</strong>
+                        </button>
+                        <button type="submit" name="duracaoMinutos" value="90" class="btn btn-outline-secondary rounded-pill px-3">
+                            Gerar jogos de <strong>1h30</strong>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <h6 class="fw-bold text-muted mb-3">Novo horário recorrente</h6>
@@ -119,8 +181,11 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <h6 class="fw-bold text-muted mb-3"><i class="bi bi-lightning-charge"></i> Aplicar em vários de uma vez</h6>
-                <form asp-controller="HorarioMarcacao" asp-action="AplicarEmTodos" method="post" class="row g-2 align-items-end"
-                      onsubmit="return confirm('Aplicar nos horários selecionados? O que estiver em branco não muda.');">
+                @* A confirmação fica no CLIQUE de cada botão, não no envio do formulário:
+                   o "Excluir todos" divide este form (via formaction) e cada ação precisa
+                   da própria pergunta — confirmar exclusão com o texto de aplicar seria
+                   pedir sim pra pergunta errada. *@
+                <form asp-controller="HorarioMarcacao" asp-action="AplicarEmTodos" method="post" class="row g-2 align-items-end">
                     <input type="hidden" name="clubeId" value="@clube.Id" />
                     <div class="col-md-4">
                         <label class="form-label small fw-bold mb-1">Onde</label>
@@ -147,7 +212,17 @@
                         <input type="number" name="precoTodos" class="form-control" min="0" step="0.01" placeholder="Não mudar" />
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-padel w-100 rounded-pill">Aplicar</button>
+                        <button type="submit" class="btn btn-padel w-100 rounded-pill"
+                                onclick="return confirm('Aplicar nos horários selecionados? O que estiver em branco não muda.');">
+                            Aplicar
+                        </button>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end">
+                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                formaction="@Url.Action("ExcluirTodos", "HorarioMarcacao")"
+                                onclick="return confirm('Excluir TODOS os horários selecionados em Onde? Eles somem da tela do jogador na hora, e reservas antigas dessas faixas deixam de mostrar valor no financeiro. Pra tirar do ar sem apagar, use Desativar na lista.');">
+                            <i class="bi bi-trash"></i> Excluir todos
+                        </button>
                     </div>
                 </form>
             </div>
