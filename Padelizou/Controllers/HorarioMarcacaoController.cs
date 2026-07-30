@@ -80,6 +80,15 @@ namespace padelizou.Controllers
             var quadra = await _context.QuadrasClube.FirstOrDefaultAsync(q => q.Id == quadraClubeId && q.ClubeId == clubeId);
             if (quadra == null) return NotFound();
 
+            // Janela que não comporta a duração publicava um horário que a tela do jogador
+            // simplesmente não oferece — sem erro, parecendo clube sem vaga. Mesma armadilha
+            // que já existia na agenda do professor (ver Services/HorarioDoClube).
+            if (HorarioDoClube.ProblemaCom(horaInicio, horaFim, duracaoMinutos) is { } problema)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("Index", new { clubeId });
+            }
+
             _context.HorariosMarcacaoDisponivel.Add(new HorarioMarcacaoDisponivel
             {
                 ClubeId = clubeId,
@@ -88,31 +97,82 @@ namespace padelizou.Controllers
                 HoraInicio = horaInicio,
                 HoraFim = horaFim,
                 DuracaoMinutos = duracaoMinutos,
-                // Zero e nulo significam a mesma coisa aqui (quadra sem cobrança pelo app),
-                // então normaliza pra não ter dois jeitos de dizer "de graça".
-                Preco = preco > 0 ? preco : null
+                Preco = HorarioDoClube.NormalizarPreco(preco)
             });
             await _context.SaveChangesAsync();
 
             return RedirectToAction("Index", new { clubeId });
         }
 
-        // Ajusta o preço de uma regra já criada, pro dono não ter que apagar e recriar o
-        // horário só pra mudar o valor.
+        // Ajusta preço E duração de uma regra já criada, pro dono não ter que apagar e recriar
+        // o horário só pra mudar o valor ou trocar de 1h pra 1h30.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AtualizarPreco(int id, int clubeId, decimal? preco)
+        public async Task<IActionResult> AtualizarHorario(int id, int clubeId, decimal? preco, int? duracaoMinutos)
         {
             var meuId = ObterJogadorIdLogado();
             if (!await EhDonoOuAdminDoClubeAsync(clubeId, meuId)) return Forbid();
 
             var horario = await _context.HorariosMarcacaoDisponivel.FirstOrDefaultAsync(h => h.Id == id && h.ClubeId == clubeId);
-            if (horario != null)
+            if (horario == null) return RedirectToAction("Index", new { clubeId });
+
+            var novaDuracao = duracaoMinutos ?? horario.DuracaoMinutos;
+            if (HorarioDoClube.ProblemaCom(horario.HoraInicio, horario.HoraFim, novaDuracao) is { } problema)
             {
-                horario.Preco = preco > 0 ? preco : null;
-                await _context.SaveChangesAsync();
-                TempData["Sucesso"] = "Preço atualizado.";
+                TempData["Erro"] = problema;
+                return RedirectToAction("Index", new { clubeId });
             }
+
+            horario.Preco = HorarioDoClube.NormalizarPreco(preco);
+            horario.DuracaoMinutos = novaDuracao;
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Horário atualizado.";
+
+            return RedirectToAction("Index", new { clubeId });
+        }
+
+        // Aplica preço e/ou duração em TODOS os horários do clube de uma vez. Sem isto, um
+        // clube com 3 quadras × 7 dias × 2 faixas precisa de 42 edições pra reajustar o preço.
+        //
+        // Campo em branco = NÃO MEXE naquilo. É a única semântica segura aqui: se vazio
+        // significasse "de graça", clicar pra mudar só a duração zeraria o preço do clube
+        // inteiro. Deixar de graça continua sendo possível linha a linha.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AplicarEmTodos(int clubeId, decimal? precoTodos, int? duracaoTodos, int? quadraClubeId)
+        {
+            var meuId = ObterJogadorIdLogado();
+            if (!await EhDonoOuAdminDoClubeAsync(clubeId, meuId)) return Forbid();
+
+            if (precoTodos == null && duracaoTodos == null)
+            {
+                TempData["Erro"] = "Informe o preço, a duração, ou os dois — o que ficar em branco não é alterado.";
+                return RedirectToAction("Index", new { clubeId });
+            }
+
+            var horarios = await _context.HorariosMarcacaoDisponivel
+                .Where(h => h.ClubeId == clubeId && (quadraClubeId == null || h.QuadraClubeId == quadraClubeId))
+                .ToListAsync();
+
+            // Horário cuja janela não comporta a duração nova fica de fora, e a tela diz
+            // quantos foram: aplicar mesmo assim criaria horários invisíveis pro jogador.
+            var pulados = 0;
+            var mexidos = 0;
+            foreach (var h in horarios)
+            {
+                if (duracaoTodos is int nova)
+                {
+                    if (HorarioDoClube.ProblemaCom(h.HoraInicio, h.HoraFim, nova) != null) { pulados++; continue; }
+                    h.DuracaoMinutos = nova;
+                }
+                if (precoTodos != null) h.Preco = HorarioDoClube.NormalizarPreco(precoTodos);
+                mexidos++;
+            }
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = pulados == 0
+                ? $"{mexidos} horário(s) atualizado(s)."
+                : $"{mexidos} horário(s) atualizado(s). {pulados} ficaram como estavam: a janela deles é curta demais pra essa duração.";
 
             return RedirectToAction("Index", new { clubeId });
         }

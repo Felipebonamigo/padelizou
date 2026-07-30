@@ -162,6 +162,13 @@
                                     </a>
                                 </li>
                             }
+                            @* Dono/administrador de clube tinha painel, mas nenhum caminho no
+                               menu: só um card na home. Quem paga mensalidade não pode depender
+                               de lembrar onde fica. *@
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                @await Component.InvokeAsync("MenuClube")
+                            }
                             <li class="nav-item">
                                 <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
                                     <i class="bi bi-calendar-plus"></i> Aula
@@ -236,14 +243,9 @@
                                 </a>
                             </li>
                         }
-                        @* Contato direto no WhatsApp. Sai do site (target _blank) porque o
-                           wa.me abre o app: sem isso, quem volta perde a página onde estava. *@
-                        <li class="nav-item">
-                            <a class="nav-link" href="@linkContato" target="_blank" rel="noopener"
-                               title="Falar com o Padelizou no WhatsApp — @suporte.WhatsAppFormatado">
-                                <i class="bi bi-whatsapp"></i> Entre em contato
-                            </a>
-                        </li>
+                        @* O contato saiu do topo e foi pro rodapé (decisão do Felipe, 30/07): a
+                           barra é pra navegar no site, e falar com a gente é o tipo de coisa
+                           que se procura no fim da página — onde o número já estava escrito. *@
                     </ul>
 
                     <div class="d-flex align-items-center gap-2 pdz-authbar">
@@ -335,11 +337,12 @@
                         <i class="bi bi-chat-heart"></i> O que você achou do Padelizou?
                     </a>
                 }
-                @* No menu o contato é um botão; aqui o número aparece ESCRITO. Em celular não
-                   existe passar o mouse pra ver o title, e tem quem prefira salvar o contato
-                   a clicar no link. *@
+                @* Agora que o contato saiu do topo, este é o ÚNICO lugar dele — então diz o que
+                   é ("Entre em contato") e mostra o número ESCRITO. Em celular não existe passar
+                   o mouse pra ver o title, e tem quem prefira salvar o contato a clicar no link. *@
                 <a href="@linkContato" target="_blank" rel="noopener" class="small fw-semibold text-decoration-none">
-                    <i class="bi bi-whatsapp"></i> @suporte.WhatsAppFormatado
+                    <i class="bi bi-whatsapp"></i> Entre em contato
+                    <span class="text-muted">· @suporte.WhatsAppFormatado</span>
                 </a>
                 <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite">Privacidade</a></span>
             </div>

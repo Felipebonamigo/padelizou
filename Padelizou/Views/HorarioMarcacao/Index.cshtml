@@ -1,3 +1,4 @@
+@using Padelizou.Services
 @{
     ViewData["Title"] = "Gerenciar Horários - Padelizou";
     var clube = (Clube)ViewBag.Clube;
@@ -29,6 +30,12 @@
     @if (TempData["Sucesso"] != null)
     {
         <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @* A tela só mostrava sucesso: uma recusa (duração que não cabe na janela) voltava sem
+       dizer nada, e o dono concluía que o botão não funciona. *@
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
     }
 
     <div class="card shadow-sm border-0 mb-4">
@@ -106,6 +113,46 @@
             </div>
         </div>
 
+        @* Reajustar preço linha a linha num clube de 3 quadras × 7 dias × 2 faixas são 42
+           edições. Aqui é de uma vez — e o que ficar em branco NÃO é alterado, senão mudar só
+           a duração zeraria o preço do clube inteiro. *@
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-3"><i class="bi bi-lightning-charge"></i> Aplicar em vários de uma vez</h6>
+                <form asp-controller="HorarioMarcacao" asp-action="AplicarEmTodos" method="post" class="row g-2 align-items-end"
+                      onsubmit="return confirm('Aplicar nos horários selecionados? O que estiver em branco não muda.');">
+                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold mb-1">Onde</label>
+                        <select name="quadraClubeId" class="form-select">
+                            <option value="">Todas as quadras</option>
+                            @foreach (var quadra in quadras)
+                            {
+                                <option value="@quadra.Id">Só @quadra.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold mb-1">Duração</label>
+                        <select name="duracaoTodos" class="form-select">
+                            <option value="">Não mudar</option>
+                            @foreach (var op in HorarioDoClube.DuracoesComuns)
+                            {
+                                <option value="@op">@HorarioDoClube.Rotulo(op)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold mb-1">Preço</label>
+                        <input type="number" name="precoTodos" class="form-control" min="0" step="0.01" placeholder="Não mudar" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-padel w-100 rounded-pill">Aplicar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table align-middle bg-white shadow-sm rounded text-nowrap">
                 <thead>
@@ -114,8 +161,8 @@
                         <th>Dia</th>
                         <th>Início</th>
                         <th>Fim</th>
-                        <th>Duração</th>
-                        <th>Preço</th>
+                        <th>Duração e preço</th>
+                        <th></th>
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -130,12 +177,20 @@
                                 <td>@diasSemana[h.DiaSemana]</td>
                                 <td>@h.HoraInicio.ToString(@"hh\:mm")</td>
                                 <td>@h.HoraFim.ToString(@"hh\:mm")</td>
-                                <td>@h.DuracaoMinutos min</td>
-                                <td>
-                                    <form asp-controller="HorarioMarcacao" asp-action="AtualizarPreco" method="post"
+                                @* Duração e preço no MESMO formulário: são as duas coisas que se
+                                   reajusta, e separá-las em dois botões faria salvar uma
+                                   descartar o que foi digitado na outra. *@
+                                <td colspan="2">
+                                    <form asp-controller="HorarioMarcacao" asp-action="AtualizarHorario" method="post"
                                           class="d-flex gap-1 align-items-center">
                                         <input type="hidden" name="id" value="@h.Id" />
                                         <input type="hidden" name="clubeId" value="@clube.Id" />
+                                        <select name="duracaoMinutos" class="form-select form-select-sm" style="width: 6.5rem;">
+                                            @foreach (var op in HorarioDoClube.Opcoes(h.DuracaoMinutos))
+                                            {
+                                                <option value="@op" selected="@(op == h.DuracaoMinutos)">@HorarioDoClube.Rotulo(op)</option>
+                                            }
+                                        </select>
                                         <input type="number" name="preco" value="@(h.Preco?.ToString("0.00"))"
                                                class="form-control form-control-sm" style="width: 6rem;"
                                                min="0" step="0.01" placeholder="Grátis" />

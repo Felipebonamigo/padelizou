@@ -1,0 +1,33 @@
+@model List<Padelizou.Models.Clube>
+@*
+    "Meu clube" no menu, só pra quem é dono ou administrador de algum.
+
+    Com um clube só, o item leva DIRETO pro painel — obrigar a escolher numa lista de um item
+    é um clique a mais que não decide nada. Com vários, vira dropdown.
+*@
+@if (Model.Count == 1)
+{
+    <li class="nav-item">
+        <a class="nav-link" asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@Model[0].Id">
+            <i class="bi bi-shop"></i> Meu clube
+        </a>
+    </li>
+}
+else if (Model.Count > 1)
+{
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-shop"></i> Meus clubes
+        </a>
+        <ul class="dropdown-menu">
+            @foreach (var clube in Model)
+            {
+                <li>
+                    <a class="dropdown-item" asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@clube.Id">
+                        @clube.Nome
+                    </a>
+                </li>
+            }
+        </ul>
+    </li>
+}
