@@ -1,0 +1,31 @@
+@model List<Padelizou.Services.TrofeuContado>
+@*
+    A prateleira de troféus do perfil: um troféu por material, com quantos títulos daquele.
+
+    Só aparece quem tem título de verdade (ver TrofeuDeMaterial.Contar) — prateleira cheia de
+    taça vazia diria "esse jogador não ganhou nada" de um jeito pior que não ter prateleira.
+
+    O sprite (_TrofeusSprite) precisa estar na página; quem inclui esta parcial inclui ele antes.
+*@
+@if (Model != null && Model.Any())
+{
+    <div class="card border-0 shadow-sm mb-4 p-3">
+        <h6 class="fw-bold mb-3"><i class="bi bi-trophy-fill text-warning"></i> Troféus</h6>
+        <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-sm-start">
+            @foreach (var t in Model)
+            {
+                <div class="text-center" style="min-width: 84px;"
+                     title="@t.Titulos título(s) de @t.Material.Nome">
+                    <svg width="64" height="64" role="img"
+                         aria-label="@t.Titulos título(s) de @t.Material.Nome">
+                        <use href="#trofeu-@t.Material.Chave" />
+                    </svg>
+                    <div class="fw-bold" style="font-size: .95rem; color: var(--pdz-ink);">
+                        @t.Titulos×
+                    </div>
+                    <div class="text-muted" style="font-size: .75rem;">@t.Material.Nome</div>
+                </div>
+            }
+        </div>
+    </div>
+}

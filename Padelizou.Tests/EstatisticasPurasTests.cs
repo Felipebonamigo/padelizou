@@ -41,7 +41,10 @@ public class EstatisticasPurasTests
     [InlineData("3ª Categoria Masculina", "Prata")]
     [InlineData("4ª Categoria", "Bronze")]
     [InlineData("Iniciantes", "Plastico")]
-    [InlineData("Categoria Mista A", "Geral")]
+    // 30/07/2026: a mista deixou de cair no genérico e ganhou VIDRO. Ela fica fora da escada
+    // metálica de propósito — misto não é "melhor" nem "pior" que uma numerada. A regra mora
+    // agora em Services/TrofeuDeMaterial (ver TrofeuDeMaterialTests).
+    [InlineData("Categoria Mista A", "Vidro")]
     public void Tier_do_trofeu_pelo_nome_da_categoria(string nome, string tierEsperado)
         => Assert.Equal(tierEsperado, EstatisticasService.TierDaCategoria(nome).Chave);
 

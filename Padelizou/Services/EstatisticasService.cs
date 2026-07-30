@@ -43,17 +43,15 @@ public class EstatisticasService : IEstatisticasService
 
     // Decide o "material" do troféu só pelo texto do nome da categoria (mesma convenção do
     // catálogo padrão em Program.cs — "2ª Categoria Masculina/Feminina", "Categoria Open ...", etc).
+    // O material de cada categoria mora em Services/TrofeuDeMaterial — um lugar só, porque a
+    // mesma regra decide a pílula pequena das listas E o troféu desenhado da prateleira do
+    // perfil. Duas cópias divergiriam no dia em que uma categoria nova entrasse.
     public static (string Chave, string Nome, string Icone, string CorFundo, string CorTexto) TierDaCategoria(string? nomeCategoria)
     {
-        string n = nomeCategoria ?? "";
-        if (n.Contains("Open")) return ("Diamante", "Diamante", "bi-gem", "#e0f7fa", "#00838f");
-        if (n.Contains("2ª")) return ("Ouro", "Ouro", "bi-trophy-fill", "#fff6df", "#8a6d00");
-        if (n.Contains("3ª")) return ("Prata", "Prata", "bi-trophy-fill", "#f1f1f1", "#6c757d");
-        if (n.Contains("4ª")) return ("Bronze", "Bronze", "bi-trophy-fill", "#fbe7d4", "#8a4b08");
-        if (n.Contains("5ª")) return ("Ferro", "Ferro", "bi-trophy-fill", "#e8eaed", "#495057");
-        if (n.Contains("6ª")) return ("Madeira", "Madeira", "bi-trophy-fill", "#f0e0c9", "#6b4423");
-        if (n.Contains("7ª") || n.Contains("Iniciantes")) return ("Plastico", "Plástico", "bi-trophy-fill", "#eef2f8", "#6c757d");
-        return ("Geral", "Geral", "bi-trophy-fill", "#eef2f8", "#6c757d");
+        var m = TrofeuDeMaterial.Do(nomeCategoria);
+        // O diamante não é taça: é pedra lapidada, e o ícone acompanha.
+        var icone = m.Chave == "Diamante" ? "bi-gem" : "bi-trophy-fill";
+        return (m.Chave, m.Nome, icone, m.CorFundo, m.CorTexto);
     }
 
     // Ordem de FORÇA da categoria (maior número = categoria mais forte). Usado pela

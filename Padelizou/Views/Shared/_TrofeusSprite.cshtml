@@ -1,0 +1,124 @@
+@*
+    Os oito troféus, desenhados no material de cada categoria (ver Services/TrofeuDeMaterial).
+
+    Entra UMA vez na página; cada troféu vira <svg><use href="#trofeu-Ouro"/></svg>. Repetir o
+    desenho inteiro por jogador encheria uma lista de 30 pessoas com 30 cópias do mesmo SVG.
+
+    Os ids levam a chave do material (trofeu-Ouro, trofeu-Madeira...) pra casar direto com
+    MaterialDoTrofeu.Chave, sem tabela de conversão no meio.
+
+    Cada peça tem contorno escuro próprio: no tema escuro, madeira e ferro encostariam no fundo
+    navy e sumiriam de borda.
+*@
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+        <linearGradient id="pdzMatOuro" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FFE9A3" /><stop offset=".45" stop-color="#F2C14B" /><stop offset="1" stop-color="#A8760C" />
+        </linearGradient>
+        <linearGradient id="pdzMatPrata" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FBFBFC" /><stop offset=".45" stop-color="#D3D8DD" /><stop offset="1" stop-color="#8C949C" />
+        </linearGradient>
+        <linearGradient id="pdzMatBronze" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#F0BE8A" /><stop offset=".45" stop-color="#C67B38" /><stop offset="1" stop-color="#7E4310" />
+        </linearGradient>
+        <linearGradient id="pdzMatFerro" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#CDD3D9" /><stop offset=".5" stop-color="#8B939B" /><stop offset="1" stop-color="#4E555C" />
+        </linearGradient>
+        <linearGradient id="pdzMatMadeira" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#C99A5F" /><stop offset=".5" stop-color="#9A6B37" /><stop offset="1" stop-color="#5E3A1B" />
+        </linearGradient>
+        <linearGradient id="pdzMatPlastico" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7FC4E8" /><stop offset=".55" stop-color="#4FA3D1" /><stop offset="1" stop-color="#3B84AC" />
+        </linearGradient>
+        <linearGradient id="pdzMatVidro" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#EAF6FA" /><stop offset=".5" stop-color="#BCDCE6" /><stop offset="1" stop-color="#8FB9C6" />
+        </linearGradient>
+        <linearGradient id="pdzMatDiamante" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FFFFFF" /><stop offset=".4" stop-color="#8EE6F2" /><stop offset="1" stop-color="#12A0B5" />
+        </linearGradient>
+
+        @* A taça: copo, haste e base. As alças são desenhadas por cima, na cor de cada material. *@
+        <g id="pdzTaca">
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" />
+            <path d="M22 30h4v5h-4z" />
+            <rect x="15" y="35" width="18" height="5" rx="1.5" />
+        </g>
+
+        <symbol id="trofeu-Diamante" viewBox="0 0 48 48">
+            <title>Troféu de diamante</title>
+            <path d="M24 6 36 17 24 42 12 17z" fill="url(#pdzMatDiamante)" />
+            <path d="M24 6 36 17H12z" fill="#fff" opacity=".45" />
+            <path d="M24 6 24 42 12 17z" fill="#0B7F92" opacity=".18" />
+            <path d="M24 6 36 17 24 42 12 17z" fill="none" stroke="#0B7F92" stroke-width="1.1" stroke-linejoin="round" />
+            <path d="M12 17h24" stroke="#0B7F92" stroke-width="1.1" opacity=".55" />
+        </symbol>
+
+        <symbol id="trofeu-Ouro" viewBox="0 0 48 48">
+            <title>Troféu de ouro</title>
+            <use href="#pdzTaca" fill="url(#pdzMatOuro)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#8A6100" stroke-width="1" />
+            <path d="M19 10v6a5 5 0 0 0 3 4.6" stroke="#FFF6D8" stroke-width="1.6" fill="none" opacity=".75" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#C89A1E" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Prata" viewBox="0 0 48 48">
+            <title>Troféu de prata</title>
+            <use href="#pdzTaca" fill="url(#pdzMatPrata)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#7B838B" stroke-width="1" />
+            <path d="M19 10v6a5 5 0 0 0 3 4.6" stroke="#FFFFFF" stroke-width="1.6" fill="none" opacity=".85" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#A9B0B7" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Bronze" viewBox="0 0 48 48">
+            <title>Troféu de bronze</title>
+            <use href="#pdzTaca" fill="url(#pdzMatBronze)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#6E3A0C" stroke-width="1" />
+            <path d="M19 10v6a5 5 0 0 0 3 4.6" stroke="#FFE0BF" stroke-width="1.6" fill="none" opacity=".6" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#A55F1E" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Ferro" viewBox="0 0 48 48">
+            <title>Troféu de ferro</title>
+            <use href="#pdzTaca" fill="url(#pdzMatFerro)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#454B51" stroke-width="1" />
+            @* Rebites: é o detalhe que diz "ferro" e não "prata sem brilho". *@
+            <circle cx="18" cy="10.5" r=".9" fill="#454B51" opacity=".7" />
+            <circle cx="30" cy="10.5" r=".9" fill="#454B51" opacity=".7" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#79818A" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Madeira" viewBox="0 0 48 48">
+            <title>Troféu de madeira</title>
+            <use href="#pdzTaca" fill="url(#pdzMatMadeira)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#4A2D14" stroke-width="1" />
+            <path d="M18.5 8v8.5M23 8v10M27.5 8v8.5" stroke="#5E3A1B" stroke-width="1" opacity=".55" stroke-linecap="round" />
+            <path d="M16 36.5h16" stroke="#5E3A1B" stroke-width="1" opacity=".5" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#7E5227" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Plastico" viewBox="0 0 48 48">
+            <title>Troféu de plástico</title>
+            <use href="#pdzTaca" fill="url(#pdzMatPlastico)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#2F6C8E" stroke-width="1" />
+            @* Brilho duro e chapado: é o que faz plástico parecer plástico, e não metal. *@
+            <path d="M19.5 9.5v6.5a4.5 4.5 0 0 0 2.5 4" stroke="#FFFFFF" stroke-width="2" fill="none" opacity=".8" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#5FAFD8" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        <symbol id="trofeu-Vidro" viewBox="0 0 48 48">
+            <title>Troféu de vidro</title>
+            <use href="#pdzTaca" fill="url(#pdzMatVidro)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#6E97A5" stroke-width="1" />
+            <path d="M20 9v7a4 4 0 0 0 2 3.5" stroke="#FFFFFF" stroke-width="2.2" fill="none" opacity=".9" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#A6CAD6" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+
+        @* Categoria de nome fora do padrão: taça neutra, sem material. *@
+        <symbol id="trofeu-Geral" viewBox="0 0 48 48">
+            <title>Troféu</title>
+            <use href="#pdzTaca" fill="#c9ced4" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#6c757d" stroke-width="1" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#adb5bd" stroke-width="2.2" stroke-linecap="round" />
+        </symbol>
+    </defs>
+</svg>
