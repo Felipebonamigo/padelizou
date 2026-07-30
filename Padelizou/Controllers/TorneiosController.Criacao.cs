@@ -164,20 +164,25 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
             bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null)
         {
-            // A chave escolhida é conferida ANTES de qualquer gravação: recusar depois de
-            // criar o torneio deixaria ele no ar com uma chave que o organizador não pediu.
-            if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
+            var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            // ── As recusas vêm ANTES de qualquer gravação ────────────────────────────────
+            // Inclusive antes de achar-ou-criar o clube: recusar depois deixaria um clube
+            // novo no catálogo a cada tentativa recusada.
+            async Task<IActionResult> Recusar(string motivo)
             {
-                ViewBag.Erro = problemaChave;
+                ViewBag.Erro = motivo;
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 return View(torneio);
             }
 
-            // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
-            // obrigatório e vazio impediria de criar o primeiro torneio.
-            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
-            if (clubeNovo != null) torneio.ClubeId = clubeNovo.Id;
+            // A chave escolhida é conferida antes de criar: recusar depois deixaria o torneio
+            // no ar com uma chave que o organizador não pediu.
+            if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
+            {
+                return await Recusar(problemaChave);
+            }
 
             // Torneio sem categoria nenhuma é um torneio em que NINGUÉM consegue se inscrever:
             // o formulário de inscrição escolhe a categoria, e sem opção não há o que escolher.
@@ -186,20 +191,38 @@ namespace Padelizou.Controllers
             // no fim de um formulário longo, então passar batido é o caso comum, não o raro.
             if (categoriasSelecionadas == null || categoriasSelecionadas.Length == 0)
             {
-                ViewBag.Erro = "Escolha pelo menos uma categoria — é nela que os jogadores se inscrevem.";
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-                return View(torneio);
+                return await Recusar("Escolha pelo menos uma categoria — é nela que os jogadores se inscrevem.");
             }
+
+            // Mesmo nome, mesmo organizador, torneio ainda de pé: quase sempre é o botão
+            // apertado duas vezes (ver Services/NomeDoTorneio). Dois torneios iguais dividem
+            // as inscrições entre si e ninguém sabe em qual entrar.
+            var meusTorneioIds = await _context.TorneioOrganizadores
+                .Where(o => o.JogadorId == criadorId)
+                .Select(o => o.TorneioId)
+                .ToListAsync();
+            var meusTorneios = await _context.Torneios
+                .Where(t => meusTorneioIds.Contains(t.Id))
+                .Select(t => new { t.Nome, t.Status })
+                .ToListAsync();
+
+            if (NomeDoTorneio.JaExisteEntre(
+                    meusTorneios.Select(t => (t.Nome, (string?)t.Status)), torneio.Nome) is { } jaExiste)
+            {
+                return await Recusar($"Você já tem um torneio chamado \"{jaExiste}\" em andamento. " +
+                    "Use outro nome, ou continue no que já existe — ele está na sua lista de torneios.");
+            }
+
+            // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
+            // obrigatório e vazio impediria de criar o primeiro torneio.
+            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
+            if (clubeNovo != null) torneio.ClubeId = clubeNovo.Id;
 
             // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário
             // inteiro perdido. Melhor recusar aqui, explicando o que fazer.
             if (torneio.ClubeId <= 0)
             {
-                ViewBag.Erro = "Escolha o clube responsável, ou escreva o nome dele no campo abaixo do seletor.";
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-                return View(torneio);
+                return await Recusar("Escolha o clube responsável, ou escreva o nome dele no campo abaixo do seletor.");
             }
 
             // O local do torneio é o clube: pedir os dois era pedir o mesmo dado duas vezes.
@@ -247,8 +270,8 @@ namespace Padelizou.Controllers
             }
             await _context.SaveChangesAsync();
 
-            // Quem criou o torneio já entra como organizador dele
-            var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            // Quem criou o torneio já entra como organizador dele (o criadorId foi lido lá em
+            // cima, junto com a checagem de nome repetido).
             _context.TorneioOrganizadores.Add(new TorneioOrganizador
             {
                 TorneioId = torneio.Id,
