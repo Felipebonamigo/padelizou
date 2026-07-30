@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
+> Última atualização: **30/07/2026** — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
+> Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
 > ✅ **Chave do backup guardada fora do servidor** (29/07): o Felipe copiou pro gerenciador de senhas dele. Conferido antes que o arquivo existe (337 bytes, 9 linhas, chmod 600) e que a chave em uso ABRE o cofre — ele copiou a certa, não uma versão velha. Fecha o furo em que o backup seria inútil justo quando o servidor morresse.
 > ✅ **Os dois pendentes com o Google/pagamento fecharam em 29/07:** app do Google **publicado** ("Em produção" — o token do backup não expira mais a cada 7 dias, sem custo e sem verificação) e o **mistério do webhook resolvido**: era mesmo sobra do sandbox apontando pra produção, e o Asaas já o tinha interrompido sozinho. Apagado; produção nunca falhou (recusou um impostor, como devia).
 
@@ -236,6 +237,70 @@ O Felipe respondeu às 4 decisões pendentes e liberou o refactor. Tudo implemen
 - Decisões do Felipe registradas de quebra: **chave do Asaas fica a mesma** (risco baixo; trocar continua recomendável um dia, sem pressa), **Acesso Antecipado continua nos dois ambientes** enquanto o sistema está em desenvolvimento, e os "horários de aula do Felipe em produção" **saem da lista de pendências** — ele não é professor, era dado de teste (a outra sessão já criou horários de teste no Chakra).
 - 2 migrações novas (colunas anuláveis: taxa do externo no Torneio, plano do professor no Jogador). **650 testes.**
 
+### 30/07/2026 — A varredura do sistema, e os achados dela fechados
+
+Análise completa do sistema (33 controllers, ~73 serviços, CI, cabeçalhos que a produção
+responde de verdade) e execução do que não dependia do Felipe:
+
+- **🔴 Ninguém trancava a porta: força-bruta era ilimitada.** Dava pra tentar senha sem
+  limite nenhum no login, no portão, na recuperação e no cadastro. Agora são **duas travas
+  diferentes, de propósito** (`Services/TravaDeEntrada`): o **login** conta por **CONTA**
+  (10 falhas / 5 min) e o resto conta por **IP** no rate limiter do próprio ASP.NET.
+  **Por que não tudo por IP:** no dia de torneio o clube inteiro sai pelo mesmo Wi-Fi, e uma
+  janela por IP no login trancaria gente legítima na pior hora possível. Por conta também
+  cobre o ataque distribuído, que uma trava por IP deixa passar. Conta trancada recusa **até
+  a senha certa** (senão a trava não trava nada) e acertar a senha zera a janela.
+  O preço aceito: quem sabe o e-mail de outro consegue incomodá-lo por 5 minutos — troca
+  barata por não deixar adivinharem a senha dele. **Provado ao vivo:** 10 tentativas passam,
+  da 11ª em diante **429** com aviso em português, e a home segue 200 o tempo todo.
+- **Cabeçalhos de segurança em prod e dev** (Caddy): `nosniff` (impede o navegador de
+  "adivinhar" que um upload é script), `SAMEORIGIN` (o site não pode ser embutido em iframe
+  alheio) e `Referrer-Policy`. Testado antes: só vinha o HSTS. O Caddyfile foi **validado
+  antes de entrar** (`caddy validate` num arquivo de estágio) e os outros sites do VPS ficaram
+  intocados. ⚠️ Backup do Caddyfile anterior em `/etc/caddy/Caddyfile.bak-20260730`.
+- **Denunciar comentário, com fila no admin** (`/Admin/Denuncias`). Antes, texto ofensivo só
+  saía do ar se o autor, o dono do perfil ou um admin **passassem por ali** — com o portão
+  aberto ao público isso não se sustenta. Qualquer pessoa logada sinaliza; o admin **apaga ou
+  mantém**. **Um carimbo só, o primeiro:** a fila ordena pela denúncia mais antiga, e
+  re-carimbar empurraria justamente o pior texto pro fim da fila. Autor não denuncia o próprio
+  comentário (pode apagar direto). Não existe "banir autor" aqui de propósito — punição de
+  conta é decisão pra tomar com calma, não num clique de fila.
+- **🔴 Convite de parceiro por link — o maior atrito da inscrição caiu.** Pra fechar a dupla
+  era obrigatório digitar os **11 dígitos do CPF do parceiro**, que ninguém sabe de cabeça:
+  inscrever dependia de uma conversa por fora antes de o site conseguir ajudar. Agora quem se
+  inscreveu gera um link ("Convidar por link", com copiar e mandar no WhatsApp) e quem recebe
+  **entra com a própria conta** e aceita. **De quebra fecha um furo de privacidade:** o
+  formulário de CPF aceitava qualquer número, então dava pra inscrever alguém que nunca pediu
+  isso — e criar conta no nome dele se o CPF não tivesse cadastro.
+  Token de 32 bytes comparado em **tempo fixo**; **sem prazo em dias de propósito** (o fim das
+  inscrições já é o prazo natural — prazo menor mataria o link com o torneio ainda aberto);
+  aceitar **queima** o token; e a validade é conferida **de novo no POST**, porque entre abrir
+  e clicar outra pessoa pode ter aceitado o mesmo link. As recusas do `TrocarParceiro`
+  (categoria única, já inscrito, anti-sandbagging) saíram pra **um método compartilhado** — o
+  caminho aberto por link não pode ser mais frouxo que o outro — e agora aparecem **já na tela
+  do convite**, não só no clique. **Provado em runtime com duas sessões de verdade.**
+- **`AulasController` quebrado em 7 partials** (era o maior arquivo do sistema, 1.383 linhas —
+  o que o TorneiosController era anteontem): núcleo, Aluno, Decisão, Cadastro, Agenda,
+  Financeiro e Caderno. Partição contígua com conferência de soma (1.339 + 42 de cabeçalho =
+  1.381 linhas de conteúdo) e as **36 assinaturas de método idênticas** às de antes; as 10
+  rotas conferidas em 200 com sessão de professor. Nenhuma rota mudou.
+- **[ESTORNO.md](ESTORNO.md)**: o roteiro pra quando quem já pagou desiste. O estorno **já
+  existia** em código; o que faltava era o roteiro. ⚠️ **Achado ao escrever:** estornar mexe
+  **só no dinheiro** — a dupla continua inscrita e marcada como paga, e **a lista de espera não
+  anda** até alguém remover à mão. Documentado como passo obrigatório e listado como decisão
+  do Felipe (automatizar × avisar na tela).
+- **O original de 8 MB do Pnatinha saiu da pasta pública** — mas **não foi apagado**: é a arte
+  original, e o repositório só tem os derivados de 40–70 KB. Foi pra
+  `/opt/padelizou-shared/prod/arte-original/`, com checksum conferido antes e depois.
+  ⚠️ **A primeira tentativa o teria desprotegido:** movi pra fora de `prod/`, e o backup do
+  Drive sincroniza **só `prod/`** — teria ficado só no disco do servidor, exatamente o risco
+  que o backup off-site existe pra remover. Corrigido. Uploads de produção: **9,9 MB → 1,9 MB**.
+- **Nome do job do CI** deixou de dizer "85 testes" (nasceu envelhecendo; hoje são 681).
+- ⚠️ **Defeito meu, corrigido:** os cabeçalhos das 12 partials que gerei por script saíram como
+  `InscriÃ§Ãµes` — o **PowerShell 5.1 lê `.ps1` como ANSI**, então os acentos chegaram
+  corrompidos ao arquivo. Gerar código com acento por script exige `.ps1` com BOM.
+- **681 testes** (+31 hoje).
+
 ---
 
 ## 🎯 O que realmente falta (auditado em 26/07)
@@ -246,7 +311,7 @@ Das 6 fases originais, **4 estão fechadas**. Sobrou pouco, e o que sobrou está
 |---|---|---|
 | 🔴 **Bloqueia o negócio** | Asaas para produção · limpar dados fictícios | **Felipe decide** |
 | 🟡 **Fecha pendências** | ~~Código morto~~ ✅ · ~~184 MB no VPS~~ ✅ · ~~Postgres local~~ ✅ · ~~varredura de autorização~~ ✅ | **fechado** |
-| 🟢 **Cresce depois** | 2 pushes do dia de jogo · quadra atrasada · placar offline · convite sem CPF · arte pro Instagram · Play Store | sem pressa |
+| 🟢 **Cresce depois** | ~~2 pushes do dia de jogo~~ ✅ · ~~quadra atrasada~~ ✅ · ~~placar offline~~ ✅ · ~~convite sem CPF~~ ✅ 30/07 · arte pro Instagram · Play Store | sem pressa |
 
 **Nada do que sobrou impede um torneio real de acontecer amanhã.** O único impedimento é a chave do Asaas.
 
