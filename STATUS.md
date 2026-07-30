@@ -335,7 +335,21 @@ pro **primeiro professor**. Ensaio e ajustes:
   casos, o que eles vão encontrar (site vazio, escada do professor) e o que fazer se travar.
 - **Decisão do 1º torneio:** vai ser **"por fora"**, e no fim o Felipe **registra a negociação**
   como admin pra liberar as chaves — exercita a corrente inteira sem dinheiro trocando de mão.
-- **699 testes.**
+- ✅ **A corrente inteira ensaiada no ambiente publicado** (dev, mesmo build da prod), com conta
+  criada na hora: conta nova → torneio restrito com chave `virgili10` → inscrição com chave
+  **errada recusada** e com chave **CERTA em maiúscula aceita** → encerrar inscrições →
+  **sorteio barrado até no POST feito à mão** → tela da taxa com a conta certa (**4 pessoas ×
+  R$ 50 × 5% = R$ 10,00**) → admin registra a negociação (observação guardada) → **sorteio
+  liberado, jogos criados, nenhum sem horário**, torneio em Fase de Grupos.
+- **🔴 Um defeito achado nesse ensaio: torneio nascia sem categoria nenhuma, em silêncio.** Sem
+  categoria o formulário de inscrição não tem o que escolher — **ninguém consegue se inscrever**,
+  e o organizador só descobriria pelo primeiro jogador que tentasse. A caixa das categorias fica
+  no fim de um formulário longo, então passar batido é o caso comum. Agora recusa com o motivo,
+  antes de gravar.
+- Conferido também: e-mail de produção configurado (Gmail SMTP) e **sem falha de envio em 7
+  dias**; a conta do Felipe em prod é **admin raiz** (com o campo `Login` vazio — ele entra pelo
+  **e-mail**); e o botão "Criar seu Torneio" aparece pra qualquer pessoa logada.
+- **703 testes.**
 
 ---
 

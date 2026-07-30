@@ -76,6 +76,30 @@ Maiúscula/minúscula no usuário tanto faz, e espaço colado ao copiar não atr
 - **Erro de verdade (tela de Ops)** — o link "Sugestão, bug ou crítica" na faixa de beta manda
   direto pro seu WhatsApp com a mensagem já começada.
 
+## ✅ O que já foi ensaiado (30/07, no ambiente publicado)
+
+A corrente inteira do torneio foi percorrida com uma conta criada na hora, no dev — que roda o
+mesmo build da produção:
+
+| Passo | Resultado |
+|---|---|
+| Criar conta pelo portão | entra **deslogado**, cria a própria conta, já sai logado |
+| Criar torneio restrito com chave `virgili10` | chave gravada e mostrada na tela do torneio |
+| Inscrição com a chave **errada** | recusada |
+| Inscrição com `VIRGILI10` (maiúscula) | aceita — maiúscula/minúscula tanto faz |
+| Encerrar inscrições | torneio vai pra "Chaves em Sorteio" |
+| Tentar sortear sem acertar a taxa | **barrado**, inclusive por requisição feita à mão |
+| Tela da taxa | 4 pessoas × R$ 50 × 5% = **R$ 10,00** |
+| Admin registra a negociação | observação guardada, chaves liberadas |
+| Sortear | jogos criados, **nenhum sem horário**, torneio em Fase de Grupos |
+
+Nesse ensaio apareceu **um defeito, já corrigido**: dava pra criar torneio **sem categoria
+nenhuma**, e aí ninguém conseguia se inscrever — sem aviso nenhum. Agora o sistema recusa e
+explica.
+
+⚠️ **Pra você entrar:** a sua conta de produção está com o campo *login* vazio — entre pelo
+**e-mail**, não por um nome de usuário.
+
 ## Depois da primeira noite, vale conferir
 
 - `/Admin/Metricas` — cadastros e inscrições que apareceram.
