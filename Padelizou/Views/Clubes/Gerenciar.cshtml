@@ -13,9 +13,17 @@
                 Dono: @(Model.Dono != null ? Model.Dono.Nome : "—")
             </p>
         </div>
-        <a asp-controller="RaqueteLivre" asp-action="Criar" asp-route-clubeId="@Model.Id" class="btn btn-padel rounded-pill">
-            <i class="bi bi-megaphone"></i> Publicar Raquete Livre
-        </a>
+        @* Esta tela é só sobre QUEM pode administrar. Quem chega aqui procurando a agenda, as
+           quadras ou o financeiro precisa de um caminho — senão conclui que o clube não tem
+           painel nenhum. *@
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@Model.Id" class="btn btn-padel rounded-pill">
+                <i class="bi bi-speedometer2"></i> Painel do clube
+            </a>
+            <a asp-controller="RaqueteLivre" asp-action="Criar" asp-route-clubeId="@Model.Id" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-megaphone"></i> Publicar Raquete Livre
+            </a>
+        </div>
     </div>
 
     @if (TempData["Sucesso"] != null)

@@ -198,12 +198,24 @@
                     <!-- Card de Clubes que administro -->
                     <div class="col-sm-12 mb-3">
                         <div class="card border-0 bg-light p-3 shadow-sm" style="border-radius: 12px;">
-                            <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);"><i class="bi bi-shop"></i> Clubes que administro</h6>
+                            <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);"><i class="bi bi-shop"></i> Meu clube</h6>
+                            @* O botão daqui levava só pra "Gerenciar", que é a tela de QUEM PODE
+                               mexer no clube — não o painel do dia a dia (agenda, quadras,
+                               financeiro, bloqueio). O painel só era alcançável pelo card da
+                               home, e quem procurava pelo perfil não achava. Agora o principal
+                               é o Painel, e a lista de administradores fica ao lado. *@
                             @foreach (var clube in meusClubes)
                             {
-                                <div class="d-flex justify-content-between align-items-center mt-1">
-                                    <span class="small">@clube.Nome</span>
-                                    <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@clube.Id" class="btn btn-sm btn-outline-primary rounded-pill">Gerenciar</a>
+                                <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+                                    <span class="small text-truncate">@clube.Nome</span>
+                                    <span class="d-flex gap-1 flex-shrink-0">
+                                        <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@clube.Id"
+                                           class="btn btn-sm btn-padel rounded-pill px-3">Painel</a>
+                                        <a asp-controller="Clubes" asp-action="Gerenciar" asp-route-id="@clube.Id"
+                                           class="btn btn-sm btn-outline-secondary rounded-pill" title="Quem pode administrar este clube">
+                                            <i class="bi bi-people"></i>
+                                        </a>
+                                    </span>
                                 </div>
                             }
                         </div>
