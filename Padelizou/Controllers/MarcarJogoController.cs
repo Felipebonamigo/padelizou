@@ -104,7 +104,10 @@ namespace padelizou.Controllers
                     JogadorId = meuId,
                     DataHora = dataHora,
                     DuracaoMinutos = duracaoMinutos,
-                    Status = "Confirmada"
+                    Status = "Confirmada",
+                    // Sem cobrança online, o acerto é no clube — é o que faz o selo
+                    // "paga lá" aparecer na agenda do dono.
+                    PagaNoLocal = true,
                 };
                 _context.MarcacoesJogo.Add(novaMarcacao);
                 await _context.SaveChangesAsync();

@@ -92,10 +92,10 @@
                                 var quandoIso = d.Date.Add(h).ToString("yyyy-MM-ddTHH:mm");
                                 if (slot == null)
                                 {
-                                    <td class="text-center pdz-livre" title="Livre">
-                                        <button type="button" class="btn btn-link btn-sm p-0 text-muted pdz-btn-bloquear"
-                                                data-quadra="@q.Id" data-quando="@quandoIso"
-                                                title="Bloquear este horário">+</button>
+                                    <td class="text-center pdz-livre" title="Livre — clique pra marcar ou bloquear">
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-muted pdz-btn-horario"
+                                                data-quadra="@q.Id" data-quadra-nome="@q.Nome" data-quando="@quandoIso"
+                                                title="Marcar pra alguém ou bloquear">+</button>
                                     </td>
                                 }
                                 else if (slot.EhBloqueio)
@@ -111,12 +111,27 @@
                                 else
                                 {
                                     <td class="text-center pdz-ocupado small text-truncate" style="max-width:110px;"
-                                        title="@slot.Titulo@(slot.EhMensalista ? " (mensalista)" : "")">
+                                        title="@slot.Titulo@(slot.EhMensalista ? " (mensalista)" : "")@(slot.EhBalcao ? " — reserva de balcão" : "")@(slot.Selo == "" ? "" : $" — {slot.Selo}")">
                                         @if (slot.EhMensalista)
                                         {
                                             <i class="bi bi-arrow-repeat" title="Mensalista"></i>
                                         }
+                                        @if (slot.Selo == "paga lá")
+                                        {
+                                            <i class="bi bi-cash-coin text-warning" title="Paga no clube"></i>
+                                        }
                                         @slot.Titulo.Split(' ')[0]
+                                        @if (slot.EhBalcao)
+                                        {
+                                            @* Cliente de telefone desiste por telefone — o × desfaz sem
+                                               sair da tela. Reserva do site não tem × aqui: ela envolve
+                                               a conta (e às vezes o dinheiro) do jogador. *@
+                                            <form asp-action="CancelarBalcao" method="post" class="d-inline"
+                                                  onsubmit="return confirm('Cancelar a reserva de @slot.Titulo?');">
+                                                <input type="hidden" name="marcacaoId" value="@slot.MarcacaoId" />
+                                                <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Cancelar reserva">×</button>
+                                            </form>
+                                        }
                                     </td>
                                 }
                             }
@@ -129,10 +144,11 @@
 
     <!-- Legenda -->
     <div class="d-flex flex-wrap gap-3 mt-3 small text-muted">
-        <span><span class="pdz-chip pdz-livre"></span> livre (clique no + pra bloquear)</span>
+        <span><span class="pdz-chip pdz-livre"></span> livre — o <strong>+</strong> marca pra alguém ou bloqueia</span>
         <span><span class="pdz-chip pdz-ocupado"></span> reservado</span>
         <span><span class="pdz-chip pdz-bloqueado"></span> bloqueado pelo clube</span>
         <span><i class="bi bi-arrow-repeat"></i> horário fixo (mensalista)</span>
+        <span><i class="bi bi-cash-coin text-warning"></i> paga no clube</span>
     </div>
 
     <!-- Criar mensalista -->
@@ -205,30 +221,62 @@
     </div>
 </div>
 
-<!-- Modal de bloqueio (preenchido pelo clique no +) -->
-<div class="modal fade" id="modalBloqueio" tabindex="-1">
+<!-- Modal do horário livre (preenchido pelo clique no +): marcar pra alguém OU bloquear.
+     A ação principal é o balcão — é a cena de todo dia; bloquear fica num <details>
+     porque acontece de vez em quando. -->
+<div class="modal fade" id="modalHorario" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form asp-action="Bloquear" method="post">
-                <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
-                <input type="hidden" name="quadraId" id="bloqQuadra" />
-                <input type="hidden" name="dataHora" id="bloqQuando" />
-                <div class="modal-header">
-                    <h6 class="modal-title fw-bold">Bloquear horário</h6>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="small text-muted mb-2" id="bloqResumo"></p>
-                    <label class="form-label small fw-bold text-muted mb-1">Motivo</label>
-                    <input type="text" name="motivo" class="form-control mb-2" placeholder="Manutenção, evento, aula..." />
-                    <label class="form-label small fw-bold text-muted mb-1">Duração (min)</label>
-                    <input type="number" name="duracaoMinutos" class="form-control" value="60" />
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-padel rounded-pill px-4">Bloquear</button>
-                </div>
-            </form>
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="horarioResumo">Horário</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form asp-action="MarcarBalcao" method="post">
+                    <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                    <input type="hidden" name="quadraId" class="pdz-campo-quadra" />
+                    <input type="hidden" name="dataHora" class="pdz-campo-quando" />
+                    <div class="fw-bold small mb-2" style="color: var(--pdz-ink);">
+                        <i class="bi bi-person-plus"></i> Marcar pra alguém
+                    </div>
+                    <label class="form-label small fw-bold text-muted mb-1">Nome de quem reservou</label>
+                    <input type="text" name="nome" class="form-control mb-2" maxlength="80" required
+                           placeholder="Como a pessoa é conhecida" />
+                    <label class="form-label small fw-bold text-muted mb-1">Celular (opcional)</label>
+                    <input type="tel" name="celular" class="form-control mb-2" data-mascara="celular"
+                           placeholder="(51) 99999-9999" />
+                    @* "Paga lá" é o padrão porque é a vida real do telefone: reserva primeiro,
+                       dinheiro na hora do jogo. O selo fica pendurado na agenda até o dono
+                       tocar em "recebi". *@
+                    <div class="d-flex gap-3 mb-3 small">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="jaPagou" value="false" id="pagaLa" checked>
+                            <label class="form-check-label" for="pagaLa">Paga no clube</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="jaPagou" value="true" id="jaPagou">
+                            <label class="form-check-label" for="jaPagou">Já pagou</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 w-100">Marcar</button>
+                </form>
+
+                <details class="mt-3">
+                    <summary class="small text-muted" style="cursor: pointer;">
+                        <i class="bi bi-lock"></i> Ou bloquear este horário (manutenção, evento, aula)
+                    </summary>
+                    <form asp-action="Bloquear" method="post" class="mt-2">
+                        <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                        <input type="hidden" name="quadraId" class="pdz-campo-quadra" />
+                        <input type="hidden" name="dataHora" class="pdz-campo-quando" />
+                        <label class="form-label small fw-bold text-muted mb-1">Motivo</label>
+                        <input type="text" name="motivo" class="form-control mb-2" placeholder="Manutenção, evento, aula..." />
+                        <label class="form-label small fw-bold text-muted mb-1">Duração (min)</label>
+                        <input type="number" name="duracaoMinutos" class="form-control mb-2" value="60" />
+                        <button type="submit" class="btn btn-outline-secondary rounded-pill px-4">Bloquear</button>
+                    </form>
+                </details>
+            </div>
         </div>
     </div>
 </div>
@@ -239,25 +287,33 @@
     .pdz-ocupado { background: rgba(139,195,74,.30); font-weight: 600; }
     .pdz-bloqueado { background: rgba(220,53,69,.18); }
     .pdz-chip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 3px; }
-    .pdz-btn-bloquear { opacity: 0; transition: opacity .1s; }
-    .pdz-livre:hover .pdz-btn-bloquear { opacity: 1; }
+    .pdz-btn-horario { opacity: 0; transition: opacity .1s; }
+    .pdz-livre:hover .pdz-btn-horario { opacity: 1; }
+    @@media (hover: none) {
+        /* No celular não existe hover: o + fica sempre visível, senão o balcão some. */
+        .pdz-btn-horario { opacity: .55; }
+    }
 </style>
 
 @section Scripts {
     <script>
-        // Clique no "+" de um slot livre abre o modal já com quadra e horário preenchidos.
+        // Clique no "+" de um slot livre abre o modal já com quadra e horário preenchidos —
+        // nos DOIS formulários (marcar e bloquear), que compartilham o slot clicado.
         (function () {
-            var modalEl = document.getElementById('modalBloqueio');
+            var modalEl = document.getElementById('modalHorario');
             if (!modalEl) return;
             var modal = new bootstrap.Modal(modalEl);
 
-            document.querySelectorAll('.pdz-btn-bloquear').forEach(function (btn) {
+            document.querySelectorAll('.pdz-btn-horario').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    document.getElementById('bloqQuadra').value = btn.dataset.quadra;
-                    document.getElementById('bloqQuando').value = btn.dataset.quando;
-                    document.getElementById('bloqResumo').textContent =
-                        btn.dataset.quando.replace('T', ' às ');
+                    modalEl.querySelectorAll('.pdz-campo-quadra').forEach(function (c) { c.value = btn.dataset.quadra; });
+                    modalEl.querySelectorAll('.pdz-campo-quando').forEach(function (c) { c.value = btn.dataset.quando; });
+                    document.getElementById('horarioResumo').textContent =
+                        btn.dataset.quadraNome + ' — ' + btn.dataset.quando.replace('T', ' às ');
+                    var nome = modalEl.querySelector('input[name="nome"]');
+                    nome.value = '';
                     modal.show();
+                    setTimeout(function () { nome.focus(); }, 200);
                 });
             });
         })();

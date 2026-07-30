@@ -477,7 +477,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             JogadorId = dados.JogadorId,
             DataHora = dados.DataHora,
             DuracaoMinutos = dados.DuracaoMinutos,
-            Status = "Confirmada"
+            Status = "Confirmada",
+            // Nasceu do webhook = o dinheiro já entrou; é o selo "pago" da agenda do dono.
+            PagoEm = DateTime.Now,
         };
         _context.MarcacoesJogo.Add(marcacao);
         await _context.SaveChangesAsync();

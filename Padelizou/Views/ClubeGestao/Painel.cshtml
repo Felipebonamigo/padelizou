@@ -20,6 +20,15 @@
         </a>
     </div>
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
+    }
+
     @* Sem quadra ou sem horário publicado o clube não aparece pra ninguém marcar — a mesma
        armadilha da escada do professor. O painel diz isso na entrada, com o caminho. *@
     @if (Model.PrecisaDeQuadra)
@@ -86,17 +95,118 @@
     </div>
 
     <div class="row g-4">
-        <!-- QUEM AGENDOU -->
+        <!-- O DIA DE HOJE, EM ORDEM DE HORA -->
         <div class="col-lg-7">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
                     <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
-                        <i class="bi bi-calendar-check"></i> Próximas reservas
+                        <i class="bi bi-sun"></i> Hoje · @DateTime.Today.ToString("dddd, dd/MM", ptBr)
+                    </h6>
+
+                    @if (!Model.Hoje.Any())
+                    {
+                        <p class="small text-muted mb-0">Nenhum horário publicado pra hoje. O dia de amanhã em diante fica logo abaixo.</p>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var r in Model.Hoje)
+                            {
+                                @if (r.Livre)
+                                {
+                                    @* O livre É clicável: o balcão mora aqui. Sem isso o dono
+                                       precisa navegar até o mapa pra registrar quem ligou. *@
+                                    <button type="button"
+                                            class="list-group-item list-group-item-action px-0 d-flex gap-3 align-items-center pdz-btn-horario"
+                                            data-quadra="@r.QuadraId" data-quadra-nome="@r.Quadra"
+                                            data-quando="@r.DataHora.ToString("yyyy-MM-ddTHH:mm")">
+                                        <div class="text-center flex-shrink-0" style="width: 54px;">
+                                            <div class="fw-bold text-muted">@r.DataHora.ToString("HH:mm")</div>
+                                        </div>
+                                        <div class="flex-grow-1 text-start text-muted">
+                                            Livre · @r.Quadra
+                                            @if (r.Valor > 0)
+                                            {
+                                                <span>· @r.Valor!.Value.ToString("C0", ptBr)</span>
+                                            }
+                                        </div>
+                                        <span class="small text-success flex-shrink-0"><i class="bi bi-plus-circle"></i> marcar</span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="list-group-item px-0 d-flex gap-3 align-items-center">
+                                        <div class="text-center flex-shrink-0" style="width: 54px;">
+                                            <div class="fw-bold" style="color: var(--pdz-ink);">@r.DataHora.ToString("HH:mm")</div>
+                                        </div>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            @if (r.EhBloqueio)
+                                            {
+                                                <span class="fw-semibold text-muted">
+                                                    <i class="bi bi-lock-fill"></i> @(r.MotivoBloqueio ?? "Bloqueado")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="fw-semibold d-block text-truncate" style="color: var(--pdz-ink);">
+                                                    @r.Jogador
+                                                    @if (r.EhMensalista)
+                                                    {
+                                                        <span class="badge rounded-pill ms-1" style="background: rgba(13,202,240,.18); color:#0aa2c0;">mensalista</span>
+                                                    }
+                                                    @if (r.Selo == "pago")
+                                                    {
+                                                        <span class="badge rounded-pill ms-1" style="background: rgba(25,135,84,.15); color: var(--padel-green);">pago</span>
+                                                    }
+                                                    else if (r.Selo == "paga lá")
+                                                    {
+                                                        <span class="badge rounded-pill ms-1 bg-warning text-dark">paga lá</span>
+                                                    }
+                                                </span>
+                                            }
+                                            <small class="text-muted">
+                                                <i class="bi bi-geo-alt"></i> @r.Quadra
+                                                @if (r.Valor > 0)
+                                                {
+                                                    <span>· @r.Valor!.Value.ToString("C", ptBr)</span>
+                                                }
+                                            </small>
+                                        </div>
+                                        @if (r.Selo == "paga lá")
+                                        {
+                                            <form asp-action="ReceberPagamento" method="post" class="flex-shrink-0">
+                                                <input type="hidden" name="marcacaoId" value="@r.MarcacaoId" />
+                                                <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill"
+                                                        title="Marcar como recebido">recebi</button>
+                                            </form>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(r.Celular))
+                                        {
+                                            <a href="https://wa.me/55@(new string(r.Celular.Where(char.IsDigit).ToArray()))"
+                                               target="_blank" rel="noopener"
+                                               class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0"
+                                               title="Falar com @r.Jogador no WhatsApp">
+                                                <i class="bi bi-whatsapp"></i>
+                                            </a>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- PRÓXIMOS DIAS -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                        <i class="bi bi-calendar-check"></i> Próximos dias
                     </h6>
 
                     @if (!Model.Proximas.Any())
                     {
-                        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma reserva pra frente. Quando alguém marcar, aparece aqui com nome e contato."))' />
+                        <p class="small text-muted mb-0">Nenhuma reserva de amanhã em diante ainda.</p>
                     }
                     else
                     {
@@ -106,8 +216,8 @@
                                 <div class="list-group-item px-0 d-flex gap-3 align-items-center">
                                     <div class="text-center flex-shrink-0" style="width: 54px;">
                                         <div class="fw-bold" style="color: var(--pdz-ink);">@r.DataHora.ToString("HH:mm")</div>
-                                        <small class="@(r.EhHoje ? "fw-bold" : "text-muted")" style="font-size:.72rem;">
-                                            @(r.EhHoje ? "hoje" : $"{diasCurtos[(int)r.DataHora.DayOfWeek]} {r.DataHora:dd/MM}")
+                                        <small class="text-muted" style="font-size:.72rem;">
+                                            @diasCurtos[(int)r.DataHora.DayOfWeek] @r.DataHora.ToString("dd/MM")
                                         </small>
                                     </div>
                                     <div class="flex-grow-1 overflow-hidden">
@@ -125,6 +235,10 @@
                                                 {
                                                     <span class="badge rounded-pill ms-1" style="background: rgba(13,202,240,.18); color:#0aa2c0;">mensalista</span>
                                                 }
+                                                @if (r.Selo == "paga lá")
+                                                {
+                                                    <span class="badge rounded-pill ms-1 bg-warning text-dark">paga lá</span>
+                                                }
                                             </span>
                                         }
                                         <small class="text-muted">
@@ -135,8 +249,6 @@
                                             }
                                         </small>
                                     </div>
-                                    @* O contato é o que o clube usa quando precisa avisar de chuva
-                                       ou de troca de quadra — por isso fica a um toque, não escondido. *@
                                     @if (!string.IsNullOrWhiteSpace(r.Celular))
                                     {
                                         <a href="https://wa.me/55@(new string(r.Celular.Where(char.IsDigit).ToArray()))"
@@ -149,11 +261,11 @@
                                 </div>
                             }
                         </div>
-                        <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id"
-                           class="btn btn-sm btn-outline-secondary rounded-pill mt-3">
-                            Ver o mapa da semana inteira →
-                        </a>
                     }
+                    <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id"
+                       class="btn btn-sm btn-outline-secondary rounded-pill mt-3">
+                        Ver o mapa da semana inteira →
+                    </a>
                 </div>
             </div>
         </div>
@@ -221,3 +333,64 @@
         </div>
     </div>
 </div>
+
+<!-- Modal do balcão (aberto pelo clique num horário livre do dia) -->
+<div class="modal fade" id="modalHorario" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="horarioResumo">Horário</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form asp-action="MarcarBalcao" method="post">
+                    <input type="hidden" name="clubeId" value="@Model.Clube.Id" />
+                    <input type="hidden" name="voltarPara" value="Painel" />
+                    <input type="hidden" name="quadraId" class="pdz-campo-quadra" />
+                    <input type="hidden" name="dataHora" class="pdz-campo-quando" />
+                    <label class="form-label small fw-bold text-muted mb-1">Nome de quem reservou</label>
+                    <input type="text" name="nome" class="form-control mb-2" maxlength="80" required
+                           placeholder="Como a pessoa é conhecida" />
+                    <label class="form-label small fw-bold text-muted mb-1">Celular (opcional)</label>
+                    <input type="tel" name="celular" class="form-control mb-2" data-mascara="celular"
+                           placeholder="(51) 99999-9999" />
+                    <div class="d-flex gap-3 mb-3 small">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="jaPagou" value="false" id="pagaLa" checked>
+                            <label class="form-check-label" for="pagaLa">Paga no clube</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="jaPagou" value="true" id="jaPagou">
+                            <label class="form-check-label" for="jaPagou">Já pagou</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 w-100">Marcar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Mesmo mecanismo do mapa: o clique no horário livre preenche quadra e hora.
+        (function () {
+            var modalEl = document.getElementById('modalHorario');
+            if (!modalEl) return;
+            var modal = new bootstrap.Modal(modalEl);
+
+            document.querySelectorAll('.pdz-btn-horario').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    modalEl.querySelectorAll('.pdz-campo-quadra').forEach(function (c) { c.value = btn.dataset.quadra; });
+                    modalEl.querySelectorAll('.pdz-campo-quando').forEach(function (c) { c.value = btn.dataset.quando; });
+                    document.getElementById('horarioResumo').textContent =
+                        btn.dataset.quadraNome + ' — ' + btn.dataset.quando.replace('T', ' às ');
+                    var nome = modalEl.querySelector('input[name="nome"]');
+                    nome.value = '';
+                    modal.show();
+                    setTimeout(function () { nome.focus(); }, 200);
+                });
+            });
+        })();
+    </script>
+}

@@ -28,6 +28,23 @@ public partial class MarcacaoJogo
     public string? CanceladaPor { get; set; }   // "Jogador" | "Clube"
     public bool CobrarMesmoAssim { get; set; }
 
+    // ---- Balcão ----
+    // Reserva que o CLUBE registrou pra quem ligou ou chamou no WhatsApp — a cena mais
+    // comum da vida real. NomeClienteBalcao preenchido = reserva de balcão; JogadorId
+    // aponta pra quem registrou (o mesmo truque do bloqueio) ou, se o celular bater com
+    // uma conta, pro cliente de verdade — mas o nome digitado continua mandando na tela,
+    // porque é o nome que o dono conhece.
+    public string? NomeClienteBalcao { get; set; }
+    public string? CelularClienteBalcao { get; set; }
+
+    // ---- Pagamento da reserva ----
+    // PagaNoLocal: o acerto é no balcão (reserva de balcão, ou do site quando o clube não
+    // cobra online). PagoEm: quando o dinheiro entrou — o checkout online carimba na hora;
+    // no balcão, quando o dono toca em "recebi". Reserva antiga (antes de 30/07/2026) fica
+    // com os dois vazios e não ganha selo: não dá pra saber como foi acertada.
+    public bool PagaNoLocal { get; set; }
+    public DateTime? PagoEm { get; set; }
+
     [ForeignKey("ClubeId")]
     public virtual Clube Clube { get; set; } = null!;
 

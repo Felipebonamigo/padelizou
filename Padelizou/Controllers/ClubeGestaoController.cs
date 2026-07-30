@@ -93,28 +93,74 @@ public class ClubeGestaoController : Controller
             ? 0
             : Math.Min(100, (int)Math.Round(vm.ReservasNaSemana * 100.0 / slotsDaSemana));
 
-        // A lista que o dono abre o painel pra ver. Bloqueio ENTRA aqui (diferente dos
-        // números): quem olha a agenda precisa ver a manutenção de sábado junto das reservas.
-        var proximas = await _context.MarcacoesJogo
-            .Include(m => m.QuadraClube)
-            .Include(m => m.Jogador)
-            .Where(m => m.ClubeId == id && m.Status != "Cancelada" && m.DataHora >= DateTime.Now)
-            .OrderBy(m => m.DataHora)
-            .Take(12)
-            .ToListAsync();
-
-        vm.Proximas = proximas.Select(m => new ReservaDoPainelVM
+        ReservaDoPainelVM MontarLinha(MarcacaoJogo m) => new()
         {
             MarcacaoId = m.Id,
             DataHora = m.DataHora,
             Quadra = m.QuadraClube.Nome,
-            Jogador = m.EhBloqueio ? "" : m.Jogador.Nome,
-            Celular = m.EhBloqueio ? null : m.Jogador.Celular,
+            QuadraId = m.QuadraClubeId,
+            Jogador = m.EhBloqueio ? "" : ReservaDeBalcao.NomeNaAgenda(m),
+            Celular = m.EhBloqueio ? null : ReservaDeBalcao.CelularDeContato(m),
             EhMensalista = m.MensalidadeId != null,
             EhBloqueio = m.EhBloqueio,
             MotivoBloqueio = m.MotivoBloqueio,
             Valor = m.EhBloqueio ? null : PrecoDe(regras, m),
-        }).ToList();
+            Selo = ReservaDeBalcao.Selo(m, PrecoDe(regras, m)),
+            EhBalcao = ReservaDeBalcao.EhBalcao(m),
+        };
+
+        // ---- HOJE: o dia inteiro em ordem de hora, reservas E livres ----
+        // O dono opera o dia, não o mês. As reservas que já rolaram ficam (é onde ele vê
+        // quem ainda "paga lá"); os livres só aparecem de agora em diante, com o botão de
+        // marcar — livre das 8h da manhã de ontem não serve pra nada às 20h.
+        var doDia = await _context.MarcacoesJogo
+            .Include(m => m.QuadraClube)
+            .Include(m => m.Jogador)
+            .Where(m => m.ClubeId == id && m.Status != "Cancelada"
+                     && m.DataHora >= hoje && m.DataHora < hoje.AddDays(1))
+            .ToListAsync();
+
+        var quadrasDoClube = await _context.QuadrasClube
+            .Where(q => q.ClubeId == id && q.Ativa)
+            .OrderBy(q => q.Nome)
+            .ToListAsync();
+
+        var linhasDoDia = doDia.Select(MontarLinha).ToList();
+        foreach (var q in quadrasDoClube)
+        {
+            foreach (var r in regras.Where(r => r.Ativo && r.QuadraClubeId == q.Id
+                                             && r.DiaSemana == (int)hoje.DayOfWeek))
+            {
+                for (var h = r.HoraInicio; h.Add(TimeSpan.FromMinutes(r.DuracaoMinutos)) <= r.HoraFim;
+                     h = h.Add(TimeSpan.FromMinutes(r.DuracaoMinutos)))
+                {
+                    var quando = hoje.Add(h);
+                    if (quando < DateTime.Now) continue;
+                    if (doDia.Any(m => m.QuadraClubeId == q.Id && m.DataHora == quando)) continue;
+
+                    linhasDoDia.Add(new ReservaDoPainelVM
+                    {
+                        Livre = true,
+                        DataHora = quando,
+                        Quadra = q.Nome,
+                        QuadraId = q.Id,
+                        Valor = r.Preco,
+                    });
+                }
+            }
+        }
+        vm.Hoje = linhasDoDia.OrderBy(l => l.DataHora).ThenBy(l => l.Quadra).ToList();
+
+        // As de amanhã em diante — hoje já tem seção própria, repetir seria ler duas vezes.
+        var proximas = await _context.MarcacoesJogo
+            .Include(m => m.QuadraClube)
+            .Include(m => m.Jogador)
+            .Where(m => m.ClubeId == id && m.Status != "Cancelada" && m.DataHora >= hoje.AddDays(1))
+            .OrderBy(m => m.DataHora)
+            .Take(12)
+            .ToListAsync();
+
+        vm.Proximas = proximas.Select(MontarLinha).ToList();
 
         return View(vm);
     }
@@ -172,11 +218,16 @@ public class ClubeGestaoController : Controller
             vm.Slots[chave] = new SlotVM
             {
                 MarcacaoId = m.Id,
-                // No mapa cabe pouco texto — o apelido é o que o dono do clube reconhece.
-                Titulo = m.EhBloqueio ? (m.MotivoBloqueio ?? "Bloqueado") : m.Jogador.ComoChamar,
+                // No mapa cabe pouco texto — no balcão vale o nome que o dono digitou;
+                // no site, o apelido é o que ele reconhece.
+                Titulo = m.EhBloqueio ? (m.MotivoBloqueio ?? "Bloqueado")
+                    : ReservaDeBalcao.EhBalcao(m) ? ReservaDeBalcao.NomeNaAgenda(m)
+                    : m.Jogador.ComoChamar,
                 EhBloqueio = m.EhBloqueio,
                 EhMensalista = m.MensalidadeId != null,
                 Status = m.Status,
+                Selo = ReservaDeBalcao.Selo(m, PrecoDe(regras, m)),
+                EhBalcao = ReservaDeBalcao.EhBalcao(m),
             };
         }
 
@@ -262,6 +313,114 @@ public class ClubeGestaoController : Controller
 
         TempData["Sucesso"] = "Bloqueio removido.";
         return RedirectToAction("Ocupacao", new { id = clubeId, semana = quando });
+    }
+
+    // ===================== BALCÃO =====================
+    // O cliente ligou ou chamou no WhatsApp e o dono registra aqui — sem isso ele era
+    // obrigado a manter o caderninho junto com o sistema (ver Services/ReservaDeBalcao).
+
+    [HttpPost]
+    public async Task<IActionResult> MarcarBalcao(int clubeId, int quadraId, DateTime dataHora,
+        string nome, string? celular, bool jaPagou = false, string? voltarPara = null)
+    {
+        if (!await PodeGerenciarAsync(clubeId)) return Forbid();
+
+        IActionResult Voltar() => voltarPara == "Painel"
+            ? RedirectToAction("Painel", new { id = clubeId })
+            : RedirectToAction("Ocupacao", new { id = clubeId, semana = dataHora });
+
+        if (ReservaDeBalcao.ProblemaCom(nome, dataHora, DateTime.Now) is { } problema)
+        {
+            TempData["Erro"] = problema;
+            return Voltar();
+        }
+
+        var quadra = await _context.QuadrasClube.FirstOrDefaultAsync(q => q.Id == quadraId && q.ClubeId == clubeId);
+        if (quadra == null) return NotFound();
+
+        // A razão de existir do balcão é impedir venda dupla — então aqui o conflito é
+        // recusado com a mesma régua da reserva do site.
+        bool jaOcupado = await _context.MarcacoesJogo.AnyAsync(m =>
+            m.QuadraClubeId == quadraId && m.DataHora == dataHora && m.Status != "Cancelada");
+        if (jaOcupado)
+        {
+            TempData["Erro"] = "Esse horário já está ocupado.";
+            return Voltar();
+        }
+
+        celular = Documentos.SomenteDigitosOuNulo(celular);
+
+        // Se o celular bater com uma conta, a reserva aparece no "Minhas marcações" do
+        // cliente de graça. Sem celular (ou sem conta), aponta pra quem registrou — o
+        // mesmo truque do bloqueio, que mantém o FK obrigatório em paz.
+        var clienteComConta = celular == null
+            ? null
+            : await _context.Jogadores.FirstOrDefaultAsync(j => j.Celular == celular);
+
+        // Duração e preço saem da regra publicada daquele horário; encaixe fora da grade
+        // vale também (o dono manda na própria agenda) e cai no padrão de 60 min.
+        var regra = await _context.HorariosMarcacaoDisponivel.FirstOrDefaultAsync(h =>
+            h.QuadraClubeId == quadraId && h.DiaSemana == (int)dataHora.DayOfWeek
+            && h.HoraInicio <= dataHora.TimeOfDay && dataHora.TimeOfDay < h.HoraFim);
+
+        _context.MarcacoesJogo.Add(new MarcacaoJogo
+        {
+            ClubeId = clubeId,
+            QuadraClubeId = quadraId,
+            JogadorId = clienteComConta?.Id ?? UsuarioId()!.Value,
+            DataHora = dataHora,
+            DuracaoMinutos = regra?.DuracaoMinutos ?? 60,
+            Status = "Confirmada",
+            NomeClienteBalcao = nome.Trim(),
+            CelularClienteBalcao = celular,
+            PagaNoLocal = true,
+            PagoEm = jaPagou ? DateTime.Now : null,
+        });
+        await _context.SaveChangesAsync();
+
+        TempData["Sucesso"] = $"Reserva de {nome.Trim()} marcada pra {dataHora:dd/MM 'às' HH:mm}.";
+        return Voltar();
+    }
+
+    // O dono recebeu o dinheiro no balcão e dá o toque. Só marca, nunca desmarca por
+    // aqui: "recebi sem querer" se resolve falando com a gente, e um botão de desfazer
+    // viraria o jeito fácil de sumir com receita registrada.
+    [HttpPost]
+    public async Task<IActionResult> ReceberPagamento(int marcacaoId, string? voltarPara = null)
+    {
+        var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
+        if (m == null || m.EhBloqueio) return NotFound();
+        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+
+        if (m.PagoEm == null)
+        {
+            m.PagoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Pagamento recebido.";
+        }
+
+        return voltarPara == "Ocupacao"
+            ? RedirectToAction("Ocupacao", new { id = m.ClubeId, semana = m.DataHora })
+            : RedirectToAction("Painel", new { id = m.ClubeId });
+    }
+
+    // Só reserva de BALCÃO se cancela por aqui: a do site tem dono com conta, política de
+    // cancelamento e possivelmente pagamento online — cancelar essa por cima do jogador
+    // é outra conversa, com estorno no meio.
+    [HttpPost]
+    public async Task<IActionResult> CancelarBalcao(int marcacaoId)
+    {
+        var m = await _context.MarcacoesJogo.FindAsync(marcacaoId);
+        if (m == null || !ReservaDeBalcao.EhBalcao(m)) return NotFound();
+        if (!await PodeGerenciarAsync(m.ClubeId)) return Forbid();
+
+        m.Status = "Cancelada";
+        m.CanceladaEm = DateTime.Now;
+        m.CanceladaPor = "Clube";
+        await _context.SaveChangesAsync();
+
+        TempData["Sucesso"] = "Reserva cancelada — o horário voltou a ficar livre.";
+        return RedirectToAction("Ocupacao", new { id = m.ClubeId, semana = m.DataHora });
     }
 
     // ===================== HORÁRIO FIXO (MENSALISTA) =====================
@@ -418,6 +577,12 @@ public class ClubeGestaoController : Controller
             Receita = valeram.Sum(m => PrecoDe(regras, m)),
             Recuperado = faltas.Where(m => m.CobrarMesmoAssim).Sum(m => PrecoDe(regras, m)),
             APerder = faltas.Where(m => !m.CobrarMesmoAssim).Sum(m => PrecoDe(regras, m)),
+            // De onde veio e o que ainda não entrou: balcão × site, e o "paga lá" pendente.
+            // É a conta que fecha o caixa — receita "teórica" sozinha não diz quem deve.
+            ReceitaBalcao = valeram.Where(ReservaDeBalcao.EhBalcao).Sum(m => PrecoDe(regras, m)),
+            AReceber = valeram
+                .Where(m => m.PagaNoLocal && m.PagoEm == null)
+                .Sum(m => PrecoDe(regras, m)),
             Reservas = valeram.Count,
             Cancelamentos = marcacoes.Count(m => m.Status == "Cancelada"),
             NoShows = faltas.Count,
