@@ -232,6 +232,29 @@ public class JogadoresController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DenunciarComentario(int comentarioId)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var comentario = await _context.ComentariosPerfil.FindAsync(comentarioId);
+        if (comentario == null) return NotFound();
+
+        // O autor não denuncia o próprio comentário — ele pode apagá-lo direto.
+        // Denúncia repetida não sobrescreve a primeira: a fila do admin ordena por
+        // DenunciadoEm, e re-carimbar empurraria o comentário pro fim da fila.
+        if (comentario.AutorId != meuId && comentario.DenunciadoEm == null)
+        {
+            comentario.DenunciadoEm = DateTime.Now;
+            comentario.DenunciadoPorId = meuId;
+            await _context.SaveChangesAsync();
+        }
+
+        TempData["Sucesso"] = "Obrigado pelo aviso — um administrador vai revisar esse comentário.";
+        return RedirectToAction("Perfil", new { id = comentario.PerfilId });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoverComentario(int comentarioId)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

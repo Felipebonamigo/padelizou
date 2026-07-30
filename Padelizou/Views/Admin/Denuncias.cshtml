@@ -1,0 +1,64 @@
+@model List<Padelizou.Models.ComentarioPerfil>
+@{
+    ViewData["Title"] = "Comentários denunciados - Padelizou";
+    var denunciantes = (Dictionary<int, string>)ViewBag.Denunciantes;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Comentários denunciados</h2>
+            <p class="text-muted mb-0">Alguém achou que esses comentários não deviam estar no perfil. Decida um a um.</p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    @if (!Model.Any())
+    {
+        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma denúncia pendente. Fila limpa!"))' />
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var c in Model)
+            {
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                            <div class="flex-grow-1">
+                                <p class="mb-2" style="color: var(--pdz-ink);">&ldquo;@c.Texto&rdquo;</p>
+                                <p class="text-muted small mb-0">
+                                    Escrito por <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId" class="fw-bold">@c.Autor.Nome</a>
+                                    no perfil de <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.PerfilId" class="fw-bold">@c.Perfil.Nome</a>
+                                    em @c.CriadoEm.ToString("dd/MM/yyyy HH:mm").
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    Denunciado em @c.DenunciadoEm!.Value.ToString("dd/MM/yyyy HH:mm")
+                                    por @(c.DenunciadoPorId != null && denunciantes.TryGetValue(c.DenunciadoPorId.Value, out var nome) ? nome : "conta excluída").
+                                </p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form asp-controller="Admin" asp-action="ApagarComentarioDenunciado" asp-route-id="@c.Id" method="post"
+                                      onsubmit="return confirm('Apagar esse comentário de vez?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                        <i class="bi bi-trash"></i> Apagar
+                                    </button>
+                                </form>
+                                <form asp-controller="Admin" asp-action="ManterComentarioDenunciado" asp-route-id="@c.Id" method="post">
+                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                        <i class="bi bi-check-lg"></i> Manter
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

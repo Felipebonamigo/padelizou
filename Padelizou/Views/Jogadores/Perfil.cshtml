@@ -248,15 +248,26 @@
                                         <a asp-action="Perfil" asp-route-id="@c.AutorId" class="fw-bold text-decoration-none small" style="color: var(--pdz-ink);">@c.Autor.Nome</a>
                                         <span class="text-muted" style="font-size:.72rem;"> · @c.CriadoEm.ToString("dd/MM/yyyy HH:mm")</span>
                                     </div>
-                                    @if (podeModerarComentarios || meuId == c.AutorId)
-                                    {
-                                        <form asp-controller="Jogadores" asp-action="RemoverComentario" asp-route-comentarioId="@c.Id" method="post"
-                                              onsubmit="return confirm('Remover esse comentário?');">
-                                            <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Remover">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    }
+                                    <div class="d-flex gap-2">
+                                        @if (meuId != null && meuId != c.AutorId)
+                                        {
+                                            <form asp-controller="Jogadores" asp-action="DenunciarComentario" asp-route-comentarioId="@c.Id" method="post"
+                                                  onsubmit="return confirm('Denunciar esse comentário pra revisão de um administrador?');">
+                                                <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Denunciar">
+                                                    <i class="bi bi-flag"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (podeModerarComentarios || meuId == c.AutorId)
+                                        {
+                                            <form asp-controller="Jogadores" asp-action="RemoverComentario" asp-route-comentarioId="@c.Id" method="post"
+                                                  onsubmit="return confirm('Remover esse comentário?');">
+                                                <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Remover">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
                                 </div>
                                 <p class="mb-0 small">@c.Texto</p>
                             </div>

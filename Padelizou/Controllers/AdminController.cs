@@ -298,6 +298,72 @@ namespace padelizou.Controllers
             return RedirectToAction("Feedbacks");
         }
 
+        // ── Comentários denunciados ────────────────────────────────────────────────────
+        // A fila fica aqui, não num e-mail: pra decidir é preciso ver o texto ao lado de
+        // quem escreveu, em que perfil e quem denunciou — contexto que só a tela dá.
+        // As duas saídas são deliberadamente as únicas: apagar o comentário ou mantê-lo
+        // (limpando o carimbo). Não existe "banir autor" aqui — punição de conta é outra
+        // decisão, tomada com mais calma que um clique numa fila.
+
+        [HttpGet]
+        public async Task<IActionResult> Denuncias()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var comentarios = await _context.ComentariosPerfil
+                .Include(c => c.Autor)
+                .Include(c => c.Perfil)
+                .Where(c => c.DenunciadoEm != null)
+                .OrderBy(c => c.DenunciadoEm)
+                .ToListAsync();
+
+            // Nome de quem denunciou, numa consulta só (DenunciadoPorId não tem FK/nav
+            // de propósito — ver ComentarioPerfil). Quem excluiu a conta sai como null
+            // e a tela mostra "conta excluída".
+            var ids = comentarios.Where(c => c.DenunciadoPorId != null)
+                .Select(c => c.DenunciadoPorId!.Value).Distinct().ToList();
+            ViewBag.Denunciantes = await _context.Jogadores
+                .Where(j => ids.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            return View(comentarios);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApagarComentarioDenunciado(int id)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var comentario = await _context.ComentariosPerfil.FindAsync(id);
+            if (comentario != null)
+            {
+                _context.ComentariosPerfil.Remove(comentario);
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = "Comentário apagado.";
+            return RedirectToAction("Denuncias");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ManterComentarioDenunciado(int id)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var comentario = await _context.ComentariosPerfil.FindAsync(id);
+            if (comentario != null)
+            {
+                comentario.DenunciadoEm = null;
+                comentario.DenunciadoPorId = null;
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = "Comentário mantido — saiu da fila.";
+            return RedirectToAction("Denuncias");
+        }
+
         // Métricas de uso: os números que dizem se o sistema está crescendo e quanto a
         // plataforma já faturou no ano (controle do teto do MEI). CriadoEm nulo = registro
         // anterior a 25/07/2026 (antes da coluna existir) — entra nos totais, não nas séries.
