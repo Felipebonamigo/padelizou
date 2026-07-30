@@ -18,16 +18,19 @@ public class WhatsAppApiService : IWhatsAppService
 
     public async Task<bool> EnviarAsync(string? celular, string mensagem)
     {
+        // Aviso (não erro): hoje TODA notificação passa por aqui, então enquanto a Z-API não
+        // estiver contratada isto acontece o tempo todo. Em Warning encheria o log de ruído e
+        // esconderia problema de verdade.
         if (string.IsNullOrEmpty(_settings.InstanceId) || string.IsNullOrEmpty(_settings.Token))
         {
-            _logger.LogWarning("Z-API não configurada (InstanceId/Token em branco) — lembrete não enviado.");
+            _logger.LogDebug("Z-API não configurada (InstanceId/Token em branco) — mensagem não enviada.");
             return false;
         }
 
         var numero = WhatsAppLinkHelper.LimparNumero(celular);
         if (string.IsNullOrEmpty(numero))
         {
-            _logger.LogWarning("Jogador sem celular válido — lembrete não enviado.");
+            _logger.LogWarning("Jogador sem celular válido — mensagem não enviada.");
             return false;
         }
 

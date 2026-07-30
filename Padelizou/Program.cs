@@ -59,6 +59,7 @@ builder.Services.Configure<TaxasExibicao>(builder.Configuration.GetSection("Taxa
 builder.Services.Configure<RegistroResultadosSettings>(builder.Configuration.GetSection("RegistroResultados"));
 builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSection("PlanoProfessor"));
 builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
+builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();

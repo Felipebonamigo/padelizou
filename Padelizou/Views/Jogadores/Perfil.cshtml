@@ -88,6 +88,15 @@
 
     @if (!perfilBloqueado)
     {
+    <!-- PRATELEIRA DE TROFÉUS (um por material da categoria) -->
+    @* O sprite entra ANTES da prateleira: ela referencia os desenhos por id. *@
+    var trofeus = ViewBag.TrofeusPorMaterial as List<Padelizou.Services.TrofeuContado>;
+    @if (trofeus != null && trofeus.Any())
+    {
+        <partial name="_TrofeusSprite" />
+        <partial name="_PrateleiraDeTrofeus" model="trofeus" />
+    }
+
     <!-- EVOLUÇÃO NO TEMPO -->
     var evolucao = ViewBag.Evolucao as Padelizou.ViewModels.EvolucaoJogadorVM;
     @if (evolucao != null && evolucao.TemDados)
@@ -279,7 +288,10 @@
             }
             else
             {
-                <partial name="_Vazio" model='@(new EstadoVazio("Nenhum comentário ainda. Quem já jogou com essa pessoa pode deixar o primeiro."))' />
+                @* Sem o Pnatinha aqui: os Comentários vêm logo depois de Elogios e Conquistas,
+                   e o mascote grande no meio dessa sequência empurrava o resto do perfil pra
+                   baixo por uma linha de texto. Nos vazios de página inteira ele continua. *@
+                <p class="text-muted small mb-0">Nenhum comentário ainda. Quem já jogou com essa pessoa pode deixar o primeiro.</p>
             }
         </div>
     }

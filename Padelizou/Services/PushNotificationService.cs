@@ -10,17 +10,33 @@ public class PushNotificationService : IPushNotificationService
 {
     private readonly DbPadelContext _context;
     private readonly VapidDetails _vapidDetails;
+    private readonly IWhatsAppService _whatsApp;
+    private readonly SiteSettings _site;
     private readonly ILogger<PushNotificationService> _logger;
 
-    public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions, ILogger<PushNotificationService> logger)
+    public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
+        IWhatsAppService whatsApp, IOptions<SiteSettings> siteOptions,
+        ILogger<PushNotificationService> logger)
     {
         _context = context;
+        _whatsApp = whatsApp;
+        _site = siteOptions.Value;
         _logger = logger;
         var settings = vapidOptions.Value;
         _vapidDetails = new VapidDetails(settings.Subject, settings.PublicKey, settings.PrivateKey);
     }
 
     public async Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null)
+    {
+        // O WhatsApp sai ANTES do return de quem não tem push, e de propósito: quem não
+        // instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que o canal
+        // novo existe pra alcançar. Fica aqui, num lugar só, em vez de nos ~30 pontos que
+        // mandam aviso — assim nenhum aviso novo nasce esquecendo o WhatsApp.
+        await EnviarWhatsAppAsync(jogadorId, titulo, corpo, url);
+        await EnviarPushAsync(jogadorId, titulo, corpo, url);
+    }
+
+    private async Task EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url)
     {
         var subscriptions = await _context.Set<PushSubscriptionJogador>()
             .Where(s => s.JogadorId == jogadorId)
@@ -51,6 +67,34 @@ public class PushNotificationService : IPushNotificationService
         await _context.SaveChangesAsync();
     }
 
+    // Falha aqui não pode derrubar o aviso: o push é o canal principal, e uma indisponibilidade
+    // do provedor de mensagem não pode fazer o jogador deixar de ser notificado (nem a ação que
+    // gerou o aviso estourar na cara de quem clicou).
+    private async Task EnviarWhatsAppAsync(int jogadorId, string titulo, string corpo, string? url)
+    {
+        try
+        {
+            var destinatario = await _context.Jogadores
+                .Where(j => j.Id == jogadorId)
+                .Select(j => new { j.Celular, j.NotificarWhatsApp })
+                .FirstOrDefaultAsync();
+
+            if (destinatario == null) return;
+            if (!AvisoPorWhatsApp.PodeReceber(destinatario.NotificarWhatsApp, destinatario.Celular)) return;
+
+            await _whatsApp.EnviarAsync(destinatario.Celular,
+                AvisoPorWhatsApp.Montar(titulo, corpo, url, _site.Url));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao avisar por WhatsApp o jogador {JogadorId}.", jogadorId);
+        }
+    }
+
+    // Só push, sem WhatsApp — de propósito. O único uso disto é o botão de notificação de
+    // TESTE do painel, cujo texto fala do app instalado. Mandar um teste no celular de todo
+    // mundo é o tipo de aviso que faz a pessoa desligar o canal (e ainda custa envio).
+    // Aviso de verdade pra muita gente passa pelo EnviarParaJogadorAsync, um a um.
     public async Task<int> EnviarParaTodosInscritosAsync(string titulo, string corpo, string? url = null)
     {
         var jogadorIds = await _context.Set<PushSubscriptionJogador>()
@@ -59,7 +103,7 @@ public class PushNotificationService : IPushNotificationService
             .ToListAsync();
 
         foreach (var jogadorId in jogadorIds)
-            await EnviarParaJogadorAsync(jogadorId, titulo, corpo, url);
+            await EnviarPushAsync(jogadorId, titulo, corpo, url);
 
         return jogadorIds.Count;
     }
