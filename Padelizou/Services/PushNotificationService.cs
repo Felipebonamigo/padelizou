@@ -36,16 +36,20 @@ public class PushNotificationService : IPushNotificationService
         await EnviarPushAsync(jogadorId, titulo, corpo, url);
     }
 
-    private async Task EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url)
+    // Devolve em QUANTOS aparelhos a entrega deu certo. O envio normal ignora o número (é
+    // "tenta e segue a vida"), mas o teste do painel precisa dele: dizer "enviado" só porque
+    // existe aparelho cadastrado seria mentir justamente na tela feita pra conferir a verdade.
+    private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url)
     {
         var subscriptions = await _context.Set<PushSubscriptionJogador>()
             .Where(s => s.JogadorId == jogadorId)
             .ToListAsync();
 
-        if (subscriptions.Count == 0) return;
+        if (subscriptions.Count == 0) return 0;
 
         var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/" });
         var client = new WebPushClient();
+        var entregues = 0;
 
         foreach (var sub in subscriptions)
         {
@@ -53,6 +57,7 @@ public class PushNotificationService : IPushNotificationService
             try
             {
                 await client.SendNotificationAsync(pushSubscription, payload, _vapidDetails);
+                entregues++;
             }
             catch (WebPushException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Gone or System.Net.HttpStatusCode.NotFound)
             {
@@ -65,6 +70,7 @@ public class PushNotificationService : IPushNotificationService
         }
 
         await _context.SaveChangesAsync();
+        return entregues;
     }
 
     // Falha aqui não pode derrubar o aviso: o push é o canal principal, e uma indisponibilidade
@@ -104,17 +110,19 @@ public class PushNotificationService : IPushNotificationService
 
         if (porPush)
         {
-            aparelhos = await _context.Set<PushSubscriptionJogador>()
+            var cadastrados = await _context.Set<PushSubscriptionJogador>()
                 .CountAsync(s => s.JogadorId == jogadorId);
 
-            if (aparelhos == 0)
+            if (cadastrados == 0)
             {
                 push = ResultadoDoCanal.SemAppInstalado;
             }
             else
             {
-                await EnviarPushAsync(jogadorId, titulo, corpo, url);
-                push = ResultadoDoCanal.Enviado;
+                // Conta ENTREGAS, não aparelhos cadastrados: inscrição que o navegador já
+                // revogou continua na tabela até a primeira tentativa depois disso.
+                aparelhos = await EnviarPushAsync(jogadorId, titulo, corpo, url);
+                push = aparelhos > 0 ? ResultadoDoCanal.Enviado : ResultadoDoCanal.FalhouNoEnvio;
             }
         }
 

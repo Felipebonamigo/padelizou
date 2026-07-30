@@ -123,4 +123,44 @@ public class BuscaParaAcaoAdministrativaTests
 
         Assert.False(string.IsNullOrWhiteSpace(detalhe));
     }
+
+    [Fact]
+    public void O_alcance_avisa_ANTES_de_mandar_quando_o_WhatsApp_nao_tem_como_chegar()
+    {
+        // Evita o teste que só serve pra descobrir que não tinha como chegar: o motivo já
+        // aparece do lado do nome, com o botão de enviar ainda parado.
+        var semNumero = LinhaDoCandidato.Alcance(new Jogador { Nome = "X", NotificarWhatsApp = true, Celular = null });
+        var desmarcou = LinhaDoCandidato.Alcance(new Jogador { Nome = "X", NotificarWhatsApp = false, Celular = "51999998888" });
+        var vaiChegar = LinhaDoCandidato.Alcance(new Jogador { Nome = "X", NotificarWhatsApp = true, Celular = "51999998888" });
+
+        Assert.Contains("sem celular", semNumero);
+        Assert.Contains("desmarcou", desmarcou);
+        Assert.Contains("(51) 99999-8888", vaiChegar);
+    }
+
+    [Fact]
+    public void O_aviso_verde_so_aparece_quando_algum_canal_entregou()
+    {
+        // "Mandei" sem dizer se chegou é a informação que menos serve numa tela de teste.
+        var nenhum = new TesteDeNotificacaoVM
+        {
+            Resultado = new ResultadoTesteNotificacao
+            {
+                Push = ResultadoDoCanal.SemAppInstalado,
+                WhatsApp = ResultadoDoCanal.FalhouNoEnvio,
+            },
+        };
+        var umSo = new TesteDeNotificacaoVM
+        {
+            Resultado = new ResultadoTesteNotificacao
+            {
+                Push = ResultadoDoCanal.SemAppInstalado,
+                WhatsApp = ResultadoDoCanal.Enviado,
+            },
+        };
+
+        Assert.False(nenhum.AlgumCanalDeuCerto);
+        Assert.True(umSo.AlgumCanalDeuCerto);
+        Assert.False(new TesteDeNotificacaoVM().AlgumCanalDeuCerto); // antes de mandar
+    }
 }

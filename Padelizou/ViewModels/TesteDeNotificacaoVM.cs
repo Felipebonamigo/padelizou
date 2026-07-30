@@ -3,8 +3,9 @@ using Padelizou.Services;
 
 namespace Padelizou.ViewModels;
 
-// A tela de teste de aviso do painel. O formulário volta PREENCHIDO junto do resultado: quem
-// testa raramente testa uma vez só — troca um canal, manda de novo, troca a pessoa.
+// A tela de teste de aviso do painel, em DOIS tempos: primeiro acha a pessoa e mostra quem
+// achou, depois manda. Numa etapa só, o admin descobria pra quem tinha mandado só depois de
+// já ter mandado — e num teste isso é tarde.
 public class TesteDeNotificacaoVM
 {
     public string? Identificador { get; set; }
@@ -14,16 +15,24 @@ public class TesteDeNotificacaoVM
 
     public string? Erro { get; set; }
 
-    // Quem recebeu. Mostrado de volta na tela pra o admin conferir que acertou a pessoa —
-    // digitar login na mão erra fácil.
-    public Jogador? Alvo { get; set; }
+    // Passo 1: quem a busca achou. Com mais de um, a tela pede pra escolher — nome não é
+    // único, e mandar pro homônimo errado é pior que não mandar, porque o admin conclui
+    // que testou.
+    public List<Jogador> Candidatos { get; set; } = new();
 
+    // Passo 2: quem está escolhido agora. Fica na tela, em destaque, ANTES do botão de
+    // enviar existir.
+    public Jogador? Selecionado { get; set; }
+
+    // Passo 3: quem de fato recebeu, com o que aconteceu em cada canal.
+    public Jogador? Alvo { get; set; }
     public ResultadoTesteNotificacao? Resultado { get; set; }
 
-    // Mais de uma pessoa casou com o termo (acontece ao buscar por nome). A tela pede pra
-    // escolher em vez de chutar — teste que foi pro João errado é pior que teste nenhum,
-    // porque o admin conclui que testou.
-    public List<Jogador> Candidatos { get; set; } = new();
+    // Deu pra entregar em algum canal? É o que decide entre o aviso verde e o amarelo —
+    // "mandei" sem dizer se chegou é a informação que menos serve numa tela de teste.
+    public bool AlgumCanalDeuCerto =>
+        Resultado != null
+        && (TextoDoTeste.DeuCerto(Resultado.Push) || TextoDoTeste.DeuCerto(Resultado.WhatsApp));
 }
 
 // Como identificar cada candidato na lista sem expor dado desnecessário: o CPF aparece
@@ -35,11 +44,26 @@ public static class LinhaDoCandidato
     {
         var partes = new List<string>();
 
+        if (!string.IsNullOrWhiteSpace(j.Apelido)) partes.Add($"\"{j.Apelido}\"");
         if (!string.IsNullOrWhiteSpace(j.Login)) partes.Add(j.Login!);
         if (!string.IsNullOrWhiteSpace(j.Email)) partes.Add(j.Email!);
         if (!string.IsNullOrWhiteSpace(j.Cpf) && j.Cpf!.Length == 11)
             partes.Add($"CPF •••.{j.Cpf.Substring(3, 3)}.•••-••");
 
         return partes.Count > 0 ? string.Join(" · ", partes) : "sem login nem e-mail no cadastro";
+    }
+
+    // O que o teste tem chance de alcançar nessa pessoa, ANTES de mandar. Evita o teste que
+    // só serve pra descobrir que não tinha como chegar.
+    public static string Alcance(Jogador j)
+    {
+        if (!AvisoPorWhatsApp.PodeReceber(j.NotificarWhatsApp, j.Celular))
+        {
+            return string.IsNullOrWhiteSpace(j.Celular)
+                ? "sem celular no cadastro — WhatsApp não vai chegar"
+                : "desmarcou o WhatsApp nas preferências";
+        }
+
+        return $"WhatsApp: {WhatsAppLinkHelper.Formatar(j.Celular)}";
     }
 }

@@ -81,14 +81,17 @@ public class TesteDeNotificacaoTests
     }
 
     [Fact]
-    public async Task Com_app_instalado_conta_os_aparelhos()
+    public async Task Aparelho_cadastrado_que_nao_recebeu_nao_conta_como_enviado()
     {
+        // O endpoint é falso, então a entrega falha. Dizer "enviado" só porque existe
+        // aparelho cadastrado seria mentir justamente na tela feita pra conferir a verdade —
+        // e inscrição revogada pelo navegador fica na tabela até a tentativa seguinte.
         using var ctx = ContextoCom(Jogador(), comApp: true);
 
         var r = await Servico(ctx, WhatsLigado()).EnviarTesteAsync(1, true, false, "T", "corpo");
 
-        Assert.Equal(ResultadoDoCanal.Enviado, r.Push);
-        Assert.Equal(1, r.Aparelhos);
+        Assert.Equal(ResultadoDoCanal.FalhouNoEnvio, r.Push);
+        Assert.Equal(0, r.Aparelhos);
     }
 
     [Fact]

@@ -467,10 +467,13 @@ namespace padelizou.Controllers
             return View(new TesteDeNotificacaoVM());
         }
 
+        // A tela tem DOIS tempos, e o `acao` diz em qual estamos. Achar e mandar viraram passos
+        // separados porque, juntos, o admin só descobria pra quem tinha mandado depois de já
+        // ter mandado — e num teste isso é tarde.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> NotificacaoTeste(string? identificador, bool porPush = false,
-            bool porWhatsApp = false, string? mensagem = null, int? jogadorId = null)
+            bool porWhatsApp = false, string? mensagem = null, int? jogadorId = null, string? acao = null)
         {
             if (await ObterJogadorAdminAsync() == null) return Forbid();
 
@@ -482,45 +485,50 @@ namespace padelizou.Controllers
                 Mensagem = mensagem,
             };
 
-            if (!porPush && !porWhatsApp)
+            // --- Passo 1: achar e mostrar quem achou ---------------------------------------
+            if (acao != "enviar")
             {
-                vm.Erro = "Escolha pelo menos um canal — sem isso o teste não testa nada.";
-                return View(vm);
-            }
+                if (jogadorId is int escolhidoNaLista)
+                {
+                    // Veio da lista de desambiguação: a pessoa foi escolhida a dedo, não se
+                    // procura de novo (o nome casaria com os mesmos e voltaria pra lista).
+                    vm.Selecionado = await _context.Jogadores.FindAsync(escolhidoNaLista);
+                    if (vm.Selecionado == null) vm.Erro = "Essa pessoa não existe mais.";
+                    return View(vm);
+                }
 
-            Jogador? alvo;
-
-            if (jogadorId is int escolhido)
-            {
-                // Veio da lista de desambiguação: a pessoa já foi escolhida a dedo, não se
-                // procura de novo (o nome pode casar com mais gente e voltaria pra lista).
-                alvo = await _context.Jogadores.FindAsync(escolhido);
-            }
-            else
-            {
                 // Login, e-mail, nome, apelido ou CPF — o que o admin tiver na mão.
                 var achados = await BuscaJogador.ParaAcaoAdministrativaAsync(_context, identificador);
 
                 if (achados.Count == 0)
                 {
-                    vm.Erro = "Não achei ninguém com esse login, e-mail, nome ou CPF.";
+                    vm.Erro = "Não achei ninguém com esse login, e-mail, nome, apelido ou CPF.";
                     return View(vm);
                 }
 
-                if (achados.Count > 1)
-                {
-                    // Nome não é único. Escolher sozinho aqui mandaria o teste pro João errado
-                    // e o admin acharia que testou o que não testou.
-                    vm.Candidatos = achados;
-                    return View(vm);
-                }
+                // Achou um só? Já fica escolhido — mas APARECE na tela antes de qualquer envio,
+                // que é o ponto: o admin confere que é a pessoa certa com o botão ainda parado.
+                if (achados.Count == 1) vm.Selecionado = achados[0];
+                else vm.Candidatos = achados;
 
-                alvo = achados[0];
+                return View(vm);
             }
+
+            // --- Passo 2: mandar -----------------------------------------------------------
+            var alvo = jogadorId is int escolhido
+                ? await _context.Jogadores.FindAsync(escolhido)
+                : null;
 
             if (alvo == null)
             {
-                vm.Erro = "Não achei ninguém com esse login, e-mail, nome ou CPF.";
+                vm.Erro = "Escolha a pessoa antes de mandar.";
+                return View(vm);
+            }
+
+            if (!porPush && !porWhatsApp)
+            {
+                vm.Selecionado = alvo;
+                vm.Erro = "Escolha pelo menos um canal — sem isso o teste não testa nada.";
                 return View(vm);
             }
 
@@ -529,6 +537,9 @@ namespace padelizou.Controllers
                 : mensagem.Trim();
 
             vm.Alvo = alvo;
+            // Continua escolhido depois de mandar: quem testa quase nunca testa uma vez só —
+            // troca o canal, troca o texto, manda de novo na MESMA pessoa.
+            vm.Selecionado = alvo;
             vm.Resultado = await _pushNotificationService.EnviarTesteAsync(
                 alvo.Id, porPush, porWhatsApp, "Padelizou", texto, "/");
 

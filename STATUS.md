@@ -6,7 +6,7 @@
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
 > dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação, por
 > uma **Evolution API no nosso próprio VPS (R$ 0/mês)** — falta só o chip pré-pago e o QR code.
-> **814 testes.**
+> **816 testes.**
 > Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
@@ -454,7 +454,17 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   bug do sistema nem ban: é o WhatsApp derrubando o dispositivo vinculado. **Precisa ler o QR
   de novo.** O diagnóstico da tela nova apontou certo na primeira tentativa ("o provedor
   recusou o envio, veja se a instância está conectada"), que era exatamente pra isso.
-- **814 testes.**
+- **A tela de teste virou dois tempos, e o envio agora grita.** Achar e mandar eram a mesma
+  ação, então o admin só descobria pra quem tinha mandado **depois** de já ter mandado — num
+  teste, tarde. Agora: procura → **mostra quem achou** (com login, e-mail, CPF mascarado e o
+  número de WhatsApp que vai receber) → só então o botão de enviar existe, com o nome da
+  pessoa escrito nele. Achou mais de um? Escolhe. Achou um só? Já fica escolhido, mas na tela.
+  E o resultado virou faixa: **verde "Enviado para Fulano!"** quando algum canal entregou de
+  verdade, **amarela "Não chegou em nenhum canal"** quando não. Junto veio um defeito de
+  honestidade: o push contava como "enviado" só por existir aparelho cadastrado, mesmo quando
+  a entrega falhava — agora conta **entregas**, e inscrição já revogada pelo navegador aparece
+  como falha em vez de sucesso.
+- **816 testes.**
 
 ---
 

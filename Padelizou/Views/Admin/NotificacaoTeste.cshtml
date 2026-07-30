@@ -1,5 +1,6 @@
 @model Padelizou.ViewModels.TesteDeNotificacaoVM
 @using Padelizou.Services
+@using Padelizou.ViewModels
 @{
     ViewData["Title"] = "Teste de aviso - Painel Admin - Padelizou";
 }
@@ -10,8 +11,8 @@
     <div class="mb-4 mt-2">
         <h2 class="fw-bold" style="color: var(--pdz-ink);">Teste de aviso</h2>
         <p class="text-muted mb-0">
-            Manda um aviso de mentira pra <strong>uma pessoa só</strong>, pelos canais que você
-            escolher. Serve pra conferir a corrente inteira sem incomodar mais ninguém.
+            Manda um aviso de mentira pra <strong>uma pessoa só</strong>. Primeiro você acha
+            quem vai receber, confere, e só então manda.
         </p>
     </div>
 
@@ -22,11 +23,68 @@
         </div>
     }
 
+    @* ===== O AVISO DO ENVIO ==========================================================
+       Vem antes de tudo e grita: "mandei" sem dizer se chegou é a informação que menos
+       serve numa tela de teste. Verde só quando algum canal ENTREGOU de verdade. *@
+    @if (Model.Resultado != null && Model.Alvo != null)
+    {
+        var r = Model.Resultado;
+        var ok = Model.AlgumCanalDeuCerto;
+
+        <div class="alert @(ok ? "alert-success" : "alert-warning") border-0 shadow-sm">
+            <h5 class="fw-bold mb-1">
+                <i class="bi @(ok ? "bi-check-circle-fill" : "bi-exclamation-octagon-fill")"></i>
+                @(ok ? $"Enviado para {Model.Alvo.Nome}!" : "Não chegou em nenhum canal")
+            </h5>
+            <p class="mb-3 small">
+                @(ok
+                    ? "Confere o celular de quem recebeu — deve ter chegado agora."
+                    : "Ninguém recebeu nada. O motivo de cada canal está abaixo.")
+            </p>
+
+            <div class="d-flex align-items-start gap-2 mb-2">
+                <i class="bi @(TextoDoTeste.DeuCerto(r.Push) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
+                <div>
+                    <strong>Notificação (app):</strong>
+                    @TextoDoTeste.Frase(r.Push, r.Aparelhos)
+                </div>
+            </div>
+
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi @(TextoDoTeste.DeuCerto(r.WhatsApp) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
+                <div>
+                    <strong>WhatsApp:</strong>
+                    @TextoDoTeste.Frase(r.WhatsApp, numero: r.Numero)
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ===== PASSO 1: achar ============================================================ *@
+    <form method="post" class="card border-0 shadow-sm p-3 mb-4">
+        @Html.AntiForgeryToken()
+
+        <label class="form-label fw-bold" for="identificador">1. Quem vai receber</label>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control" id="identificador" name="identificador"
+                   value="@Model.Identificador" placeholder="nome, apelido, login, e-mail ou CPF"
+                   autocomplete="off" required />
+            <button type="submit" class="btn btn-outline-secondary rounded-pill px-4 flex-shrink-0">
+                <i class="bi bi-search"></i> Procurar
+            </button>
+        </div>
+        <div class="form-text">
+            Nome e apelido podem achar mais de uma pessoa — aí você escolhe. CPF só com os 11 dígitos.
+        </div>
+    </form>
+
+    @* Mais de um resultado: escolher é obrigatório. Chutar mandaria pro homônimo errado, e o
+       admin concluiria que testou o que não testou. *@
     @if (Model.Candidatos.Any())
     {
         <div class="card border-0 shadow-sm mb-4 p-3">
             <h6 class="fw-bold mb-1"><i class="bi bi-people"></i> Achei @Model.Candidatos.Count pessoas</h6>
-            <p class="text-muted small mb-3">Nome não é único — escolha quem vai receber.</p>
+            <p class="text-muted small mb-3">Escolha quem vai receber.</p>
 
             <div class="list-group">
                 @foreach (var c in Model.Candidatos)
@@ -36,15 +94,13 @@
                         <input type="hidden" name="jogadorId" value="@c.Id" />
                         <input type="hidden" name="identificador" value="@Model.Identificador" />
                         <input type="hidden" name="mensagem" value="@Model.Mensagem" />
-                        @if (Model.PorPush) { <input type="hidden" name="porPush" value="true" /> }
-                        @if (Model.PorWhatsApp) { <input type="hidden" name="porWhatsApp" value="true" /> }
 
                         <div class="text-truncate">
                             <div class="fw-bold">@c.Nome</div>
-                            <div class="text-muted small">@Padelizou.ViewModels.LinhaDoCandidato.Detalhe(c)</div>
+                            <div class="text-muted small text-truncate">@LinhaDoCandidato.Detalhe(c)</div>
                         </div>
-                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">
-                            Mandar pra este
+                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">
+                            Escolher
                         </button>
                     </form>
                 }
@@ -52,80 +108,58 @@
         </div>
     }
 
-    @if (Model.Resultado != null && Model.Alvo != null)
+    @* ===== PASSO 2: conferir e mandar ================================================
+       O botão de enviar só EXISTE depois que tem alguém escolhido na tela. *@
+    @if (Model.Selecionado is { } alvo)
     {
-        var r = Model.Resultado;
-        <div class="card border-0 shadow-sm mb-4 p-3">
-            <h6 class="fw-bold mb-1">
-                <i class="bi bi-send-check"></i> Mandei para @Model.Alvo.Nome
-            </h6>
-            <p class="text-muted small mb-3">
-                @Model.Alvo.Login@(string.IsNullOrWhiteSpace(Model.Alvo.Email) ? "" : $" · {Model.Alvo.Email}")
-            </p>
+        <form method="post" class="card border-0 shadow-sm p-3" style="border-left: 4px solid var(--padel-green) !important;">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="acao" value="enviar" />
+            <input type="hidden" name="jogadorId" value="@alvo.Id" />
+            <input type="hidden" name="identificador" value="@Model.Identificador" />
 
-            <div class="d-flex align-items-start gap-2 mb-2">
-                <i class="bi @(TextoDoTeste.DeuCerto(r.Push) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
-                <div>
-                    <strong>Notificação (app):</strong>
-                    <span class="@(TextoDoTeste.DeuCerto(r.Push) ? "" : "text-muted")">
-                        @TextoDoTeste.Frase(r.Push, r.Aparelhos)
-                    </span>
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                <div class="text-truncate">
+                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">
+                        2. Vai receber
+                    </small>
+                    <div class="fw-bold fs-5 text-truncate">@alvo.Nome</div>
+                    <div class="text-muted small text-truncate">@LinhaDoCandidato.Detalhe(alvo)</div>
+                    <div class="small text-truncate">
+                        <i class="bi bi-whatsapp text-success"></i> @LinhaDoCandidato.Alcance(alvo)
+                    </div>
                 </div>
             </div>
 
-            <div class="d-flex align-items-start gap-2">
-                <i class="bi @(TextoDoTeste.DeuCerto(r.WhatsApp) ? "bi-check-circle-fill text-success" : "bi-dash-circle text-muted") mt-1"></i>
-                <div>
-                    <strong>WhatsApp:</strong>
-                    <span class="@(TextoDoTeste.DeuCerto(r.WhatsApp) ? "" : "text-muted")">
-                        @TextoDoTeste.Frase(r.WhatsApp, numero: r.Numero)
-                    </span>
+            <div class="mb-3">
+                <label class="form-label fw-bold d-block">Por onde mandar</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="porPush" value="true"
+                           id="porPush" @(Model.PorPush ? "checked" : "") />
+                    <label class="form-check-label" for="porPush">
+                        Notificação do app <span class="text-muted small">— só chega em quem instalou</span>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="porWhatsApp" value="true"
+                           id="porWhatsApp" @(Model.PorWhatsApp ? "checked" : "") />
+                    <label class="form-check-label" for="porWhatsApp">
+                        WhatsApp <span class="text-muted small">— chega em quem tem número e aceitou</span>
+                    </label>
                 </div>
             </div>
-        </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="mensagem">Mensagem <span class="fw-normal text-muted">(opcional)</span></label>
+                <input type="text" class="form-control" id="mensagem" name="mensagem"
+                       value="@Model.Mensagem" maxlength="300" placeholder="deixe vazio pro texto padrão de teste" />
+            </div>
+
+            <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">
+                <i class="bi bi-send"></i> Enviar teste para @alvo.Nome
+            </button>
+        </form>
     }
-
-    <form method="post" class="card border-0 shadow-sm p-3">
-        @Html.AntiForgeryToken()
-
-        <div class="mb-3">
-            <label class="form-label fw-bold" for="identificador">Quem vai receber</label>
-            <input type="text" class="form-control" id="identificador" name="identificador"
-                   value="@Model.Identificador" placeholder="login, e-mail, nome ou CPF" autocomplete="off" required />
-            <div class="form-text">
-                Login ou e-mail acham a pessoa direto. Nome e apelido podem achar mais de uma —
-                aí você escolhe. CPF só com os 11 dígitos.
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold d-block">Por onde mandar</label>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="porPush" value="true"
-                       id="porPush" @(Model.PorPush ? "checked" : "") />
-                <label class="form-check-label" for="porPush">
-                    Notificação do app <span class="text-muted small">— só chega em quem instalou</span>
-                </label>
-            </div>
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="porWhatsApp" value="true"
-                       id="porWhatsApp" @(Model.PorWhatsApp ? "checked" : "") />
-                <label class="form-check-label" for="porWhatsApp">
-                    WhatsApp <span class="text-muted small">— chega em quem tem número e aceitou</span>
-                </label>
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold" for="mensagem">Mensagem <span class="fw-normal text-muted">(opcional)</span></label>
-            <input type="text" class="form-control" id="mensagem" name="mensagem"
-                   value="@Model.Mensagem" maxlength="300" placeholder="deixe vazio pro texto padrão de teste" />
-        </div>
-
-        <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">
-            <i class="bi bi-send"></i> Enviar teste
-        </button>
-    </form>
 
     <p class="text-muted small mt-3 mb-0">
         <i class="bi bi-info-circle"></i>
