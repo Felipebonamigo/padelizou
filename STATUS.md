@@ -514,6 +514,12 @@ existe), Apple US$ 99/**ano** + Mac pra publicar, com risco de recusa por "site 
   disco. São **dois arquivos que ninguém compila** e que citam imagens pelo caminho: um nome
   errado no `addAll` derruba a **instalação inteira** do service worker — sem cache, sem tela
   offline, sem push — e **sem um único erro na tela**. **821 testes.**
+- **Publicado em produção e no dev (`build-154-abf6895`)**, os dois com `/healthz` 200. Conferido
+  no ar: manifest com `id` e os 3 prints, `offline.html`, `icon-192` e `instalar-app.js` todos
+  200, e o `sw.js` servindo `padelizou-static-v4`.
+  ⚠️ **Falta o teste que importa:** nada disso foi visto num **celular de verdade** — a caixa
+  nativa do Android e o "Adicionar à Tela de Início" do iPhone foram simulados e conferidos
+  estado por estado, mas quem confirma é o Felipe instalando no aparelho dele.
 
 ---
 
