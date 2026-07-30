@@ -547,6 +547,14 @@ ter dois controles. Proposta aprovada (mockup antes de codar) e implementada int
 - Migração de 4 colunas anuláveis em `MarcacaoJogo`; regra pura em `Services/ReservaDeBalcao`.
   Provado em tela de ponta a ponta no local (marcar → selo no mapa → a receber → recebi).
   **845 testes.**
+- **Grade num clique** (pedido do Felipe, na sequência): card "Montar a grade de uma vez" na
+  tela de horários — quadra (ou todas), dias, abre/fecha, preço, e os **três botões (30 min /
+  1h / 1h30) já são o envio**. Idêntica pausada religa (mesma regra do professor); sobreposição
+  com ativa é pulada e contada — gerar por cima venderia o mesmo horário duas vezes; rodar de
+  novo não duplica. E o **"Excluir todos"** (respeitando o seletor de quadra): DELETE de
+  verdade pro "montei errado, quero recomeçar", com a consequência dita na confirmação (preço
+  de reserva antiga sai da regra — apagar regra com histórico tira o valor do financeiro).
+  Provado em tela: 36 excluídos, 28 gerados (4 quadras × 7 dias), 2ª rodada sem duplicar.
 - ✅ **Copa/bar: decidido em 30/07 — o clube vai SEM essa parte por enquanto.** PDV fiscal e
   estoque são outro produto (não entrar). O candidato certo pra quando um clube real pedir é
   a **comanda pendurada na reserva** ("põe na minha conta": os itens da copa presos à reserva
