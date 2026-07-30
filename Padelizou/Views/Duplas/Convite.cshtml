@@ -1,0 +1,76 @@
+@model Padelizou.Models.Dupla
+@{
+    ViewData["Title"] = "Convite pra jogar em dupla - Padelizou";
+    var torneio = Model.Categoria.Torneio;
+    bool souEuMesmo = ViewBag.SouEuMesmo != null && (bool)ViewBag.SouEuMesmo;
+    string? impedimento = ViewBag.Impedimento as string;
+    var token = (string?)ViewBag.Token;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 34rem;">
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body text-center p-4">
+            <p class="text-muted small mb-1">Convite pra jogar em dupla</p>
+            <h4 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                @Model.Jogador1.Nome te chamou pra ser parceiro!
+            </h4>
+
+            <div class="border rounded p-3 mb-3 text-start">
+                <p class="mb-1"><strong>@torneio.Nome</strong></p>
+                <p class="mb-1 small text-muted">@Model.Categoria.Nome</p>
+                @if (torneio.DataInicio.HasValue)
+                {
+                    <p class="mb-1 small text-muted"><i class="bi bi-calendar-event"></i> @torneio.DataInicio.Value.ToString("dd/MM/yyyy")</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(torneio.LocalTorneio))
+                {
+                    <p class="mb-0 small text-muted"><i class="bi bi-geo-alt"></i> @torneio.LocalTorneio</p>
+                }
+            </div>
+
+            @if (torneio.PrecoInscricao > 0)
+            {
+                <p class="small text-muted">
+                    Inscrição de @torneio.PrecoInscricao.ToString("C") por pessoa.
+                    O acerto é combinado com quem organiza o torneio.
+                </p>
+            }
+
+            @if (souEuMesmo)
+            {
+                <div class="alert alert-warning mb-0">
+                    Esse é o <strong>seu próprio</strong> convite — mande o link pra quem você quer
+                    como parceiro.
+                </div>
+            }
+            else if (impedimento != null)
+            {
+                <div class="alert alert-warning mb-0">@impedimento</div>
+            }
+            else
+            {
+                <form asp-action="AceitarConvite" method="post">
+                    <input type="hidden" name="token" value="@token" />
+                    <button type="submit" class="btn btn-padel btn-lg rounded-pill px-4 w-100">
+                        <i class="bi bi-check-lg"></i> Aceitar e fechar a dupla
+                    </button>
+                </form>
+                <p class="small text-muted mt-3 mb-0">
+                    Você entra como <strong>@User.Identity?.Name</strong>. Aceitando, sua inscrição
+                    nessa categoria está feita.
+                </p>
+            }
+        </div>
+    </div>
+
+    <p class="text-center mt-3">
+        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@torneio.Id" class="small">
+            Ver o torneio antes de decidir
+        </a>
+    </p>
+</div>

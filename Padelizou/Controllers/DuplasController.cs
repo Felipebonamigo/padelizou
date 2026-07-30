@@ -320,35 +320,11 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
-            // O novo parceiro não pode já estar em outra dupla desta MESMA categoria.
-            bool jaNaCategoria = await _context.Duplas.AnyAsync(d => d.CategoriaId == dupla.CategoriaId
-                && d.Id != dupla.Id
-                && (d.Jogador1Id == novo.Id || d.Jogador2Id == novo.Id));
-            if (jaNaCategoria)
+            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio, novo);
+            if (impedimento != null)
             {
-                TempData["Erro"] = $"{novo.Nome} já está inscrito nesta categoria com outra dupla.";
+                TempData["Erro"] = impedimento;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
-            }
-
-            // ...nem violar a regra de uma categoria por jogador (ignorando esta categoria,
-            // onde a dupla já está inscrita).
-            var bloqueio = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
-                _context, torneio, new[] { novo.Id }, ignorarCategoriaId: dupla.CategoriaId);
-            if (bloqueio != null)
-            {
-                TempData["Erro"] = bloqueio;
-                return RedirectToAction("Details", "Torneios", new { id = torneioId });
-            }
-
-            // Anti-sandbagging: o novo parceiro precisa poder jogar nesta categoria.
-            if (!string.IsNullOrEmpty(torneio.RestricaoCategoria) && torneio.RestricaoCategoria != "Livre")
-            {
-                var erro = await MotivoBloqueioCategoriaAsync(dupla.Categoria.Nome, novo, null, torneio.RestricaoCategoria);
-                if (erro != null)
-                {
-                    TempData["Erro"] = erro;
-                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
-                }
             }
 
             var antigo = dupla.Jogador2;
@@ -361,6 +337,174 @@ namespace Padelizou.Controllers
                 ? $"Parceiro definido: {novo.Nome}. Sua dupla está completa!"
                 : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.";
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
+        }
+
+        // As regras que impedem alguém de entrar nesta dupla, num lugar só: valem tanto pra
+        // quem é escolhido pelo CPF (TrocarParceiro) quanto pra quem aceita um convite.
+        // Separar as duas cópias deixaria o caminho do convite mais frouxo que o outro — e
+        // é justamente o caminho aberto por link, o que qualquer um alcança.
+        // Devolve a mensagem do impedimento, ou null quando pode entrar.
+        private async Task<string?> MotivoParaNaoSerParceiroAsync(Dupla dupla, Torneio torneio, Jogador candidato)
+        {
+            // Não pode já estar em outra dupla desta MESMA categoria.
+            bool jaNaCategoria = await _context.Duplas.AnyAsync(d => d.CategoriaId == dupla.CategoriaId
+                && d.Id != dupla.Id
+                && (d.Jogador1Id == candidato.Id || d.Jogador2Id == candidato.Id));
+            if (jaNaCategoria)
+            {
+                return $"{candidato.Nome} já está inscrito nesta categoria com outra dupla.";
+            }
+
+            // ...nem violar a regra de uma categoria por jogador (ignorando esta categoria,
+            // onde a dupla já está inscrita).
+            var bloqueio = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
+                _context, torneio, new[] { candidato.Id }, ignorarCategoriaId: dupla.CategoriaId);
+            if (bloqueio != null) return bloqueio;
+
+            // Anti-sandbagging: o parceiro precisa poder jogar nesta categoria.
+            if (!string.IsNullOrEmpty(torneio.RestricaoCategoria) && torneio.RestricaoCategoria != "Livre")
+            {
+                return await MotivoBloqueioCategoriaAsync(
+                    dupla.Categoria.Nome, candidato, null, torneio.RestricaoCategoria);
+            }
+
+            return null;
+        }
+
+        // ── Convite de parceiro ────────────────────────────────────────────────────────
+        // O link que fecha a dupla sem ninguém digitar o CPF do outro. Regras em
+        // Services/ConviteDeParceiro.
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> GerarConvite(int duplaId)
+        {
+            var jogadorLogadoId = ObterJogadorIdLogado();
+            if (jogadorLogadoId == null) return Forbid();
+
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            var torneio = dupla.Categoria.Torneio;
+
+            bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
+            if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneio.Id)) return Forbid();
+
+            if (dupla.Jogador2Id != null)
+            {
+                TempData["Erro"] = "Essa dupla já está completa.";
+                return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            }
+
+            if (torneio.Status != "Inscrições Abertas")
+            {
+                TempData["Erro"] = "As inscrições deste torneio já foram encerradas.";
+                return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            }
+
+            // Gerar de novo TROCA o token: o link antigo para de valer. É o que se espera de
+            // "gerar convite" quando o primeiro foi mandado pra pessoa errada.
+            dupla.ConviteToken = ConviteDeParceiro.NovoToken();
+            dupla.ConviteCriadoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            TempData["ConviteDuplaId"] = dupla.Id;
+            TempData["ConviteLink"] = Url.Action(nameof(Convite), "Duplas",
+                new { token = dupla.ConviteToken }, Request.Scheme);
+            return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+        }
+
+        // A tela que quem recebeu o link abre. Exige login: é ele quem vai virar parceiro,
+        // e a conta dele é que diz quem ele é (o convite não pergunta CPF de ninguém).
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Convite(string? token)
+        {
+            var dupla = string.IsNullOrWhiteSpace(token) ? null : await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.ConviteToken == token);
+
+            var torneio = dupla?.Categoria.Torneio;
+
+            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token))
+            {
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status);
+                return View("ConviteInvalido");
+            }
+
+            var jogadorLogadoId = ObterJogadorIdLogado();
+
+            // Convidar a si mesmo não fecha dupla nenhuma — melhor dizer isso do que
+            // deixar aceitar e recusar depois com "o parceiro não pode ser você mesmo".
+            ViewBag.SouEuMesmo = jogadorLogadoId == dupla!.Jogador1Id;
+            ViewBag.Token = token;
+
+            // O impedimento é mostrado JÁ na tela do convite: descobrir só no clique de
+            // aceitar ("você já está nesta categoria") é descobrir tarde.
+            if (jogadorLogadoId != null && !(bool)ViewBag.SouEuMesmo)
+            {
+                var eu = await _context.Jogadores.FindAsync(jogadorLogadoId.Value);
+                if (eu != null)
+                {
+                    ViewBag.Impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio!, eu);
+                }
+            }
+
+            return View(dupla);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AceitarConvite(string? token)
+        {
+            var jogadorLogadoId = ObterJogadorIdLogado();
+            if (jogadorLogadoId == null) return Forbid();
+
+            var dupla = string.IsNullOrWhiteSpace(token) ? null : await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.ConviteToken == token);
+
+            var torneio = dupla?.Categoria.Torneio;
+
+            // A validade é conferida DE NOVO aqui, não só na tela: entre abrir o convite e
+            // clicar em aceitar, outra pessoa pode ter aceitado o mesmo link.
+            if (!ConviteDeParceiro.Valido(dupla, torneio?.Status, token))
+            {
+                ViewBag.Erro = ConviteDeParceiro.MotivoDeNaoValer(dupla, torneio?.Status);
+                return View("ConviteInvalido");
+            }
+
+            if (jogadorLogadoId == dupla!.Jogador1Id)
+            {
+                TempData["Erro"] = "Você não pode ser parceiro de si mesmo.";
+                return RedirectToAction(nameof(Convite), new { token });
+            }
+
+            var eu = await _context.Jogadores.FindAsync(jogadorLogadoId.Value);
+            if (eu == null) return Forbid();
+
+            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio!, eu);
+            if (impedimento != null)
+            {
+                TempData["Erro"] = impedimento;
+                return RedirectToAction(nameof(Convite), new { token });
+            }
+
+            dupla.Jogador2Id = eu.Id;
+            // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
+            // se o parceiro saísse depois.
+            dupla.ConviteToken = null;
+            dupla.ConviteCriadoEm = null;
+            await _context.SaveChangesAsync();
+
+            await AvisarTrocaDeParceiroAsync(dupla, torneio!, null, eu);
+
+            TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}.";
+            return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
         }
 
         // Quem saiu precisa saber que saiu; quem entrou, que entrou. Push é acessório:

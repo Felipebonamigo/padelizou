@@ -36,6 +36,44 @@
     <div class="alert alert-danger">@TempData["Erro"]</div>
 }
 
+@* Convite de parceiro recém-gerado. O link fica em cartaz numa caixa de texto selecionável
+   em vez de só num botão "copiar": em celular antigo o clipboard falha calado, e aí a pessoa
+   ainda consegue selecionar e copiar à mão. *@
+@if (TempData["ConviteLink"] is string conviteLink && !string.IsNullOrWhiteSpace(conviteLink))
+{
+    <div class="alert alert-success">
+        <p class="fw-bold mb-1"><i class="bi bi-link-45deg"></i> Link do convite criado</p>
+        <p class="small mb-2">
+            Manda pra quem você quer como parceiro. Quem abrir entra com a conta dele e fecha a
+            dupla — <strong>ninguém precisa do CPF de ninguém</strong>. Gerar outro link invalida este.
+        </p>
+        <div class="input-group input-group-sm mb-2">
+            <input type="text" class="form-control" id="campoConvite" value="@conviteLink" readonly
+                   onclick="this.select();" />
+            <button class="btn btn-outline-secondary" type="button" onclick="copiarConvite(this);">
+                Copiar
+            </button>
+        </div>
+        <a class="btn btn-sm btn-success rounded-pill px-3"
+           href="https://wa.me/?text=@Uri.EscapeDataString("Bora jogar em dupla? Aceita o convite aqui: " + conviteLink)"
+           target="_blank" rel="noopener">
+            <i class="bi bi-whatsapp"></i> Mandar no WhatsApp
+        </a>
+    </div>
+    <script>
+        function copiarConvite(botao) {
+            var campo = document.getElementById('campoConvite');
+            campo.select();
+            // Sem clipboard (http, navegador antigo) o texto fica selecionado pra copiar à mão.
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(campo.value).then(function () {
+                    botao.textContent = 'Copiado!';
+                });
+            }
+        }
+    </script>
+}
+
 @{
     bool torneioComecou = Model.Status != "Inscrições Abertas";
     var aoVivoLista = ViewBag.AoVivo as List<Padelizou.Models.Partida> ?? new();
@@ -953,10 +991,21 @@
                                                         </button>
                                                     </form>
                                                 }
+                                                @if (!dupla.Completa)
+                                                {
+                                                    @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
+                                                       que a maioria vai usar, por isso vem antes do formulário de CPF. *@
+                                                    <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
+                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                        <button type="submit" class="btn btn-sm btn-padel">
+                                                            <i class="bi bi-link-45deg"></i> Convidar por link
+                                                        </button>
+                                                    </form>
+                                                }
                                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                                         data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
                                                     <i class="bi bi-arrow-left-right"></i>
-                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir parceiro")
+                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
                                                 </button>
                                                 <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />

@@ -20,6 +20,11 @@ public partial class Dupla
 
     public string? Codigo { get; set; }
 
+    // Convite de parceiro: o link que fecha a dupla sem ninguém precisar do CPF do outro.
+    // Nulo depois de aceito — token usado não volta a valer (ver Services/ConviteDeParceiro).
+    public string? ConviteToken { get; set; }
+    public DateTime? ConviteCriadoEm { get; set; }
+
     public virtual Categoria Categoria { get; set; } = null!;
 
     public virtual Jogador Jogador1 { get; set; } = null!;
