@@ -18,14 +18,20 @@ São **duas portas em sequência**, e elas são coisas diferentes:
 antigo "modo demonstração" (que fazia todo visitante entrar como o Felipe) está **desligado**
 em produção — sem isso, o organizador entraria na sua conta de administrador.
 
+**As credenciais do portão** (definidas em 30/07): usuário **`Corneteiros`**, senha **`corneta`**.
+Maiúscula/minúscula no usuário tanto faz, e espaço colado ao copiar não atrapalha.
+
 ## Mensagem pronta pro organizador
 
 > Fala! O Padelizou tá no ar pra você já ir montando teu torneio de verdade.
 >
 > 1. Entra em **padelizou.com.br**
-> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `padelizou`, senha `______`
+> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `Corneteiros`, senha `corneta`
 > 3. Clica em **Cadastre-se** e cria a **tua** conta (login e senha que você escolher)
 > 4. Depois é só ir em **Torneios → Criar torneio**
+>
+> Se marcar **Torneio Restrito**, você escolhe a chave que os jogadores vão digitar pra se
+> inscrever (a nossa vai ser **virgili10**) — quem não tiver a chave não entra.
 >
 > Qualquer coisa estranha, me chama que eu resolvo. Tá em beta, então tua opinião vale ouro.
 
@@ -34,7 +40,7 @@ em produção — sem isso, o organizador entraria na sua conta de administrador
 > Fala! O Padelizou tá no ar pra você começar a receber aluno.
 >
 > 1. Entra em **padelizou.com.br**
-> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `padelizou`, senha `______`
+> 2. Vai pedir uma senha de acesso (é do beta, pra todo mundo): usuário `Corneteiros`, senha `corneta`
 > 3. Clica em **Cadastre-se**, cria a **tua** conta e marca a opção **"sou professor"**
 > 4. O sistema vai te pedir, nessa ordem: **cidade → local → horário**. Enquanto faltar um
 >    desses, nenhum aluno consegue te achar — por isso ele insiste.
@@ -48,10 +54,15 @@ em produção — sem isso, o organizador entraria na sua conta de administrador
   ver telas vazias com o Pnatinha até criarem as próprias coisas. É esperado.
 - **O professor é obrigado a cadastrar cidade, local e horário** antes de o painel abrir. Não é
   travamento: é a escada que impede professor invisível.
-- **Pra receber inscrição pelo site, o organizador precisa da conta dele no meio de pagamento**
-  (a tela Pagamentos → Configurar pede o identificador de recebimento). Enquanto ele não tiver,
-  as opções que funcionam são **"por fora"** (ele cobra direto e paga 5% depois, com as chaves
-  liberando após o acerto) ou **torneio sem cobrança**.
+- **O primeiro torneio vai ser "por fora"** (decisão de 30/07): o organizador cobra a inscrição
+  direto dos jogadores, e os 5% do Padelizou ficam pra acertar no fim. Assim ele não precisa
+  abrir conta em meio de pagamento nenhum pra começar hoje.
+  **Como isso termina:** quando ele encerrar as inscrições e for sortear as chaves, aparece a
+  tela da taxa com a conta feita (pessoas × preço × 5%). Aí **você entra como admin nessa mesma
+  tela e registra a negociação**, com uma observação do que foi combinado — as chaves liberam
+  na hora. É o caminho de verdade sendo exercitado, sem dinheiro trocando de mão nesse primeiro.
+- Se um dia ele quiser **receber pelo site**, aí sim precisa da conta dele no meio de pagamento
+  (tela Pagamentos → Configurar pede o identificador de recebimento).
 - **Muitas tentativas seguidas** no portão ou no login mostram um aviso pedindo 5 minutos. É a
   proteção contra robô, ligada em 30/07 — cada ação tem sua própria contagem, então errar a
   senha do portão não atrapalha o cadastro.

@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **30/07/2026** — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
+> Última atualização: **30/07/2026 (tarde)** — **primeira liberação pra gente de verdade hoje à noite**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
+> Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
 > ✅ **Chave do backup guardada fora do servidor** (29/07): o Felipe copiou pro gerenciador de senhas dele. Conferido antes que o arquivo existe (337 bytes, 9 linhas, chmod 600) e que a chave em uso ABRE o cofre — ele copiou a certa, não uma versão velha. Fecha o furo em que o backup seria inútil justo quando o servidor morresse.
 > ✅ **Os dois pendentes com o Google/pagamento fecharam em 29/07:** app do Google **publicado** ("Em produção" — o token do backup não expira mais a cada 7 dias, sem custo e sem verificação) e o **mistério do webhook resolvido**: era mesmo sobra do sandbox apontando pra produção, e o Asaas já o tinha interrompido sozinho. Apagado; produção nunca falhou (recusou um impostor, como devia).
@@ -300,6 +301,41 @@ responde de verdade) e execução do que não dependia do Felipe:
   `InscriÃ§Ãµes` — o **PowerShell 5.1 lê `.ps1` como ANSI**, então os acentos chegaram
   corrompidos ao arquivo. Gerar código com acento por script exige `.ps1` com BOM.
 - **681 testes** (+31 hoje).
+
+### 30/07/2026 (tarde) — Preparando a primeira noite com gente de verdade
+
+O Felipe decidiu liberar hoje à noite pro **primeiro organizador (torneio dos Corneteiros)** e
+pro **primeiro professor**. Ensaio e ajustes:
+
+- ✅ **O maior risco não existia:** o "modo demonstração" que fazia todo visitante entrar como
+  o Felipe **já estava desligado em produção** (`LoginAutomaticoCpf` vazio no systemd). Se
+  estivesse ligado, o organizador entraria na conta de administrador do Felipe. Conferido no
+  ambiente de verdade, não na memória — que estava desatualizada nesse ponto.
+- **Ensaio completo no dev** (configuração idêntica à prod), pelo caminho exato de hoje:
+  portão → chega **deslogado** → cadastro → conta criada e já logada → **criar torneio 200** e
+  **configurar recebimento 200**; e, no caminho do professor, cadastro com "sou professor" →
+  painel **redireciona pra Minhas Cidades** (a escada cobrando) → tela do plano com os 15 dias
+  de teste e os R$ 49,90.
+- **🔴 Um defeito que eu mesmo criei hoje de manhã, achado no ensaio:** a trava de força-bruta
+  partia só por IP, então **portão + cadastro + "esqueci minha senha" dividiam as mesmas 10
+  tentativas**. Quem chega pela primeira vez faz as três coisas em sequência — e seria barrado
+  no meio do próprio cadastro, com dois convidados no mesmo Wi-Fi somando no mesmo IP. Agora a
+  janela é **por IP e por ação**, e o cadastro tem **20** (formulário longo: cada recusa gasta
+  uma tentativa). A página do 429 deixou de ser beco sem saída.
+- **Credenciais do portão trocadas** pra `Corneteiros` / `corneta` (drop-in do systemd, prod).
+  ⚠️ **Testado antes de mudar:** `corneteiros` em minúscula era **recusado** — o teclado do
+  celular decide sozinho se capitaliza, e isso viraria chamado de suporte na primeira noite.
+  O **usuário** agora compara sem caixa e os dois campos levam `Trim`; **a senha continua
+  exata**, porque ela é o segredo.
+- **A chave do torneio restrito passou a ser escolhível** (pedido: `virgili10`). Era sorteada
+  com 6 caracteres e não dava pra escolher — chave que a pessoa não consegue repetir no
+  telefone vira ligação pro organizador. Campo opcional na criação; vazio continua sorteando;
+  recusa com motivo antes de gravar (menos de 4, mais de 20, espaço no meio).
+- **[PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md)**: as mensagens prontas pra mandar nos dois
+  casos, o que eles vão encontrar (site vazio, escada do professor) e o que fazer se travar.
+- **Decisão do 1º torneio:** vai ser **"por fora"**, e no fim o Felipe **registra a negociação**
+  como admin pra liberar as chaves — exercita a corrente inteira sem dinheiro trocando de mão.
+- **699 testes.**
 
 ---
 
