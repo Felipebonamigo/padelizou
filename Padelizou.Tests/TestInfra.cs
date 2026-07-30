@@ -26,7 +26,7 @@ public static class TestInfra
     // AuthController pronto pra testar cadastro e edição de perfil. Serve pros caminhos de
     // RECUSA: o final feliz das duas ações chama HttpContext.SignInAsync, que precisa da
     // pilha de autenticação de verdade e não vale montar aqui.
-    public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0)
+    public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0, TravaDeEntrada? trava = null)
     {
         var controller = new AuthController(
             ctx,
@@ -35,7 +35,8 @@ public static class TestInfra
             new EstatisticasService(ctx),
             Substitute.For<IEmailService>(),
             NullLogger<AuthController>.Instance,
-            Microsoft.Extensions.Options.Options.Create(new SuporteSettings()));
+            Microsoft.Extensions.Options.Options.Create(new SuporteSettings()),
+            trava ?? new TravaDeEntrada());
 
         controller.ControllerContext = new ControllerContext
         {

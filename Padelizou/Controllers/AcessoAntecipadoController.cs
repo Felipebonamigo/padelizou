@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Padelizou.Middleware;
 using Padelizou.Services;
@@ -21,7 +22,10 @@ namespace padelizou.Controllers
             return View();
         }
 
+        // O portão tem UMA senha compartilhada — sem trava por IP seria o alvo mais
+        // barato de força-bruta do site inteiro (ver TravaDeEntrada).
         [HttpPost]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public IActionResult Entrar(string usuario, string senha, string? returnUrl)
         {
             if (usuario == _settings.Usuario && senha == _settings.Senha)

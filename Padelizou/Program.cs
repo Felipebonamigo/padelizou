@@ -11,6 +11,7 @@ using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
 using padelizou.Models;
 using System.Globalization;
+using System.Threading.RateLimiting;
 
 // No Windows o processo herda a cultura pt-BR do SO, mas no Linux (produção) não há esse
 // fallback e ele cai na invariant culture — daí o "¤" no lugar de "R$" em .ToString("C").
@@ -61,6 +62,48 @@ builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
+// Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
+// identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).
+builder.Services.AddSingleton<TravaDeEntrada>();
+// Trava de força-bruta das demais portas de entrada (portão, recuperação de senha e
+// cadastro): janela por IP no rate limiter do ASP.NET. Só vale pra quem carrega
+// [EnableRateLimiting] — o resto do site, /healthz incluído, não passa por aqui.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (contexto, cancelamento) =>
+    {
+        // Escreve o corpo aqui mesmo: sem corpo, o UseStatusCodePages reexecutaria a
+        // página de erro — e quem está fora do portão seria redirecionado pro portão,
+        // vendo um 302 sem explicação no lugar do aviso.
+        contexto.HttpContext.Response.Headers.RetryAfter =
+            ((int)TravaDeEntrada.Janela.TotalSeconds).ToString();
+        contexto.HttpContext.Response.ContentType = "text/html; charset=utf-8";
+        await contexto.HttpContext.Response.WriteAsync(
+            "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\">" +
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+            "<title>Muitas tentativas - Padelizou</title></head>" +
+            "<body style=\"font-family:sans-serif;max-width:30rem;margin:4rem auto;padding:0 1rem;text-align:center\">" +
+            "<h1>Calma lá!</h1><p>Muitas tentativas em pouco tempo. " +
+            "Espere alguns minutos e tente de novo.</p></body></html>", cancelamento);
+
+        var logger = contexto.HttpContext.RequestServices
+            .GetService<ILoggerFactory>()?.CreateLogger("TravaDeEntrada");
+        logger?.LogWarning("Limite de tentativas estourado em {Caminho} pelo IP {Ip}.",
+            contexto.HttpContext.Request.Path, contexto.HttpContext.Connection.RemoteIpAddress);
+    };
+    options.AddPolicy(TravaDeEntrada.PoliticaPorIp, http =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            // O IP aqui já é o do cliente de verdade: o UseForwardedHeaders roda antes
+            // de tudo e corrige o RemoteIpAddress atrás do Caddy.
+            http.Connection.RemoteIpAddress?.ToString() ?? "sem-ip",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = TravaDeEntrada.TentativasPorJanela,
+                Window = TravaDeEntrada.Janela,
+                QueueLimit = 0,
+            }));
+});
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
@@ -193,7 +236,7 @@ var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
-forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownIPNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
@@ -226,6 +269,10 @@ app.UseStaticFiles();
 app.UseMiddleware<AcessoAntecipadoMiddleware>();
 app.UseMiddleware<AdminHostMiddleware>();
 app.UseRouting();
+
+// Depois do UseRouting de propósito: a política é por endpoint ([EnableRateLimiting]),
+// e antes do roteamento o middleware não sabe qual endpoint foi atingido.
+app.UseRateLimiter();
 
 app.UseAuthorization();
 

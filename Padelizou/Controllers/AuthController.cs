@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using padelizou.Models;
@@ -21,8 +22,9 @@ namespace padelizou.Controllers
         private readonly IEmailService _email;
         private readonly ILogger<AuthController> _logger;
         private readonly SuporteSettings _suporte;
+        private readonly TravaDeEntrada _trava;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte, TravaDeEntrada trava)
         {
             _context = context;
             _env = env;
@@ -31,6 +33,7 @@ namespace padelizou.Controllers
             _email = email;
             _logger = logger;
             _suporte = suporte.Value;
+            _trava = trava;
         }
 
         // Salva a foto e devolve o caminho, ou null se não deu.
@@ -110,6 +113,7 @@ namespace padelizou.Controllers
         [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public async Task<IActionResult> EsqueciSenha(string email)
         {
             var jogador = await BuscaJogador.PorIdentificadorAsync(_context, email);
@@ -160,6 +164,7 @@ namespace padelizou.Controllers
         [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public async Task<IActionResult> RedefinirSenha(string? token, string? senha)
         {
             var jogador = await AcharPorTokenAsync(token);
@@ -196,6 +201,16 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> Login(string email, string senha)
         {
+            // Trava de força-bruta POR CONTA, não por IP: no dia de torneio o clube
+            // inteiro sai pelo mesmo Wi-Fi, e uma janela por IP trancaria gente legítima
+            // na hora errada (ver TravaDeEntrada). Checada ANTES de conferir a senha —
+            // conta trancada recusa até a senha certa, senão a trava não trava nada.
+            if (_trava.Bloqueada(email, DateTime.Now))
+            {
+                ViewBag.Erro = "Muitas tentativas seguidas. Espere alguns minutos e tente de novo.";
+                return View();
+            }
+
             // Aceita e-mail OU login, sem diferenciar maiúsculas (ver BuscaJogador).
             // Antes só o e-mail servia, e exato — quem se cadastrou com login nunca
             // conseguia entrar por ele.
@@ -204,10 +219,12 @@ namespace padelizou.Controllers
             if (jogador == null || string.IsNullOrEmpty(jogador.SenhaHash) ||
                 _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash, senha) == PasswordVerificationResult.Failed)
             {
+                _trava.RegistrarFalha(email, DateTime.Now);
                 ViewBag.Erro = "Login ou senha incorretos.";
                 return View();
             }
 
+            _trava.Zerar(email);
             var claims = IdentidadeJogador.ClaimsDe(jogador);
 
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -597,6 +614,7 @@ namespace padelizou.Controllers
 
         // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
         [HttpPost]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public async Task<IActionResult> Cadastro(
             string nome, string cpf, string login, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
             string? ladoQuadra, string? lateralidade, string? instagram, bool notificarEmail, bool notificarWhatsApp,
