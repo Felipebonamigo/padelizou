@@ -1,6 +1,7 @@
 ﻿@model Padelizou.Models.Torneio
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.AsaasSettings> AsaasOpcoes
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @{
     ViewData["Title"] = "Criar Novo Torneio";
     // Lista vazia em vez de nulo: são 3 laços em cima disto, e um catálogo faltando derrubaria a
@@ -10,6 +11,14 @@
     var taxas = TaxasOpcoes.Value;
     var asaas = AsaasOpcoes.Value;
     var comissaoOnline = asaas.ComissaoPercentualPorTipo.TryGetValue("Torneio", out var p) ? p : asaas.ComissaoPercentualPadrao;
+
+    // Porta pra combinar a taxa do "por fora" ANTES de criar o torneio. A mensagem já vai
+    // identificando quem é: do outro lado chega um número desconhecido.
+    var quemFala = User.Identity?.Name;
+    var linkCombinarTaxa = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+        SuporteOpcoes.Value.WhatsApp,
+        $"Olá! Sou {(string.IsNullOrWhiteSpace(quemFala) ? "organizador" : quemFala)} e vou criar um torneio no Padelizou "
+        + $"na forma \"por fora\" ({taxas.ComissaoPercentualExterno.ToString("0.#")}%). Queria combinar a taxa com vocês.");
 }
 
 <div class="container mt-4 mb-5">
@@ -257,6 +266,22 @@
                                 automática de cada inscrição.
                             </div>
                         </label>
+
+                        @* FORA do <label> de propósito: dentro dele, clicar no botão marcaria o
+                           rádio junto — e quem só queria perguntar acabaria escolhendo a forma.
+                           A porta fica aqui, na hora de ESCOLHER, e não só lá no fim quando as
+                           chaves travam: quem precisa de prazo ou isenção quer saber disso antes
+                           de decidir como vai receber. *@
+                        <div class="ps-4 mt-2">
+                            <a id="pdzCombinarTaxa" href="@linkCombinarTaxa" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-success rounded-pill">
+                                <i class="bi bi-whatsapp"></i> Prefiro combinar com o Padelizou
+                            </a>
+                            <div class="small text-muted mt-1">
+                                Abre uma conversa no WhatsApp pra acertar prazo, parcelamento ou isenção
+                                da taxa. Dá pra criar o torneio do mesmo jeito e combinar depois.
+                            </div>
+                        </div>
                     </div>
 
                     @* A conta enxuta: quanto o jogador paga, quanto é taxa, quanto sobra.
@@ -647,6 +672,26 @@
         var ligado = document.getElementById('impSwitch').checked;
         document.getElementById('turnosImpedimento').style.display = ligado ? 'block' : 'none';
     }
+
+    // O nome do torneio entra na mensagem do WhatsApp SE já tiver sido digitado. É melhoria
+    // progressiva: o link já sai pronto do servidor com uma mensagem que se explica sozinha,
+    // e isto só acrescenta. Se o script não rodar, o botão continua funcionando.
+    (function () {
+        var botao = document.getElementById('pdzCombinarTaxa');
+        var campoNome = document.getElementById('Nome');
+        if (!botao || !campoNome) return;
+
+        botao.addEventListener('click', function () {
+            var nome = (campoNome.value || '').trim();
+            if (!nome) return;
+            var url = new URL(botao.href);
+            var texto = url.searchParams.get('text') || '';
+            if (texto.indexOf(nome) === -1) {
+                url.searchParams.set('text', texto + ' O torneio se chama "' + nome + '".');
+                botao.href = url.toString();
+            }
+        });
+    })();
 
     function toggleOculto() {
         var restrito = document.getElementById('restritoSwitch').checked;
