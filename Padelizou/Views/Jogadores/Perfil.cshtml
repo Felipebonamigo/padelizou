@@ -149,35 +149,6 @@
         </div>
     }
 
-    <!-- CONQUISTAS -->
-    @if (conquistas.Any())
-    {
-        <div class="card border-0 shadow-sm mb-4 p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="fw-bold mb-0"><i class="bi bi-award-fill text-warning"></i> Conquistas</h6>
-                <small class="text-muted">@conquistas.Count(c => c.Conquistada)/@conquistas.Count</small>
-            </div>
-            <div class="row g-2">
-                @foreach (var c in conquistas)
-                {
-                    <div class="col-3 text-center">
-                        @* `title` com a descrição: conquista bloqueada é uma meta, e "bloqueado"
-                           sem explicação não diz o que fazer. No celular não há hover, mas a
-                           legenda embaixo já troca "bloqueado" pela dica curta. *@
-                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")"
-                             title="@c.Descricao">
-                            <i class="bi @c.Icone fs-4 @(c.Conquistada ? "text-warning" : "text-muted")"></i>
-                            <div class="small fw-bold mt-1">@c.Titulo</div>
-                            <div style="font-size: 0.65rem;" class="@(c.Conquistada ? "text-success" : "text-muted")">
-                                @(c.Conquistada ? "✓ conquistado" : c.Descricao)
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-
     <!-- ELOGIOS -->
     @if (elogiosRecebidos.Any() || podeElogiar)
     {
@@ -209,6 +180,37 @@
             {
                 <p class="text-muted small mb-0">Ainda não recebeu elogios.</p>
             }
+        </div>
+    }
+
+    <!-- CONQUISTAS -->
+    @if (conquistas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-award-fill text-warning"></i> Conquistas</h6>
+                <small class="text-muted">@conquistas.Count(c => c.Conquistada)/@conquistas.Count</small>
+            </div>
+            @* `justify-content-center`: a lista cresceu e não fecha mais em fileiras exatas de 4.
+               Sem isso, a sobra da última fileira encosta na esquerda e parece corte. *@
+            <div class="row g-2 justify-content-center">
+                @foreach (var c in conquistas)
+                {
+                    <div class="col-3 text-center">
+                        @* `title` com a descrição: conquista bloqueada é uma meta, e "bloqueado"
+                           sem explicação não diz o que fazer. No celular não há hover, mas a
+                           legenda embaixo já troca "bloqueado" pela dica curta. *@
+                        <div class="p-2 rounded-3 h-100 @(c.Conquistada ? "bg-light" : "bg-light opacity-50")"
+                             title="@c.Descricao">
+                            <i class="bi @c.Icone fs-4 @(c.Conquistada ? "text-warning" : "text-muted")"></i>
+                            <div class="small fw-bold mt-1">@c.Titulo</div>
+                            <div style="font-size: 0.65rem;" class="@(c.Conquistada ? "text-success" : "text-muted")">
+                                @(c.Conquistada ? "✓ conquistado" : c.Descricao)
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
         </div>
     }
 

@@ -46,6 +46,61 @@ public class CatalogoConquistasTests
     }
 
     [Fact]
+    public void Escada_de_vitorias_vai_de_10_a_200()
+    {
+        Assert.Equal(new[] { 10, 25, 50, 100, 150, 200 },
+            CatalogoConquistas.EscadaDeVitorias.Select(v => v.Marca));
+    }
+
+    [Theory]
+    [InlineData(10, 1)]    // só o primeiro degrau
+    [InlineData(49, 2)]
+    [InlineData(200, 6)]   // a escada inteira
+    [InlineData(999, 6)]   // passar do topo não inventa degrau novo
+    public void Cada_degrau_de_vitoria_acende_na_marca(int vitorias, int quantosAcesos)
+    {
+        var codigos = CatalogoConquistas.EscadaDeVitorias.Select(v => v.Codigo).ToHashSet();
+        var acesos = CatalogoConquistas.Montar(Ninguem() with { Vitorias = vitorias })
+            .Count(c => codigos.Contains(c.Codigo) && c.Conquistada);
+
+        Assert.Equal(quantosAcesos, acesos);
+    }
+
+    [Fact]
+    public void Escada_de_campeao_vai_de_bi_a_deca_sem_pular_degrau()
+    {
+        Assert.Equal(new[] { 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+            CatalogoConquistas.EscadaDeCampeao.Select(c => c.Titulos));
+
+        Assert.Equal(
+            new[] { "Bicampeão", "Tricampeão", "Tetracampeão", "Pentacampeão", "Hexacampeão",
+                    "Heptacampeão", "Octacampeão", "Nonacampeão", "Decacampeão" },
+            CatalogoConquistas.EscadaDeCampeao.Select(c => c.Nome));
+    }
+
+    [Theory]
+    [InlineData(3, "Tricampeao", true)]
+    [InlineData(3, "Tetracampeao", false)]
+    [InlineData(4, "Tetracampeao", true)]
+    [InlineData(10, "Decacampeao", true)]
+    [InlineData(9, "Decacampeao", false)]
+    public void Cada_titulo_acende_no_seu_numero(int titulos, string codigo, bool esperado)
+    {
+        Assert.Equal(esperado, Tem(Ninguem() with { Titulos = titulos }, codigo));
+    }
+
+    [Fact]
+    public void Quem_e_decacampeao_tem_toda_a_escada_atras_acesa()
+    {
+        // Escada é acumulativa: o decacampeão não perde o troféu de bicampeão pelo caminho.
+        var todas = CatalogoConquistas.Montar(Ninguem() with { Titulos = 10, Finais = 1 });
+        var daEscada = CatalogoConquistas.EscadaDeCampeao.Select(c => c.Codigo).ToHashSet();
+
+        Assert.All(todas.Where(c => daEscada.Contains(c.Codigo)), c => Assert.True(c.Conquistada));
+        Assert.True(todas.Single(c => c.Codigo == "Campeao").Conquistada);
+    }
+
+    [Fact]
     public void Quem_foi_campeao_tambem_e_finalista()
     {
         // O resumo conta "Finais" como finais PERDIDAS em alguns fluxos — mas ninguém vira
@@ -83,11 +138,17 @@ public class CatalogoConquistasTests
     }
 
     [Fact]
-    public void Sao_12_conquistas_para_fechar_a_grade_de_4_por_fileira()
+    public void O_total_e_as_duas_escadas_mais_as_conquistas_soltas()
     {
-        // A grade do perfil é col-3 (4 por fileira). 12 fecha 3 fileiras exatas; 13 deixaria
-        // uma sobra solta — quem adicionar a 13ª precisa decidir isso de propósito.
-        Assert.Equal(12, CatalogoConquistas.Montar(Ninguem()).Count);
+        // Eram 12 (3 fileiras exatas de 4). Com as escadas de vitórias e de títulos são 25, e
+        // a última fileira sobra com 1 — por isso a grade do perfil ganhou
+        // `justify-content-center`. Este número não é decoração: se alguém somar conquista sem
+        // olhar a tela, este teste é o aviso.
+        var total = CatalogoConquistas.Montar(Ninguem()).Count;
+
+        Assert.Equal(25, total);
+        Assert.Equal(6, CatalogoConquistas.EscadaDeVitorias.Length);
+        Assert.Equal(9, CatalogoConquistas.EscadaDeCampeao.Length);
     }
 
     [Fact]
@@ -109,7 +170,8 @@ public class CatalogoConquistasTests
         // alguém já viu no próprio perfil.
         var codigos = CatalogoConquistas.Montar(Ninguem()).Select(c => c.Codigo).ToList();
 
-        foreach (var antigo in new[] { "Estreia", "Mensalista", "Organizador", "DoTime", "Campeao", "Professor" })
+        foreach (var antigo in new[] { "Estreia", "Mensalista", "Organizador", "DoTime", "Campeao",
+                                       "Professor", "Bicampeao", "DezVitorias" })
             Assert.Contains(antigo, codigos);
     }
 
