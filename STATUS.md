@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **30/07/2026 (noite)** — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. **727 testes.**
+> Última atualização: **30/07/2026 (noite)** — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
+> deixou de abrir aba nova (e de mandar pra produção quem clicava no localhost). **734 testes.**
 > Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
@@ -378,7 +379,15 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   **Preservados de propósito:** a conta do Lucas, os clubes que ele cadastrou e o **pagamento
   real de R$ 9** (o MEI obriga a guardar registro de receita).
   A pontuação do Lucas zerou junto — ela é **calculada** dos torneios, não guardada.
-- **727 testes.**
+- **O "Painel Admin" do menu abria aba nova e nunca acendia como selecionado.** O endereço era
+  fixo (`https://admin.padelizou.com.br`), então clicar nele **no localhost ou no dev jogava
+  quem estava testando dentro da produção**. Agora o destino é decidido por
+  `AdminHostMiddleware.LinkDoPainel`: pula de host só no site público de produção, que é o único
+  lugar onde `/Admin` dá 404 — no resto é relativo, na mesma aba, e acende igual aos outros itens.
+  Dentro do painel o menu do site sumia em 404 item por item (ali só existem `/Admin` e `/Auth`):
+  a barra agora vira **"← Voltar ao site" + "Painel Admin"**, e os dois links do rodapé apontam
+  pra fora do host. Conferido nos quatro cenários (público, dev, localhost e dentro do painel).
+- **734 testes.**
 
 ---
 

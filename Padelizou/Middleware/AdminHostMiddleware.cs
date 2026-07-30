@@ -16,6 +16,8 @@ public class AdminHostMiddleware
     // precisa da restrição de /Admin: é ambiente de teste, não fica exposto pra usuário real.
     private const string DevHost = "dev.padelizou.com.br";
 
+    public const string SitePublicoHost = "padelizou.com.br";
+
     private static readonly string[] PrefixosLiberadosNoAdmin =
     {
         "/Admin", "/Auth", "/lib", "/css", "/js", "/image", "/favicon", "/manifest.json"
@@ -35,6 +37,24 @@ public class AdminHostMiddleware
 
     public static bool EhHostDev(HttpContext context)
         => string.Equals(context.Request.Host.Host, DevHost, StringComparison.OrdinalIgnoreCase);
+
+    // Este host serve SÓ o painel? É o que o InvokeAsync abaixo faz valer, e o menu precisa
+    // saber: ali dentro os itens do site público (Torneio, Aula, Ranking) dão 404, então o
+    // layout troca a barra inteira por "Voltar ao site" em vez de oferecer beco sem saída.
+    public static bool ServeSoOPainel(HttpContext context, bool ehDesenvolvimento)
+        => !ehDesenvolvimento && EhHostAdmin(context);
+
+    // Pra onde o item "Painel Admin" do menu manda. Só vale o pulo de host quando estamos no
+    // site público de produção — que é onde /Admin dá 404. No dev, no localhost e dentro do
+    // próprio painel o caminho relativo resolve, e evita que um clique no ambiente de teste
+    // jogue quem está testando dentro da produção.
+    public static string LinkDoPainel(HttpContext context, bool ehDesenvolvimento)
+        => ehDesenvolvimento || EhHostAdmin(context) || EhHostDev(context)
+            ? "/Admin"
+            : $"https://{AdminHost}/Admin";
+
+    // A volta: de dentro do painel, o caminho relativo cairia no 404 do próprio host.
+    public static string LinkDoSitePublico => $"https://{SitePublicoHost}";
 
     public async Task InvokeAsync(HttpContext context)
     {

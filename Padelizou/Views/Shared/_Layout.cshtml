@@ -1,6 +1,8 @@
 @using System.Security.Claims
+@using Padelizou.Middleware
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.BetaSettings> BetaOpcoes
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
+@inject IWebHostEnvironment Ambiente
 @{
     var beta = BetaOpcoes.Value;
     var suporte = SuporteOpcoes.Value;
@@ -12,6 +14,16 @@
     var minhaFoto = User.Identity?.IsAuthenticated == true ? User.FindFirstValue("FotoPerfil") : null;
     var souProfessor = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsProfessor") == "true";
     var souAdmin = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsAdmin") == "true";
+
+    @* O painel mora num subdomínio só dele em produção (ver AdminHostMiddleware), então "onde
+       estou" muda o que a barra pode oferecer. *@
+    var ehDesenvolvimento = Ambiente.IsDevelopment();
+    var dentroDoPainel = AdminHostMiddleware.ServeSoOPainel(ViewContext.HttpContext, ehDesenvolvimento);
+    var linkPainelAdmin = AdminHostMiddleware.LinkDoPainel(ViewContext.HttpContext, ehDesenvolvimento);
+    @* Dentro do painel, link relativo pro site cai no 404 do próprio host: os poucos que
+       sobram (rodapé) precisam apontar pra fora. Fora dali fica nulo = link relativo normal. *@
+    var hostDoSite = dentroDoPainel ? AdminHostMiddleware.SitePublicoHost : null;
+    var protocoloDoSite = dentroDoPainel ? "https" : null;
 
     @* A mensagem já sai identificando quem é: do outro lado chega um número desconhecido, e
        saber o nome antes de responder economiza a primeira pergunta de toda conversa. *@
@@ -86,82 +98,104 @@
 
                 <div class="navbar-collapse collapse" id="pdzNav">
                     <ul class="navbar-nav mx-lg-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link @NavActive("Home")" asp-area="" asp-controller="Home" asp-action="Index">
-                                <i class="bi bi-house-door"></i> Início
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Index">
-                                <i class="bi bi-trophy"></i> Torneio
-                            </a>
-                        </li>
-                        @if (souProfessor)
+                        @if (dentroDoPainel)
                         {
+                            @* Aqui dentro só existem /Admin e /Auth (AdminHostMiddleware): o menu do
+                               site inteiro daria 404 item por item. Fica a porta de volta, e ela
+                               precisa ser absoluta — relativa cairia no 404 deste mesmo host. *@
                             <li class="nav-item">
-                                <a class="nav-link @(currentController == "Aulas" && currentAction == "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Dashboard">
-                                    <i class="bi bi-clipboard-data"></i> Painel do Professor
+                                <a class="nav-link" href="@AdminHostMiddleware.LinkDoSitePublico">
+                                    <i class="bi bi-arrow-left"></i> Voltar ao site
                                 </a>
                             </li>
-                        }
-                        <li class="nav-item">
-                            <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
-                                <i class="bi bi-calendar-plus"></i> Aula
-                            </a>
-                        </li>
-                        @* Três coisas que eram itens soltos e disputavam espaço no topo. São o mesmo
-                           assunto — jogar — então viraram um menu só. A Agenda saiu daqui: ela é
-                           pessoal, e o lugar dela é dentro do perfil. *@
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle @NavActive("Avisos", "MarcarJogo", "Grupos")"
-                               href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-dribbble"></i> Jogos
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" asp-area="" asp-controller="Avisos" asp-action="Index">
-                                        <i class="bi bi-megaphone me-1"></i> Buscar jogo
-                                    </a>
-                                </li>
-                                @if (User.Identity?.IsAuthenticated == true)
-                                {
-                                    <li>
-                                        <a class="dropdown-item" asp-controller="MarcarJogo" asp-action="Index">
-                                            <i class="bi bi-calendar2-plus me-1"></i> Marcar jogo
-                                        </a>
-                                    </li>
-                                }
-                                <li>
-                                    <a class="dropdown-item" asp-area="" asp-controller="Grupos" asp-action="Index">
-                                        <i class="bi bi-shield-lock me-1"></i> Grupos
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        @if (souAdmin)
-                        {
                             <li class="nav-item">
-                                <a class="nav-link" href="https://admin.padelizou.com.br" target="_blank" rel="noopener">
+                                <a class="nav-link @NavActive("Admin")" asp-controller="Admin" asp-action="Index">
                                     <i class="bi bi-shield-lock-fill"></i> Painel Admin
                                 </a>
                             </li>
                         }
-                        <li class="nav-item">
-                            @* Aqui é por AÇÃO, não por controller: Ranking e Buscar moram os dois
-                               em Jogadores, e marcar pelo controller acenderia os dois juntos. *@
-                            <a class="nav-link @(currentController == "Jogadores" && currentAction == "Ranking" ? "active" : "")"
-                               asp-controller="Jogadores" asp-action="Ranking">
-                                <i class="bi bi-graph-up-arrow"></i> Ranking
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            @* Era "Times". Virou "Buscar" porque a tela acha jogador E time — quem
-                               procura alguém pra jogar não pensa "vou no menu Times". *@
-                            <a class="nav-link @(currentController == "Times" || (currentController == "Jogadores" && currentAction == "Buscar") ? "active" : "")"
-                               asp-controller="Jogadores" asp-action="Buscar">
-                                <i class="bi bi-search"></i> Buscar
-                            </a>
-                        </li>
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @NavActive("Home")" asp-area="" asp-controller="Home" asp-action="Index">
+                                    <i class="bi bi-house-door"></i> Início
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @NavActive("Torneios")" asp-area="" asp-controller="Torneios" asp-action="Index">
+                                    <i class="bi bi-trophy"></i> Torneio
+                                </a>
+                            </li>
+                            if (souProfessor)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link @(currentController == "Aulas" && currentAction == "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Dashboard">
+                                        <i class="bi bi-clipboard-data"></i> Painel do Professor
+                                    </a>
+                                </li>
+                            }
+                            <li class="nav-item">
+                                <a class="nav-link @(currentController == "Aulas" && currentAction != "Dashboard" ? "active" : "")" asp-area="" asp-controller="Aulas" asp-action="Solicitar">
+                                    <i class="bi bi-calendar-plus"></i> Aula
+                                </a>
+                            </li>
+                            @* Três coisas que eram itens soltos e disputavam espaço no topo. São o mesmo
+                               assunto — jogar — então viraram um menu só. A Agenda saiu daqui: ela é
+                               pessoal, e o lugar dela é dentro do perfil. *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle @NavActive("Avisos", "MarcarJogo", "Grupos")"
+                                   href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-dribbble"></i> Jogos
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-controller="Avisos" asp-action="Index">
+                                            <i class="bi bi-megaphone me-1"></i> Buscar jogo
+                                        </a>
+                                    </li>
+                                    @if (User.Identity?.IsAuthenticated == true)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="MarcarJogo" asp-action="Index">
+                                                <i class="bi bi-calendar2-plus me-1"></i> Marcar jogo
+                                            </a>
+                                        </li>
+                                    }
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-controller="Grupos" asp-action="Index">
+                                            <i class="bi bi-shield-lock me-1"></i> Grupos
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            if (souAdmin)
+                            {
+                                @* Mesma aba: o painel é uma tela do sistema como qualquer outra. Em
+                                   produção ele mora noutro host, e por isso o endereço vem pronto de
+                                   LinkDoPainel — no localhost e no dev ele é aqui mesmo. *@
+                                <li class="nav-item">
+                                    <a class="nav-link @NavActive("Admin")" href="@linkPainelAdmin">
+                                        <i class="bi bi-shield-lock-fill"></i> Painel Admin
+                                    </a>
+                                </li>
+                            }
+                            <li class="nav-item">
+                                @* Aqui é por AÇÃO, não por controller: Ranking e Buscar moram os dois
+                                   em Jogadores, e marcar pelo controller acenderia os dois juntos. *@
+                                <a class="nav-link @(currentController == "Jogadores" && currentAction == "Ranking" ? "active" : "")"
+                                   asp-controller="Jogadores" asp-action="Ranking">
+                                    <i class="bi bi-graph-up-arrow"></i> Ranking
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                @* Era "Times". Virou "Buscar" porque a tela acha jogador E time — quem
+                                   procura alguém pra jogar não pensa "vou no menu Times". *@
+                                <a class="nav-link @(currentController == "Times" || (currentController == "Jogadores" && currentAction == "Buscar") ? "active" : "")"
+                                   asp-controller="Jogadores" asp-action="Buscar">
+                                    <i class="bi bi-search"></i> Buscar
+                                </a>
+                            </li>
+                        }
                         @* Contato direto no WhatsApp. Sai do site (target _blank) porque o
                            wa.me abre o app: sem isso, quem volta perde a página onde estava. *@
                         <li class="nav-item">
@@ -257,7 +291,7 @@
                    logado escreve — feedback anônimo não dá pra responder nem conferir. *@
                 @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <a asp-controller="Feedback" asp-action="Index" class="small fw-semibold">
+                    <a asp-controller="Feedback" asp-action="Index" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite" class="small fw-semibold">
                         <i class="bi bi-chat-heart"></i> O que você achou do Padelizou?
                     </a>
                 }
@@ -267,7 +301,7 @@
                 <a href="@linkContato" target="_blank" rel="noopener" class="small fw-semibold text-decoration-none">
                     <i class="bi bi-whatsapp"></i> @suporte.WhatsAppFormatado
                 </a>
-                <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacidade</a></span>
+                <span class="small text-muted">&copy; 2026 Padelizou &middot; <a asp-area="" asp-controller="Home" asp-action="Privacy" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite">Privacidade</a></span>
             </div>
         </div>
     </footer>
