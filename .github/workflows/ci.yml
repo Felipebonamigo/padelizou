@@ -10,7 +10,9 @@ on:
 
 jobs:
   testes:
-    name: Build + 85 testes
+    # Sem o número de testes no nome: ele envelhece a cada teste novo (nasceu "85",
+    # hoje são 668) e ninguém lembra de vir mudar aqui. A contagem real sai no log.
+    name: Build + testes
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
