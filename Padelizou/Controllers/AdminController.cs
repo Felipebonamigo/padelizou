@@ -470,7 +470,7 @@ namespace padelizou.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> NotificacaoTeste(string? identificador, bool porPush = false,
-            bool porWhatsApp = false, string? mensagem = null)
+            bool porWhatsApp = false, string? mensagem = null, int? jogadorId = null)
         {
             if (await ObterJogadorAdminAsync() == null) return Forbid();
 
@@ -488,12 +488,39 @@ namespace padelizou.Controllers
                 return View(vm);
             }
 
-            // Mesma consulta do login (e-mail OU login, sem diferenciar maiúsculas): se aqui
-            // fosse diferente, um admin digitaria o que a pessoa usa pra entrar e não acharia.
-            var alvo = await BuscaJogador.PorIdentificadorAsync(_context, identificador);
+            Jogador? alvo;
+
+            if (jogadorId is int escolhido)
+            {
+                // Veio da lista de desambiguação: a pessoa já foi escolhida a dedo, não se
+                // procura de novo (o nome pode casar com mais gente e voltaria pra lista).
+                alvo = await _context.Jogadores.FindAsync(escolhido);
+            }
+            else
+            {
+                // Login, e-mail, nome, apelido ou CPF — o que o admin tiver na mão.
+                var achados = await BuscaJogador.ParaAcaoAdministrativaAsync(_context, identificador);
+
+                if (achados.Count == 0)
+                {
+                    vm.Erro = "Não achei ninguém com esse login, e-mail, nome ou CPF.";
+                    return View(vm);
+                }
+
+                if (achados.Count > 1)
+                {
+                    // Nome não é único. Escolher sozinho aqui mandaria o teste pro João errado
+                    // e o admin acharia que testou o que não testou.
+                    vm.Candidatos = achados;
+                    return View(vm);
+                }
+
+                alvo = achados[0];
+            }
+
             if (alvo == null)
             {
-                vm.Erro = "Não achei ninguém com esse login ou e-mail.";
+                vm.Erro = "Não achei ninguém com esse login, e-mail, nome ou CPF.";
                 return View(vm);
             }
 

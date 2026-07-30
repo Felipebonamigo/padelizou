@@ -22,6 +22,36 @@
         </div>
     }
 
+    @if (Model.Candidatos.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-people"></i> Achei @Model.Candidatos.Count pessoas</h6>
+            <p class="text-muted small mb-3">Nome não é único — escolha quem vai receber.</p>
+
+            <div class="list-group">
+                @foreach (var c in Model.Candidatos)
+                {
+                    <form method="post" class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="jogadorId" value="@c.Id" />
+                        <input type="hidden" name="identificador" value="@Model.Identificador" />
+                        <input type="hidden" name="mensagem" value="@Model.Mensagem" />
+                        @if (Model.PorPush) { <input type="hidden" name="porPush" value="true" /> }
+                        @if (Model.PorWhatsApp) { <input type="hidden" name="porWhatsApp" value="true" /> }
+
+                        <div class="text-truncate">
+                            <div class="fw-bold">@c.Nome</div>
+                            <div class="text-muted small">@Padelizou.ViewModels.LinhaDoCandidato.Detalhe(c)</div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">
+                            Mandar pra este
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
     @if (Model.Resultado != null && Model.Alvo != null)
     {
         var r = Model.Resultado;
@@ -59,10 +89,13 @@
         @Html.AntiForgeryToken()
 
         <div class="mb-3">
-            <label class="form-label fw-bold" for="identificador">Login ou e-mail de quem vai receber</label>
+            <label class="form-label fw-bold" for="identificador">Quem vai receber</label>
             <input type="text" class="form-control" id="identificador" name="identificador"
-                   value="@Model.Identificador" placeholder="ex.: prof.escada" autocomplete="off" required />
-            <div class="form-text">O mesmo que a pessoa digita pra entrar no site.</div>
+                   value="@Model.Identificador" placeholder="login, e-mail, nome ou CPF" autocomplete="off" required />
+            <div class="form-text">
+                Login ou e-mail acham a pessoa direto. Nome e apelido podem achar mais de uma —
+                aí você escolhe. CPF só com os 11 dígitos.
+            </div>
         </div>
 
         <div class="mb-3">

@@ -76,6 +76,22 @@ public static class BuscaJogador
             (j.Login != null && j.Login.ToLower() == alvo));
     }
 
+    // Acha quem vai receber uma ação administrativa dirigida a UMA pessoa (hoje: o teste de
+    // aviso do painel). Aceita o que o admin tem na mão — login, e-mail, nome, apelido ou CPF.
+    //
+    // Devolve LISTA, não um jogador: login e e-mail são únicos, mas nome não é, e "mandei pro
+    // João errado" é exatamente o engano que uma tela de teste não pode cometer em silêncio.
+    // Quando o termo casa exato com login/e-mail, ele ganha e a lista vem com um só — senão
+    // digitar um login que também é o apelido de outra pessoa viraria uma escolha inútil.
+    public static async Task<List<Jogador>> ParaAcaoAdministrativaAsync(
+        DbPadelContext context, string? termo, int limite = 10)
+    {
+        var exato = await PorIdentificadorAsync(context, termo);
+        if (exato != null) return new List<Jogador> { exato };
+
+        return await BuscarAsync(context, termo, limite);
+    }
+
     // Busca direta, já ordenada com o mais relevante primeiro: quem começa com o termo
     // vem antes de quem só o contém no meio ("Ana" antes de "Mariana").
     public static async Task<List<Jogador>> BuscarAsync(

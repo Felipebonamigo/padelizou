@@ -6,7 +6,7 @@
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
 > dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação, por
 > uma **Evolution API no nosso próprio VPS (R$ 0/mês)** — falta só o chip pré-pago e o QR code.
-> **802 testes.**
+> **814 testes.**
 > Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
@@ -444,7 +444,17 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   no ambiente, ou provedor recusando. Cada motivo tem frase própria (tem teste garantindo que
   não se repetem), e o envio bem-sucedido mostra **o número de volta** — digitar login na mão
   erra fácil, e é assim que se percebe antes de sair contando que o canal funciona.
-- **802 testes.**
+  **Acha a pessoa por login, e-mail, nome, apelido ou CPF** (o CPF só inteiro — parcial
+  deixaria varrer os documentos da base aos poucos). Login e e-mail acham direto; **nome pode
+  achar mais de uma, e aí a tela pede pra escolher** em vez de chutar: teste que foi pro
+  homônimo errado é pior que teste nenhum, porque o admin conclui que testou. Na lista de
+  escolha o **CPF aparece mascarado** — o miolo basta pra desempatar.
+- ⚠️ **O chip desconectou sozinho na primeira noite.** O log do container é claro:
+  `conflict: device_removed` — o aparelho pareado foi **removido do lado do celular**. Não é
+  bug do sistema nem ban: é o WhatsApp derrubando o dispositivo vinculado. **Precisa ler o QR
+  de novo.** O diagnóstico da tela nova apontou certo na primeira tentativa ("o provedor
+  recusou o envio, veja se a instância está conectada"), que era exatamente pra isso.
+- **814 testes.**
 
 ---
 
