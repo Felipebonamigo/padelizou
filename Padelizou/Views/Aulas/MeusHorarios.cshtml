@@ -3,6 +3,9 @@
     ViewData["Title"] = "Meus Horários - Padelizou";
     var locais = (IEnumerable<LocalAula>)ViewBag.Locais;
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+    // No celular o dia vai abreviado: "Segunda" sozinho custa o dobro da largura de "Seg",
+    // e numa tela de 320px é a diferença entre ler a tabela e ter que arrastá-la.
+    string[] diasCurtos = { "Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb" };
 }
 
 <div class="container mt-4 mb-5">
@@ -92,15 +95,19 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table align-middle bg-white shadow-sm rounded text-nowrap">
+            @* Sem text-nowrap na tabela inteira: nome de local comprido não quebrava e sozinho
+               empurrava a tabela pra 674px numa tela de 320. Só as horas seguem sem quebrar.
+               No celular, Fim/Duração/Status saem das colunas e viram uma linha embaixo da
+               hora de início — a mesma informação, empilhada em vez de arrastada de lado. *@
+            <table class="table align-middle bg-white shadow-sm rounded">
                 <thead>
                     <tr>
                         <th>Dia</th>
                         <th>Local</th>
                         <th>Início</th>
-                        <th>Fim</th>
-                        <th>Duração</th>
-                        <th>Status</th>
+                        <th class="d-none d-sm-table-cell">Fim</th>
+                        <th class="d-none d-md-table-cell">Duração</th>
+                        <th class="d-none d-sm-table-cell">Status</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -110,19 +117,39 @@
                         @foreach (var h in Model)
                         {
                             <tr class="@(h.Ativo ? "" : "text-muted")">
-                                <td>@diasSemana[h.DiaSemana]</td>
+                                <td class="text-nowrap">
+                                    <span class="d-none d-sm-inline">@diasSemana[h.DiaSemana]</span>
+                                    <span class="d-sm-none">@diasCurtos[h.DiaSemana]</span>
+                                </td>
                                 <td>@h.LocalAula.Nome</td>
-                                <td>@h.HoraInicio.ToString(@"hh\:mm")</td>
-                                <td>@h.HoraFim.ToString(@"hh\:mm")</td>
-                                <td>@h.DuracaoMinutos min</td>
                                 <td>
+                                    @* O nowrap fica só na hora: na linha auxiliar ele forçaria
+                                       ~110px numa célula que precisa caber em 320px de tela. *@
+                                    <span class="text-nowrap">@h.HoraInicio.ToString(@"hh\:mm")</span>
+                                    @* No celular, o que saiu das colunas volta aqui embaixo. *@
+                                    <div class="d-sm-none small text-muted">
+                                        até @h.HoraFim.ToString(@"hh\:mm") · @h.DuracaoMinutos min
+                                        @if (!h.Ativo)
+                                        {
+                                            <span class="badge bg-secondary ms-1">Inativo</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-nowrap d-none d-sm-table-cell">@h.HoraFim.ToString(@"hh\:mm")</td>
+                                <td class="text-nowrap d-none d-md-table-cell">@h.DuracaoMinutos min</td>
+                                <td class="d-none d-sm-table-cell">
                                     <span class="badge @(h.Ativo ? "bg-success" : "bg-secondary")">@(h.Ativo ? "Ativo" : "Inativo")</span>
                                 </td>
                                 <td>
                                     <form asp-controller="Aulas" asp-action="AlternarHorario" method="post">
                                         <input type="hidden" name="id" value="@h.Id" />
-                                        <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")">
-                                            @(h.Ativo ? "Desativar" : "Reativar")
+                                        @* No celular fica só o ícone (com title e aria-label pra
+                                           não virar botão mudo); o texto volta a partir de sm. *@
+                                        <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")"
+                                                title="@(h.Ativo ? "Desativar" : "Reativar")"
+                                                aria-label="@(h.Ativo ? "Desativar horário" : "Reativar horário")">
+                                            <i class="bi @(h.Ativo ? "bi-pause-fill" : "bi-play-fill") d-sm-none"></i>
+                                            <span class="d-none d-sm-inline">@(h.Ativo ? "Desativar" : "Reativar")</span>
                                         </button>
                                     </form>
                                 </td>

@@ -14,8 +14,12 @@
         <div class="col-md-7">
             <div class="card shadow-sm border-0 text-center p-4">
                 <div class="card-body">
+                    @* width:100% junto com o max-width: sozinho, o max-width INLINE vence o
+                       max-width:100% do img-fluid (mesma propriedade, e inline tem prioridade),
+                       e a imagem forçava 340px num celular onde cabem ~300 — a tela de erro
+                       era a única do site que rolava de lado. *@
                     <img src="~/image/pnatinha.webp" asp-append-version="true" alt=""
-                         class="img-fluid rounded-3 mb-2" style="max-width:340px;" />
+                         class="img-fluid rounded-3 mb-2" style="width:100%;max-width:340px;" />
 
                     @if (codigo == 404)
                     {

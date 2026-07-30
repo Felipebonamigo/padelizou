@@ -69,12 +69,16 @@
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
+                        @* No celular ficam Categoria, Inscritos e Arrecadado — o que o
+                           organizador olha no dia. Espera e Estornado somem abaixo de 576px
+                           (quase sempre valem "—") em vez de empurrar a tabela pra 381px numa
+                           tela de 294, obrigando a arrastar pra ver quanto entrou. *@
                         <tr class="small text-muted">
                             <th>Categoria</th>
                             <th class="text-center">Inscritos</th>
-                            <th class="text-center">Espera</th>
+                            <th class="text-center d-none d-sm-table-cell">Espera</th>
                             <th class="text-end">Arrecadado</th>
-                            <th class="text-end">Estornado</th>
+                            <th class="text-end d-none d-sm-table-cell">Estornado</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -83,7 +87,7 @@
                             <tr>
                                 <td class="fw-bold" style="color: var(--pdz-ink);">@c.Categoria</td>
                                 <td class="text-center">@c.Inscritos</td>
-                                <td class="text-center">
+                                <td class="text-center d-none d-sm-table-cell">
                                     @if (c.ListaDeEspera > 0)
                                     {
                                         <span class="badge bg-warning text-dark">@c.ListaDeEspera</span>
@@ -94,7 +98,7 @@
                                     }
                                 </td>
                                 <td class="text-end text-success">@c.Arrecadado.ToString("C", ptBr)</td>
-                                <td class="text-end text-muted">@(c.Estornado > 0 ? c.Estornado.ToString("C", ptBr) : "—")</td>
+                                <td class="text-end text-muted d-none d-sm-table-cell">@(c.Estornado > 0 ? c.Estornado.ToString("C", ptBr) : "—")</td>
                             </tr>
                         }
                     </tbody>

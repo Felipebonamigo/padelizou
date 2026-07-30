@@ -225,10 +225,13 @@
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
                                 <thead>
+                                    @* No celular a data da ÚLTIMA aula sai da coluna e vira uma
+                                       linha embaixo do nome: o que o professor procura aqui é
+                                       quando é a PRÓXIMA. *@
                                     <tr>
                                         <th>Nome</th>
                                         <th class="text-center">Aulas</th>
-                                        <th>Última aula</th>
+                                        <th class="d-none d-sm-table-cell">Última aula</th>
                                         <th>Próxima</th>
                                     </tr>
                                 </thead>
@@ -236,10 +239,13 @@
                                     @foreach (var aluno in Model.Alunos)
                                     {
                                         <tr>
-                                            <td>@aluno.Nome</td>
+                                            <td>
+                                                @aluno.Nome
+                                                <div class="d-sm-none small text-muted">última: @aluno.UltimaAula.ToString("dd/MM/yy")</div>
+                                            </td>
                                             <td class="text-center">@aluno.TotalAulas</td>
-                                            <td class="small text-muted">@aluno.UltimaAula.ToString("dd/MM/yyyy")</td>
-                                            <td class="small text-muted">@(aluno.ProximaAula.HasValue ? aluno.ProximaAula.Value.ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                                            <td class="small text-muted d-none d-sm-table-cell">@aluno.UltimaAula.ToString("dd/MM/yyyy")</td>
+                                            <td class="small text-muted">@(aluno.ProximaAula.HasValue ? aluno.ProximaAula.Value.ToString("dd/MM/yy HH:mm") : "—")</td>
                                         </tr>
                                     }
                                 </tbody>

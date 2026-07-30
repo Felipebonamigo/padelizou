@@ -235,6 +235,18 @@
             for (var d = Model.Inicio; d < Model.Fim; d = d.AddDays(1)) dias.Add(d);
             var (primeiraHora, ultimaHora) = PeriodoAgenda.FaixaDeHoras(Model.NoPeriodo.Select(a => a.DataHora));
 
+            @* Sete dias com nome de aluno não cabem em 320px — nenhuma diminuição de fonte
+               resolve isso. A grade rola dentro do próprio card (a página não rola de lado),
+               e aqui o celular ganha as duas coisas que faltavam: saber que dá pra arrastar,
+               e o atalho pra lista, que mostra a semana inteira sem arrastar nada. *@
+            <div class="d-sm-none small text-muted mb-2 d-flex justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-arrow-left-right"></i> Arraste a grade pro lado</span>
+                <a asp-action="MinhaAgenda"
+                   asp-route-vista="lista"
+                   asp-route-periodo="@Model.Periodo"
+                   asp-route-data="@Model.Inicio.ToString("yyyy-MM-dd")"
+                   class="text-decoration-none fw-bold">ver em lista</a>
+            </div>
             <div class="card border-0 shadow-sm">
                 <div class="table-responsive">
                     <table class="table table-bordered mb-0 pdz-horas">

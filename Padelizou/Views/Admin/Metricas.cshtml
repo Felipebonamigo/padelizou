@@ -87,11 +87,14 @@
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-1">
                     <thead>
+                        @* No celular sai a contagem de pagamentos: o valor arrecadado já conta
+                           a mesma história e é o que se olha. Com as cinco, a tabela pedia
+                           359px numa tela de 294. *@
                         <tr class="text-muted small">
                             <th>Semana</th>
                             <th class="text-end">Cadastros</th>
-                            <th class="text-end">Inscrições</th>
-                            <th class="text-end">Pagamentos</th>
+                            <th class="text-end d-none d-sm-table-cell">Inscrições</th>
+                            <th class="text-end d-none d-sm-table-cell">Pagamentos</th>
                             <th class="text-end">Valor</th>
                         </tr>
                     </thead>
@@ -101,8 +104,8 @@
                             <tr>
                                 <td>@s.Inicio.ToString("dd/MM") – @s.Inicio.AddDays(6).ToString("dd/MM")</td>
                                 <td class="text-end">@(s.Cadastros > 0 ? s.Cadastros.ToString() : "—")</td>
-                                <td class="text-end">@(s.Inscricoes > 0 ? s.Inscricoes.ToString() : "—")</td>
-                                <td class="text-end">@(s.Pagamentos > 0 ? s.Pagamentos.ToString() : "—")</td>
+                                <td class="text-end d-none d-sm-table-cell">@(s.Inscricoes > 0 ? s.Inscricoes.ToString() : "—")</td>
+                                <td class="text-end d-none d-sm-table-cell">@(s.Pagamentos > 0 ? s.Pagamentos.ToString() : "—")</td>
                                 <td class="text-end">@(s.Valor > 0 ? s.Valor.ToString("C0") : "—")</td>
                             </tr>
                         }

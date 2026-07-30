@@ -253,7 +253,11 @@
                 {
                     <div class="pdz-cat-panel" data-cat="@cat.Categoria" hidden>
                         <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-                            <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Vitórias</th><th class="text-center">Torneios</th><th class="text-end">Pontos</th><th class="text-center" style="width:64px;" title="Movimento no último mês">Mês</th></tr></thead>
+                            @* No celular ficam só as colunas que respondem "quem está na frente":
+                               posição, nome e pontos. Torneios e Mês somem abaixo de 576px —
+                               com as sete, a tabela pedia 456px numa tela de 328 e a pessoa
+                               tinha que arrastar de lado justo pra ver a coluna de pontos. *@
+                            <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center d-none d-sm-table-cell">Vitórias</th><th class="text-center d-none d-sm-table-cell">Torneios</th><th class="text-end">Pontos</th><th class="text-center d-none d-sm-table-cell" style="width:64px;" title="Movimento no último mês">Mês</th></tr></thead>
                             <tbody>
                                 @{ var pos = 1; }
                                 @foreach (var l in cat.Linhas)
@@ -262,10 +266,10 @@
                                         <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
                                         <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
                                         <td class="text-center">@(l.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {l.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
-                                        <td class="text-center fw-bold text-success">@l.Vitorias</td>
-                                        <td class="text-center text-muted">@l.Torneios</td>
+                                        <td class="text-center fw-bold text-success d-none d-sm-table-cell">@l.Vitorias</td>
+                                        <td class="text-center text-muted d-none d-sm-table-cell">@l.Torneios</td>
                                         <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
-                                        <td class="text-center">@Html.Raw(MovBadge(l.Movimento))</td>
+                                        <td class="text-center d-none d-sm-table-cell">@Html.Raw(MovBadge(l.Movimento))</td>
                                     </tr>
                                     pos++;
                                 }
