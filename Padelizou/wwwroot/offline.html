@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+    Tela mostrada quando o app está instalado e a rede cai. Sem ela, quem abriu o
+    Padelizou pelo ícone via o dinossauro do Chrome DENTRO do app — e app que mostra
+    erro de navegador parece app quebrado, não celular sem sinal.
+
+    Não pode depender de NADA que venha da rede: sem bootstrap, sem fonte do Google,
+    sem bootstrap-icons. Tudo aqui é inline de propósito. A única imagem é o logo, que
+    o service worker guarda junto com esta página (ver STATIC_ASSETS em sw.js).
+-->
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#141d33" />
+    <title>Sem internet - Padelizou</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
+            background: #141d33;
+            color: #fff;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        img { width: 96px; height: 96px; margin-bottom: 20px; }
+
+        h1 { font-size: 1.4rem; font-weight: 800; margin: 0 0 10px; }
+
+        p { color: #b7c0d4; margin: 0 0 6px; max-width: 340px; line-height: 1.5; }
+
+        .dica { color: #8a94ab; font-size: .85rem; margin-top: 18px; }
+
+        button {
+            margin-top: 26px;
+            background: #A3D827;
+            color: #14210a;
+            border: none;
+            border-radius: 999px;
+            padding: 13px 30px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:active { transform: scale(.98); }
+    </style>
+</head>
+<body>
+    <img src="/image/logo-icon.webp" alt="Padelizou" />
+    <h1>Você está sem internet</h1>
+    <p>O Padelizou precisa de conexão pra mostrar jogos, torneios e ranking atualizados.</p>
+    <button type="button" onclick="location.reload()">Tentar de novo</button>
+    <p class="dica">Se estiver numa quadra coberta, tente sair pro lado de fora ou usar o Wi-Fi do clube.</p>
+
+    <script>
+        // Volta sozinho assim que o sinal retorna — sem isso a pessoa fica olhando pra
+        // esta tela sem saber que já dava pra continuar.
+        window.addEventListener('online', function () { location.reload(); });
+    </script>
+</body>
+</html>

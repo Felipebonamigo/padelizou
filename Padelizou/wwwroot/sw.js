@@ -2,8 +2,10 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v3";
+const CACHE_NAME = "padelizou-static-v4";
+const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
+  PAGINA_OFFLINE,
   "/css/site.css",
   "/js/site.js",
   "/lib/bootstrap/dist/css/bootstrap.min.css",
@@ -12,6 +14,7 @@ const STATIC_ASSETS = [
   "/image/logo-raquetes.webp",
   "/image/logo-icon.webp",
   "/image/favicon-32.png",
+  "/image/icon-192.png",
   "/image/icon-512.png",
 ];
 
@@ -58,12 +61,22 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match(request))
+        // Sem cópia guardada (primeiro acesso já sem sinal) sobrava uma resposta vazia,
+        // que o navegador mostra como erro cru. Cai na tela offline como todo o resto.
+        .catch(() => caches.match(request).then((c) => c || caches.match(PAGINA_OFFLINE)))
     );
     return;
   }
 
-  const isStaticAsset = /\.(css|js|png|jpg|jpeg|svg|ico|woff2?)$/.test(url.pathname);
+  // Navegação (a pessoa abriu o app ou tocou num link) sem rede: sem isto o Chrome
+  // desenha o dinossauro DENTRO do app instalado, e parece que o Padelizou quebrou.
+  // A rede vem sempre primeiro — a tela offline só entra quando a rede falha.
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).catch(() => caches.match(PAGINA_OFFLINE)));
+    return;
+  }
+
+  const isStaticAsset = /\.(css|js|png|jpg|jpeg|svg|ico|woff2?|webp)$/.test(url.pathname);
   if (!isStaticAsset) return;
 
   event.respondWith(

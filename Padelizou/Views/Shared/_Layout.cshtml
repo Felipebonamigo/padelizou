@@ -45,7 +45,10 @@
         })();
     </script>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @* viewport-fit=cover: instalado no iPhone, o app ocupa a tela toda, inclusive atrás do
+       "furo" da câmera e da barrinha de baixo. Quem devolve o espaço é o env(safe-area-*)
+       no site.css — sem ele o menu ficaria embaixo do relógio. *@
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     @*
         Home fica só "Padelizou"; internas viram "Página - Padelizou".
         Boa parte das views já escreve "- Padelizou" no próprio Title (e virava
@@ -59,8 +62,33 @@
     }
     <title>@tituloAba</title>
     <meta name="theme-color" content="#141d33" />
+    @* iOS antigo (antes do 16.4) ignora o manifest e só obedece estas três. Sem elas, quem
+       adiciona à tela de início nesses aparelhos abre o site DENTRO do Safari, com barra de
+       endereço e tudo — deixa de parecer app. *@
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Padelizou" />
     <link rel="manifest" href="~/manifest.json" />
-    <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" asp-append-version="true" />
+    @* Fica no <head> porque o Chrome dispara este evento cedo: capturado só no fim do
+       <body>, ele às vezes já passou, e o botão "Instalar agora" nunca apareceria.
+       O preventDefault tira a barrinha automática do Chrome — quem convida a instalar
+       é o nosso modal, na hora certa, e não uma tarja no meio da tela. *@
+    <script>
+        window.pdzEventoInstalacao = null;
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            window.pdzEventoInstalacao = e;
+            document.dispatchEvent(new CustomEvent('pdz:instalavel'));
+        });
+        window.addEventListener('appinstalled', function () {
+            window.pdzEventoInstalacao = null;
+            document.dispatchEvent(new CustomEvent('pdz:instalado'));
+        });
+    </script>
+    @* O arquivo se chama favicon-32 mas tem 64x64 de verdade (é a versão 2x, e serve também de
+       selo das notificações no Android, onde 32 ficaria borrado). O nome ficou; o `sizes` diz a
+       verdade — declarar tamanho errado faz o navegador descartar o ícone. *@
+    <link rel="icon" type="image/png" sizes="64x64" href="~/image/favicon-32.png" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -196,6 +224,18 @@
                                 </a>
                             </li>
                         }
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            @* O convite pra instalar aparece sozinho UMA vez por aparelho. Quem
+                               fechou sem querer não tinha como voltar atrás — este item é a porta
+                               de sempre. Nasce escondido e o instalar-app.js decide: some pra quem
+                               já instalou e pra quem está num navegador que não instala. *@
+                            <li class="nav-item" id="pdzMenuInstalar" style="display:none;">
+                                <a class="nav-link" href="#" onclick="abrirInstalarPwaModal(); return false;">
+                                    <i class="bi bi-phone"></i> Instalar o app
+                                </a>
+                            </li>
+                        }
                         @* Contato direto no WhatsApp. Sai do site (target _blank) porque o
                            wa.me abre o app: sem isso, quem volta perde a página onde estava. *@
                         <li class="nav-item">
@@ -309,6 +349,9 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @* Vem ANTES do push.js e do modal: os dois chamam pdzAppInstalado()/pdzPlataforma() daqui.
+       No iPhone, saber se o app está instalado é o que decide se o push existe. *@
+    <script src="~/js/instalar-app.js" asp-append-version="true"></script>
     <script src="~/js/push.js" asp-append-version="true"></script>
     <script src="~/js/mascaras.js" asp-append-version="true"></script>
     @if (User.Identity?.IsAuthenticated == true)

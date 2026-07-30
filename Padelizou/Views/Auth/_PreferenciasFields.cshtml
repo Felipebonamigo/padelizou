@@ -105,6 +105,15 @@
         const status = await statusNotificacoesPush();
         const btn = document.getElementById('btnPushToggle');
         const label = document.getElementById('btnPushToggleLabel');
+
+        // No iPhone o aparelho SUPORTA — só falta instalar. Desativar o botão aqui era
+        // dizer "não dá" pra quem estava a um passo de conseguir, e o passo está logo
+        // abaixo, no "Como instalar no celular?".
+        if (status === 'precisa-instalar') {
+            btn.disabled = false;
+            label.textContent = 'Instale o app pra receber avisos';
+            return;
+        }
         if (status === 'unsupported') {
             btn.disabled = true;
             label.textContent = 'Não suportado neste navegador';
@@ -119,6 +128,14 @@
 
     async function onClickPushToggle() {
         const status = await statusNotificacoesPush();
+        if (status === 'precisa-instalar') {
+            // Abre o passo a passo em vez de um alerta: ele já está na tela, com o texto
+            // certo do iPhone, e continua visível enquanto a pessoa executa cada toque.
+            const passos = document.getElementById('comoInstalarPasso');
+            bootstrap.Collapse.getOrCreateInstance(passos).show();
+            passos.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+        }
         if (status === 'subscribed') {
             await desativarNotificacoesPush();
         } else {

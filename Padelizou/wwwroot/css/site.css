@@ -163,6 +163,26 @@ a:hover { color: var(--pdz-lime-600); }
     z-index: 1030;
 }
 
+/* =========================================================
+   FAIXA SEGURA (iPhone com o app instalado)
+
+   O _Layout pede viewport-fit=cover, ou seja: o app usa a tela INTEIRA, inclusive o
+   pedaço atrás do relógio/câmera e o da barrinha de rolar do iPhone. Bonito, mas sem
+   devolver esse espaço o menu ficaria embaixo do relógio e o rodapé embaixo da barrinha.
+   Estes quatro env() são exatamente a medida que o iOS informa.
+
+   No navegador normal e em qualquer Android eles valem ZERO — nada muda por aqui.
+   ========================================================= */
+.pdz-navbar {
+    padding-top: calc(.6rem + env(safe-area-inset-top));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+.pdz-footer {
+    padding-bottom: calc(1.4rem + env(safe-area-inset-bottom));
+}
+
 /* Convite "Quero meu clube aqui" (tela Marcar Jogo). Fundo navy fixo nos dois temas: é um
    convite comercial, e trocar de cor com o tema deixaria ele parecendo mais um cartão da
    lista. O brilho verde no canto é o mesmo recurso do herói da home. */
