@@ -58,7 +58,7 @@ builder.Services.Configure<SuporteSettings>(builder.Configuration.GetSection("Su
 builder.Services.Configure<TaxasExibicao>(builder.Configuration.GetSection("Taxas"));
 builder.Services.Configure<RegistroResultadosSettings>(builder.Configuration.GetSection("RegistroResultados"));
 builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSection("PlanoProfessor"));
-builder.Services.Configure<ZApiSettings>(builder.Configuration.GetSection("ZApi"));
+builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
@@ -128,7 +128,10 @@ builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
 builder.Services.AddScoped<ISessaoGrupoService, SessaoGrupoService>();
-builder.Services.AddHttpClient<IWhatsAppService, WhatsAppApiService>();
+// Timeout curto: o envio acontece DENTRO da ação do jogador. Um provedor pendurado não pode
+// segurar a resposta da tela — melhor perder a mensagem do que travar quem clicou.
+builder.Services.AddHttpClient<IWhatsAppService, EvolutionApiService>(http =>
+    http.Timeout = TimeSpan.FromSeconds(10));
 // O Asaas recusa com HTTP 400 ("user_agent_not_informed") qualquer requisição sem User-Agent,
 // e o HttpClient do .NET não manda nenhum por padrão — sem isto, toda cobrança falharia.
 builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>

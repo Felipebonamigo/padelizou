@@ -4,8 +4,9 @@
 > Última atualização: **30/07/2026 (noite)** — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
 > deixou de abrir aba nova (e de mandar pra produção quem clicava no localhost), e as
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
-> dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação —
-> falta só contratar a Z-API. **754 testes.**
+> dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação, por
+> uma **Evolution API no nosso próprio VPS (R$ 0/mês)** — falta só o chip pré-pago e o QR code.
+> **789 testes.**
 > Antes, na tarde — **primeira liberação pra gente de verdade**: organizador dos Corneteiros + primeiro professor. Portão em `Corneteiros`/`corneta`, chave de torneio escolhível (`virgili10`), trava de entrada corrigida (janela por ação) e ensaio do cadastro feito no dev. Ver [PRIMEIROS-USUARIOS.md](PRIMEIROS-USUARIOS.md). **699 testes.**
 > Manhã do mesmo dia — varredura completa do sistema e os achados dela fechados: **trava de força-bruta** (login por conta, resto por IP), **cabeçalhos de segurança** no Caddy, **denúncia de comentário** com fila no admin, **convite de parceiro por link** (fim do CPF do outro na mão — o maior atrito da inscrição), **AulasController em 7 partials** e o **roteiro de estorno**. **681 testes.**
 > Anterior: **29/07/2026 (madrugada)** — as respostas do Felipe viraram código: **professor assinante existe** (15 dias de teste → R$ 49,90 + 3%/6%, ou avulso 10%), **piso de comissão por tipo** (Aula/Jogo R$ 1), **a condição dos 5% virou trava** (encerrar inscrições → pagar/negociar → chaves liberam via webhook), **boleto herda os 10% do Pix** e o **TorneiosController virou 8 partials** (nenhuma rota mudou). **650 testes**, publicado em dev e prod.
@@ -421,7 +422,20 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
 - **Pnatinha fora dos Comentários:** o mascote no meio da sequência Elogios → Conquistas →
   Comentários empurrava o perfil inteiro pra baixo por causa de uma linha de texto. Nos vazios
   de página inteira ele continua.
-- **754 testes.**
+- **O canal de WhatsApp saiu do papel: Evolution API no nosso próprio VPS, custo R$ 0.**
+  A Z-API (~R$ 100–150/mês) foi trocada por um container open-source rodando ao lado do app
+  (`/opt/evolution/docker-compose.yml`), com **banco Postgres próprio** — se essa coisa
+  corromper dado ou encher disco, o banco dos jogadores nem fica sabendo. Escuta **só em
+  `127.0.0.1:8081`** (conferido de fora: sem resposta), imagem **fixada em v2.3.7**, e
+  **não grava mensagem, contato, conversa nem histórico**: o Padelizou só envia, e guardar o
+  WhatsApp dos jogadores seria dado de terceiro sem motivo.
+  No código, `EvolutionApiService` substituiu o `WhatsAppApiService`; a interface
+  `IWhatsAppService` não mudou, então o resto do sistema nem soube da troca. **Ligado só em
+  produção** (drop-in `whatsapp.conf` no systemd) — no localhost e no dev nasce desligado,
+  senão um teste manda mensagem pro celular de gente de verdade.
+  ⏳ **Falta um passo, e é físico:** comprar um **chip pré-pago** (nunca o número pessoal — se
+  a Meta banir, o número morre) e ler o QR code. O comando está no STATUS abaixo.
+- **789 testes.**
 
 ---
 
