@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **30/07/2026 (noite)** — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
+> Última atualização: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
+> Antes, na mesma noite — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
 > deixou de abrir aba nova (e de mandar pra produção quem clicava no localhost), e as
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
 > dos Elogios. E **todo aviso passou a tentar o WhatsApp da pessoa** além da notificação, por
@@ -465,6 +466,54 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   a entrega falhava — agora conta **entregas**, e inscrição já revogada pelo navegador aparece
   como falha em vez de sucesso.
 - **816 testes.**
+
+### 30/07/2026 (noite) — O app de celular, e o iPhone que dizia "não suporta"
+
+Pergunta do Felipe: *precisa ir pra loja, ou dá pra baixar direto da página?* **Dá direto da
+página, e já dava** — o Padelizou é PWA desde 25/07. A decisão foi **ficar só no PWA por agora**;
+a loja fica pra quando houver base de usuários, e nada do trabalho de hoje se perde nesse dia,
+porque o app da Play Store seria este mesmo site embrulhado (TWA).
+
+⚠️ **APK solto no site nunca**: aviso vermelho de "fonte desconhecida", Play Protect assustando,
+e **sem atualização automática** — cada correção exigiria todo mundo baixar de novo. E no iPhone
+é impossível. O que a loja daria de verdade é **uma coisa só: a pessoa buscar "padel" e achar**.
+Custos, pra quando for a hora: Play US$ 25 uma vez (conta pessoal precisa de **12 testadores por
+14 dias**; conta de empresa escapa disso mas exige D-U-N-S, que demora semanas — e o CNPJ MEI já
+existe), Apple US$ 99/**ano** + Mac pra publicar, com risco de recusa por "site embrulhado".
+
+- **🔴 O iPhone dizia "seu navegador não suporta notificações push".** Suporta: no iOS o
+  `PushManager` **só passa a existir depois** de a pessoa adicionar o Padelizou à tela de início.
+  Quem tocasse no botão lia que o aparelho dele não servia — e desistia pra sempre, do canal que
+  a gente mais quer que ele use. Agora o botão diz **"Instale o app pra receber avisos"**,
+  **continua clicável**, e o clique abre o passo a passo que já estava na mesma tela.
+  `motivoSemPush()` separa **"precisa instalar"** de **"não suporta"** — eram a mesma coisa no código.
+- **Botão de instalar de verdade no Android.** Mandávamos a pessoa caçar nos três pontinhos.
+  O `beforeinstallprompt` agora é capturado **no `<head>`** (no fim do `<body>` ele às vezes já
+  passou, e aí o botão nunca apareceria) e o modal abre a **caixa nativa** com um toque. Recusou?
+  Volta pro passo a passo escrito, em vez de virar um botão que não faz nada. No iPhone continua
+  só o texto: **a Apple não deixa nenhum site abrir essa caixa** — não é limitação nossa.
+- **"Instalar o app" fixo no menu.** O convite aparecia **uma vez por aparelho**; quem fechasse
+  sem querer não tinha mais volta. Some sozinho pra quem já instalou.
+- **Tela de "sem internet"** (`wwwroot/offline.html`). Instalado e sem sinal, o Chrome desenhava
+  o **dinossauro dentro do app** — e app que mostra erro de navegador parece app quebrado, não
+  celular sem sinal. Agora navegação que falha cai numa tela nossa, que **recarrega sozinha
+  quando o sinal volta**. Ela não pode depender de nada da rede: tudo inline, e o logo vem do
+  cache. Testado **derrubando o servidor** com o app aberto: pedi `/Torneios` e veio a tela offline.
+- **Prints no manifest** (3 telas em 504×1000). Sem eles o Android mostra uma barrinha sem graça;
+  com eles, uma janela com imagem e descrição, cara de loja. Capturados com Edge headless, que
+  **trava a largura mínima em 504px** — como o Bootstrap só muda de layout em 576, o print sai
+  com o layout de celular de verdade. Junto: **ícone 192** e o **`id`** do manifest, que faltavam.
+- **Faixa segura do iPhone**: `viewport-fit=cover` + `env(safe-area-*)` na barra e no rodapé. O
+  app ocupa a tela toda sem o menu ficar embaixo do relógio. Em Android e no navegador normal
+  esses valores são **zero** — nada muda.
+- **Achado pelo teste, não por mim:** o `favicon-32.png` tem **64×64** de verdade e o manifest
+  jurava 32×32. **Tamanho mentido faz o navegador descartar o ícone**, calado. Corrigido no
+  manifest e no `_Layout` (o nome do arquivo ficou: ele também é o selo das notificações no
+  Android, onde 32px borraria).
+- **5 testes novos** (`PwaArquivosTests`) amarrando `manifest.json` e `sw.js` ao que existe no
+  disco. São **dois arquivos que ninguém compila** e que citam imagens pelo caminho: um nome
+  errado no `addAll` derruba a **instalação inteira** do service worker — sem cache, sem tela
+  offline, sem push — e **sem um único erro na tela**. **821 testes.**
 
 ---
 
