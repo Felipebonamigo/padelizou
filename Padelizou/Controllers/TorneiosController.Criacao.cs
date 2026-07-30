@@ -179,6 +179,19 @@ namespace Padelizou.Controllers
             var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
             if (clubeNovo != null) torneio.ClubeId = clubeNovo.Id;
 
+            // Torneio sem categoria nenhuma é um torneio em que NINGUÉM consegue se inscrever:
+            // o formulário de inscrição escolhe a categoria, e sem opção não há o que escolher.
+            // Ele era aceito em silêncio — o organizador compartilhava o link e descobria pelo
+            // primeiro jogador que tentou entrar e não conseguiu. A caixa das categorias fica
+            // no fim de um formulário longo, então passar batido é o caso comum, não o raro.
+            if (categoriasSelecionadas == null || categoriasSelecionadas.Length == 0)
+            {
+                ViewBag.Erro = "Escolha pelo menos uma categoria — é nela que os jogadores se inscrevem.";
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                return View(torneio);
+            }
+
             // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário
             // inteiro perdido. Melhor recusar aqui, explicando o que fazer.
             if (torneio.ClubeId <= 0)
