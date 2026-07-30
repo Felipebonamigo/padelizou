@@ -614,7 +614,7 @@ namespace padelizou.Controllers
 
         // 6. RECEBE OS DADOS DE CADASTRO UNIFICADO, A FOTO E AS PREFERÊNCIAS
         [HttpPost]
-        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaCadastro)]
         public async Task<IActionResult> Cadastro(
             string nome, string cpf, string login, string email, string senha, string? celular, bool isProfessor, IFormFile foto,
             string? ladoQuadra, string? lateralidade, string? instagram, bool notificarEmail, bool notificarWhatsApp,

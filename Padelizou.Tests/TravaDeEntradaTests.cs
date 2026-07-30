@@ -162,7 +162,8 @@ public class TravaDeEntradaTests
         ["AuthController.RedefinirSenha"] =
             "Recebe token de recuperação; a trava encarece chutar tokens.",
         ["AuthController.Cadastro"] =
-            "Cria conta; sem trava um robô enche o banco de conta falsa.",
+            "Cria conta; sem trava um robô enche o banco de conta falsa. Janela própria e " +
+            "mais larga (PoliticaCadastro): formulário longo erra legitimamente várias vezes.",
     };
 
     private static List<(string Nome, EnableRateLimitingAttribute Attr)> AcoesComRateLimiting()
@@ -187,12 +188,25 @@ public class TravaDeEntradaTests
     }
 
     [Fact]
-    public void Toda_janela_por_ip_usa_a_politica_registrada_no_Program()
+    public void Toda_janela_por_ip_usa_uma_politica_registrada_no_Program()
     {
         // Nome de política que não existe no Program.cs não protege: o middleware lança
         // exceção na primeira requisição — mas só em quem RODA o app, não no build.
-        Assert.All(AcoesComRateLimiting(),
-            x => Assert.Equal(TravaDeEntrada.PoliticaPorIp, x.Attr.PolicyName));
+        var registradas = new[] { TravaDeEntrada.PoliticaPorIp, TravaDeEntrada.PoliticaCadastro };
+
+        Assert.All(AcoesComRateLimiting(), x => Assert.Contains(x.Attr.PolicyName, registradas));
+    }
+
+    [Fact]
+    public void O_cadastro_tem_janela_propria_e_mais_larga_que_as_outras()
+    {
+        // Formulário longo: cada recusa (CPF já usado, login curto, e-mail repetido) gasta
+        // uma tentativa, e duas pessoas criando conta no mesmo Wi-Fi somam no mesmo IP.
+        // Encostar no limite aqui é o pior primeiro contato possível com o sistema.
+        var cadastro = AcoesComRateLimiting().Single(x => x.Nome == "AuthController.Cadastro");
+
+        Assert.Equal(TravaDeEntrada.PoliticaCadastro, cadastro.Attr.PolicyName);
+        Assert.True(TravaDeEntrada.TentativasDeCadastro > TravaDeEntrada.TentativasPorJanela);
     }
 
     [Fact]

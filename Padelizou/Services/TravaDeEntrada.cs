@@ -25,7 +25,16 @@ namespace Padelizou.Services
     public class TravaDeEntrada
     {
         public const string PoliticaPorIp = "entrada-por-ip";
+
+        // O cadastro tem janela PRÓPRIA e mais larga: é um formulário longo, e cada recusa
+        // (CPF já usado, login curto, e-mail repetido) gasta uma tentativa. Duas pessoas
+        // criando conta no mesmo Wi-Fi do clube, cada uma errando três vezes, encostariam
+        // no limite dos outros — e veriam "muitas tentativas" no primeiro contato com o
+        // sistema, que é o pior momento possível pra isso acontecer.
+        public const string PoliticaCadastro = "cadastro-por-ip";
+
         public const int TentativasPorJanela = 10;
+        public const int TentativasDeCadastro = 20;
         public static readonly TimeSpan Janela = TimeSpan.FromMinutes(5);
 
         private sealed class Contagem

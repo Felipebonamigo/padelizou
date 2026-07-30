@@ -85,21 +85,39 @@ builder.Services.AddRateLimiter(options =>
             "<title>Muitas tentativas - Padelizou</title></head>" +
             "<body style=\"font-family:sans-serif;max-width:30rem;margin:4rem auto;padding:0 1rem;text-align:center\">" +
             "<h1>Calma lá!</h1><p>Muitas tentativas em pouco tempo. " +
-            "Espere alguns minutos e tente de novo.</p></body></html>", cancelamento);
+            "Espere <strong>5 minutos</strong> e tente de novo — não foi nada que você fez de errado.</p>" +
+            // Sem link, a página é um beco sem saída: quem cai aqui no meio do cadastro fica
+            // sem caminho de volta justamente no primeiro contato com o site.
+            "<p><a href=\"/\">Voltar pro início</a></p></body></html>", cancelamento);
 
         var logger = contexto.HttpContext.RequestServices
             .GetService<ILoggerFactory>()?.CreateLogger("TravaDeEntrada");
         logger?.LogWarning("Limite de tentativas estourado em {Caminho} pelo IP {Ip}.",
             contexto.HttpContext.Request.Path, contexto.HttpContext.Connection.RemoteIpAddress);
     };
+    // A janela é por IP **e por ação**: a chave da partição leva o caminho junto. Com uma
+    // janela só por IP, entrar pelo portão, criar conta e pedir "esqueci minha senha"
+    // dividiriam as mesmas 10 tentativas — quem chega pela primeira vez faz as três coisas
+    // em sequência e seria barrado no meio do próprio cadastro.
+    static string Chave(HttpContext http) =>
+        // O IP aqui já é o do cliente de verdade: o UseForwardedHeaders roda antes de tudo
+        // e corrige o RemoteIpAddress atrás do Caddy.
+        $"{http.Connection.RemoteIpAddress?.ToString() ?? "sem-ip"}|{http.Request.Path}";
+
     options.AddPolicy(TravaDeEntrada.PoliticaPorIp, http =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            // O IP aqui já é o do cliente de verdade: o UseForwardedHeaders roda antes
-            // de tudo e corrige o RemoteIpAddress atrás do Caddy.
-            http.Connection.RemoteIpAddress?.ToString() ?? "sem-ip",
+        RateLimitPartition.GetFixedWindowLimiter(Chave(http),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = TravaDeEntrada.TentativasPorJanela,
+                Window = TravaDeEntrada.Janela,
+                QueueLimit = 0,
+            }));
+
+    options.AddPolicy(TravaDeEntrada.PoliticaCadastro, http =>
+        RateLimitPartition.GetFixedWindowLimiter(Chave(http),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = TravaDeEntrada.TentativasDeCadastro,
                 Window = TravaDeEntrada.Janela,
                 QueueLimit = 0,
             }));
