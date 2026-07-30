@@ -379,6 +379,16 @@ torneio, clube e inscrito uma dupla. O que o uso real mostrou em menos de uma ho
   **Preservados de propósito:** a conta do Lucas, os clubes que ele cadastrou e o **pagamento
   real de R$ 9** (o MEI obriga a guardar registro de receita).
   A pontuação do Lucas zerou junto — ela é **calculada** dos torneios, não guardada.
+- **"Prefiro combinar com o Padelizou"** (pedido do Felipe ao olhar a tela de criação): a porta pra
+  negociar a taxa dos 5% existia **só no fim** — na tela da taxa, depois de encerrar as inscrições.
+  Mas quem precisa de prazo, parcelamento ou isenção quer saber disso **antes** de escolher como vai
+  receber. O botão agora fica dentro do bloco "Por fora", na hora da escolha, e abre o WhatsApp já
+  identificando quem fala (e o nome do torneio, se já tiver sido digitado — melhoria progressiva:
+  sem JS o link continua valendo). Fica **fora do `<label>` de propósito**: dentro dele, clicar
+  marcaria o rádio junto, e quem só queria perguntar acabaria escolhendo a forma.
+  ⚠️ **Não virou uma quarta "forma de recebimento"**: as três respondem *como o jogador paga a
+  inscrição*; a negociação é sobre *como a taxa é acertada com o Padelizou*. Como bolinha ali, o
+  organizador leria "posso escolher não pagar a taxa".
 - **O "Painel Admin" do menu abria aba nova e nunca acendia como selecionado.** O endereço era
   fixo (`https://admin.padelizou.com.br`), então clicar nele **no localhost ou no dev jogava
   quem estava testando dentro da produção**. Agora o destino é decidido por
