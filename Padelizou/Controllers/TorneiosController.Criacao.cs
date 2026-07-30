@@ -162,8 +162,18 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
-            bool querRegistroDeResultados = false, string? observacoesRegistro = null)
+            bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null)
         {
+            // A chave escolhida é conferida ANTES de qualquer gravação: recusar depois de
+            // criar o torneio deixaria ele no ar com uma chave que o organizador não pediu.
+            if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
+            {
+                ViewBag.Erro = problemaChave;
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                return View(torneio);
+            }
+
             // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
             // obrigatório e vazio impediria de criar o primeiro torneio.
             var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
@@ -198,7 +208,8 @@ namespace Padelizou.Controllers
             // O Torneio nasce com Inscrições Abertas
             torneio.Status = "Inscrições Abertas";
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-            torneio.ChaveAcesso = torneio.Restrito ? GerarChaveAcesso() : null;
+            // Escolhida pelo organizador quando ele digitou uma; sorteada quando deixou vazio.
+            torneio.ChaveAcesso = torneio.Restrito ? ChaveDeAcessoDoTorneio.Definir(chaveAcessoEscolhida) : null;
 
             if (capa != null && capa.Length > 0)
             {

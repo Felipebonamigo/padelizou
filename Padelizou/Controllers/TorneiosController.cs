@@ -111,19 +111,6 @@ namespace Padelizou.Controllers
             return claim != null ? int.Parse(claim) : (int?)null;
         }
 
-        // Gera a chave de acesso de um torneio Restrito. Sem 0/O/1/I pra não confundir
-        // na hora de digitar/ler em voz alta.
-        private static string GerarChaveAcesso()
-        {
-            const string caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            var buffer = new char[6];
-            for (int i = 0; i < buffer.Length; i++)
-            {
-                buffer[i] = caracteres[Random.Shared.Next(caracteres.Length)];
-            }
-            return new string(buffer);
-        }
-
         // TELA INICIAL DA ABA "TORNEIO": lista tudo, separado por status
         [HttpGet]
         public async Task<IActionResult> Index()
