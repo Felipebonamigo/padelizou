@@ -547,10 +547,12 @@ ter dois controles. Proposta aprovada (mockup antes de codar) e implementada int
 - Migração de 4 colunas anuláveis em `MarcacaoJogo`; regra pura em `Services/ReservaDeBalcao`.
   Provado em tela de ponta a ponta no local (marcar → selo no mapa → a receber → recebi).
   **845 testes.**
-- ⚠️ **Copa/estoque/contas a pagar**: o Felipe perguntou; análise respondida na conversa —
-  resumo: PDV fiscal e estoque são outro produto (não vale agora); um **caixa simples de
-  lançamentos avulsos** (outras receitas/despesas no financeiro) é barato e cobre a dor de
-  "quanto o clube deu no mês" — fica como candidato quando um clube real pedir.
+- ✅ **Copa/bar: decidido em 30/07 — o clube vai SEM essa parte por enquanto.** PDV fiscal e
+  estoque são outro produto (não entrar). O candidato certo pra quando um clube real pedir é
+  a **comanda pendurada na reserva** ("põe na minha conta": os itens da copa presos à reserva
+  do jogador, fechando quadra + copa juntos no "recebi") — o lançamento genérico de
+  receitas/despesas não mata o caderninho da copa, porque a venda é por pessoa, não por dia.
+  Estimativa quando chegar a hora: caixa simples ~1 dia, comanda ~2 dias.
 
 ---
 
