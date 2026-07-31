@@ -74,7 +74,7 @@ garanta que ele consegue rodar `systemctl restart` e escrever em `/opt`.
 
 ### Atalho: gerar os três valores de uma vez
 
-Rodando isto no desktop, sai na tela exatamente o que colar em cada secret:
+**No Linux ou no Mac:**
 
 ```bash
 ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/padelizou_deploy -N ""
@@ -84,6 +84,32 @@ echo "=== VPS_KNOWN_HOSTS ==="; ssh-keyscan -t ed25519 179.197.233.184
 echo "=== VPS_SSH_KEY ==="; cat ~/.ssh/padelizou_deploy
 echo "=== cole esta no hPanel (Chave SSH → Gerenciar) ==="; cat ~/.ssh/padelizou_deploy.pub
 ```
+
+**No Windows (PowerShell)** — duas diferenças que fazem o comando de cima falhar:
+
+O `-N ""` não funciona: o PowerShell descarta string vazia ao passar pra programa
+nativo, e o ssh-keygen reclama que falta o argumento. E o `~` só é expandido pelos
+cmdlets, não pelo ssh-keygen — por isso use `$HOME`.
+
+```powershell
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f "$HOME\.ssh\padelizou_deploy"
+# pede passphrase duas vezes: dê Enter nas duas. A chave TEM que ser sem senha,
+# senão o GitHub Actions fica esperando alguém digitar.
+
+Get-Content "$HOME\.ssh\padelizou_deploy"        # → VPS_SSH_KEY
+Get-Content "$HOME\.ssh\padelizou_deploy.pub"    # → cole no hPanel
+```
+
+O `ssh-keyscan` que vem no Windows é mais antigo que os algoritmos que o servidor
+oferece e morre com `choose_kex: unsupported KEX method sntrup761x25519-sha512`.
+Em vez de brigar com ele, pegue a chave na fonte — pelo Terminal do hPanel:
+
+```bash
+echo "179.197.233.184 $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+```
+
+A linha que sair é o conteúdo do `VPS_KNOWN_HOSTS`. É a mesma coisa que o ssh-keyscan
+traria, só que sem depender da rede — o servidor está lendo a própria chave.
 
 ### 3. Os environments — é aqui que mora a trava do prod
 
