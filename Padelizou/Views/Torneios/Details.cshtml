@@ -421,7 +421,14 @@
             {
                 <div class="alert alert-warning mt-2 border-warning">
                     <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
-                    <p class="mb-3 text-muted small">Marque abaixo apenas se a dupla for <strong>absolutamente incapaz</strong> de jogar nestes turnos. O excesso de impedimentos dificulta o chaveamento.</p>
+                    <p class="mb-2 text-muted small">Marque abaixo apenas se a dupla for <strong>absolutamente incapaz</strong> de jogar neste turno.</p>
+                    @* Um só, e a tela cuida disso sozinha: marcar o segundo solta o primeiro.
+                       Dupla que marca os três está dizendo "não podemos jogar em turno nenhum",
+                       e isso não é impedimento — é desistência. A trava também existe no
+                       servidor (Services/ImpedimentoUnico). *@
+                    <p class="mb-3 small fw-bold">
+                        <i class="bi bi-1-circle"></i> Dá pra marcar <strong>um</strong> turno só.
+                    </p>
 
                     @if (Model.TaxaPorImpedimento > 0)
                     {
@@ -455,31 +462,38 @@
                     }
                 </div>
 
-                @if (Model.TaxaPorImpedimento > 0)
-                {
-                    @* Mostra o acréscimo enquanto a pessoa marca, pra ela não descobrir só
-                       no checkout que a inscrição ficou mais cara. *@
-                    <script>
-                        (function () {
-                            var taxa = @Model.TaxaPorImpedimento.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                            var caixas = ['impSexta', 'impSabManha', 'impSabTarde']
-                                .map(function (id) { return document.getElementById(id); })
-                                .filter(Boolean);
-                            var aviso = document.getElementById('pdzTotalImpedimentos');
+                @* Um turno só: marcar o segundo solta o primeiro. Fica fora do @if da taxa
+                   porque a regra vale mesmo em torneio que não cobra por impedimento. *@
+                <script>
+                    (function () {
+                        var taxa = @Model.TaxaPorImpedimento.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        var caixas = ['impSexta', 'impSabManha', 'impSabTarde']
+                            .map(function (id) { return document.getElementById(id); })
+                            .filter(Boolean);
+                        var aviso = document.getElementById('pdzTotalImpedimentos');
 
-                            function atualizar() {
-                                var n = caixas.filter(function (c) { return c.checked; }).length;
-                                aviso.textContent = n === 0
-                                    ? ''
-                                    : n + (n === 1 ? ' impedimento marcado: ' : ' impedimentos marcados: ')
-                                      + '+ R$ ' + (n * taxa).toFixed(2).replace('.', ',') + ' na inscrição.';
-                            }
+                        function atualizar() {
+                            if (!aviso || !(taxa > 0)) return;
+                            var n = caixas.filter(function (c) { return c.checked; }).length;
+                            aviso.textContent = n === 0
+                                ? ''
+                                : '1 impedimento marcado: + R$ ' + taxa.toFixed(2).replace('.', ',') + ' na inscrição.';
+                        }
 
-                            caixas.forEach(function (c) { c.addEventListener('change', atualizar); });
-                            atualizar();
-                        })();
-                    </script>
-                }
+                        caixas.forEach(function (c) {
+                            c.addEventListener('change', function () {
+                                // Exclusivo: o que acabou de ser marcado desliga os outros.
+                                if (c.checked) {
+                                    caixas.forEach(function (outro) {
+                                        if (outro !== c) outro.checked = false;
+                                    });
+                                }
+                                atualizar();
+                            });
+                        });
+                        atualizar();
+                    })();
+                </script>
             }
 
             @{

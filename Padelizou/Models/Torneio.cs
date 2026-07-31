@@ -172,4 +172,27 @@ public partial class Torneio
     // Registro de COMO foi negociado ("isento — primeiro torneio", "acertado em 3x"...),
     // preenchido pelo admin que registrou. É o que evita a pergunta "quem liberou isso?".
     public string? TaxaExternoNegociadaObs { get; set; }
+
+    // ---- Como o inscrito paga quando é "por fora" ----
+    // A chave Pix do ORGANIZADOR, pra quem se inscreve pagar direto. O Padelizou não toca
+    // nesse dinheiro nem confere se entrou: aqui a chave é só um recado, exibido junto com o
+    // valor. Sem ela, "combinado com o organizador" deixava o jogador sem saber pra onde
+    // mandar — e o organizador respondendo a mesma pergunta no WhatsApp trinta vezes.
+    //
+    // Guardada como texto porque chave Pix é qualquer coisa: CPF, celular, e-mail ou
+    // aleatória. Validar formato aqui só criaria recusa em chave válida que o sistema não
+    // reconhece.
+    public string? ChavePixOrganizador { get; set; }
+
+    // Recado livre do organizador pra quem se inscreve ("levem bola", "estacionamento pelos
+    // fundos", "confirma no grupo do zap"). Aparece na tela de inscrição e no comprovante.
+    public string? RecadoAosInscritos { get; set; }
+
+    // ---- O que o inscrito quer saber e ninguém respondia ----
+    // Duas datas PREVISTAS, não automáticas: quando as inscrições devem fechar e quando o
+    // chaveamento deve sair. O sistema não age por elas (quem encerra e quem sorteia continua
+    // sendo o organizador, no botão) — são promessa publicada, pra parar a pergunta "quando
+    // sai a chave?" e pra o próprio organizador se cobrar do prazo que deu.
+    public DateTime? PrevisaoEncerramentoInscricoes { get; set; }
+    public DateTime? PrevisaoChaveamento { get; set; }
 }

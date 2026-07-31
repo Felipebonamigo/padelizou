@@ -171,6 +171,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+    // Todo campo de dinheiro é <input type="number">, e o navegador manda "79.90" mesmo
+    // exibindo "79,90". Em pt-BR o "." é separador de MILHAR, então o binder padrão lia isso
+    // como 7990 — sem erro, sem aviso. Insert(0) porque só o primeiro provider que aceitar o
+    // tipo é usado. Ver Services/DinheiroModelBinder.
+    options.ModelBinderProviders.Insert(0, new DinheiroModelBinderProvider());
 });
 
 var app = builder.Build();

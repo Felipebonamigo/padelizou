@@ -33,7 +33,12 @@ namespace Padelizou.Controllers
             // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
             // obrigatórios de horário e duração nasceriam VAZIOS — o organizador teria que
             // adivinhar o que preencher. Assim ele começa com 8h-22h e 50 min e só ajusta.
-            return View(new Torneio());
+            //
+            // A inscrição nasce em 150 em vez de 0: zero é um preço VÁLIDO (torneio gratuito),
+            // então o campo em branco não avisava nada e um esquecimento virava torneio de
+            // graça. O valor é um chute plausível pra dupla, e o campo se seleciona sozinho
+            // ao receber o foco — quem digita substitui, não emenda dígito no que já estava.
+            return View(new Torneio { PrecoInscricao = 150m });
         }
 
         // ── Pacote "nós registramos os resultados para você" ──────────────────────────────

@@ -26,12 +26,17 @@
         <div class="card-body p-4 p-md-5">
             <h2 class="fw-bold mb-4" style="color: var(--pdz-ink);"><i class="bi bi-trophy-fill"></i> Criar Novo Torneio</h2>
 
+            @* O botão de publicar fica no PÉ de um formulário longo, e a recusa nasce aqui em
+               cima: sem rolar até ela, apertar publicar parecia não fazer nada. O id serve pro
+               script no fim da página trazer a tela até aqui. *@
             @if (ViewBag.Erro != null)
             {
-                <div class="alert alert-danger">@ViewBag.Erro</div>
+                <div class="alert alert-danger" id="pdzErroCriacao" tabindex="-1">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Erro
+                </div>
             }
 
-            <form asp-action="Create" method="post" enctype="multipart/form-data">
+            <form asp-action="Create" method="post" enctype="multipart/form-data" id="pdzFormCriacao">
 
                 <!-- DADOS BÁSICOS DO TORNEIO -->
                 <h5 class="fw-bold text-muted border-bottom pb-2 mb-3">1. Informações Gerais</h5>
@@ -113,7 +118,13 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Inscrição <span class="fw-normal">(por pessoa)</span></label>
-                        <input type="number" asp-for="PrecoInscricao" id="precoInscricao" step="0.01" class="form-control bg-light" required placeholder="Ex: 75,00" oninput="pdzAtualizarSimulacao()" />
+                        @* min=0 porque torneio de graça é válido; o que não existe é preço
+                           negativo. O valor nasce em 150 (ver TorneiosController.Criacao) e o
+                           campo se seleciona sozinho ao receber o foco — quem digita substitui
+                           o número inteiro em vez de emendar dígito no que já estava lá. *@
+                        <input type="number" asp-for="PrecoInscricao" id="precoInscricao" step="0.01" min="0"
+                               class="form-control bg-light pdz-dinheiro" required placeholder="Ex: 75,00"
+                               oninput="pdzAtualizarSimulacao()" />
                         <small class="text-muted d-block mt-1">É o valor que cada jogador paga. Uma dupla paga o dobro.</small>
                     </div>
                     <div class="col-md-4">
@@ -172,7 +183,7 @@
                             </label>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <span class="small text-muted">Você espera quantas duplas?</span>
-                                <input type="number" id="pdzDuplasEsperadas" min="2" max="256" value="16"
+                                <input type="number" id="pdzDuplasEsperadas" min="2" max="256" value="50"
                                        class="form-control form-control-sm" style="width: 90px;" />
                                 <span class="small text-muted">(só pra simular — não é limite)</span>
                             </div>
@@ -183,6 +194,42 @@
                         <label class="form-label fw-bold small">Limite total de duplas no torneio (opcional)</label>
                         <input type="number" asp-for="LimiteDuplasTotal" min="1" class="form-control bg-light" placeholder="Sem limite" />
                         <small class="text-muted d-block mt-1">Somando todas as categorias. Quem se inscrever depois de esgotado vai pra lista de espera.</small>
+                    </div>
+
+                    @* "Quando fecha?" e "quando sai a chave?" são as duas perguntas que o
+                       organizador responde no WhatsApp o torneio inteiro. Publicadas aqui, ele
+                       responde uma vez só. São PREVISÕES: nada fecha nem sorteia sozinho —
+                       encerrar inscrições e gerar chaves seguem sendo botão dele. *@
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">
+                            Inscrições devem fechar em <span class="fw-normal">(opcional)</span>
+                        </label>
+                        <input type="date" asp-for="PrevisaoEncerramentoInscricoes" class="form-control bg-light" />
+                        <small class="text-muted d-block mt-1">
+                            Só um aviso pros jogadores. Quem encerra de verdade é você, no botão.
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">
+                            Chaveamento previsto pra <span class="fw-normal">(opcional)</span>
+                        </label>
+                        <input type="date" asp-for="PrevisaoChaveamento" class="form-control bg-light" />
+                        <small class="text-muted d-block mt-1">
+                            Quando os grupos e jogos devem sair. Evita o "já saiu a chave?" no zap.
+                        </small>
+                    </div>
+
+                    @* Recado geral, não é só do "por fora": vale pra qualquer torneio ("levem
+                       bola", "estacionamento pelos fundos", "confirma no grupo"). *@
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">
+                            Recado pra quem se inscrever <span class="fw-normal">(opcional)</span>
+                        </label>
+                        <textarea asp-for="RecadoAosInscritos" class="form-control bg-light" rows="2" maxlength="600"
+                                  placeholder="Ex: confirme no grupo do WhatsApp depois de pagar. Estacionamento pelos fundos."></textarea>
+                        <small class="text-muted d-block mt-1">
+                            Aparece na tela de inscrição e no comprovante. Dá pra mudar depois, editando o torneio.
+                        </small>
                     </div>
                 </div>
 
@@ -281,6 +328,23 @@
                                 Abre uma conversa no WhatsApp pra acertar prazo, parcelamento ou isenção
                                 da taxa. Dá pra criar o torneio do mesmo jeito e combinar depois.
                             </div>
+                        </div>
+
+                        @* Só aparece nesta forma: nas outras o jogador paga pelo site e uma chave
+                           Pix na tela seria um segundo caminho pro mesmo dinheiro — ninguém saberia
+                           qual vale. Fica escondido por padrão e o script mostra quando "Por fora"
+                           está marcado. *@
+                        <div class="ps-4 mt-3" id="pdzBlocoPix" style="display:none;">
+                            <label class="form-label fw-bold small mb-1" for="chavePix">
+                                <i class="bi bi-qr-code"></i> Sua chave Pix <span class="fw-normal">(opcional)</span>
+                            </label>
+                            <input type="text" asp-for="ChavePixOrganizador" id="chavePix" maxlength="140"
+                                   class="form-control" placeholder="CPF, celular, e-mail ou chave aleatória" />
+                            <small class="text-muted d-block mt-1">
+                                Aparece pro jogador na hora de se inscrever, junto com o valor.
+                                O dinheiro cai direto na sua conta — o Padelizou não passa por ele
+                                e não tem como saber quem pagou.
+                            </small>
                         </div>
                     </div>
 
@@ -423,7 +487,7 @@
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">R$</span>
                                     <input type="number" asp-for="TaxaPorImpedimento" id="taxaImpedimento"
-                                           step="0.01" min="0" class="form-control" placeholder="0,00" />
+                                           step="0.01" min="0" class="form-control pdz-dinheiro" placeholder="0,00" />
                                 </div>
                                 <small class="text-muted d-block mt-1">
                                     Cobrado <strong>por impedimento marcado</strong>, somado à inscrição.
@@ -603,8 +667,18 @@
                 </div>
 
                 <hr class="my-4" />
-                <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill shadow-sm">
-                    <i class="bi bi-check-circle-fill"></i> Publicar Torneio e Abrir Inscrições
+                @* Publicar sobe a capa, cria o torneio, as categorias e as quadras: leva alguns
+                   segundos. Sem sinal nenhum na tela, o organizador acha que o clique não pegou
+                   e aperta de novo — e o segundo clique é justamente o que criava torneio
+                   duplicado. O botão trava a si mesmo e diz o que está fazendo. *@
+                <button type="submit" id="pdzPublicar" class="btn btn-padel btn-lg w-100 rounded-pill shadow-sm">
+                    <span id="pdzPublicarParado">
+                        <i class="bi bi-check-circle-fill"></i> Publicar Torneio e Abrir Inscrições
+                    </span>
+                    <span id="pdzPublicarIndo" class="d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Publicando o torneio…
+                    </span>
                 </button>
             </form>
         </div>
@@ -1018,6 +1092,11 @@
         var forma = escolhido ? escolhido.value : 'OnlinePix';
         var externo = forma === 'Externo';
 
+        // Antes do desvio do preço zerado: a chave Pix depende só da FORMA, e escondê-la
+        // porque o valor ainda não foi digitado seria esconder por motivo errado.
+        var blocoPix = document.getElementById('pdzBlocoPix');
+        if (blocoPix) blocoPix.style.display = externo ? 'block' : 'none';
+
         if (preco <= 0) {
             caixa.textContent = 'Informe o valor da inscrição pra ver a conta.';
             pdzAtualizarConta(0, 0, 0, false, 0);
@@ -1052,4 +1131,46 @@
         if (obrigatorio && bloco) bloco.style.display = obrigatorio.checked ? 'none' : 'block';
     }
     document.addEventListener('DOMContentLoaded', pdzPrazoVisivel);
+
+    // ── Campos de dinheiro ──────────────────────────────────────────────────────────────
+    // Duas coisas: o valor aparece sempre com centavos (R$ 150 vira "150.00", pra ninguém
+    // achar que o campo é de inteiro), e ao receber o foco ele se seleciona inteiro — sem
+    // isso, quem quer 300 num campo com 150 digita "3" e fica com 1503.
+    function pdzCentavos(el) {
+        if (!el || el.value === '') return;
+        var n = parseFloat(el.value);
+        if (!isNaN(n)) el.value = n.toFixed(2);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.pdz-dinheiro').forEach(function (el) {
+            pdzCentavos(el);
+            el.addEventListener('blur', function () { pdzCentavos(el); });
+            el.addEventListener('focus', function () { setTimeout(function () { el.select(); }, 0); });
+            // O Chrome desfaz a seleção no mouseup depois do clique; sem isto, selecionar
+            // sozinho só funcionaria pra quem chega no campo pelo Tab.
+            el.addEventListener('mouseup', function (ev) { ev.preventDefault(); });
+        });
+
+        // Recusa nasce no topo, botão fica no pé: sem trazer a tela até ela, publicar
+        // parecia não fazer nada.
+        var erro = document.getElementById('pdzErroCriacao');
+        if (erro) {
+            erro.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            erro.focus({ preventScroll: true });
+        }
+
+        // Publicar leva alguns segundos (capa + torneio + categorias + quadras). O evento
+        // submit só dispara depois da validação do navegador, então campo obrigatório em
+        // branco não deixa o botão travado em "Publicando…".
+        var form = document.getElementById('pdzFormCriacao');
+        var botao = document.getElementById('pdzPublicar');
+        if (form && botao) {
+            form.addEventListener('submit', function () {
+                botao.disabled = true;
+                document.getElementById('pdzPublicarParado').classList.add('d-none');
+                document.getElementById('pdzPublicarIndo').classList.remove('d-none');
+            });
+        }
+    });
 </script>

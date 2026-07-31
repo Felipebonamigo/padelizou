@@ -101,6 +101,12 @@ namespace Padelizou.Controllers
             celular1 = Documentos.SomenteDigitosOuNulo(celular1);
             celular2 = Documentos.SomenteDigitosOuNulo(celular2);
 
+            // No máximo UM impedimento (ver Services/ImpedimentoUnico). A tela já não deixa
+            // marcar dois, mas página em cache e POST feito à mão não passam pela tela — e
+            // dupla sem turno nenhum disponível trava o chaveamento inteiro.
+            (impSextaNoite, impSabadoManha, impSabadoTarde) =
+                ImpedimentoUnico.Apenas(impSextaNoite, impSabadoManha, impSabadoTarde);
+
             // Marcou "ainda não tenho parceiro"? Então tudo do jogador 2 é ignorado — mesmo
             // que o formulário tenha mandado algo preenchido antes de o check ser marcado.
             if (semParceiro)
