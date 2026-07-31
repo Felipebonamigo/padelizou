@@ -189,6 +189,14 @@ namespace Padelizou.Controllers
                 return await Recusar(nomeLongo);
             }
 
+            // Preço negativo não estoura nada — e é justamente por isso que passava batido: a
+            // cobrança some (PodeCobrar exige > 0) e o torneio fica anunciando "−R$ 50,00" pra
+            // quem for se inscrever. Zero continua valendo: torneio de graça existe.
+            if (torneio.PrecoInscricao < 0 || torneio.TaxaPorImpedimento < 0)
+            {
+                return await Recusar("Valor negativo não dá: use zero pra não cobrar nada.");
+            }
+
             // A chave escolhida é conferida antes de criar: recusar depois deixaria o torneio
             // no ar com uma chave que o organizador não pediu.
             if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
@@ -484,6 +492,12 @@ namespace Padelizou.Controllers
             if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeTorneio, "O nome do torneio") is { } nomeLongo)
             {
                 TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", new { id });
+            }
+
+            if (precoInscricao < 0)
+            {
+                TempData["Erro"] = "Valor negativo não dá: use zero pra não cobrar nada.";
                 return RedirectToAction("Details", new { id });
             }
 
