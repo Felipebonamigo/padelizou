@@ -105,6 +105,57 @@ namespace Padelizou.Controllers
                 })
                 .ToList();
 
+            // A caderneta do "por fora": só faz sentido quando o dinheiro NÃO passa pelo site.
+            // Nas formas online quem manda é o gateway, e uma segunda lista de "pago/não pago"
+            // seria uma segunda verdade sobre o mesmo dinheiro.
+            if (vm.CobraPorFora)
+            {
+                var duplasDoTorneio = await _context.Duplas
+                    .Include(d => d.Jogador1).Include(d => d.Jogador2).Include(d => d.Categoria)
+                    .Where(d => d.Categoria.TorneioId == id)
+                    .ToListAsync();
+
+                var americanosDoTorneio = await _context.InscricoesAmericanas
+                    .Include(i => i.Jogador).Include(i => i.Categoria)
+                    .Where(i => i.Categoria.TorneioId == id)
+                    .ToListAsync();
+
+                vm.CobrancaPorFora = duplasDoTorneio
+                    .Select(d => new CobrancaPorForaVM
+                    {
+                        Id = d.Id,
+                        EhDupla = true,
+                        Nomes = d.Jogador2 != null
+                            ? $"{d.Jogador1.Nome} / {d.Jogador2.Nome}"
+                            : $"{d.Jogador1.Nome} (sem parceiro)",
+                        Categoria = d.Categoria.Nome,
+                        Celular = d.Jogador1.Celular,
+                        PrimeiroNome = d.Jogador1.ComoChamar.Split(' ')[0],
+                        // A dupla paga por DUAS pessoas; a inscrição sem parceiro também
+                        // ocupa uma vaga de dupla, mas quem está lá é uma pessoa só.
+                        Valor = torneio.PrecoInscricao * (d.Jogador2 != null ? 2 : 1),
+                        Pago = d.Pago,
+                        PagoEm = d.PagoEm,
+                        EmListaDeEspera = d.EmListaDeEspera,
+                    })
+                    .Concat(americanosDoTorneio.Select(i => new CobrancaPorForaVM
+                    {
+                        Id = i.Id,
+                        EhDupla = false,
+                        Nomes = i.Jogador.Nome,
+                        Categoria = i.Categoria.Nome,
+                        Celular = i.Jogador.Celular,
+                        PrimeiroNome = i.Jogador.ComoChamar.Split(' ')[0],
+                        Valor = torneio.PrecoInscricao,
+                        Pago = i.Pago,
+                        PagoEm = i.PagoEm,
+                        EmListaDeEspera = i.EmListaDeEspera,
+                    }))
+                    // Quem deve primeiro: é a lista que o organizador abre pra cobrar.
+                    .OrderBy(c => c.Pago).ThenBy(c => c.Categoria).ThenBy(c => c.Nomes)
+                    .ToList();
+            }
+
             return View(vm);
         }
 

@@ -335,6 +335,12 @@ public class PagamentosController : Controller
             case "PAYMENT_REFUNDED":
                 pagamento.Status = "Estornado";
                 await _context.SaveChangesAsync();
+
+                // O dinheiro voltou, a inscrição volta junto: sem isto a dupla continuava
+                // inscrita e marcada como paga, ocupando vaga de quem estava na fila. Antes
+                // era serviço manual (ESTORNO.md) e, enquanto ninguém fazia, o torneio tinha
+                // uma vaga tomada por quem já tinha recebido de volta.
+                await _inscricoes.DesfazerAsync(pagamento);
                 break;
 
             case "PAYMENT_DELETED":

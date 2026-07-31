@@ -114,6 +114,99 @@
         </div>
     </div>
 
+    @* ── A caderneta do "por fora" ─────────────────────────────────────────────────────
+       Neste torneio o dinheiro não passa pelo site, então a lista "aguardando pagamento"
+       (feita das cobranças do gateway) é sempre vazia. O organizador ficava com a conta de
+       cabeça, marcando dupla por dupla no meio da lista de gestão — e depois de encerrar as
+       inscrições o botão de marcar pago nem aparecia mais, justo quando o pessoal paga. *@
+    @if (Model.CobraPorFora)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                        <i class="bi bi-journal-check"></i> Quem já acertou com você
+                    </h6>
+                    <div class="small">
+                        <span class="text-success fw-bold">@Model.RecebidoPorFora.ToString("C", ptBr) recebido</span>
+                        @if (Model.AReceberPorFora > 0)
+                        {
+                            <span class="text-danger fw-bold ms-2">@Model.AReceberPorFora.ToString("C", ptBr) a receber</span>
+                        }
+                    </div>
+                </div>
+
+                <p class="small text-muted">
+                    O Padelizou não vê esse dinheiro — quem marca é você, conforme o Pix cai.
+                    @if (!string.IsNullOrWhiteSpace(Model.Torneio.ChavePixOrganizador))
+                    {
+                        <text>Sua chave Pix aparece pro jogador na página do torneio.</text>
+                    }
+                </p>
+
+                @if (!Model.CobrancaPorFora.Any())
+                {
+                    <p class="text-muted mb-0">Nenhuma inscrição ainda.</p>
+                }
+                else
+                {
+                    @foreach (var c in Model.CobrancaPorFora)
+                    {
+                        <div class="d-flex align-items-center gap-2 py-2 border-top">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <span class="d-block fw-bold text-truncate" style="color: var(--pdz-ink);">@c.Nomes</span>
+                                <small class="text-muted">
+                                    @c.Categoria
+                                    @if (c.EmListaDeEspera)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">lista de espera</span>
+                                    }
+                                    @if (c.Pago && c.PagoEm != null)
+                                    {
+                                        <span class="text-success">· pago em @c.PagoEm.Value.ToString("dd/MM")</span>
+                                    }
+                                </small>
+                            </div>
+
+                            <span class="fw-bold text-nowrap @(c.Pago ? "text-success" : "text-danger")">
+                                @c.Valor.ToString("C", ptBr)
+                            </span>
+
+                            @* Cobrar é o que o organizador faz mais: a mensagem já vai pronta,
+                               com o valor e a chave Pix, pra ele não digitar trinta vezes. *@
+                            @if (!c.Pago && !string.IsNullOrWhiteSpace(c.Celular))
+                            {
+                                var texto = $"Oi {c.PrimeiroNome}! Sua inscrição em {Model.Torneio.Nome} "
+                                          + $"({c.Categoria}) é {c.Valor.ToString("C", ptBr)}."
+                                          + (string.IsNullOrWhiteSpace(Model.Torneio.ChavePixOrganizador)
+                                             ? ""
+                                             : $" Pix: {Model.Torneio.ChavePixOrganizador}");
+                                <a href="https://wa.me/55@(SoDigitos(c.Celular))?text=@Uri.EscapeDataString(texto)"
+                                   target="_blank" rel="noopener"
+                                   class="btn btn-sm btn-outline-success rounded-pill flex-shrink-0" title="Cobrar no WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                            }
+
+                            @* Vale em QUALQUER status do torneio: muita gente paga depois das
+                               inscrições encerradas, e antes o botão sumia justo nessa hora. *@
+                            <form asp-controller="Torneios"
+                                  asp-action="@(c.EhDupla ? "AlternarPagamentoDupla" : "AlternarPagamentoAmericano")"
+                                  method="post" class="flex-shrink-0">
+                                <input type="hidden" name="@(c.EhDupla ? "duplaId" : "inscricaoId")" value="@c.Id" />
+                                <input type="hidden" name="voltarPara" value="Financeiro" />
+                                <button type="submit" class="btn btn-sm rounded-pill @(c.Pago ? "btn-outline-secondary" : "btn-success")"
+                                        title="@(c.Pago ? "Desmarcar" : "Marcar como pago")">
+                                    <i class="bi @(c.Pago ? "bi-arrow-counterclockwise" : "bi-check-lg")"></i>
+                                </button>
+                            </form>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
     <!-- Aguardando pagamento -->
     @if (Model.Pendentes.Any())
     {

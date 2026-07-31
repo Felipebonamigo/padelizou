@@ -136,7 +136,10 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AlternarPagamentoDupla(int duplaId)
+        // `voltarPara` existe porque esta ação é chamada de DOIS lugares: da lista de gestão
+        // (aba Gerenciar) e da caderneta do Financeiro. Voltar sempre pro Details fazia o
+        // organizador que está conferindo o Pix perder a lista a cada marcação.
+        public async Task<IActionResult> AlternarPagamentoDupla(int duplaId, string? voltarPara = null)
         {
             var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
             if (dupla == null) return NotFound();
@@ -150,13 +153,13 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = dupla.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
-            return RedirectToAction("Details", new { id = torneioId });
+            return RedirectToAction(voltarPara == "Financeiro" ? "Financeiro" : "Details", new { id = torneioId });
         }
 
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AlternarPagamentoAmericano(int inscricaoId)
+        public async Task<IActionResult> AlternarPagamentoAmericano(int inscricaoId, string? voltarPara = null)
         {
             var inscricao = await _context.InscricoesAmericanas
                 .Include(i => i.Categoria).FirstOrDefaultAsync(i => i.Id == inscricaoId);
@@ -171,7 +174,7 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = inscricao.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
-            return RedirectToAction("Details", new { id = torneioId });
+            return RedirectToAction(voltarPara == "Financeiro" ? "Financeiro" : "Details", new { id = torneioId });
         }
 
         // Aba "Gerenciar Torneio": remove um inscrito (só enquanto as inscrições estiverem abertas —

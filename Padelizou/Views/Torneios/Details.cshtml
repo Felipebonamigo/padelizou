@@ -1196,21 +1196,25 @@
                                                 }
                                             }
                                         </span>
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            @* Marcar pago vale em QUALQUER status: muita gente
+                                               acerta o Pix depois das inscrições encerradas, e
+                                               antes o botão sumia justo nessa hora. A lista
+                                               completa pra cobrar está no Financeiro. *@
+                                            @if (Model.PrecoInscricao > 0)
+                                            {
+                                                <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <button type="submit" class="btn btn-sm @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
+                                                        <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
+                                                        @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
                                         @if (Model.Status == "Inscrições Abertas")
                                         {
                                             <div class="d-flex gap-2 flex-wrap">
-                                                @if (Model.PrecoInscricao > 0)
-                                                {
-                                                    @* A última palavra sobre quem pagou é do organizador: Pix direto,
-                                                       dinheiro na quadra — o site não tem como saber. *@
-                                                    <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
-                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                        <button type="submit" class="btn btn-sm @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
-                                                            <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
-                                                            @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
-                                                        </button>
-                                                    </form>
-                                                }
                                                 @if (!dupla.Completa)
                                                 {
                                                     @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho

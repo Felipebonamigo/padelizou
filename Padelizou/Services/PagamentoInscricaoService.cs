@@ -51,6 +51,9 @@ public interface IPagamentoInscricaoService
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
         DadosInscricaoAula dados, string? formaEscolhida = null);
 
+    // O avesso do EfetivarAsync: o dinheiro voltou, a inscrição volta junto.
+    Task<bool> DesfazerAsync(Pagamento pagamento);
+
     // A taxa dos 5% do torneio "por fora": quem paga é o ORGANIZADOR, e o valor inteiro fica
     // com o Padelizou (sem split). Devolve a URL da fatura, ou null se o gateway falhou.
     Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
@@ -372,6 +375,120 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     }
 
     // Chamado pelo webhook: o dinheiro entrou, então agora a inscrição existe de fato.
+    // O AVESSO do EfetivarAsync: o dinheiro voltou, então a inscrição precisa voltar também.
+    //
+    // Antes o estorno mexia só no dinheiro: a dupla continuava inscrita, continuava marcada
+    // como paga e a lista de espera não andava. Alguém tinha que arrumar tudo isso na mão
+    // (o roteiro está no ESTORNO.md) — e enquanto não arrumasse, o torneio tinha uma vaga
+    // ocupada por quem já tinha recebido o dinheiro de volta.
+    //
+    // É idempotente por construção: o Asaas reenvia o mesmo evento até receber 200, e a
+    // segunda passada não acha mais a inscrição pra remover.
+    //
+    // Cobre a INSCRIÇÃO EM TORNEIO, que é o caso do estorno de verdade. Os outros tipos
+    // (aula, quadra, taxa, mensalidade) são registrados no log em vez de desfeitos no chute:
+    // desfazer errado destrói dado, e cada um desses tem regra própria.
+    public async Task<bool> DesfazerAsync(Pagamento pagamento)
+    {
+        // Sem ReferenciaId o pagamento nunca virou inscrição — não há o que desfazer.
+        if (pagamento.ReferenciaId == null) return false;
+
+        if (pagamento.Tipo is "Aula" or "Jogo" or "JogoVarios" or "TaxaTorneio" or "AssinaturaProfessor")
+        {
+            _logger.LogWarning(
+                "Estorno do pagamento {Id} (tipo {Tipo}) precisa ser desfeito à mão — o automático "
+                + "cobre inscrição em torneio.", pagamento.Id, pagamento.Tipo);
+            return false;
+        }
+
+        var dados = Desserializar<DadosInscricaoTorneio>(pagamento);
+        if (dados == null) return false;
+
+        var torneio = await _context.Torneios.FindAsync(dados.TorneioId);
+
+        // Mesma bifurcação do EfetivarTorneioAsync, pra desfazer exatamente o que ele criou.
+        if (dados.Jogador2Id.HasValue || dados.SemParceiro)
+        {
+            var dupla = await _context.Duplas.FindAsync(pagamento.ReferenciaId.Value);
+            if (dupla == null) return false;
+
+            bool eraConfirmada = !dupla.EmListaDeEspera;
+            var afetados = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+
+            _context.Duplas.Remove(dupla);
+            await _context.SaveChangesAsync();
+
+            await AvisarDoEstornoAsync(afetados, torneio);
+            if (eraConfirmada) await ChamarDaListaDeEsperaAsync(dupla.CategoriaId, torneio);
+        }
+        else
+        {
+            var inscricao = await _context.InscricoesAmericanas.FindAsync(pagamento.ReferenciaId.Value);
+            if (inscricao == null) return false;
+
+            bool eraConfirmada = !inscricao.EmListaDeEspera;
+            var categoriaId = inscricao.CategoriaId;
+
+            _context.InscricoesAmericanas.Remove(inscricao);
+            await _context.SaveChangesAsync();
+
+            await AvisarDoEstornoAsync(new[] { inscricao.JogadorId }, torneio);
+            if (eraConfirmada) await ChamarDaListaDeEsperaAsync(categoriaId, torneio);
+        }
+
+        _logger.LogInformation("Pagamento {Id} estornado — inscrição desfeita.", pagamento.Id);
+        return true;
+    }
+
+    private async Task AvisarDoEstornoAsync(IEnumerable<int> jogadorIds, Torneio? torneio)
+    {
+        // Quem levou o dinheiro de volta precisa saber que a vaga foi junto. Sem isso a pessoa
+        // apareceria no clube no dia do jogo achando que ainda estava inscrita.
+        foreach (var id in jogadorIds)
+        {
+            try
+            {
+                await _push.EnviarParaJogadorAsync(id, "Inscrição cancelada",
+                    $"O pagamento de {torneio?.Nome ?? "um torneio"} foi estornado e a inscrição foi desfeita. "
+                    + "Se foi engano, dá pra se inscrever de novo enquanto as inscrições estiverem abertas.",
+                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar o jogador {JogadorId} do estorno.", id);
+            }
+        }
+    }
+
+    // Abriu vaga: a primeira da fila entra (menor Id = quem chegou antes) e é avisada.
+    private async Task ChamarDaListaDeEsperaAsync(int categoriaId, Torneio? torneio)
+    {
+        var proxima = await _context.Duplas
+            .Where(d => d.CategoriaId == categoriaId && d.EmListaDeEspera)
+            .OrderBy(d => d.Id)
+            .FirstOrDefaultAsync();
+
+        if (proxima == null) return;
+
+        proxima.EmListaDeEspera = false;
+        await _context.SaveChangesAsync();
+
+        foreach (var id in new[] { proxima.Jogador1Id, proxima.Jogador2Id }.Where(i => i != null))
+        {
+            try
+            {
+                await _push.EnviarParaJogadorAsync(id!.Value, "Abriu vaga — vocês estão dentro!",
+                    $"Alguém saiu de {torneio?.Nome ?? "um torneio"} e vocês saíram da lista de espera. Boa sorte!",
+                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar promoção do jogador {JogadorId}.", id);
+            }
+        }
+    }
+
     public async Task EfetivarAsync(Pagamento pagamento)
     {
         // O Asaas reenvia o mesmo evento até receber 200 — inscrever duas vezes seria pior

@@ -19,6 +19,18 @@ public class FinanceiroTorneioVM
     public List<FinanceiroCategoriaVM> PorCategoria { get; set; } = new();
     public List<PagamentoPendenteVM> Pendentes { get; set; } = new();
 
+    // A caderneta do "por fora": quem já acertou com o organizador e quem ainda deve.
+    //
+    // A lista `Pendentes` acima é feita das cobranças que o SITE gerou — num torneio "por
+    // fora" ela é sempre vazia, porque o dinheiro não passa por aqui. O organizador ficava
+    // com a conta de cabeça, marcando dupla por dupla no meio da lista de gestão.
+    public List<CobrancaPorForaVM> CobrancaPorFora { get; set; } = new();
+
+    public bool CobraPorFora => !Torneio.CobraPeloSite && Torneio.PrecoInscricao > 0;
+
+    public decimal RecebidoPorFora => CobrancaPorFora.Where(c => c.Pago).Sum(c => c.Valor);
+    public decimal AReceberPorFora => CobrancaPorFora.Where(c => !c.Pago).Sum(c => c.Valor);
+
     // Quanto sobra pro organizador depois da comissão da plataforma.
     public decimal Liquido => Arrecadado - TaxaPlataforma;
 
@@ -47,6 +59,27 @@ public class PagamentoPendenteVM
     public DateTime CriadoEm { get; set; }
     public DateTime? ExpiraEm { get; set; }
     public string? LinkCobranca { get; set; }
+}
+
+// Uma linha da caderneta do "por fora": uma inscrição e se ela já foi acertada.
+public class CobrancaPorForaVM
+{
+    // Id da Dupla ou da InscricaoAmericana — o botão de marcar pago precisa saber qual dos
+    // dois, porque são ações diferentes.
+    public int Id { get; set; }
+    public bool EhDupla { get; set; }
+
+    public string Nomes { get; set; } = "";
+    public string Categoria { get; set; } = "";
+
+    // Celular de quem responde pela inscrição (o jogador 1), pro botão de cobrar no WhatsApp.
+    public string? Celular { get; set; }
+    public string PrimeiroNome { get; set; } = "";
+
+    public decimal Valor { get; set; }
+    public bool Pago { get; set; }
+    public DateTime? PagoEm { get; set; }
+    public bool EmListaDeEspera { get; set; }
 }
 
 // Relatório de fechamento: o que o organizador manda pro patrocinador.
