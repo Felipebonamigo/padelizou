@@ -103,6 +103,17 @@ Antes disso, no mesmo dia:
 **889 testes.** Backup de produção conferido antes de publicar (2 jogadores, o pagamento real
 de R$ 9, marcador de fim presente).
 
+**Portão com credenciais extras** (`build-167`): além da principal, dá pra abrir entrada
+separada pra outra pessoa sem reemitir a senha de todo mundo — e cortar essa entrada depois
+sem expulsar quem entrou pela principal. O cookie continua saindo da credencial **principal**
+(ele diz "passou pelo portão", não quem passou), então trocar a senha principal segue
+derrubando todo mundo de uma vez, que é o que se quer quando ela vaza. Extra sem senha não
+abre nada — um `Extras` meio preenchido no systemd viraria porta escancarada pra quem
+deixasse o campo em branco. Configuração em `/etc/systemd/system/padelizou*.service.d/
+portao-extra.conf` (chmod 600, arquivo separado de propósito: apagar + `daemon-reload` +
+restart corta a entrada). **As senhas do portão não ficam em arquivo versionado.**
+**894 testes.**
+
 ### 25/07/2026 — Fundação de engenharia
 - **Git recuperado**: repo estava escondido na subpasta e parado desde 21/07 (199 arquivos sem commit). Movido para a raiz da solução, `publish/` e segredos fora do versionamento, tudo no GitHub.
 - **85 testes automatizados** (`Padelizou.Tests`, xUnit + EF InMemory, roda sem banco): rateio Asaas, ranking, nível comprovado, filtro multi-cidade, CPF e o fluxo completo do torneio.
