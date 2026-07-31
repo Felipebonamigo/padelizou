@@ -6,9 +6,10 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// O portão do beta: uma senha só, compartilhada, que chega por WhatsApp. O usuário NÃO é
-// segredo — o segredo é a senha — então exigir a caixa certa só criaria chamado de suporte
-// (o teclado do celular decide sozinho se capitaliza).
+// O portão do beta: senha compartilhada, que chega por WhatsApp. O usuário NÃO é segredo — o
+// segredo é a senha — então exigir a caixa certa só criaria chamado de suporte (o teclado do
+// celular decide sozinho se capitaliza). Além da credencial principal existem as EXTRAS, com
+// o mesmo poder, pra dar entrada separada a outra pessoa sem reemitir a senha de todo mundo.
 public class PortaoDeAcessoTests
 {
     private static AcessoAntecipadoController Controller()
@@ -18,6 +19,7 @@ public class PortaoDeAcessoTests
             Habilitado = true,
             Usuario = "Corneteiros",
             Senha = "corneta",
+            Extras = { new CredencialDoPortao { Usuario = "bonamigo", Senha = "bonamigo" } },
         };
         var contexto = new ControllerContext { HttpContext = new DefaultHttpContext() };
         var controller = new AcessoAntecipadoController(Options.Create(settings))
@@ -67,6 +69,43 @@ public class PortaoDeAcessoTests
         // O POST pode chegar sem nada (formulário em cache, requisição à mão).
         Assert.False(Entrou(Controller().Entrar(null!, null!, null)));
         Assert.False(Entrou(Controller().Entrar("", "", null)));
+    }
+
+    [Theory]
+    [InlineData("bonamigo", "bonamigo")]
+    [InlineData("BONAMIGO", "bonamigo")]   // a tolerância de caixa no usuário vale pras extras
+    [InlineData(" bonamigo ", " bonamigo ")]
+    public void Credencial_extra_abre_o_portao_igual(string usuario, string senha)
+    {
+        Assert.True(Entrou(Controller().Entrar(usuario, senha, null)));
+    }
+
+    [Fact]
+    public void Extra_nao_afrouxa_a_principal_nem_o_contrario()
+    {
+        // Cada dupla é uma dupla: usuário de uma com senha da outra não entra.
+        Assert.False(Entrou(Controller().Entrar("bonamigo", "corneta", null)));
+        Assert.False(Entrou(Controller().Entrar("Corneteiros", "bonamigo", null)));
+        Assert.False(Entrou(Controller().Entrar("bonamigo", "BONAMIGO", null)));
+    }
+
+    [Fact]
+    public void Extra_sem_senha_nao_vira_porta_escancarada()
+    {
+        // Um Extras meio preenchido no systemd (usuário sim, senha esquecida) não pode deixar
+        // qualquer um entrar deixando o campo em branco.
+        var settings = new AcessoAntecipadoSettings
+        {
+            Habilitado = true,
+            Usuario = "Corneteiros",
+            Senha = "corneta",
+            Extras = { new CredencialDoPortao { Usuario = "meia-boca", Senha = "" } },
+        };
+
+        Assert.False(settings.Confere("meia-boca", ""));
+        Assert.False(settings.Confere("meia-boca", null));
+        Assert.False(settings.Confere("meia-boca", "qualquer"));
+        Assert.True(settings.Confere("Corneteiros", "corneta"));
     }
 
     [Fact]

@@ -22,22 +22,19 @@ namespace padelizou.Controllers
             return View();
         }
 
-        // O portão tem UMA senha compartilhada — sem trava por IP seria o alvo mais
-        // barato de força-bruta do site inteiro (ver TravaDeEntrada).
+        // O portão tem senha compartilhada — sem trava por IP seria o alvo mais barato de
+        // força-bruta do site inteiro (ver TravaDeEntrada).
         [HttpPost]
         [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public IActionResult Entrar(string usuario, string senha, string? returnUrl)
         {
-            // O usuário do portão NÃO é segredo (o segredo é a senha) — e ele chega por
-            // WhatsApp, digitado num celular que decide sozinho se capitaliza a primeira
-            // letra. Comparar com caixa exigiria acertar "Corneteiros" e não "corneteiros",
-            // o que viraria chamado de suporte na primeira noite. A senha continua exata.
-            //
-            // O Trim vale pros dois: copiar de uma mensagem quase sempre traz espaço colado,
-            // e recusar por causa disso é recusar quem digitou certo.
-            if (string.Equals(usuario?.Trim(), _settings.Usuario?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && senha?.Trim() == _settings.Senha?.Trim())
+            // Vale a principal ou qualquer uma das extras — a regra mora nas Settings porque é
+            // lá que as credenciais vivem (ver AcessoAntecipadoSettings.Confere).
+            if (_settings.Confere(usuario, senha))
             {
+                // O cookie é o MESMO pra qualquer credencial: ele diz "passou pelo portão", não
+                // quem passou. Sai da credencial principal de propósito — assim entrar por uma
+                // extra não cria um cookie que sobreviveria à troca da senha principal.
                 Response.Cookies.Append(AcessoAntecipadoMiddleware.NomeCookie, AcessoAntecipadoMiddleware.CalcularHash(_settings), new CookieOptions
                 {
                     HttpOnly = true,
