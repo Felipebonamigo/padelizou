@@ -9,6 +9,15 @@
     @if (TempData["Sucesso"] != null) { <div class="alert alert-success">@TempData["Sucesso"]</div> }
     @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
 
+    @* Esta página é pública, então a volta pro painel só existe pro dono dela: o aluno que
+       chegou pela busca não tem painel de professor pra voltar. *@
+    @if (Model.EhOProprioProfessor)
+    {
+        <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill btn-sm mb-3">
+            <i class="bi bi-arrow-left"></i> Voltar ao Painel
+        </a>
+    }
+
     <!-- CABEÇALHO: é o que vende a aula -->
     <div class="card border-0 shadow-sm mb-4 p-4" style="background-color: var(--pdz-navy-fixed); color: white;">
         <div class="d-flex align-items-center gap-3 flex-wrap">

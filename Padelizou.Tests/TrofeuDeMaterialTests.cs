@@ -69,12 +69,13 @@ public class TrofeuDeMaterialTests
     // ---------- A prateleira ----------
 
     [Fact]
-    public void So_conta_campeonato_e_agrupa_por_material()
+    public void So_conta_campeonato_e_agrupa_por_categoria()
     {
         var campanhas = new (string?, string?)[]
         {
             ("2ª Categoria Masculina", "Campeao"),
-            ("2ª Categoria Feminina", "Campeao"),   // mesmo material, soma junto
+            ("2ª Categoria Masculina", "Campeao"),  // bicampeão da MESMA categoria: soma junto
+            ("2ª Categoria Feminina", "Campeao"),   // mesmo material, taça separada
             ("3ª Categoria Masculina", "Campeao"),
             ("2ª Categoria Masculina", "Final"),    // vice não é troféu
             ("Categoria Open Masculino", "Semifinal"),
@@ -82,11 +83,36 @@ public class TrofeuDeMaterialTests
 
         var prateleira = TrofeuDeMaterial.Contar(campanhas);
 
-        Assert.Equal(2, prateleira.Count);
+        // Três taças: as duas de ouro não viram uma só, porque o nome da categoria é
+        // justamente o que o jogador quer mostrar.
+        Assert.Equal(3, prateleira.Count);
+
+        Assert.Equal("2ª Categoria Masculina", prateleira[0].Categoria);
         Assert.Equal("Ouro", prateleira[0].Material.Chave);
         Assert.Equal(2, prateleira[0].Titulos);
-        Assert.Equal("Prata", prateleira[1].Material.Chave);
+
+        Assert.Equal("2ª Categoria Feminina", prateleira[1].Categoria);
+        Assert.Equal("Ouro", prateleira[1].Material.Chave);
         Assert.Equal(1, prateleira[1].Titulos);
+
+        Assert.Equal("3ª Categoria Masculina", prateleira[2].Categoria);
+        Assert.Equal("Prata", prateleira[2].Material.Chave);
+    }
+
+    [Fact]
+    public void Mesma_categoria_escrita_diferente_conta_junto()
+    {
+        // O nome vem digitado pelo organizador; um espaço sobrando não pode partir o
+        // bicampeonato em duas taças de 1×.
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?)[]
+        {
+            ("2ª Categoria Masculina", "Campeao"),
+            (" 2ª CATEGORIA MASCULINA ", "Campeao"),
+        });
+
+        Assert.Single(prateleira);
+        Assert.Equal(2, prateleira[0].Titulos);
+        Assert.Equal("2ª Categoria Masculina", prateleira[0].Categoria); // a 1ª grafia vista
     }
 
     [Fact]
@@ -138,10 +164,15 @@ public class TrofeuDeMaterialTests
     }
 
     [Fact]
-    public void So_o_diamante_nao_e_taca()
+    public void Todo_tier_e_taca_inclusive_o_diamante()
     {
-        Assert.Equal("bi-gem", EstatisticasService.TierDaCategoria("Categoria Open Masculino").Icone);
-        Assert.Equal("bi-trophy-fill", EstatisticasService.TierDaCategoria("2ª Categoria Masculina").Icone);
-        Assert.Equal("bi-trophy-fill", EstatisticasService.TierDaCategoria("Categoria Mista A").Icone);
+        // O diamante já foi desenhado como pedra lapidada e destoava dos outros sete: na
+        // prateleira parecia sobra de uma versão anterior. Agora o material aparece na COR,
+        // nunca num formato diferente.
+        foreach (var cat in new[] { "Categoria Open Masculino", "1ª Categoria Feminina",
+                                    "2ª Categoria Masculina", "Categoria Mista A", "Sei lá" })
+        {
+            Assert.Equal("bi-trophy-fill", EstatisticasService.TierDaCategoria(cat).Icone);
+        }
     }
 }

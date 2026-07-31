@@ -49,9 +49,9 @@ public class EstatisticasService : IEstatisticasService
     public static (string Chave, string Nome, string Icone, string CorFundo, string CorTexto) TierDaCategoria(string? nomeCategoria)
     {
         var m = TrofeuDeMaterial.Do(nomeCategoria);
-        // O diamante não é taça: é pedra lapidada, e o ícone acompanha.
-        var icone = m.Chave == "Diamante" ? "bi-gem" : "bi-trophy-fill";
-        return (m.Chave, m.Nome, icone, m.CorFundo, m.CorTexto);
+        // Todos os tiers são taça, inclusive o diamante: o material aparece na cor da pílula,
+        // não num ícone diferente. (O diamante já foi pedra lapidada e destoava da família.)
+        return (m.Chave, m.Nome, "bi-trophy-fill", m.CorFundo, m.CorTexto);
     }
 
     // Ordem de FORÇA da categoria (maior número = categoria mais forte). Usado pela

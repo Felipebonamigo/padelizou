@@ -28,7 +28,7 @@
                     <div class="text-muted">Como o Padelizou cobra pelas suas aulas.</div>
                 </div>
                 <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">
-                    Voltar ao painel
+                    <i class="bi bi-arrow-left"></i> Voltar ao Painel
                 </a>
             </div>
 
@@ -96,6 +96,20 @@
                     break;
             }
 
+            @* A dúvida nº 1 de quem lê uma tabela de taxas é "então vou pagar 10% de TUDO que
+               eu ganho?". Não: a taxa nasce junto com a cobrança (PagamentoInscricaoService),
+               e aula paga na mão nunca passa por lá. Dizer isso ANTES dos dois cards, senão a
+               pessoa fecha a tela com a conta errada na cabeça. *@
+            <div class="alert alert-success border-0 d-flex align-items-start gap-2 mt-3">
+                <i class="bi bi-hand-thumbs-up-fill fs-5"></i>
+                <div>
+                    <strong>Receber por fora sempre pode.</strong>
+                    Se o aluno te paga direto — Pix na sua chave, dinheiro, na recepção do clube —
+                    o Padelizou <strong>não cobra nada</strong>: o valor não passa por aqui.
+                    As porcentagens abaixo valem só para as aulas que o aluno paga <strong>dentro do app</strong>.
+                </div>
+            </div>
+
             @* ---- Os dois pacotes, lado a lado ---- *@
             <div class="row g-3 mt-1">
                 <div class="col-md-6">
@@ -113,7 +127,7 @@
                             </div>
                             <ul class="list-unstyled small mt-2 mb-3">
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
-                                    <strong>@cfg.PercentualAssinantePix.ToString("0.#")%</strong> por aula no Pix e boleto</li>
+                                    <strong>@cfg.PercentualAssinantePix.ToString("0.#")%</strong> por aula paga no app, no Pix e boleto</li>
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
                                     <strong>@cfg.PercentualAssinanteCartao.ToString("0.#")%</strong> no cartão</li>
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
@@ -166,7 +180,7 @@
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
                                     Sem compromisso mensal</li>
                                 <li class="mb-1"><i class="bi bi-dash-circle text-muted"></i>
-                                    <strong>@cfg.PercentualAvulso.ToString("0.#")%</strong> por aula, em qualquer forma</li>
+                                    <strong>@cfg.PercentualAvulso.ToString("0.#")%</strong> por aula paga no app, em qualquer forma</li>
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
                                     Bom pra quem dá poucas aulas pelo app</li>
                             </ul>
@@ -194,7 +208,7 @@
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-body small">
                     <strong><i class="bi bi-calculator"></i> Na prática:</strong>
-                    com @exemploAulas.ToString("0") aulas de @exemploPreco.ToString("C") no mês (todas no Pix),
+                    com @exemploAulas.ToString("0") aulas de @exemploPreco.ToString("C") no mês <strong>pagas pelo app</strong> (todas no Pix),
                     o Avulso paga <strong>@custoAvulso.ToString("C")</strong> de taxa;
                     o Assinante paga <strong>@custoAssinante.ToString("C")</strong>
                     (@cfg.MensalidadeAssinante.ToString("C") + @cfg.PercentualAssinantePix.ToString("0.#")%).

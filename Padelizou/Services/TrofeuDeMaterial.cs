@@ -17,7 +17,10 @@ public record MaterialDoTrofeu(
     string CorFundo,    // fundo da pílula pequena (listas)
     string CorTexto);   // texto/ícone da pílula pequena
 
-public record TrofeuContado(MaterialDoTrofeu Material, int Titulos);
+// Um troféu da prateleira: o material desenha, mas quem dá nome é a CATEGORIA. Ninguém ganha
+// "um diamante" — ganha a 1ª Categoria Masculina, e é isso que a pessoa quer ler no perfil.
+// O material continua existindo pra desenhar a taça e pra ordenar a fila.
+public record TrofeuContado(MaterialDoTrofeu Material, string Categoria, int Titulos);
 
 public static class TrofeuDeMaterial
 {
@@ -49,30 +52,47 @@ public static class TrofeuDeMaterial
         return Geral;
     }
 
-    // Quantos títulos o jogador tem de cada material. Só entra material com título de verdade:
+    // Quantos títulos o jogador tem em cada CATEGORIA. Só entra categoria com título de verdade:
     // uma prateleira com sete taças vazias diria "esse jogador não ganhou nada" de um jeito
     // mais triste do que não ter prateleira nenhuma.
     //
-    // Ordena pelo mais forte; os de fora da escada (vidro/geral) vão pro fim, e entre iguais
-    // manda quem tem mais título.
+    // Agrupa por categoria, não por material: bicampeão da 2ª aparece como "2× 2ª Categoria",
+    // e quem ganhou a 2ª masculina e a 2ª feminina vê as duas — mesmo troféu de ouro desenhado
+    // duas vezes, com o nome de cada uma embaixo. Juntar as duas num "2× Ouro" apagava
+    // justamente o que a pessoa quer mostrar.
+    //
+    // A chave ignora caixa e espaço sobrando ("2ª CATEGORIA " e "2ª Categoria" são a mesma),
+    // mas o nome exibido é a primeira grafia vista — o organizador escreveu assim.
+    //
+    // Ordena pelo material mais forte; os de fora da escada (vidro/geral) vão pro fim, e entre
+    // iguais manda quem tem mais título.
     public static List<TrofeuContado> Contar(IEnumerable<(string? Categoria, string? UltimaFase)> campanhas)
     {
-        var porMaterial = new Dictionary<string, (MaterialDoTrofeu Material, int Titulos)>();
+        var porCategoria = new Dictionary<string, (MaterialDoTrofeu Material, string Nome, int Titulos)>();
 
         foreach (var (categoria, fase) in campanhas)
         {
             if (fase != "Campeao") continue;
 
             var material = Do(categoria);
-            var atual = porMaterial.TryGetValue(material.Chave, out var v) ? v.Titulos : 0;
-            porMaterial[material.Chave] = (material, atual + 1);
+
+            // Categoria sem nome (dado antigo ou torneio importado) cai no nome do material:
+            // é feio deixar a taça sem legenda nenhuma.
+            var nome = string.IsNullOrWhiteSpace(categoria) ? material.Nome : categoria.Trim();
+            var chave = nome.ToLowerInvariant();
+
+            // Na segunda passagem só o contador sobe: reescrever o nome faria a grafia da
+            // ÚLTIMA campanha ganhar, e um " 2ª CATEGORIA " digitado torto apagaria a boa.
+            porCategoria[chave] = porCategoria.TryGetValue(chave, out var v)
+                ? (v.Material, v.Nome, v.Titulos + 1)
+                : (material, nome, 1);
         }
 
-        return porMaterial.Values
+        return porCategoria.Values
             .OrderByDescending(t => t.Material.Forca)
             .ThenByDescending(t => t.Titulos)
-            .ThenBy(t => t.Material.Nome)
-            .Select(t => new TrofeuContado(t.Material, t.Titulos))
+            .ThenBy(t => t.Nome)
+            .Select(t => new TrofeuContado(t.Material, t.Nome, t.Titulos))
             .ToList();
     }
 }

@@ -9,7 +9,9 @@
             <h2 class="fw-bold" style="color: var(--pdz-ink);">Relatório de Aulas</h2>
             <p class="text-muted mb-0">Aulas marcadas como "Realizada" no período selecionado.</p>
         </div>
-        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill">Voltar à Agenda</a>
+        <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left"></i> Voltar ao Painel
+        </a>
     </div>
 
     <form asp-controller="Aulas" asp-action="Relatorio" method="get" class="row g-2 mb-4 align-items-end">

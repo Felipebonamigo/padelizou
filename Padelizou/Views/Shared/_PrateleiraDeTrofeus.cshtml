@@ -1,6 +1,10 @@
 @model List<Padelizou.Services.TrofeuContado>
 @*
-    A prateleira de troféus do perfil: um troféu por material, com quantos títulos daquele.
+    A prateleira de troféus do perfil: um troféu por CATEGORIA vencida, com quantos títulos.
+
+    O nome embaixo é o da categoria ("2ª Categoria Masculina"), não o do material: ninguém ganha
+    "um diamante", ganha uma categoria. O material só escolhe o desenho da taça e o lugar na
+    fila — quem entende a escada lê no troféu, quem não entende lê o nome.
 
     Só aparece quem tem título de verdade (ver TrofeuDeMaterial.Contar) — prateleira cheia de
     taça vazia diria "esse jogador não ganhou nada" de um jeito pior que não ter prateleira.
@@ -14,16 +18,18 @@
         <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-sm-start">
             @foreach (var t in Model)
             {
-                <div class="text-center" style="min-width: 84px;"
-                     title="@t.Titulos título(s) de @t.Material.Nome">
+                @* min-width segura o alinhamento com nome curto ("Open"); max-width impede
+                   que um nome comprido estique a coluna e desencontre as taças. *@
+                <div class="text-center" style="min-width: 84px; max-width: 116px;"
+                     title="@t.Titulos título(s) — @t.Categoria (troféu de @t.Material.Nome)">
                     <svg width="64" height="64" role="img"
-                         aria-label="@t.Titulos título(s) de @t.Material.Nome">
+                         aria-label="@t.Titulos título(s) em @t.Categoria">
                         <use href="#trofeu-@t.Material.Chave" />
                     </svg>
                     <div class="fw-bold" style="font-size: .95rem; color: var(--pdz-ink);">
                         @t.Titulos×
                     </div>
-                    <div class="text-muted" style="font-size: .75rem;">@t.Material.Nome</div>
+                    <div class="text-muted lh-sm" style="font-size: .75rem;">@t.Categoria</div>
                 </div>
             }
         </div>

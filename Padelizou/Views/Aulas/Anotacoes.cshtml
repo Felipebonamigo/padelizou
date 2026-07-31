@@ -7,6 +7,22 @@
 }
 
 <div class="container mt-4 mb-5" style="max-width: 680px;">
+    @* O caderno é dos dois, e cada um chegou de um lugar: o professor pela Agenda, o aluno
+       por Minhas Aulas. Mandar os dois pro mesmo destino jogaria um deles numa tela que não
+       é dele. *@
+    @if (meuId == Model.ProfessorId)
+    {
+        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill btn-sm mb-3">
+            <i class="bi bi-arrow-left"></i> Voltar à Agenda
+        </a>
+    }
+    else
+    {
+        <a asp-controller="Aulas" asp-action="MinhasAulas" class="btn btn-outline-secondary rounded-pill btn-sm mb-3">
+            <i class="bi bi-arrow-left"></i> Voltar às minhas aulas
+        </a>
+    }
+
     @if (TempData["Erro"] != null) { <div class="alert alert-warning">@TempData["Erro"]</div> }
 
     <div class="card border-0 shadow-sm mb-3">

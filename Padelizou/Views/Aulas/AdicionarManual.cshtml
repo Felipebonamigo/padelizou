@@ -6,6 +6,12 @@
 <div class="container mt-5 mb-5">
     <div class="row justify-content-center">
         <div class="col-md-7">
+            @* Era a única tela do painel sem saída: quem abria e desistia só voltava pelo
+               botão do navegador (ou pelo menu, dando a volta pelo perfil). *@
+            <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill mb-3">
+                <i class="bi bi-arrow-left"></i> Voltar ao Painel
+            </a>
+
             <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
                 <div class="card-body p-4 p-md-5">
                     <div class="text-center mb-4">

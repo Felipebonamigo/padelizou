@@ -14,7 +14,11 @@
             <h2 class="fw-bold" style="color: var(--pdz-ink);">Meus Horários</h2>
             <p class="text-muted mb-0">Defina sua disponibilidade semanal recorrente por local.</p>
         </div>
-        <a asp-controller="Aulas" asp-action="MinhaAgenda" class="btn btn-outline-secondary rounded-pill">Voltar à Agenda</a>
+        @* Volta pro Painel, não pra Agenda: foi de lá que a pessoa saiu (é o botão do painel
+           que traz pra cá), e a Agenda era um desvio que obrigava a clicar duas vezes. *@
+        <a asp-controller="Aulas" asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left"></i> Voltar ao Painel
+        </a>
     </div>
 
     @* Quem chegou aqui empurrado pelo painel precisa saber por quê — redirecionamento sem

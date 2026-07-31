@@ -44,13 +44,19 @@
             <rect x="15" y="35" width="18" height="5" rx="1.5" />
         </g>
 
+        @* Diamante é o topo da escada, mas é uma TAÇA como as outras — antes era uma pedra
+           solta e destoava da família inteira: na prateleira parecia sobra de outra versão.
+           O que diz "diamante" são as facetas no copo e o brilho, não o formato. *@
         <symbol id="trofeu-Diamante" viewBox="0 0 48 48">
             <title>Troféu de diamante</title>
-            <path d="M24 6 36 17 24 42 12 17z" fill="url(#pdzMatDiamante)" />
-            <path d="M24 6 36 17H12z" fill="#fff" opacity=".45" />
-            <path d="M24 6 24 42 12 17z" fill="#0B7F92" opacity=".18" />
-            <path d="M24 6 36 17 24 42 12 17z" fill="none" stroke="#0B7F92" stroke-width="1.1" stroke-linejoin="round" />
-            <path d="M12 17h24" stroke="#0B7F92" stroke-width="1.1" opacity=".55" />
+            <use href="#pdzTaca" fill="url(#pdzMatDiamante)" />
+            <path d="M15 7h18v9a9 9 0 0 1-18 0z" fill="none" stroke="#0B7F92" stroke-width="1" />
+            @* Facetas: as linhas que fazem a lapidação. *@
+            <path d="M24 7v18M15 12h18M18 7l3 18M30 7l-3 18" stroke="#0B7F92" stroke-width=".8" opacity=".45" fill="none" />
+            <path d="M19 9.5v6a4.5 4.5 0 0 0 2.5 4" stroke="#FFFFFF" stroke-width="2" fill="none" opacity=".9" stroke-linecap="round" />
+            <path d="M15 9h-4a5 5 0 0 0 5 6M33 9h4a5 5 0 0 1-5 6" fill="none" stroke="#5ACBDD" stroke-width="2.2" stroke-linecap="round" />
+            @* O brilhinho: só o primeiro tier ganha, é o que separa "melhor taça" de "a taça". *@
+            <path d="M37.5 5.5 38.6 8.4 41.5 9.5 38.6 10.6 37.5 13.5 36.4 10.6 33.5 9.5 36.4 8.4z" fill="#8EE6F2" />
         </symbol>
 
         <symbol id="trofeu-Ouro" viewBox="0 0 48 48">
