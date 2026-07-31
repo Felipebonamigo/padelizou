@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026 (varredura)** — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
+> Última atualização: **31/07/2026** — 🔐 **inscrever agora exige login de quem inscreve** (o parceiro segue sem precisar de conta, e assume o pré-cadastro pelo CPF quando se cadastrar). Conferido em produção: deslogado, o POST da inscrição responde 302 pro login. **934 testes.**
+> Antes, no mesmo dia — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
 > Antes, no mesmo dia — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
 > Antes: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
 > Antes, na mesma noite — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
@@ -45,6 +46,28 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🔐 Inscrever exige login de quem inscreve (build-174, prod + dev)
+
+Fecha o ponto nº 2 da varredura. A inscrição era aberta a qualquer visitante que soubesse a
+senha do portão — e **o portão não identifica ninguém**: dava pra criar cadastro com CPF de
+terceiro sem deixar rastro de quem fez. Agora existe **autor**: é dele o aviso "Fulano
+inscreveu você", e é ele quem responde pelo que digitou.
+
+**O parceiro continua sem precisar de conta** — e isso já funcionava: ele entra como
+**pré-cadastro** (`Jogador` sem senha, achado por CPF) e, quando se cadastrar depois, o próprio
+CPF reencontra a linha dele e ele **assume a conta com o histórico junto**. Tem trava: CPF que
+**já tem senha** não pode ser reivindicado (o cadastro manda pra recuperação de senha) — senão
+quem soubesse o seu CPF tomava a sua conta, e CPF não é segredo no Brasil.
+
+Pra não virar armadilha, a aba de inscrição mostra o **convite pra entrar** no lugar do
+formulário quando ninguém está logado: preencher a dupla inteira e só então ser jogado pro
+login perderia tudo. E o login passou a respeitar **de onde a pessoa veio** (`returnUrl`),
+inclusive quando ela erra a senha na primeira tentativa — destino de fora do site é ignorado,
+senão o login viraria trampolim pra outro site.
+
+Conferido **em produção**, deslogado e já dentro do portão: `POST /Duplas/Create` e
+`POST /Torneios/InscreverIndividual` respondem **302 pro login**. **934 testes.**
 
 ### 31/07/2026 — 🔎 Varredura antes do uso real (build-171, prod + dev)
 
