@@ -33,8 +33,9 @@ isso a regra é chata mas simples: **o que importa, commite e dê push.**
 
 Enquanto isto não estiver feito, publicar de fora não funciona.
 
-- [ ] **Copiar a chave SSH do VPS pro notebook.** É o plano B de tudo. Sem ela, se o
-      workflow falhar, você não tem como entrar no servidor.
+- [ ] **Copiar a chave SSH do VPS pro notebook.** Não é mais questão de vida ou morte
+      (o hPanel tem terminal no navegador, veja "Plano B"), mas é o jeito confortável
+      de mexer no servidor.
 - [ ] **Copiar o `appsettings.json` pro notebook** (`Padelizou/appsettings.json`). É
       git-ignored porque guarda os segredos de verdade, então não vem pelo `git clone` —
       sem ele a app não sobe local.
@@ -67,7 +68,7 @@ não "o site está fora".
 
 ## Plano B: sem GitHub Actions
 
-Se o workflow quebrar e você precisar publicar assim mesmo, do notebook com a chave SSH:
+Se o workflow quebrar e você precisar publicar assim mesmo:
 
 ```bash
 ssh root@179.197.233.184
@@ -76,6 +77,14 @@ ssh root@179.197.233.184
 ```
 
 É exatamente o que o workflow faz — ele só chama esses mesmos scripts.
+
+**E se você não tiver a chave SSH à mão?** O hPanel da Hostinger tem um botão
+**Terminal** que abre um shell do VPS dentro do navegador: hpanel.hostinger.com → VPS →
+Terminal. Funciona no celular. Os mesmos comandos acima rodam ali.
+
+Se nem a senha do root você tiver, o hPanel também faz **Reset password**. Ou seja: são
+três caminhos independentes até o servidor (chave SSH, terminal do painel, reset de
+senha), e perder um não te deixa sem nada.
 
 ## Alterar código de fora
 

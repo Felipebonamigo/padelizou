@@ -33,19 +33,26 @@ perder o seu próprio acesso. Na sua máquina:
 ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/padelizou_deploy -N ""
 ```
 
-Autorize a pública no VPS:
+Autorize a pública no VPS. Dois caminhos, escolha um:
+
+**Pelo painel da Hostinger** — hPanel → VPS → **Chave SSH → Gerenciar**, e cole o
+conteúdo de `~/.ssh/padelizou_deploy.pub`. É o caminho que funciona até do celular.
+
+**Pelo terminal:**
 
 ```bash
 ssh root@SEU_IP "cat >> ~/.ssh/authorized_keys" < ~/.ssh/padelizou_deploy.pub
 ```
 
-Vale colocar o prefixo `restrict,` na frente dessa linha do `authorized_keys`. Ele
-desliga port forwarding, agente e tty — coisas que um deploy não usa e que só
-serviriam pra outra pessoa se a chave vazasse:
+Só pelo terminal dá pra colocar o prefixo `restrict,` na frente dessa linha do
+`authorized_keys`. Ele desliga port forwarding, agente e tty — coisas que um deploy não
+usa e que só serviriam pra outra pessoa se a chave vazasse:
 
 ```
 restrict ssh-ed25519 AAAA... github-actions-deploy
 ```
+
+Opcional: sem ele a chave fica um pouco mais poderosa do que precisa, e nada mais.
 
 ### 2. Os secrets
 
@@ -61,9 +68,22 @@ O `VPS_KNOWN_HOSTS` é o que permite o workflow rodar sem `StrictHostKeyChecking
 com ele, se algo se passar pelo VPS, o ssh recusa a conexão em vez de entregar o
 acesso. Rode o `ssh-keyscan` de uma rede em que você confia.
 
-Se você entra no VPS com um usuário que não é o `root`, crie também a **variável**
-(não secret) `VPS_USER` com o nome dele — e garanta que ele consegue rodar
-`systemctl restart` e escrever em `/opt`.
+O usuário não precisa de configuração: o workflow já usa `root`, que é o do VPS. Se um
+dia isso mudar, crie a **variável** (não secret) `VPS_USER` com o nome do novo — e
+garanta que ele consegue rodar `systemctl restart` e escrever em `/opt`.
+
+### Atalho: gerar os três valores de uma vez
+
+Rodando isto no desktop, sai na tela exatamente o que colar em cada secret:
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/padelizou_deploy -N ""
+
+echo "=== VPS_HOST ==="; echo "179.197.233.184"
+echo "=== VPS_KNOWN_HOSTS ==="; ssh-keyscan -t ed25519 179.197.233.184
+echo "=== VPS_SSH_KEY ==="; cat ~/.ssh/padelizou_deploy
+echo "=== cole esta no hPanel (Chave SSH → Gerenciar) ==="; cat ~/.ssh/padelizou_deploy.pub
+```
 
 ### 3. Os environments — é aqui que mora a trava do prod
 
