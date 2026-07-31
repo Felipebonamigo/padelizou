@@ -15,7 +15,10 @@ namespace Padelizou.Controllers
     {
         // Inscrição individual (Torneio Americano) — achar-ou-criar Jogador por CPF, mesmo
         // padrão de DuplasController.Create, só que sem parceiro fixo.
+        // Mesma regra da inscrição em dupla: quem inscreve precisa estar logado, quem é
+        // inscrito não precisa ter conta (entra como pré-cadastro e assume depois, pelo CPF).
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf,
             string? chaveAcesso = null, string? formaPagamentoEscolhida = null)
         {

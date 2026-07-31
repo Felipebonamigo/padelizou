@@ -100,8 +100,13 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
-        public IActionResult Login()
+        // returnUrl: quem foi mandado pra cá por uma tela que exige login (a inscrição no
+        // torneio, por exemplo) volta pra ela depois de entrar. Sem isso a pessoa caía no
+        // perfil e tinha que achar o torneio de novo — no meio de uma inscrição, é o
+        // suficiente pra desistir.
+        public IActionResult Login(string? returnUrl)
         {
+            ViewBag.ReturnUrl = returnUrl;
             return View();
         }
 
@@ -199,8 +204,12 @@ namespace padelizou.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(string email, string senha)
+        public async Task<IActionResult> Login(string email, string senha, string? returnUrl = null)
         {
+            // O destino tem que sobreviver às recusas: sem isto, errar a senha uma vez apagava
+            // a volta e a pessoa terminava no perfil em vez do torneio que ela queria.
+            ViewBag.ReturnUrl = returnUrl;
+
             // Trava de força-bruta POR CONTA, não por IP: no dia de torneio o clube
             // inteiro sai pelo mesmo Wi-Fi, e uma janela por IP trancaria gente legítima
             // na hora errada (ver TravaDeEntrada). Checada ANTES de conferir a senha —
@@ -231,6 +240,10 @@ namespace padelizou.Controllers
             var principal = new ClaimsPrincipal(identidade);
 
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            // IsLocalUrl é o que impede o login de virar trampolim pra outro site: o returnUrl
+            // vem da barra de endereços, e "entre aqui e você cai lá" é golpe clássico.
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
 
             return RedirectToAction("Perfil");
         }

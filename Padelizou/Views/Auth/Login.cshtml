@@ -22,6 +22,10 @@
                     }
 
                     <form asp-controller="Auth" asp-action="Login" method="post">
+                        @* De onde a pessoa veio. Quem chegou aqui empurrado pela inscrição do
+                           torneio volta pra ela depois de entrar, em vez de cair no perfil e
+                           ter que achar o torneio de novo. *@
+                        <input type="hidden" name="returnUrl" value="@(ViewBag.ReturnUrl as string)" />
                         <div class="mb-3">
                             <label class="form-label fw-bold text-muted">E-mail ou login</label>
                             @* type="text" e não "email": com "email" o navegador recusaria

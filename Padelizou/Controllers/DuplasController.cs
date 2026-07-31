@@ -81,7 +81,17 @@ namespace Padelizou.Controllers
         // Recebe os dados do formulário de inscrição em dupla, que vive em
         // Views/Torneios/Details.cshtml (não há GET aqui: /Duplas/Create sozinho
         // não teria o torneioId e a inscrição falharia).
+        // Quem INSCREVE precisa estar logado; o PARCEIRO não precisa ter conta. Antes a
+        // inscrição era aberta a qualquer visitante que soubesse a senha do portão, e o portão
+        // não identifica ninguém — dava pra criar cadastro com CPF de terceiro sem deixar
+        // rastro de quem fez. Agora existe autor: é dele o aviso "Fulano inscreveu você" e é
+        // ele quem responde pelo que digitou.
+        //
+        // O parceiro continua entrando como PRÉ-CADASTRO (Jogador sem senha, achado por CPF).
+        // Quando ele se cadastrar depois, o próprio CPF reencontra esta linha e ele assume a
+        // conta com o histórico junto — ver AuthController.Cadastro.
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create(
             int torneioId, int categoriaId,
             string nome1, string cpf1, string? celular1, string? cidade1, string? estado1,
