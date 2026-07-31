@@ -93,6 +93,15 @@ public partial class DbPadelContext : DbContext
     .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Jogador>().ToTable("Jogador");
 
+        // Dupla-time (categoria de times): o vínculo com o cadastro de Times é só pra
+        // mostrar o escudo. SetNull — apagar um time do cadastro não pode apagar a
+        // história de um torneio (a lição do Torneio.ClubeId em cascade já custou caro).
+        modelBuilder.Entity<Dupla>()
+            .HasOne(d => d.Time)
+            .WithMany()
+            .HasForeignKey(d => d.TimeId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         modelBuilder.Entity<SolicitacaoRegistroResultados>(entity =>
         {
             // Cascade: sem o torneio, o pedido de equipe não quer dizer nada.

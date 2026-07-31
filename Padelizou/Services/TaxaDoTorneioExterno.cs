@@ -24,13 +24,14 @@ public static class TaxaDoTorneioExterno
     // Base da taxa: gente que existe na lista na hora do fechamento. Dupla completa são 2
     // pessoas, dupla ainda sem parceiro é 1 (cobrar por alguém que ainda não foi definido
     // seria cobrar por fantasma). Lista de espera fica fora — ela não joga e o organizador
-    // não recebeu dela.
+    // não recebeu dela. TIME também fica fora: ele é cadastrado pelo organizador, não paga
+    // inscrição pelo sistema — mesma cortesia dos impedimentos, errar pra menos.
     public static int PessoasInscritas(IEnumerable<Dupla> duplas, IEnumerable<InscricaoAmericana> americanas)
     {
         int pessoas = 0;
         foreach (var dupla in duplas)
         {
-            if (dupla.EmListaDeEspera) continue;
+            if (dupla.EmListaDeEspera || dupla.EhTime) continue;
             pessoas += dupla.Jogador2Id.HasValue ? 2 : 1;
         }
         foreach (var inscricao in americanas)

@@ -1,3 +1,5 @@
+using Padelizou.Models;
+
 namespace Padelizou.Services;
 
 // Distribui os jogos de um torneio ao longo do relógio.
@@ -70,6 +72,41 @@ public static class GradeDeJogos
 
             yield return horario;
             naQuadra++;
+        }
+    }
+
+    // Encaixa cada jogo num horário SEM pôr o mesmo inscrito (dupla ou time) em duas
+    // quadras ao mesmo tempo.
+    //
+    // O encaixe antigo era posicional: jogo i ganhava o horário i. Só que os jogos de um
+    // grupo saem em sequência — (A,B), (A,C), (B,C) — e com 2+ quadras os horários vêm em
+    // pares iguais, então (A,B) e (A,C) caíam no MESMO horário e A jogava em duas quadras
+    // simultaneamente. Descoberto ao testar a categoria de times (grupos de 3 são o padrão
+    // dela), mas o defeito valia igualzinho pras duplas.
+    //
+    // Guloso de primeira vaga: pra cada horário, entra o primeiro jogo da fila cujos dois
+    // lados estão livres naquele horário. Se todos os que restam colidem (ex.: 1 grupo só
+    // com mais quadras que jogos), entra o primeiro assim mesmo — atrasar a grade inteira
+    // por causa de um conflito inevitável seria pior que o conflito.
+    public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios)
+    {
+        var fila = new List<Partida>(jogos);
+        var ocupados = new Dictionary<DateTime, HashSet<int>>();
+
+        foreach (var horario in horarios)
+        {
+            if (fila.Count == 0) break;
+
+            if (!ocupados.TryGetValue(horario, out var quem))
+                ocupados[horario] = quem = new HashSet<int>();
+
+            var jogo = fila.FirstOrDefault(p => !quem.Contains(p.Dupla1Id) && !quem.Contains(p.Dupla2Id))
+                       ?? fila[0];
+
+            jogo.HorarioPrevisto = horario;
+            quem.Add(jogo.Dupla1Id);
+            quem.Add(jogo.Dupla2Id);
+            fila.Remove(jogo);
         }
     }
 

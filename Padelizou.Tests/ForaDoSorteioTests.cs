@@ -40,6 +40,17 @@ public class ForaDoSorteioTests
     }
 
     [Fact]
+    public void Time_nunca_fica_de_fora_por_estar_sem_parceiro()
+    {
+        // Time (categoria de times) não TEM parceiro: Jogador2Id nulo é a construção normal
+        // dele. Sem esta regra, o sorteio pulava todos os times em silêncio.
+        var time = Inscricao(9, comParceiro: false);
+        time.NomeTime = "Nata Padel";
+
+        Assert.False(ForaDoSorteio.FicaDeFora(time));
+    }
+
+    [Fact]
     public void Listar_traz_so_quem_fica_na_porta()
     {
         var duplas = new[]

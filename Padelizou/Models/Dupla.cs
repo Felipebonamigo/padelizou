@@ -75,4 +75,27 @@ public partial class Dupla
     // Check-in no dia do torneio: a dupla apareceu. Nulo = ainda não fez check-in.
     // Serve pro organizador ver quem falta antes de começar, e evitar W.O. surpresa.
     public DateTime? CheckInEm { get; set; }
+
+    // ---- Time (categoria de times) ----
+    // Preenchido = esta linha é um TIME, não dois jogadores. Jogador1Id aponta pro
+    // organizador que cadastrou (a coluna é NOT NULL e o sistema inteiro depende dela),
+    // mas NENHUMA regra de jogador vale aqui: não pontua no ranking, não recebe push,
+    // não fica fora do sorteio por "estar sem parceiro".
+    public string? NomeTime { get; set; }
+
+    // Vínculo opcional com o cadastro de Times (traz o escudo na tela). SetNull no banco:
+    // apagar um time do cadastro não pode apagar a história de um torneio.
+    public int? TimeId { get; set; }
+    public virtual Time? Time { get; set; }
+
+    [NotMapped]
+    public bool EhTime => NomeTime != null;
+
+    // O nome que as telas mostram, seja time ou dupla. Defensivo com as navegações:
+    // consulta sem Include não pode estourar a página inteira por causa de um rótulo.
+    [NotMapped]
+    public string NomeDeExibicao => NomeTime
+        ?? (Jogador1 == null ? $"Dupla {Id}"
+            : Jogador2 == null ? Jogador1.Nome
+            : $"{Jogador1.Nome} & {Jogador2.Nome}");
 }

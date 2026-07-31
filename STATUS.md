@@ -50,6 +50,43 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
+### 31/07/2026 (noite) — 🏳️ Categoria de TIMES + troca de horários (commitado, aguardando deploy)
+
+Pedido do Felipe: *"times se enfrentando"* como categoria de torneio, e o organizador podendo
+trocar o horário do jogo A com o jogo B depois do sorteio.
+
+- **Categoria de times**: o organizador define a estrutura na criação (ou depois, na aba
+  Gerenciar) — quantos times, quantos grupos, quantos classificam por grupo — e cadastra os
+  times pelo nome na tela própria (`Torneios/Times`); nome que já existe no cadastro de Times
+  entra com o escudo. Jogador NÃO se inscreve nela (tela não oferece e POST à mão é recusado).
+  **A conta grupos × classificados precisa fechar quadro (2/4/8/16)** — recusada na criação,
+  quando ajustar é de graça, e revalidada no sorteio com os times que existem de verdade
+  (`Services/CategoriaDeTimes`, puro).
+- **Por dentro, time é uma `Dupla` com `NomeTime`** — o motor inteiro (grupos, partidas,
+  classificação, mata-mata, mesa, grade) funciona sem duplicação. `Jogador1Id` leva o
+  organizador (coluna NOT NULL com 560 usos), e por isso existem GUARDAS em todo lugar que
+  fala com jogador de verdade: não pontua ranking/perfil (`EstatisticasService`, funil
+  `LocalizarDuplas`), não recebe push de chaves/próximo/atraso (funil
+  `AvisosDoDiaDeJogo.JogadoresDa`), não fica fora do sorteio por "sem parceiro"
+  (`ForaDoSorteio`), não conta na taxa do Externo, não desiste pela porta do jogador.
+- **Mata-mata generalizado**: `ChaveamentoMataMata.MontarPrimeiraFase` aceita X classificados
+  por grupo (X=2 mantém o comportamento histórico, testes antigos intocados); os robôs dos
+  dois controllers leem o X da categoria.
+- **🔴 Defeito latente achado e corrigido no caminho**: o encaixe da grade era posicional e
+  punha **o mesmo inscrito em duas quadras no mesmo horário** (grupo de 3 + 2 quadras — valia
+  pra DUPLAS também, desde sempre). Agora `GradeDeJogos.Encaixar` é ciente de conflito:
+  pra cada horário entra o primeiro jogo da fila cujos dois lados estão livres. Vale pro
+  sorteio e pro mata-mata emendado.
+- **Troca de horários** (`Services/TrocaDeHorario` + modal na aba Jogos): organizador marca o
+  jogo A no card, escolhe o B no modal, e os dois trocam **horário E quadra** (o slot físico é
+  o par). Só jogo AGENDADO — jogo em quadra ou finalizado é história, não agenda.
+- **Provado no navegador** (local): torneio misto (1 categoria normal + times 6/2/2), 6 times
+  cadastrados, sorteio → 7 jogos numa grade única SEM conflito, dupla e time dividindo as
+  mesmas quadras; troca de horário 40↔44 verificada no banco; grupos fechados → robô gerou
+  Final direta (dupla) e Semifinal de times com os classificados certos (1ºs + 2ºs, sem
+  reedição de grupo). **1049 testes.** Migração `CategoriaDeTimes` (6 colunas novas, nada
+  destrutivo).
+
 ### 31/07/2026 — 🔑 Admin manda em qualquer torneio (build-184, prod + dev)
 
 Pra socorrer organizador travado. No dia do torneio, com as quadras ocupadas, o problema é

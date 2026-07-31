@@ -167,7 +167,9 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
-            bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null)
+            bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null,
+            bool categoriaDeTimes = false, string? nomeCategoriaTimes = null,
+            int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -209,9 +211,25 @@ namespace Padelizou.Controllers
             // Ele era aceito em silêncio — o organizador compartilhava o link e descobria pelo
             // primeiro jogador que tentou entrar e não conseguiu. A caixa das categorias fica
             // no fim de um formulário longo, então passar batido é o caso comum, não o raro.
-            if (categoriasSelecionadas == null || categoriasSelecionadas.Length == 0)
+            // Torneio SÓ de times é válido: nele quem monta a lista é o organizador.
+            if ((categoriasSelecionadas == null || categoriasSelecionadas.Length == 0) && !categoriaDeTimes)
             {
                 return await Recusar("Escolha pelo menos uma categoria — é nela que os jogadores se inscrevem.");
+            }
+
+            // Categoria de times: a estrutura precisa fechar um quadro de mata-mata ANTES de
+            // criar qualquer coisa — recusar depois deixaria o torneio no ar pela metade.
+            if (categoriaDeTimes)
+            {
+                if (torneio.Formato == "Americano")
+                {
+                    return await Recusar("Categoria de times só existe no formato padrão (grupos + mata-mata).");
+                }
+                if (CategoriaDeTimes.ProblemaNaConfiguracao(
+                        quantidadeTimes, quantidadeGruposTimes, classificadosPorGrupoTimes) is { } problemaTimes)
+                {
+                    return await Recusar($"Categoria de times: {problemaTimes}");
+                }
             }
 
             // Mesmo nome, mesmo organizador, torneio ainda de pé: quase sempre é o botão
@@ -334,6 +352,23 @@ namespace Padelizou.Controllers
                         _context.Categorias.Add(novaCategoria);
                     }
                 }
+                await _context.SaveChangesAsync();
+            }
+
+            // Categoria de times (validada lá em cima, antes de qualquer gravação). Os times
+            // em si são cadastrados depois, na tela de times do torneio.
+            if (categoriaDeTimes)
+            {
+                _context.Categorias.Add(new Categoria
+                {
+                    TorneioId = torneio.Id,
+                    Nome = string.IsNullOrWhiteSpace(nomeCategoriaTimes) ? "Times" : nomeCategoriaTimes.Trim(),
+                    Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper(),
+                    DeTimes = true,
+                    QuantidadeTimes = quantidadeTimes,
+                    QuantidadeGrupos = quantidadeGruposTimes,
+                    ClassificadosPorGrupo = classificadosPorGrupoTimes,
+                });
                 await _context.SaveChangesAsync();
             }
 
@@ -617,9 +652,7 @@ namespace Padelizou.Controllers
             torneio.RecadoAosInscritos = string.IsNullOrWhiteSpace(recadoAosInscritos) ? null : recadoAosInscritos.Trim();
             torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
             torneio.PrevisaoChaveamento = previsaoChaveamento;
-            // Caixa desmarcada não vai no POST: o `false` do parâmetro é o "desligou", e o
-            // hidden do formulário garante que quem NÃO tem o campo (aba antiga em cache) não
-            // desligue o check-in sem querer.
+            // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".
             torneio.UsaCheckIn = usaCheckIn;
 
             if (capa != null && capa.Length > 0)

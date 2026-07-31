@@ -196,7 +196,8 @@ public class EstatisticasService : IEstatisticasService
         var idsComTime = jogadores.Select(j => j.Id).ToHashSet();
 
         var duplas = await _context.Duplas
-            .Where(d => (idsComTime.Contains(d.Jogador1Id)
+            .Where(d => d.NomeTime == null   // dupla-TIME não pontua jogador nenhum
+                     && (idsComTime.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
                          || d.Categoria.Torneio.DataInicio <= ate))
@@ -245,7 +246,9 @@ public class EstatisticasService : IEstatisticasService
     public async Task<List<PontosTimeTorneioVM>> ObterPontosTimesNoTorneioAsync(int torneioId)
     {
         var duplas = await _context.Duplas
-            .Where(d => d.Categoria.TorneioId == torneioId)
+            // Dupla-TIME fora: o Jogador1 dela é o organizador, e a campanha do time
+            // inflaria os pontos do TIME DO ORGANIZADOR neste placar.
+            .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
             .Include(d => d.Jogador1).ThenInclude(j => j.Time)
             // `Jogador2!` porque a dupla pode não ter parceiro (inscrição sozinho). O `!` é seguro
             // aqui: o EF lê a expressão pra montar o JOIN, não executa o acesso — quem não tem
@@ -683,9 +686,11 @@ public class EstatisticasService : IEstatisticasService
         if (fasesComprovam.Length == 0) return new Dictionary<int, NivelComprovadoVM>(); // Livre
 
         // Só resultados de torneio: o nível é comprovado pela UltimaFase da dupla.
+        // Dupla-TIME fora: a campanha de um time não comprova nível de jogador nenhum.
         var duplas = await _context.Duplas
             .Include(d => d.Categoria)
-            .Where(d => d.Categoria != null && fasesComprovam.Contains(d.UltimaFase))
+            .Where(d => d.NomeTime == null
+                     && d.Categoria != null && fasesComprovam.Contains(d.UltimaFase))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, CategoriaNome = d.Categoria.Nome })
             .ToListAsync();
 
@@ -724,7 +729,8 @@ public class EstatisticasService : IEstatisticasService
 
         var registros = await _context.Duplas
             .Include(d => d.Categoria)
-            .Where(d => nomes.Contains(d.Categoria.Nome)
+            .Where(d => d.NomeTime == null   // campanha de time não é colocação de jogador
+                     && nomes.Contains(d.Categoria.Nome)
                      && (excluirTorneioId == null || d.Categoria.TorneioId != excluirTorneioId))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, CategoriaNome = d.Categoria.Nome })
             .ToListAsync();
@@ -894,7 +900,8 @@ public class EstatisticasService : IEstatisticasService
         var jogador = await _context.Jogadores.FindAsync(jogadorId);
         if (jogador == null) return new List<ConquistaVM>();
 
-        bool temDupla = await _context.Duplas.AnyAsync(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId);
+        bool temDupla = await _context.Duplas.AnyAsync(d =>
+            d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId));
         int totalJogosSemanais = await _context.JogosSemanais.CountAsync(j =>
             j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId ||
             j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId);
@@ -964,7 +971,8 @@ public class EstatisticasService : IEstatisticasService
     public async Task<ResumoJogadorVM> ObterResumoJogadorAsync(int jogadorId)
     {
         var fases = await _context.Duplas
-            .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+            .Where(d => d.NomeTime == null   // time não é participação do organizador
+                     && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => d.UltimaFase)
             .ToListAsync();
 
@@ -1001,8 +1009,9 @@ public class EstatisticasService : IEstatisticasService
         if (ids.Count == 0) return pontos;
 
         var duplas = await _context.Duplas
-            .Where(d => ids.Contains(d.Jogador1Id)
-                     || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value)))
+            .Where(d => d.NomeTime == null
+                     && (ids.Contains(d.Jogador1Id)
+                         || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
             .ToListAsync();
 
@@ -1025,7 +1034,8 @@ public class EstatisticasService : IEstatisticasService
         var primeiroMes = mesAtual.AddMonths(-(meses - 1));
 
         var participacoes = await _context.Duplas
-            .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+            .Where(d => d.NomeTime == null
+                     && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase })
             .ToListAsync();
 
@@ -1087,7 +1097,7 @@ public class EstatisticasService : IEstatisticasService
         bool temCategoria = await _context.JogadorCategorias.AnyAsync(c => c.JogadorId == jogadorId);
         bool segueAlguem = await _context.SeguidoresJogador.AnyAsync(s => s.SeguidorId == jogadorId);
         bool temInscricao = await _context.Duplas
-                .AnyAsync(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+                .AnyAsync(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             || await _context.InscricoesAmericanas.AnyAsync(i => i.JogadorId == jogadorId);
         bool instalouApp = await _context.PushSubscriptionsJogador.AnyAsync(s => s.JogadorId == jogadorId);
 
@@ -1162,10 +1172,12 @@ public class EstatisticasService : IEstatisticasService
     }
 
     // Descobre em qual dupla o jogador está; retorna (minhaDupla, duplaAdversaria) ou (null,null).
+    // Dupla-TIME nunca "contém" um jogador: o Jogador1Id dela é o organizador que cadastrou
+    // o time, e sem esta guarda ele herdaria parceiro, confronto e vitória de jogo que não jogou.
     private static (Dupla? minha, Dupla? oponente) LocalizarDuplas(Partida p, int jogadorId)
     {
-        bool naDupla1 = p.Dupla1 != null && (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId);
-        bool naDupla2 = p.Dupla2 != null && (p.Dupla2.Jogador1Id == jogadorId || p.Dupla2.Jogador2Id == jogadorId);
+        bool naDupla1 = p.Dupla1 is { NomeTime: null } && (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId);
+        bool naDupla2 = p.Dupla2 is { NomeTime: null } && (p.Dupla2.Jogador1Id == jogadorId || p.Dupla2.Jogador2Id == jogadorId);
 
         if (naDupla1 && !naDupla2) return (p.Dupla1, p.Dupla2);
         if (naDupla2 && !naDupla1) return (p.Dupla2, p.Dupla1);

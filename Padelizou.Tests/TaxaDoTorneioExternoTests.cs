@@ -72,6 +72,21 @@ public class TaxaDoTorneioExternoTests
     }
 
     [Fact]
+    public void Time_nao_entra_na_base_da_taxa()
+    {
+        // Time é cadastrado pelo organizador, não paga inscrição pelo sistema — cobrá-lo
+        // como "1 pessoa" seria taxar fantasma. Mesma cortesia dos impedimentos.
+        var duplas = new[]
+        {
+            new Dupla { Jogador1Id = 1, Jogador2Id = 2 },                    // completa: 2
+            new Dupla { Jogador1Id = 9, NomeTime = "Nata Padel" },           // time: 0
+            new Dupla { Jogador1Id = 9, NomeTime = "Quanto Tá" },            // time: 0
+        };
+
+        Assert.Equal(2, TaxaDoTorneioExterno.PessoasInscritas(duplas, Array.Empty<InscricaoAmericana>()));
+    }
+
+    [Fact]
     public void O_valor_e_pessoas_vezes_preco_vezes_percentual()
     {
         // 24 pessoas × R$ 100 × 5% = R$ 120.

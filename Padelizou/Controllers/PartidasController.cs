@@ -356,18 +356,22 @@ namespace Padelizou.Controllers
 
             // Motor único de chaveamento (mesmo do TorneiosController): funciona pra
             // QUALQUER nº de grupos — todos os 1ºs + melhores 2ºs completando o quadro.
+            // Na categoria de TIMES, passam quantos o organizador definiu ao criá-la.
+            var categoriaDoRobo = await _context.Categorias.FindAsync(categoriaId);
+            int classificamPorGrupo = Math.Max(1, categoriaDoRobo?.ClassificadosPorGrupo ?? 2);
+
             var classificados = new List<ChaveamentoMataMata.Classificado>();
             foreach (var grupo in classificacao)
             {
                 var rankingDoGrupo = grupo.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ToList();
-                for (int pos = 0; pos < rankingDoGrupo.Count && pos < 2; pos++)
+                for (int pos = 0; pos < rankingDoGrupo.Count && pos < classificamPorGrupo; pos++)
                 {
                     classificados.Add(new ChaveamentoMataMata.Classificado(
                         rankingDoGrupo[pos].Dupla.Id, grupo.Key ?? "?", rankingDoGrupo[pos].Vitorias, rankingDoGrupo[pos].Saldo, pos + 1));
                 }
             }
 
-            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados);
+            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
             if (confrontos.Count == 0) return;
 
             var novasPartidas = new List<Partida>();

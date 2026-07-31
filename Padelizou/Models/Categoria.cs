@@ -26,4 +26,19 @@ public partial class Categoria
     // Vagas máximas nesta categoria. Null = sem limite. Quem se inscrever depois de
     // atingido vai pra lista de espera (Dupla.EmListaDeEspera).
     public int? LimiteDuplas { get; set; }
+
+    // ---- Categoria de TIMES ----
+    // Aqui quem disputa são times, não duplas: o organizador define a estrutura (quantos
+    // times, quantos grupos, quantos classificam por grupo) e cadastra os times pelo nome —
+    // jogador não se inscreve. Cada time vira uma Dupla com NomeTime preenchido, e daí o
+    // motor inteiro (grupos, partidas, classificação, mata-mata, grade de horários) funciona
+    // igual ao de duplas. Regras da estrutura em Services/CategoriaDeTimes.
+    public bool DeTimes { get; set; }
+
+    // A estrutura prometida pelo organizador. QuantidadeTimes é o alvo (a tela avisa quando
+    // faltam times); QuantidadeGrupos manda no sorteio; ClassificadosPorGrupo manda no
+    // mata-mata. Nulos nas categorias comuns.
+    public int? QuantidadeTimes { get; set; }
+    public int? QuantidadeGrupos { get; set; }
+    public int? ClassificadosPorGrupo { get; set; }
 }

@@ -123,4 +123,82 @@ public class ChaveamentoMataMataTests
         Assert.Equal((10, 40), (confrontos[0].Dupla1Id, confrontos[0].Dupla2Id));
         Assert.Equal((20, 30), (confrontos[1].Dupla1Id, confrontos[1].Dupla2Id));
     }
+
+    // ---- Classificados por grupo configurável (categoria de TIMES) ----
+    // A régua histórica dos "melhores 2ºs" generalizada: o organizador decide quantos
+    // passam, e a mesma comparação de campanha vale pra 3ºs e 4ºs.
+
+    [Fact]
+    public void Com_um_classificado_por_grupo_so_os_campeoes_avancam()
+    {
+        // 4 grupos, 1 por grupo → semifinal só com os 1ºs; nenhum 2º entra.
+        var classificados = new List<Classificado>();
+        for (int g = 0; g < 4; g++)
+        {
+            classificados.Add(C(g * 2 + 1, $"Grupo {(char)('A' + g)}", 1, 2, 4 - g));
+            classificados.Add(C(g * 2 + 2, $"Grupo {(char)('A' + g)}", 2, 1, 4 - g));
+        }
+
+        var (fase, confrontos) = MontarPrimeiraFase(classificados, classificadosPorGrupo: 1);
+
+        Assert.Equal("Semifinal", fase);
+        var ids = confrontos.SelectMany(c => new[] { c.Dupla1Id, c.Dupla2Id }).ToHashSet();
+        Assert.Equal(new HashSet<int> { 1, 3, 5, 7 }, ids);
+    }
+
+    [Fact]
+    public void Com_quatro_classificados_por_grupo_o_quadro_vira_oitavas()
+    {
+        // 4 grupos de 4, todos passam → 16 no quadro.
+        var classificados = new List<Classificado>();
+        int id = 1;
+        for (int g = 0; g < 4; g++)
+            for (int pos = 1; pos <= 4; pos++)
+                classificados.Add(C(id++, $"Grupo {(char)('A' + g)}", pos, 4 - pos, 4 - pos));
+
+        var (fase, confrontos) = MontarPrimeiraFase(classificados, classificadosPorGrupo: 4);
+
+        Assert.Equal("Oitavas de Final", fase);
+        Assert.Equal(8, confrontos.Count);
+        Assert.Equal(16, confrontos.SelectMany(c => new[] { c.Dupla1Id, c.Dupla2Id }).Distinct().Count());
+    }
+
+    [Fact]
+    public void Um_grupo_unico_com_quatro_classificados_gera_semifinal()
+    {
+        var classificados = new List<Classificado>
+        {
+            C(1, "Grupo A", 1, 3, 9), C(2, "Grupo A", 2, 2, 4),
+            C(3, "Grupo A", 3, 1, -2), C(4, "Grupo A", 4, 0, -11),
+        };
+
+        var (fase, confrontos) = MontarPrimeiraFase(classificados, classificadosPorGrupo: 4);
+
+        Assert.Equal("Semifinal", fase);
+        Assert.Equal(2, confrontos.Count);
+        // Semeadura 1º x último: 1x4 e 2x3.
+        Assert.Equal((1, 4), (confrontos[0].Dupla1Id, confrontos[0].Dupla2Id));
+        Assert.Equal((2, 3), (confrontos[1].Dupla1Id, confrontos[1].Dupla2Id));
+    }
+
+    [Fact]
+    public void Nenhum_primeiro_de_grupo_fica_fora_mesmo_com_conta_que_nao_fecha()
+    {
+        // Configuração torta (3 grupos × 2 = 6, não fecha): o quadro cai pra 4 e quem sai
+        // são os DOIS piores 2ºs — jamais um campeão de grupo. A validação impede isso na
+        // criação, mas desistência no meio do caminho pode recriar o cenário.
+        var classificados = new List<Classificado>
+        {
+            C(1, "Grupo A", 1, 2, 1), C(2, "Grupo A", 2, 1, 9),
+            C(3, "Grupo B", 1, 2, 2), C(4, "Grupo B", 2, 1, 8),
+            C(5, "Grupo C", 1, 2, 3), C(6, "Grupo C", 2, 1, 7),
+        };
+
+        var (fase, confrontos) = MontarPrimeiraFase(classificados, classificadosPorGrupo: 2);
+
+        Assert.Equal("Semifinal", fase);
+        var ids = confrontos.SelectMany(c => new[] { c.Dupla1Id, c.Dupla2Id }).ToHashSet();
+        Assert.All(new[] { 1, 3, 5 }, id => Assert.Contains(id, ids));  // os três 1ºs dentro
+        Assert.Contains(2, ids);  // e o melhor 2º (Grupo A, saldo +9)
+    }
 }

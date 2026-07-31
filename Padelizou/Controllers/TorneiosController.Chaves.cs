@@ -48,13 +48,79 @@ namespace Padelizou.Controllers
                 .ToList();
             var pontosPorJogador = await _estatisticas.ObterPontosPorJogadorAsync(idsInscritos);
 
+            // Categoria de TIMES: a estrutura prometida na criação precisa fechar com os
+            // times que EXISTEM — validado antes de gravar qualquer grupo, senão uma
+            // categoria recusada no meio deixaria as anteriores sorteadas pela metade.
+            foreach (var categoriaDeTimes in torneio.Categorias.Where(c => c.DeTimes))
+            {
+                int timesCadastrados = categoriaDeTimes.Duplas.Count(d => d.EhTime && !d.EmListaDeEspera);
+                if (timesCadastrados < 2) continue;   // sem gente suficiente, fica fora — como as comuns
+
+                if (CategoriaDeTimes.ProblemaNoSorteio(timesCadastrados,
+                        categoriaDeTimes.QuantidadeGrupos, categoriaDeTimes.ClassificadosPorGrupo) is { } problemaTimes)
+                {
+                    TempData["Erro"] = problemaTimes;
+                    return RedirectToAction("Details", new { id });
+                }
+            }
+
             // A grade é UMA só pro torneio inteiro. Antes cada categoria recomeçava do
             // horário de início, então três categorias marcavam jogos no mesmo horário nas
             // mesmas quadras. Os horários são atribuídos depois, com todos os jogos na mão.
+            // Os jogos de TIMES entram na mesma lista — dividem as mesmas quadras e os
+            // mesmos horários, exatamente como se fossem jogadores jogando.
             var jogosPraAgendar = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias)
             {
+                // ---- Ramo de TIMES: grupos definidos pelo organizador, sorteio aleatório ----
+                // (time não tem ranking de pontos — cabeça de chave aqui seria loteria fingida)
+                if (categoria.DeTimes)
+                {
+                    var times = categoria.Duplas.Where(d => d.EhTime && !d.EmListaDeEspera).ToList();
+                    if (times.Count < 2) continue;
+
+                    var embaralhados = times.OrderBy(_ => Guid.NewGuid()).ToList();
+                    var gruposDeTimes = CategoriaDeTimes.Distribuir(embaralhados, categoria.QuantidadeGrupos!.Value);
+
+                    var gruposDeTimesCriados = new List<GrupoTorneio>();
+                    for (int i = 0; i < gruposDeTimes.Count; i++)
+                    {
+                        var novoGrupo = new GrupoTorneio { CategoriaId = categoria.Id, Nome = $"Grupo {(char)('A' + i)}" };
+                        _context.Add(novoGrupo);
+                        gruposDeTimesCriados.Add(novoGrupo);
+                    }
+                    await _context.SaveChangesAsync();
+
+                    for (int i = 0; i < gruposDeTimes.Count; i++)
+                    {
+                        char letra = (char)('A' + i);
+                        foreach (var time in gruposDeTimes[i])
+                        {
+                            time.GrupoTorneioId = gruposDeTimesCriados[i].Id;
+                            time.Grupo = letra.ToString();
+                        }
+
+                        // Todos contra todos dentro do grupo — a mesma Partida das duplas.
+                        for (int a = 0; a < gruposDeTimes[i].Count; a++)
+                        {
+                            for (int b = a + 1; b < gruposDeTimes[i].Count; b++)
+                            {
+                                jogosPraAgendar.Add(new Partida
+                                {
+                                    TorneioId = torneio.Id,
+                                    CategoriaId = categoria.Id,
+                                    Dupla1Id = gruposDeTimes[i][a].Id,
+                                    Dupla2Id = gruposDeTimes[i][b].Id,
+                                    Fase = $"Grupo {letra}",
+                                    Status = "Agendada",
+                                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                                });
+                            }
+                        }
+                    }
+                    continue;   // o caminho de duplas abaixo não vale pra times
+                }
                 // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
                 // nomes) e confirmada. Quem está na lista de espera ou ainda sem parceiro
                 // continua inscrito, mas fora das chaves.
@@ -179,7 +245,8 @@ namespace Padelizou.Controllers
             }
 
             // Agora sim os horários: N quadras em paralelo, parando no fim do expediente e
-            // retomando no dia seguinte (ver GradeDeJogos).
+            // retomando no dia seguinte. O encaixe é ciente de conflito: o mesmo inscrito
+            // (dupla ou time) nunca cai em duas quadras no mesmo horário (ver GradeDeJogos).
             var horarios = GradeDeJogos.Horarios(
                 torneio.AberturaDaGrade,
                 torneio.HoraFimDoDia,
@@ -188,10 +255,7 @@ namespace Padelizou.Controllers
                 jogosPraAgendar.Count,
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
-            for (int i = 0; i < jogosPraAgendar.Count; i++)
-            {
-                jogosPraAgendar[i].HorarioPrevisto = horarios[i];
-            }
+            GradeDeJogos.Encaixar(jogosPraAgendar, horarios);
             _context.Partidas.AddRange(jogosPraAgendar);
 
             torneio.Status = "Fase de Grupos";
@@ -200,6 +264,34 @@ namespace Padelizou.Controllers
             await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
 
             return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a
+        // conta; quem conhece a vida (a dupla que só chega às 10h, o jogo que rende mais com
+        // público) é o organizador — e ele troca o slot inteiro (hora + quadra) de A com B.
+        // Regras em Services/TrocaDeHorario.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> TrocarHorario(int id, int jogoA, int jogoB)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var a = await _context.Partidas.FindAsync(jogoA);
+            var b = await _context.Partidas.FindAsync(jogoB);
+
+            if (TrocaDeHorario.MotivoParaNaoTrocar(a, b, id) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+            }
+            else
+            {
+                TrocaDeHorario.Trocar(a!, b!);
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = $"Horários trocados: agora o jogo {a!.Codigo} é " +
+                    $"{a.HorarioPrevisto:dd/MM HH:mm} e o {b!.Codigo} é {b.HorarioPrevisto:dd/MM HH:mm}.";
+            }
+
+            return RedirectToAction("Jogos", new { id });
         }
 
         // Push de "chaves publicadas". É o momento em que o torneio deixa de ser uma lista de
@@ -219,8 +311,10 @@ namespace Padelizou.Controllers
                     .GroupBy(x => x.DuplaId)
                     .ToDictionary(g => g.Key, g => g.Min(x => x.HorarioPrevisto));
 
+                // Dupla-TIME fora: o Jogador1Id dela é o organizador, e "você joga sábado
+                // às 9h" no celular dele seria o jogo de um time, não o dele.
                 var duplas = await _context.Duplas
-                    .Where(d => primeiroPorDupla.Keys.Contains(d.Id))
+                    .Where(d => primeiroPorDupla.Keys.Contains(d.Id) && d.NomeTime == null)
                     .Select(d => new { d.Id, d.Jogador1Id, d.Jogador2Id })
                     .ToListAsync();
 
@@ -265,6 +359,21 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in torneio.Categorias)
             {
+                // Times: a estrutura vem do organizador, não da regra de grupos de 3.
+                if (categoria.DeTimes)
+                {
+                    int times = categoria.Duplas.Count(d => d.NomeTime != null && !d.EmListaDeEspera);
+                    int gruposDeTimes = categoria.QuantidadeGrupos ?? 1;
+                    if (times < 2 || gruposDeTimes < 1) continue;
+
+                    duplas += times;
+                    grupos += gruposDeTimes;
+                    jogosDeGrupo += CategoriaDeTimes.JogosDeGrupo(times, gruposDeTimes);
+                    jogosDeMataMata += CategoriaDeTimes.JogosDeMataMata(
+                        gruposDeTimes, categoria.ClassificadosPorGrupo ?? 2);
+                    continue;
+                }
+
                 // Dupla sem parceiro ainda não é uma dupla: não entra em grupo nenhum.
                 int daCategoria = categoria.Duplas.Count(d => d.Jogador2Id != null);
                 var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
@@ -330,10 +439,9 @@ namespace Padelizou.Controllers
                 torneio.TempoPrevistoPartidaMinutos, jogos.Count,
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
-            for (int i = 0; i < jogos.Count; i++)
-            {
-                jogos[i].HorarioPrevisto = horarios[i];
-            }
+            // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o
+            // horário, mas o mesmo classificado nunca joga em duas quadras ao mesmo tempo.
+            GradeDeJogos.Encaixar(jogos, horarios);
         }
 
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).
@@ -395,6 +503,10 @@ namespace Padelizou.Controllers
 
             var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
 
+            // Quantos passam de cada grupo: 2 é a regra de sempre; a categoria de TIMES
+            // usa o número que o organizador definiu ao criá-la.
+            int classificamPorGrupo = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
+
             // 1. Calcula o ranking final real de cada grupo e monta a lista de classificados.
             var classificados = new List<ChaveamentoMataMata.Classificado>();
             foreach (var grupo in grupos)
@@ -412,7 +524,7 @@ namespace Padelizou.Controllers
                 }
 
                 var ranking = grupo.Duplas.OrderByDescending(d => d.Vitorias).ThenByDescending(d => d.SaldoGames).ToList();
-                for (int pos = 0; pos < ranking.Count && pos < 2; pos++)
+                for (int pos = 0; pos < ranking.Count && pos < classificamPorGrupo; pos++)
                 {
                     classificados.Add(new ChaveamentoMataMata.Classificado(
                         ranking[pos].Id, grupo.Nome, ranking[pos].Vitorias, ranking[pos].SaldoGames, pos + 1));
@@ -421,7 +533,7 @@ namespace Padelizou.Controllers
 
             // 2. Motor único de chaveamento: funciona pra QUALQUER nº de grupos
             //    (todos os 1ºs + melhores 2ºs completando o quadro; 1 grupo = final direta).
-            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados);
+            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
             if (confrontos.Count == 0) return;
 
             var jogosDoMataMata = confrontos

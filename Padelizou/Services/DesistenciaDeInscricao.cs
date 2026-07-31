@@ -31,6 +31,10 @@ public static class DesistenciaDeInscricao
     {
         if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";
 
+        // Time não desiste por aqui: o Jogador1Id dele é o organizador que o cadastrou, e
+        // sem esta linha o organizador "desistiria" de um time pela porta do jogador.
+        if (dupla.EhTime) return "Times são gerenciados pelo organizador na tela de times.";
+
         // Só quem está NA dupla. O organizador tem o caminho dele (RemoverDupla), com as
         // permissões dele — misturar os dois deixaria qualquer um tirando qualquer um.
         if (dupla.Jogador1Id != quemPede && dupla.Jogador2Id != quemPede)

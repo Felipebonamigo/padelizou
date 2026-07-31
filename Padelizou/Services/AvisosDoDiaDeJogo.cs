@@ -32,13 +32,13 @@ public static class AvisosDoDiaDeJogo
         || string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
 
     // Os jogadores de uma partida, sem repetir e sem nulo (dupla pode estar sem parceiro).
+    // Dupla-TIME não tem jogador pra avisar: o Jogador1Id dela é o organizador que cadastrou
+    // o time, e "seu jogo é o próximo" no celular dele seria mentira.
     public static List<int> JogadoresDa(Partida partida)
     {
-        var ids = new List<int?>
-        {
-            partida.Dupla1?.Jogador1Id, partida.Dupla1?.Jogador2Id,
-            partida.Dupla2?.Jogador1Id, partida.Dupla2?.Jogador2Id,
-        };
+        var ids = new List<int?>();
+        if (partida.Dupla1 is { NomeTime: null } d1) { ids.Add(d1.Jogador1Id); ids.Add(d1.Jogador2Id); }
+        if (partida.Dupla2 is { NomeTime: null } d2) { ids.Add(d2.Jogador1Id); ids.Add(d2.Jogador2Id); }
 
         return ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
     }

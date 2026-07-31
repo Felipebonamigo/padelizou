@@ -1,0 +1,31 @@
+@model Padelizou.Models.Dupla
+@*
+    Um lado de uma partida: os dois chips de jogador — ou o chip do TIME, quando a dupla
+    é um time (categoria de times). Sem isto, o card do jogo mostraria o ORGANIZADOR que
+    cadastrou o time (é o Jogador1Id da linha) como se fosse ele quem joga.
+*@
+@if (Model == null) { return; }
+
+@if (Model.EhTime)
+{
+    <span class="d-flex align-items-center gap-2 mb-1">
+        @if (!string.IsNullOrEmpty(Model.Time?.Logo))
+        {
+            <img src="@Model.Time.Logo" alt="" class="rounded-circle flex-shrink-0"
+                 style="width: 36px; height: 36px; object-fit: cover;" />
+        }
+        else
+        {
+            <span class="rounded-circle flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                  style="width: 36px; height: 36px; background: rgba(163,216,39,.18);">
+                <i class="bi bi-people-fill" style="color: var(--padel-green);"></i>
+            </span>
+        }
+        <span class="fw-bold" style="line-height: 1.1;">@Model.NomeTime</span>
+    </span>
+}
+else
+{
+    <partial name="_JogadorChip" model="Model.Jogador1" />
+    <partial name="_JogadorChip" model="Model.Jogador2" />
+}

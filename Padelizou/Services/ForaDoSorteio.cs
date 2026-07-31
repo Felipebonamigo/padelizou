@@ -14,7 +14,10 @@ namespace Padelizou.Services;
 // uma coisa e o sorteio faria outra.
 public static class ForaDoSorteio
 {
-    public static bool FicaDeFora(Dupla dupla) => !dupla.Completa || dupla.EmListaDeEspera;
+    // Time (categoria de times) nunca fica de fora por "estar sem parceiro": ele não TEM
+    // parceiro — Jogador2Id nulo é a construção normal dele, não uma pendência.
+    public static bool FicaDeFora(Dupla dupla) =>
+        !dupla.EhTime && (!dupla.Completa || dupla.EmListaDeEspera);
 
     public static List<Dupla> Listar(IEnumerable<Dupla> duplas) =>
         duplas.Where(FicaDeFora).ToList();

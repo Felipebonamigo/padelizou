@@ -249,7 +249,11 @@
             <div class="categoria-inscritos-conteudo" data-categoria-id="@cat.Id" style="display: @(cat.Id == categoriaSelecionadaId ? "block" : "none");">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div class="d-flex gap-2 flex-wrap">
-                        @if (Model.Formato == "Americano")
+                        @if (cat.DeTimes)
+                        {
+                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">@cat.Duplas.Count(d => d.NomeTime != null) times</span>
+                        }
+                        else if (Model.Formato == "Americano")
                         {
                             <span class="badge" style="background-color: var(--pdz-navy-fixed);">@inscritosAmericano.Count inscritos</span>
                         }
@@ -276,7 +280,37 @@
                         </a>
                     }
                 </div>
-                @if (Model.Formato == "Americano")
+                @if (cat.DeTimes)
+                {
+                    @* Categoria de TIMES: quem aparece aqui são os times cadastrados pelo
+                       organizador — jogador não se inscreve nela. *@
+                    var timesDaCategoria = cat.Duplas.Where(d => d.NomeTime != null).OrderBy(d => d.NomeTime).ToList();
+                    <div class="alert alert-light border small mb-3">
+                        <i class="bi bi-people-fill" style="color: var(--padel-green);"></i>
+                        <strong>Categoria de times:</strong>
+                        @timesDaCategoria.Count de @(cat.QuantidadeTimes ?? timesDaCategoria.Count) times ·
+                        @(cat.QuantidadeGrupos ?? 1) grupo(s) · classificam @(cat.ClassificadosPorGrupo ?? 2) por grupo.
+                        Os times são cadastrados pelo organizador.
+                    </div>
+                    @if (timesDaCategoria.Any())
+                    {
+                        <div class="row row-cols-1 row-cols-md-2 g-3">
+                            @foreach (var time in timesDaCategoria)
+                            {
+                                <div class="col">
+                                    <div class="border rounded p-3 h-100">
+                                        <partial name="_LadoDaPartida" model="time" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0 small"><i class="bi bi-info-circle"></i> Nenhum time cadastrado ainda.</p>
+                    }
+                }
+                else if (Model.Formato == "Americano")
                 {
                     @if (inscritosAmericano.Any())
                     {
@@ -424,7 +458,8 @@
                     <label class="form-label fw-bold">Selecione a Categoria</label>
                     <select name="categoriaId" class="form-select" required>
                         <option value="">-- Escolha uma categoria --</option>
-                        @foreach (var cat in Model.Categorias)
+                        @* Categoria de times fora: nela quem cadastra é o organizador. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
                         {
                             <option value="@cat.Id">@cat.Nome</option>
                         }
@@ -469,7 +504,8 @@
                 <label class="form-label fw-bold">Selecione a Categoria</label>
                 <select name="categoriaId" class="form-select" required>
                     <option value="">-- Escolha uma categoria --</option>
-                    @foreach (var cat in Model.Categorias)
+                    @* Categoria de times fora: nela quem cadastra é o organizador. *@
+                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
                     {
                         <option value="@cat.Id">@cat.Nome</option>
                     }
@@ -941,16 +977,15 @@
                                 </div>
                             </div>
 
-                            @* Lista de chamada do dia. Nem todo torneio quer: num interno de 8
-                               duplas o organizador conhece todo mundo de vista. *@
                             <div class="form-check form-switch mb-2">
+                                @* Lista de chamada do dia. Nem todo torneio quer: num interno
+                                   de 8 duplas o organizador conhece todo mundo de vista. *@
                                 <input class="form-check-input" type="checkbox" name="usaCheckIn" value="true" id="editCheckInSwitch" @(Model.UsaCheckIn ? "checked" : "")>
                                 <label class="form-check-label fw-bold" for="editCheckInSwitch">Usar check-in no dia?</label>
-                                <div class="small text-muted">
+                                <div class="small text-muted mb-2">
                                     Lista pra marcar quem já chegou, na quadra. Desligado, o botão some das ferramentas.
                                 </div>
                             </div>
-
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="permiteImpedimentos" value="true" id="editImpSwitch" onchange="toggleImpedimentosEdicao()" @(Model.PermiteImpedimentos ? "checked" : "")>
                                 <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
@@ -1249,6 +1284,68 @@
                 </div>
             </div>
 
+            @* CATEGORIA DE TIMES: times se enfrentando, com estrutura definida pelo
+               organizador (quantos times, quantos grupos, quantos classificam). Os times
+               são cadastrados na tela própria — jogador não se inscreve nessa categoria. *@
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3"><i class="bi bi-people-fill"></i> Categoria de times</h6>
+
+                    @if (Model.Categorias.Any(c => c.DeTimes))
+                    {
+                        @foreach (var catTimes in Model.Categorias.Where(c => c.DeTimes))
+                        {
+                            <p class="small mb-2">
+                                <strong style="color: var(--pdz-ink);">@catTimes.Nome</strong> —
+                                @catTimes.Duplas.Count(d => d.NomeTime != null) de @(catTimes.QuantidadeTimes ?? 0) times ·
+                                @(catTimes.QuantidadeGrupos ?? 1) grupo(s) · classificam @(catTimes.ClassificadosPorGrupo ?? 2)
+                            </p>
+                        }
+                        <a asp-action="Times" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3">
+                            <i class="bi bi-pencil-square"></i> Gerenciar os times
+                        </a>
+                    }
+                    else if (Model.Formato == "Americano")
+                    {
+                        <p class="small text-muted mb-0">Categoria de times só existe no formato padrão (grupos + mata-mata).</p>
+                    }
+                    else if (Model.Status == "Inscrições Abertas" || Model.Status == "Chaves em Sorteio")
+                    {
+                        <p class="small text-muted">
+                            Times se enfrentando, como se fossem duplas: fase de grupos e mata-mata, dividindo
+                            as mesmas quadras e horários das outras categorias. A conta
+                            <strong>grupos × classificados</strong> precisa fechar um quadro (2, 4, 8 ou 16).
+                        </p>
+                        <form asp-action="AdicionarCategoriaDeTimes" method="post" class="d-flex gap-2 flex-wrap align-items-end">
+                            <input type="hidden" name="torneioId" value="@Model.Id" />
+                            <div>
+                                <label class="form-label small mb-0">Nome</label>
+                                <input type="text" name="nome" value="Times" maxlength="80" class="form-control form-control-sm" style="width: 150px;" required />
+                            </div>
+                            <div>
+                                <label class="form-label small mb-0">Times</label>
+                                <input type="number" name="quantidadeTimes" min="2" max="32" value="8" class="form-control form-control-sm" style="width: 80px;" required />
+                            </div>
+                            <div>
+                                <label class="form-label small mb-0">Grupos</label>
+                                <input type="number" name="quantidadeGrupos" min="1" max="8" value="2" class="form-control form-control-sm" style="width: 80px;" required />
+                            </div>
+                            <div>
+                                <label class="form-label small mb-0">Classificam</label>
+                                <input type="number" name="classificadosPorGrupo" min="1" max="4" value="2" class="form-control form-control-sm" style="width: 90px;" required />
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                                <i class="bi bi-plus-lg"></i> Criar categoria de times
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0">O torneio já está em andamento — não dá mais pra criar categoria de times nele.</p>
+                    }
+                </div>
+            </div>
+
             <!-- GERENCIAR INSCRITOS -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">
@@ -1268,14 +1365,21 @@
                                     <li class="list-group-item bg-transparent px-0">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span>
-                                            @dupla.Jogador1.Nome /
-                                            @if (dupla.Jogador2 != null)
+                                            @if (dupla.EhTime)
                                             {
-                                                @dupla.Jogador2.Nome
+                                                <span><i class="bi bi-people-fill"></i> @dupla.NomeTime</span>
                                             }
                                             else
                                             {
-                                                <em class="text-muted">procurando parceiro</em>
+                                                @dupla.Jogador1.Nome <text>/</text>
+                                                @if (dupla.Jogador2 != null)
+                                                {
+                                                    @dupla.Jogador2.Nome
+                                                }
+                                                else
+                                                {
+                                                    <em class="text-muted">procurando parceiro</em>
+                                                }
                                             }
                                             @if (dupla.EmListaDeEspera)
                                             {
@@ -1500,11 +1604,7 @@
                                                         {
                                                             <tr style="border-bottom: 1px solid #f0f0f0;">
                                                                 <td class="text-start ps-3 py-3" style="max-width: 180px;">
-                                                                    <partial name="_JogadorChip" model="dupla.Jogador1" />
-                                                                    @if (dupla.Jogador2 != null)
-                                                                    {
-                                                                        <partial name="_JogadorChip" model="dupla.Jogador2" />
-                                                                    }
+                                                                    <partial name="_LadoDaPartida" model="dupla" />
                                                                 </td>
 
                                                                 <!-- DADOS REAIS CALCULADOS PELO MOTOR -->
@@ -1556,6 +1656,7 @@
                             Func<Padelizou.Models.Dupla, string> nomeDupla = d =>
                             {
                                 if (d == null) return "A definir";
+                                if (d.EhTime) return d.NomeTime!;   // categoria de times: o nome é do time
                                 var n1 = d.Jogador1?.Nome?.Split(' ')[0] ?? "?";
                                 var n2 = d.Jogador2?.Nome?.Split(' ')[0] ?? "?";
                                 return $"{n1} / {n2}";

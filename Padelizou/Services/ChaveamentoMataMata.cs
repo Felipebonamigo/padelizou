@@ -56,30 +56,28 @@ public static class ChaveamentoMataMata
     }
 
     // Monta a primeira fase do mata-mata. Fase vazia = nada a gerar (sem classificados).
-    public static (string Fase, List<Confronto> Confrontos) MontarPrimeiraFase(List<Classificado> classificados)
+    //
+    // classificadosPorGrupo generaliza a régua histórica dos "melhores 2ºs": com 2 (o
+    // padrão de sempre) o comportamento é idêntico ao antigo; a categoria de TIMES passa
+    // o número que o organizador decidiu, e a mesma comparação de campanha vale pra
+    // completar o quadro com 3ºs, 4ºs... A validação de que a conta fecha um quadro é
+    // feita ANTES do sorteio (Services/CategoriaDeTimes) — aqui, se sobrar gente além da
+    // potência de 2, corta-se a pior campanha da pior posição, nunca um 1º de grupo.
+    public static (string Fase, List<Confronto> Confrontos) MontarPrimeiraFase(
+        List<Classificado> classificados, int classificadosPorGrupo = 2)
     {
-        var primeiros = classificados.Where(c => c.Posicao == 1)
-            .OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
+        // Posição no grupo manda primeiro (todo 1º entra antes de qualquer 2º); dentro da
+        // mesma posição, a campanha compara entre grupos — a régua de sempre.
+        var candidatos = classificados
+            .Where(c => c.Posicao >= 1 && c.Posicao <= classificadosPorGrupo)
+            .OrderBy(c => c.Posicao)
+            .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
             .ToList();
-        var segundos = classificados.Where(c => c.Posicao == 2)
-            .OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
-            .ToList();
 
-        if (primeiros.Count == 0) return ("", new List<Confronto>());
+        if (candidatos.Count < 2) return ("", new List<Confronto>());
 
-        // 1 grupo só: final direta entre 1º e 2º do grupo.
-        if (primeiros.Count == 1)
-        {
-            if (segundos.Count == 0) return ("", new List<Confronto>());
-            return ("Final", new List<Confronto> { new(primeiros[0].DuplaId, segundos[0].DuplaId) });
-        }
-
-        int quadro = MaiorPotenciaDe2Ate(primeiros.Count + segundos.Count);
-        int vagasParaSegundos = quadro - primeiros.Count;
-
-        var cabecas = new List<Classificado>(quadro);
-        cabecas.AddRange(primeiros);
-        cabecas.AddRange(segundos.Take(vagasParaSegundos));
+        int quadro = MaiorPotenciaDe2Ate(candidatos.Count);
+        var cabecas = candidatos.Take(quadro).ToList();
 
         // Metade de cima (melhores) x metade de baixo invertida (1 x último, 2 x penúltimo...).
         var alta = cabecas.Take(quadro / 2).ToList();

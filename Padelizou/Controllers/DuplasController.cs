@@ -148,6 +148,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // Categoria de TIMES não aceita inscrição de dupla: quem cadastra time é o
+            // organizador. A tela nem oferece a opção; isto segura o POST montado à mão.
+            if (categoria.DeTimes)
+            {
+                TempData["Erro"] = "Essa categoria é de times — os times são cadastrados pelo organizador.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null || torneio.Status != "Inscrições Abertas")
             {

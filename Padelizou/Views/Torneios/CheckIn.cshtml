@@ -34,7 +34,9 @@
 
     @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
     {
-        var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera).OrderBy(d => d.Jogador1.ComoChamar).ToList();
+        @* NomeDeExibicao ordena time pelo nome do TIME (o Jogador1 da linha é o organizador). *@
+        var duplas = cat.Duplas.Where(d => !d.EmListaDeEspera)
+            .OrderBy(d => d.NomeTime ?? d.Jogador1.ComoChamar).ToList();
         if (!duplas.Any()) { continue; }
 
         <h6 class="fw-bold mt-4 mb-2" style="color: var(--pdz-ink);">
@@ -53,14 +55,21 @@
                        style="color: @(chegou ? "var(--padel-green)" : "#ccc");"></i>
                     <div class="flex-grow-1 overflow-hidden">
                         <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">
-                            @d.Jogador1.ComoChamar
-                            @if (d.Jogador2 != null)
+                            @if (d.EhTime)
                             {
-                                <span>/ @d.Jogador2.ComoChamar</span>
+                                <span><i class="bi bi-people-fill"></i> @d.NomeTime</span>
                             }
                             else
                             {
-                                <em class="text-muted small">/ sem parceiro</em>
+                                @d.Jogador1.ComoChamar
+                                @if (d.Jogador2 != null)
+                                {
+                                    <span>/ @d.Jogador2.ComoChamar</span>
+                                }
+                                else
+                                {
+                                    <em class="text-muted small">/ sem parceiro</em>
+                                }
                             }
                         </span>
                         @if (chegou)

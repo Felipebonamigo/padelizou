@@ -45,6 +45,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+@if (TempData["Erro"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
 
 <!-- Filtro de Times e Categorias -->
 <form asp-action="@Model.TargetAction" method="get" class="d-flex align-items-center gap-2 flex-wrap mb-3">
@@ -172,8 +179,7 @@
                             }
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
-                                    <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
-                                    <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                                    <partial name="_LadoDaPartida" model="jogo.Dupla1" />
                                 </div>
                                 <div class="pdz-live-placar @(ganhando1 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
@@ -185,8 +191,7 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
-                                    <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
-                                    <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                                    <partial name="_LadoDaPartida" model="jogo.Dupla2" />
                                 </div>
                                 <div class="pdz-live-placar @(ganhando2 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
@@ -243,7 +248,7 @@
                                convite a clicar e levar "acesso negado" na cara. *@
                             @if (ehOrganizador)
                             {
-                                <div class="d-flex justify-content-center gap-2 mb-2">
+                                <div class="d-flex justify-content-center gap-2 mb-2 flex-wrap">
                                     <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-sm btn-danger fw-bold">
@@ -253,6 +258,12 @@
                                     <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning">
                                         ✏️ Editar
                                     </a>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
+                                            data-jogo-id="@jogo.Id"
+                                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao">
+                                        🔁 Trocar horário
+                                    </button>
                                 </div>
                             }
                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -265,13 +276,11 @@
                             </div>
 
                             <div class="d-flex flex-column align-items-center">
-                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
-                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                                <partial name="_LadoDaPartida" model="jogo.Dupla1" />
                             </div>
                             <h5 class="my-2 text-muted fw-bold">VS</h5>
                             <div class="d-flex flex-column align-items-center">
-                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
-                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                                <partial name="_LadoDaPartida" model="jogo.Dupla2" />
                             </div>
 
                             <hr class="my-2">
@@ -320,8 +329,7 @@
                             </div>
 
                             <div class="d-flex flex-column align-items-center @classeDupla1">
-                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador1" />
-                                <partial name="_JogadorChip" model="jogo.Dupla1.Jogador2" />
+                                <partial name="_LadoDaPartida" model="jogo.Dupla1" />
                             </div>
 
                             <h3 class="my-2 fw-bold text-dark">
@@ -329,8 +337,7 @@
                             </h3>
 
                             <div class="d-flex flex-column align-items-center @classeDupla2">
-                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador1" />
-                                <partial name="_JogadorChip" model="jogo.Dupla2.Jogador2" />
+                                <partial name="_LadoDaPartida" model="jogo.Dupla2" />
                             </div>
 
                             <hr class="my-2">
@@ -353,6 +360,69 @@
             }
         </div>
     </div>
+
+    @* MODAL: trocar horário entre dois jogos (só organizador). Um modal pro torneio
+       inteiro: o botão do card diz quem é o jogo A, e aqui se escolhe o jogo B — os dois
+       trocam o slot inteiro (hora + quadra), então a grade não ganha buraco nem quadra
+       em dobro. Só jogo AGENDADO entra: jogo em quadra ou finalizado é história. *@
+    @if (ehOrganizador)
+    {
+        <div class="modal fade" id="modalTrocarHorario" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content">
+                    <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="jogoA" id="trocaJogoA" value="" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Trocar horário</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2">
+                            Jogo escolhido: <strong id="trocaJogoARotulo">—</strong>
+                        </p>
+                        <label class="form-label fw-bold" for="trocaJogoB">Trocar com qual jogo?</label>
+                        <select name="jogoB" id="trocaJogoB" class="form-select" required>
+                            <option value="">Escolha o outro jogo...</option>
+                            @foreach (var candidato in agendadasList.OrderBy(p => p.HorarioPrevisto))
+                            {
+                                <option value="@candidato.Id" data-jogo-id="@candidato.Id">
+                                    @(candidato.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário")
+                                    @(string.IsNullOrEmpty(candidato.NomeQuadra) ? "" : $"· {candidato.NomeQuadra}")
+                                    · @candidato.Dupla1.NomeDeExibicao x @candidato.Dupla2.NomeDeExibicao
+                                    (@candidato.Categoria.Nome)
+                                </option>
+                            }
+                        </select>
+                        <div class="form-text">Os dois jogos trocam horário e quadra entre si.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-padel fw-bold">Trocar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão do card carrega o jogo A; o select não pode oferecer o próprio A.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalTrocarHorario');
+                if (!modal) return;
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    var jogoA = botao.getAttribute('data-jogo-id');
+                    document.getElementById('trocaJogoA').value = jogoA;
+                    document.getElementById('trocaJogoARotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    var select = document.getElementById('trocaJogoB');
+                    select.value = '';
+                    Array.from(select.options).forEach(function (opcao) {
+                        opcao.hidden = opcao.getAttribute('data-jogo-id') === jogoA;
+                    });
+                });
+            });
+        </script>
+    }
 
     @* SUB-ABA: CLASSIFICAÇÃO (só Americano) *@
     @if (classificacaoAmericano != null)

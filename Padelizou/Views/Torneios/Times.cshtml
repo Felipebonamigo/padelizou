@@ -1,0 +1,119 @@
+@model Padelizou.Models.Torneio
+@{
+    ViewData["Title"] = $"Times — {Model.Nome}";
+    var timesCadastrados = ViewBag.TimesCadastrados as List<Padelizou.Models.Time> ?? new();
+    bool podeMexer = ViewBag.PodeMexer == true;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-people-fill"></i> Times do torneio</h2>
+            <p class="text-muted mb-0">@Model.Nome</p>
+        </div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left"></i> Voltar ao torneio
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!podeMexer)
+    {
+        <div class="alert alert-secondary small">
+            <i class="bi bi-lock-fill"></i> As chaves já saíram — os times estão sorteados em grupos e a lista não muda mais por aqui.
+        </div>
+    }
+
+    @foreach (var categoria in Model.Categorias.Where(c => c.DeTimes))
+    {
+        var times = categoria.Duplas.Where(d => d.NomeTime != null).OrderBy(d => d.NomeTime).ToList();
+        int alvo = categoria.QuantidadeTimes ?? times.Count;
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+                    <h5 class="fw-bold mb-0" style="color: var(--pdz-ink);">@categoria.Nome</h5>
+                    <span class="badge @(times.Count >= alvo ? "bg-success" : "bg-warning text-dark")">
+                        @times.Count de @alvo times
+                    </span>
+                </div>
+                <p class="text-muted small mb-3">
+                    @(categoria.QuantidadeGrupos ?? 1) grupo(s), todos contra todos dentro do grupo ·
+                    classificam @(categoria.ClassificadosPorGrupo ?? 2) por grupo pro mata-mata.
+                </p>
+
+                @if (times.Any())
+                {
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var time in times)
+                        {
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                                <partial name="_LadoDaPartida" model="time" />
+                                @if (podeMexer)
+                                {
+                                    <form asp-action="RemoverTime" method="post"
+                                          onsubmit="return confirm('Remover o time @time.NomeTime desta categoria?');">
+                                        <input type="hidden" name="torneioId" value="@Model.Id" />
+                                        <input type="hidden" name="duplaId" value="@time.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted small"><i class="bi bi-info-circle"></i> Nenhum time cadastrado ainda — comece pelo formulário abaixo.</p>
+                }
+
+                @if (podeMexer)
+                {
+                    <form asp-action="AdicionarTime" method="post" class="d-flex gap-2 flex-wrap align-items-center">
+                        <input type="hidden" name="torneioId" value="@Model.Id" />
+                        <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                        <input type="text" name="nome" list="listaTimesCadastrados" class="form-control"
+                               style="max-width: 320px;" maxlength="100" placeholder="Nome do time" required />
+                        <button type="submit" class="btn btn-padel rounded-pill px-4">
+                            <i class="bi bi-plus-lg"></i> Cadastrar time
+                        </button>
+                        <span class="small text-muted">
+                            Nome que já existe no cadastro de times entra com o escudo.
+                        </span>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!Model.Categorias.Any(c => c.DeTimes))
+    {
+        <div class="alert alert-light border">
+            Este torneio ainda não tem categoria de times — crie uma na aba
+            <strong>Gerenciar Torneio</strong> da página do torneio.
+        </div>
+    }
+
+    <datalist id="listaTimesCadastrados">
+        @foreach (var t in timesCadastrados)
+        {
+            <option value="@t.Nome"></option>
+        }
+    </datalist>
+</div>

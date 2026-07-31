@@ -1,3 +1,4 @@
+using Padelizou.Models;
 using Padelizou.Services;
 
 namespace Padelizou.Tests;
@@ -219,5 +220,73 @@ public class GradeDeJogosTests
         Assert.Equal(1, GradeDeJogos.RodadasPorDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
         Assert.Equal(new TimeSpan(19, 0, 0),
             GradeDeJogos.UltimoInicioDoDia(new TimeSpan(19, 0, 0), new TimeSpan(19, 30, 0), 50));
+    }
+
+    // ---- Encaixar: o mesmo inscrito nunca em duas quadras ao mesmo tempo ----
+    // Achado ao testar a categoria de times: os jogos de um grupo saem em sequência
+    // ((A,B), (A,C), (B,C)) e com 2 quadras os horários vêm em pares — o encaixe posicional
+    // punha (A,B) e (A,C) no MESMO horário, com A em duas quadras. Valia igual pras duplas.
+
+    private static Partida JogoEntre(int dupla1, int dupla2) => new()
+    {
+        Codigo = $"{dupla1}x{dupla2}",
+        Status = "Agendada",
+        Dupla1Id = dupla1,
+        Dupla2Id = dupla2,
+    };
+
+    [Fact]
+    public void Grupo_de_tres_com_duas_quadras_nao_poe_ninguem_em_duas_quadras_ao_mesmo_tempo()
+    {
+        // O caso real que apareceu no teste de times: 2 grupos de 3, 2 quadras.
+        var jogos = new List<Partida>
+        {
+            JogoEntre(1, 2), JogoEntre(1, 3), JogoEntre(2, 3),   // grupo A
+            JogoEntre(4, 5), JogoEntre(4, 6), JogoEntre(5, 6),   // grupo B
+        };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios);
+
+        // Ninguém joga duas vezes no mesmo horário.
+        foreach (var grupoDeHorario in jogos.GroupBy(j => j.HorarioPrevisto))
+        {
+            var envolvidos = grupoDeHorario.SelectMany(j => new[] { j.Dupla1Id, j.Dupla2Id }).ToList();
+            Assert.Equal(envolvidos.Count, envolvidos.Distinct().Count());
+        }
+
+        // E a grade continua cheia: todos os horários oferecidos foram usados.
+        Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+        Assert.Equal(horarios.OrderBy(h => h), jogos.Select(j => j.HorarioPrevisto!.Value).OrderBy(h => h));
+    }
+
+    [Fact]
+    public void Conflito_inevitavel_nao_trava_a_grade()
+    {
+        // 1 grupo de 3 com 2 quadras: o segundo jogo do horário SEMPRE repete alguém.
+        // Melhor aceitar o conflito do que deixar buraco — e o organizador tem a troca
+        // de horários pra ajustar.
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(1, 3), JogoEntre(2, 3) };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios);
+
+        Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+    }
+
+    [Fact]
+    public void Sem_conflito_o_encaixe_e_posicional_como_sempre_foi()
+    {
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4), JogoEntre(5, 6) };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios);
+
+        Assert.Equal(horarios[0], jogos[0].HorarioPrevisto);
+        Assert.Equal(horarios[1], jogos[1].HorarioPrevisto);
+        Assert.Equal(horarios[2], jogos[2].HorarioPrevisto);
     }
 }

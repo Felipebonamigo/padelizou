@@ -166,6 +166,10 @@ namespace Padelizou.Controllers
                         // `Jogador2!`: dupla sem parceiro é caso normal; o EF só lê a expressão.
                         .ThenInclude(d => d.Jogador2!)
                             .ThenInclude(j => j.Time)
+                // O escudo da dupla-TIME (categoria de times) vem do vínculo dela mesma.
+                .Include(t => t.Categorias)
+                    .ThenInclude(c => c.Duplas)
+                        .ThenInclude(d => d.Time)
                 // NOVOS INCLUDES: Puxando os Grupos que o algoritmo sorteou!
                 .Include(t => t.Categorias)
                     .ThenInclude(c => c.GruposTorneio)
@@ -362,6 +366,9 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2!).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1).ThenInclude(j => j.Time)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2!).ThenInclude(j => j.Time)
+                // O escudo da dupla-TIME (categoria de times) vem do vínculo dela mesma.
+                .Include(p => p.Dupla1).ThenInclude(d => d.Time)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Time)
                 .Where(p => p.TorneioId == torneioId);
 
             if (timeFiltroId.HasValue)

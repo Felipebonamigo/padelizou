@@ -87,6 +87,9 @@ namespace Padelizou.Controllers
 
             // O Americano também somava um jogo por vez a partir do início: com 3 quadras,
             // marcava em fila indiana e varava a noite. Mesma grade da fase de grupos.
+            // (Aqui o encaixe é posicional mesmo: cada dupla do Americano nasce por jogo,
+            // então o detector de conflito por dupla não teria o que detectar — e as
+            // rodadas do whist já garantem jogadores distintos dentro da rodada.)
             var horariosAmericano = GradeDeJogos.Horarios(
                 dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
                 tempoPartida, jogosDoAmericano.Count,
