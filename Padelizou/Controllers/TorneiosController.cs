@@ -98,11 +98,27 @@ namespace Padelizou.Controllers
         private Task<ResultadoDaImagem> SalvarCapaAsync(IFormFile arquivo) =>
             ImagemEnviada.SalvarAsync(arquivo, _env.WebRootPath, "capas-torneio", FormatoDeImagem.CapaTorneio, _logger);
 
-        // Confere se o jogador logado é organizador (criador ou adicionado) deste torneio específico
+        // Quem manda neste torneio: o organizador (criador ou adicionado) — e o admin do
+        // Padelizou, em QUALQUER torneio.
+        //
+        // O admin precisa disso pra socorrer organizador travado: no dia do torneio, com as
+        // quadras ocupadas, o problema é sempre urgente, e "me adiciona como organizador"
+        // depende justamente da pessoa que não está conseguindo mexer no sistema. Antes o
+        // único caminho era ir no banco na mão.
+        //
+        // A checagem é sobre o jogadorId RECEBIDO, não sobre o claim de quem chamou: esta
+        // função também responde "fulano já manda aqui?" no AdicionarOrganizador, e ler o
+        // claim faria a resposta ser sobre outra pessoa.
         private async Task<bool> EhOrganizadorAsync(int torneioId, int jogadorId)
         {
-            return await _context.TorneioOrganizadores
-                .AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId);
+            if (jogadorId <= 0) return false;
+
+            if (await _context.TorneioOrganizadores
+                    .AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId))
+                return true;
+
+            return await _context.Jogadores
+                .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
 
         private int? ObterJogadorIdLogado()
@@ -123,7 +139,11 @@ namespace Padelizou.Controllers
             var meusTorneioIds = jogadorId.HasValue
                 ? (await _context.TorneioOrganizadores.Where(o => o.JogadorId == jogadorId.Value).Select(o => o.TorneioId).ToListAsync()).ToHashSet()
                 : new HashSet<int>();
-            torneios = torneios.Where(t => !t.Oculto || meusTorneioIds.Contains(t.Id)).ToList();
+
+            // Admin do Padelizou vê os ocultos também: se ele manda em qualquer torneio, não
+            // faz sentido ter que adivinhar o link de um que não aparece na lista.
+            bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
+            torneios = torneios.Where(t => !t.Oculto || souAdmin || meusTorneioIds.Contains(t.Id)).ToList();
 
             ViewBag.Abertos = torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
             ViewBag.EmAndamento = torneios.Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado").ToList();

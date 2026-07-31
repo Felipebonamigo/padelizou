@@ -656,13 +656,20 @@ namespace Padelizou.Controllers
             return int.TryParse(claim, out var id) ? id : null;
         }
 
-        // O usuário logado é organizador deste torneio? (usado para liberar o bloqueio)
+        // O usuário logado manda neste torneio? (usado para liberar o bloqueio de categoria e
+        // pra trocar parceiro de qualquer dupla). Organizador do torneio ou admin do
+        // Padelizou — mesma régua do TorneiosController.EhOrganizadorAsync.
         private async Task<bool> UsuarioEhOrganizadorAsync(int torneioId)
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(claim, out var jogadorId)) return false;
-            return await _context.TorneioOrganizadores
-                .AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId);
+            if (!int.TryParse(claim, out var jogadorId) || jogadorId <= 0) return false;
+
+            if (await _context.TorneioOrganizadores
+                    .AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId))
+                return true;
+
+            return await _context.Jogadores
+                .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
     }
 }
