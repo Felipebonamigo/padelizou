@@ -153,6 +153,7 @@ public class AvisoPorWhatsAppTests
                 PrivateKey = "chave-privada-de-teste",
             }),
             whats,
+            Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             NullLogger<PushNotificationService>.Instance);
 }

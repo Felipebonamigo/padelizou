@@ -11,15 +11,17 @@ public class PushNotificationService : IPushNotificationService
     private readonly DbPadelContext _context;
     private readonly VapidDetails _vapidDetails;
     private readonly IWhatsAppService _whatsApp;
+    private readonly IEmailService _email;
     private readonly SiteSettings _site;
     private readonly ILogger<PushNotificationService> _logger;
 
     public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
-        IWhatsAppService whatsApp, IOptions<SiteSettings> siteOptions,
+        IWhatsAppService whatsApp, IEmailService email, IOptions<SiteSettings> siteOptions,
         ILogger<PushNotificationService> logger)
     {
         _context = context;
         _whatsApp = whatsApp;
+        _email = email;
         _site = siteOptions.Value;
         _logger = logger;
         var settings = vapidOptions.Value;
@@ -28,12 +30,39 @@ public class PushNotificationService : IPushNotificationService
 
     public async Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null)
     {
-        // O WhatsApp sai ANTES do return de quem não tem push, e de propósito: quem não
-        // instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que o canal
-        // novo existe pra alcançar. Fica aqui, num lugar só, em vez de nos ~30 pontos que
-        // mandam aviso — assim nenhum aviso novo nasce esquecendo o WhatsApp.
+        // WhatsApp e e-mail saem ANTES do return de quem não tem push, e de propósito: quem
+        // não instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que os
+        // outros canais existem pra alcançar. Ficam aqui, num lugar só, em vez de nos ~30
+        // pontos que mandam aviso — assim nenhum aviso novo nasce esquecendo um canal.
+        //
+        // O e-mail é o que hoje alcança MAIS gente: o push depende de instalar o app e o
+        // WhatsApp depende do chip, que ainda não está ligado.
         await EnviarWhatsAppAsync(jogadorId, titulo, corpo, url);
+        await EnviarEmailAsync(jogadorId, titulo, corpo, url);
         await EnviarPushAsync(jogadorId, titulo, corpo, url);
+    }
+
+    // Falha aqui não pode derrubar o aviso, mesmo motivo do WhatsApp: SMTP fora do ar não
+    // pode fazer a inscrição estourar na cara de quem clicou.
+    private async Task EnviarEmailAsync(int jogadorId, string titulo, string corpo, string? url)
+    {
+        try
+        {
+            var destinatario = await _context.Jogadores
+                .Where(j => j.Id == jogadorId)
+                .Select(j => new { j.Nome, j.Email, j.NotificarEmail })
+                .FirstOrDefaultAsync();
+
+            if (destinatario == null) return;
+            if (!AvisoPorEmail.PodeReceber(destinatario.NotificarEmail, destinatario.Email)) return;
+
+            await _email.EnviarAsync(destinatario.Email!, destinatario.Nome, titulo,
+                AvisoPorEmail.MontarHtml(titulo, corpo, url, _site.Url));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao avisar por e-mail o jogador {JogadorId}.", jogadorId);
+        }
     }
 
     // Devolve em QUANTOS aparelhos a entrega deu certo. O envio normal ignora o número (é
