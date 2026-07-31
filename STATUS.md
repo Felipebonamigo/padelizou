@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026** — 🔐 **inscrever agora exige login de quem inscreve** (o parceiro segue sem precisar de conta, e assume o pré-cadastro pelo CPF quando se cadastrar). Conferido em produção: deslogado, o POST da inscrição responde 302 pro login. **934 testes.**
+> Última atualização: **31/07/2026** — 🍺 **o bar do clube nasceu, e ninguém sabe**: comanda, cardápio, caixa do dia e contas a pagar/receber, tudo atrás da chave `Bar__Habilitado` que nasce **desligada** — enquanto isso só admin do Padelizou enxerga, nem o dono do clube. Pedido de um cliente; entregue em duas fases no mesmo dia (`build-176` em dev). **967 testes.**
+> Antes, no mesmo dia — 🔐 **inscrever agora exige login de quem inscreve** (o parceiro segue sem precisar de conta, e assume o pré-cadastro pelo CPF quando se cadastrar). Conferido em produção: deslogado, o POST da inscrição responde 302 pro login. **934 testes.**
 > Antes, no mesmo dia — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
 > Antes, no mesmo dia — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
 > Antes: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
@@ -46,6 +47,65 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🍺 O bar do clube (build-169 e build-176, só em dev, INVISÍVEL)
+
+Um cliente pediu "gerenciamento completo de bar e financeiro". A estratégia escolhida, antes de
+qualquer código: **não é sistema separado nem subdomínio** (`caixa.padelizou.com.br` daria mais
+um login, mais um cookie e dois sistemas que não se enxergam) — é aba dentro do painel do clube
+que já existe, no mesmo banco. O que dá valor à comanda é justamente o que já está aqui: o
+jogador, a reserva, o horário.
+
+**Nasce escondido.** A chave `Bar__Habilitado` nasce desligada e, enquanto isso, só admin do
+Padelizou entra — o dono do clube não vê nem o atalho. Testado dos dois lados: o dono leva
+`Forbid` mesmo sendo dono. Chave de configuração em vez de branch porque o módulo mexe em tabela
+nova **e** no painel do clube: segurar isso numa branch por semanas é garantir conflito e um dia
+de merge no fim. Ligar depois é uma linha no systemd, sem republicar.
+
+**Fase 1 — comanda, cardápio e caixa** (`build-169`):
+- Comanda aberta pelo **nome** (é o que se procura no balcão; o número é do dia e reinicia).
+  Quem está na quadra agora abre comanda **num toque**, com nome e celular vindos da reserva.
+- O item guarda o preço de **quando foi vendido**. Sem isso, reajustar a cerveja às 20h mudaria
+  o valor do que saiu às 15h e das comandas fechadas do mês inteiro. Conferido ao vivo: comanda
+  de R$ 30,00 continuou R$ 30,00 depois de o produto ir a R$ 15,90.
+- Item e comanda cancelados **não somem**, ficam com autor e motivo — item que desaparece da
+  comanda é a forma mais comum de furto num bar.
+- Caixa do dia: abriu com quanto, vendeu quanto **em dinheiro** (cartão e Pix não passam pela
+  gaveta), contou quanto. O contado é digitado, nunca calculado — se o sistema preenchesse, a
+  conferência não conferiria nada. E não fecha com comanda aberta.
+- 🐛 **Achado testando de ponta a ponta:** `FecharCaixa` recebia `decimal` não-nulável, então
+  campo em branco virava **zero** e o caixa fechava acusando um rombo do tamanho do dia — e
+  fechar caixa não tem volta. Virou `decimal?` que recusa vazio.
+
+**Fase 2 — contas a pagar e a receber** (dentro de `build-176`):
+- É **manual de propósito**. O que já passou pelo Padelizou (comanda fechada, reserva paga)
+  aparece em **coluna separada** como "já recebido", nunca somado com o "a receber" — somar
+  contaria a mesma receita duas vezes. Aqui entra o que o sistema não tem como saber: luz,
+  boleto da distribuidora, cachê do DJ, cliente que levou fiado.
+- A situação (vencida / vence hoje / a vencer / quitada) é **calculada na hora**, não gravada:
+  gravada, obrigaria alguém a varrer a tabela toda meia-noite pra manter a verdade em dia.
+- Conta que se repete nasce com **todas as parcelas gravadas**, não como regra "repete todo dia
+  10" — porque conta que se repete muda (reajuste, contrato que acaba, mês pago adiantado), e
+  com linhas gravadas mexer numa parcela é mexer numa linha. Dia 31 cai no último dia do mês que
+  não tem 31 e **volta pro 31** no mês seguinte, como todo boleto.
+- Apagar a série poupa as parcelas já quitadas — apagar parcela paga apagaria o registro de um
+  dinheiro que de fato saiu.
+- Conferido no navegador: aluguel de R$ 3.500,90 × 4 gerou 31/08, 30/09, 31/10 e 30/11 somando
+  R$ 14.003,60, e o recebível atrasado apareceu primeiro na lista.
+
+**O que este módulo NÃO faz, e é decisão:** nota fiscal. NFC-e é homologação por estado,
+impressora fiscal e um produto inteiro — existem empresas que só fazem isso. O Padelizou cuida
+do controle interno; o clube segue emitindo nota pelo que já usa. Dinheiro e maquininha são
+**registro** aqui, não cobrança.
+
+**Onde está no histórico:** a Fase 1 é o commit `71d809c`. A Fase 2 ficou **dentro de
+`23f9b39`** ("Jogador desiste sozinho…"), porque duas sessões trabalhavam na mesma árvore e os
+arquivos de uma foram varridos pelo commit da outra. Nada se perdeu, mas quem procurar "contas
+do clube" na mensagem de commit não acha — está aqui.
+
+**Falta pra fechar a fase 1:** Pix pelo app no fechamento da comanda (hoje as quatro formas são
+só registro; o Pix com split seria o único que vira receita nossa) e um relatório do bar por
+período. Estoque é a fase 3, e só se pedirem de novo.
 
 ### 31/07/2026 — 🔐 Inscrever exige login de quem inscreve (build-174, prod + dev)
 
