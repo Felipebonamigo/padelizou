@@ -1,0 +1,122 @@
+# Deploy do Padelizou pelo GitHub — serve pra publicar do celular.
+#
+# Este workflow não constrói nada: ele só entra no VPS por SSH e chama o
+# /opt/padelizou-deploy/deploy.sh, o mesmo script de sempre. Quem monta o
+# pacote continua sendo o ci.yml, e o deploy.sh só instala pacote vindo de
+# release do CI — ou seja, publicar por aqui não abre nenhum atalho pra
+# subir código que não passou nos testes.
+#
+# Como disparar do celular: app do GitHub → Actions → Deploy → Run workflow.
+#
+# Antes do primeiro uso é preciso criar os secrets e os environments.
+# O passo a passo está em infra/vps/README.md.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Onde publicar"
+        type: choice
+        options: [dev, prod]
+        default: dev
+      acao:
+        description: "Publicar uma versão ou voltar pra anterior"
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      build:
+        description: "Build específico (build-12-ab12cd3) ou sha do commit. Vazio = o mais recente."
+        type: string
+        default: ""
+
+# Dois deploys no mesmo ambiente ao mesmo tempo deixariam o symlink e o
+# .anterior inconsistentes. Sem cancel-in-progress: um deploy pela metade é
+# pior que um deploy que esperou.
+concurrency:
+  group: deploy-${{ inputs.ambiente }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    name: ${{ inputs.acao }} → ${{ inputs.ambiente }}
+    runs-on: ubuntu-latest
+
+    # É daqui que sai a aprovação obrigatória do prod. A regra mora no
+    # environment "prod" (Settings → Environments), não neste arquivo —
+    # assim ninguém remove a trava mexendo no yml.
+    environment: ${{ inputs.ambiente }}
+
+    steps:
+      # O build vira argumento de um comando remoto. Se viesse direto do
+      # formulário pro shell, um valor com ; ou $( ) executaria no servidor.
+      # Aqui ele passa por um formato fechado antes de chegar perto do ssh.
+      - name: Conferir o build informado
+        env:
+          BUILD: ${{ inputs.build }}
+        run: |
+          if [ -n "$BUILD" ] && ! printf '%s' "$BUILD" | grep -Eq '^(build-[0-9]+-[0-9a-f]{7}|[0-9a-f]{7,40})$'; then
+            echo "ERRO: '$BUILD' não parece um build (build-N-sha7) nem um sha de commit."
+            exit 1
+          fi
+
+      - name: Preparar o acesso ao VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # A chave pública do servidor vem de secret em vez de
+          # StrictHostKeyChecking=no: assim, se alguém se passar pelo VPS,
+          # o ssh recusa em vez de entregar o acesso.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: ${{ inputs.acao == 'rollback' && 'Voltar pra versão anterior' || 'Publicar' }}
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER || 'root' }}
+          AMBIENTE: ${{ inputs.ambiente }}
+          ACAO: ${{ inputs.acao }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          if [ "$ACAO" = "rollback" ]; then
+            COMANDO="/opt/padelizou-deploy/rollback.sh $AMBIENTE"
+          else
+            COMANDO="/opt/padelizou-deploy/deploy.sh $AMBIENTE $BUILD"
+          fi
+
+          # -tt não: sem tty o log sai limpo e o exit code do script remoto
+          # chega inteiro aqui, que é o que faz o job ficar vermelho quando o
+          # healthcheck falha e o deploy.sh dá rollback sozinho.
+          ssh -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              "$VPS_USER@$VPS_HOST" "$COMANDO"
+
+      # O resumo aparece na tela do run — no celular é o que você lê sem
+      # precisar abrir o log inteiro.
+      - name: Resumo
+        if: always()
+        env:
+          AMBIENTE: ${{ inputs.ambiente }}
+          ACAO: ${{ inputs.acao }}
+          BUILD: ${{ inputs.build }}
+          RESULTADO: ${{ job.status }}
+        run: |
+          {
+            echo "## $ACAO em $AMBIENTE — $RESULTADO"
+            echo ""
+            echo "- Build pedido: \`${BUILD:-o mais recente}\`"
+            echo "- Disparado por: @${{ github.actor }}"
+            if [ "$AMBIENTE" = "prod" ]; then
+              echo "- Site: https://padelizou.com.br/healthz"
+            else
+              echo "- Site: https://dev.padelizou.com.br/healthz"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
