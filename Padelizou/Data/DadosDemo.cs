@@ -313,11 +313,15 @@ public static class DadosDemo
             Endereco = "Av. Beira Rio, 100 - Porto Alegre/RS",
             PrecoPadrao = 90m,
             CustoPorAula = 35m,
-            PacoteAtivo = true,
-            PacoteQuantidadeAulas = 4,
-            PacotePreco = 320m,
         };
         db.LocaisAula.Add(local);
+        db.SaveChanges();
+
+        // Dois pacotes de propósito: com um só, a tela de escolher pacote nunca seria exercitada
+        // na demonstração, e é justamente o desconto crescente que vende a ideia.
+        db.PacotesDeAulas.AddRange(
+            new PacoteDeAulas { LocalAulaId = local.Id, QuantidadeAulas = 4, Preco = 320m, Ativo = true },
+            new PacoteDeAulas { LocalAulaId = local.Id, QuantidadeAulas = 8, Preco = 600m, Ativo = true });
         db.SaveChanges();
 
         // Terça, quinta e sábado — o suficiente pra agenda mostrar dia cheio e dia vazio.

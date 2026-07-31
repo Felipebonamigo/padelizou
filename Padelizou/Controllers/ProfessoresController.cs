@@ -69,6 +69,7 @@ public class ProfessoresController : Controller
         if (professor == null) return NotFound();
 
         var locais = await _context.LocaisAula
+            .Include(l => l.Pacotes)
             .Where(l => l.ProfessorId == id && l.Ativo)
             .OrderBy(l => l.PrecoPadrao)
             .ToListAsync();

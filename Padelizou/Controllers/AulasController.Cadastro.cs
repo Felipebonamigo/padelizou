@@ -21,6 +21,7 @@ namespace padelizou.Controllers
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
             var locais = await _context.LocaisAula
+                .Include(l => l.Pacotes.OrderBy(p => p.QuantidadeAulas))
                 .Where(l => l.ProfessorId == professorId)
                 .OrderByDescending(l => l.Ativo)
                 .ThenBy(l => l.Nome)
@@ -30,7 +31,7 @@ namespace padelizou.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CriarLocal(string nome, string endereco, decimal precoPadrao, decimal? custoPorAula)
+        public async Task<IActionResult> CriarLocal(string nome, string? endereco, decimal precoPadrao, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -39,7 +40,9 @@ namespace padelizou.Controllers
             {
                 ProfessorId = professorId.Value,
                 Nome = nome,
-                Endereco = endereco,
+                // Endereço é opcional: muita aula é num clube que o aluno já sabe onde fica.
+                // Em branco vira nulo pra tela não ter que checar as duas coisas ao exibir.
+                Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
                 PrecoPadrao = precoPadrao,
                 CustoPorAula = custoPorAula,
                 Ativo = true
@@ -67,18 +70,69 @@ namespace padelizou.Controllers
 
         // Preço do pacote de aulas é só informativo por enquanto — o pagamento é combinado
         // direto com o professor (ex: Pix), sem cobrança nem controle de créditos pelo site.
+        //
+        // São VÁRIOS por local: 4 aulas com desconto pequeno, 12 com desconto grande. Cada um
+        // é uma linha em PacoteDeAulas, adicionada e removida separadamente.
         [HttpPost]
-        public async Task<IActionResult> AtualizarPacoteLocal(int id, bool pacoteAtivo, int? pacoteQuantidadeAulas, decimal? pacotePreco)
+        public async Task<IActionResult> AdicionarPacote(int localId, int quantidadeAulas, decimal preco)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
-            if (local != null)
+            var local = await _context.LocaisAula
+                .Include(l => l.Pacotes)
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+
+            if (local == null) return RedirectToAction("MeusLocais");
+
+            // Pacote de 1 aula é a aula avulsa com outro nome, e preço zero anunciaria aula de
+            // graça por engano de digitação.
+            if (quantidadeAulas < 2 || preco <= 0)
             {
-                local.PacoteAtivo = pacoteAtivo;
-                local.PacoteQuantidadeAulas = pacoteAtivo ? (pacoteQuantidadeAulas is null or <= 0 ? 4 : pacoteQuantidadeAulas) : null;
-                local.PacotePreco = pacoteAtivo ? pacotePreco : null;
+                TempData["ErroPacote"] = "O pacote precisa ter pelo menos 2 aulas e um preço maior que zero.";
+                return RedirectToAction("MeusLocais");
+            }
+
+            // Mesma quantidade duas vezes deixaria o aluno escolhendo entre "4 aulas por R$ 400"
+            // e "4 aulas por R$ 380" sem saber a diferença — que não existe. Reeditar o preço
+            // do que já existe é o que a pessoa quer nesse caso.
+            var jaTem = local.Pacotes.FirstOrDefault(p => p.QuantidadeAulas == quantidadeAulas);
+            if (jaTem != null)
+            {
+                jaTem.Preco = preco;
+                jaTem.Ativo = true;
+                TempData["SucessoPacote"] = $"Já existia um pacote de {quantidadeAulas} aulas — o preço dele virou {preco:C}.";
+            }
+            else
+            {
+                _context.PacotesDeAulas.Add(new PacoteDeAulas
+                {
+                    LocalAulaId = local.Id,
+                    QuantidadeAulas = quantidadeAulas,
+                    Preco = preco,
+                    Ativo = true,
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction("MeusLocais");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoverPacote(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O join com LocalAula é a autorização: sem ele, qualquer professor logado apagaria
+            // o pacote de qualquer outro só mandando o id.
+            var pacote = await _context.PacotesDeAulas
+                .Include(p => p.LocalAula)
+                .FirstOrDefaultAsync(p => p.Id == id && p.LocalAula.ProfessorId == professorId);
+
+            if (pacote != null)
+            {
+                _context.PacotesDeAulas.Remove(pacote);
                 await _context.SaveChangesAsync();
             }
 

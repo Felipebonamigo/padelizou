@@ -51,9 +51,12 @@ namespace padelizou.Controllers
                     l.Nome,
                     l.Endereco,
                     l.PrecoPadrao,
-                    l.PacoteAtivo,
-                    l.PacoteQuantidadeAulas,
-                    l.PacotePreco
+                    // Vários pacotes por local: a tela monta um <select> com eles.
+                    pacotes = l.Pacotes
+                        .Where(p => p.Ativo && p.QuantidadeAulas > 1 && p.Preco > 0)
+                        .OrderBy(p => p.QuantidadeAulas)
+                        .Select(p => new { p.Id, p.QuantidadeAulas, p.Preco })
+                        .ToList()
                 })
                 .ToListAsync();
 
@@ -115,7 +118,10 @@ namespace padelizou.Controllers
             bool ehPacote, bool recorrente, int semanasRecorrencia,
             // Quem chega na quadra: o nome com que o aluno se apresenta nesta aula e quem mais
             // vem com ele. O professor precisa saber isso ANTES de aceitar.
-            string? nomeCompleto = null, string? acompanhantes = null)
+            string? nomeCompleto = null, string? acompanhantes = null,
+            // QUAL pacote, agora que o local pode ter vários. Opcional pra uma página aberta
+            // antes deste deploy não quebrar: sem id, vale o primeiro pacote ativo.
+            int? pacoteId = null)
         {
             var alunoIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(alunoIdValue, out var alunoId))
@@ -123,21 +129,34 @@ namespace padelizou.Controllers
                 return RedirectToAction("Perfil", "Auth");
             }
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+            var local = await _context.LocaisAula
+                .Include(l => l.Pacotes)
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
             if (local == null)
             {
                 TempData["Erro"] = "Local inválido para este professor.";
                 return RedirectToAction("Solicitar");
             }
 
+            // O pacote escolhido tem que ser DESTE local: sem esse filtro, mandar o id de um
+            // pacote barato de outro professor compraria a aula cara pelo preço do outro.
+            var pacotesValidos = local.Pacotes
+                .Where(p => p.Ativo && p.QuantidadeAulas > 1 && p.Preco > 0)
+                .OrderBy(p => p.QuantidadeAulas)
+                .ToList();
+
+            var pacote = !ehPacote ? null
+                : pacoteId is int id ? pacotesValidos.FirstOrDefault(p => p.Id == id)
+                : pacotesValidos.FirstOrDefault();
+
             int quantidade;
             decimal precoPorAula;
-            var pacoteValido = ehPacote && local.PacoteAtivo && local.PacoteQuantidadeAulas is > 0 && local.PacotePreco.HasValue;
+            var pacoteValido = pacote != null;
 
             if (pacoteValido)
             {
-                quantidade = local.PacoteQuantidadeAulas!.Value;
-                precoPorAula = Math.Round(local.PacotePreco!.Value / quantidade, 2);
+                quantidade = pacote!.QuantidadeAulas;
+                precoPorAula = pacote.PrecoPorAula;
             }
             else if (recorrente)
             {
@@ -169,9 +188,10 @@ namespace padelizou.Controllers
                     continue;
                 }
 
-                // Ajusta o resto da divisão do pacote na última aula, pra fechar exatamente com PacotePreco
+                // Ajusta o resto da divisão do pacote na última aula, pra a soma das aulas
+                // fechar exatamente com o preço anunciado do pacote.
                 var preco = pacoteValido && i == quantidade - 1
-                    ? local.PacotePreco!.Value - precoPorAula * (quantidade - 1)
+                    ? pacote!.Preco - precoPorAula * (quantidade - 1)
                     : precoPorAula;
 
                 novasAulas.Add(new Aula

@@ -295,7 +295,7 @@ namespace padelizou.Controllers
                     Fim: a.DataHora.AddMinutes(DuracaoPadraoMinutosAula),
                     DiaInteiro: false,
                     Resumo: $"Aula com Prof. {a.Professor.Nome}",
-                    Local: $"{a.LocalAula.Nome}, {a.LocalAula.Endereco}",
+                    Local: a.LocalAula.NomeComEndereco,
                     Descricao: $"Status: {a.Status}")));
             }
 
@@ -315,7 +315,7 @@ namespace padelizou.Controllers
                     Fim: a.DataHora.AddMinutes(DuracaoPadraoMinutosAula),
                     DiaInteiro: false,
                     Resumo: $"Aula para {(a.Aluno != null ? a.Aluno.Nome : a.NomeAlunoAvulso ?? "aluno avulso")}",
-                    Local: $"{a.LocalAula.Nome}, {a.LocalAula.Endereco}",
+                    Local: a.LocalAula.NomeComEndereco,
                     Descricao: $"Status: {a.Status}")));
             }
 

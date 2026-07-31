@@ -302,7 +302,10 @@
                                 <li class="d-flex justify-content-between align-items-center py-2 border-bottom @(local.Ativo ? "" : "opacity-50")">
                                     <div>
                                         <div class="fw-bold small">@local.Nome</div>
-                                        <div class="text-muted small">@local.Endereco</div>
+                                        @if (!string.IsNullOrWhiteSpace(local.Endereco))
+                                        {
+                                            <div class="text-muted small">@local.Endereco</div>
+                                        }
                                     </div>
                                     <span class="small text-success fw-bold">@local.PrecoPadrao.ToString("C")</span>
                                 </li>

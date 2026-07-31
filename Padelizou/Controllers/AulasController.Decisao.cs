@@ -134,7 +134,7 @@ namespace padelizou.Controllers
                         "Sua aula foi confirmada! - Padelizou",
                         $@"<p>Olá {aula.Aluno!.Nome},</p>
                            <p>O professor <strong>{aula.Professor.Nome}</strong> confirmou sua aula em
-                           <strong>{aula.LocalAula.Nome}</strong> ({aula.LocalAula.Endereco})
+                           <strong>{aula.LocalAula.NomeComEndereco}</strong>
                            no dia <strong>{aula.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>");
                 }
                 catch (Exception ex)

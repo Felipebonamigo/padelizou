@@ -34,6 +34,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
+    public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -630,11 +631,22 @@ public partial class DbPadelContext : DbContext
         {
             entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
             entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
-            entity.Property(e => e.PacotePreco).HasPrecision(18, 2);
 
             entity.HasOne(l => l.Professor)
                 .WithMany()
                 .HasForeignKey(l => l.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PacoteDeAulas>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+
+            // Cascade: pacote não existe sem o local. Apagado o local, a oferta some junto —
+            // as aulas que ela gerou ficam, com o preço que já tinham.
+            entity.HasOne(p => p.LocalAula)
+                .WithMany(l => l.Pacotes)
+                .HasForeignKey(p => p.LocalAulaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

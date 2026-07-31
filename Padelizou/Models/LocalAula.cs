@@ -8,19 +8,28 @@ public partial class LocalAula
     public int Id { get; set; }
     public int ProfessorId { get; set; }
     public string Nome { get; set; } = null!;
-    public string Endereco { get; set; } = null!;
+
+    // Opcional: muito professor dá aula num clube que todo aluno já sabe onde fica, e exigir
+    // o endereço travava o cadastro do primeiro local por um dado que ninguém ia ler.
+    public string? Endereco { get; set; }
+
     public decimal PrecoPadrao { get; set; }
     public bool Ativo { get; set; } = true;
+
+    // Como o local aparece escrito num convite, num e-mail ou no Google Agenda. Existe porque
+    // o endereço é opcional: montar "Nome, Endereco" na mão em cada lugar produzia "Chakra, "
+    // com a vírgula pendurada no dia em que alguém não preencheu.
+    [NotMapped]
+    public string NomeComEndereco =>
+        string.IsNullOrWhiteSpace(Endereco) ? Nome : $"{Nome}, {Endereco}";
 
     // Opcional: quanto o professor paga ao local por aula, usado no relatório de gastos.
     public decimal? CustoPorAula { get; set; }
 
-    // Pacote de aulas (opcional) — preço fechado por um combo de aulas em vez de avulso.
-    // Só informativo por enquanto: o pagamento é combinado direto com o professor (ex: Pix),
-    // não há cobrança nem controle de créditos pelo site ainda.
-    public bool PacoteAtivo { get; set; }
-    public int? PacoteQuantidadeAulas { get; set; }
-    public decimal? PacotePreco { get; set; }
+    // Os pacotes de aula deste local (ver Models/PacoteDeAulas). Já foi UM pacote em três
+    // colunas aqui dentro; virou coleção porque o professor quase sempre anuncia mais de uma
+    // oferta na mesma quadra (4, 8, 12 aulas) e tinha que escolher qual mostrar.
+    public virtual ICollection<PacoteDeAulas> Pacotes { get; set; } = new List<PacoteDeAulas>();
 
     [ForeignKey("ProfessorId")]
     public virtual Jogador Professor { get; set; } = null!;

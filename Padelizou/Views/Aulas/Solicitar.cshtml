@@ -63,6 +63,11 @@
                                         <span id="info-pacote-texto"></span>
                                     </label>
                                 </div>
+                                @* O local pode ter vários pacotes (4, 8, 12 aulas). Com um só,
+                                   o seletor some — escolher entre uma opção não é escolha. *@
+                                <div id="escolha-pacote" class="ps-4 mt-1" style="display:none;">
+                                    <select id="select-pacote" class="form-select form-select-sm"></select>
+                                </div>
                             </div>
 
                             <div id="opcao-recorrencia" class="p-2 rounded" style="background:var(--pdz-surface-alt);">
@@ -78,6 +83,7 @@
                         </div>
 
                         <input type="hidden" name="ehPacote" id="hidden-eh-pacote" value="false" />
+                        <input type="hidden" name="pacoteId" id="hidden-pacote-id" value="" />
                         <input type="hidden" name="recorrente" id="hidden-recorrente" value="false" />
                         <input type="hidden" name="semanasRecorrencia" id="hidden-semanas" value="1" />
 
@@ -142,6 +148,10 @@
             var $opcoesTipo = $('#opcoes-tipo');
             var $opcaoPacote = $('#opcao-pacote');
             var $infoPacoteTexto = $('#info-pacote-texto');
+            var $escolhaPacote = $('#escolha-pacote');
+            var $selectPacote = $('#select-pacote');
+            // Os pacotes de cada local, guardados quando a lista de locais é carregada.
+            var pacotesPorLocal = {};
             var $checkRecorrente = $('#check-recorrente');
             var $campoSemanas = $('#campo-semanas');
             var $inputSemanas = $('#input-semanas');
@@ -177,6 +187,8 @@
                 $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
                 $opcoesTipo.hide(); renumerarPassos();
                 $opcaoPacote.hide();
+                $escolhaPacote.hide();
+                $('#hidden-pacote-id').val('');
                 $btn.prop('disabled', true);
             }
 
@@ -222,11 +234,12 @@
                     }
                     var options = '<option value="">-- Escolha um local --</option>';
                     $.each(locais, function (i, l) {
-                        options += '<option value="' + l.id + '"' +
-                            ' data-pacote-ativo="' + (l.pacoteAtivo ? '1' : '0') + '"' +
-                            ' data-pacote-qtd="' + (l.pacoteQuantidadeAulas || '') + '"' +
-                            ' data-pacote-preco="' + (l.pacotePreco || '') + '"' +
-                            '>' + l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')</option>';
+                        // Os pacotes viajam no próprio <option> como JSON: guardá-los num mapa
+                        // à parte exigiria mantê-lo em sincronia com a lista a cada troca de
+                        // professor, e é justamente aí que uma das duas fica velha.
+                        pacotesPorLocal[l.id] = l.pacotes || [];
+                        options += '<option value="' + l.id + '">'
+                            + l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')</option>';
                     });
                     $local.html(options).prop('disabled', false);
                 });
@@ -238,14 +251,31 @@
                 $btn.prop('disabled', true);
                 $opcoesTipo.hide(); renumerarPassos();
                 $opcaoPacote.hide();
+                $escolhaPacote.hide();
+                $('#hidden-pacote-id').val('');
                 $('input[name="tipoAula"][value="avulsa"]').prop('checked', true);
 
-                var $selected = $(this).find(':selected');
-                if (localId && $selected.data('pacote-ativo') == '1' && $selected.data('pacote-preco')) {
-                    var qtd = $selected.data('pacote-qtd');
-                    var preco = Number($selected.data('pacote-preco'));
-                    $infoPacoteTexto.text('Pacote de ' + qtd + ' aulas por R$ ' + emReais(preco) +
-                        ' (aulas semanais, combinado direto com o professor, ex: Pix)');
+                var pacotes = pacotesPorLocal[localId] || [];
+                if (localId && pacotes.length) {
+                    var opcoes = '';
+                    $.each(pacotes, function (i, p) {
+                        opcoes += '<option value="' + p.id + '">' + p.quantidadeAulas
+                            + ' aulas por R$ ' + emReais(p.preco)
+                            + ' (R$ ' + emReais(p.preco / p.quantidadeAulas) + ' cada)</option>';
+                    });
+                    $selectPacote.html(opcoes);
+                    $('#hidden-pacote-id').val(pacotes[0].id);
+
+                    // Com um pacote só, o texto do rádio já diz tudo e o seletor seria uma
+                    // caixa com uma linha; com dois ou mais, é ele que faz a escolha.
+                    if (pacotes.length === 1) {
+                        $infoPacoteTexto.text('Pacote de ' + pacotes[0].quantidadeAulas + ' aulas por R$ '
+                            + emReais(pacotes[0].preco) + ' (aulas semanais, combinado direto com o professor, ex: Pix)');
+                        $escolhaPacote.hide();
+                    } else {
+                        $infoPacoteTexto.text('Pacote de aulas (semanais, combinado direto com o professor, ex: Pix)');
+                        $escolhaPacote.show();
+                    }
                     $opcaoPacote.show();
                 }
 
@@ -297,6 +327,8 @@
                 $('#hidden-eh-pacote').val(ehPacote ? 'true' : 'false');
                 $('#hidden-recorrente').val(recorrente ? 'true' : 'false');
                 $('#hidden-semanas').val(recorrente ? ($inputSemanas.val() || 4) : 1);
+                // Qual pacote: o do seletor quando ele existe, senão o único da lista.
+                $('#hidden-pacote-id').val(ehPacote ? ($selectPacote.val() || $('#hidden-pacote-id').val() || '') : '');
             });
         });
     </script>

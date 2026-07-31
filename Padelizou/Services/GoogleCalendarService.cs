@@ -70,7 +70,9 @@ public class GoogleCalendarService : IGoogleCalendarService
         var evento = new Event
         {
             Summary = $"Aula de Padel - {aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno"}",
-            Location = aula.LocalAula.Endereco,
+            // Cai no nome quando não há endereço: o Google mostra o campo vazio como "sem
+            // local", e o nome do clube já leva o aluno até lá.
+            Location = aula.LocalAula.NomeComEndereco,
             // `DateTime` está marcado como obsoleto pela biblioteca do Google, que recomenda
             // `DateTimeDateTimeOffset`. Ficamos no antigo DE PROPÓSITO: `aula.DataHora` é hora
             // local sem fuso embutido (Kind=Unspecified), e converter pra DateTimeOffset usa o

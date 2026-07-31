@@ -24,6 +24,21 @@
         </div>
     }
 
+    @* Recusa e confirmação do pacote (quantidade repetida, número inválido): sem isto o
+       professor apertava Adicionar e nada acontecia na tela. *@
+    @if (TempData["ErroPacote"] != null)
+    {
+        <div class="alert alert-warning border-0 shadow-sm py-2">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroPacote"]
+        </div>
+    }
+    @if (TempData["SucessoPacote"] != null)
+    {
+        <div class="alert alert-success border-0 shadow-sm py-2">
+            <i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoPacote"]
+        </div>
+    }
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Novo local</h6>
@@ -32,7 +47,9 @@
                     <input type="text" name="nome" class="form-control" placeholder="Nome (ex: Padel Garden - Quadra 2)" required />
                 </div>
                 <div class="col-md-3">
-                    <input type="text" name="endereco" class="form-control" placeholder="Endereço" required />
+                    @* Sem required: muita aula é num clube que todo aluno já sabe onde fica, e
+                       exigir o endereço travava o cadastro do primeiro local. *@
+                    <input type="text" name="endereco" class="form-control" placeholder="Endereço (opcional)" />
                 </div>
                 <div class="col-md-2">
                     <input type="number" step="0.01" name="precoPadrao" class="form-control" placeholder="Preço da aula (R$)" required />
@@ -56,17 +73,16 @@
                     <div class="card shadow-sm border-0 h-100 @(local.Ativo ? "" : "opacity-50")">
                         <div class="card-body">
                             <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">@local.Nome</h5>
-                            <p class="text-muted small mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> @local.Endereco</p>
+                            @* Endereço é opcional: sem ele, a linha some em vez de deixar um
+                               alfinete de mapa apontando pro nada. *@
+                            @if (!string.IsNullOrWhiteSpace(local.Endereco))
+                            {
+                                <p class="text-muted small mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> @local.Endereco</p>
+                            }
                             <p class="text-muted small mb-1"><i class="bi bi-cash text-success"></i> Cobra @local.PrecoPadrao.ToString("C")</p>
-                            <p class="text-muted small mb-1">
+                            <p class="text-muted small mb-3">
                                 <i class="bi bi-wallet2 text-danger"></i>
                                 @(local.CustoPorAula.HasValue ? $"Paga {local.CustoPorAula.Value:C} ao local" : "Sem custo informado")
-                            </p>
-                            <p class="text-muted small mb-3">
-                                <i class="bi bi-box-seam text-primary"></i>
-                                @(local.PacoteAtivo && local.PacotePreco.HasValue
-                                    ? $"Pacote de {local.PacoteQuantidadeAulas} aulas por {local.PacotePreco.Value:C}"
-                                    : "Sem pacote de aulas")
                             </p>
 
                             <form asp-controller="Aulas" asp-action="AtualizarCustoLocal" method="post" class="d-flex gap-2 mb-2">
@@ -75,18 +91,57 @@
                                 <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Salvar</button>
                             </form>
 
-                            <form asp-controller="Aulas" asp-action="AtualizarPacoteLocal" method="post" class="mb-2 p-2 rounded" style="background:var(--pdz-surface-alt);">
-                                <input type="hidden" name="id" value="@local.Id" />
-                                <div class="form-check mb-2">
-                                    <input type="checkbox" class="form-check-input" id="pacoteAtivo-@local.Id" name="pacoteAtivo" value="true" @(local.PacoteAtivo ? "checked" : "") />
-                                    <label class="form-check-label small fw-bold" for="pacoteAtivo-@local.Id">Oferecer pacote de aulas</label>
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <input type="number" min="2" name="pacoteQuantidadeAulas" class="form-control form-control-sm" placeholder="Qtd. aulas" value="@(local.PacoteQuantidadeAulas ?? 4)" />
-                                    <input type="number" step="0.01" min="0" name="pacotePreco" class="form-control form-control-sm" placeholder="Preço do pacote (R$)" value="@local.PacotePreco" />
-                                    <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Salvar</button>
-                                </div>
-                            </form>
+                            @* Pacotes: vários por local (4 aulas, 8 aulas, 12 aulas), cada um
+                               com o seu desconto. A lista vem antes do formulário porque o que
+                               o professor faz mais é conferir o que já ofereceu. *@
+                            <div class="mb-2 p-2 rounded" style="background:var(--pdz-surface-alt);">
+                                <p class="small fw-bold mb-2"><i class="bi bi-box-seam text-primary"></i> Pacotes de aula</p>
+
+                                @{ var pacotes = local.Pacotes.OrderBy(p => p.QuantidadeAulas).ToList(); }
+                                @if (pacotes.Count == 0)
+                                {
+                                    <p class="small text-muted mb-2">Nenhum pacote ainda. Sem pacote, o aluno só marca aula avulsa.</p>
+                                }
+                                else
+                                {
+                                    <ul class="list-unstyled mb-2">
+                                        @foreach (var pacote in pacotes)
+                                        {
+                                            <li class="d-flex align-items-center gap-2 small border-bottom py-1">
+                                                <span class="flex-grow-1">
+                                                    <strong>@pacote.QuantidadeAulas aulas</strong> por @pacote.Preco.ToString("C")
+                                                    @* O preço por aula é o que o aluno compara com o avulso — sem
+                                                       ele, "8 por 600" não diz sozinho se compensa. *@
+                                                    <span class="text-muted d-block">
+                                                        @pacote.PrecoPorAula.ToString("C") por aula
+                                                        @if (pacote.PrecoPorAula < local.PrecoPadrao && local.PrecoPadrao > 0)
+                                                        {
+                                                            <span class="text-success">
+                                                                (@((1 - pacote.PrecoPorAula / local.PrecoPadrao).ToString("P0")) de desconto)
+                                                            </span>
+                                                        }
+                                                    </span>
+                                                </span>
+                                                <form asp-controller="Aulas" asp-action="RemoverPacote" method="post"
+                                                      onsubmit="return confirm('Tirar o pacote de @pacote.QuantidadeAulas aulas?');">
+                                                    <input type="hidden" name="id" value="@pacote.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0"
+                                                            title="Remover pacote" aria-label="Remover pacote de @pacote.QuantidadeAulas aulas">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+
+                                <form asp-controller="Aulas" asp-action="AdicionarPacote" method="post" class="d-flex gap-2">
+                                    <input type="hidden" name="localId" value="@local.Id" />
+                                    <input type="number" min="2" name="quantidadeAulas" class="form-control form-control-sm" placeholder="Qtd. aulas" required />
+                                    <input type="number" step="0.01" min="0" name="preco" class="form-control form-control-sm pdz-dinheiro" placeholder="Preço (R$)" required />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Adicionar</button>
+                                </form>
+                            </div>
 
                             <form asp-controller="Aulas" asp-action="AlternarLocal" method="post">
                                 <input type="hidden" name="id" value="@local.Id" />
