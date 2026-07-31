@@ -195,4 +195,13 @@ public partial class Torneio
     // sai a chave?" e pra o próprio organizador se cobrar do prazo que deu.
     public DateTime? PrevisaoEncerramentoInscricoes { get; set; }
     public DateTime? PrevisaoChaveamento { get; set; }
+
+    // Usar a lista de chamada no dia? Nem todo torneio quer: num interno de 8 duplas o
+    // organizador conhece todo mundo de vista, e a tela vira mais um botão pra ignorar.
+    //
+    // Nasce LIGADO porque é o comportamento que já existia — desligar é uma escolha, não uma
+    // pegadinha pra quem já tinha torneio no ar. Desligado, o botão some e a rota recusa: sem
+    // isso o link antigo (ou o histórico do navegador) continuaria abrindo uma tela que o
+    // organizador decidiu não usar.
+    public bool UsaCheckIn { get; set; } = true;
 }

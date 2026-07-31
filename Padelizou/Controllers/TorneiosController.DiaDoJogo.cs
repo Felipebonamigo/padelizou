@@ -246,6 +246,15 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (torneio == null) return NotFound();
+
+            // Desligado é desligado: esconder o botão não basta, porque o link antigo e o
+            // histórico do navegador continuam abrindo a tela.
+            if (!torneio.UsaCheckIn)
+            {
+                TempData["Erro"] = "O check-in está desligado neste torneio. Dá pra ligar em Editar Dados do Torneio.";
+                return RedirectToAction("Details", new { id });
+            }
+
             return View(torneio);
         }
 
@@ -254,13 +263,19 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> MarcarCheckIn(int duplaId, bool presente)
         {
             var dupla = await _context.Duplas
-                .Include(d => d.Categoria)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
                 .FirstOrDefaultAsync(d => d.Id == duplaId);
 
             if (dupla == null) return NotFound();
 
             int torneioId = dupla.Categoria.TorneioId;
             if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (!dupla.Categoria.Torneio.UsaCheckIn)
+            {
+                TempData["Erro"] = "O check-in está desligado neste torneio.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
 
             dupla.CheckInEm = presente ? DateTime.Now : null;
             await _context.SaveChangesAsync();

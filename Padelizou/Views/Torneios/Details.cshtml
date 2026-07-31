@@ -941,6 +941,16 @@
                                 </div>
                             </div>
 
+                            @* Lista de chamada do dia. Nem todo torneio quer: num interno de 8
+                               duplas o organizador conhece todo mundo de vista. *@
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="usaCheckIn" value="true" id="editCheckInSwitch" @(Model.UsaCheckIn ? "checked" : "")>
+                                <label class="form-check-label fw-bold" for="editCheckInSwitch">Usar check-in no dia?</label>
+                                <div class="small text-muted">
+                                    Lista pra marcar quem já chegou, na quadra. Desligado, o botão some das ferramentas.
+                                </div>
+                            </div>
+
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="permiteImpedimentos" value="true" id="editImpSwitch" onchange="toggleImpedimentosEdicao()" @(Model.PermiteImpedimentos ? "checked" : "")>
                                 <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
@@ -994,9 +1004,15 @@
                 <div class="card-body">
                     <h6 class="fw-bold text-muted text-uppercase mb-3">Ferramentas do organizador</h6>
                     <div class="d-flex flex-wrap gap-2 mb-3">
-                        <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
-                            <i class="bi bi-clipboard-check"></i> Check-in do dia
-                        </a>
+                        @* Nem todo torneio quer lista de chamada: num interno de 8 duplas o
+                           organizador conhece todo mundo de vista. O interruptor está em
+                           Editar Dados do Torneio. *@
+                        @if (Model.UsaCheckIn)
+                        {
+                            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                                <i class="bi bi-clipboard-check"></i> Check-in do dia
+                            </a>
+                        }
                         <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                             <i class="bi bi-cash-stack"></i> Financeiro
                         </a>

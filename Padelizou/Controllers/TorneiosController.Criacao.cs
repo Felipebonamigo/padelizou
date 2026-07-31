@@ -578,7 +578,8 @@ namespace Padelizou.Controllers
             // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
-            DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null)
+            DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
+            bool usaCheckIn = false)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -616,6 +617,10 @@ namespace Padelizou.Controllers
             torneio.RecadoAosInscritos = string.IsNullOrWhiteSpace(recadoAosInscritos) ? null : recadoAosInscritos.Trim();
             torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
             torneio.PrevisaoChaveamento = previsaoChaveamento;
+            // Caixa desmarcada não vai no POST: o `false` do parâmetro é o "desligou", e o
+            // hidden do formulário garante que quem NÃO tem o campo (aba antiga em cache) não
+            // desligue o check-in sem querer.
+            torneio.UsaCheckIn = usaCheckIn;
 
             if (capa != null && capa.Length > 0)
             {

@@ -128,6 +128,10 @@ public static class TestInfra
                     new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
             },
         };
+        // Sem TempData, qualquer ação que escreve uma mensagem pro usuário estoura com
+        // NullReferenceException dentro do teste — e o erro não aponta pra causa nenhuma.
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
         controller.Url = UrlDeTeste();
         return controller;
     }
