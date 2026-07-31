@@ -175,11 +175,21 @@ Conferido no navegador: 2 caixas de 24 viraram 48 un., custo 7,90 digitado com v
 R$ 4,60 (58,2%), a compra virou conta a pagar de R$ 379,20, vender+cancelar deixou 47, e contar
 5 gerou o ajuste de −42 com o aviso de comprar. **997 testes.**
 
-**Falta pra fechar:** **Pix pelo app** no fechamento da comanda — hoje as quatro formas são só
-registro, e o Pix com split seria o único que vira receita nossa. Precisa de decisão do Felipe
-(qual conta recebe, qual comissão), por isso não foi feito sozinho. Ficha técnica de drink,
-validade/lote e múltiplos depósitos ficam **de fora com convicção**: quem precisa disso precisa
-de um ERP de restaurante, não do Padelizou.
+**DECISÃO DO FELIPE (31/07): o bar só REGISTRA pagamento, nunca cobra.** As quatro formas
+(Dinheiro, Cartão, Pix, Cortesia) são anotação do que aconteceu no balcão — o dinheiro corre
+fora do sistema, como no torneio "por fora". O Pix com split, que seria o único a virar receita
+nossa, **não vai ser feito**. Isso deixa de ser pendência e vira desenho do produto.
+
+Por que isso é bom: a fase 1 fecha sem depender de conta no meio de pagamento, sem prazo de
+repasse, sem estorno de bar pra tratar, e sem o Padelizou responder por dinheiro que não viu.
+O clube vende do jeito que já vende e o sistema conta a história. Confirmado no código: **não
+há uma única chamada de cobrança em todo o módulo** — fechar comanda grava forma, data e status.
+
+Ficha técnica de drink, validade/lote e múltiplos depósitos ficam **de fora com convicção**:
+quem precisa disso precisa de um ERP de restaurante, não do Padelizou.
+
+**Falta pra usar de verdade:** nada de código. Ligar é `Bar__Habilitado=true` no systemd do
+ambiente, quando o cliente estiver pronto.
 
 ### 31/07/2026 — 🔐 Inscrever exige login de quem inscreve (build-174, prod + dev)
 
