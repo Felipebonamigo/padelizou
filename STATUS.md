@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026** — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
+> Última atualização: **31/07/2026** — 🔑 **admin manda em qualquer torneio** (`build-184`), pra socorrer organizador travado sem depender dele; **estorno automático** (desfaz a inscrição e chama a fila) e **caderneta de cobrança do "por fora"** no Financeiro. **1.011 testes.**
+> Antes, no mesmo dia — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
 > Antes, no mesmo dia — 🍺 **o bar do clube nasceu, e ninguém sabe**: comanda, cardápio, caixa do dia e contas a pagar/receber, tudo atrás da chave `Bar__Habilitado` que nasce **desligada** — enquanto isso só admin do Padelizou enxerga, nem o dono do clube. Pedido de um cliente; entregue em duas fases no mesmo dia (`build-176` em dev). **967 testes.**
 > Antes, no mesmo dia — 🔐 **inscrever agora exige login de quem inscreve** (o parceiro segue sem precisar de conta, e assume o pré-cadastro pelo CPF quando se cadastrar). Conferido em produção: deslogado, o POST da inscrição responde 302 pro login. **934 testes.**
 > Antes, no mesmo dia — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
@@ -48,6 +49,33 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🔑 Admin manda em qualquer torneio (build-184, prod + dev)
+
+Pra socorrer organizador travado. No dia do torneio, com as quadras ocupadas, o problema é
+sempre urgente — e "me adiciona como organizador" depende justamente da pessoa que não está
+conseguindo mexer no sistema. Antes o único caminho era ir no banco na mão.
+
+Vale pra **toda** ação de gestão de uma vez porque todas passam pela mesma porta
+(`EhOrganizadorAsync`): encerrar inscrições, gerar chaves, Mesa de Controle, Financeiro,
+remover inscrito, comunicar. O admin também passa a ver os torneios **ocultos** na listagem.
+
+Detalhe que evita um bug sutil: a checagem é sobre o `jogadorId` **recebido**, não sobre o
+claim de quem chamou — essa mesma função responde "fulano já manda aqui?" no
+`AdicionarOrganizador`, e ler o claim faria a resposta ser sobre outra pessoa.
+
+Provado no dev com conta descartável, antes e depois: como jogador comum, **sem** aba
+"Gerenciar Torneio"; com a flag de admin e crachá reemitido, a aba aparece e
+`/Torneios/Financeiro/17` e `/Torneios/MesaControle/17` respondem 200 num torneio que não é
+dele. A conta foi apagada em seguida. Os testes seguram o outro lado: jogador comum e
+visitante deslogado continuam recusados. **1.011 testes.**
+
+Junto (mesma leva): **estorno automático** — o webhook do estorno agora desfaz a inscrição,
+avisa quem saiu e chama a próxima da fila (antes mexia só no dinheiro, e a vaga ficava presa a
+quem já tinha recebido de volta) — e a **caderneta de cobrança do "por fora"** no Financeiro:
+quem já acertou, quem deve, total recebido/a receber, marcar pago e cobrar no WhatsApp com o
+valor e a chave Pix na mensagem. Junto veio um defeito que só aparecia no fim: **o botão de
+marcar pago sumia depois de encerrar as inscrições**, justo quando o pessoal paga.
 
 ### 31/07/2026 — 🛠️ A fila do "o que ainda melhorar" (build-178, prod + dev)
 
