@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
+> Última atualização: **31/07/2026** — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
+> Antes: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
 > Antes, na mesma noite — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
 > deixou de abrir aba nova (e de mandar pra produção quem clicava no localhost), e as
 > **conquistas foram de 12 pra 25** (vitórias até 200, títulos até decacampeão), agora abaixo
@@ -43,6 +44,64 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🐛 O bug do dinheiro (build-165, prod + dev)
+
+**O sistema lia R$ 79,90 como R$ 7.990,00.** A cultura do app é `pt-BR`, onde `.` é separador
+de **milhar**. Todo campo de dinheiro da tela é `<input type="number">`, e o navegador manda o
+valor sempre no formato da máquina (`79.90`) mesmo exibindo `79,90`. O binder padrão do
+ASP.NET Core lê campo de formulário na cultura da requisição → `decimal.Parse("79.90", pt-BR)`
+= **7990**. Sem erro, sem aviso, sem log.
+
+Por que ninguém viu: **todos os preços em uso eram redondos** (120, 150, 20). Sem centavos não
+há separador, e o bug não aparece. O primeiro torneio com inscrição de R$ 89,90 teria cobrado
+R$ 8.990,00 do jogador. Confirmado com teste **antes** de mexer, não por dedução.
+
+Correção em `Services/DinheiroModelBinder.cs`, registrado global pra todo `decimal`: com
+vírgula **e** ponto, o último manda (`1.234,56` e `1,234.56` caem os dois em 1234.56); com um
+só, ele é o decimal — porque o `input type=number` **nunca** manda separador de milhar. 15
+casos cobertos, incluindo `R$ `, espaço fino de teclado de celular e lixo digitado.
+
+Junto, na criação do torneio:
+- **Publicar não dava sinal de vida.** A recusa (nome repetido, sem categoria) nascia no topo e
+  o botão fica no pé — publicar *parecia* não fazer nada. Agora a tela rola até o erro e o botão
+  trava em "Publicando o torneio…". O segundo clique impaciente era o que criava torneio dobrado.
+- Inscrição nasce em **150** (zero é preço válido, então campo vazio não avisava nada), mostra
+  centavos e se seleciona ao receber o foco. Simulador "Vai caber?" começa em **50 duplas**.
+- **Chave Pix do organizador** e **recado aos inscritos** no "por fora": o jogador não sabia pra
+  onde mandar o dinheiro, e o organizador respondia isso no zap trinta vezes.
+- **Duas datas previstas** (encerramento das inscrições e chaveamento). São promessa publicada:
+  nada encerra nem sorteia sozinho.
+
+E na inscrição:
+- Botão **"Sou eu"** preenche o CPF de quem está logado. Digitar o próprio CPF com máscara no
+  celular era o degrau mais alto do formulário — e é o dado que o sistema já tem.
+- **Um impedimento só** (`Services/ImpedimentoUnico`). Marcar os três é dizer "não podemos jogar
+  em turno nenhum", e isso só aparecia na hora de montar a grade. Trava na tela **e** no servidor.
+- **Aviso de categoria mais fraca** que a declarada nas Preferências: "No cadastro, Fulano
+  colocou que é 4ª Categoria. Por que quer se inscrever na 5ª?". É pergunta, não trava — pode
+  ter caído de nível ou o parceiro ser mais fraco. A trava dura por histórico continua sendo outra.
+- Confirmando com CPF que não é o seu, **pede confirmação**, e quem foi inscrito recebe
+  "Fulano inscreveu você" em vez de um "Inscrição confirmada" que parece ter partido dele.
+
+Antes disso, no mesmo dia:
+- **Troféu leva o nome da CATEGORIA**, não do material. Ninguém ganha "um diamante": ganha a 1ª
+  Categoria Masculina. Dois títulos na mesma categoria somam; a 2ª masculina e a 2ª feminina
+  viram duas taças de ouro separadas — é isso que a pessoa quer mostrar.
+- **O diamante virou taça.** Era uma pedra lapidada e destoava dos outros sete; agora o material
+  aparece nas facetas e no brilho, nunca num formato diferente.
+- **Pnatinha fora das telas vazias.** Tela sem dado não é erro: é o começo normal de quem acabou
+  de entrar, e no painel do professor o mesmo desenho aparecia **quatro vezes** na mesma rolagem.
+  Ele fica em Error, NaoEncontrado e convite inválido.
+- **Toda tela do menu do professor volta pro painel.** Meus Locais, Meus Horários e Relatório
+  voltavam pra *Agenda* (um desvio) e Adicionar Aula não tinha saída nenhuma. A página pública
+  só mostra o botão pro próprio professor.
+- **"Receber por fora sempre pode"** em destaque na tela de planos, antes dos dois cards: a
+  porcentagem vale só pra aula paga **dentro do app**. Conferido no código — sem cobrança no
+  app, não nasce taxa.
+
+**889 testes.** Backup de produção conferido antes de publicar (2 jogadores, o pagamento real
+de R$ 9, marcador de fim presente).
 
 ### 25/07/2026 — Fundação de engenharia
 - **Git recuperado**: repo estava escondido na subpasta e parado desde 21/07 (199 arquivos sem commit). Movido para a raiz da solução, `publish/` e segredos fora do versionamento, tudo no GitHub.
