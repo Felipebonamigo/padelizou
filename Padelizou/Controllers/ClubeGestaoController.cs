@@ -16,13 +16,16 @@ public class ClubeGestaoController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly IPushNotificationService _pushService;
+    private readonly BarSettings _bar;
     private readonly ILogger<ClubeGestaoController> _logger;
 
     public ClubeGestaoController(DbPadelContext context, IPushNotificationService pushService,
+        Microsoft.Extensions.Options.IOptions<BarSettings> bar,
         ILogger<ClubeGestaoController> logger)
     {
         _context = context;
         _pushService = pushService;
+        _bar = bar.Value;
         _logger = logger;
     }
 
@@ -161,6 +164,15 @@ public class ClubeGestaoController : Controller
             .ToListAsync();
 
         vm.Proximas = proximas.Select(MontarLinha).ToList();
+
+        // O bar ainda está em construção: enquanto `Bar:Habilitado` estiver desligado, só
+        // admin do Padelizou vê o atalho. Esconder o link é cortesia — a trava de verdade
+        // está no BarController, que repete a checagem em toda ação.
+        bool ehAdminDoPadelizou = await _context.Jogadores
+            .AnyAsync(j => j.Id == UsuarioId() && (j.IsAdminGeral || j.IsAdminRaiz));
+
+        ViewBag.MostrarBar = _bar.Habilitado || ehAdminDoPadelizou;
+        ViewBag.BarEmConstrucao = !_bar.Habilitado;
 
         return View(vm);
     }

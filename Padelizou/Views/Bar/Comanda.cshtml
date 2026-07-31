@@ -1,0 +1,278 @@
+@model Padelizou.Models.Comanda
+@using Padelizou.Models
+@{
+    var clube = (Clube)ViewBag.Clube;
+    var produtos = (List<ProdutoBar>)ViewBag.Produtos;
+    var formas = (string[])ViewBag.Formas;
+    ViewData["Title"] = $"Comanda {Model.Numero} — {Model.NomeCliente}";
+
+    var itens = Model.Itens.OrderByDescending(i => i.LancadoEm).ToList();
+    var porCategoria = produtos
+        .GroupBy(p => string.IsNullOrWhiteSpace(p.Categoria) ? "Cardápio" : p.Categoria!)
+        .OrderBy(g => g.Key)
+        .ToList();
+}
+
+<div class="container-fluid mt-3 mb-5" style="max-width: 1200px;">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <span class="badge bg-secondary align-middle">#@Model.Numero</span>
+                @Model.NomeCliente
+            </h2>
+            <p class="text-muted small mb-0">
+                @clube.Nome · aberta @Model.AbertaEm.ToString("dd/MM 'às' HH:mm")
+                @if (Model.MarcacaoJogo != null)
+                {
+                    <span>· @Model.MarcacaoJogo.QuadraClube.Nome, @Model.MarcacaoJogo.DataHora.ToString("HH:mm")</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Celular))
+                {
+                    <span>· @Model.Celular</span>
+                }
+            </p>
+        </div>
+        <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Voltar ao balcão
+        </a>
+    </div>
+
+    @if (TempData["ErroBar"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroBar"]</div>
+    }
+
+    @if (!Model.EstaAberta)
+    {
+        <div class="alert alert-secondary border-0">
+            <i class="bi bi-lock-fill"></i>
+            Comanda @(Model.Status == Comanda.Cancelada ? "cancelada" : "fechada")
+            em @Model.FechadaEm!.Value.ToString("dd/MM 'às' HH:mm")
+            @if (Model.Status == Comanda.Fechada)
+            {
+                <span>· pagou com <strong>@Model.FormaPagamento</strong></span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.MotivoCancelamento))
+            {
+                <span>· motivo: @Model.MotivoCancelamento</span>
+            }
+        </div>
+    }
+
+    <div class="row g-3">
+        @* ---- Cardápio: os botões que o balcão aperta o dia todo ---- *@
+        @if (Model.EstaAberta)
+        {
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-2"><i class="bi bi-cup-straw"></i> Lançar item</h6>
+
+                        @if (!produtos.Any())
+                        {
+                            <div class="alert alert-warning border-0 small mb-3">
+                                Nenhum produto no cardápio ainda —
+                                <a asp-action="Produtos" asp-route-id="@clube.Id" class="fw-bold">cadastre o primeiro</a>.
+                                Dá pra lançar item avulso abaixo enquanto isso.
+                            </div>
+                        }
+
+                        @foreach (var grupo in porCategoria)
+                        {
+                            <div class="mb-3">
+                                <div class="small text-muted text-uppercase fw-bold mb-2" style="font-size:.7rem;">
+                                    @grupo.Key
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var p in grupo)
+                                    {
+                                        @* Um form por botão: no balcão o gesto é UM toque, e um
+                                           toque tem que valer uma venda. Escolher produto num
+                                           select e depois apertar "adicionar" são três. *@
+                                        <form asp-action="LancarItem" method="post" class="d-inline">
+                                            <input type="hidden" name="comandaId" value="@Model.Id" />
+                                            <input type="hidden" name="produtoBarId" value="@p.Id" />
+                                            <button type="submit" class="btn btn-outline-primary rounded-3 text-start py-2 px-3">
+                                                <span class="fw-bold d-block">@p.Nome</span>
+                                                <small class="text-muted">@p.Preco.ToString("C")</small>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <hr class="my-3" />
+                        <div class="small text-muted mb-2">
+                            Fora do cardápio (não trava a venda pra cadastrar produto):
+                        </div>
+                        <form asp-action="LancarItem" method="post" class="row g-2 align-items-end">
+                            <input type="hidden" name="comandaId" value="@Model.Id" />
+                            <div class="col-6 col-md-5">
+                                <input type="text" name="descricaoLivre" class="form-control" placeholder="O que foi" maxlength="80" />
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" name="precoLivre" step="0.01" min="0" class="form-control pdz-dinheiro" />
+                                </div>
+                            </div>
+                            <div class="col-5 col-md-2">
+                                <input type="number" name="quantidade" value="1" min="1" max="99" class="form-control" />
+                            </div>
+                            <div class="col-7 col-md-2 d-grid">
+                                <button type="submit" class="btn btn-outline-secondary">Lançar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* ---- O que já foi lançado ---- *@
+        <div class="@(Model.EstaAberta ? "col-lg-5" : "col-12")">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-receipt"></i> Consumo</h6>
+
+                    @if (!itens.Any())
+                    {
+                        <p class="text-muted small mb-0">Nada lançado ainda.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2">
+                                <tbody>
+                                    @foreach (var i in itens)
+                                    {
+                                        <tr class="@(i.Vale ? "" : "text-muted")">
+                                            <td>
+                                                <span class="@(i.Vale ? "" : "text-decoration-line-through")">
+                                                    @i.Quantidade × @i.Descricao
+                                                </span>
+                                                <small class="d-block text-muted">
+                                                    @i.PrecoUnitario.ToString("C") cada · @i.LancadoEm.ToString("HH:mm")
+                                                    @if (!i.Vale)
+                                                    {
+                                                        <span class="badge bg-secondary ms-1">cancelado</span>
+                                                        @if (!string.IsNullOrWhiteSpace(i.MotivoCancelamento))
+                                                        {
+                                                            <span>· @i.MotivoCancelamento</span>
+                                                        }
+                                                    }
+                                                </small>
+                                            </td>
+                                            <td class="text-end fw-bold text-nowrap">
+                                                @(i.Vale ? i.Total.ToString("C") : "—")
+                                            </td>
+                                            @if (Model.EstaAberta)
+                                            {
+                                                <td class="text-end" style="width: 44px;">
+                                                    @if (i.Vale)
+                                                    {
+                                                        @* Cancelar não apaga a linha: marca. Item que
+                                                           some da comanda é a forma mais comum de furto
+                                                           num bar. *@
+                                                        <form asp-action="CancelarItem" method="post"
+                                                              onsubmit="this.motivo.value = prompt('Por que está cancelando este item?') || ''; return this.motivo.value !== '';">
+                                                            <input type="hidden" name="itemId" value="@i.Id" />
+                                                            <input type="hidden" name="motivo" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                                    title="Cancelar item" aria-label="Cancelar item">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                        <span class="fw-bold">Total</span>
+                        <span class="fw-bold fs-3 text-success">@Model.Total.ToString("C")</span>
+                    </div>
+                    @if (Model.Desconto > 0)
+                    {
+                        <div class="small text-muted text-end">
+                            subtotal @Model.Subtotal.ToString("C") − desconto @Model.Desconto.ToString("C")
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (Model.EstaAberta)
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-2"><i class="bi bi-check2-circle"></i> Fechar comanda</h6>
+                        <form asp-action="FecharComanda" method="post">
+                            <input type="hidden" name="comandaId" value="@Model.Id" />
+
+                            <label class="form-label small fw-bold mb-1">Como o cliente pagou</label>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                @foreach (var f in formas)
+                                {
+                                    <input type="radio" class="btn-check" name="formaPagamento" value="@f"
+                                           id="forma_@f" required autocomplete="off" />
+                                    <label class="btn btn-outline-secondary rounded-pill px-3" for="forma_@f">@f</label>
+                                }
+                            </div>
+                            <div class="small text-muted mb-3">
+                                É registro do que aconteceu no balcão — o Padelizou não recebe nem confere.
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold mb-1">Desconto</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" name="desconto" step="0.01" min="0" value="0"
+                                               class="form-control pdz-dinheiro" />
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold mb-1">Observação</label>
+                                    <input type="text" name="observacao" class="form-control" maxlength="200" />
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
+                                Fechar comanda
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <form asp-action="CancelarComanda" method="post"
+                      onsubmit="this.motivo.value = prompt('Por que está cancelando a comanda inteira?') || ''; return @(Model.Subtotal > 0 ? "this.motivo.value !== ''" : "confirm('Cancelar esta comanda?')");">
+                    <input type="hidden" name="comandaId" value="@Model.Id" />
+                    <input type="hidden" name="motivo" />
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill w-100">
+                        Cancelar comanda
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mesma regra do resto do sistema: campo de dinheiro mostra centavos e se seleciona ao
+    // receber o foco (quem quer 30 num campo com 0 digita "3" e não fica com "03").
+    document.querySelectorAll('.pdz-dinheiro').forEach(function (el) {
+        el.addEventListener('blur', function () {
+            if (el.value === '') return;
+            var n = parseFloat(el.value);
+            if (!isNaN(n)) el.value = n.toFixed(2);
+        });
+        el.addEventListener('focus', function () { setTimeout(function () { el.select(); }, 0); });
+        el.addEventListener('mouseup', function (ev) { ev.preventDefault(); });
+    });
+</script>

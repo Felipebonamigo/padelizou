@@ -1,0 +1,164 @@
+@model List<Padelizou.Models.ProdutoBar>
+@using Padelizou.Models
+@{
+    var clube = (Clube)ViewBag.Clube;
+    ViewData["Title"] = $"Cardápio do bar — {clube.Nome}";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small"><strong>Em construção — só você está vendo isto.</strong></div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-list-ul"></i> Cardápio</h2>
+            <p class="text-muted small mb-0">@clube.Nome · o que o bar vende e por quanto</p>
+        </div>
+        <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Voltar ao balcão
+        </a>
+    </div>
+
+    @if (TempData["ErroBar"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroBar"]</div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">Novo produto</h6>
+            <form asp-action="SalvarProduto" method="post" class="row g-2 align-items-end">
+                <input type="hidden" name="clubeId" value="@clube.Id" />
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold mb-1">Nome</label>
+                    <input type="text" name="nome" class="form-control" maxlength="80" required
+                           placeholder="Ex: Heineken lata 350ml" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Preço</label>
+                    <div class="input-group">
+                        <span class="input-group-text">R$</span>
+                        <input type="number" name="preco" step="0.01" min="0" required class="form-control pdz-dinheiro" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold mb-1">Grupo</label>
+                    <input type="text" name="categoria" class="form-control" maxlength="30" placeholder="Bebidas" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-padel fw-bold">Adicionar</button>
+                </div>
+            </form>
+            <small class="text-muted d-block mt-2">
+                O preço vale a partir de agora. Comanda já lançada guarda o preço de quando foi
+                vendida — mudar aqui não mexe em nada do que já passou.
+            </small>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhum produto no cardápio ainda. Cadastre os campeões de venda primeiro — cerveja, água, refrigerante."))' />
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle bg-white shadow-sm rounded">
+                <thead>
+                    <tr class="small text-muted">
+                        <th>Produto</th>
+                        <th class="d-none d-sm-table-cell">Grupo</th>
+                        <th class="text-end">Preço</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr class="@(p.Ativo ? "" : "text-muted")">
+                            <td>
+                                <span class="fw-bold">@p.Nome</span>
+                                @if (!p.Ativo)
+                                {
+                                    <span class="badge bg-secondary ms-1">fora de linha</span>
+                                }
+                                <span class="d-sm-none d-block small text-muted">@(p.Categoria ?? "—")</span>
+                            </td>
+                            <td class="d-none d-sm-table-cell">@(p.Categoria ?? "—")</td>
+                            <td class="text-end fw-bold text-nowrap">@p.Preco.ToString("C")</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        title="Editar" aria-label="Editar produto"
+                                        onclick="pdzEditarProduto(@p.Id, this)"
+                                        data-nome="@p.Nome" data-preco="@p.Preco.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                        data-categoria="@p.Categoria" data-ordem="@p.Ordem">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                @* Inativa, nunca apaga: as comandas antigas continuam apontando
+                                   pro produto, e apagar levaria junto o histórico de venda. *@
+                                <form asp-action="AlternarProduto" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@p.Id" />
+                                    <button type="submit" class="btn btn-sm @(p.Ativo ? "btn-outline-danger" : "btn-outline-success")"
+                                            title="@(p.Ativo ? "Tirar de linha" : "Voltar pro cardápio")"
+                                            aria-label="@(p.Ativo ? "Tirar de linha" : "Voltar pro cardápio")">
+                                        <i class="bi @(p.Ativo ? "bi-eye-slash" : "bi-eye")"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <form asp-action="SalvarProduto" method="post" id="pdzFormEditar" class="d-none">
+            <input type="hidden" name="clubeId" value="@clube.Id" />
+            <input type="hidden" name="id" />
+            <input type="hidden" name="nome" />
+            <input type="hidden" name="preco" />
+            <input type="hidden" name="categoria" />
+            <input type="hidden" name="ordem" />
+        </form>
+    }
+</div>
+
+<script>
+    // Edição por prompt: são três campos e o cardápio muda de vez em quando, não o dia todo.
+    // Uma tela de edição própria aqui seria mais código pra sustentar do que valor entregue.
+    function pdzEditarProduto(id, botao) {
+        var nome = prompt('Nome do produto:', botao.dataset.nome);
+        if (nome === null) return;
+
+        var preco = prompt('Preço (use vírgula ou ponto):', botao.dataset.preco);
+        if (preco === null) return;
+
+        var categoria = prompt('Grupo (Bebidas, Comidas...):', botao.dataset.categoria || '');
+        if (categoria === null) return;
+
+        var form = document.getElementById('pdzFormEditar');
+        form.id.value = id;
+        form.nome.value = nome;
+        // O servidor lê vírgula E ponto (Services/DinheiroModelBinder), então o que a pessoa
+        // digitar do jeito dela chega certo.
+        form.preco.value = preco;
+        form.categoria.value = categoria;
+        form.ordem.value = botao.dataset.ordem;
+        form.submit();
+    }
+
+    document.querySelectorAll('.pdz-dinheiro').forEach(function (el) {
+        el.addEventListener('blur', function () {
+            if (el.value === '') return;
+            var n = parseFloat(el.value);
+            if (!isNaN(n)) el.value = n.toFixed(2);
+        });
+        el.addEventListener('focus', function () { setTimeout(function () { el.select(); }, 0); });
+        el.addEventListener('mouseup', function (ev) { ev.preventDefault(); });
+    });
+</script>

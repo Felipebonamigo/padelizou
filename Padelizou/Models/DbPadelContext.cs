@@ -62,6 +62,12 @@ public partial class DbPadelContext : DbContext
     public DbSet<QuadraClube> QuadrasClube { get; set; }
     public DbSet<HorarioMarcacaoDisponivel> HorariosMarcacaoDisponivel { get; set; }
     public DbSet<MarcacaoJogo> MarcacoesJogo { get; set; }
+
+    // Bar do clube: cardápio, comandas e o caixa do dia.
+    public DbSet<ProdutoBar> ProdutosBar { get; set; }
+    public DbSet<Comanda> Comandas { get; set; }
+    public DbSet<ItemComanda> ItensComanda { get; set; }
+    public DbSet<CaixaDoDia> CaixasDoDia { get; set; }
     public DbSet<JogadorCidade> JogadorCidades { get; set; }
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
@@ -359,6 +365,80 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ClubeId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---- Bar do clube ----
+        //
+        // Os campos *PorId (AbertaPorId, LancadoPorId, CanceladoPorId...) NÃO têm navegação e
+        // por isso não viram chave estrangeira: são carimbo de auditoria, e nenhum deles pode
+        // impedir que uma conta seja excluída depois (LGPD). Mesmo precedente de
+        // ComentarioPerfil.DenunciadoPorId.
+        modelBuilder.Entity<ProdutoBar>(entity =>
+        {
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.ClubeId, e.Ativo });
+        });
+
+        modelBuilder.Entity<Comanda>(entity =>
+        {
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // SetNull, não Cascade: sumir com a conta do jogador não pode levar junto a venda
+            // do bar — o dinheiro entrou e o dono precisa continuar vendo isso no caixa. O
+            // NomeCliente fica, e é por isso que ele é sempre preenchido mesmo quando veio de
+            // um cadastro. (Precedente doloroso: o TRUNCATE CASCADE que apagou conta real.)
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Mesma razão: cancelar/apagar uma reserva não apaga o consumo do bar dela.
+            entity.HasOne(e => e.MarcacaoJogo)
+                .WithMany()
+                .HasForeignKey(e => e.MarcacaoJogoId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Duas "comanda 7" no mesmo dia e no mesmo clube é confusão na hora de cobrar.
+            // Com dois tablets no balcão isso acontece de verdade — o índice transforma a
+            // corrida num erro que dá pra tratar (tenta o próximo número) em vez de num
+            // número repetido que ninguém percebe.
+            entity.HasIndex(e => new { e.ClubeId, e.DiaReferencia, e.Numero }).IsUnique();
+
+            // A busca do balcão é sempre "as comandas abertas deste clube".
+            entity.HasIndex(e => new { e.ClubeId, e.Status });
+        });
+
+        modelBuilder.Entity<ItemComanda>(entity =>
+        {
+            entity.HasOne(e => e.Comanda)
+                .WithMany(c => c.Itens)
+                .HasForeignKey(e => e.ComandaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: produto que já foi vendido não pode ser apagado por baixo da comanda.
+            // A tela nem oferece apagar — oferece INATIVAR, que é o certo (ProdutoBar.Ativo).
+            entity.HasOne(e => e.ProdutoBar)
+                .WithMany()
+                .HasForeignKey(e => e.ProdutoBarId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CaixaDoDia>(entity =>
+        {
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Um caixa por clube por dia — abrir o segundo é sempre engano.
+            entity.HasIndex(e => new { e.ClubeId, e.Dia }).IsUnique();
         });
         modelBuilder.Entity<HorarioMarcacaoDisponivel>(entity =>
         {

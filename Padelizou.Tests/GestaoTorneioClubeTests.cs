@@ -17,6 +17,7 @@ public class GestaoTorneioClubeTests
     private static ClubeGestaoController NovoClubeController(DbPadelContext ctx, int usuarioId)
     {
         var c = new ClubeGestaoController(ctx, Substitute.For<IPushNotificationService>(),
+            Microsoft.Extensions.Options.Options.Create(new Padelizou.Services.BarSettings()),
             NullLogger<ClubeGestaoController>.Instance);
 
         c.ControllerContext = new ControllerContext

@@ -301,6 +301,23 @@
                             </span>
                             <small class="d-block text-muted">Receita por quadra e por dia da semana, cancelamentos e faltas.</small>
                         </a>
+                        @* O bar está EM CONSTRUÇÃO: enquanto Bar:Habilitado estiver desligado,
+                           este atalho só aparece pra admin do Padelizou. O BarController repete
+                           a checagem — esconder o link nunca é a trava, só a cortesia. *@
+                        @if (ViewBag.MostrarBar == true)
+                        {
+                            <a asp-controller="Bar" asp-action="Index" asp-route-id="@Model.Clube.Id"
+                               class="list-group-item list-group-item-action px-0">
+                                <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                    <i class="bi bi-cup-straw"></i> Bar
+                                    @if (ViewBag.BarEmConstrucao == true)
+                                    {
+                                        <span class="badge bg-dark ms-1">em construção</span>
+                                    }
+                                </span>
+                                <small class="d-block text-muted">Comandas do dia, cardápio e fechamento de caixa.</small>
+                            </a>
+                        }
                         <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
                             <span class="fw-semibold" style="color: var(--pdz-ink);">
                                 <i class="bi bi-shield-check"></i> Política de cancelamento

@@ -62,6 +62,9 @@ builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
+// Nasce DESLIGADO: o bar do clube está em construção e, enquanto isso, só admin do Padelizou
+// enxerga (ver Services/BarSettings).
+builder.Services.Configure<BarSettings>(builder.Configuration.GetSection("Bar"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).

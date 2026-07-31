@@ -1,0 +1,287 @@
+@using Padelizou.Models
+@using Padelizou.Services
+@{
+    var clube = (Clube)ViewBag.Clube;
+    var dia = (DateTime)ViewBag.Dia;
+    var caixa = ViewBag.Caixa as CaixaDoDia;
+    var comandas = (List<Comanda>)ViewBag.Comandas;
+    var reservas = (List<MarcacaoJogo>)ViewBag.ReservasSemComanda;
+    decimal vendasDinheiro = ViewBag.VendasEmDinheiro ?? 0m;
+    decimal vendasNoDia = ViewBag.VendasNoDia ?? 0m;
+    decimal emAberto = ViewBag.EmAberto ?? 0m;
+
+    ViewData["Title"] = $"Bar — {clube.Nome}";
+
+    var abertas = comandas.Where(c => c.EstaAberta).ToList();
+    var fechadas = comandas.Where(c => !c.EstaAberta).ToList();
+}
+
+<div class="container-fluid mt-3 mb-5" style="max-width: 1400px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        @* Só o Felipe chega aqui enquanto Bar:Habilitado está desligado. O aviso existe pra
+           não haver dúvida de que isto ainda não é visível pro dono do clube. *@
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small">
+                <strong>Em construção — só você está vendo isto.</strong>
+                Os donos de clube não têm acesso enquanto <code>Bar:Habilitado</code> estiver desligado.
+            </div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-cup-straw"></i> Bar</h2>
+            <p class="text-muted small mb-0">
+                @clube.Nome · movimento de <strong>@dia.ToString("dd/MM")</strong>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Produtos" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-list-ul"></i> Cardápio
+            </a>
+            <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@clube.Id"
+               class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Painel do clube
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["ErroBar"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroBar"]</div>
+    }
+    @if (TempData["SucessoBar"] != null)
+    {
+        <div class="alert alert-success border-0"><i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoBar"]</div>
+    }
+
+    @* ---- Caixa do dia ---- *@
+    @if (caixa == null)
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1"><i class="bi bi-cash-stack"></i> Abrir o caixa de hoje</h6>
+                <p class="small text-muted mb-3">
+                    Quanto tem de troco na gaveta agora. É esse valor que entra na conta do fechamento —
+                    esquecer dele faz o caixa parecer que sobrou dinheiro.
+                </p>
+                <form asp-action="AbrirCaixa" method="post" class="d-flex flex-wrap gap-2 align-items-end">
+                    <input type="hidden" name="clubeId" value="@clube.Id" />
+                    <div>
+                        <label class="form-label small fw-bold mb-1">Troco de abertura</label>
+                        <div class="input-group" style="width: 180px;">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valorAbertura" step="0.01" min="0" value="0"
+                                   class="form-control pdz-dinheiro" />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold">Abrir caixa</button>
+                </form>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <small class="text-muted text-uppercase" style="font-size:.7rem;">Comandas abertas</small>
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@abertas.Count</div>
+                    <small class="text-muted">@emAberto.ToString("C") em consumo</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <small class="text-muted text-uppercase" style="font-size:.7rem;">Vendido hoje</small>
+                    <div class="fw-bold fs-4 text-success">@vendasNoDia.ToString("C")</div>
+                    <small class="text-muted">@fechadas.Count(c => c.Status == Comanda.Fechada) comanda(s) fechada(s)</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <small class="text-muted text-uppercase" style="font-size:.7rem;">Em dinheiro</small>
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@vendasDinheiro.ToString("C")</div>
+                    <small class="text-muted">é o que passa pela gaveta</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <small class="text-muted text-uppercase" style="font-size:.7rem;">Esperado na gaveta</small>
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">
+                        @((caixa.ValorAbertura + vendasDinheiro).ToString("C"))
+                    </div>
+                    <small class="text-muted">troco @caixa.ValorAbertura.ToString("C") + dinheiro</small>
+                </div>
+            </div>
+        </div>
+
+        @if (!caixa.EstaAberto)
+        {
+            <div class="alert alert-secondary border-0 small">
+                <i class="bi bi-lock-fill"></i>
+                Caixa de @caixa.Dia.ToString("dd/MM") fechado às @caixa.FechadoEm!.Value.ToString("HH:mm") —
+                contado <strong>@caixa.ValorContado!.Value.ToString("C")</strong>.
+                @if (!string.IsNullOrWhiteSpace(caixa.Observacao))
+                {
+                    <span>· @caixa.Observacao</span>
+                }
+            </div>
+        }
+    }
+
+    <div class="row g-3">
+        @* ---- Coluna da esquerda: abrir comanda ---- *@
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-plus-circle"></i> Abrir comanda</h6>
+                    <form asp-action="AbrirComanda" method="post" class="mb-0">
+                        <input type="hidden" name="clubeId" value="@clube.Id" />
+                        <div class="input-group">
+                            <input type="text" name="nomeCliente" class="form-control form-control-lg"
+                                   placeholder="Nome do cliente" maxlength="80" autocomplete="off" />
+                            <button type="submit" class="btn btn-padel fw-bold px-3">Abrir</button>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            No balcão a comanda é achada pelo nome. O número sai automático.
+                        </small>
+                    </form>
+                </div>
+            </div>
+
+            @* Quem está jogando agora: um toque e a comanda nasce com nome, celular e a
+               quadra junto. É a vantagem de bar e quadra viverem no mesmo sistema. *@
+            @if (reservas.Any())
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-1"><i class="bi bi-people-fill"></i> Está na quadra agora</h6>
+                        <p class="small text-muted mb-2">Um toque abre a comanda já no nome da pessoa.</p>
+                        @foreach (var r in reservas)
+                        {
+                            <form asp-action="AbrirComanda" method="post" class="d-grid mb-2">
+                                <input type="hidden" name="clubeId" value="@clube.Id" />
+                                <input type="hidden" name="marcacaoJogoId" value="@r.Id" />
+                                <button type="submit" class="btn btn-outline-primary rounded-3 text-start py-2">
+                                    <span class="fw-bold d-block">
+                                        @(string.IsNullOrWhiteSpace(r.NomeClienteBalcao) ? r.Jogador?.ComoChamar : r.NomeClienteBalcao)
+                                    </span>
+                                    <small class="text-muted">
+                                        @r.DataHora.ToString("HH:mm") · @r.QuadraClube.Nome
+                                    </small>
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (caixa != null && caixa.EstaAberto)
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-1"><i class="bi bi-cash-stack"></i> Fechar o caixa</h6>
+                        <p class="small text-muted mb-2">
+                            Conte o dinheiro da gaveta e digite o que tem lá. O sistema não preenche
+                            isso sozinho de propósito — é a contagem que confere.
+                        </p>
+                        <form asp-action="FecharCaixa" method="post">
+                            <input type="hidden" name="clubeId" value="@clube.Id" />
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" name="valorContado" step="0.01" min="0" required
+                                       class="form-control pdz-dinheiro" placeholder="contado na gaveta" />
+                            </div>
+                            <input type="text" name="observacao" class="form-control form-control-sm mb-2"
+                                   placeholder="Observação (opcional)" maxlength="200" />
+                            <button type="submit" class="btn btn-outline-danger rounded-pill w-100 fw-bold"
+                                    @(abertas.Any() ? "disabled" : "")>
+                                Fechar caixa do dia
+                            </button>
+                            @if (abertas.Any())
+                            {
+                                <small class="text-muted d-block mt-1">
+                                    Feche as @abertas.Count comanda(s) aberta(s) primeiro.
+                                </small>
+                            }
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ---- Coluna da direita: as comandas ---- *@
+        <div class="col-lg-8">
+            <h6 class="fw-bold text-muted mb-2">Comandas abertas</h6>
+            @if (!abertas.Any())
+            {
+                <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma comanda aberta agora."))' />
+            }
+            else
+            {
+                <div class="row g-2 mb-4">
+                    @foreach (var c in abertas)
+                    {
+                        <div class="col-md-6 col-xl-4">
+                            <a asp-action="Comanda" asp-route-id="@c.Id"
+                               class="card border-0 shadow-sm h-100 text-decoration-none">
+                                <div class="card-body py-3">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <span class="badge bg-secondary">#@c.Numero</span>
+                                        <span class="fw-bold fs-5 text-success">@c.Total.ToString("C")</span>
+                                    </div>
+                                    <div class="fw-bold text-truncate mt-1" style="color: var(--pdz-ink);">
+                                        @c.NomeCliente
+                                    </div>
+                                    <small class="text-muted">
+                                        aberta @c.AbertaEm.ToString("HH:mm")
+                                        · @c.Itens.Count(i => i.Vale) item(ns)
+                                    </small>
+                                </div>
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (fechadas.Any())
+            {
+                <h6 class="fw-bold text-muted mb-2">Já fechadas hoje</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th class="d-none d-sm-table-cell">Pagou com</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in fechadas)
+                            {
+                                <tr class="@(c.Status == Comanda.Cancelada ? "text-muted" : "")">
+                                    <td>@c.Numero</td>
+                                    <td>
+                                        <a asp-action="Comanda" asp-route-id="@c.Id" class="text-decoration-none">@c.NomeCliente</a>
+                                        @if (c.Status == Comanda.Cancelada)
+                                        {
+                                            <span class="badge bg-secondary ms-1">cancelada</span>
+                                        }
+                                    </td>
+                                    <td class="d-none d-sm-table-cell">@(c.FormaPagamento ?? "—")</td>
+                                    <td class="text-end fw-bold">
+                                        @(c.Status == Comanda.Cancelada ? "—" : c.Total.ToString("C"))
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
