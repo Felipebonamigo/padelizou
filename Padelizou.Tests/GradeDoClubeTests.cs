@@ -18,51 +18,39 @@ public class GradeDoClubeTests
     private static HorarioMarcacaoDisponivel Regra(TimeSpan inicio, TimeSpan fim, int duracao, bool ativo = true) =>
         new() { HoraInicio = inicio, HoraFim = fim, DuracaoMinutos = duracao, Ativo = ativo };
 
-    // ---------- A decisão por slot ----------
+    // ---------- Quem sai quando a grade nova entra ----------
+    // O clique diz qual é a grade daquela janela: o que sobrepõe sai. A 1ª versão
+    // preservava — e no primeiro uso real o Felipe clicou "gerar 1h30" pra TROCAR a
+    // grade de 1h e recebeu "nada novo pra criar".
 
     [Fact]
-    public void Sem_nada_no_dia_cria()
+    public void Sem_nada_no_dia_ninguem_sai()
     {
-        var (decisao, _) = HorarioDoClube.DecidirSlot(Array.Empty<HorarioMarcacaoDisponivel>(), H(7), H(23), 60);
-
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Criar, decisao);
+        Assert.Empty(HorarioDoClube.QuaisSubstituir(Array.Empty<HorarioMarcacaoDisponivel>(), H(7), H(23)));
     }
 
     [Fact]
-    public void Regra_identica_ativa_e_pulada_e_pausada_e_religada()
+    public void O_que_sobrepoe_sai_inclusive_pausada()
     {
-        var ativa = new[] { Regra(H(7), H(23), 60) };
-        var pausada = new[] { Regra(H(7), H(23), 60, ativo: false) };
+        // Pausada sobreposta também sai: deixá-la viraria lixo embaixo da grade nova.
+        var existentes = new[]
+        {
+            Regra(H(7), H(23), 60),
+            Regra(H(18), H(21), 90, ativo: false),
+        };
 
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Pular,
-            HorarioDoClube.DecidirSlot(ativa, H(7), H(23), 60).Decisao);
-
-        // Recadastrar a grade depois das férias faz o que a pessoa quis, sem duplicar —
-        // a mesma regra dos horários do professor.
-        var (decisao, alvo) = HorarioDoClube.DecidirSlot(pausada, H(7), H(23), 60);
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Religar, decisao);
-        Assert.Same(pausada[0], alvo);
+        Assert.Equal(2, HorarioDoClube.QuaisSubstituir(existentes, H(7), H(23)).Count);
     }
 
     [Fact]
-    public void Sobreposicao_com_ativa_e_pulada_para_nao_vender_o_mesmo_horario_duas_vezes()
+    public void O_que_esta_fora_da_janela_fica()
     {
-        var existente = new[] { Regra(H(18), H(21), 60) };
+        // A noite nobre 18–23 sobrevive a um "gerar 07–18": janelas que só se encostam
+        // não se sobrepõem.
+        var nobre = new[] { Regra(H(18), H(23), 60) };
 
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Pular,
-            HorarioDoClube.DecidirSlot(existente, H(7), H(23), 90).Decisao);
-        // Janelas que só se encostam (7–18 contra 18–21) não se sobrepõem: cria.
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Criar,
-            HorarioDoClube.DecidirSlot(existente, H(7), H(18), 60).Decisao);
-    }
-
-    [Fact]
-    public void Sobreposicao_so_com_pausada_nao_impede()
-    {
-        var pausada = new[] { Regra(H(18), H(21), 60, ativo: false) };
-
-        Assert.Equal(HorarioDoClube.DecisaoDaGrade.Criar,
-            HorarioDoClube.DecidirSlot(pausada, H(7), H(23), 90).Decisao);
+        Assert.Empty(HorarioDoClube.QuaisSubstituir(nobre, H(7), H(18)));
+        Assert.Single(HorarioDoClube.QuaisSubstituir(nobre, H(7), H(19)));
     }
 
     // ---------- O gerador de ponta a ponta ----------
@@ -138,10 +126,29 @@ public class GradeDoClubeTests
     }
 
     [Fact]
-    public async Task O_que_ja_existe_na_faixa_e_preservado_e_o_resto_e_criado()
+    public async Task Gerar_por_cima_substitui_o_que_sobrepoe()
     {
         using var ctx = CenarioComDuasQuadras();
-        // Segunda à noite na quadra 1 já tem regra própria, mais cara.
+        // A grade era de 1h; o dono clica em 1h30 pra TROCAR — o caso real do Felipe.
+        await Controller(ctx, 1).GerarGrade(1, null, new[] { 0, 1, 2, 3, 4, 5, 6 },
+            H(7), H(23), 60, 80m);
+
+        await Controller(ctx, 1).GerarGrade(1, null, new[] { 0, 1, 2, 3, 4, 5, 6 },
+            H(7), H(23), 90, 120m);
+
+        Assert.Equal(14, ctx.HorariosMarcacaoDisponivel.Count());
+        Assert.All(ctx.HorariosMarcacaoDisponivel, h =>
+        {
+            Assert.Equal(90, h.DuracaoMinutos);
+            Assert.Equal(120m, h.Preco);
+        });
+    }
+
+    [Fact]
+    public async Task A_faixa_fora_da_janela_sobrevive()
+    {
+        using var ctx = CenarioComDuasQuadras();
+        // Segunda à noite na quadra 1 tem preço nobre próprio.
         ctx.HorariosMarcacaoDisponivel.Add(new HorarioMarcacaoDisponivel
         {
             ClubeId = 1, QuadraClubeId = 1, DiaSemana = 1,
@@ -149,13 +156,13 @@ public class GradeDoClubeTests
         });
         ctx.SaveChanges();
 
+        // Gerar só o horário comercial (7–18) não toca na noite.
         await Controller(ctx, 1).GerarGrade(1, null, new[] { 0, 1, 2, 3, 4, 5, 6 },
-            H(7), H(23), 60, 80m);
+            H(7), H(18), 60, 80m);
 
-        // 14 slots do gerador, mas o (quadra 1, segunda) foi pulado: 13 novos + o antigo.
-        Assert.Equal(14, ctx.HorariosMarcacaoDisponivel.Count());
-        var daSegundaQ1 = ctx.HorariosMarcacaoDisponivel.Single(h => h.QuadraClubeId == 1 && h.DiaSemana == 1);
-        Assert.Equal(120m, daSegundaQ1.Preco);   // o preço nobre não foi atropelado
+        Assert.Equal(15, ctx.HorariosMarcacaoDisponivel.Count());   // 14 novos + a nobre
+        var nobre = ctx.HorariosMarcacaoDisponivel.Single(h => h.Preco == 120m);
+        Assert.Equal(H(18), nobre.HoraInicio);
     }
 
     [Fact]

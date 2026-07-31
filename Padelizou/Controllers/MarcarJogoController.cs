@@ -117,6 +117,104 @@ namespace padelizou.Controllers
             return RedirectToAction("Clube", new { clubeId, data = dataHora.Date });
         }
 
+        // Vários horários de uma vez (2h seguidas, ou duas quadras pro grupo grande).
+        // Cada item de slots é "quadraId|yyyy-MM-ddTHH:mm:ss" — a duração e o PREÇO saem
+        // sempre do servidor (ObterSlotsDisponiveisAsync), nunca do formulário.
+        //
+        // Tudo-ou-nada de propósito: se um dos horários acabou de ser tomado, criar só o
+        // resto entregaria outra coisa que não a escolhida — melhor recusar e deixar o
+        // jogador remontar a seleção já vendo a grade atual.
+        [HttpPost]
+        public async Task<IActionResult> MarcarVarios(int clubeId, string[] slots)
+        {
+            var clube = await _context.Clubes.FindAsync(clubeId);
+            if (clube == null || !clube.MarcacaoHorariosAtiva) return NotFound();
+
+            var meuId = ObterJogadorIdLogado();
+
+            // Teto de sanidade: ninguém reserva 9+ horários de uma vez — isso é robô ou erro.
+            var pedidos = (slots ?? Array.Empty<string>()).Distinct().Take(8)
+                .Select(s => s.Split('|'))
+                .Where(p => p.Length == 2 && int.TryParse(p[0], out _) && DateTime.TryParse(p[1], out _))
+                .Select(p => (QuadraId: int.Parse(p[0]), DataHora: DateTime.Parse(p[1])))
+                .ToList();
+
+            if (pedidos.Count == 0)
+            {
+                TempData["Erro"] = "Escolha pelo menos um horário.";
+                return RedirectToAction("Clube", new { clubeId });
+            }
+
+            var dia = pedidos[0].DataHora.Date;
+
+            // Recusa horário de outro dia misturado: a tela é por dia, e a cobrança única
+            // descreve "N horários de dd/MM" — misturar datas faria a descrição mentir.
+            if (pedidos.Any(p => p.DataHora.Date != dia))
+            {
+                TempData["Erro"] = "Escolha horários de um dia só por vez.";
+                return RedirectToAction("Clube", new { clubeId });
+            }
+
+            var disponiveis = await _horarioMarcacaoService.ObterSlotsDisponiveisAsync(clubeId, dia);
+            var escolhidos = new List<SlotMarcacao>();
+            foreach (var p in pedidos)
+            {
+                var slot = disponiveis.FirstOrDefault(s => s.QuadraClubeId == p.QuadraId && s.Inicio == p.DataHora);
+                if (slot == null)
+                {
+                    TempData["Erro"] = $"O horário das {p.DataHora:HH:mm} acabou de ser marcado por outra pessoa. Nenhuma reserva foi feita — escolha de novo.";
+                    return RedirectToAction("Clube", new { clubeId, data = dia });
+                }
+                escolhidos.Add(slot);
+            }
+
+            var dadosVarios = new DadosMarcacaoJogoVarios(clubeId, meuId, escolhidos
+                .Select(s => new SlotReservado(s.QuadraClubeId, s.Inicio, (int)(s.Fim - s.Inicio).TotalMinutes))
+                .ToList());
+
+            var precoTotal = escolhidos.Sum(s => s.Preco ?? 0m);
+            var dono = await _pagamentos.ObterDonoDoClubeAsync(clubeId);
+            if (precoTotal > 0 && _pagamentos.PodeCobrarQuadra(precoTotal, dono))
+            {
+                var jogador = await _context.Jogadores.FindAsync(meuId);
+                if (jogador != null)
+                {
+                    // Uma cobrança só pro conjunto; as marcações nascem no webhook.
+                    var checkout = await _pagamentos.IniciarCobrancaQuadrasAsync(
+                        clube, dono!, jogador, precoTotal, dadosVarios);
+
+                    if (checkout != null) return Redirect(checkout);
+
+                    TempData["Erro"] = "Não foi possível gerar a cobrança agora. Tente novamente em instantes.";
+                    return RedirectToAction("Clube", new { clubeId, data = dia });
+                }
+            }
+
+            MarcacaoJogo? primeira = null;
+            foreach (var s in dadosVarios.Slots)
+            {
+                var m = new MarcacaoJogo
+                {
+                    ClubeId = clubeId,
+                    QuadraClubeId = s.QuadraClubeId,
+                    JogadorId = meuId,
+                    DataHora = s.DataHora,
+                    DuracaoMinutos = s.DuracaoMinutos,
+                    Status = "Confirmada",
+                    PagaNoLocal = true,
+                };
+                _context.MarcacoesJogo.Add(m);
+                primeira ??= m;
+            }
+            await _context.SaveChangesAsync();
+
+            if (dadosVarios.Slots.Count > 1)
+            {
+                TempData["Sucesso"] = $"{dadosVarios.Slots.Count} horários marcados!";
+            }
+            return RedirectToAction("Confirmada", new { id = primeira!.Id });
+        }
+
         // Tela pós-marcação: pergunta se o jogador quer convidar alguém da lista antes de
         // seguir em frente — convite é opcional, a marcação já está feita de qualquer jeito.
         [HttpGet]

@@ -237,7 +237,11 @@
                                fechou sem querer não tinha como voltar atrás — este item é a porta
                                de sempre. Nasce escondido e o instalar-app.js decide: some pra quem
                                já instalou e pra quem está num navegador que não instala. *@
-                            <li class="nav-item" id="pdzMenuInstalar" style="display:none;">
+                            @* d-lg-none: só no celular (decisão do Felipe, 30/07). O Chrome de
+                               desktop também instala PWA — por isso o item aparecia lá — mas o
+                               app na mesa de trabalho não é o produto; no bolso é. O !important
+                               do d-lg-none vence o display que o instalar-app.js setar. *@
+                            <li class="nav-item d-lg-none" id="pdzMenuInstalar" style="display:none;">
                                 <a class="nav-link" href="#" onclick="abrirInstalarPwaModal(); return false;">
                                     <i class="bi bi-phone"></i> Instalar o app
                                 </a>

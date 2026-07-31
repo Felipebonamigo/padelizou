@@ -73,7 +73,9 @@
                 <h6 class="fw-bold text-muted mb-1"><i class="bi bi-lightning-charge"></i> Montar a grade de uma vez</h6>
                 <p class="small text-muted mb-3">
                     Escolha o período de funcionamento e clique na duração do jogo — os horários são
-                    criados pra cada dia e quadra marcados. O que já existir naquela faixa é preservado.
+                    criados pra cada dia e quadra marcados. <strong>O que já existir nessa faixa é
+                    substituído</strong>; o que estiver fora dela (ex.: uma faixa da noite com outro
+                    preço) fica como está.
                 </p>
                 <form asp-controller="HorarioMarcacao" asp-action="GerarGrade" method="post">
                     <input type="hidden" name="clubeId" value="@clube.Id" />
@@ -116,13 +118,16 @@
                        era verde) fazia o grupo parecer seleção — "o 1h está escolhido" — em
                        vez de três ações equivalentes. Feedback do Felipe em tela, 30/07. *@
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                        <button type="submit" name="duracaoMinutos" value="30" class="btn btn-padel rounded-pill px-3">
+                        <button type="submit" name="duracaoMinutos" value="30" class="btn btn-padel rounded-pill px-3"
+                                onclick="return confirm('Gerar a grade de 30 min? O que já existir na faixa escolhida será substituído.');">
                             Gerar jogos de <strong>30 min</strong>
                         </button>
-                        <button type="submit" name="duracaoMinutos" value="60" class="btn btn-padel rounded-pill px-3">
+                        <button type="submit" name="duracaoMinutos" value="60" class="btn btn-padel rounded-pill px-3"
+                                onclick="return confirm('Gerar a grade de 1h? O que já existir na faixa escolhida será substituído.');">
                             Gerar jogos de <strong>1h</strong>
                         </button>
-                        <button type="submit" name="duracaoMinutos" value="90" class="btn btn-padel rounded-pill px-3">
+                        <button type="submit" name="duracaoMinutos" value="90" class="btn btn-padel rounded-pill px-3"
+                                onclick="return confirm('Gerar a grade de 1h30? O que já existir na faixa escolhida será substituído.');">
                             Gerar jogos de <strong>1h30</strong>
                         </button>
                     </div>

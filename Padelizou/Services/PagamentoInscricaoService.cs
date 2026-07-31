@@ -34,6 +34,12 @@ public record DadosAssinaturaProfessor(int ProfessorId);
 
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
+// Vários horários numa cobrança só (jogador selecionou 2h seguidas, ou duas quadras pro
+// grupo grande). Tipo próprio ("JogoVarios") em vez de esticar o DadosMarcacaoJogo:
+// cobranças pendentes antigas continuam desserializando no formato que nasceram.
+public record SlotReservado(int QuadraClubeId, DateTime DataHora, int DuracaoMinutos);
+public record DadosMarcacaoJogoVarios(int ClubeId, int JogadorId, List<SlotReservado> Slots);
+
 public interface IPagamentoInscricaoService
 {
     Task<Jogador?> ObterRecebedorTorneioAsync(int torneioId);
@@ -58,6 +64,8 @@ public interface IPagamentoInscricaoService
     bool PodeCobrarQuadra(decimal? preco, Jogador? dono);
     Task<string?> IniciarCobrancaQuadraAsync(Clube clube, Jogador dono, Jogador pagador,
         decimal preco, DadosMarcacaoJogo dados);
+    Task<string?> IniciarCobrancaQuadrasAsync(Clube clube, Jogador dono, Jogador pagador,
+        decimal precoTotal, DadosMarcacaoJogoVarios dados);
 
     // Quanto a tela deve anunciar: o valor que o jogador realmente vai pagar e a taxa embutida.
     // Null quando não há cobrança online — aí o preço do torneio/aula já é o valor final.
@@ -301,6 +309,15 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             $"Quadra {dados.DataHora:dd/MM HH:mm} — {clube.Nome}", dados,
             torneioId: null, jogoAulaId: null);
 
+    public Task<string?> IniciarCobrancaQuadrasAsync(Clube clube, Jogador dono, Jogador pagador,
+        decimal precoTotal, DadosMarcacaoJogoVarios dados) =>
+        CriarCobrancaAsync(
+            // A comissão é a mesma régua do jogo avulso ("Jogo") — só o tipo de PAGAMENTO
+            // muda, pra efetivação saber que o JSON carrega vários slots.
+            dono, pagador, precoTotal, "Jogo", "JogoVarios",
+            $"Quadra ({dados.Slots.Count} horários) {dados.Slots[0].DataHora:dd/MM} — {clube.Nome}", dados,
+            torneioId: null, jogoAulaId: null);
+
     private async Task<string?> CriarCobrancaAsync(Jogador recebedor, Jogador pagador, decimal preco,
         string tipoOperacao, string tipoPagamento, string descricao, object dados,
         int? torneioId, int? jogoAulaId, string? modoComissao = null,
@@ -369,6 +386,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 break;
             case "Jogo":
                 await EfetivarMarcacaoAsync(pagamento);
+                break;
+            case "JogoVarios":
+                await EfetivarMarcacoesAsync(pagamento);
                 break;
             case "TaxaTorneio":
                 await EfetivarTaxaExternoAsync(pagamento);
@@ -489,6 +509,55 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
 
         _logger.LogInformation("Pagamento {Id} efetivado — marcação de quadra {Ref} criada.",
             pagamento.Id, marcacao.Id);
+    }
+
+    private async Task EfetivarMarcacoesAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosMarcacaoJogoVarios>(pagamento);
+        if (dados == null || dados.Slots.Count == 0) return;
+
+        // Tudo-ou-nada, igual à recusa da tela: o jogador pagou pelo CONJUNTO (2h seguidas,
+        // duas quadras pro grupo). Criar só metade entregaria outra coisa que não a comprada
+        // — se qualquer horário foi tomado enquanto a cobrança estava pendente, nada é
+        // criado e o pagamento fica pro estorno, como no caso de um horário só.
+        foreach (var slot in dados.Slots)
+        {
+            bool jaMarcado = await _context.MarcacoesJogo.AnyAsync(m =>
+                m.ClubeId == dados.ClubeId && m.QuadraClubeId == slot.QuadraClubeId &&
+                m.DataHora == slot.DataHora && m.Status == "Confirmada");
+            if (jaMarcado)
+            {
+                _logger.LogWarning("Pagamento {Id} confirmado, mas a quadra {Quadra} às {Hora} já estava marcada — precisa de estorno (nenhum dos {N} horários foi criado).",
+                    pagamento.Id, slot.QuadraClubeId, slot.DataHora, dados.Slots.Count);
+                pagamento.Status = "AguardandoEstorno";
+                await _context.SaveChangesAsync();
+                return;
+            }
+        }
+
+        MarcacaoJogo? primeira = null;
+        foreach (var slot in dados.Slots)
+        {
+            var marcacao = new MarcacaoJogo
+            {
+                ClubeId = dados.ClubeId,
+                QuadraClubeId = slot.QuadraClubeId,
+                JogadorId = dados.JogadorId,
+                DataHora = slot.DataHora,
+                DuracaoMinutos = slot.DuracaoMinutos,
+                Status = "Confirmada",
+                PagoEm = DateTime.Now,
+            };
+            _context.MarcacoesJogo.Add(marcacao);
+            primeira ??= marcacao;
+        }
+        await _context.SaveChangesAsync();
+
+        pagamento.ReferenciaId = primeira!.Id;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Pagamento {Id} efetivado — {N} marcações de quadra criadas.",
+            pagamento.Id, dados.Slots.Count);
     }
 
     private async Task EfetivarTorneioAsync(Pagamento pagamento)

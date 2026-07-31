@@ -53,37 +53,27 @@
                         @grupo.Key.QuadraNome
                         <span class="badge rounded-pill text-bg-light fw-normal small ms-1">@grupo.Count() horário@(grupo.Count() > 1 ? "s" : "")</span>
                     </h5>
+                    @* O toque SELECIONA (pode mais de um — 2h seguidas, duas quadras pro
+                       grupo); a barra embaixo soma e confirma tudo junto. *@
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var slot in grupo.OrderBy(s => s.Inicio))
                         {
                             i++;
-                            var formId = $"form-slot-{i}";
                             // Mostra sempre o valor final: o jogador não pode ver R$ 80 no chip
                             // e ser cobrado R$ 88 no checkout.
                             var valorFinal = slot.PrecoTotal ?? slot.Preco;
                             var precoTexto = valorFinal > 0 ? valorFinal.Value.ToString("C") : "";
-                            var quadraTexto = slot.Preco > 0 ? slot.Preco.Value.ToString("C") : "";
-                            var taxaTexto = slot.TaxaServico > 0 ? slot.TaxaServico.Value.ToString("C") : "";
                             <button type="button" class="btn btn-outline-primary rounded-pill pdz-slot-chip"
-                                    data-bs-toggle="modal" data-bs-target="#modalConfirmarMarcacao"
-                                    data-form-id="@formId"
+                                    data-slot="@slot.QuadraClubeId|@slot.Inicio.ToString("yyyy-MM-ddTHH:mm:ss")"
                                     data-quadra="@grupo.Key.QuadraNome"
                                     data-hora="@slot.Inicio.ToString("HH:mm")"
-                                    data-preco="@precoTexto"
-                                    data-preco-quadra="@quadraTexto"
-                                    data-taxa="@taxaTexto">
+                                    data-valor="@((valorFinal ?? 0m).ToString(System.Globalization.CultureInfo.InvariantCulture))">
                                 <span class="fw-semibold">@slot.Inicio.ToString("HH:mm")</span>
                                 @if (valorFinal > 0)
                                 {
                                     <span class="pdz-slot-chip-preco">@precoTexto</span>
                                 }
                             </button>
-                            <form id="@formId" asp-controller="MarcarJogo" asp-action="Marcar" method="post" class="d-none">
-                                <input type="hidden" name="clubeId" value="@clube.Id" />
-                                <input type="hidden" name="quadraClubeId" value="@slot.QuadraClubeId" />
-                                <input type="hidden" name="dataHora" value="@slot.Inicio.ToString("yyyy-MM-ddTHH:mm:ss")" />
-                                <input type="hidden" name="duracaoMinutos" value="@((slot.Fim - slot.Inicio).TotalMinutes)" />
-                            </form>
                         }
                     </div>
                 </div>
@@ -99,43 +89,48 @@
     }
 </div>
 
+<!-- Barra de seleção: aparece quando há horário marcado. Fica fixa embaixo porque no
+     celular a lista é longa — a soma precisa estar à vista enquanto a pessoa escolhe. -->
+<div id="barraSelecao" class="fixed-bottom d-none" style="background: var(--pdz-surface); border-top: 1px solid var(--pdz-border); box-shadow: 0 -4px 16px rgba(0,0,0,.15);">
+    <div class="container py-2 d-flex justify-content-between align-items-center gap-2">
+        <div>
+            <strong id="barraResumo" style="color: var(--pdz-ink);"></strong>
+            <span class="text-muted small d-block d-sm-inline" id="barraTotal"></span>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" id="barraLimpar">Limpar</button>
+            <button type="button" class="btn btn-padel rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#modalConfirmarMarcacao">
+                Marcar
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalConfirmarMarcacao" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold"><i class="bi bi-calendar-check"></i> Confirmar marcação</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between py-2 border-bottom">
-                    <span class="text-muted">Quadra</span>
-                    <strong id="mcmQuadra"></strong>
+            <form asp-controller="MarcarJogo" asp-action="MarcarVarios" method="post" id="formMarcarVarios">
+                <input type="hidden" name="clubeId" value="@clube.Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-check"></i> Confirmar marcação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <div class="d-flex justify-content-between py-2 border-bottom">
-                    <span class="text-muted">Horário</span>
-                    <strong id="mcmHora"></strong>
+                <div class="modal-body">
+                    <div id="mcmLista"></div>
+                    <div class="d-flex justify-content-between py-2" id="mcmPrecoLinha">
+                        <span class="fw-semibold">Total a pagar</span>
+                        <strong id="mcmPreco" class="fs-5"></strong>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0" id="mcmAvisoPagamento">
+                        <i class="bi bi-credit-card"></i> Depois de confirmar você vai pra tela de pagamento —
+                        o valor cobrado é exatamente esse.
+                    </p>
                 </div>
-                <div class="d-flex justify-content-between py-2 border-bottom" id="mcmQuadraValorLinha">
-                    <span class="text-muted">Quadra</span>
-                    <span id="mcmPrecoQuadra"></span>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-padel rounded-pill">Confirmar</button>
                 </div>
-                <div class="d-flex justify-content-between py-2 border-bottom" id="mcmTaxaLinha">
-                    <span class="text-muted">Taxa de serviço</span>
-                    <span id="mcmTaxa"></span>
-                </div>
-                <div class="d-flex justify-content-between py-2" id="mcmPrecoLinha">
-                    <span class="fw-semibold">Total a pagar</span>
-                    <strong id="mcmPreco" class="fs-5"></strong>
-                </div>
-                <p class="small text-muted mt-3 mb-0" id="mcmAvisoPagamento">
-                    <i class="bi bi-credit-card"></i> Depois de confirmar você vai pra tela de pagamento —
-                    o valor cobrado é exatamente esse.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-padel rounded-pill" id="mcmConfirmarBtn">Confirmar</button>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -143,37 +138,75 @@
 @section Scripts {
     <script>
         (function () {
-            var modalEl = document.getElementById('modalConfirmarMarcacao');
-            var formIdAtual = null;
+            // O toque no chip SELECIONA (classe .active do próprio botão outline); a barra
+            // soma; o modal lista e o form manda "quadraId|iso" por horário escolhido.
+            var selecionados = [];   // { chave, quadra, hora, valor }
+            var barra = document.getElementById('barraSelecao');
+            var moeda = function (v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
 
-            modalEl.addEventListener('show.bs.modal', function (ev) {
-                var btn = ev.relatedTarget;
-                formIdAtual = btn.dataset.formId;
-                document.getElementById('mcmQuadra').textContent = btn.dataset.quadra;
-                document.getElementById('mcmHora').textContent = btn.dataset.hora;
+            function redesenhar() {
+                barra.classList.toggle('d-none', selecionados.length === 0);
+                // A barra fixa cobriria os últimos chips da lista sem esta folga.
+                document.body.style.paddingBottom = selecionados.length ? '84px' : '';
+                if (selecionados.length === 0) return;
 
-                var preco = btn.dataset.preco;
-                var taxa = btn.dataset.taxa;
-                var temPreco = !!preco;
+                var total = selecionados.reduce(function (s, x) { return s + x.valor; }, 0);
+                document.getElementById('barraResumo').textContent =
+                    selecionados.length + ' horário' + (selecionados.length > 1 ? 's' : '') + ' escolhido' + (selecionados.length > 1 ? 's' : '');
+                document.getElementById('barraTotal').textContent = total > 0 ? ' · total ' + moeda(total) : '';
+            }
 
-                document.getElementById('mcmPreco').textContent = preco;
-                document.getElementById('mcmPrecoQuadra').textContent = btn.dataset.precoQuadra;
-                document.getElementById('mcmTaxa').textContent = taxa;
-
-                document.getElementById('mcmPrecoLinha').classList.toggle('d-none', !temPreco);
-                document.getElementById('mcmAvisoPagamento').classList.toggle('d-none', !temPreco);
-
-                // A composição só faz sentido quando existe taxa; sem ela o total já é o
-                // preço da quadra e repetir a linha só confunde.
-                var temTaxa = !!taxa;
-                document.getElementById('mcmQuadraValorLinha').classList.toggle('d-none', !temTaxa);
-                document.getElementById('mcmTaxaLinha').classList.toggle('d-none', !temTaxa);
+            document.querySelectorAll('.pdz-slot-chip').forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var chave = chip.dataset.slot;
+                    var idx = selecionados.findIndex(function (x) { return x.chave === chave; });
+                    if (idx >= 0) { selecionados.splice(idx, 1); chip.classList.remove('active'); }
+                    else {
+                        selecionados.push({
+                            chave: chave,
+                            quadra: chip.dataset.quadra,
+                            hora: chip.dataset.hora,
+                            valor: parseFloat(chip.dataset.valor) || 0,
+                        });
+                        chip.classList.add('active');
+                    }
+                    redesenhar();
+                });
             });
 
-            document.getElementById('mcmConfirmarBtn').addEventListener('click', function () {
-                if (formIdAtual) {
-                    document.getElementById(formIdAtual).submit();
-                }
+            document.getElementById('barraLimpar').addEventListener('click', function () {
+                selecionados = [];
+                document.querySelectorAll('.pdz-slot-chip.active').forEach(function (c) { c.classList.remove('active'); });
+                redesenhar();
+            });
+
+            // Ao abrir o modal, monta a lista e os inputs do form a partir da seleção.
+            document.getElementById('modalConfirmarMarcacao').addEventListener('show.bs.modal', function () {
+                var lista = document.getElementById('mcmLista');
+                var form = document.getElementById('formMarcarVarios');
+                form.querySelectorAll('input[name="slots"]').forEach(function (x) { x.remove(); });
+                lista.innerHTML = '';
+
+                var total = 0;
+                selecionados
+                    .slice().sort(function (a, b) { return a.hora.localeCompare(b.hora); })
+                    .forEach(function (s) {
+                        total += s.valor;
+                        var linha = document.createElement('div');
+                        linha.className = 'd-flex justify-content-between py-2 border-bottom';
+                        linha.innerHTML = '<span class="text-muted"></span><strong></strong>';
+                        linha.querySelector('span').textContent = s.hora + ' · ' + s.quadra;
+                        linha.querySelector('strong').textContent = s.valor > 0 ? moeda(s.valor) : '';
+                        lista.appendChild(linha);
+
+                        var input = document.createElement('input');
+                        input.type = 'hidden'; input.name = 'slots'; input.value = s.chave;
+                        form.appendChild(input);
+                    });
+
+                document.getElementById('mcmPreco').textContent = moeda(total);
+                document.getElementById('mcmPrecoLinha').classList.toggle('d-none', total <= 0);
+                document.getElementById('mcmAvisoPagamento').classList.toggle('d-none', total <= 0);
             });
         })();
     </script>

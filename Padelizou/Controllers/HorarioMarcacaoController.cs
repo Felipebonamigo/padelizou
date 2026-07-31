@@ -143,52 +143,39 @@ namespace padelizou.Controllers
                 .Where(h => h.ClubeId == clubeId)
                 .ToListAsync();
 
-            int criados = 0, religados = 0, pulados = 0;
+            // O clique DIZ qual é a grade daquela janela: o que sobrepõe sai, a nova entra
+            // (ver HorarioDoClube.QuaisSubstituir — a intenção de quem clica é substituir).
+            int criados = 0, substituidos = 0;
             foreach (var quadra in quadras)
             {
                 foreach (var dia in dias.Distinct().Where(d => d is >= 0 and <= 6))
                 {
                     var daQuadraEDia = existentes.Where(h => h.QuadraClubeId == quadra.Id && h.DiaSemana == dia);
-                    var (decisao, alvo) = HorarioDoClube.DecidirSlot(daQuadraEDia, horaInicio, horaFim, duracaoMinutos);
-
-                    switch (decisao)
+                    var sair = HorarioDoClube.QuaisSubstituir(daQuadraEDia, horaInicio, horaFim);
+                    if (sair.Count > 0)
                     {
-                        case HorarioDoClube.DecisaoDaGrade.Criar:
-                            _context.HorariosMarcacaoDisponivel.Add(new HorarioMarcacaoDisponivel
-                            {
-                                ClubeId = clubeId,
-                                QuadraClubeId = quadra.Id,
-                                DiaSemana = dia,
-                                HoraInicio = horaInicio,
-                                HoraFim = horaFim,
-                                DuracaoMinutos = duracaoMinutos,
-                                Preco = HorarioDoClube.NormalizarPreco(preco),
-                            });
-                            criados++;
-                            break;
-
-                        case HorarioDoClube.DecisaoDaGrade.Religar:
-                            alvo!.Ativo = true;
-                            alvo.Preco = HorarioDoClube.NormalizarPreco(preco);
-                            religados++;
-                            break;
-
-                        default:
-                            pulados++;
-                            break;
+                        _context.HorariosMarcacaoDisponivel.RemoveRange(sair);
+                        substituidos += sair.Count;
                     }
+
+                    _context.HorariosMarcacaoDisponivel.Add(new HorarioMarcacaoDisponivel
+                    {
+                        ClubeId = clubeId,
+                        QuadraClubeId = quadra.Id,
+                        DiaSemana = dia,
+                        HoraInicio = horaInicio,
+                        HoraFim = horaFim,
+                        DuracaoMinutos = duracaoMinutos,
+                        Preco = HorarioDoClube.NormalizarPreco(preco),
+                    });
+                    criados++;
                 }
             }
             await _context.SaveChangesAsync();
 
-            var partes = new List<string>();
-            if (criados > 0) partes.Add($"{criados} horário(s) criado(s)");
-            if (religados > 0) partes.Add($"{religados} religado(s)");
-            if (partes.Count == 0) partes.Add("nada novo pra criar");
-            var texto = $"Grade de {HorarioDoClube.Rotulo(duracaoMinutos)}: {string.Join(", ", partes)}.";
-            if (pulados > 0) texto += $" {pulados} ficaram como estavam — já havia horário publicado naquela faixa.";
-
-            TempData["Sucesso"] = texto;
+            var texto = $"Grade de {HorarioDoClube.Rotulo(duracaoMinutos)}: {criados} horário(s) criado(s)";
+            if (substituidos > 0) texto += $", substituindo {substituidos} que havia nas faixas";
+            TempData["Sucesso"] = texto + ".";
             return RedirectToAction("Index", new { clubeId });
         }
 
