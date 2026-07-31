@@ -248,6 +248,19 @@ namespace Padelizou.Controllers
             }
             ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? torneio.Categorias.Select(c => c.Id).FirstOrDefault();
 
+            // Pro botão "sou eu" da inscrição e pro aviso de estar inscrevendo outra pessoa.
+            // O único CPF que vai pra tela é o de quem está logado — o dele mesmo.
+            if (jogadorLogadoId.HasValue)
+            {
+                var eu = await _context.Jogadores
+                    .Where(j => j.Id == jogadorLogadoId.Value)
+                    .Select(j => new { j.Id, j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+                ViewBag.MeuJogadorId = eu?.Id;
+                ViewBag.MeuCpf = eu?.Cpf;
+                ViewBag.MeuNome = eu?.Nome;
+            }
+
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será
             // cobrado no checkout, e não descobrir a taxa só depois de clicar.
             var recebedorTorneio = await _pagamentos.ObterRecebedorTorneioAsync(id);

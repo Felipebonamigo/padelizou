@@ -27,6 +27,77 @@
     </p>
 </div>
 
+@* As duas perguntas que o organizador respondia no WhatsApp o torneio inteiro — "quando
+   fecha?" e "já saiu a chave?" — agora ficam escritas na página. São PREVISÕES: quem encerra
+   e quem sorteia continua sendo o organizador, no botão. *@
+@if (Model.PrevisaoEncerramentoInscricoes != null || Model.PrevisaoChaveamento != null)
+{
+    <p class="text-muted small mb-3 d-flex flex-wrap gap-3">
+        @if (Model.PrevisaoEncerramentoInscricoes != null)
+        {
+            <span>
+                <i class="bi bi-hourglass-split"></i>
+                Inscrições até <strong>@Model.PrevisaoEncerramentoInscricoes.Value.ToString("dd/MM")</strong>
+                <span class="opacity-75">(previsto)</span>
+            </span>
+        }
+        @if (Model.PrevisaoChaveamento != null)
+        {
+            <span>
+                <i class="bi bi-diagram-3"></i>
+                Chaveamento em <strong>@Model.PrevisaoChaveamento.Value.ToString("dd/MM")</strong>
+                <span class="opacity-75">(previsto)</span>
+            </span>
+        }
+    </p>
+}
+
+@* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
+   grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
+@if (!string.IsNullOrWhiteSpace(Model.RecadoAosInscritos))
+{
+    <div class="alert alert-info border-0 d-flex align-items-start gap-2">
+        <i class="bi bi-megaphone-fill fs-5"></i>
+        <div>
+            <strong class="d-block">Recado do organizador</strong>
+            <span style="white-space: pre-line;">@Model.RecadoAosInscritos</span>
+        </div>
+    </div>
+}
+
+@* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
+   chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
+   disso — por isso o aviso de acertar o comprovante com o organizador. *@
+@if (!Model.CobraPeloSite && !string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) && Model.PrecoInscricao > 0)
+{
+    <div class="alert alert-success border-0">
+        <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
+        <div class="input-group input-group-sm mb-2" style="max-width: 34rem;">
+            <input type="text" class="form-control" id="campoPixTorneio" readonly
+                   value="@Model.ChavePixOrganizador" onclick="this.select();" />
+            <button class="btn btn-outline-secondary" type="button" onclick="pdzCopiarPix(this);">Copiar</button>
+        </div>
+        <p class="small mb-0 text-muted">
+            O pagamento é combinado direto com o organizador — o Padelizou não recebe nem
+            confere. Mande o comprovante pra ele depois de pagar.
+        </p>
+    </div>
+
+    <script>
+        function pdzCopiarPix(botao) {
+            var campo = document.getElementById('campoPixTorneio');
+            campo.select();
+            // O clipboard falha calado em celular antigo; o select() acima garante que dá
+            // pra copiar à mão quando isto não funcionar.
+            navigator.clipboard?.writeText(campo.value).then(function () {
+                var antes = botao.textContent;
+                botao.textContent = 'Copiado!';
+                setTimeout(function () { botao.textContent = antes; }, 1500);
+            }).catch(function () { });
+        }
+    </script>
+}
+
 @if (TempData["Sucesso"] != null)
 {
     <div class="alert alert-success">@TempData["Sucesso"]</div>
@@ -345,6 +416,11 @@
                         <option value="@cat.Id">@cat.Nome</option>
                     }
                 </select>
+
+                @* Dois avisos, ambos preenchidos pelo script: entrar numa categoria mais fraca
+                   do que a declarada no cadastro, e inscrever alguém que não é você. Nenhum
+                   dos dois impede nada — são pergunta, não trava. *@
+                <div class="alert alert-warning border-0 mt-2 mb-0 py-2 small" id="pdzAvisoCategoria" style="display:none;"></div>
             </div>
 
             <!-- Dados dos Jogadores -->
@@ -362,6 +438,16 @@
                     <div class="card mb-3 border-0 bg-light">
                         <div class="card-header fw-bold text-white" style="background-color: var(--pdz-navy-fixed);">Jogador 1</div>
                         <div class="card-body">
+                            @* O caso comum é a pessoa se inscrevendo. Digitar o próprio CPF de
+                               cabeça, com máscara, num celular, é o degrau mais alto do
+                               formulário — e é justamente o dado que o sistema já tem. *@
+                            @if (ViewBag.MeuCpf is string meuCpfInscricao && !string.IsNullOrWhiteSpace(meuCpfInscricao))
+                            {
+                                <button type="button" class="btn btn-sm btn-padel rounded-pill px-3 mb-2 fw-bold"
+                                        id="pdzSouEu" data-cpf="@meuCpfInscricao">
+                                    <i class="bi bi-person-check-fill"></i> Sou eu
+                                </button>
+                            }
                             <input type="text" name="cpf1" class="form-control mb-1 js-cpf" data-alvo="1"
                                    placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                             <div class="small mb-2 js-cpf-status" data-alvo="1"></div>
@@ -725,6 +811,35 @@
                                     <label class="form-label fw-bold small">Nome de cada Quadra</label>
                                     <div id="editCamposNomesQuadras" class="row g-2" data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'></div>
                                 </div>
+                                @* Os mesmos campos da criação, editáveis depois: chave Pix
+                                   trocada, data que escorregou e recado que mudou são coisas
+                                   que acontecem com o torneio já publicado. *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Inscrições fecham em</label>
+                                    <input type="date" name="previsaoEncerramentoInscricoes" class="form-control"
+                                           value="@Model.PrevisaoEncerramentoInscricoes?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Chaveamento previsto</label>
+                                    <input type="date" name="previsaoChaveamento" class="form-control"
+                                           value="@Model.PrevisaoChaveamento?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                @if (!Model.CobraPeloSite)
+                                {
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small">Sua chave Pix</label>
+                                        <input type="text" name="chavePixOrganizador" class="form-control" maxlength="140"
+                                               value="@Model.ChavePixOrganizador"
+                                               placeholder="CPF, celular, e-mail ou chave aleatória" />
+                                        <small class="text-muted">Aparece pro jogador junto com o valor.</small>
+                                    </div>
+                                }
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Recado pra quem se inscrever</label>
+                                    <textarea name="recadoAosInscritos" class="form-control" rows="2" maxlength="600"
+                                              placeholder="Ex: confirme no grupo do WhatsApp depois de pagar.">@Model.RecadoAosInscritos</textarea>
+                                </div>
+
                                 <div class="col-12">
                                     <label class="form-label fw-bold small">Trocar Imagem de Capa</label>
                                     <input type="file" name="capa" class="form-control" accept="image/*" />
@@ -1387,6 +1502,10 @@
     (function () {
         var urlBusca = '@Url.Action("BuscarJogadorPorCpf", "Torneios")';
 
+        // O último jogador achado por alvo ("1", "2", "ind"). Os avisos de categoria e de
+        // "não é você" leem daqui em vez de consultar o servidor de novo.
+        window.pdzJogadores = window.pdzJogadores || {};
+
         function campo(nome, alvo) {
             return document.querySelector('[name="' + nome + (alvo === 'ind' ? '' : alvo) + '"]');
         }
@@ -1447,7 +1566,12 @@
                             camposDe(alvo).forEach(function (el) {
                                 if (!el.value) { el.readOnly = false; el.style.backgroundColor = ''; el.title = ''; }
                             });
+
+                            window.pdzJogadores[alvo] = dados;
+                            if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
                         } else {
+                            delete window.pdzJogadores[alvo];
+                            if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
                             status.innerHTML = '<span class="text-warning-emphasis">'
                                 + '<i class="bi bi-person-plus-fill"></i> CPF ainda não cadastrado — '
                                 + 'preencha os dados abaixo e ele entra como pré-cadastro.</span>';
@@ -1473,6 +1597,8 @@
                     ultimoConsultado = '';
                     camposDe(alvo).forEach(function (el) { el.value = ''; });
                     travar(alvo, true);
+                    delete window.pdzJogadores[alvo];
+                    if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
                 } else {
                     // No celular o blur às vezes não chega antes do envio.
                     consultar();
@@ -1480,6 +1606,90 @@
             });
 
             inputCpf.addEventListener('blur', consultar);
+        });
+    })();
+
+    // ── Categoria mais fraca que a do cadastro ──────────────────────────────────────────
+    // Quem marcou "sou 4ª" nas Preferências e se inscreve na 5ª ouve a pergunta antes de
+    // confirmar. Não é trava: pode ser que o jogador tenha caído de nível, que o parceiro
+    // seja mais fraco, ou que a 4ª nem exista neste torneio. A trava dura é outra e depende
+    // do histórico (RestricaoCategoria, no servidor).
+    (function () {
+        var select = document.querySelector('select[name="categoriaId"]');
+        var aviso = document.getElementById('pdzAvisoCategoria');
+        if (!select || !aviso) return;
+
+        // Mesma régua do servidor (EstatisticasService.OrdemCategoria). Duas cópias porque
+        // uma é conta de tela e a outra é regra de negócio — se divergirem, o pior que
+        // acontece é o aviso não aparecer.
+        function forca(nome) {
+            var n = nome || '';
+            if (n.indexOf('Open') >= 0) return 8;
+            if (n.indexOf('1ª') >= 0) return 7;
+            if (n.indexOf('2ª') >= 0) return 6;
+            if (n.indexOf('3ª') >= 0) return 5;
+            if (n.indexOf('4ª') >= 0) return 4;
+            if (n.indexOf('5ª') >= 0) return 3;
+            if (n.indexOf('6ª') >= 0) return 2;
+            if (n.indexOf('7ª') >= 0 || n.indexOf('Iniciantes') >= 0) return 1;
+            return 0;
+        }
+
+        function avaliar() {
+            var escolhida = select.options[select.selectedIndex]
+                ? select.options[select.selectedIndex].text : '';
+            var forcaEscolhida = forca(escolhida);
+
+            var frases = Object.keys(window.pdzJogadores || {})
+                .map(function (alvo) { return window.pdzJogadores[alvo]; })
+                .filter(function (j) { return j && j.forcaDeclarada > 0 && forcaEscolhida > 0; })
+                .filter(function (j) { return j.forcaDeclarada > forcaEscolhida; })
+                .map(function (j) {
+                    return 'No cadastro, <strong>' + j.nome + '</strong> colocou que é '
+                        + j.categoriaDeclarada + '. Por que quer se inscrever na ' + escolhida + '?';
+                });
+
+            aviso.innerHTML = frases.length
+                ? '<i class="bi bi-question-circle-fill me-1"></i>' + frases.join('<br>')
+                : '';
+            aviso.style.display = frases.length ? '' : 'none';
+        }
+
+        window.pdzAvaliarCategoria = avaliar;
+        select.addEventListener('change', avaliar);
+    })();
+
+    // ── "Sou eu" e o aviso de inscrever outra pessoa ────────────────────────────────────
+    (function () {
+        var botao = document.getElementById('pdzSouEu');
+        var meuCpf = botao ? botao.dataset.cpf : '';
+        var cpf1 = document.querySelector('.js-cpf[data-alvo="1"]');
+        if (!cpf1) return;
+
+        if (botao) {
+            botao.addEventListener('click', function () {
+                cpf1.value = meuCpf;
+                // 'input' formata a máscara E dispara a consulta que preenche o resto.
+                cpf1.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        }
+
+        // Só pergunta quem tem com o que comparar: visitante sem cadastro completo não.
+        if (!meuCpf) return;
+
+        var form = cpf1.closest('form');
+        if (!form) return;
+
+        form.addEventListener('submit', function (ev) {
+            var digitado = (cpf1.value || '').replace(/\D/g, '');
+            if (!digitado || digitado === meuCpf) return;
+
+            var quem = (window.pdzJogadores && window.pdzJogadores['1'] && window.pdzJogadores['1'].nome)
+                ? window.pdzJogadores['1'].nome : 'outra pessoa';
+
+            var ok = confirm('Você está inscrevendo ' + quem + ', que não é você. Tem certeza disso?\n\n'
+                + 'Se ela tiver cadastro no Padelizou, vai receber um aviso de que foi inscrita.');
+            if (!ok) ev.preventDefault();
         });
     })();
 

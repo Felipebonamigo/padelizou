@@ -399,20 +399,35 @@ namespace Padelizou.Controllers
 
             var jogador = await _context.Jogadores
                 .Where(j => j.Cpf == cpf)
-                .Select(j => new { j.Nome, j.Apelido, j.Celular, j.Cidade, j.Estado })
+                .Select(j => new { j.Id, j.Nome, j.Apelido, j.Celular, j.Cidade, j.Estado })
                 .FirstOrDefaultAsync();
 
             if (jogador == null) return Json(new { encontrado = false });
 
+            // A categoria mais FORTE que a pessoa marcou no próprio cadastro (Preferências).
+            // Serve pro aviso da inscrição: quem se diz 4ª e entra na 5ª ouve a pergunta antes
+            // de confirmar. Não é trava — a trava por histórico é outra (RestricaoCategoria).
+            var declaradas = await _context.JogadorCategorias
+                .Where(c => c.JogadorId == jogador.Id)
+                .Select(c => c.CategoriaPadrao.Nome)
+                .ToListAsync();
+
+            var maisForte = declaradas
+                .OrderByDescending(EstatisticasService.OrdemCategoria)
+                .FirstOrDefault();
+
             return Json(new
             {
                 encontrado = true,
+                id = jogador.Id,
                 nome = jogador.Nome,
                 // A tela mostra "achamos: Fulano" — o apelido confirma que é quem se pensa.
                 apelido = jogador.Apelido ?? "",
                 celular = jogador.Celular ?? "",
                 cidade = jogador.Cidade ?? "",
-                estado = jogador.Estado ?? ""
+                estado = jogador.Estado ?? "",
+                categoriaDeclarada = maisForte ?? "",
+                forcaDeclarada = EstatisticasService.OrdemCategoria(maisForte)
             });
         }
 
@@ -447,7 +462,11 @@ namespace Padelizou.Controllers
             int quantidadeQuadras, string[]? nomesQuadras,
             bool permiteImpedimentos, bool permiteImpedimentoSextaNoite, bool permiteImpedimentoSabadoManha, bool permiteImpedimentoSabadoTarde,
             string? restricaoCategoria,
-            IFormFile? capa)
+            IFormFile? capa,
+            // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
+            // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
+            string? chavePixOrganizador = null, string? recadoAosInscritos = null,
+            DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -466,6 +485,13 @@ namespace Padelizou.Controllers
             torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
             torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;
             torneio.PermiteImpedimentoSabadoTarde = permiteImpedimentoSabadoTarde;
+
+            // Campo em branco vira null, não string vazia: é a diferença entre "o organizador
+            // não pôs recado" e "pôs um recado vazio", e a tela decide o que mostrar por isso.
+            torneio.ChavePixOrganizador = string.IsNullOrWhiteSpace(chavePixOrganizador) ? null : chavePixOrganizador.Trim();
+            torneio.RecadoAosInscritos = string.IsNullOrWhiteSpace(recadoAosInscritos) ? null : recadoAosInscritos.Trim();
+            torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
+            torneio.PrevisaoChaveamento = previsaoChaveamento;
 
             if (capa != null && capa.Length > 0)
             {

@@ -544,21 +544,36 @@ namespace Padelizou.Controllers
 
         // Avisa a própria dupla que está dentro. Quem paga recebe o mesmo aviso pelo
         // PagamentoInscricaoService, quando a cobrança confirma.
+        // Quando alguém inscreve OUTRA pessoa, o aviso dela precisa dizer quem foi: "inscrição
+        // confirmada" sozinho deixa a pessoa achando que ela mesma se inscreveu, e quem só
+        // descobre pela chave sorteada já perdeu o prazo de reclamar. É o mesmo push de sempre,
+        // com o autor no texto — mandar um segundo aviso só pra isso viraria barulho.
         private async Task NotificarInscricaoConfirmadaAsync(
             Torneio torneio, string categoriaNome, IEnumerable<int> jogadorIds, bool emListaDeEspera)
         {
             var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
 
+            var autorId = ObterJogadorIdLogado();
+            var autorNome = autorId == null
+                ? null
+                : (await _context.Jogadores.FindAsync(autorId.Value))?.ComoChamar;
+
             foreach (var jogadorId in jogadorIds)
             {
+                bool inscritoPorOutro = autorId != null && jogadorId != autorId.Value
+                                        && !string.IsNullOrWhiteSpace(autorNome);
+
+                var titulo = emListaDeEspera
+                    ? "Você entrou na lista de espera"
+                    : inscritoPorOutro ? $"{autorNome} inscreveu você" : "Inscrição confirmada!";
+
+                var corpo = emListaDeEspera
+                    ? $"{torneio.Nome} · {categoriaNome} estava lotado. Se alguém desistir, vocês são chamados."
+                    : $"{torneio.Nome} · {categoriaNome}. Boa sorte!";
+
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogadorId,
-                        emListaDeEspera ? "Você entrou na lista de espera" : "Inscrição confirmada!",
-                        emListaDeEspera
-                            ? $"{torneio.Nome} · {categoriaNome} estava lotado. Se alguém desistir, vocês são chamados."
-                            : $"{torneio.Nome} · {categoriaNome}. Boa sorte!",
-                        url);
+                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url);
                 }
                 catch (Exception ex)
                 {
