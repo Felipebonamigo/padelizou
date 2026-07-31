@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026** — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
+> Última atualização: **31/07/2026 (varredura)** — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
+> Antes, no mesmo dia — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
 > Antes: **30/07/2026 (noite)** — **o app de celular ficou de pé**: instalar virou um toque no Android, o iPhone parou de dizer "não suporta notificações" pra quem só precisava instalar, e sem sinal aparece uma tela nossa no lugar do dinossauro do Chrome. Decisão: **fica só no PWA, sem loja por enquanto** — a loja não muda o app, só ajuda a ser achado. **821 testes.**
 > Antes, na mesma noite — 🎉 **o primeiro usuário real entrou** (Lucas "Foka", 15:46) e o uso de verdade achou um defeito em minutos: dava pra criar o **mesmo torneio duas vezes**. Corrigido. Produção limpa dos testes dele, com backup antes. Junto: o **"Painel Admin" do menu**
 > deixou de abrir aba nova (e de mandar pra produção quem clicava no localhost), e as
@@ -44,6 +45,42 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🔎 Varredura antes do uso real (build-171, prod + dev)
+
+**O achado:** algumas colunas são `character varying(n)` e o Postgres **não corta** o que passa
+— ele **recusa** (`value too long`). Sem checagem, a página caía em **erro 500** e a pessoa
+perdia tudo o que digitou, sem entender por quê. Os casos que dava pra provocar sem forçar nada:
+
+| Onde | Coluna | Exemplo que quebrava |
+|---|---|---|
+| **Cadastro** (a 1ª tela de quem chega) | `Login` varchar(30) | `joaovictordossantosoliveirajunior` (33) |
+| Inscrição no torneio | `Nome` varchar(100) | nome colado da agenda do celular |
+| Criar torneio | `Nome` varchar(150) | descrição colada no campo do nome |
+| Aula manual | `NomeAlunoAvulso` (100), `Telefone` (20) | idem |
+
+Agora cada um **recusa com aviso** dizendo quantos caracteres vieram e quantos cabem, e a tela
+ganhou `maxlength` (o navegador nem deixa digitar e corta o que for colado). O servidor continua
+conferindo — formulário em cache e POST feito à mão não passam pela tela. Junto: **preço
+negativo recusado** (não estourava nada, e era por isso que passava batido — a cobrança sumia e
+o torneio anunciava "−R$ 50,00").
+
+**O que a varredura conferiu e está OK** (não é suposição, foi verificado arquivo por arquivo):
+- **Autorização**: toda ação de gestão de torneio tem `[Authorize]` + `EhOrganizadorAsync` +
+  `Forbid()`. Conferidos os 8 partials do TorneiosController, mais Partidas, Duplas, Times,
+  Jogadores, Professores e Feedback.
+- **CSRF global**; a única exceção é o webhook de pagamento, que **valida token e devolve 401**.
+- **Upload de imagem**: limite de tamanho, lista de extensões e — o que importa — **reencoda** a
+  imagem. SVG ou HTML disfarçado de `.png` não decodifica e é recusado; o nome do arquivo é
+  gerado pelo servidor e a saída é sempre `.webp`.
+- **XSS**: os nomes de jogador que vão pra HTML via `Html.Raw` passam por `HtmlEncode`.
+- **Sem segredos versionados**; produção roda `ASPNETCORE_ENVIRONMENT=Production` (nada de
+  stack trace na tela); cabeçalhos HSTS, `nosniff`, `X-Frame-Options` e `Referrer-Policy` no ar.
+- **Perfil privado** realmente esconde o telefone (o bloco de contato está dentro do `else`).
+- **Divisão por zero** na grade de jogos: protegida (`duracao > 0 ? duracao : 50`).
+- **Pagamento em produção aponta pro Asaas de produção**, não sandbox — dinheiro de verdade.
+
+**921 testes.**
 
 ### 31/07/2026 — 🐛 O bug do dinheiro (build-165, prod + dev)
 
