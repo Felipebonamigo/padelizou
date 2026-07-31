@@ -70,6 +70,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<ItemComanda> ItensComanda { get; set; }
     public DbSet<CaixaDoDia> CaixasDoDia { get; set; }
     public DbSet<LancamentoFinanceiro> LancamentosFinanceiros { get; set; }
+    public DbSet<MovimentoEstoque> MovimentosEstoque { get; set; }
     public DbSet<JogadorCidade> JogadorCidades { get; set; }
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
@@ -441,6 +442,23 @@ public partial class DbPadelContext : DbContext
 
             // Um caixa por clube por dia — abrir o segundo é sempre engano.
             entity.HasIndex(e => new { e.ClubeId, e.Dia }).IsUnique();
+        });
+
+        modelBuilder.Entity<MovimentoEstoque>(entity =>
+        {
+            // Cascade: apagar o produto (coisa que a tela não oferece — ela INATIVA) levaria
+            // junto o histórico dele, que só faz sentido junto.
+            entity.HasOne(e => e.ProdutoBar)
+                .WithMany()
+                .HasForeignKey(e => e.ProdutoBarId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // O saldo é sempre "todos os movimentos deste produto".
+            entity.HasIndex(e => new { e.ProdutoBarId, e.CriadoEm });
+
+            // Cancelar um item da comanda procura a baixa dele por aqui pra devolver a
+            // unidade ao estoque.
+            entity.HasIndex(e => e.ItemComandaId);
         });
 
         modelBuilder.Entity<LancamentoFinanceiro>(entity =>

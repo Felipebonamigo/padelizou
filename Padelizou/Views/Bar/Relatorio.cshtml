@@ -1,0 +1,176 @@
+@model Padelizou.ViewModels.RelatorioBarVM
+@using Padelizou.Models
+@{
+    var clube = (Clube)ViewBag.Clube;
+    ViewData["Title"] = $"Relatório do bar — {clube.Nome}";
+
+    var maiorDia = Model.PorDia.Any() ? Model.PorDia.Max(d => d.Valor) : 0m;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 1000px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small"><strong>Em construção — só você está vendo isto.</strong></div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-graph-up"></i> Relatório do bar</h2>
+            <p class="text-muted small mb-0">
+                @clube.Nome · @Model.De.ToString("dd/MM/yy") a @Model.Ate.ToString("dd/MM/yy")
+            </p>
+        </div>
+        <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Balcão
+        </a>
+    </div>
+
+    <form asp-action="Relatorio" method="get" class="row g-2 align-items-end mb-4">
+        <input type="hidden" name="id" value="@clube.Id" />
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-bold mb-1">De</label>
+            <input type="date" name="de" class="form-control" value="@Model.De.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small fw-bold mb-1">Até</label>
+            <input type="date" name="ate" class="form-control" value="@Model.Ate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-outline-primary">Ver</button>
+        </div>
+    </form>
+
+    <div class="row g-2 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Vendido</small>
+                <div class="fw-bold fs-4 text-success">@Model.Vendido.ToString("C")</div>
+                <small class="text-muted">@Model.Comandas comanda(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Ticket médio</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.TicketMedio.ToString("C")</div>
+                <small class="text-muted">por comanda</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Média por dia</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.MediaPorDia.ToString("C")</div>
+                <small class="text-muted">em @Model.Dias dia(s)</small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Descontos</small>
+                <div class="fw-bold fs-4 text-warning">@Model.Descontos.ToString("C")</div>
+                <small class="text-muted">dados no fechamento</small>
+            </div>
+        </div>
+    </div>
+
+    @* Cancelamento e perda ficam JUNTOS e visíveis: são os números que o dono precisa ver
+       crescer pra desconfiar de alguma coisa. Escondidos num canto, não cumprem essa função. *@
+    @if (Model.ItensCancelados > 0 || Model.UnidadesPerdidas > 0)
+    {
+        <div class="alert alert-light border small d-flex gap-2 align-items-start mb-4">
+            <i class="bi bi-eye"></i>
+            <div>
+                <strong>De olho:</strong>
+                @if (Model.ItensCancelados > 0)
+                {
+                    <span>@Model.ItensCancelados item(ns) cancelado(s) valendo @Model.ValorCancelado.ToString("C").</span>
+                }
+                @if (Model.UnidadesPerdidas > 0)
+                {
+                    <span>@Model.UnidadesPerdidas unidade(s) registrada(s) como perda.</span>
+                }
+                <span class="d-block text-muted">
+                    Número pequeno é normal. Número que cresce sem explicação é o que vale investigar.
+                </span>
+            </div>
+        </div>
+    }
+
+    @if (Model.Comandas == 0)
+    {
+        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma comanda fechada neste período."))' />
+    }
+    else
+    {
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-trophy"></i> Mais vendidos</h6>
+                        <table class="table table-sm align-middle mb-0">
+                            <tbody>
+                                @foreach (var (produto, unidades, valor) in Model.MaisVendidos)
+                                {
+                                    <tr>
+                                        <td>
+                                            @produto
+                                            <small class="d-block text-muted">@unidades un.</small>
+                                        </td>
+                                        <td class="text-end fw-bold text-nowrap">@valor.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-credit-card"></i> Como pagaram</h6>
+                        <table class="table table-sm align-middle mb-0">
+                            <tbody>
+                                @foreach (var (forma, valor, quantidade) in Model.PorForma)
+                                {
+                                    <tr>
+                                        <td>
+                                            @forma
+                                            <small class="d-block text-muted">@quantidade comanda(s)</small>
+                                        </td>
+                                        <td class="text-end fw-bold text-nowrap">@valor.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-calendar3"></i> Dia a dia</h6>
+                        @foreach (var (dia, valor, comandas) in Model.PorDia)
+                        {
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <small class="text-muted text-nowrap" style="width: 5.5rem;">
+                                    @dia.ToString("ddd dd/MM")
+                                </small>
+                                @* Barrinha em vez de gráfico: uma biblioteca inteira pra
+                                   mostrar sete barras seria peso sem retorno. *@
+                                <div class="flex-grow-1 rounded" style="background: var(--pdz-surface-alt); height: 14px;">
+                                    <div class="rounded" style="height: 14px; background: var(--padel-green);
+                                         width: @(maiorDia > 0 ? Math.Round(valor / maiorDia * 100, 1) : 0)%;"></div>
+                                </div>
+                                <small class="fw-bold text-nowrap" style="width: 5.5rem; text-align: right;">
+                                    @valor.ToString("C")
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

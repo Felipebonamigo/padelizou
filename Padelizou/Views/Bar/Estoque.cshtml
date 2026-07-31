@@ -1,0 +1,283 @@
+@using Padelizou.Models
+@using Padelizou.ViewModels
+@{
+    var clube = (Clube)ViewBag.Clube;
+    var linhas = (List<EstoqueLinhaVM>)ViewBag.Linhas;
+    var movimentos = (List<(MovimentoEstoque Movimento, ProdutoBar Produto)>)ViewBag.Movimentos;
+    var semControle = (List<ProdutoBar>)ViewBag.SemControle;
+
+    ViewData["Title"] = $"Estoque do bar — {clube.Nome}";
+
+    var repor = linhas.Where(l => l.PrecisaRepor).ToList();
+}
+
+<div class="container mt-4 mb-5" style="max-width: 1100px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small"><strong>Em construção — só você está vendo isto.</strong></div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-box-seam"></i> Estoque</h2>
+            <p class="text-muted small mb-0">@clube.Nome · o que tem na prateleira</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Produtos" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-list-ul"></i> Cardápio
+            </a>
+            <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Balcão
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["ErroBar"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroBar"]</div>
+    }
+    @if (TempData["SucessoBar"] != null)
+    {
+        <div class="alert alert-success border-0"><i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoBar"]</div>
+    }
+
+    @* O aviso que faz o módulo valer a pena no dia a dia: a lista de compras pronta. *@
+    @if (repor.Any())
+    {
+        <div class="alert alert-warning border-0">
+            <p class="fw-bold mb-1"><i class="bi bi-cart-plus"></i> Hora de comprar</p>
+            <p class="small mb-0">
+                @string.Join(" · ", repor.Select(l => $"{l.Produto.Nome}: {l.Saldo} un."))
+            </p>
+        </div>
+    }
+
+    @* A honestidade do módulo, escrita na tela: estoque de bar não é exato. *@
+    <div class="alert alert-light border small d-flex gap-2 align-items-start">
+        <i class="bi bi-info-circle"></i>
+        <div>
+            O saldo é a soma do que entrou menos o que saiu pela comanda. Ele <strong>vai
+            descolar da prateleira</strong> — garrafa quebra, alguém consome, sai cortesia sem
+            comanda. É pra isso que existe a <strong>contagem</strong>: conte a prateleira uma
+            vez por semana e o sistema se acerta sozinho.
+        </div>
+    </div>
+
+    @if (!linhas.Any())
+    {
+        <partial name="_Vazio" model='@(new EstadoVazio("Nenhum produto com estoque controlado. Ligue o controle nos que entram e saem inteiros — cerveja, água, refrigerante."))' />
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table align-middle bg-white shadow-sm rounded">
+                <thead>
+                    <tr class="small text-muted">
+                        <th>Produto</th>
+                        <th class="text-center">Tem</th>
+                        <th class="text-end d-none d-md-table-cell">Custo</th>
+                        <th class="text-end d-none d-md-table-cell">Vende por</th>
+                        <th class="text-end d-none d-sm-table-cell">Sobra</th>
+                        <th class="text-end">Mexer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in linhas)
+                    {
+                        <tr>
+                            <td>
+                                <span class="fw-bold" style="color: var(--pdz-ink);">@l.Produto.Nome</span>
+                                @if (l.Produto.UnidadesPorEmbalagem > 1)
+                                {
+                                    <small class="d-block text-muted">caixa com @l.Produto.UnidadesPorEmbalagem</small>
+                                }
+                                <small class="d-md-none d-block text-muted">
+                                    @(l.UltimoCusto?.ToString("C") ?? "sem custo") → @l.Produto.Preco.ToString("C")
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-bold fs-5 @(l.Saldo < 0 ? "text-danger" : l.PrecisaRepor ? "text-warning" : "")">
+                                    @l.Saldo
+                                </span>
+                                @if (l.Saldo < 0)
+                                {
+                                    @* Saldo negativo é sinal de ENTRADA não registrada, não de
+                                       venda ilegal: o balcão nunca é impedido de vender. *@
+                                    <small class="d-block text-danger">falta registrar entrada</small>
+                                }
+                                else if (l.PrecisaRepor)
+                                {
+                                    <small class="d-block text-warning-emphasis">mín. @l.Produto.EstoqueMinimo</small>
+                                }
+                            </td>
+                            <td class="text-end d-none d-md-table-cell text-nowrap">
+                                @(l.UltimoCusto?.ToString("C") ?? "—")
+                            </td>
+                            <td class="text-end d-none d-md-table-cell text-nowrap">@l.Produto.Preco.ToString("C")</td>
+                            <td class="text-end d-none d-sm-table-cell text-nowrap">
+                                @if (l.Margem is { } m)
+                                {
+                                    <span class="fw-bold @(m.Lucro >= 0 ? "text-success" : "text-danger")">
+                                        @m.Lucro.ToString("C")
+                                    </span>
+                                    @if (m.Percentual != null)
+                                    {
+                                        <small class="d-block text-muted">@m.Percentual.Value.ToString("0.#")%</small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        title="Registrar compra" aria-label="Registrar compra"
+                                        onclick="pdzEntrada(@l.Produto.Id, '@l.Produto.Nome.Replace("'", "\\'")', @l.Produto.UnidadesPorEmbalagem)">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                        title="Registrar perda" aria-label="Registrar perda"
+                                        onclick="pdzPerda(@l.Produto.Id, '@l.Produto.Nome.Replace("'", "\\'")')">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        title="Contar a prateleira" aria-label="Contar a prateleira"
+                                        onclick="pdzContagem(@l.Produto.Id, '@l.Produto.Nome.Replace("'", "\\'")', @l.Saldo)">
+                                    <i class="bi bi-clipboard-check"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (semControle.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1">Sem controle de estoque</h6>
+                <p class="small text-muted mb-2">
+                    Controle só o que entra e sai inteiro. Porção e drink dependem da mão de quem
+                    serve — um saldo que mente é pior que saldo nenhum.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var p in semControle)
+                    {
+                        <a asp-action="Produtos" asp-route-id="@clube.Id"
+                           class="btn btn-sm btn-outline-secondary rounded-pill">@p.Nome</a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (movimentos.Any())
+    {
+        <h6 class="fw-bold text-muted mb-2">Últimas movimentações</h6>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle bg-white shadow-sm rounded">
+                <tbody>
+                    @foreach (var (m, p) in movimentos)
+                    {
+                        <tr>
+                            <td class="text-muted small text-nowrap">@m.CriadoEm.ToString("dd/MM HH:mm")</td>
+                            <td>
+                                <span class="fw-semibold">@p.Nome</span>
+                                <small class="d-block text-muted">
+                                    @m.Tipo@(string.IsNullOrWhiteSpace(m.Motivo) ? "" : $" · {m.Motivo}")
+                                </small>
+                            </td>
+                            <td class="text-end fw-bold text-nowrap @(m.Quantidade >= 0 ? "text-success" : "text-danger")">
+                                @(m.Quantidade > 0 ? "+" : "")@m.Quantidade
+                            </td>
+                            <td class="text-end text-muted small text-nowrap d-none d-sm-table-cell">
+                                @(m.CustoUnitario?.ToString("C") ?? "")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @* Formulários escondidos: os botões da tabela preenchem e enviam. *@
+    <form asp-action="RegistrarEntrada" method="post" id="pdzFormEntrada" class="d-none">
+        <input type="hidden" name="produtoBarId" /><input type="hidden" name="quantidade" />
+        <input type="hidden" name="porEmbalagem" /><input type="hidden" name="custoUnitario" />
+        <input type="hidden" name="fornecedor" /><input type="hidden" name="lancarEmContas" />
+    </form>
+    <form asp-action="RegistrarPerda" method="post" id="pdzFormPerda" class="d-none">
+        <input type="hidden" name="produtoBarId" /><input type="hidden" name="quantidade" />
+        <input type="hidden" name="motivo" />
+    </form>
+    <form asp-action="RegistrarContagem" method="post" id="pdzFormContagem" class="d-none">
+        <input type="hidden" name="produtoBarId" /><input type="hidden" name="contado" />
+    </form>
+</div>
+
+<script>
+    // Prompts em vez de modais: são três campos, e no estoque quem digita é a mesma pessoa
+    // que está com a caixa na mão. Uma tela própria pra cada ação seria mais código pra
+    // sustentar do que valor entregue.
+    function pdzEntrada(id, nome, porCaixa) {
+        var qtd = prompt('Quantas unidades de ' + nome + ' entraram?'
+            + (porCaixa > 1 ? '\n\n(escreva "3c" pra 3 caixas de ' + porCaixa + ')' : ''));
+        if (!qtd) return;
+
+        var porEmbalagem = /c$/i.test(qtd.trim());
+        var numero = parseInt(qtd.replace(/\D/g, ''), 10);
+        if (!numero) return;
+
+        var custo = prompt('Quanto custou CADA unidade? (deixe vazio se não quiser controlar custo)');
+        if (custo === null) return;
+
+        var fornecedor = custo ? prompt('De quem foi a compra? (opcional)') : '';
+        if (fornecedor === null) fornecedor = '';
+
+        var emContas = custo
+            ? confirm('Lançar também em contas a pagar?\n\nOK = sim, vira uma conta vencendo hoje.')
+            : false;
+
+        var f = document.getElementById('pdzFormEntrada');
+        f.produtoBarId.value = id;
+        f.quantidade.value = numero;
+        f.porEmbalagem.value = porEmbalagem;
+        // O servidor lê vírgula E ponto (Services/DinheiroModelBinder).
+        f.custoUnitario.value = custo || '';
+        f.fornecedor.value = fornecedor;
+        f.lancarEmContas.value = emContas;
+        f.submit();
+    }
+
+    function pdzPerda(id, nome) {
+        var qtd = prompt('Quantas unidades de ' + nome + ' se perderam?');
+        if (!qtd) return;
+
+        var motivo = prompt('O que aconteceu? (quebrou, venceu, cortesia, consumo interno...)');
+        if (!motivo) return;
+
+        var f = document.getElementById('pdzFormPerda');
+        f.produtoBarId.value = id;
+        f.quantidade.value = parseInt(qtd.replace(/\D/g, ''), 10) || 0;
+        f.motivo.value = motivo;
+        f.submit();
+    }
+
+    function pdzContagem(id, nome, saldo) {
+        var contado = prompt('Conte a prateleira de ' + nome + ' e digite quantas unidades TEM.\n\n'
+            + 'O sistema acha que tem ' + saldo + '.');
+        if (contado === null || contado === '') return;
+
+        var f = document.getElementById('pdzFormContagem');
+        f.produtoBarId.value = id;
+        f.contado.value = parseInt(contado.replace(/\D/g, ''), 10) || 0;
+        f.submit();
+    }
+</script>

@@ -36,4 +36,20 @@ public class ProdutoBar
     public int Ordem { get; set; }
 
     public DateTime CriadoEm { get; set; } = DateTime.Now;
+
+    // ---- Estoque (opcional, por produto) ----
+    //
+    // Ligado produto a produto, e não no bar inteiro, porque estoque só é honesto onde a
+    // conta fecha: lata de cerveja entra e sai inteira. Porção de fritas e caipirinha não —
+    // a saída delas depende da mão de quem serve, e um saldo que mente é pior que saldo
+    // nenhum, porque o dono para de confiar e volta pro caderno.
+    public bool ControlaEstoque { get; set; }
+
+    // Quantas UNIDADES DE VENDA vêm em uma embalagem de compra (caixa com 24 latas → 24).
+    // 1 = compra e vende na mesma unidade. Serve só pra conversão na hora da entrada: o
+    // estoque em si é sempre contado em unidade de venda, que é o que o cliente pede.
+    public int UnidadesPorEmbalagem { get; set; } = 1;
+
+    // Abaixo disso a tela avisa. Zero desliga o aviso.
+    public int EstoqueMinimo { get; set; }
 }

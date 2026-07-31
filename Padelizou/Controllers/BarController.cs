@@ -19,7 +19,7 @@ namespace Padelizou.Controllers;
 // Padelizou cuida do controle interno (o que foi vendido, pra quem, quanto entrou) e o clube
 // segue emitindo nota pelo que já usa. Dinheiro e maquininha são REGISTRO aqui, não cobrança.
 [Authorize]
-public class BarController : Controller
+public partial class BarController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly ModuloDoBar _modulo;
@@ -230,6 +230,7 @@ public class BarController : Controller
 
         string descricao;
         decimal preco;
+        ProdutoBar? produtoVendido = null;
 
         if (produtoBarId is int produtoId)
         {
@@ -246,6 +247,7 @@ public class BarController : Controller
             // vendido esta tarde nem nas comandas fechadas do mês.
             descricao = produto.Nome;
             preco = produto.Preco;
+            produtoVendido = produto;
         }
         else
         {
@@ -266,7 +268,7 @@ public class BarController : Controller
             preco = precoLivre.Value;
         }
 
-        _context.ItensComanda.Add(new ItemComanda
+        var item = new ItemComanda
         {
             ComandaId = comandaId,
             ProdutoBarId = produtoBarId,
@@ -274,9 +276,32 @@ public class BarController : Controller
             PrecoUnitario = preco,
             Quantidade = quantidade,
             LancadoPorId = UsuarioId(),
-        });
+        };
 
+        _context.ItensComanda.Add(item);
         await _context.SaveChangesAsync();
+
+        // A baixa do estoque pega carona no lançamento: o operador não faz NADA a mais, que é
+        // a única forma de estoque sobreviver a um sábado cheio.
+        //
+        // E não impede a venda quando o saldo está zerado. A prateleira manda, não o sistema:
+        // recusar uma cerveja que está na mão do cliente porque o número não bate seria o
+        // jeito mais rápido de o bar desligar o controle de estoque pra sempre. Saldo negativo
+        // aparece na tela como aviso — é sinal de entrada não registrada, não de venda ilegal.
+        if (produtoVendido is { ControlaEstoque: true })
+        {
+            _context.MovimentosEstoque.Add(new MovimentoEstoque
+            {
+                ProdutoBarId = produtoVendido.Id,
+                Tipo = MovimentoEstoque.Venda,
+                Quantidade = -quantidade,
+                ItemComandaId = item.Id,
+                CriadoPorId = UsuarioId(),
+            });
+
+            await _context.SaveChangesAsync();
+        }
+
         return RedirectToAction(nameof(Comanda), new { id = comandaId });
     }
 
@@ -303,6 +328,26 @@ public class BarController : Controller
             item.CanceladoEm = DateTime.Now;
             item.CanceladoPorId = UsuarioId();
             item.MotivoCancelamento = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
+
+            // A cerveja volta pra geladeira sozinha. Sem isto, cancelar item furaria o
+            // estoque em silêncio e a diferença só apareceria na contagem da semana seguinte,
+            // quando ninguém mais lembra do que aconteceu.
+            var baixa = await _context.MovimentosEstoque
+                .FirstOrDefaultAsync(m => m.ItemComandaId == item.Id && m.Tipo == MovimentoEstoque.Venda);
+
+            if (baixa != null)
+            {
+                _context.MovimentosEstoque.Add(new MovimentoEstoque
+                {
+                    ProdutoBarId = baixa.ProdutoBarId,
+                    Tipo = MovimentoEstoque.Estorno,
+                    Quantidade = -baixa.Quantidade,   // a baixa é negativa; o estorno devolve
+                    ItemComandaId = item.Id,
+                    Motivo = item.MotivoCancelamento,
+                    CriadoPorId = UsuarioId(),
+                });
+            }
+
             await _context.SaveChangesAsync();
         }
 
@@ -500,8 +545,13 @@ public class BarController : Controller
     }
 
     [HttpPost]
+    // Os campos de estoque são NULÁVEIS de propósito: quando não vêm no formulário, o valor
+    // atual é preservado. Com `bool controlaEstoque = false`, editar o preço de um produto
+    // pela tela de cardápio desligaria o controle de estoque em silêncio — e o dono só
+    // descobriria na contagem seguinte, sem nenhuma pista do que aconteceu.
     public async Task<IActionResult> SalvarProduto(int clubeId, int? id, string? nome, decimal preco,
-        string? categoria, int ordem = 0)
+        string? categoria, int ordem = 0,
+        bool? controlaEstoque = null, int? unidadesPorEmbalagem = null, int? estoqueMinimo = null)
     {
         if (!await PodeUsarAsync(clubeId)) return Forbid();
 
@@ -525,6 +575,9 @@ public class BarController : Controller
         produto.Preco = preco;
         produto.Categoria = string.IsNullOrWhiteSpace(categoria) ? null : categoria.Trim();
         produto.Ordem = ordem;
+        if (controlaEstoque != null) produto.ControlaEstoque = controlaEstoque.Value;
+        if (unidadesPorEmbalagem != null) produto.UnidadesPorEmbalagem = Math.Max(1, unidadesPorEmbalagem.Value);
+        if (estoqueMinimo != null) produto.EstoqueMinimo = Math.Max(0, estoqueMinimo.Value);
 
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Produtos), new { id = clubeId });

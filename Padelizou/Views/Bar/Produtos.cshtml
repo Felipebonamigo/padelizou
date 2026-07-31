@@ -20,9 +20,14 @@
             <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-list-ul"></i> Cardápio</h2>
             <p class="text-muted small mb-0">@clube.Nome · o que o bar vende e por quanto</p>
         </div>
-        <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
-            <i class="bi bi-arrow-left"></i> Voltar ao balcão
-        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="Estoque" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-box-seam"></i> Estoque
+            </a>
+            <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Voltar ao balcão
+            </a>
+        </div>
     </div>
 
     @if (TempData["ErroBar"] != null)
@@ -53,6 +58,33 @@
                 </div>
                 <div class="col-md-2 d-grid">
                     <button type="submit" class="btn btn-padel fw-bold">Adicionar</button>
+                </div>
+
+                @* Estoque é opcional POR PRODUTO: lata entra e sai inteira, porção não — a
+                   saída dela depende da mão de quem serve, e saldo que mente é pior que
+                   saldo nenhum. *@
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="controlaEstoque" value="true"
+                               id="pdzControlaEstoque" onchange="document.getElementById('pdzCamposEstoque').style.display = this.checked ? '' : 'none';">
+                        <label class="form-check-label small fw-bold" for="pdzControlaEstoque">
+                            Controlar estoque deste produto
+                        </label>
+                    </div>
+                </div>
+                <div class="col-12" id="pdzCamposEstoque" style="display:none;">
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold mb-1">Unidades por caixa</label>
+                            <input type="number" name="unidadesPorEmbalagem" value="1" min="1" class="form-control" />
+                            <small class="text-muted">Compra caixa com 24, vende lata? Ponha 24.</small>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold mb-1">Avisar quando tiver</label>
+                            <input type="number" name="estoqueMinimo" value="0" min="0" class="form-control" />
+                            <small class="text-muted">0 desliga o aviso.</small>
+                        </div>
+                    </div>
                 </div>
             </form>
             <small class="text-muted d-block mt-2">
@@ -87,6 +119,13 @@
                                 @if (!p.Ativo)
                                 {
                                     <span class="badge bg-secondary ms-1">fora de linha</span>
+                                }
+                                @if (p.ControlaEstoque)
+                                {
+                                    <span class="badge bg-info-subtle text-info-emphasis ms-1"
+                                          title="Estoque controlado">
+                                        <i class="bi bi-box-seam"></i>
+                                    </span>
                                 }
                                 <span class="d-sm-none d-block small text-muted">@(p.Categoria ?? "—")</span>
                             </td>
