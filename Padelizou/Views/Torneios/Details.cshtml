@@ -380,7 +380,7 @@
                     <input type="text" name="cpf" class="form-control mb-1 js-cpf" data-alvo="ind"
                            placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                     <div class="small mb-2 js-cpf-status" data-alvo="ind"></div>
-                    <input type="text" name="nome" class="form-control" placeholder="Nome Completo" required />
+                    <input type="text" name="nome" class="form-control" placeholder="Nome Completo" maxlength="100" required />
                     <small class="text-muted d-block mt-1">Comece pelo CPF: se já houver cadastro, o nome vem sozinho.</small>
                 </div>
 
@@ -451,7 +451,7 @@
                             <input type="text" name="cpf1" class="form-control mb-1 js-cpf" data-alvo="1"
                                    placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                             <div class="small mb-2 js-cpf-status" data-alvo="1"></div>
-                            <input type="text" name="nome1" class="form-control mb-2" placeholder="Nome Completo" required />
+                            <input type="text" name="nome1" class="form-control mb-2" placeholder="Nome Completo" maxlength="100" required />
                             <input type="text" name="celular1" class="form-control mb-2" data-mascara="celular"
                                    inputmode="numeric" placeholder="Celular (WhatsApp)" required />
                             <div class="row g-2">
@@ -484,7 +484,7 @@
                                 <input type="text" name="cpf2" class="form-control mb-1 js-cpf" data-alvo="2"
                                        placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                                 <div class="small mb-2 js-cpf-status" data-alvo="2"></div>
-                                <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome Completo" required />
+                                <input type="text" name="nome2" class="form-control mb-2" placeholder="Nome Completo" maxlength="100" required />
                                 <input type="text" name="celular2" class="form-control mb-2" data-mascara="celular"
                                        inputmode="numeric" placeholder="Celular (WhatsApp)" required />
                                 <div class="row g-2">
@@ -780,7 +780,7 @@
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold small">Nome do Torneio</label>
-                                    <input type="text" name="nome" class="form-control" value="@Model.Nome" required />
+                                    <input type="text" name="nome" class="form-control" value="@Model.Nome" maxlength="150" required />
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold small">Local</label>

@@ -43,9 +43,15 @@ public static class IdentidadeJogador
     // Devolve a mensagem de recusa, ou null se o login serve. O chamador decide onde mostrar.
     public static string? ValidarLogin(string? login)
     {
-        if ((login ?? "").Trim().Length < TamanhoMinimoDoLogin)
+        var texto = (login ?? "").Trim();
+
+        if (texto.Length < TamanhoMinimoDoLogin)
             return $"O login precisa ter pelo menos {TamanhoMinimoDoLogin} caracteres.";
-        return null;
+
+        // O máximo não é gosto: a coluna é `character varying(30)` e o Postgres RECUSA o que
+        // passa disso — não corta. Sem esta linha, "joaovictordossantosoliveirajunior" (33)
+        // derrubava o cadastro com erro 500 e a pessoa perdia tudo o que tinha digitado.
+        return LimitesDeTexto.Problema(texto, LimitesDeTexto.LoginDeJogador, "O login");
     }
 
     // O crachá que vai no cookie: quem é a pessoa e o que ela pode ver. A navbar lê daqui, não

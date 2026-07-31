@@ -182,6 +182,13 @@ namespace Padelizou.Controllers
                 return View(torneio);
             }
 
+            // Nome é varchar(150) e o Postgres RECUSA o que passa — não corta. Quem cola a
+            // descrição inteira do torneio no campo do nome perdia o formulário num erro 500.
+            if (LimitesDeTexto.Problema(torneio.Nome, LimitesDeTexto.NomeDeTorneio, "O nome do torneio") is { } nomeLongo)
+            {
+                return await Recusar(nomeLongo);
+            }
+
             // A chave escolhida é conferida antes de criar: recusar depois deixaria o torneio
             // no ar com uma chave que o organizador não pediu.
             if (torneio.Restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
@@ -473,6 +480,12 @@ namespace Padelizou.Controllers
 
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
+
+            if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeTorneio, "O nome do torneio") is { } nomeLongo)
+            {
+                TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", new { id });
+            }
 
             torneio.Nome = nome;
             torneio.LocalTorneio = localTorneio;

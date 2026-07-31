@@ -335,6 +335,14 @@ namespace padelizou.Controllers
                 return View(jogador);
             }
 
+            // Coluna varchar(100): o Postgres recusa o que passa, e o perfil voltaria em 500.
+            if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeJogador, "O nome") is { } nomeLongo)
+            {
+                ViewBag.Erro = nomeLongo;
+                await PopularDadosTimeAsync(jogadorId);
+                return View(jogador);
+            }
+
             email = email.Trim();
 
             // Sem esta checagem dava pra pôr o e-mail de outra pessoa na própria conta, e
@@ -646,10 +654,14 @@ namespace padelizou.Controllers
             ViewBag.FormCelular = celular;
             ViewBag.FormIsProfessor = isProfessor;
 
-            var erroDeLogin = IdentidadeJogador.ValidarLogin(login);
-            if (erroDeLogin != null)
+            // Nome e login antes de qualquer consulta: as duas colunas são varchar e o Postgres
+            // RECUSA o que passa do tamanho (não corta), então sem isto o cadastro morria com
+            // erro 500 e a pessoa perdia tudo — no primeiro contato dela com o site.
+            var erroDeTamanho = LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeJogador, "O nome")
+                                ?? IdentidadeJogador.ValidarLogin(login);
+            if (erroDeTamanho != null)
             {
-                ViewBag.Erro = erroDeLogin;
+                ViewBag.Erro = erroDeTamanho;
                 await PopularCatalogosAsync();
                 return View();
             }

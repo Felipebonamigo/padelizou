@@ -46,6 +46,16 @@ namespace padelizou.Controllers
                 return RedirectToAction("AdicionarManual");
             }
 
+            // As duas colunas são varchar e o Postgres recusa o que passa do tamanho — o
+            // professor perderia a aula inteira num erro 500 por colar um nome comprido.
+            var textoLongo = LimitesDeTexto.Problema(nomeAluno, LimitesDeTexto.NomeDeAlunoAvulso, "O nome do aluno")
+                             ?? LimitesDeTexto.Problema(telefoneAluno, LimitesDeTexto.TelefoneDeAlunoAvulso, "O telefone");
+            if (textoLongo != null)
+            {
+                TempData["Erro"] = textoLongo;
+                return RedirectToAction("AdicionarManual");
+            }
+
             var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
             if (local == null)
             {

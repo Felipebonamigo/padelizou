@@ -120,6 +120,17 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // Nome é varchar(100) e o Postgres RECUSA o que passa disso — não corta. Nome
+            // colado da agenda do celular (com apelido, empresa e tudo) estourava a inscrição
+            // com erro 500 no lugar de um aviso.
+            var nomeLongo = LimitesDeTexto.Problema(nome1, LimitesDeTexto.NomeDeJogador, "O nome do jogador 1")
+                            ?? (semParceiro ? null : LimitesDeTexto.Problema(nome2, LimitesDeTexto.NomeDeJogador, "O nome do jogador 2"));
+            if (nomeLongo != null)
+            {
+                TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             var categoria = await _context.Categorias.FindAsync(categoriaId);
             if (categoria == null || categoria.TorneioId != torneioId)
             {

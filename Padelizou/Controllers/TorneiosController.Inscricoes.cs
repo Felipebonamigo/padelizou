@@ -28,6 +28,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // varchar(100) recusa (não corta) o que passa do tamanho: sem isto, nome comprido
+            // colado da agenda do celular derrubava a inscrição com erro 500.
+            if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeJogador, "O nome") is { } nomeLongo)
+            {
+                TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             var categoria = await _context.Categorias.FindAsync(categoriaId);
             if (categoria == null || categoria.TorneioId != torneioId)
             {
