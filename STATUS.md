@@ -85,7 +85,7 @@ de nada**. Entra no mesmo lugar onde o WhatsApp já entrava (`PushNotificationSe
 ~30 pontos que mandam aviso — os avisos que já existiam ganharam e-mail de graça. Respeita a
 preferência da pessoa e falha calado.
 
-### 31/07/2026 — 🍺 O bar do clube (build-169 e build-176, só em dev, INVISÍVEL)
+### 31/07/2026 — 🍺 O bar do clube, 3 fases (build-169, 176 e 180 — só em dev, INVISÍVEL)
 
 Um cliente pediu "gerenciamento completo de bar e financeiro". A estratégia escolhida, antes de
 qualquer código: **não é sistema separado nem subdomínio** (`caixa.padelizou.com.br` daria mais
@@ -140,9 +140,46 @@ do controle interno; o clube segue emitindo nota pelo que já usa. Dinheiro e ma
 arquivos de uma foram varridos pelo commit da outra. Nada se perdeu, mas quem procurar "contas
 do clube" na mensagem de commit não acha — está aqui.
 
-**Falta pra fechar a fase 1:** Pix pelo app no fechamento da comanda (hoje as quatro formas são
-só registro; o Pix com split seria o único que vira receita nossa) e um relatório do bar por
-período. Estoque é a fase 3, e só se pedirem de novo.
+**Fase 3 — estoque, e o relatório que fechou a fase 1** (`build-180`):
+
+A premissa está escrita no código pra não se perder: **estoque de bar NÃO é exato**, e prometer
+exatidão é o jeito mais rápido de o dono parar de confiar e voltar pro caderno. Garrafa quebra,
+funcionário consome, cerveja sai sem passar pela comanda no sábado lotado. O que segura o saldo
+colado na prateleira não é precisão — é a **contagem semanal**. Por isso perda e contagem são
+botões de primeira classe, e não correções escondidas num canto.
+
+- Ligado **produto a produto**: lata entra e sai inteira, porção e caipirinha não — a saída
+  delas depende da mão de quem serve, e saldo que mente é pior que saldo nenhum.
+- **Não existe coluna "quantidade em estoque"**: o saldo é a soma dos movimentos. Um número
+  guardado responde "tem 8" mas não responde "por que tem 8", que é a pergunta que aparece
+  quando a prateleira discorda.
+- A baixa **pega carona** no lançamento da comanda — o operador não faz nada a mais, única forma
+  de estoque sobreviver a um sábado cheio. Cancelar item devolve a unidade sozinho.
+- **Saldo zerado NÃO impede a venda.** A prateleira manda, não o sistema: recusar uma cerveja
+  que já está na mão do cliente porque o número não bate seria o jeito mais rápido de o bar
+  desligar o estoque pra sempre. Negativo aparece como "falta registrar entrada".
+- Compra-se caixa com 24, vende-se lata: a conversão evita o erro mais comum de todo controle de
+  estoque de bar (digitar 24 e ficar com 24 caixas).
+- Entrada com custo **vira conta a pagar num clique** — digitar a mesma compra duas vezes é o
+  que faz o dono desistir de uma das duas telas. Margem pelo **último** custo, não pela média:
+  é o preço da próxima compra, e é com ele que a decisão de reajustar é tomada.
+- 🐛 **Bug evitado:** `SalvarProduto` com `bool controlaEstoque = false` faria editar o preço
+  pelo cardápio **desligar o estoque em silêncio**, e o dono só descobriria na contagem
+  seguinte. Os campos viraram nuláveis — ausente preserva.
+
+**Relatório:** o caixa do dia responde "bateu?" e nada mais. O relatório responde o que decide
+compra e preço — mais vendidos, como pagaram, dia a dia, ticket médio. Cancelamentos e perdas
+aparecem juntos e visíveis: são os números que o dono precisa ver crescer pra desconfiar.
+
+Conferido no navegador: 2 caixas de 24 viraram 48 un., custo 7,90 digitado com vírgula, margem
+R$ 4,60 (58,2%), a compra virou conta a pagar de R$ 379,20, vender+cancelar deixou 47, e contar
+5 gerou o ajuste de −42 com o aviso de comprar. **997 testes.**
+
+**Falta pra fechar:** **Pix pelo app** no fechamento da comanda — hoje as quatro formas são só
+registro, e o Pix com split seria o único que vira receita nossa. Precisa de decisão do Felipe
+(qual conta recebe, qual comissão), por isso não foi feito sozinho. Ficha técnica de drink,
+validade/lote e múltiplos depósitos ficam **de fora com convicção**: quem precisa disso precisa
+de um ERP de restaurante, não do Padelizou.
 
 ### 31/07/2026 — 🔐 Inscrever exige login de quem inscreve (build-174, prod + dev)
 
