@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026** — 🍺 **o bar do clube nasceu, e ninguém sabe**: comanda, cardápio, caixa do dia e contas a pagar/receber, tudo atrás da chave `Bar__Habilitado` que nasce **desligada** — enquanto isso só admin do Padelizou enxerga, nem o dono do clube. Pedido de um cliente; entregue em duas fases no mesmo dia (`build-176` em dev). **967 testes.**
+> Última atualização: **31/07/2026** — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
+> Antes, no mesmo dia — 🍺 **o bar do clube nasceu, e ninguém sabe**: comanda, cardápio, caixa do dia e contas a pagar/receber, tudo atrás da chave `Bar__Habilitado` que nasce **desligada** — enquanto isso só admin do Padelizou enxerga, nem o dono do clube. Pedido de um cliente; entregue em duas fases no mesmo dia (`build-176` em dev). **967 testes.**
 > Antes, no mesmo dia — 🔐 **inscrever agora exige login de quem inscreve** (o parceiro segue sem precisar de conta, e assume o pré-cadastro pelo CPF quando se cadastrar). Conferido em produção: deslogado, o POST da inscrição responde 302 pro login. **934 testes.**
 > Antes, no mesmo dia — 🔎 **varredura antes do uso real**: o achado foi **texto comprido virando erro 500** — login de 31 letras no cadastro (a primeira tela de quem chega), nome colado da agenda na inscrição, descrição colada no nome do torneio. Colunas `varchar(n)` **recusam**, não cortam. Corrigido com aviso + `maxlength`, e **preço negativo** também recusado. Autorização, CSRF, upload, XSS, segredos e cabeçalhos conferidos um a um — sem furo. **921 testes.** Ver a seção do dia.
 > Antes, no mesmo dia — 🐛 **achado o bug do dinheiro**: em `pt-BR` o sistema lia **R$ 79,90 como R$ 7.990,00** e nunca tinha estourado porque todo preço em uso era redondo. Corrigido e publicado em prod e dev (`build-165`). Junto: publicar torneio agora **dá sinal de vida** (o "não acontece nada" era recusa nascendo no topo enquanto o botão fica no pé), **chave Pix + recado + datas previstas** no torneio, **"Sou eu"** e **um impedimento só** na inscrição, **troféu com o nome da categoria** (e o diamante virou taça), e o **Pnatinha saiu das telas vazias**. **889 testes.**
@@ -47,6 +48,42 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 31/07/2026 — 🛠️ A fila do "o que ainda melhorar" (build-178, prod + dev)
+
+Quatro buracos que o uso real acharia em dias. **962 testes.**
+
+**1. Desistir era mandar mensagem pro organizador**, que mandava mensagem pro suporte. Agora o
+próprio inscrito sai, só enquanto as inscrições estão abertas (depois do sorteio a dupla já
+está numa chave, com adversários contando com ela). A regra que mais importa: **quem desiste
+sai, o parceiro não é arrastado junto** — ele estava inscrito também, muitas vezes já pagou.
+Dupla completa fica com uma cadeira vazia e quem ficou é avisado pra achar outro; quem estava
+sozinho leva a inscrição embora e a vaga volta pra fila.
+
+Junto: **promover da lista de espera passou a avisar**. Antes era segredo entre o sistema e o
+banco — a dupla saía da espera e só descobria olhando a página, e quem entra na espera
+justamente não fica olhando. Quem o organizador remove também é avisado, em vez de descobrir
+no clube no dia do jogo.
+
+**2. O sorteio deixava gente de fora calado.** Quem estava sem parceiro ou na espera sumia da
+chave, e o jogador descobria quando ela saía — sem tempo de resolver. Agora a tela **lista quem
+fica de fora e por quê** antes de sortear, o botão pede confirmação, e encerrar inscrições
+avisa quem ainda está sem parceiro. A regra virou `Services/ForaDoSorteio` e o `GerarChaves` lê
+dela: com duas cópias, a tela prometeria uma coisa e o sorteio faria outra.
+
+**3. Vigia de erros no VPS** (`/opt/padelizou-vigia-erros.sh`, cron de 5 min). O
+`padelizou-monitor.sh` pega o site **fora do ar** e reinicia; este pega o outro caso, que
+passava batido: site **de pé**, respondendo 200 na home, com uma página quebrando pra todo
+mundo. Manda e-mail com as linhas do erro. Só alarma exceção não tratada e Kestrel —
+**antiforgery fica de fora de propósito** (17 em 7 dias, nenhum era defeito; alarme que toca à
+toa vira alarme ignorado). O cursor do `journalctl` garante que cada erro é avisado uma vez só.
+Testado ponta a ponta com um padrão inofensivo antes de valer.
+
+**4. Todo aviso sai também por e-mail.** O push só alcança quem instalou o app; o WhatsApp
+depende do chip, que ainda não está ligado. Quem não fez nenhum dos dois **não ficava sabendo
+de nada**. Entra no mesmo lugar onde o WhatsApp já entrava (`PushNotificationService`), não nos
+~30 pontos que mandam aviso — os avisos que já existiam ganharam e-mail de graça. Respeita a
+preferência da pessoa e falha calado.
 
 ### 31/07/2026 — 🍺 O bar do clube (build-169 e build-176, só em dev, INVISÍVEL)
 
