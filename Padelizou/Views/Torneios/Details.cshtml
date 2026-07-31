@@ -1146,6 +1146,93 @@
                 </div>
             }
 
+            @* ── CATEGORIAS ────────────────────────────────────────────────────────────
+               Dava pra escolher as categorias só na criação. Quem esquecia a Mista, ou
+               abria mais uma quadra e queria abrir mais uma categoria, tinha que criar
+               OUTRO torneio — e dividir os inscritos entre os dois.
+
+               Tirar é mais delicado que pôr: categoria com gente dentro guarda inscrição
+               de quem já pagou, então a regra fica no servidor (CategoriasDoTorneio) e a
+               tela só explica por que o botão não aparece. *@
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3">Categorias do torneio</h6>
+
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+                        {
+                            var inscritosNaCat = cat.Duplas.Count;
+                            <li class="list-group-item bg-transparent px-0">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <span>
+                                        <strong style="color: var(--pdz-ink);">@cat.Nome</strong>
+                                        <span class="text-muted small ms-1">
+                                            @inscritosNaCat inscrito(s)@(cat.LimiteDuplas != null ? $" · limite {cat.LimiteDuplas}" : " · sem limite")
+                                        </span>
+                                    </span>
+
+                                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                                        <form asp-controller="Torneios" asp-action="AtualizarLimiteCategoria" method="post"
+                                              class="d-flex gap-1 align-items-center">
+                                            <input type="hidden" name="categoriaId" value="@cat.Id" />
+                                            <input type="number" name="limiteDuplas" min="1" value="@cat.LimiteDuplas"
+                                                   class="form-control form-control-sm" style="width: 96px;" placeholder="Sem limite" />
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar limite</button>
+                                        </form>
+
+                                        @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="RemoverCategoria" method="post"
+                                                  onsubmit="return confirm('Remover a categoria @cat.Nome deste torneio?');">
+                                                <input type="hidden" name="categoriaId" value="@cat.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i> Remover
+                                                </button>
+                                            </form>
+                                        }
+                                        else if (inscritosNaCat > 0)
+                                        {
+                                            <span class="small text-muted" title="Tirar a categoria apagaria a inscrição de quem já entrou">
+                                                <i class="bi bi-lock-fill"></i> tem inscrito
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+
+                    @{
+                        var catalogoCats = ViewBag.CatalogoCategorias as List<padelizou.Models.CategoriaPadrao> ?? new();
+                        var jaNoTorneio = Model.Categorias.Select(c => c.Nome).ToHashSet();
+                        var disponiveis = catalogoCats.Where(c => !jaNoTorneio.Contains(c.Nome)).ToList();
+                    }
+                    @if (disponiveis.Any())
+                    {
+                        <form asp-controller="Torneios" asp-action="AdicionarCategoria" method="post"
+                              class="d-flex gap-2 flex-wrap align-items-center">
+                            <input type="hidden" name="torneioId" value="@Model.Id" />
+                            <select name="categoriaPadraoId" class="form-select form-select-sm" style="max-width: 260px;" required>
+                                <option value="">-- Adicionar categoria --</option>
+                                @foreach (var c in disponiveis)
+                                {
+                                    <option value="@c.Id">@c.Nome</option>
+                                }
+                            </select>
+                            <input type="number" name="limiteDuplas" min="1" class="form-control form-control-sm"
+                                   style="width: 120px;" placeholder="Vagas" title="Limite de duplas (opcional)" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                                <i class="bi bi-plus-lg"></i> Adicionar
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0">Todas as categorias do catálogo já estão neste torneio.</p>
+                    }
+                </div>
+            </div>
+
             <!-- GERENCIAR INSCRITOS -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">

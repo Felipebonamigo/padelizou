@@ -308,6 +308,10 @@ namespace Padelizou.Controllers
                     .ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+                // Pra poder ACRESCENTAR categoria depois de publicado: o organizador que
+                // esqueceu a Mista, ou que abriu mais uma quadra, resolvia isso criando outro
+                // torneio.
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
             }
 
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.

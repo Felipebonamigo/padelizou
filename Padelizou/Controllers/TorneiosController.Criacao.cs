@@ -447,6 +447,103 @@ namespace Padelizou.Controllers
         }
 
         // Adiciona um co-organizador já cadastrado (achado por CPF/Login) na aba "Gerenciar Torneio"
+        // ── Categorias de um torneio já publicado ─────────────────────────────────────────
+        // Na criação a escolha é livre (ninguém inscrito). Depois, cada categoria pode ter
+        // gente dentro — as regras de quando dá pra tirar moram em Services/CategoriasDoTorneio.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarCategoria(int torneioId, int categoriaPadraoId, int? limiteDuplas)
+        {
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var catPadrao = await _context.CategoriasPadrao.FindAsync(categoriaPadraoId);
+            if (catPadrao == null)
+            {
+                TempData["Erro"] = "Categoria inválida.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // Casa pelo NOME, que é o que o jogador vê na tela: duas linhas com o mesmo nome
+            // dividiriam os inscritos entre si e ninguém saberia em qual entrar.
+            bool jaTem = await _context.Categorias
+                .AnyAsync(c => c.TorneioId == torneioId && c.Nome == catPadrao.Nome);
+
+            if (jaTem)
+            {
+                TempData["Erro"] = $"O torneio já tem a categoria \"{catPadrao.Nome}\".";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            _context.Categorias.Add(new Categoria
+            {
+                TorneioId = torneioId,
+                Nome = catPadrao.Nome,
+                Codigo = catPadrao.Codigo,
+                LimiteDuplas = limiteDuplas is > 0 ? limiteDuplas : null,
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Categoria \"{catPadrao.Nome}\" adicionada.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverCategoria(int categoriaId)
+        {
+            var categoria = await _context.Categorias
+                .Include(c => c.Duplas)
+                .Include(c => c.Torneio)
+                .FirstOrDefaultAsync(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+
+            int torneioId = categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(categoria, categoria.Torneio);
+            if (motivo == null)
+            {
+                var quantasSobram = await _context.Categorias.CountAsync(c => c.TorneioId == torneioId) - 1;
+                motivo = CategoriasDoTorneio.MotivoParaNaoFicarSemNenhuma(quantasSobram);
+            }
+
+            if (motivo != null)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var nome = categoria.Nome;
+            _context.Categorias.Remove(categoria);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Categoria \"{nome}\" removida.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // O limite de vagas muda sozinho, sem precisar tirar e pôr a categoria de volta —
+        // "abriu mais uma quadra, cabem mais 4 duplas" é o ajuste mais comum do dia.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AtualizarLimiteCategoria(int categoriaId, int? limiteDuplas)
+        {
+            var categoria = await _context.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+
+            if (!await EhOrganizadorAsync(categoria.TorneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            categoria.LimiteDuplas = limiteDuplas is > 0 ? limiteDuplas : null;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = categoria.LimiteDuplas == null
+                ? $"\"{categoria.Nome}\" ficou sem limite de vagas."
+                : $"\"{categoria.Nome}\" agora aceita {categoria.LimiteDuplas} dupla(s).";
+            return RedirectToAction("Details", new { id = categoria.TorneioId });
+        }
+
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
