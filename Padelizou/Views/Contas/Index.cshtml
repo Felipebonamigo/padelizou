@@ -1,0 +1,288 @@
+@using Padelizou.Models
+@using Padelizou.Services
+@{
+    var clube = (Clube)ViewBag.Clube;
+    var resumo = (FinanceiroDoClube.Resumo)ViewBag.Resumo;
+    var lancamentos = (List<LancamentoFinanceiro>)ViewBag.Lancamentos;
+    var hoje = (DateTime)ViewBag.Hoje;
+    var referencia = (DateTime)ViewBag.Referencia;
+    var filtro = (string)ViewBag.Filtro;
+    decimal receitaBar = ViewBag.ReceitaDoBar ?? 0m;
+
+    ViewData["Title"] = $"Contas — {clube.Nome}";
+
+    var abas = new[]
+    {
+        ("aberto", "Em aberto"),
+        ("pagar", "A pagar"),
+        ("receber", "A receber"),
+        ("quitado", "Quitadas no mês"),
+        ("todos", "Tudo do mês"),
+    };
+}
+
+<div class="container mt-4 mb-5" style="max-width: 1100px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small"><strong>Em construção — só você está vendo isto.</strong></div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-wallet2"></i> Contas</h2>
+            <p class="text-muted small mb-0">@clube.Nome · a pagar e a receber</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Bar" asp-action="Index" asp-route-id="@clube.Id"
+               class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-cup-straw"></i> Bar
+            </a>
+            <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@clube.Id"
+               class="btn btn-outline-secondary rounded-pill px-3">
+                <i class="bi bi-arrow-left"></i> Painel do clube
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["ErroConta"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroConta"]</div>
+    }
+    @if (TempData["SucessoConta"] != null)
+    {
+        <div class="alert alert-success border-0"><i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoConta"]</div>
+    }
+
+    @* ---- O que está em aberto ---- *@
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">A pagar</small>
+                <div class="fw-bold fs-4 text-danger">@resumo.TotalAPagar.ToString("C")</div>
+                <small class="@(resumo.APagarVencido > 0 ? "text-danger fw-bold" : "text-muted")">
+                    @(resumo.APagarVencido > 0 ? $"{resumo.APagarVencido:C} já venceu" : "nada vencido")
+                </small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">A receber</small>
+                <div class="fw-bold fs-4 text-success">@resumo.TotalAReceber.ToString("C")</div>
+                <small class="@(resumo.AReceberVencido > 0 ? "text-warning fw-bold" : "text-muted")">
+                    @(resumo.AReceberVencido > 0 ? $"{resumo.AReceberVencido:C} atrasado" : "nada atrasado")
+                </small>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Sobra prevista</small>
+                <div class="fw-bold fs-4 @(resumo.Previsto >= 0 ? "text-success" : "text-danger")">
+                    @resumo.Previsto.ToString("C")
+                </div>
+                <small class="text-muted">do que está em aberto</small>
+            </div>
+        </div>
+        @* Coluna à parte, nunca somada com o resto: este dinheiro JÁ entrou. Misturar com o
+           "a receber" contaria a mesma receita duas vezes. *@
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm p-3 h-100" style="background: var(--pdz-surface-alt);">
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">Bar em @referencia.ToString("MM/yyyy")</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@receitaBar.ToString("C")</div>
+                <small class="text-muted">@ViewBag.ComandasNoMes comanda(s) — já recebido</small>
+            </div>
+        </div>
+    </div>
+
+    @* ---- Nova conta ---- *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3">Lançar conta</h6>
+            <form asp-action="Salvar" method="post" class="row g-2 align-items-end">
+                <input type="hidden" name="clubeId" value="@clube.Id" />
+
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold mb-1">Tipo</label>
+                    <select name="tipo" class="form-select" required>
+                        <option value="Pagar">A pagar</option>
+                        <option value="Receber">A receber</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold mb-1">Do que é</label>
+                    <input type="text" name="descricao" class="form-control" maxlength="120" required
+                           placeholder="Ex: Cerveja — pedido de junho" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold mb-1">Valor</label>
+                    <div class="input-group">
+                        <span class="input-group-text">R$</span>
+                        <input type="number" name="valor" step="0.01" min="0.01" required class="form-control pdz-dinheiro" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold mb-1">Vencimento</label>
+                    <input type="date" name="vencimento" class="form-control" required
+                           value="@hoje.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold mb-1">Repete por</label>
+                    <div class="input-group">
+                        <input type="number" name="repetirMeses" value="1" min="1" max="60" class="form-control" />
+                        <span class="input-group-text">mês(es)</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Com quem</label>
+                    <input type="text" name="contraparte" class="form-control" maxlength="80" placeholder="Ambev, CEEE..." />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Categoria</label>
+                    <input type="text" name="categoria" class="form-control" maxlength="30" placeholder="Bebidas, Estrutura..." />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold mb-1">Observação</label>
+                    <input type="text" name="observacao" class="form-control" maxlength="200" />
+                </div>
+                <div class="col-12 col-md-2 d-grid">
+                    <button type="submit" class="btn btn-padel fw-bold">Lançar</button>
+                </div>
+            </form>
+            <small class="text-muted d-block mt-2">
+                Repetindo por vários meses, as parcelas nascem todas de uma vez — e cada uma
+                pode ser editada ou apagada sozinha depois.
+            </small>
+        </div>
+    </div>
+
+    @* ---- Filtros ---- *@
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        @foreach (var (chave, texto) in abas)
+        {
+            <a asp-action="Index" asp-route-id="@clube.Id" asp-route-filtro="@chave"
+               class="btn btn-sm rounded-pill px-3 @(filtro == chave ? "btn-padel fw-bold" : "btn-outline-secondary")">
+                @texto
+            </a>
+        }
+    </div>
+
+    @if (!lancamentos.Any())
+    {
+        <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma conta por aqui. Lance a primeira acima — luz, aluguel, o pedido da distribuidora."))' />
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle bg-white shadow-sm rounded">
+                <thead>
+                    <tr class="small text-muted">
+                        <th>Vencimento</th>
+                        <th>Conta</th>
+                        <th class="d-none d-md-table-cell">Com quem</th>
+                        <th class="text-end">Valor</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in lancamentos)
+                    {
+                        var situacao = FinanceiroDoClube.Situacao(l, hoje);
+                        <tr class="@(l.EstaQuitado ? "text-muted" : "")">
+                            <td class="text-nowrap">
+                                @l.Vencimento.ToString("dd/MM/yy")
+                                <span class="d-block small">
+                                    @switch (situacao)
+                                    {
+                                        case FinanceiroDoClube.Vencido:
+                                            <span class="badge bg-danger">vencida</span>
+                                            break;
+                                        case FinanceiroDoClube.VenceHoje:
+                                            <span class="badge bg-warning text-dark">vence hoje</span>
+                                            break;
+                                        case FinanceiroDoClube.Quitado:
+                                            <span class="badge bg-success">quitada</span>
+                                            break;
+                                        default:
+                                            <span class="text-muted">a vencer</span>
+                                            break;
+                                    }
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold" style="color: var(--pdz-ink);">@l.Descricao</span>
+                                <span class="badge @(l.EhPagar ? "bg-danger-subtle text-danger-emphasis" : "bg-success-subtle text-success-emphasis") ms-1">
+                                    @(l.EhPagar ? "pagar" : "receber")
+                                </span>
+                                <small class="d-block text-muted">
+                                    @if (!string.IsNullOrWhiteSpace(l.Categoria))
+                                    {
+                                        <span>@l.Categoria</span>
+                                    }
+                                    @if (l.GrupoRecorrencia != null)
+                                    {
+                                        <span>· <i class="bi bi-arrow-repeat"></i> parcela de uma série</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(l.Observacao))
+                                    {
+                                        <span class="d-block">@l.Observacao</span>
+                                    }
+                                    <span class="d-md-none d-block">@l.Contraparte</span>
+                                </small>
+                            </td>
+                            <td class="d-none d-md-table-cell">@(l.Contraparte ?? "—")</td>
+                            <td class="text-end fw-bold text-nowrap @(l.EhPagar ? "text-danger" : "text-success")">
+                                @l.Valor.ToString("C")
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <form asp-action="AlternarQuitado" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@l.Id" />
+                                    <button type="submit" class="btn btn-sm @(l.EstaQuitado ? "btn-outline-secondary" : "btn-outline-success")"
+                                            title="@(l.EstaQuitado ? "Marcar como em aberto" : "Marcar como quitada")"
+                                            aria-label="@(l.EstaQuitado ? "Marcar como em aberto" : "Marcar como quitada")">
+                                        <i class="bi @(l.EstaQuitado ? "bi-arrow-counterclockwise" : "bi-check-lg")"></i>
+                                    </button>
+                                </form>
+                                <form asp-action="Apagar" method="post" class="d-inline"
+                                      onsubmit="return confirm('Apagar esta conta?');">
+                                    <input type="hidden" name="id" value="@l.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            title="Apagar" aria-label="Apagar conta">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                @if (l.GrupoRecorrencia != null && !l.EstaQuitado)
+                                {
+                                    <form asp-action="Apagar" method="post" class="d-inline"
+                                          onsubmit="return confirm('Apagar TODAS as parcelas em aberto desta série?');">
+                                        <input type="hidden" name="id" value="@l.Id" />
+                                        <input type="hidden" name="apagarSerie" value="true" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                title="Apagar a série inteira" aria-label="Apagar a série inteira">
+                                            <i class="bi bi-calendar-x"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<script>
+    document.querySelectorAll('.pdz-dinheiro').forEach(function (el) {
+        el.addEventListener('blur', function () {
+            if (el.value === '') return;
+            var n = parseFloat(el.value);
+            if (!isNaN(n)) el.value = n.toFixed(2);
+        });
+        el.addEventListener('focus', function () { setTimeout(function () { el.select(); }, 0); });
+        el.addEventListener('mouseup', function (ev) { ev.preventDefault(); });
+    });
+</script>

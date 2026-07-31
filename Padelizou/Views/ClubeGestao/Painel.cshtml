@@ -317,6 +317,17 @@
                                 </span>
                                 <small class="d-block text-muted">Comandas do dia, cardápio e fechamento de caixa.</small>
                             </a>
+                            <a asp-controller="Contas" asp-action="Index" asp-route-id="@Model.Clube.Id"
+                               class="list-group-item list-group-item-action px-0">
+                                <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                    <i class="bi bi-wallet2"></i> Contas a pagar e a receber
+                                    @if (ViewBag.BarEmConstrucao == true)
+                                    {
+                                        <span class="badge bg-dark ms-1">em construção</span>
+                                    }
+                                </span>
+                                <small class="d-block text-muted">Fornecedor, aluguel, luz — e quem ficou devendo.</small>
+                            </a>
                         }
                         <a asp-action="Ocupacao" asp-route-id="@Model.Clube.Id" class="list-group-item list-group-item-action px-0">
                             <span class="fw-semibold" style="color: var(--pdz-ink);">

@@ -117,10 +117,12 @@ public class BarDoClubeTests
 
     // ---------- A trava de visibilidade ----------
 
+    private static ModuloDoBar Modulo(DbPadelContext ctx, bool habilitado) =>
+        new(ctx, Options.Create(new BarSettings { Habilitado = habilitado }));
+
     private static BarController Controller(DbPadelContext ctx, int usuarioId, bool habilitado)
     {
-        var c = new BarController(ctx, Options.Create(new BarSettings { Habilitado = habilitado }),
-            NullLogger<BarController>.Instance);
+        var c = new BarController(ctx, Modulo(ctx, habilitado), NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext
         {

@@ -69,6 +69,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Comanda> Comandas { get; set; }
     public DbSet<ItemComanda> ItensComanda { get; set; }
     public DbSet<CaixaDoDia> CaixasDoDia { get; set; }
+    public DbSet<LancamentoFinanceiro> LancamentosFinanceiros { get; set; }
     public DbSet<JogadorCidade> JogadorCidades { get; set; }
     public DbSet<Pagamento> Pagamentos { get; set; }
     public DbSet<Elogio> Elogios { get; set; }
@@ -440,6 +441,17 @@ public partial class DbPadelContext : DbContext
 
             // Um caixa por clube por dia — abrir o segundo é sempre engano.
             entity.HasIndex(e => new { e.ClubeId, e.Dia }).IsUnique();
+        });
+
+        modelBuilder.Entity<LancamentoFinanceiro>(entity =>
+        {
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // A tela abre sempre no que está em aberto, ordenado por vencimento.
+            entity.HasIndex(e => new { e.ClubeId, e.QuitadoEm, e.Vencimento });
         });
         modelBuilder.Entity<HorarioMarcacaoDisponivel>(entity =>
         {

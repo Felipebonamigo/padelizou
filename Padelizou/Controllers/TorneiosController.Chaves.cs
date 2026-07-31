@@ -58,7 +58,7 @@ namespace Padelizou.Controllers
                 // Só entra no sorteio quem está pronto pra jogar: dupla fechada (com os dois
                 // nomes) e confirmada. Quem está na lista de espera ou ainda sem parceiro
                 // continua inscrito, mas fora das chaves.
-                var duplas = categoria.Duplas.Where(d => d.Completa && !d.EmListaDeEspera).ToList();
+                var duplas = categoria.Duplas.Where(d => !ForaDoSorteio.FicaDeFora(d)).ToList();
 
                 // CORREÇÃO DA REGRA DE OURO:
                 // O mínimo para ter jogo não é 3, é 2 duplas (Para uma chave final direta)!

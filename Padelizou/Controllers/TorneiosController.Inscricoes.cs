@@ -198,26 +198,122 @@ namespace Padelizou.Controllers
             }
 
             bool eraConfirmada = !dupla.EmListaDeEspera;
+            var removidos = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+
             _context.Duplas.Remove(dupla);
             await _context.SaveChangesAsync();
 
-            // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria
-            // (a dupla de menor Id, já que a ordem de inscrição segue a ordem de criação).
-            if (eraConfirmada)
-            {
-                var proximaDaFila = await _context.Duplas
-                    .Where(d => d.CategoriaId == dupla.CategoriaId && d.EmListaDeEspera)
-                    .OrderBy(d => d.Id)
-                    .FirstOrDefaultAsync();
-                if (proximaDaFila != null)
-                {
-                    proximaDaFila.EmListaDeEspera = false;
-                    await _context.SaveChangesAsync();
-                }
-            }
+            // Quem foi tirado precisa saber ANTES do dia do jogo. Sem isso a pessoa aparecia
+            // no clube e descobria na hora que não estava mais no torneio.
+            await AvisarAsync(removidos, "Você saiu do torneio",
+                $"O organizador removeu sua inscrição em {torneio.Nome}. Se foi engano, fale com ele.",
+                torneioId);
+
+            if (eraConfirmada) await PromoverDaListaDeEsperaAsync(dupla.CategoriaId, torneio);
 
             TempData["Sucesso"] = "Inscrito removido do torneio.";
             return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // ── O próprio inscrito desiste ────────────────────────────────────────────────────
+        // Antes só o organizador tirava alguém, então desistir era mandar mensagem pra ele —
+        // que mandava mensagem pro suporte. O jogador resolve sozinho, e só enquanto as
+        // inscrições estão abertas (a regra mora em Services/DesistenciaDeInscricao).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Desistir(int duplaId)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            var meuId = ObterJogadorIdLogado() ?? 0;
+
+            if (DesistenciaDeInscricao.MotivoParaNaoDesistir(dupla, torneio, meuId) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var euMesmo = await _context.Jogadores.FindAsync(meuId);
+            var quemFica = DesistenciaDeInscricao.QuemFica(dupla, meuId);
+            bool eraConfirmada = !dupla.EmListaDeEspera;
+
+            if (DesistenciaDeInscricao.Efeito(dupla) == EfeitoDaDesistencia.SoSaiQuemDesistiu)
+            {
+                // A vaga NÃO abre: o parceiro continua inscrito, agora sem dupla fechada. Ele
+                // assume a cadeira de Jogador1 porque essa coluna não é anulável.
+                dupla.Jogador1Id = quemFica!.Value;
+                dupla.Jogador2Id = null;
+                await _context.SaveChangesAsync();
+
+                await AvisarAsync(new[] { quemFica.Value }, "Seu parceiro desistiu",
+                    $"{euMesmo?.ComoChamar ?? "Seu parceiro"} saiu de {torneio!.Nome}. Sua vaga continua sua — "
+                    + "escolha outro parceiro antes do sorteio das chaves.", torneioId);
+
+                TempData["Sucesso"] = "Você saiu da dupla. Seu parceiro segue inscrito e foi avisado.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // Estava sozinho: a inscrição acaba e a vaga volta pra fila.
+            _context.Duplas.Remove(dupla);
+            await _context.SaveChangesAsync();
+
+            if (eraConfirmada) await PromoverDaListaDeEsperaAsync(dupla.CategoriaId, torneio!);
+
+            TempData["Sucesso"] = "Sua inscrição foi cancelada.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // Abriu vaga: promove quem está há mais tempo na lista de espera desta categoria (a
+        // dupla de menor Id, já que a ordem de inscrição segue a ordem de criação) — e AVISA.
+        //
+        // Sem o aviso, ser promovido era um segredo entre o sistema e o banco: a dupla saía da
+        // espera e só descobria olhando a página por conta própria. Quem entra na lista de
+        // espera justamente não fica olhando.
+        private async Task PromoverDaListaDeEsperaAsync(int categoriaId, Torneio torneio)
+        {
+            var proximaDaFila = await _context.Duplas
+                .Where(d => d.CategoriaId == categoriaId && d.EmListaDeEspera)
+                .OrderBy(d => d.Id)
+                .FirstOrDefaultAsync();
+
+            if (proximaDaFila == null) return;
+
+            proximaDaFila.EmListaDeEspera = false;
+            await _context.SaveChangesAsync();
+
+            var promovidos = new[] { proximaDaFila.Jogador1Id, proximaDaFila.Jogador2Id }
+                .Where(i => i != null).Select(i => i!.Value).ToList();
+
+            await AvisarAsync(promovidos, "Abriu vaga — vocês estão dentro!",
+                $"Alguém desistiu de {torneio.Nome} e vocês saíram da lista de espera. Boa sorte!",
+                torneio.Id);
+        }
+
+        // Push falha calado (quem não instalou o app não recebe nada), então o aviso que
+        // importa vai também por e-mail — é o que a maioria tem.
+        private async Task AvisarAsync(IEnumerable<int> jogadorIds, string titulo, string corpo, int torneioId)
+        {
+            var url = Url.Action("Details", "Torneios", new { id = torneioId });
+
+            foreach (var jogadorId in jogadorIds)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url);
+                }
+                catch (Exception ex)
+                {
+                    // Aviso é acessório: a inscrição já mudou, não pode falhar por causa disso.
+                    _logger.LogWarning(ex, "Falha ao avisar o jogador {JogadorId}.", jogadorId);
+                }
+            }
         }
 
         [HttpPost]
@@ -233,6 +329,22 @@ namespace Padelizou.Controllers
 
             torneio.Status = "Chaves em Sorteio";
             await _context.SaveChangesAsync();
+
+            // Último momento em que dá pra resolver: quem está sem parceiro ainda pode fechar
+            // a dupla antes do sorteio. Sem este aviso, a pessoa só descobria que ficou de
+            // fora quando a chave saía — e aí não havia mais o que fazer.
+            var semParceiro = await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == id && d.Jogador2Id == null && !d.EmListaDeEspera)
+                .Select(d => d.Jogador1Id)
+                .ToListAsync();
+
+            if (semParceiro.Count > 0)
+            {
+                await AvisarAsync(semParceiro, "Você ainda está sem parceiro",
+                    $"As inscrições de {torneio.Nome} foram encerradas e sua dupla não está fechada. "
+                    + "Sem parceiro, vocês ficam de fora do sorteio — defina alguém na página do torneio.",
+                    torneio.Id);
+            }
 
             return RedirectToAction("Details", new { id = torneio.Id });
         }

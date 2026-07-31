@@ -145,6 +145,8 @@ builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
+// Quem pode abrir o bar e as contas do clube. Uma regra só pros dois módulos.
+builder.Services.AddScoped<ModuloDoBar>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();

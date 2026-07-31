@@ -22,38 +22,22 @@ namespace Padelizou.Controllers;
 public class BarController : Controller
 {
     private readonly DbPadelContext _context;
-    private readonly BarSettings _bar;
+    private readonly ModuloDoBar _modulo;
     private readonly ILogger<BarController> _logger;
 
-    public BarController(DbPadelContext context, IOptions<BarSettings> bar, ILogger<BarController> logger)
+    public BarController(DbPadelContext context, ModuloDoBar modulo, ILogger<BarController> logger)
     {
         _context = context;
-        _bar = bar.Value;
+        _modulo = modulo;
         _logger = logger;
     }
 
     private int? UsuarioId() =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 
-    // Duas perguntas em uma: o módulo está aberto pra esta pessoa, e ela manda neste clube?
-    //
-    // Enquanto o bar está em construção, "aberto" quer dizer "sou admin do Padelizou" — é
-    // isso que mantém o módulo invisível pros donos de clube sem precisar de branch separada.
-    private async Task<bool> PodeUsarAsync(int clubeId)
-    {
-        var id = UsuarioId();
-        if (id == null) return false;
-
-        if (!_bar.Habilitado)
-        {
-            bool ehAdminDoPadelizou = await _context.Jogadores
-                .AnyAsync(j => j.Id == id && (j.IsAdminGeral || j.IsAdminRaiz));
-            if (!ehAdminDoPadelizou) return false;
-        }
-
-        return await _context.Clubes.AnyAsync(c => c.Id == clubeId && c.DonoId == id)
-            || await _context.ClubeAdministradores.AnyAsync(a => a.ClubeId == clubeId && a.JogadorId == id);
-    }
+    // A regra mora em Services/ModuloDoBar — a mesma que vale pras contas do clube. Duas
+    // cópias de uma permissão divergem no dia em que só uma é atualizada.
+    private Task<bool> PodeUsarAsync(int clubeId) => _modulo.PodeUsarAsync(clubeId, UsuarioId());
 
     // O dia a que o movimento pertence. É o dia do caixa ABERTO, não o relógio: comanda
     // aberta 23h50 e paga 00h30 entra no movimento de ontem, que é como o bar conta. Sem
@@ -113,7 +97,7 @@ public class BarController : Controller
         ViewBag.Caixa = caixa;
         ViewBag.Comandas = comandas;
         ViewBag.ReservasSemComanda = reservasDeHoje.Where(m => !comMarcacao.Contains(m.Id)).ToList();
-        ViewBag.EmConstrucao = !_bar.Habilitado;
+        ViewBag.EmConstrucao = _modulo.EmConstrucao;
 
         // O caixa fecha com o que entrou EM DINHEIRO — cartão e Pix não passam pela gaveta.
         ViewBag.VendasEmDinheiro = comandas
@@ -507,7 +491,7 @@ public class BarController : Controller
         if (clube == null) return NotFound();
 
         ViewBag.Clube = clube;
-        ViewBag.EmConstrucao = !_bar.Habilitado;
+        ViewBag.EmConstrucao = _modulo.EmConstrucao;
 
         return View(await _context.ProdutosBar
             .Where(p => p.ClubeId == id)
