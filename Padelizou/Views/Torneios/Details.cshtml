@@ -909,12 +909,14 @@
                                     <label class="form-label fw-bold small">Nome do Torneio</label>
                                     <input type="text" name="nome" class="form-control" value="@Model.Nome" maxlength="150" required />
                                 </div>
+                                @* "Local" e "Clube" eram o MESMO dado pedido duas vezes: o local
+                                   do torneio é o clube onde ele acontece. A criação já pedia só
+                                   o clube; aqui tinha sobrado o campo de texto, e os dois
+                                   podiam divergir — o cabeçalho mostra o Local, então dava pra
+                                   anunciar um lugar e ter o torneio marcado em outro. Agora o
+                                   nome do clube escolhido vira o local, sozinho. *@
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold small">Local</label>
-                                    <input type="text" name="localTorneio" class="form-control" value="@Model.LocalTorneio" />
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-bold small">Clube</label>
+                                    <label class="form-label fw-bold small">Clube <span class="fw-normal">(é o local do torneio)</span></label>
                                     <select name="clubeId" class="form-select" required>
                                         @foreach (var clube in (ViewBag.CatalogoClubes as List<Padelizou.Models.Clube>) ?? new())
                                         {

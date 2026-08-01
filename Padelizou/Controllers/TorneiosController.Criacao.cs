@@ -605,6 +605,8 @@ namespace Padelizou.Controllers
         [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(
+            // `localTorneio` não é mais lido: o local do torneio É o clube (ver abaixo). Fica na
+            // assinatura só pra aba aberta antes deste deploy não estourar por parâmetro extra.
             int id, string nome, string? localTorneio, DateTime? dataInicio, decimal precoInscricao, int clubeId,
             int quantidadeQuadras, string[]? nomesQuadras,
             bool permiteImpedimentos, bool permiteImpedimentoSextaNoite, bool permiteImpedimentoSabadoManha, bool permiteImpedimentoSabadoTarde,
@@ -635,10 +637,18 @@ namespace Padelizou.Controllers
             }
 
             torneio.Nome = nome;
-            torneio.LocalTorneio = localTorneio;
             torneio.DataInicio = dataInicio;
             torneio.PrecoInscricao = precoInscricao;
             torneio.ClubeId = clubeId;
+
+            // O local É o clube. A tela de edição pedia os dois — o mesmo dado duas vezes — e
+            // eles podiam divergir: o cabeçalho do torneio mostra o LocalTorneio, então dava
+            // pra anunciar um lugar e ter o torneio marcado em outro. O nome do clube manda.
+            //
+            // O parâmetro `localTorneio` continua na assinatura só pra aba antiga em cache não
+            // estourar; o valor dela é ignorado de propósito.
+            var clubeEscolhido = await _context.Clubes.FindAsync(clubeId);
+            if (clubeEscolhido != null) torneio.LocalTorneio = clubeEscolhido.Nome;
             torneio.QuantidadeQuadras = quantidadeQuadras;
             torneio.PermiteImpedimentos = permiteImpedimentos;
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
