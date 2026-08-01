@@ -51,10 +51,60 @@
                         @times.Count de @alvo times
                     </span>
                 </div>
-                <p class="text-muted small mb-3">
-                    @(categoria.QuantidadeGrupos ?? 1) grupo(s), todos contra todos dentro do grupo ·
-                    classificam @(categoria.ClassificadosPorGrupo ?? 2) por grupo pro mata-mata.
-                </p>
+
+                @if (podeMexer)
+                {
+                    @* A estrutura muda depois de criada: "achei que davam 8, vieram 6" é o
+                       ajuste mais comum, e antes obrigava a apagar a categoria e recomeçar. *@
+                    <form asp-action="EditarCategoriaDeTimes" method="post"
+                          class="d-flex gap-2 flex-wrap align-items-end mb-3">
+                        <input type="hidden" name="torneioId" value="@Model.Id" />
+                        <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                        <div>
+                            <label class="form-label small mb-0">Nome</label>
+                            <input type="text" name="nome" value="@categoria.Nome" maxlength="80"
+                                   class="form-control form-control-sm" style="width: 150px;" required />
+                        </div>
+                        <div>
+                            <label class="form-label small mb-0">Times</label>
+                            <input type="number" name="quantidadeTimes" min="2" max="32" value="@(categoria.QuantidadeTimes ?? times.Count)"
+                                   class="form-control form-control-sm" style="width: 80px;" required />
+                        </div>
+                        <div>
+                            <label class="form-label small mb-0">Grupos</label>
+                            <input type="number" name="quantidadeGrupos" min="1" max="8" value="@(categoria.QuantidadeGrupos ?? 1)"
+                                   class="form-control form-control-sm" style="width: 80px;" required />
+                        </div>
+                        <div>
+                            <label class="form-label small mb-0">Classificam</label>
+                            <input type="number" name="classificadosPorGrupo" min="1" max="4" value="@(categoria.ClassificadosPorGrupo ?? 2)"
+                                   class="form-control form-control-sm" style="width: 100px;" required />
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                            <i class="bi bi-check-lg"></i> Salvar
+                        </button>
+                        @if (!times.Any())
+                        {
+                            <button type="submit" formaction="@Url.Action("RemoverCategoriaDeTimes")"
+                                    class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                    formnovalidate
+                                    onclick="return confirm('Remover a categoria @categoria.Nome deste torneio?');">
+                                <i class="bi bi-trash"></i> Remover categoria
+                            </button>
+                        }
+                    </form>
+                    <p class="text-muted small mb-3">
+                        Todos contra todos dentro do grupo; os classificados vão pro mata-mata.
+                        A conta <strong>grupos × classificados</strong> precisa fechar um quadro (2, 4, 8 ou 16).
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted small mb-3">
+                        @(categoria.QuantidadeGrupos ?? 1) grupo(s), todos contra todos dentro do grupo ·
+                        classificam @(categoria.ClassificadosPorGrupo ?? 2) por grupo pro mata-mata.
+                    </p>
+                }
 
                 @if (times.Any())
                 {

@@ -22,6 +22,17 @@ public class EstatisticasService : IEstatisticasService
         _ => 10 // Fase de Grupos / participou
     };
 
+    // Torneio RESTRITO não entra no ranking (decisão do Felipe, 31/07/2026).
+    //
+    // Restrito é o torneio fechado: entra quem tem a chave de acesso — interno de clube,
+    // grupo de amigos, confraternização de fim de ano. Pontuar evento fechado faria o
+    // ranking medir ACESSO a torneio privado em vez de padel jogado: quem organiza um
+    // interno por mês subiria sem nunca enfrentar ninguém de fora.
+    //
+    // O que NÃO muda: a participação, o título e os jogos continuam no perfil e no
+    // histórico da pessoa — aconteceram. O que não existe é ponto de ranking.
+    public static bool ContaNoRanking(Torneio? torneio) => torneio is null or { Restrito: false };
+
     // Ordem das fases para "melhor colocação" (maior = mais longe).
     private static int RankFase(string? fase) => fase switch
     {
@@ -128,6 +139,7 @@ public class EstatisticasService : IEstatisticasService
 
         var porCategoria = duplas
             .Where(d => d.Categoria != null
+                     && ContaNoRanking(d.Categoria.Torneio)   // torneio restrito fica fora
                      && (categoriaNome == null || d.Categoria.Nome == categoriaNome)
                      && (ate == null || d.Categoria.Torneio == null
                          || d.Categoria.Torneio.DataInicio == null
@@ -197,6 +209,7 @@ public class EstatisticasService : IEstatisticasService
 
         var duplas = await _context.Duplas
             .Where(d => d.NomeTime == null   // dupla-TIME não pontua jogador nenhum
+                     && !d.Categoria.Torneio.Restrito   // torneio fechado não entra no ranking
                      && (idsComTime.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
@@ -970,11 +983,16 @@ public class EstatisticasService : IEstatisticasService
 
     public async Task<ResumoJogadorVM> ObterResumoJogadorAsync(int jogadorId)
     {
-        var fases = await _context.Duplas
+        // A fase de cada participação + se aquele torneio conta ponto. O torneio restrito
+        // continua na CONTA de torneios/títulos (aconteceu), mas não soma ponto — senão o
+        // número do perfil discordaria do número do ranking.
+        var participacoes = await _context.Duplas
             .Where(d => d.NomeTime == null   // time não é participação do organizador
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Select(d => d.UltimaFase)
+            .Select(d => new { d.UltimaFase, Restrito = d.Categoria.Torneio.Restrito })
             .ToListAsync();
+
+        var fases = participacoes.Select(p => p.UltimaFase).ToList();
 
         int vitorias = 0, derrotas = 0;
         var partidas = await CarregarPartidasFinalizadasAsync();
@@ -988,7 +1006,7 @@ public class EstatisticasService : IEstatisticasService
 
         return new ResumoJogadorVM
         {
-            Pontos = fases.Sum(PontosPorFase),
+            Pontos = participacoes.Where(p => !p.Restrito).Sum(p => PontosPorFase(p.UltimaFase)),
             TotalTorneios = fases.Count,
             Titulos = fases.Count(f => f == "Campeao"),
             Finais = fases.Count(f => f == "Final"),
@@ -1010,6 +1028,7 @@ public class EstatisticasService : IEstatisticasService
 
         var duplas = await _context.Duplas
             .Where(d => d.NomeTime == null
+                     && !d.Categoria.Torneio.Restrito   // torneio fechado não pontua
                      && (ids.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
@@ -1033,8 +1052,11 @@ public class EstatisticasService : IEstatisticasService
         var mesAtual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         var primeiroMes = mesAtual.AddMonths(-(meses - 1));
 
+        // Torneio restrito fora: o gráfico desenha a linha do RANKING, e ela precisa
+        // terminar no mesmo total que o perfil mostra.
         var participacoes = await _context.Duplas
             .Where(d => d.NomeTime == null
+                     && !d.Categoria.Torneio.Restrito
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase })
             .ToListAsync();

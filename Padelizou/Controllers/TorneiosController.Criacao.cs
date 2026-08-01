@@ -616,7 +616,8 @@ namespace Padelizou.Controllers
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
-            bool usaCheckIn = false)
+            bool usaCheckIn = false,
+            bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -633,6 +634,14 @@ namespace Padelizou.Controllers
             if (precoInscricao < 0)
             {
                 TempData["Erro"] = "Valor negativo não dá: use zero pra não cobrar nada.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // A chave é conferida ANTES de qualquer gravação: recusar depois deixaria o
+            // torneio salvo pela metade, com o resto dos campos já alterados.
+            if (restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
+            {
+                TempData["Erro"] = problemaChave;
                 return RedirectToAction("Details", new { id });
             }
 
@@ -664,6 +673,32 @@ namespace Padelizou.Controllers
             torneio.PrevisaoChaveamento = previsaoChaveamento;
             // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".
             torneio.UsaCheckIn = usaCheckIn;
+
+            // ---- Torneio restrito (chave de acesso), agora editável ----
+            // Só se decidia isso na criação, e "esqueci de marcar restrito" obrigava a criar
+            // outro torneio e reinscrever todo mundo.
+            //
+            // A regra delicada é o campo VAZIO com o torneio já restrito: significa "não quis
+            // mexer na chave", e não "apaga a chave". Trocar a chave sozinho aqui derrubaria
+            // quem já recebeu a antiga no grupo do WhatsApp.
+            if (restrito)
+            {
+                torneio.Restrito = true;
+                var chaveDigitada = ChaveDeAcessoDoTorneio.Normalizar(chaveAcessoEscolhida);
+                if (chaveDigitada != null) torneio.ChaveAcesso = chaveDigitada;
+                else if (string.IsNullOrWhiteSpace(torneio.ChaveAcesso)) torneio.ChaveAcesso = ChaveDeAcessoDoTorneio.Sortear();
+            }
+            else
+            {
+                // Deixou de ser restrito: a chave sai junto. Guardá-la seria manter uma senha
+                // que não tranca nada e que voltaria a valer sozinha se ele religasse.
+                torneio.Restrito = false;
+                torneio.ChaveAcesso = null;
+            }
+
+            // "Sumir da listagem" mora dentro do restrito, igual à criação: torneio aberto e
+            // invisível é torneio que ninguém acha pra se inscrever.
+            torneio.Oculto = restrito && oculto;
 
             if (capa != null && capa.Length > 0)
             {

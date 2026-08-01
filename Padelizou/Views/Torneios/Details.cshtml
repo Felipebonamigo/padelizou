@@ -1007,6 +1007,57 @@
                                 </div>
                             </div>
 
+                            @* TORNEIO RESTRITO — dava pra escolher só na criação, e "esqueci de
+                               marcar" obrigava a refazer o torneio inteiro com os inscritos. *@
+                            <div class="mb-3 mt-2 border-top pt-3">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input" type="checkbox" name="restrito" value="true"
+                                           id="editRestritoSwitch" @(Model.Restrito ? "checked" : "")
+                                           onchange="pdzEditarRestrito()">
+                                    <label class="form-check-label fw-bold" for="editRestritoSwitch">
+                                        <i class="bi bi-key-fill"></i> Torneio restrito (exige chave de acesso pra se inscrever)
+                                    </label>
+                                </div>
+                                <div class="small text-muted">
+                                    Só quem tiver a chave consegue se inscrever — você compartilha com quem quiser convidar.
+                                    <strong class="d-block mt-1">Torneio restrito não conta pontos pro ranking:</strong>
+                                    ele é evento fechado (interno de clube, grupo de amigos), e os jogos, o título e a
+                                    participação continuam aparecendo no perfil de quem jogou.
+                                </div>
+
+                                <div id="editCampoChave" class="ps-4 mt-2" style="display: @(Model.Restrito ? "block" : "none");">
+                                    <label class="form-label small fw-bold mb-1" for="editChaveAcesso">Chave de acesso</label>
+                                    <input type="text" class="form-control" id="editChaveAcesso" name="chaveAcessoEscolhida"
+                                           maxlength="20" autocomplete="off"
+                                           placeholder="@(string.IsNullOrEmpty(Model.ChaveAcesso) ? "deixe vazio pra gerar uma sozinho" : "deixe vazio pra manter a chave atual")" />
+                                    <small class="text-muted d-block mt-1">
+                                        @if (!string.IsNullOrEmpty(Model.ChaveAcesso))
+                                        {
+                                            <span>
+                                                Chave de agora: <strong>@Model.ChaveAcesso</strong>.
+                                                <strong>Campo vazio mantém essa chave</strong> — trocar aqui invalida a que
+                                                você já mandou pro grupo.
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                Escolha uma palavra fácil de passar pro grupo (ex.: <em>virgili10</em>), de 4 a 20
+                                                letras ou números, sem espaço. Vazio, o sistema sorteia uma.
+                                            </span>
+                                        }
+                                    </small>
+
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" name="oculto" value="true"
+                                               id="editOcultoCheck" @(Model.Oculto ? "checked" : "")>
+                                        <label class="form-check-label small" for="editOcultoCheck">
+                                            <i class="bi bi-eye-slash"></i> Sumir da listagem pública (só quem tem o link direto acha)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="mb-3 mt-2 border-top pt-3">
                                 <label class="form-label fw-bold" for="editRestricaoCat">
                                     <i class="bi bi-shield-lock"></i> Restrição de categoria (anti-sandbagging)
@@ -1212,7 +1263,9 @@
                     <h6 class="fw-bold text-muted text-uppercase mb-3">Categorias do torneio</h6>
 
                     <ul class="list-group list-group-flush mb-3">
-                        @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+                        @* Categoria de times fica FORA desta lista: ela tem cartão próprio, e
+                           "limite de vagas" não quer dizer nada num torneio de times. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes).OrderBy(c => c.Nome))
                         {
                             var inscritosNaCat = cat.Duplas.Count;
                             <li class="list-group-item bg-transparent px-0">
@@ -1304,8 +1357,11 @@
                             </p>
                         }
                         <a asp-action="Times" asp-route-id="@Model.Id" class="btn btn-sm btn-padel rounded-pill px-3">
-                            <i class="bi bi-pencil-square"></i> Gerenciar os times
+                            <i class="bi bi-pencil-square"></i> Gerenciar times e estrutura
                         </a>
+                        <div class="small text-muted mt-2">
+                            Lá dá pra cadastrar os times e mudar times/grupos/classificados enquanto as chaves não saem.
+                        </div>
                     }
                     else if (Model.Formato == "Americano")
                     {
@@ -1756,6 +1812,12 @@
             function toggleImpedimentosEdicao() {
                 var ligado = document.getElementById('editImpSwitch').checked;
                 document.getElementById('editTurnosImpedimento').style.display = ligado ? 'block' : 'none';
+            }
+
+            // Chave de acesso e "sumir da listagem" só fazem sentido com o restrito ligado.
+            function pdzEditarRestrito() {
+                var ligado = document.getElementById('editRestritoSwitch').checked;
+                document.getElementById('editCampoChave').style.display = ligado ? 'block' : 'none';
             }
 
             function gerarCamposQuadraEdicao() {

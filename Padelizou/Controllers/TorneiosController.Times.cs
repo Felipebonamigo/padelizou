@@ -90,6 +90,86 @@ namespace Padelizou.Controllers
             return RedirectToAction("Times", new { id = torneioId });
         }
 
+        // Mudar a estrutura depois de criada: "achei que davam 8 times, vieram 6". A conta é
+        // revalidada aqui pelo mesmo lugar da criação — e ainda contra os times que JÁ estão
+        // cadastrados, porque prometer 6 vagas com 8 times dentro deixaria dois de fora sem
+        // ninguém saber quais.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> EditarCategoriaDeTimes(
+            int torneioId, int categoriaId, string nome, int quantidadeTimes, int quantidadeGrupos, int classificadosPorGrupo)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+
+            if (torneio == null || categoria == null || categoria.TorneioId != torneioId || !categoria.DeTimes)
+                return NotFound();
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (!AntesDoSorteio(torneio))
+            {
+                TempData["Erro"] = "As chaves já saíram — a estrutura da categoria não muda mais.";
+                return RedirectToAction("Times", new { id = torneioId });
+            }
+
+            if (CategoriaDeTimes.ProblemaNaConfiguracao(quantidadeTimes, quantidadeGrupos, classificadosPorGrupo) is { } problema)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("Times", new { id = torneioId });
+            }
+
+            int jaCadastrados = await _context.Duplas.CountAsync(d => d.CategoriaId == categoriaId && d.NomeTime != null);
+            if (quantidadeTimes < jaCadastrados)
+            {
+                TempData["Erro"] = $"Já são {jaCadastrados} times cadastrados — remova algum antes de baixar pra {quantidadeTimes}.";
+                return RedirectToAction("Times", new { id = torneioId });
+            }
+
+            if (!string.IsNullOrWhiteSpace(nome)) categoria.Nome = nome.Trim();
+            categoria.QuantidadeTimes = quantidadeTimes;
+            categoria.QuantidadeGrupos = quantidadeGrupos;
+            categoria.ClassificadosPorGrupo = classificadosPorGrupo;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"\"{categoria.Nome}\" agora é {quantidadeTimes} times em {quantidadeGrupos} grupo(s), " +
+                                  $"classificam {classificadosPorGrupo} por grupo.";
+            return RedirectToAction("Times", new { id = torneioId });
+        }
+
+        // Tirar a categoria inteira. Só antes do sorteio e só sem time dentro — apagar uma
+        // categoria com times levaria junto a lista que o organizador montou na mão.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> RemoverCategoriaDeTimes(int torneioId, int categoriaId)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+
+            if (torneio == null || categoria == null || categoria.TorneioId != torneioId || !categoria.DeTimes)
+                return NotFound();
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (!AntesDoSorteio(torneio))
+            {
+                TempData["Erro"] = "As chaves já saíram — a categoria não pode mais ser removida.";
+                return RedirectToAction("Times", new { id = torneioId });
+            }
+
+            int comTimes = await _context.Duplas.CountAsync(d => d.CategoriaId == categoriaId && d.NomeTime != null);
+            if (comTimes > 0)
+            {
+                TempData["Erro"] = $"Essa categoria tem {comTimes} time(s) dentro. Remova os times primeiro.";
+                return RedirectToAction("Times", new { id = torneioId });
+            }
+
+            var nome = categoria.Nome;
+            _context.Categorias.Remove(categoria);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Categoria \"{nome}\" removida.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> AdicionarTime(int torneioId, int categoriaId, string nome)

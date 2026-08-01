@@ -51,6 +51,34 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
+### 31/07/2026 (noite) — ✏️ O que só dava pra decidir na criação virou editável
+
+Três pedidos do Felipe na sequência, todos da mesma família: *"deixa eu mudar isso depois"*.
+
+- **Estrutura da categoria de times editável** (tela Times): nome, quantos times, quantos
+  grupos e quantos classificam mudam enquanto as chaves não saem — *"achei que davam 8, vieram
+  6"* obrigava a apagar a categoria e recomeçar. A conta é revalidada pelo **mesmo lugar da
+  criação** (`CategoriaDeTimes`) e ainda contra os times **já cadastrados**: baixar pra 4 com
+  6 dentro deixaria dois de fora sem ninguém saber quais. Categoria vazia também pode ser
+  removida. Depois do sorteio, nada disso muda mais.
+- **Torneio restrito no Editar** (antes só na criação): ligar/desligar a chave de acesso sem
+  refazer o torneio. A regra delicada é o **campo vazio com o torneio já restrito** — significa
+  *"não quis mexer na chave"*, e não *"apaga a chave"*: sortear uma nova aí derrubaria todo
+  mundo que já recebeu a antiga no grupo do WhatsApp. A tela diz qual é a chave de agora.
+  Desligar o restrito apaga a chave (senha que não tranca nada, e que voltaria a valer sozinha
+  se ele religasse). "Sumir da listagem" continua morando dentro do restrito.
+- **🏅 Torneio restrito NÃO conta pontos pro ranking** (decisão de produto do Felipe). Restrito
+  é evento fechado — interno de clube, grupo de amigos. Pontuar evento fechado faria o ranking
+  medir **acesso a torneio privado** em vez de padel jogado: quem organiza um interno por mês
+  subiria sem enfrentar ninguém de fora. **O que continua:** participação, título e jogos
+  seguem no perfil — aconteceram. O que não existe é ponto. Vale nos cinco lugares que contam
+  ponto (ranking por categoria, ranking de times, pontos do perfil, gráfico de evolução e os
+  pontos que definem **cabeça de chave** no sorteio) — se um só ficasse de fora, o perfil
+  mostraria um total e o ranking outro. Os dois avisos de tela (criação e edição) dizem a
+  consequência **antes** de o organizador marcar. Medido ao vivo: 250 pts com o torneio aberto,
+  **240 com ele restrito** — exatamente os 10 da participação. Em produção **não mexeu em ponto
+  de ninguém**: o único torneio de lá não é restrito e está sem inscritos. **1077 testes.**
+
 ### 31/07/2026 (noite) — 🏳️ Categoria de TIMES + troca de horários (build-193, prod + dev)
 
 Pedido do Felipe: *"times se enfrentando"* como categoria de torneio, e o organizador podendo
