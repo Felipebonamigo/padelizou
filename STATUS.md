@@ -51,7 +51,7 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
-### 31/07/2026 (noite) — 🏳️ Categoria de TIMES + troca de horários (commitado, aguardando deploy)
+### 31/07/2026 (noite) — 🏳️ Categoria de TIMES + troca de horários (build-193, prod + dev)
 
 Pedido do Felipe: *"times se enfrentando"* como categoria de torneio, e o organizador podendo
 trocar o horário do jogo A com o jogo B depois do sorteio.
