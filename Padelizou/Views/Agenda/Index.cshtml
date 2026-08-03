@@ -94,8 +94,10 @@
     </div>
 
     <div class="card shadow-sm border-0">
-        <div class="card-body">
-            <div id="pdzCalendario"></div>
+        @* px-2 no celular: a grade de 7 colunas precisa de cada pixel, e o respiro padrão do
+           card era o que faltava pra ela caber sem rolagem. *@
+        <div class="card-body px-2 px-sm-3">
+            <div id="pdzCalendario" class="pdz-agenda-rolagem"></div>
         </div>
     </div>
 </div>
@@ -151,5 +153,36 @@
         .fc .fc-event { border-radius: 6px; cursor: pointer; }
         .fc-theme-standard td, .fc-theme-standard th { border-color: var(--pdz-border); }
         .fc-theme-standard .fc-scrollgrid { border-color: var(--pdz-border); }
+
+        /*
+            No celular a barra de controle não cabe: são TRÊS blocos numa linha só
+            (‹ › Hoje · título · Mês/Semana/Dia/Lista) e, a 375px, "agosto de 2026" quebrava
+            em três linhas enquanto "Lista" vazava pra fora da tela — e a página inteira
+            passava a rolar de lado.
+
+            Empilhados, cada bloco ganha a largura inteira e nada precisa ser cortado. O
+            título vem primeiro (`order`) porque é o que se lê pra saber onde se está; os
+            botões de trocar de vista vão pro fim, que é a ordem em que se usa.
+        */
+        @@media (max-width: 767.98px) {
+            .fc .fc-toolbar.fc-header-toolbar {
+                flex-direction: column;
+                align-items: center;
+                gap: .6rem;
+                margin-bottom: 1rem;
+            }
+            .fc .fc-toolbar-chunk:nth-child(2) { order: -1; }   /* título */
+            .fc .fc-toolbar-title { font-size: 1.15rem; }
+
+            /* Os quatro botões de vista cabem na largura inteira, mas só se puderem
+               rearranjar: sem isto o grupo continua rígido e estoura a direita. */
+            .fc .fc-toolbar-chunk { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; }
+            .fc .fc-button-group { flex-wrap: wrap; justify-content: center; }
+            .fc .fc-button { padding: .32rem .7rem; font-size: .82rem; }
+        }
+
+        /* A grade do mês tem largura mínima própria (7 colunas). Quando não couber, quem
+           rola é o calendário dentro do card — a PÁGINA nunca rola de lado. */
+        .pdz-agenda-rolagem { overflow-x: auto; }
     </style>
 }
