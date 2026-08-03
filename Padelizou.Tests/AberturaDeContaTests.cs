@@ -76,6 +76,8 @@ public class AberturaDeContaTests
 
     // ── O formulário pedido na hora ───────────────────────────────────────────────────────
 
+    private static readonly DateTime Nascimento = new(1990, 5, 20);
+
     [Theory]
     [InlineData(null, "91520000", "Rua X", "10", "Centro")]        // sem faturamento
     [InlineData(0, "91520000", "Rua X", "10", "Centro")]           // faturamento zero
@@ -87,13 +89,49 @@ public class AberturaDeContaTests
         int? faturamento, string cep, string endereco, string numero, string? bairro)
     {
         Assert.NotNull(AberturaDeConta.ProblemaNoFormulario(
-            faturamento is int f ? f : null, cep, endereco, numero, bairro));
+            faturamento is int f ? f : null, Nascimento, cep, endereco, numero, bairro));
+    }
+
+    [Fact]
+    public void Sem_data_de_nascimento_e_recusado()
+    {
+        // A documentação do Asaas NÃO lista este campo entre os obrigatórios, mas a API
+        // recusa sem ele. Descoberto batendo no sandbox — sem isso, todo organizador de
+        // verdade teria esbarrado no erro na primeira tentativa.
+        Assert.NotNull(AberturaDeConta.ProblemaNoFormulario(
+            3000m, null, "91520000", "Rua X", "10", "Centro"));
+    }
+
+    [Theory]
+    [InlineData("2010-05-20", false)]  // 16 anos em 2026: o gateway não aceita
+    [InlineData("2008-05-20", true)]   // 18 recém-feitos
+    [InlineData("1850-01-01", false)]  // digitou o ano errado
+    public void Idade_e_conferida_antes_de_bater_no_gateway(string nascimento, bool deveriaPassar)
+    {
+        var problema = AberturaDeConta.ProblemaNoFormulario(
+            3000m, DateTime.Parse(nascimento), "91520000", "Rua X", "10", "Centro",
+            hoje: new DateTime(2026, 8, 3));
+
+        Assert.Equal(deveriaPassar, problema == null);
+    }
+
+    [Fact]
+    public void Aniversario_que_ainda_nao_chegou_no_ano_nao_conta()
+    {
+        // Faz 18 em dezembro; em agosto ainda tem 17. Subtrair só os anos daria 18 e deixaria
+        // passar uma pessoa que o gateway vai recusar.
+        var problema = AberturaDeConta.ProblemaNoFormulario(
+            3000m, new DateTime(2008, 12, 31), "91520000", "Rua X", "10", "Centro",
+            hoje: new DateTime(2026, 8, 3));
+
+        Assert.NotNull(problema);
     }
 
     [Fact]
     public void Formulario_completo_passa_e_o_cep_aceita_mascara()
     {
-        Assert.Null(AberturaDeConta.ProblemaNoFormulario(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi"));
+        Assert.Null(AberturaDeConta.ProblemaNoFormulario(
+            3000m, Nascimento, "91520-000", "Av. Assis Brasil", "1234", "Sarandi"));
     }
 
     [Fact]
@@ -102,13 +140,14 @@ public class AberturaDeContaTests
         var j = Completo();
         j.Nome = "  Anderson   Virgili ";
 
-        var dados = AberturaDeConta.Montar(j, 3000m, " 91520-000 ", "  Av. Assis Brasil ", " 1234 ", " Sarandi ");
+        var dados = AberturaDeConta.Montar(j, 3000m, Nascimento, " 91520-000 ", "  Av. Assis Brasil ", " 1234 ", " Sarandi ");
 
         Assert.Equal("Anderson Virgili", dados.Nome);
         Assert.Equal("Av. Assis Brasil", dados.Endereco);
         Assert.Equal("1234", dados.Numero);
         Assert.Equal("Sarandi", dados.Bairro);
         Assert.Equal(3000m, dados.FaturamentoMensal);
+        Assert.Equal(Nascimento, dados.DataNascimento);
     }
 
     [Fact]
@@ -164,7 +203,7 @@ public class AberturaDeContaTests
         var (c, ctx, j) = Montar(GatewayQueAceita());
         using var _ = ctx;
 
-        await c.AbrirConta(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         var salvo = ctx.Jogadores.Find(j.Id)!;
         Assert.Equal("carteira-nova", salvo.AsaasWalletId);
@@ -181,7 +220,7 @@ public class AberturaDeContaTests
         var (c, ctx, j) = Montar(asaas);
         using var _ = ctx;
 
-        await c.AbrirConta(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         // Chegou ao gateway...
         await asaas.Received(1).CriarSubcontaAsync(Arg.Is<DadosDaSubconta>(
@@ -208,7 +247,7 @@ public class AberturaDeContaTests
         var (c, ctx, j) = Montar(asaas);
         using var _ = ctx;
 
-        await c.AbrirConta(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         var salvo = ctx.Jogadores.Find(j.Id)!;
         Assert.Null(salvo.AsaasWalletId);
@@ -223,7 +262,7 @@ public class AberturaDeContaTests
         var (c, ctx, _j) = Montar(asaas);
         using var _ = ctx;
 
-        await c.AbrirConta(3000m, "123", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "123", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         await asaas.DidNotReceive().CriarSubcontaAsync(Arg.Any<DadosDaSubconta>());
         Assert.NotNull(c.TempData["Erro"]);
@@ -240,7 +279,7 @@ public class AberturaDeContaTests
         j.AsaasWalletId = "carteira-que-ja-existia";
         await ctx.SaveChangesAsync();
 
-        await c.AbrirConta(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         await asaas.DidNotReceive().CriarSubcontaAsync(Arg.Any<DadosDaSubconta>());
         Assert.Equal("carteira-que-ja-existia", ctx.Jogadores.Find(j.Id)!.AsaasWalletId);
@@ -255,7 +294,7 @@ public class AberturaDeContaTests
         var (c, ctx, j) = Montar(asaas);
         using var _ = ctx;
 
-        await c.AbrirConta(3000m, "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
 
         await asaas.DidNotReceive().CriarSubcontaAsync(Arg.Any<DadosDaSubconta>());
         Assert.False(ctx.Jogadores.Find(j.Id)!.ReceberPagamentoOnline);

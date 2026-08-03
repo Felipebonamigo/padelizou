@@ -33,12 +33,28 @@ public static class AberturaDeConta
         return null;
     }
 
+    // Idade que o meio de pagamento aceita pra abrir conta. Recusar aqui, com o motivo em
+    // português, é melhor do que deixar o gateway devolver a recusa dele.
+    public const int IdadeMinima = 18;
+    private const int IdadeMaxima = 110;
+
     // O que é pedido na hora e não fica guardado. Null = pode seguir.
     public static string? ProblemaNoFormulario(
-        decimal? faturamentoMensal, string? cep, string? endereco, string? numero, string? bairro)
+        decimal? faturamentoMensal, DateTime? dataNascimento,
+        string? cep, string? endereco, string? numero, string? bairro, DateTime? hoje = null)
     {
         if (faturamentoMensal is not decimal fat || fat < FaturamentoMinimo)
             return "Informe quanto você fatura por mês, mais ou menos — pode ser estimativa.";
+
+        // Não está na lista de obrigatórios da documentação, mas a API recusa sem ela.
+        if (dataNascimento is not DateTime nascimento)
+            return "Informe sua data de nascimento.";
+
+        var idade = Idade(nascimento, (hoje ?? DateTime.Today).Date);
+        if (idade < IdadeMinima)
+            return $"É preciso ter {IdadeMinima} anos ou mais para abrir a conta de recebimento.";
+        if (idade > IdadeMaxima)
+            return "Confira a data de nascimento.";
 
         if (Documentos.SomenteDigitos(cep).Length != 8)
             return "O CEP precisa ter 8 dígitos.";
@@ -55,14 +71,24 @@ public static class AberturaDeConta
         return null;
     }
 
+    // Aniversário que ainda não chegou este ano ainda não contou — sem isso, quem faz 18 em
+    // dezembro seria barrado o ano inteiro.
+    private static int Idade(DateTime nascimento, DateTime hoje)
+    {
+        var idade = hoje.Year - nascimento.Year;
+        if (nascimento.Date > hoje.AddYears(-idade)) idade--;
+        return idade;
+    }
+
     // Monta o que vai pro meio de pagamento juntando cadastro + formulário.
-    public static DadosDaSubconta Montar(Jogador jogador,
-        decimal faturamentoMensal, string cep, string endereco, string numero, string bairro) =>
+    public static DadosDaSubconta Montar(Jogador jogador, decimal faturamentoMensal,
+        DateTime dataNascimento, string cep, string endereco, string numero, string bairro) =>
         new(
             Nome: NomeDePessoa.Arrumar(jogador.Nome),
             Email: (jogador.Email ?? "").Trim(),
             CpfCnpj: jogador.Cpf,
             Celular: jogador.Celular ?? "",
+            DataNascimento: dataNascimento.Date,
             FaturamentoMensal: faturamentoMensal,
             Cep: cep.Trim(),
             Endereco: endereco.Trim(),

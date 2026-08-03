@@ -17,6 +17,10 @@ public record DadosDaSubconta(
     string Email,
     string CpfCnpj,
     string Celular,
+    // A documentação NÃO lista a data de nascimento entre os obrigatórios, mas a API recusa
+    // sem ela ("É necessário informar a data de nascimento"). Descoberto batendo no sandbox —
+    // sem esse teste, todo organizador de verdade teria esbarrado no erro.
+    DateTime DataNascimento,
     decimal FaturamentoMensal,
     string Cep,
     string Endereco,
@@ -25,10 +29,11 @@ public record DadosDaSubconta(
 
 // Só o WalletId volta pra cima.
 //
-// A resposta do Asaas traz também uma apiKey — devolvida UMA única vez — que dá poder de
-// mover o dinheiro da conta do organizador. Pro split a gente só precisa do walletId, então
-// ela é descartada de propósito: guardar uma chave dessas por usuário seria criar um passivo
-// enorme sem ganho nenhum. Se um dia precisar, o Asaas tem endpoint pra gerar outra.
+// A resposta do Asaas traz DOIS segredos — `apiKey` e `accessToken` — que dão poder de mover
+// o dinheiro da conta do organizador, e vêm uma única vez. Pro split a gente só precisa do
+// walletId, então os dois são descartados de propósito: guardar chave assim pra cada usuário
+// seria criar um passivo enorme sem ganho nenhum. Se um dia precisar, o Asaas tem endpoint
+// pra gerar outra chave.
 public record SubcontaCriada(string WalletId);
 
 // Por que a criação falhou, no jeito de falar de quem está lendo a tela. `PodeTentarManual`

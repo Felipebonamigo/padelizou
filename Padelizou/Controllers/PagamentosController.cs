@@ -267,8 +267,8 @@ public class PagamentosController : Controller
     // Nada do endereço é gravado: ele atravessa daqui pro gateway e acaba na resposta.
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AbrirConta(decimal? faturamentoMensal, string? cep,
-        string? endereco, string? numero, string? bairro, string? modoComissao)
+    public async Task<IActionResult> AbrirConta(decimal? faturamentoMensal, DateTime? dataNascimento,
+        string? cep, string? endereco, string? numero, string? bairro, string? modoComissao)
     {
         var jogador = await _context.Jogadores.FindAsync(ObterJogadorIdLogado());
         if (jogador == null) return NotFound();
@@ -291,14 +291,15 @@ public class PagamentosController : Controller
             return RedirectToAction(nameof(Configurar));
         }
 
-        if (AberturaDeConta.ProblemaNoFormulario(faturamentoMensal, cep, endereco, numero, bairro) is { } problema)
+        if (AberturaDeConta.ProblemaNoFormulario(
+                faturamentoMensal, dataNascimento, cep, endereco, numero, bairro) is { } problema)
         {
             TempData["Erro"] = problema;
             return RedirectToAction(nameof(Configurar));
         }
 
         var (sucesso, falha) = await _asaas.CriarSubcontaAsync(AberturaDeConta.Montar(
-            jogador, faturamentoMensal!.Value, cep!, endereco!, numero!, bairro!));
+            jogador, faturamentoMensal!.Value, dataNascimento!.Value, cep!, endereco!, numero!, bairro!));
 
         if (sucesso == null)
         {

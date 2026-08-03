@@ -249,6 +249,7 @@ public class AsaasService : IAsaasService
                 ["email"] = dados.Email,
                 ["cpfCnpj"] = SomenteDigitos(dados.CpfCnpj),
                 ["mobilePhone"] = SomenteDigitos(dados.Celular),
+                ["birthDate"] = dados.DataNascimento.ToString("yyyy-MM-dd"),
                 ["incomeValue"] = dados.FaturamentoMensal,
                 ["address"] = dados.Endereco,
                 ["addressNumber"] = dados.Numero,

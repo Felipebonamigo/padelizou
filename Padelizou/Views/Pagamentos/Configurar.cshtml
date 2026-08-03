@@ -121,6 +121,15 @@
                                 </div>
 
                                 <div class="row g-2 mb-2">
+                                    @* Obrigatória no meio de pagamento, e não está no nosso
+                                       cadastro. Como o endereço, passa e não fica guardada. *@
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label small fw-semibold mb-1" for="dataNascimento">
+                                            Data de nascimento
+                                        </label>
+                                        <input type="date" class="form-control" id="dataNascimento"
+                                               name="dataNascimento" required>
+                                    </div>
                                     <div class="col-6 col-md-4">
                                         <label class="form-label small fw-semibold mb-1" for="cep">CEP</label>
                                         <input type="text" class="form-control" id="cep" name="cep"
