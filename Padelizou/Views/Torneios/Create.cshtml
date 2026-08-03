@@ -14,6 +14,16 @@
 
     // Porta pra combinar a taxa do "por fora" ANTES de criar o torneio. A mensagem já vai
     // identificando quem é: do outro lado chega um número desconhecido.
+    // Quem não conectou conta não consegue receber pelo site — e escolher assim mesmo criava
+    // um torneio que não cobrava ninguém, calado. Aqui as opções nascem travadas e "Por fora"
+    // já vem marcada, que é o que de fato vai acontecer com ele.
+    bool recebimentoConectado = ViewBag.RecebimentoConectado == true;
+
+    // Numa recusa, o formulário volta e as categorias marcadas se perdiam: quem tinha
+    // escolhido oito categorias remarcava as oito. Sempre foi assim, mas passou a doer agora
+    // que a forma de pagamento também recusa — e essa recusa é comum, não rara.
+    var categoriasMarcadas = ViewBag.CategoriasSelecionadas as int[] ?? Array.Empty<int>();
+
     var quemFala = User.Identity?.Name;
     var linkCombinarTaxa = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
         SuporteOpcoes.Value.WhatsApp,
@@ -241,12 +251,36 @@
                         <i class="bi bi-cash-coin me-1"></i> Como você vai receber as inscrições?
                     </label>
 
+                    @* Sem conta conectada, as duas opções "pelo site" são promessa que o sistema
+                       não cumpre: a cobrança não nasce e o torneio roda sem cobrar ninguém.
+                       Ficam visíveis (pra ele saber que existem) mas travadas, com a saída
+                       escrita junto. *@
+                    @if (!recebimentoConectado)
+                    {
+                        <div class="alert alert-warning border-0 d-flex gap-2 align-items-start mb-3">
+                            <i class="bi bi-exclamation-triangle-fill fs-5 lh-1 mt-1"></i>
+                            <div>
+                                <strong>Pra receber pelo site, falta conectar sua conta.</strong>
+                                <div class="small mt-1">
+                                    Enquanto isso você pode criar o torneio normalmente na opção
+                                    <strong>Por fora</strong> — combina o Pix direto com o jogador e o
+                                    Padelizou cuida da organização.
+                                </div>
+                                <a asp-controller="Pagamentos" asp-action="Configurar" target="_blank"
+                                   class="btn btn-sm btn-warning rounded-pill mt-2">
+                                    <i class="bi bi-wallet2"></i> Conectar minha conta
+                                </a>
+                            </div>
+                        </div>
+                    }
+
                     @* A taxa muda com a escolha do ORGANIZADOR, nunca com a forma que o jogador
                        escolhe no checkout: o split é fixado quando a cobrança nasce, e ele
                        precisa saber quanto recebe antes de anunciar o preço. *@
-                    <div class="form-check p-3 rounded mb-2" style="border: 1px solid var(--pdz-border);">
+                    <div class="form-check p-3 rounded mb-2 @(recebimentoConectado ? "" : "opacity-50")" style="border: 1px solid var(--pdz-border);">
                         <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="OnlinePix"
-                               id="pagPix" checked onchange="pdzAtualizarSimulacao()" />
+                               id="pagPix" disabled="@(!recebimentoConectado)"
+                               onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagPix">
                             <span class="fw-bold">Pelo site, só Pix</span>
                             <span class="badge bg-success ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%</span>
@@ -258,9 +292,9 @@
                         </label>
                     </div>
 
-                    <div class="form-check p-3 rounded mb-2" style="border: 1px solid var(--pdz-border);">
+                    <div class="form-check p-3 rounded mb-2 @(recebimentoConectado ? "" : "opacity-50")" style="border: 1px solid var(--pdz-border);">
                         <input class="form-check-input" type="radio" asp-for="FormaPagamento" value="OnlineTodas"
-                               id="pagTodas" onchange="pdzAtualizarSimulacao()" />
+                               id="pagTodas" disabled="@(!recebimentoConectado)" onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagTodas">
                             <span class="fw-bold">Pelo site, todas as formas</span>
                             <span class="badge bg-secondary ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")% a @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
@@ -642,7 +676,7 @@
                         {
                             <div class="form-check mb-2 d-flex align-items-center gap-2">
                                 <div class="flex-grow-1">
-                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
                                 <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
@@ -657,7 +691,7 @@
                         {
                             <div class="form-check mb-2 d-flex align-items-center gap-2">
                                 <div class="flex-grow-1">
-                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
                                 <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
@@ -672,7 +706,7 @@
                         {
                             <div class="form-check mb-2 d-flex align-items-center gap-2">
                                 <div class="flex-grow-1">
-                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id">
+                                    <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
                                 <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />

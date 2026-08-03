@@ -38,6 +38,24 @@
         <div class="alert alert-warning">@TempData["Erro"]</div>
     }
 
+    @* Preço na grade NÃO faz o app cobrar sozinho: pra isso a conta do DONO do clube precisa
+       estar conectada. Sem este aviso o clube montava a tabela inteira supondo que o dinheiro
+       entraria pelo site e só descobria no primeiro fim de semana. *@
+    @if (ViewBag.RecebimentoConectado != true)
+    {
+        <div class="alert alert-info border-0 d-flex gap-2 align-items-start">
+            <i class="bi bi-info-circle-fill fs-5 lh-1 mt-1"></i>
+            <div>
+                <strong>Os preços daqui servem de tabela — quem cobra é o clube.</strong>
+                <div class="small mt-1">
+                    O jogador marca pelo app e acerta na recepção. Pra que ele pague na hora de
+                    marcar, o <strong>dono do clube</strong> precisa conectar a conta de recebimento
+                    em <a asp-controller="Pagamentos" asp-action="Configurar">Meus Pagamentos</a>.
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Quadras</h6>

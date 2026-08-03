@@ -4,14 +4,17 @@
     var comissoes = ViewBag.ComissoesPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
     var minimas = ViewBag.MinimasPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
     decimal minima = ViewBag.ComissaoMinima ?? 4m;
-    decimal minimaTorneio = minimas.TryGetValue("Torneio", out var mt) ? mt : minima;
     decimal minimaAula = minimas.TryGetValue("Aula", out var ma) ? ma : minima;
     string modoAtual = Model.ModoComissao ?? (string)(ViewBag.ModoPadrao ?? "Somada");
 
-    // Exemplo com um torneio de R$ 100 só pra deixar concreto o que muda entre os dois modos.
-    decimal percentualExemplo = comissoes.TryGetValue("Torneio", out var pct) ? pct : 15m;
+    // O exemplo é de AULA, não de torneio. Em torneio o modo é fixo em "Descontada" desde
+    // 27/07/2026 (ver Models/Torneio.cs) — ilustrar a escolha com um torneio, como esta tela
+    // fazia, mostrava uma decisão que ali não existe mais.
+    decimal percentualAula = comissoes.TryGetValue("Aula", out var pa) ? pa : 10m;
     decimal exemploValor = 100m;
-    decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualExemplo / 100m, 2), minimaTorneio);
+    decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualAula / 100m, 2), minimaAula);
+
+    bool jaConectado = Padelizou.Services.ContaDeRecebimento.Conectada(Model);
 }
 
 <div class="container mt-4 mb-5">
@@ -19,8 +22,8 @@
         <div class="col-md-8">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2 class="fw-bold" style="color: var(--pdz-ink);">Receber Pagamentos</h2>
-                    <p class="text-muted mb-0">Cobre as inscrições dos seus torneios e aulas pelo app.</p>
+                    <h2 class="fw-bold" style="color: var(--pdz-ink);">Receber pelo app</h2>
+                    <p class="text-muted mb-0">O dinheiro das suas inscrições e aulas cai direto na sua conta.</p>
                 </div>
                 <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
             </div>
@@ -34,6 +37,57 @@
                 <div class="alert alert-danger">@TempData["Erro"]</div>
             }
 
+            @* O estado vem primeiro e em uma linha só: a dúvida que traz a pessoa a esta tela
+               é "isso está ligado ou não?", e antes ela tinha que deduzir pelo switch. *@
+            @if (jaConectado)
+            {
+                <div class="alert alert-success border-0 d-flex gap-2 align-items-center">
+                    <i class="bi bi-check-circle-fill fs-4 lh-1"></i>
+                    <div>
+                        <strong>Sua conta está conectada.</strong>
+                        <div class="small">O dinheiro cai direto nela — o Padelizou não segura nada no caminho.</div>
+                    </div>
+                </div>
+            }
+
+            @* ── Como funciona: a pergunta que todo organizador faz primeiro ──────────────
+               "Como eu recebo?" tem duas respostas que importam: ONDE cai e QUANDO cai. As
+               duas ficam aqui em cima, antes de qualquer campo pra preencher. *@
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-arrow-down-circle text-success"></i> Como o dinheiro chega até você</h6>
+                    <p class="small text-muted">
+                        O jogador paga dentro do app e o valor vai <strong>direto pra sua conta</strong>,
+                        sem passar pelo caixa do Padelizou. A gente só retém a taxa combinada.
+                    </p>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-2">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th>Se o jogador pagar com</th>
+                                    <th class="text-end">Você recebe em</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Pix</td><td class="text-end"><span class="badge bg-success">na hora</span></td></tr>
+                                <tr><td>Boleto</td><td class="text-end">1 dia útil</td></tr>
+                                <tr><td>Cartão de débito</td><td class="text-end">3 dias</td></tr>
+                                <tr><td>Cartão de crédito</td><td class="text-end"><span class="text-danger fw-semibold">32 dias</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @* O valor NÃO muda com a forma — só o prazo. É contraintuitivo e vale dizer
+                       com todas as letras: o repasse é por valor fixo, então o custo da forma
+                       de pagamento sai do nosso lado, não do dele. *@
+                    <div class="small" style="color: var(--padel-green);">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <strong>O valor que você recebe é o mesmo em qualquer forma</strong> — muda só o prazo.
+                    </div>
+                </div>
+            </div>
+
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <form asp-controller="Pagamentos" asp-action="Configurar" method="post">
@@ -45,43 +99,74 @@
                                    @(Model.ReceberPagamentoOnline ? "checked" : "")>
                             <input type="hidden" name="receberPagamentoOnline" value="false">
                             <label class="form-check-label fw-semibold" for="receberPagamentoOnline">
-                                Receber pagamento pelo Padelizou
+                                Quero receber pelo app
                             </label>
                             <div class="text-muted small">
-                                Desligado, nada muda: você combina e recebe a inscrição por fora, como sempre fez.
+                                Desligado, nada muda: você combina e recebe por fora, como sempre fez.
                             </div>
                         </div>
 
                         <div id="camposRecebimento" class="@(Model.ReceberPagamentoOnline ? "" : "d-none")">
                             <hr class="my-4">
 
+                            @* ── O passo a passo ──────────────────────────────────────────
+                               O campo sozinho ("Wallet ID") era linguagem de programador e não
+                               dizia de onde tirar o valor. Numerado, cada passo é uma coisa só. *@
+                            <h6 class="fw-bold mb-3">Como conectar sua conta</h6>
+
+                            <ol class="ps-3 mb-4 small">
+                                <li class="mb-3">
+                                    <strong>Abra uma conta no nosso parceiro de pagamentos, o Asaas.</strong>
+                                    <div class="text-muted">
+                                        É de graça e <strong>pode ser no seu CPF</strong> — não precisa de CNPJ.
+                                    </div>
+                                    <a href="https://www.asaas.com" target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-outline-primary rounded-pill mt-2">
+                                        Abrir conta <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                </li>
+                                <li class="mb-3">
+                                    <strong>Lá dentro, vá em Configurações › Integrações e copie o "Wallet ID".</strong>
+                                    <div class="text-muted">
+                                        É um código comprido, com traços — algo como
+                                        <code class="user-select-all">8a2c4b1e-9f33-4d0a-b7c1-5e6f7a8b9c0d</code>.
+                                        Ele identifica sua conta e <strong>não dá acesso a nada</strong>:
+                                        serve só pra dizer pra onde mandar o seu dinheiro.
+                                    </div>
+                                </li>
+                                <li>
+                                    <strong>Cole aqui embaixo e salve.</strong>
+                                </li>
+                            </ol>
+
                             <div class="mb-4">
-                                <label for="asaasWalletId" class="form-label fw-semibold">Wallet ID da sua conta Asaas</label>
-                                <input type="text" class="form-control" id="asaasWalletId" name="asaasWalletId"
-                                       value="@Model.AsaasWalletId" placeholder="ex: 8a2c4b1e-...">
+                                <label for="asaasWalletId" class="form-label fw-semibold">
+                                    Código da sua conta de recebimento
+                                </label>
+                                <input type="text" class="form-control font-monospace" id="asaasWalletId" name="asaasWalletId"
+                                       value="@Model.AsaasWalletId" placeholder="8a2c4b1e-9f33-4d0a-b7c1-5e6f7a8b9c0d"
+                                       autocomplete="off" spellcheck="false">
                                 <div class="form-text">
-                                    É pra onde o dinheiro das inscrições cai, <strong>direto na sua conta</strong>.
-                                    Crie uma conta grátis no Asaas (pode ser CPF, não precisa de CNPJ) e copie o
-                                    Wallet ID em <em>Configurações › Integrações</em>.
+                                    Confira antes de salvar: um caractere trocado e o dinheiro não encontra
+                                    o caminho de volta pra você.
                                 </div>
                             </div>
 
                             <div class="mb-2">
                                 <label class="form-label fw-semibold">Quem paga a taxa do Padelizou?</label>
                                 <div class="text-muted small mb-3">
-                                    O Padelizou fica com
+                                    Ficamos com
                                     @string.Join(", ", comissoes.Select(c => $"{c.Value.ToString("0.##")}% em {c.Key.ToLower()}s"))
-                                    — com mínimo de @minimaTorneio.ToString("C") em torneios e
-                                    @minimaAula.ToString("C") em aulas e jogos. Você escolhe como isso aparece:
+                                    — com mínimo de @minimaAula.ToString("C") em aulas e jogos.
                                 </div>
 
                                 <div class="form-check border rounded-3 p-3 mb-2">
                                     <input class="form-check-input ms-0 me-2" type="radio" name="modoComissao"
                                            id="modoSomada" value="Somada" @(modoAtual == "Somada" ? "checked" : "")>
                                     <label class="form-check-label" for="modoSomada">
-                                        <strong>O jogador paga a taxa</strong>
+                                        <strong>O aluno paga a taxa</strong>
                                         <div class="text-muted small mt-1">
-                                            Num torneio de @exemploValor.ToString("C"): o jogador paga
+                                            Numa aula de @exemploValor.ToString("C"): ele paga
                                             <strong>@((exemploValor + exemploComissao).ToString("C"))</strong>
                                             e você recebe os @exemploValor.ToString("C") cheios.
                                         </div>
@@ -94,11 +179,19 @@
                                     <label class="form-check-label" for="modoDescontada">
                                         <strong>Eu pago a taxa</strong>
                                         <div class="text-muted small mt-1">
-                                            Num torneio de @exemploValor.ToString("C"): o jogador paga
+                                            Numa aula de @exemploValor.ToString("C"): ele paga
                                             @exemploValor.ToString("C") e você recebe
                                             <strong>@((exemploValor - exemploComissao).ToString("C"))</strong>.
                                         </div>
                                     </label>
+                                </div>
+
+                                @* Torneio não entra nesta escolha, e omitir isso fazia o organizador
+                                   supor que dava pra somar a taxa por cima da inscrição. *@
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle"></i>
+                                    Vale para aulas e aluguel de quadra. <strong>Em torneios</strong> o jogador
+                                    sempre paga exatamente o valor anunciado, e a taxa sai de dentro dele.
                                 </div>
                             </div>
                         </div>

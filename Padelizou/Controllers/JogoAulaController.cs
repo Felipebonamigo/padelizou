@@ -112,6 +112,13 @@ namespace padelizou.Controllers
 
             ViewBag.MeusLocais = await _context.LocaisAula.Where(l => l.ProfessorId == professorId && l.Ativo).ToListAsync();
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+
+            // Diferente do torneio, aqui NÃO se bloqueia: combinar o pagamento na quadra é o
+            // jeito normal de dar aula, não um erro. O que faltava era dizer qual dos dois vai
+            // acontecer — o professor punha preço e supunha que o app cobraria.
+            ViewBag.RecebimentoConectado = _pagamentos.PodeReceberOnline(
+                await _context.Jogadores.FindAsync(professorId.Value));
+
             return View();
         }
 
@@ -183,7 +190,13 @@ namespace padelizou.Controllers
                 }
             }
 
-            TempData["Sucesso"] = "Jogo aula publicado!";
+            // Aula com preço e sem conta conectada: o aluno se inscreve e NADA é cobrado
+            // (PodeCobrarAula recusa). O professor precisa sair desta tela sabendo disso —
+            // até aqui ele descobria na hora de cobrar o aluno que já tinha jogado.
+            TempData["Sucesso"] = preco > 0 && !_pagamentos.PodeCobrarAula(jogoAula, jogoCompleto.Professor)
+                ? "Jogo aula publicado! O pagamento você combina direto com o aluno — " +
+                  "pra receber pelo app, conecte sua conta em Perfil › Meus Pagamentos."
+                : "Jogo aula publicado!";
             return RedirectToAction("Detalhes", new { id = jogoAula.Id });
         }
 

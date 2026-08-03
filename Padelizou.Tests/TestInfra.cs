@@ -133,7 +133,10 @@ public static class TestInfra
 
     // TorneiosController pronto pra uso nos testes: serviços de borda (e-mail, push,
     // pagamentos...) viram dublês; estatísticas usa o banco de verdade (em memória).
-    public static TorneiosController NovoTorneiosController(DbPadelContext ctx, int usuarioLogadoId)
+    // `pagamentos` fica aberto porque a tela de criação agora PERGUNTA a ele se a conta de
+    // recebimento está conectada — quem testa essa recusa precisa dizer a resposta.
+    public static TorneiosController NovoTorneiosController(DbPadelContext ctx, int usuarioLogadoId,
+        IPagamentoInscricaoService? pagamentos = null)
     {
         var controller = new TorneiosController(
             ctx,
@@ -142,7 +145,7 @@ public static class TestInfra
             Substitute.For<IWebHostEnvironment>(),
             Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
-            Substitute.For<IPagamentoInscricaoService>(),
+            pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
             Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()),
             NullLogger<TorneiosController>.Instance,

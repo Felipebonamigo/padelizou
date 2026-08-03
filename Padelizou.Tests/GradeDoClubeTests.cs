@@ -57,7 +57,8 @@ public class GradeDoClubeTests
 
     private static HorarioMarcacaoController Controller(DbPadelContext ctx, int usuarioId)
     {
-        var c = new HorarioMarcacaoController(ctx, Substitute.For<IHorarioMarcacaoService>());
+        var c = new HorarioMarcacaoController(ctx, Substitute.For<IHorarioMarcacaoService>(),
+            Substitute.For<IPagamentoInscricaoService>());
         c.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext

@@ -34,11 +34,26 @@ namespace Padelizou.Controllers
             // obrigatórios de horário e duração nasceriam VAZIOS — o organizador teria que
             // adivinhar o que preencher. Assim ele começa com 8h-22h e 50 min e só ajusta.
             //
+            // Sem conta conectada as opções "pelo site" não têm como funcionar — e até aqui
+            // elas apareciam normalmente, com a de Pix já marcada. A tela precisa saber disso
+            // ANTES de o organizador escolher, senão a descoberta vem tarde demais.
+            var eu = await _context.Jogadores.FindAsync(int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+            bool conectado = _pagamentos.PodeReceberOnline(eu);
+            ViewBag.RecebimentoConectado = conectado;
+
             // A inscrição nasce em 150 em vez de 0: zero é um preço VÁLIDO (torneio gratuito),
             // então o campo em branco não avisava nada e um esquecimento virava torneio de
             // graça. O valor é um chute plausível pra dupla, e o campo se seleciona sozinho
             // ao receber o foco — quem digita substitui, não emenda dígito no que já estava.
-            return View(new Torneio { PrecoInscricao = 150m });
+            //
+            // A forma de pagamento nasce no que ele CONSEGUE fazer. Quem é o marcado quem
+            // decide é o asp-for pelo valor do modelo — pôr um `checked` fixo na tela deixaria
+            // dois rádios marcados e o resultado dependeria da ordem do HTML.
+            return View(new Torneio
+            {
+                PrecoInscricao = 150m,
+                FormaPagamento = conectado ? "OnlinePix" : "Externo"
+            });
         }
 
         // ── Pacote "nós registramos os resultados para você" ──────────────────────────────
@@ -181,6 +196,28 @@ namespace Padelizou.Controllers
                 ViewBag.Erro = motivo;
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                // Sem isto, cada recusa apagava as categorias marcadas e o organizador
+                // remarcava tudo de novo — oito cliques pra corrigir um campo de texto.
+                ViewBag.CategoriasSelecionadas = categoriasSelecionadas ?? Array.Empty<int>();
+                // Sem isto o formulário voltaria com as opções "pelo site" liberadas de novo,
+                // e a recusa seguinte seria a mesma — o organizador em looping.
+                bool conectado = _pagamentos.PodeReceberOnline(await _context.Jogadores.FindAsync(criadorId));
+                ViewBag.RecebimentoConectado = conectado;
+
+                // Rádio desativado não é enviado pelo navegador. Se o formulário voltasse com
+                // "OnlinePix" marcado E desativado, o próximo envio viria SEM forma nenhuma e
+                // o binder cairia no valor inicial do modelo — que é "OnlinePix" de novo. Ou
+                // seja: recusa eterna, sem o organizador entender o que fazer.
+                //
+                // Corrigir só o objeto NÃO basta, e isso só apareceu testando no navegador: o
+                // asp-for decide o marcado pelo ModelState (o que veio no POST), que ganha do
+                // modelo. Tirar a chave de lá é o que faz a tela voltar em "Por fora".
+                if (!conectado && torneio.CobraPeloSite)
+                {
+                    torneio.FormaPagamento = "Externo";
+                    ModelState.Remove(nameof(Torneio.FormaPagamento));
+                }
+
                 return View(torneio);
             }
 
@@ -197,6 +234,19 @@ namespace Padelizou.Controllers
             if (torneio.PrecoInscricao < 0 || torneio.TaxaPorImpedimento < 0)
             {
                 return await Recusar("Valor negativo não dá: use zero pra não cobrar nada.");
+            }
+
+            // "Pelo site" sem conta conectada era a armadilha mais cara que o sistema tinha:
+            // o torneio nascia, as inscrições entravam e NENHUMA cobrança era criada, porque
+            // PodeCobrar exige a conta. Nada disso aparecia — nem erro, nem aviso — e o
+            // organizador só descobria ao ir atrás do dinheiro, com o torneio já rodando.
+            // A tela também esconde as opções, mas a recusa precisa existir aqui: quem manda
+            // o formulário na mão passaria direto pelo bloqueio do navegador.
+            if (torneio.CobraPeloSite && torneio.PrecoInscricao > 0
+                && _pagamentos.OQueFaltaParaReceber(await _context.Jogadores.FindAsync(criadorId)) is { } faltaConta)
+            {
+                return await Recusar($"{faltaConta} {ContaDeRecebimento.ComoResolver} " +
+                    "Se preferir receber por fora, escolha essa opção em \"Como você vai receber as inscrições?\".");
             }
 
             // A chave escolhida é conferida antes de criar: recusar depois deixaria o torneio

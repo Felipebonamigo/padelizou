@@ -63,6 +63,16 @@
                                 <div class="col-6">
                                     <label class="form-label fw-bold small">Valor (opcional)</label>
                                     <input type="number" step="0.01" min="0" class="form-control" name="preco" />
+                                    @* Pôr um valor aqui NÃO faz o app cobrar: pra isso a conta
+                                       de recebimento precisa estar conectada. Sem esta linha o
+                                       professor supunha que sim e só descobria depois da aula. *@
+                                    @if (ViewBag.RecebimentoConectado != true)
+                                    {
+                                        <div class="form-text">
+                                            Você combina o pagamento direto com o aluno.
+                                            <a asp-controller="Pagamentos" asp-action="Configurar">Receber pelo app</a>
+                                        </div>
+                                    }
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-bold small">Limite de vagas (opcional)</label>

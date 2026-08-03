@@ -14,11 +14,14 @@ namespace padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IHorarioMarcacaoService _horarioMarcacaoService;
+        private readonly IPagamentoInscricaoService _pagamentos;
 
-        public HorarioMarcacaoController(DbPadelContext context, IHorarioMarcacaoService horarioMarcacaoService)
+        public HorarioMarcacaoController(DbPadelContext context, IHorarioMarcacaoService horarioMarcacaoService,
+            IPagamentoInscricaoService pagamentos)
         {
             _context = context;
             _horarioMarcacaoService = horarioMarcacaoService;
+            _pagamentos = pagamentos;
         }
 
         private int ObterJogadorIdLogado() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -51,6 +54,12 @@ namespace padelizou.Controllers
                 .Where(h => h.ClubeId == clubeId)
                 .OrderBy(h => h.QuadraClube.Nome).ThenBy(h => h.DiaSemana).ThenBy(h => h.HoraInicio)
                 .ToListAsync();
+
+            // Quem recebe pela quadra é o DONO do clube, não quem está mexendo na grade —
+            // um administrador pode montar os preços sem ter conta nenhuma. Por isso a
+            // pergunta é sobre o dono, e o aviso fala dele.
+            ViewBag.RecebimentoConectado = _pagamentos.PodeReceberOnline(
+                await _pagamentos.ObterDonoDoClubeAsync(clubeId));
 
             return View();
         }

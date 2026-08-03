@@ -46,6 +46,12 @@ public interface IPagamentoInscricaoService
     bool PodeCobrar(Torneio torneio, Jogador? recebedor);
     bool PodeCobrarAula(JogoAula jogo, Jogador? professor);
 
+    // A mesma pergunta de PodeCobrar, mas sem exigir que o torneio/aula já exista — é o que
+    // a tela de criação precisa saber. OQueFaltaParaReceber devolve null quando está tudo
+    // certo, e o texto pra mostrar quando não está.
+    bool PodeReceberOnline(Jogador? dono);
+    string? OQueFaltaParaReceber(Jogador? dono);
+
     Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
         string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
@@ -146,9 +152,15 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     }
 
     private bool EstaApto(Jogador? recebedor) =>
-        _asaas.Configurado
-        && recebedor is { ReceberPagamentoOnline: true }
-        && !string.IsNullOrWhiteSpace(recebedor.AsaasWalletId);
+        _asaas.Configurado && ContaDeRecebimento.Conectada(recebedor);
+
+    // As duas perguntas acima ficam disponíveis SEM um torneio/aula pronto, porque a hora
+    // de avisar é antes: quem está criando o torneio precisa saber que "pelo site" não vai
+    // funcionar pra ele enquanto ainda dá pra escolher outra coisa.
+    public bool PodeReceberOnline(Jogador? dono) => EstaApto(dono);
+
+    public string? OQueFaltaParaReceber(Jogador? dono) =>
+        ContaDeRecebimento.OQueFalta(dono, _asaas.Configurado);
 
     // O preço do torneio é POR PESSOA: a inscrição de uma dupla cobra as duas de uma vez,
     // de quem está se inscrevendo. Americano é individual, então cobra uma.
