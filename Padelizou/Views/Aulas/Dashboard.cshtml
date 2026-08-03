@@ -251,9 +251,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var aluno in Model.Alunos)
+                                    @* A posição na lista, e não o nome nem o id do aluno, é o que
+                                       dá o id do formulário: aluno avulso não tem id, e hash de
+                                       nome pode repetir — dois alunos diferentes abririam e
+                                       fechariam o mesmo campo de preço. *@
+                                    @for (var i = 0; i < Model.Alunos.Count; i++)
                                     {
-                                        var idFormulario = $"preco-{aluno.AlunoId?.ToString() ?? aluno.Nome.GetHashCode().ToString("X")}";
+                                        var aluno = Model.Alunos[i];
+                                        var idFormulario = $"preco-aluno-{i}";
                                         <tr>
                                             <td>
                                                 @aluno.Nome
