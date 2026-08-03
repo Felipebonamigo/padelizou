@@ -96,6 +96,84 @@ public class Fase2Tests
         Assert.Equal(10, vm.PercentualMei);
     }
 
+    // Semana respondia "estamos crescendo?" e só. Dia responde "o que aconteceu depois que
+    // mandei o link no grupo?"; mês responde "como está o ano?" — a conta do teto do MEI,
+    // que aparece na mesma página logo acima. A regra das fatias está em
+    // Services/FaixasDeMetricas; aqui se confere a FIAÇÃO: o parâmetro chega e muda a série.
+    private static async Task<(DbPadelContext ctx, Jogador admin)> MontarAdminComUmCadastroHojeAsync()
+    {
+        var ctx = TestInfra.NovoContexto();
+
+        var admin = new Jogador { Nome = "Admin", Cpf = "1", IsAdminRaiz = true, CriadoEm = DateTime.Now.AddYears(-1) };
+        var deHoje = new Jogador { Nome = "De hoje", Cpf = "2", CriadoEm = DateTime.Now };
+        ctx.Jogadores.AddRange(admin, deHoje);
+        await ctx.SaveChangesAsync();
+
+        return (ctx, admin);
+    }
+
+    private static MetricasAdminVM ModeloDe(IActionResult resultado) =>
+        Assert.IsType<MetricasAdminVM>(Assert.IsType<ViewResult>(resultado).Model);
+
+    [Theory]
+    [InlineData("dia", 14)]
+    [InlineData("semana", 8)]
+    [InlineData("mes", 12)]
+    public async Task Metricas_agrupa_por_dia_semana_ou_mes(string agrupamento, int linhasEsperadas)
+    {
+        var (ctx, admin) = await MontarAdminComUmCadastroHojeAsync();
+        using var _ = ctx;
+
+        var vm = ModeloDe(await NovoAdminController(ctx, admin.Id).Metricas(agrupamento));
+
+        Assert.Equal(agrupamento, vm.Agrupamento);
+        Assert.Equal(linhasEsperadas, vm.Faixas.Count);
+
+        // O cadastro de hoje cai na última fatia em qualquer agrupamento — se a janela
+        // fechasse antes de "agora", o admin mandaria o link no grupo e não veria nada.
+        Assert.Equal(1, vm.Faixas[^1].Cadastros);
+    }
+
+    [Fact]
+    public async Task Metricas_sem_parametro_continua_semanal()
+    {
+        // Link antigo (o menu do admin aponta pra /Admin/Metricas sem nada) tem que cair no
+        // que a tela sempre mostrou.
+        var (ctx, admin) = await MontarAdminComUmCadastroHojeAsync();
+        using var _ = ctx;
+
+        var vm = ModeloDe(await NovoAdminController(ctx, admin.Id).Metricas());
+
+        Assert.Equal("semana", vm.Agrupamento);
+        Assert.Equal(8, vm.Faixas.Count);
+    }
+
+    [Fact]
+    public async Task Metricas_com_agrupamento_invalido_nao_quebra_a_tela()
+    {
+        var (ctx, admin) = await MontarAdminComUmCadastroHojeAsync();
+        using var _ = ctx;
+
+        var vm = ModeloDe(await NovoAdminController(ctx, admin.Id).Metricas("trimestre"));
+
+        Assert.Equal("semana", vm.Agrupamento);
+        Assert.Equal(8, vm.Faixas.Count);
+    }
+
+    [Fact]
+    public async Task Metricas_traz_o_rotulo_pronto_de_cada_linha()
+    {
+        // O rótulo sai do servidor pra tela não ter que saber formatar três formatos
+        // diferentes de período.
+        var (ctx, admin) = await MontarAdminComUmCadastroHojeAsync();
+        using var _ = ctx;
+
+        var vm = ModeloDe(await NovoAdminController(ctx, admin.Id).Metricas("mes"));
+
+        Assert.All(vm.Faixas, f => Assert.False(string.IsNullOrWhiteSpace(f.Rotulo)));
+        Assert.Contains("/", vm.Faixas[^1].Rotulo);   // "agosto/2026"
+    }
+
     [Fact]
     public async Task Metricas_exige_admin()
     {

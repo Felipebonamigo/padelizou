@@ -1,3 +1,5 @@
+using Padelizou.Services;
+
 namespace Padelizou.ViewModels;
 
 // Painel "Métricas de uso" do admin — os números que dizem se o sistema está crescendo
@@ -27,13 +29,19 @@ public class MetricasAdminVM
     public decimal TetoMei { get; set; }
     public int PercentualMei => TetoMei > 0 ? (int)Math.Round(ComissaoAno / TetoMei * 100) : 0;
 
-    // Série das últimas 8 semanas (mais antiga primeiro)
-    public List<SemanaMetricaVM> Semanas { get; set; } = new();
+    // Como a série está fatiada: "dia", "semana" ou "mes" (ver Services/FaixasDeMetricas).
+    // Semana é o padrão — foi o único agrupamento que existiu até 03/08/2026.
+    public string Agrupamento { get; set; } = FaixasDeMetricas.Semana;
+
+    // A série em si, da fatia mais ANTIGA pra mais recente (a tela inverte pra desenhar).
+    public List<FaixaMetricaVM> Faixas { get; set; } = new();
 }
 
-public class SemanaMetricaVM
+// Uma linha da série: um dia, uma semana ou um mês, conforme o Agrupamento.
+public class FaixaMetricaVM
 {
-    public DateTime Inicio { get; set; }   // segunda-feira
+    public DateTime Inicio { get; set; }
+    public string Rotulo { get; set; } = "";
     public int Cadastros { get; set; }
     public int Inscricoes { get; set; }
     public int Pagamentos { get; set; }

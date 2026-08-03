@@ -368,7 +368,7 @@ namespace padelizou.Controllers
         // plataforma já faturou no ano (controle do teto do MEI). CriadoEm nulo = registro
         // anterior a 25/07/2026 (antes da coluna existir) — entra nos totais, não nas séries.
         [HttpGet]
-        public async Task<IActionResult> Metricas()
+        public async Task<IActionResult> Metricas(string? agrupar = null)
         {
             if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
 
@@ -377,12 +377,15 @@ namespace padelizou.Controllers
             var ha30 = agora.AddDays(-30);
             var inicioAno = new DateTime(agora.Year, 1, 1);
 
-            // Início da série semanal: segunda-feira de 8 semanas atrás.
-            var inicioSemanaAtual = agora.Date.AddDays(-(((int)agora.DayOfWeek + 6) % 7));
-            var inicioSerie = inicioSemanaAtual.AddDays(-7 * 7);
+            // Dia, semana ou mês. Semana continua sendo o padrão — é o que a tela sempre
+            // mostrou, e link antigo (sem o parâmetro) tem que continuar caindo nela.
+            var agrupamento = FaixasDeMetricas.Normalizar(agrupar);
+            var faixas = FaixasDeMetricas.Series(agrupamento, agora);
+            var inicioSerie = faixas[0];
 
             var vm = new MetricasAdminVM
             {
+                Agrupamento = agrupamento,
                 TotalJogadores = await _context.Jogadores.CountAsync(),
                 JogadoresNovos7 = await _context.Jogadores.CountAsync(j => j.CriadoEm >= ha7),
                 JogadoresNovos30 = await _context.Jogadores.CountAsync(j => j.CriadoEm >= ha30),
@@ -409,7 +412,7 @@ namespace padelizou.Controllers
                 TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
             };
 
-            // Série semanal — poucas linhas por semana, agrupar em memória é suficiente.
+            // A série — poucas linhas por fatia, agrupar em memória é suficiente.
             var cadastros = await _context.Jogadores
                 .Where(j => j.CriadoEm >= inicioSerie)
                 .Select(j => j.CriadoEm!.Value).ToListAsync();
@@ -424,12 +427,13 @@ namespace padelizou.Controllers
                 .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioSerie)
                 .Select(p => new { Data = p.ConfirmadoEm!.Value, p.Valor }).ToListAsync();
 
-            for (var inicio = inicioSerie; inicio <= inicioSemanaAtual; inicio = inicio.AddDays(7))
+            foreach (var inicio in faixas)
             {
-                var fim = inicio.AddDays(7);
-                vm.Semanas.Add(new SemanaMetricaVM
+                var fim = FaixasDeMetricas.ProximaFaixa(agrupamento, inicio);
+                vm.Faixas.Add(new FaixaMetricaVM
                 {
                     Inicio = inicio,
+                    Rotulo = FaixasDeMetricas.Rotulo(agrupamento, inicio),
                     Cadastros = cadastros.Count(d => d >= inicio && d < fim),
                     Inscricoes = inscricoes.Count(d => d >= inicio && d < fim),
                     Pagamentos = pagamentos.Count(p => p.Data >= inicio && p.Data < fim),
