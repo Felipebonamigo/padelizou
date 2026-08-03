@@ -2216,6 +2216,37 @@
         check.addEventListener('change', aplicar);
         aplicar(); // respeita o estado se o navegador restaurar o formulário
     })();
+
+    /*
+        Clique repetido no botão de inscrever. Em 03/08/2026 o Lucas entrou TRÊS vezes na
+        6ª Masculina — inscrições criadas com 1,7s e 2,2s de diferença. Não foi má-fé nem
+        confusão: a pessoa clicou, a página demorou pra responder, e ela clicou de novo.
+
+        A regra do servidor (Services/InscricaoRepetida) já barra o 2º e o 3º envio, mas
+        barrar é a segunda melhor resposta — a pessoa levaria um erro vermelho por ter feito
+        a coisa mais natural do mundo. Aqui o botão simplesmente para de aceitar clique e
+        diz que está enviando.
+
+        O `setTimeout(0)` é o cuidado que faz isso funcionar: esta tela tem outro handler de
+        submit que pode CANCELAR o envio (o "você está inscrevendo outra pessoa, tem
+        certeza?"). Desligar o botão na hora deixaria ele morto pra sempre quando a pessoa
+        respondesse "não". Esperando um tique, todos os handlers já rodaram e dá pra checar
+        se o envio foi mesmo em frente.
+    */
+    document.querySelectorAll('form[action*="/Duplas/Create"], form[action*="/InscreverIndividual"]').forEach(function (form) {
+        form.addEventListener('submit', function (ev) {
+            if (ev.defaultPrevented) return;
+
+            setTimeout(function () {
+                if (ev.defaultPrevented) return;
+
+                form.querySelectorAll('button[type="submit"]').forEach(function (botao) {
+                    botao.disabled = true;
+                    botao.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Enviando…';
+                });
+            }, 0);
+        });
+    });
 </script>
 @*
     Gerenciar Inscritos: a lista que o organizador olha com 25 linhas na tela. O _Layout só
