@@ -128,6 +128,84 @@ public class AulaEmDuplaTests
         Assert.Equal(110, (await ctx.Aulas.SingleAsync()).Preco);
     }
 
+    // ---- O outro caminho: quem marca é o ALUNO ----
+    // A regra é a mesma, mas a fiação é outra (AulasController.Aluno). Um erro só aqui
+    // significaria o aluno marcar aula pra dois e ser cobrado o preço de um.
+
+    private static async Task<(DbPadelContext ctx, Jogador professor, LocalAula local, Jogador aluno)>
+        MontarComAlunoAsync()
+    {
+        var (ctx, professor, local) = Montar();
+
+        var aluno = new Jogador
+        {
+            Nome = "Eduarda Barth", Login = "eduarda", Cpf = "99900000005",
+            Email = "eduarda@teste.local",
+        };
+        professor.Email = "jonatas@teste.local";
+        ctx.Jogadores.Add(aluno);
+        await ctx.SaveChangesAsync();
+
+        return (ctx, professor, local, aluno);
+    }
+
+    private static Task<Microsoft.AspNetCore.Mvc.IActionResult> Solicitar(
+        AulasController controller, Jogador professor, LocalAula local, int quantos) =>
+        controller.Solicitar(
+            professorId: professor.Id, localId: local.Id,
+            dataHora: DateTime.Today.AddDays(4).AddHours(8),
+            ehPacote: false, recorrente: false, semanasRecorrencia: 0,
+            nomeCompleto: "Eduarda", acompanhantes: null, pacoteId: null,
+            quantidadeAlunos: quantos);
+
+    [Theory]
+    [InlineData(1, 110)]
+    [InlineData(2, 150)]
+    [InlineData(3, 180)]
+    public async Task Quando_o_aluno_marca_o_preco_tambem_segue_o_tamanho(int quantos, decimal esperado)
+    {
+        var (ctx, professor, local, aluno) = await MontarComAlunoAsync();
+        using var _ = ctx;
+
+        await Solicitar(TestInfra.NovoAulasController(ctx, aluno.Id), professor, local, quantos);
+
+        var aula = await ctx.Aulas.SingleAsync();
+        Assert.Equal(esperado, aula.Preco);
+        Assert.Equal(quantos, aula.QuantidadeAlunos);
+    }
+
+    [Fact]
+    public async Task O_acordo_do_aluno_com_conta_vale_quando_ele_mesmo_marca()
+    {
+        var (ctx, professor, local, aluno) = await MontarComAlunoAsync();
+        using var _ = ctx;
+
+        ctx.PrecosDeAluno.Add(new PrecoDeAluno { ProfessorId = professor.Id, AlunoId = aluno.Id, Preco = 90 });
+        await ctx.SaveChangesAsync();
+
+        await Solicitar(TestInfra.NovoAulasController(ctx, aluno.Id), professor, local, quantos: 1);
+
+        Assert.Equal(90, (await ctx.Aulas.SingleAsync()).Preco);
+    }
+
+    [Fact]
+    public async Task Pagina_antiga_sem_o_campo_novo_continua_marcando_aula_individual()
+    {
+        // Aba aberta antes deste deploy não manda `quantidadeAlunos`. O padrão do parâmetro
+        // segura: vira individual, que é o que ela sempre marcou.
+        var (ctx, professor, local, aluno) = await MontarComAlunoAsync();
+        using var _ = ctx;
+
+        await TestInfra.NovoAulasController(ctx, aluno.Id).Solicitar(
+            professorId: professor.Id, localId: local.Id,
+            dataHora: DateTime.Today.AddDays(4).AddHours(8),
+            ehPacote: false, recorrente: false, semanasRecorrencia: 0);
+
+        var aula = await ctx.Aulas.SingleAsync();
+        Assert.Equal(1, aula.QuantidadeAlunos);
+        Assert.Equal(110, aula.Preco);
+    }
+
     // ---- Guardar o acordo ----
 
     [Fact]
