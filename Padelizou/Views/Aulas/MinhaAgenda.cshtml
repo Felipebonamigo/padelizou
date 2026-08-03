@@ -332,6 +332,15 @@
                                     <small class="d-block text-muted">
                                         <i class="bi bi-geo-alt-fill text-danger"></i> @aula.LocalAula.Nome
                                         · @aula.Preco.ToString("C")
+                                        @* O tamanho vai junto do preço porque é ele que explica
+                                           a diferença: R$ 110 numa linha e R$ 150 na outra, sem
+                                           nada na tela dizendo por quê, parece erro. Individual
+                                           fica calado — é a maioria, e escrever em toda linha
+                                           viraria ruído na tela que ele abre o dia todo. *@
+                                        @if (aula.QuantidadeAlunos > 1)
+                                        {
+                                            <span class="ms-1"><i class="bi bi-people-fill"></i> @PrecoDaAula.Rotulo(aula.QuantidadeAlunos).ToLowerInvariant()</span>
+                                        }
                                         @if (aula.RecorrenciaId != null)
                                         {
                                             <span class="ms-1"><i class="bi bi-arrow-repeat"></i> recorrente</span>
