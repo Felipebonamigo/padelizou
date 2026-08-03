@@ -1,6 +1,10 @@
 ﻿@model IEnumerable<LocalAula>
+@using Padelizou.Services
 @{
     ViewData["Title"] = "Meus Locais - Padelizou";
+
+    // Quantas aulas cada local já tem: é o que decide entre apagar de vez e só desativar.
+    var aulasPorLocal = ViewBag.AulasPorLocal as Dictionary<int, int> ?? new Dictionary<int, int>();
 }
 
 <div class="container mt-4 mb-5">
@@ -43,21 +47,47 @@
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Novo local</h6>
             <form asp-controller="Aulas" asp-action="CriarLocal" method="post" class="row g-2">
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <input type="text" name="nome" class="form-control" placeholder="Nome (ex: Padel Garden - Quadra 2)" required />
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-6">
                     @* Sem required: muita aula é num clube que todo aluno já sabe onde fica, e
                        exigir o endereço travava o cadastro do primeiro local. *@
                     <input type="text" name="endereco" class="form-control" placeholder="Endereço (opcional)" />
                 </div>
-                <div class="col-md-2">
-                    <input type="number" step="0.01" name="precoPadrao" class="form-control" placeholder="Preço da aula (R$)" required />
+
+                @* Três preços porque aula de padel raramente é um-a-um: dois amigos treinam
+                   juntos e pagam um valor que não é o dobro do individual. O professor informa
+                   o TOTAL da aula em cada tamanho — é o que ele fala pro aluno e o que entra
+                   no financeiro. *@
+                <div class="col-12">
+                    <label class="form-label small fw-bold text-muted mb-1 mt-2">
+                        Quanto custa a aula inteira <span class="fw-normal">(deixe em branco o tamanho que você não faz)</span>
+                    </label>
                 </div>
-                <div class="col-md-2">
+                <div class="col-6 col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text small">1 aluno</span>
+                        <input type="number" step="0.01" min="0" name="precoPadrao" class="form-control" placeholder="R$" required />
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text small">2 alunos</span>
+                        <input type="number" step="0.01" min="0" name="precoDupla" class="form-control" placeholder="R$" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="input-group">
+                        <span class="input-group-text small">3 alunos</span>
+                        <input type="number" step="0.01" min="0" name="precoTrio" class="form-control" placeholder="R$" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
                     <input type="number" step="0.01" name="custoPorAula" class="form-control" placeholder="Custo p/ o local (opcional)" />
                 </div>
-                <div class="col-md-2">
+
+                <div class="col-md-3 ms-auto">
                     <button type="submit" class="btn btn-padel w-100 rounded-pill">Adicionar</button>
                 </div>
             </form>
@@ -79,17 +109,54 @@
                             {
                                 <p class="text-muted small mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> @local.Endereco</p>
                             }
-                            <p class="text-muted small mb-1"><i class="bi bi-cash text-success"></i> Cobra @local.PrecoPadrao.ToString("C")</p>
+                            <p class="text-muted small mb-1">
+                                <i class="bi bi-cash text-success"></i> Cobra @local.PrecoPadrao.ToString("C") na individual
+                                @if (local.PrecoDupla.HasValue)
+                                {
+                                    <span class="d-block ms-3">· @local.PrecoDupla.Value.ToString("C") em dupla</span>
+                                }
+                                @if (local.PrecoTrio.HasValue)
+                                {
+                                    <span class="d-block ms-3">· @local.PrecoTrio.Value.ToString("C") em trio</span>
+                                }
+                            </p>
                             <p class="text-muted small mb-3">
                                 <i class="bi bi-wallet2 text-danger"></i>
                                 @(local.CustoPorAula.HasValue ? $"Paga {local.CustoPorAula.Value:C} ao local" : "Sem custo informado")
                             </p>
 
-                            <form asp-controller="Aulas" asp-action="AtualizarCustoLocal" method="post" class="d-flex gap-2 mb-2">
-                                <input type="hidden" name="id" value="@local.Id" />
-                                <input type="number" step="0.01" name="custoPorAula" class="form-control form-control-sm" placeholder="Custo por aula" value="@local.CustoPorAula" />
-                                <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">Salvar</button>
-                            </form>
+                            @* Editar os preços já cadastrados. Antes só o custo era editável, e
+                               não havia como corrigir o valor da aula depois de criado o local —
+                               nem por reajuste, nem por erro de digitação. *@
+                            <details class="mb-2">
+                                <summary class="small fw-bold text-primary" style="cursor:pointer;">Mudar preços</summary>
+                                <form asp-controller="Aulas" asp-action="AtualizarPrecos" method="post" class="row g-1 mt-2">
+                                    <input type="hidden" name="id" value="@local.Id" />
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted mb-0">1 aluno</label>
+                                        <input type="number" step="0.01" min="0" name="precoPadrao" class="form-control form-control-sm"
+                                               value="@local.PrecoPadrao" required />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted mb-0">2 alunos</label>
+                                        <input type="number" step="0.01" min="0" name="precoDupla" class="form-control form-control-sm"
+                                               value="@local.PrecoDupla" placeholder="não faço" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted mb-0">3 alunos</label>
+                                        <input type="number" step="0.01" min="0" name="precoTrio" class="form-control form-control-sm"
+                                               value="@local.PrecoTrio" placeholder="não faço" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted mb-0">Custo do local</label>
+                                        <input type="number" step="0.01" name="custoPorAula" class="form-control form-control-sm"
+                                               value="@local.CustoPorAula" placeholder="opcional" />
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Salvar preços</button>
+                                    </div>
+                                </form>
+                            </details>
 
                             @* Pacotes: vários por local (4 aulas, 8 aulas, 12 aulas), cada um
                                com o seu desconto. A lista vem antes do formulário porque o que
@@ -149,6 +216,33 @@
                                     @(local.Ativo ? "Desativar" : "Reativar")
                                 </button>
                             </form>
+
+                            @*
+                                Apagar de vez. Só aparece pro local que ainda não tem aula
+                                nenhuma: com aula, apagar levaria junto o histórico de quanto
+                                se ganhou ali, e o banco recusaria de qualquer jeito. O caso
+                                que isto resolve é o mais comum de todos — errar o nome no
+                                primeiro cadastro e ficar com o local errado pra sempre.
+                            *@
+                            @{
+                                var totalDeAulas = aulasPorLocal.TryGetValue(local.Id, out var qtd) ? qtd : 0;
+                            }
+                            @if (totalDeAulas == 0)
+                            {
+                                <form asp-controller="Aulas" asp-action="ExcluirLocal" method="post" class="mt-2"
+                                      onsubmit="return confirm('@RemocaoDeLocal.Consequencia(local.Horarios.Count, local.Pacotes.Count)');">
+                                    <input type="hidden" name="id" value="@local.Id" />
+                                    <button type="submit" class="btn btn-sm btn-link text-danger w-100 text-decoration-none">
+                                        <i class="bi bi-trash"></i> Apagar este local
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <p class="small text-muted text-center mt-2 mb-0">
+                                    @totalDeAulas aula(s) marcadas aqui — dá pra desativar, não pra apagar.
+                                </p>
+                            }
                         </div>
                     </div>
                 </div>

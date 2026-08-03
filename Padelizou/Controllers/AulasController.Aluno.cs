@@ -51,6 +51,10 @@ namespace padelizou.Controllers
                     l.Nome,
                     l.Endereco,
                     l.PrecoPadrao,
+                    // Nulos de propósito quando o professor não anunciou o tamanho: a tela usa
+                    // isso pra oferecer só o que ele realmente faz.
+                    l.PrecoDupla,
+                    l.PrecoTrio,
                     // Vários pacotes por local: a tela monta um <select> com eles.
                     pacotes = l.Pacotes
                         .Where(p => p.Ativo && p.QuantidadeAulas > 1 && p.Preco > 0)
@@ -121,7 +125,10 @@ namespace padelizou.Controllers
             string? nomeCompleto = null, string? acompanhantes = null,
             // QUAL pacote, agora que o local pode ter vários. Opcional pra uma página aberta
             // antes deste deploy não quebrar: sem id, vale o primeiro pacote ativo.
-            int? pacoteId = null)
+            int? pacoteId = null,
+            // Quantos alunos dividem a quadra (1, 2 ou 3): é o que decide o preço, junto com
+            // a tabela do local. Padrão 1 pela mesma razão — aba antiga não manda o campo.
+            int quantidadeAlunos = 1)
         {
             var alunoIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(alunoIdValue, out var alunoId))
@@ -153,20 +160,32 @@ namespace padelizou.Controllers
             decimal precoPorAula;
             var pacoteValido = pacote != null;
 
+            // Quanto custa a aula deste tamanho pra este aluno: a tabela do local por número
+            // de alunos, e o acordo particular dele quando é aula individual. A conta mora em
+            // Services/PrecoDaAula — aqui só se decide entre ela e o preço do pacote.
+            var alunos = PrecoDaAula.Tamanho(quantidadeAlunos);
+            var combinado = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId && p.AlunoId == alunoId)
+                .Select(p => (decimal?)p.Preco)
+                .FirstOrDefaultAsync();
+            var precoAvulso = PrecoDaAula.Sugerido(local, alunos, combinado);
+
             if (pacoteValido)
             {
+                // O pacote tem preço anunciado próprio e ele vale como está: é uma oferta
+                // fechada do professor, não uma conta a refazer por tamanho de aula.
                 quantidade = pacote!.QuantidadeAulas;
                 precoPorAula = pacote.PrecoPorAula;
             }
             else if (recorrente)
             {
                 quantidade = Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia);
-                precoPorAula = local.PrecoPadrao;
+                precoPorAula = precoAvulso;
             }
             else
             {
                 quantidade = 1;
-                precoPorAula = local.PrecoPadrao;
+                precoPorAula = precoAvulso;
             }
 
             var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
@@ -202,6 +221,7 @@ namespace padelizou.Controllers
                     DataHora = horario,
                     Preco = preco,
                     Status = "Pendente",
+                    QuantidadeAlunos = alunos,
                     RecorrenciaId = recorrenciaId,
                     // Vazio vira nulo: string em branco no banco depois exige checar as duas
                     // coisas em toda tela que exibe.

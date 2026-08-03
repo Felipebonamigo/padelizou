@@ -187,4 +187,13 @@ public partial class Jogador
 
     // Até quando a mensalidade de assinante está quitada. Nulo = nunca pagou.
     public DateTime? AssinaturaProfessorPagaAte { get; set; }
+
+    // Quando o app foi aberto instalado (tela de início) pela primeira vez. Carimbado pelo
+    // próprio navegador, que é o único que sabe: o servidor vê a mesma requisição instalado
+    // ou não.
+    //
+    // Existe porque "instalou" e "aceitou notificação" são coisas diferentes, e os Primeiros
+    // Passos confundiam as duas — quem instalava sem liberar aviso continuava sendo cobrado
+    // pra instalar o que já tinha instalado.
+    public DateTime? InstalouAppEm { get; set; }
 }

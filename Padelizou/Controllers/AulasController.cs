@@ -66,18 +66,33 @@ namespace padelizou.Controllers
             var inicioSemana = hoje.AddDays(-(int)hoje.DayOfWeek);
             var fimSemana = inicioSemana.AddDays(7);
 
+            // Os acordos particulares deste professor, indexados pela mesma chave que agrupa
+            // os alunos logo abaixo — é o que casa "o Pedro paga 90" com a linha do Pedro.
+            var precosCombinados = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId)
+                .ToListAsync();
+            var precoPorChave = precosCombinados.ToLookup(p => PrecoDaAula.Chave(p));
+
             var alunos = todasAulas
-                .GroupBy(a => a.AlunoId.HasValue ? $"aluno-{a.AlunoId}" : $"avulso-{(a.NomeAlunoAvulso ?? "").Trim().ToLower()}")
-                .Select(g => new AlunoResumo
+                .GroupBy(a => PrecoDaAula.Chave(a))
+                .Select(g =>
                 {
-                    Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
-                    Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
-                    TotalAulas = g.Count(a => a.Status != "Cancelada" && a.Status != "Recusada"),
-                    UltimaAula = g.Max(a => a.DataHora),
-                    ProximaAula = g.Where(a => a.DataHora >= hoje && (a.Status == "Pendente" || a.Status == "Confirmada"))
-                                    .OrderBy(a => a.DataHora)
-                                    .Select(a => (DateTime?)a.DataHora)
-                                    .FirstOrDefault()
+                    var combinado = precoPorChave[g.Key].FirstOrDefault();
+                    return new AlunoResumo
+                    {
+                        Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
+                        Celular = g.First().Aluno?.Celular ?? g.First().TelefoneAlunoAvulso,
+                        TotalAulas = g.Count(a => a.Status != "Cancelada" && a.Status != "Recusada"),
+                        UltimaAula = g.Max(a => a.DataHora),
+                        ProximaAula = g.Where(a => a.DataHora >= hoje && (a.Status == "Pendente" || a.Status == "Confirmada"))
+                                        .OrderBy(a => a.DataHora)
+                                        .Select(a => (DateTime?)a.DataHora)
+                                        .FirstOrDefault(),
+                        AlunoId = g.First().AlunoId,
+                        NomeAvulso = g.First().NomeAlunoAvulso,
+                        PrecoCombinado = combinado?.Preco,
+                        PrecoCombinadoId = combinado?.Id,
+                    };
                 })
                 .OrderByDescending(a => a.UltimaAula)
                 .ToList();

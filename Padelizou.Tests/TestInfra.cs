@@ -87,6 +87,33 @@ public static class TestInfra
         return url;
     }
 
+    // AulasController com as bordas dubladas (e-mail, Google Agenda, push). O `google` é
+    // devolvido junto quando quem chama precisa conferir que o evento foi removido da agenda.
+    public static AulasController NovoAulasController(
+        DbPadelContext ctx, int usuarioLogadoId, IGoogleCalendarService? google = null, IPushNotificationService? push = null)
+    {
+        var controller = new AulasController(
+            ctx,
+            Substitute.For<IEmailService>(),
+            google ?? Substitute.For<IGoogleCalendarService>(),
+            push ?? Substitute.For<IPushNotificationService>(),
+            Microsoft.Extensions.Options.Options.Create(new PlanoProfessorSettings()),
+            NullLogger<AulasController>.Instance);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
     public static TimesController NovoTimesController(DbPadelContext ctx, int usuarioLogadoId)
     {
         var controller = new TimesController(ctx, new EstatisticasService(ctx));

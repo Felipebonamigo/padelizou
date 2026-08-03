@@ -1,6 +1,16 @@
 @model IEnumerable<LocalAula>
 @{
     ViewData["Title"] = "Adicionar Aula - Padelizou";
+
+    // Os acordos particulares deste professor ("o Pedro paga 90"), pra tela já sugerir o valor
+    // certo quando ele digita o nome de um aluno que tem preço combinado.
+    var precosCombinados = ViewBag.PrecosCombinados as Dictionary<string, decimal> ?? new Dictionary<string, decimal>();
+
+    // A tabela de preços de cada local vai inteira pro JS: trocar o tamanho da aula não pode
+    // depender de rede, senão na quadra com sinal ruim o campo fica vazio.
+    var tabelaDeLocais = Model.ToDictionary(
+        l => l.Id,
+        l => new { individual = l.PrecoPadrao, dupla = l.PrecoDupla, trio = l.PrecoTrio });
 }
 
 <div class="container mt-5 mb-5">
@@ -41,16 +51,34 @@
                                     <option value="">-- Escolha um local --</option>
                                     @foreach (var local in Model)
                                     {
-                                        <option value="@local.Id" data-preco="@local.PrecoPadrao.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                        <option value="@local.Id">
                                             @local.Nome (R$ @local.PrecoPadrao.ToString("N2"))
                                         </option>
                                     }
                                 </select>
                             </div>
 
+                            @* Quantos alunos dividem a quadra. Não é detalhe: é o que muda o
+                               preço. O professor de verdade que estreou o sistema cobrava três
+                               valores diferentes e a agenda só sabia de um. *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Quantos alunos nessa aula</label>
+                                <div class="btn-group w-100" role="group" aria-label="Quantidade de alunos">
+                                    @foreach (var (valor, rotulo) in new[] { (1, "Individual"), (2, "Em dupla"), (3, "Em trio") })
+                                    {
+                                        <input type="radio" class="btn-check" name="quantidadeAlunos" id="qtd-@valor"
+                                               value="@valor" autocomplete="off" checked="@(valor == 1)" />
+                                        <label class="btn btn-outline-primary" for="qtd-@valor">@rotulo</label>
+                                    }
+                                </div>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Nome do aluno</label>
-                                <input type="text" name="nomeAluno" class="form-control bg-light" required maxlength="100" />
+                                <input type="text" name="nomeAluno" id="input-nome-aluno" class="form-control bg-light" required maxlength="100" />
+                                @* Aparece só quando o nome digitado bate com um acordo. É o
+                                   aviso de que o valor sugerido não é o da tabela do local. *@
+                                <div class="form-text text-success d-none" id="aviso-preco-combinado"></div>
                             </div>
 
                             <div class="mb-3">
@@ -65,7 +93,7 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Preço (opcional — usa o preço padrão do local se vazio)</label>
+                                <label class="form-label fw-bold text-muted small">Preço (deixe vazio pra usar o sugerido)</label>
                                 <input type="number" step="0.01" min="0" name="preco" id="input-preco" class="form-control bg-light" />
                             </div>
 
@@ -97,15 +125,58 @@
             var $grupoSemanas = $('#grupo-semanas');
             var $selectLocal = $('#select-local');
             var $inputPreco = $('#input-preco');
+            var $inputNome = $('#input-nome-aluno');
+            var $avisoCombinado = $('#aviso-preco-combinado');
+
+            // A tabela de preços de cada local e os acordos por aluno, mandados de uma vez pelo
+            // servidor. O preço tem que aparecer no instante em que o professor escolhe o
+            // tamanho da aula, e uma ida ao servidor por clique falharia na quadra sem sinal.
+            var LOCAIS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(tabelaDeLocais));
+            var COMBINADOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(precosCombinados));
 
             $checkRecorrente.on('change', function () {
                 $grupoSemanas.toggle(this.checked);
             });
 
-            $selectLocal.on('change', function () {
-                var preco = $(this).find(':selected').data('preco');
-                $inputPreco.attr('placeholder', preco ? 'R$ ' + Number(preco).toFixed(2) : '');
-            });
+            // Mesma conta do servidor (Services/PrecoDaAula): sem preço pro tamanho pedido,
+            // cai pro tamanho menor mais próximo que o professor informou. Se as duas contas
+            // discordarem, o professor vê um valor e salva outro.
+            function precoDoLocal(local, quantos) {
+                if (quantos === 3) return local.trio ?? local.dupla ?? local.individual;
+                if (quantos === 2) return local.dupla ?? local.individual;
+                return local.individual;
+            }
+
+            // O acordo particular vale na aula INDIVIDUAL daquele aluno: o desconto foi dado a
+            // uma pessoa, não à quadra inteira. Em dupla ou trio manda o preço do tamanho.
+            function combinadoDoNome(nome) {
+                var chave = 'avulso-' + (nome || '').trim().toLowerCase();
+                return Object.prototype.hasOwnProperty.call(COMBINADOS, chave) ? COMBINADOS[chave] : null;
+            }
+
+            function atualizarSugestao() {
+                var local = LOCAIS[$selectLocal.val()];
+                if (!local) {
+                    $inputPreco.attr('placeholder', '');
+                    $avisoCombinado.addClass('d-none');
+                    return;
+                }
+
+                var quantos = parseInt($('input[name="quantidadeAlunos"]:checked').val(), 10) || 1;
+                var combinado = quantos === 1 ? combinadoDoNome($inputNome.val()) : null;
+                var preco = combinado !== null ? combinado : precoDoLocal(local, quantos);
+
+                $inputPreco.attr('placeholder', 'R$ ' + Number(preco).toFixed(2));
+
+                $avisoCombinado.toggleClass('d-none', combinado === null);
+                if (combinado !== null) {
+                    $avisoCombinado.text('Preço combinado com esse aluno: R$ ' + Number(combinado).toFixed(2) + '.');
+                }
+            }
+
+            $selectLocal.on('change', atualizarSugestao);
+            $('input[name="quantidadeAlunos"]').on('change', atualizarSugestao);
+            $inputNome.on('input', atualizarSugestao);
         });
     </script>
 }

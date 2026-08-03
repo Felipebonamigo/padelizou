@@ -22,4 +22,14 @@ public class AlunoResumo
     public int TotalAulas { get; set; }
     public DateTime UltimaAula { get; set; }
     public DateTime? ProximaAula { get; set; }
+
+    // Como este aluno é identificado: por conta (AlunoId) ou pelo nome que o professor
+    // anotou. É o que o formulário de preço combinado devolve pro servidor — ver
+    // Services/PrecoDaAula.Chave, que junta os dois casos numa chave só.
+    public int? AlunoId { get; set; }
+    public string? NomeAvulso { get; set; }
+
+    // O valor combinado com ele, quando existe. Nulo = paga a tabela do local.
+    public decimal? PrecoCombinado { get; set; }
+    public int? PrecoCombinadoId { get; set; }
 }

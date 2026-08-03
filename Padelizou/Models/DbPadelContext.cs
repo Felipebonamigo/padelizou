@@ -35,6 +35,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
+    public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -669,12 +670,39 @@ public partial class DbPadelContext : DbContext
         modelBuilder.Entity<LocalAula>(entity =>
         {
             entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
+            entity.Property(e => e.PrecoDupla).HasPrecision(18, 2);
+            entity.Property(e => e.PrecoTrio).HasPrecision(18, 2);
             entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
 
             entity.HasOne(l => l.Professor)
                 .WithMany()
                 .HasForeignKey(l => l.ProfessorId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrecoDeAluno>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.Observacao).HasMaxLength(200);
+
+            // Cascade pelo professor: o acordo é dele e não sobrevive à conta dele. O aluno
+            // é Restrict porque são dois caminhos até Jogador — o mesmo conflito de sempre —
+            // e porque apagar a conta do aluno não deve apagar o que o professor combinou.
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Um professor procura o preço pelos alunos dele o tempo todo (abrir o painel,
+            // abrir a tela de marcar aula).
+            entity.HasIndex(e => e.ProfessorId);
         });
 
         modelBuilder.Entity<PacoteDeAulas>(entity =>

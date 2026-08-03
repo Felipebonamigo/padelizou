@@ -43,6 +43,43 @@ function pdzAtualizarMenuInstalar() {
   item.style.display = !pdzAppInstalado() && (pdzTemInstalacaoNativa() || pdzPlataforma()) ? "" : "none";
 }
 
+// Conta pro servidor que este jogador já instalou. Só o navegador sabe disso — a requisição
+// que chega no servidor é idêntica instalado ou não —, então quem avisa é esta função.
+//
+// Sem isto, os Primeiros Passos usavam "aceitou notificação" como se fosse "instalou", e
+// quem instalava sem liberar aviso ficava com o passo pendente pra sempre.
+//
+// São DOIS sinais e eles chegam em momentos diferentes:
+//   `display-mode: standalone` — a pessoa abriu pelo ícone. Vale em qualquer carregamento.
+//   evento `appinstalled`      — acabou de instalar, com a página ainda na aba do navegador.
+// No segundo caso a tela AINDA NÃO está em standalone, então quem chama por ali passa
+// `certeza = true`; conferir o display-mode aqui perderia justamente a instalação recém-feita.
+function pdzAvisarQueInstalou(certeza) {
+  if (!certeza && !pdzAppInstalado()) return;
+
+  // Uma vez por aba: o carimbo no servidor não muda depois do primeiro, e sem esta trava
+  // toda navegação dentro do app dispararia um POST que não faz nada.
+  try {
+    if (sessionStorage.getItem("pdzInstalacaoAvisada")) return;
+    sessionStorage.setItem("pdzInstalacaoAvisada", "1");
+  } catch (e) {
+    // Navegador com armazenamento bloqueado: avisa mesmo assim. O servidor é idempotente.
+  }
+
+  fetch("/AppInstalado/Registrar", {
+    method: "POST",
+    headers: typeof cabecalhoAntifalsificacao === "function" ? cabecalhoAntifalsificacao() : {}
+  }).catch(function () {
+    // Visitante deslogado responde 401 e app offline nem sai — os dois são normais aqui, e
+    // nenhum merece erro no console de quem só queria abrir a tela.
+  });
+}
+
 document.addEventListener("DOMContentLoaded", pdzAtualizarMenuInstalar);
 document.addEventListener("pdz:instalavel", pdzAtualizarMenuInstalar);
 document.addEventListener("pdz:instalado", pdzAtualizarMenuInstalar);
+
+document.addEventListener("DOMContentLoaded", function () { pdzAvisarQueInstalou(false); });
+// O Android instala com o app aberto: sem escutar isto, o carimbo só sairia na próxima vez
+// que a pessoa abrisse pelo ícone.
+document.addEventListener("pdz:instalado", function () { pdzAvisarQueInstalou(true); });

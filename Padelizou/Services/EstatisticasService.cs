@@ -1121,7 +1121,14 @@ public class EstatisticasService : IEstatisticasService
         bool temInscricao = await _context.Duplas
                 .AnyAsync(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             || await _context.InscricoesAmericanas.AnyAsync(i => i.JogadorId == jogadorId);
-        bool instalouApp = await _context.PushSubscriptionsJogador.AnyAsync(s => s.JogadorId == jogadorId);
+        // Duas provas de que o app está instalado, e qualquer uma serve:
+        //   InstalouAppEm — o navegador abriu em modo app e avisou (AppInstaladoController).
+        //   PushSubscription — liberou notificação, o que no iPhone só dá instalado.
+        //
+        // Era só a segunda até 03/08/2026, e isso media a coisa errada: quem instalava sem
+        // liberar aviso continuava sendo cobrado pra instalar o que já tinha instalado.
+        bool instalouApp = jogador.InstalouAppEm != null
+            || await _context.PushSubscriptionsJogador.AnyAsync(s => s.JogadorId == jogadorId);
 
         return new OnboardingVM
         {

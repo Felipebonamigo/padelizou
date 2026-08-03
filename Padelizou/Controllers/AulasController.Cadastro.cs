@@ -22,16 +22,28 @@ namespace padelizou.Controllers
 
             var locais = await _context.LocaisAula
                 .Include(l => l.Pacotes.OrderBy(p => p.QuantidadeAulas))
+                .Include(l => l.Horarios)
                 .Where(l => l.ProfessorId == professorId)
                 .OrderByDescending(l => l.Ativo)
                 .ThenBy(l => l.Nome)
                 .ToListAsync();
 
+            // Quantas aulas cada local já tem: é o que decide se dá pra apagar de vez ou só
+            // desativar (ver Services/RemocaoDeLocal). Uma consulta agrupada, não uma por
+            // local — o professor com dez quadras não paga dez idas ao banco por isso.
+            var ids = locais.Select(l => l.Id).ToList();
+            ViewBag.AulasPorLocal = await _context.Aulas
+                .Where(a => ids.Contains(a.LocalAulaId))
+                .GroupBy(a => a.LocalAulaId)
+                .Select(g => new { LocalId = g.Key, Total = g.Count() })
+                .ToDictionaryAsync(x => x.LocalId, x => x.Total);
+
             return View(locais);
         }
 
         [HttpPost]
-        public async Task<IActionResult> CriarLocal(string nome, string? endereco, decimal precoPadrao, decimal? custoPorAula)
+        public async Task<IActionResult> CriarLocal(string nome, string? endereco, decimal precoPadrao,
+            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -44,6 +56,8 @@ namespace padelizou.Controllers
                 // Em branco vira nulo pra tela não ter que checar as duas coisas ao exibir.
                 Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
                 PrecoPadrao = precoPadrao,
+                PrecoDupla = precoDupla > 0 ? precoDupla : null,
+                PrecoTrio = precoTrio > 0 ? precoTrio : null,
                 CustoPorAula = custoPorAula,
                 Ativo = true
             });
@@ -52,8 +66,12 @@ namespace padelizou.Controllers
             return RedirectToAction("MeusLocais");
         }
 
+        // Editar a tabela de preços de um local que já existe. Antes só o custo era editável:
+        // não havia como corrigir o preço da aula depois de cadastrado, e reajuste (ou erro de
+        // digitação no primeiro cadastro) é coisa que acontece.
         [HttpPost]
-        public async Task<IActionResult> AtualizarCustoLocal(int id, decimal? custoPorAula)
+        public async Task<IActionResult> AtualizarPrecos(int id, decimal precoPadrao,
+            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -61,10 +79,51 @@ namespace padelizou.Controllers
             var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
             if (local != null)
             {
+                // Zero ou negativo anunciaria aula de graça por escorregão de digitação, então
+                // o preço da individual só troca por um valor de verdade. Dupla e trio aceitam
+                // branco: é o jeito de dizer "não faço esse tamanho".
+                if (precoPadrao > 0) local.PrecoPadrao = precoPadrao;
+                local.PrecoDupla = precoDupla > 0 ? precoDupla : null;
+                local.PrecoTrio = precoTrio > 0 ? precoTrio : null;
                 local.CustoPorAula = custoPorAula;
                 await _context.SaveChangesAsync();
+                TempData["SucessoPacote"] = $"Preços de {local.Nome} atualizados.";
             }
 
+            return RedirectToAction("MeusLocais");
+        }
+
+        // Apagar de vez, não só desativar. Vale só pro local que ainda não tem aula nenhuma —
+        // com aula, o banco recusaria (Aula.LocalAulaId é Restrict) e o professor levaria um
+        // erro 500 no lugar de uma explicação. A regra está em Services/RemocaoDeLocal.
+        [HttpPost]
+        public async Task<IActionResult> ExcluirLocal(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+            if (local == null) return RedirectToAction("MeusLocais");
+
+            var aulas = await _context.Aulas.CountAsync(a => a.LocalAulaId == id);
+            var impedimento = RemocaoDeLocal.MotivoParaNaoApagar(aulas);
+            if (impedimento != null)
+            {
+                TempData["ErroPacote"] = impedimento;
+                return RedirectToAction("MeusLocais");
+            }
+
+            // Horários e pacotes caem por cascade (ver DbPadelContext). Apagados aqui à mão
+            // mesmo assim, pra não depender de a constraint estar do jeito que o modelo diz
+            // em cada um dos três bancos.
+            var horarios = await _context.HorariosDisponiveis.Where(h => h.LocalAulaId == id).ToListAsync();
+            var pacotes = await _context.PacotesDeAulas.Where(p => p.LocalAulaId == id).ToListAsync();
+            _context.HorariosDisponiveis.RemoveRange(horarios);
+            _context.PacotesDeAulas.RemoveRange(pacotes);
+            _context.LocaisAula.Remove(local);
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoPacote"] = $"Local “{local.Nome}” apagado.";
             return RedirectToAction("MeusLocais");
         }
 
@@ -153,6 +212,88 @@ namespace padelizou.Controllers
             }
 
             return RedirectToAction("MeusLocais");
+        }
+
+        // ---- Preço combinado com um aluno ----
+        // O professor tem aluno antigo que nunca teve reajuste, filho de amigo, quem fechou o
+        // mês. Antes disso ele corrigia o valor na mão em cada aula que marcava — e esquecia
+        // numa. Agora o acordo fica guardado e a marcação já nasce com ele.
+
+        [HttpPost]
+        public async Task<IActionResult> SalvarPrecoDeAluno(int? alunoId, string? nomeAvulso, decimal preco, string? observacao)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            if (preco <= 0)
+            {
+                TempData["ErroPrecoAluno"] = "Informe um valor maior que zero. Pra voltar ao preço da tabela, use o botão de tirar o acordo.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // O aluno tem que ser aluno DESTE professor. Sem esta checagem, um id qualquer no
+            // formulário criaria acordo com quem nunca pisou na quadra dele — e o nome que
+            // aparece no painel sai daqui, não do que o navegador mandou.
+            var ehMeuAluno = alunoId is int id
+                ? await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.AlunoId == id)
+                : !string.IsNullOrWhiteSpace(nomeAvulso)
+                  && await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.NomeAlunoAvulso == nomeAvulso);
+
+            if (!ehMeuAluno)
+            {
+                TempData["ErroPrecoAluno"] = "Não achei esse aluno na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var nome = string.IsNullOrWhiteSpace(nomeAvulso) ? null : nomeAvulso.Trim();
+            var chave = PrecoDaAula.Chave(alunoId, nome);
+
+            // Um acordo por aluno: gravar de novo é reajustar o que já existe, não empilhar
+            // uma segunda linha que ninguém saberia qual vale.
+            var existentes = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId)
+                .ToListAsync();
+            var jaTem = existentes.FirstOrDefault(p => PrecoDaAula.Chave(p) == chave);
+
+            if (jaTem != null)
+            {
+                jaTem.Preco = preco;
+                jaTem.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+            }
+            else
+            {
+                _context.PrecosDeAluno.Add(new PrecoDeAluno
+                {
+                    ProfessorId = professorId.Value,
+                    AlunoId = alunoId,
+                    NomeAvulso = alunoId == null ? nome : null,
+                    Preco = preco,
+                    Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim(),
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["SucessoPrecoAluno"] = $"Preço combinado salvo: {preco:C} na aula individual.";
+            return RedirectToAction("Dashboard");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> RemoverPrecoDeAluno(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var preco = await _context.PrecosDeAluno
+                .FirstOrDefaultAsync(p => p.Id == id && p.ProfessorId == professorId);
+
+            if (preco != null)
+            {
+                _context.PrecosDeAluno.Remove(preco);
+                await _context.SaveChangesAsync();
+                TempData["SucessoPrecoAluno"] = "Acordo removido. Esse aluno volta a pagar o preço do local.";
+            }
+
+            return RedirectToAction("Dashboard");
         }
 
         [HttpGet]

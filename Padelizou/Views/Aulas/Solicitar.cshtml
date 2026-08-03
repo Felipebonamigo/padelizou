@@ -109,15 +109,33 @@
                                    placeholder="Como o professor vai te chamar na quadra" />
                         </div>
 
+                        @* Quantos vão é o que decide o PREÇO, e não só o treino: o professor
+                           cobra um valor pela quadra com uma pessoa e outro com três. Só
+                           aparecem os tamanhos que ele anunciou — oferecer trio a quem não faz
+                           trio é prometer um preço que não existe. *@
+                        <div class="mb-3" id="grupo-quantidade" style="display:none;">
+                            <label class="form-label fw-bold text-muted small">Quantos vão jogar</label>
+                            <div class="btn-group w-100" role="group" aria-label="Quantidade de alunos">
+                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-1" value="1" autocomplete="off" checked />
+                                <label class="btn btn-outline-primary" for="aluno-qtd-1">Só eu</label>
+
+                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-2" value="2" autocomplete="off" />
+                                <label class="btn btn-outline-primary" for="aluno-qtd-2" id="rotulo-qtd-2">Nós dois</label>
+
+                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-3" value="3" autocomplete="off" />
+                                <label class="btn btn-outline-primary" for="aluno-qtd-3" id="rotulo-qtd-3">Nós três</label>
+                            </div>
+                            <small class="text-muted d-block mt-1" id="aviso-preco-tamanho"></small>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label fw-bold text-muted small" for="input-acompanhantes">
-                                Mais alguém vem? <span class="fw-normal">(opcional)</span>
+                                Quem vem com você? <span class="fw-normal">(opcional)</span>
                             </label>
                             <input type="text" name="acompanhantes" id="input-acompanhantes" class="form-control bg-light"
                                    maxlength="200" placeholder="Ex: Marcos e a Júlia" />
                             <small class="text-muted d-block mt-1">
-                                O professor precisa saber quantos vão pra levar bola e montar o treino.
-                                Não precisa ter conta no Padelizou.
+                                O professor monta o treino pelos nomes. Eles não precisam ter conta no Padelizou.
                             </small>
                         </div>
 
@@ -152,6 +170,31 @@
             var $selectPacote = $('#select-pacote');
             // Os pacotes de cada local, guardados quando a lista de locais é carregada.
             var pacotesPorLocal = {};
+            // E a tabela de preços por tamanho de aula (1, 2 ou 3 alunos) do mesmo local.
+            var precosPorLocal = {};
+
+            // Mostra só os tamanhos que o professor anunciou naquele local, cada um com o
+            // preço. Oferecer "nós três" a quem não faz trio é prometer um valor que não
+            // existe — e o servidor cobraria outro (ver Services/PrecoDaAula).
+            function atualizarTamanhos(localId) {
+                var precos = precosPorLocal[localId];
+                var $grupo = $('#grupo-quantidade');
+
+                // Sem local escolhido, ou local que só tem o preço individual: o seletor não
+                // tem escolha nenhuma pra oferecer e some.
+                if (!precos || (precos.dupla == null && precos.trio == null)) {
+                    $grupo.hide();
+                    $('#aluno-qtd-1').prop('checked', true);
+                    return;
+                }
+
+                $('#rotulo-qtd-2').toggle(precos.dupla != null).text('Nós dois · R$ ' + emReais(precos.dupla || 0));
+                $('#rotulo-qtd-3').toggle(precos.trio != null).text('Nós três · R$ ' + emReais(precos.trio || 0));
+                $('#aluno-qtd-1').prop('checked', true);
+                $('#aviso-preco-tamanho').text('Aula individual: R$ ' + emReais(precos.individual)
+                    + '. O valor é da aula inteira, dividido entre quem for.');
+                $grupo.show();
+            }
             var $checkRecorrente = $('#check-recorrente');
             var $campoSemanas = $('#campo-semanas');
             var $inputSemanas = $('#input-semanas');
@@ -238,6 +281,9 @@
                         // à parte exigiria mantê-lo em sincronia com a lista a cada troca de
                         // professor, e é justamente aí que uma das duas fica velha.
                         pacotesPorLocal[l.id] = l.pacotes || [];
+                        // A tabela por tamanho vem junto: é ela que decide quais botões de
+                        // "quantos vão" existem e qual preço mostrar em cada um.
+                        precosPorLocal[l.id] = { individual: l.precoPadrao, dupla: l.precoDupla, trio: l.precoTrio };
                         options += '<option value="' + l.id + '">'
                             + l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')</option>';
                     });
@@ -254,6 +300,7 @@
                 $escolhaPacote.hide();
                 $('#hidden-pacote-id').val('');
                 $('input[name="tipoAula"][value="avulsa"]').prop('checked', true);
+                atualizarTamanhos(localId);
 
                 var pacotes = pacotesPorLocal[localId] || [];
                 if (localId && pacotes.length) {

@@ -101,4 +101,34 @@ public class GoogleCalendarService : IGoogleCalendarService
             return null;
         }
     }
+
+    public async Task RemoverEventoAsync(int professorId, string googleEventId)
+    {
+        if (string.IsNullOrWhiteSpace(googleEventId)) return;
+
+        var token = await _flow.LoadTokenAsync(professorId.ToString(), CancellationToken.None);
+        if (token == null || string.IsNullOrEmpty(token.RefreshToken)) return;
+
+        var credential = new UserCredential(_flow, professorId.ToString(), token);
+        var calendarService = new CalendarService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = ApplicationName
+        });
+
+        try
+        {
+            var request = calendarService.Events.Delete("primary", googleEventId);
+            // O aluno virou convidado do evento quando ele foi criado; sem avisar, ele fica
+            // com a aula na agenda dele pra sempre.
+            request.SendUpdates = EventsResource.DeleteRequest.SendUpdatesEnum.All;
+            await request.ExecuteAsync();
+        }
+        catch (Exception ex)
+        {
+            // Falhar aqui não pode derrubar a exclusão: a aula já foi apagada no Padelizou, e
+            // um evento sobrando no Google é bem menos grave do que a tela dar erro.
+            _logger.LogWarning(ex, "Falha ao remover evento {EventoId} da Google Agenda do professor {ProfessorId}", googleEventId, professorId);
+        }
+    }
 }

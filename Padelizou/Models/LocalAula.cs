@@ -13,7 +13,21 @@ public partial class LocalAula
     // o endereço travava o cadastro do primeiro local por um dado que ninguém ia ler.
     public string? Endereco { get; set; }
 
+    // O preço da aula INDIVIDUAL — o valor cheio de uma pessoa sozinha na quadra.
     public decimal PrecoPadrao { get; set; }
+
+    // Quanto custa a aula INTEIRA quando dois ou três alunos dividem a quadra. Aula de padel
+    // quase nunca é um-a-um: dois amigos treinam juntos e pagam um valor diferente do dobro
+    // do individual — o professor gasta a mesma hora, então costuma cobrar mais barato por
+    // cabeça e mais caro no total.
+    //
+    // Nulo = o professor não anunciou preço pra esse tamanho, e vale o individual (era o
+    // comportamento antigo, quando só existia um preço). Quem informa, informa o TOTAL da
+    // aula, não o valor por aluno: é o total que entra no financeiro e o que ele fala pro
+    // aluno. Ver Services/PrecoDaAula.
+    public decimal? PrecoDupla { get; set; }
+    public decimal? PrecoTrio { get; set; }
+
     public bool Ativo { get; set; } = true;
 
     // Como o local aparece escrito num convite, num e-mail ou no Google Agenda. Existe porque

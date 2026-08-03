@@ -33,6 +33,13 @@ public partial class Aula
     // por causa de quem nem usa o app. O professor só precisa saber quantos e quem.
     public string? Acompanhantes { get; set; }
 
+    // QUANTOS alunos nesta aula (1, 2 ou 3). Acompanhantes diz quem vem; isto diz o tamanho
+    // — e tamanho é preço: Services/PrecoDaAula lê daqui qual valor do local se aplica.
+    //
+    // Nasce em 1 porque toda aula anterior a 03/08/2026 era individual: era o único preço
+    // que existia.
+    public int QuantidadeAlunos { get; set; } = 1;
+
     // Token opaco usado no link de aceitar/recusar enviado por e-mail (sem exigir login)
     public Guid TokenConfirmacao { get; set; } = Guid.NewGuid();
 

@@ -367,7 +367,7 @@
             <div class="modal-body">
                 <p class="mb-1"><i class="bi bi-clock"></i> <span id="mQuando"></span></p>
                 <p class="mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> <span id="mLocal"></span></p>
-                <p class="mb-1"><i class="bi bi-cash text-success"></i> <span id="mPreco"></span></p>
+                <p class="mb-1"><i class="bi bi-cash text-success"></i> <span id="mPreco"></span> <span class="text-muted" id="mTamanho"></span></p>
                 @* Quantos vêm muda o treino e quantas bolas levar — some quando o aluno vem só. *@
                 <p class="mb-1 d-none" id="mAcompanhantesLinha">
                     <i class="bi bi-people-fill"></i> Vem mais gente: <span id="mAcompanhantes"></span>
@@ -401,6 +401,17 @@
                     <input type="hidden" name="aulaId" id="mCancelarId" />
                     <input type="hidden" name="novoStatus" value="Cancelada" />
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
+                </form>
+
+                @* Apagar é o desfazer de quem lançou errado — dia trocado, série criada duas
+                   vezes, aluno errado. Diferente de Cancelar, que é um fato registrado e
+                   continua na tela. Sempre disponível, inclusive em aula já cancelada, que é
+                   justamente a que o professor quer tirar da frente. *@
+                <form asp-action="ExcluirAula" method="post" id="fExcluir">
+                    <input type="hidden" name="aulaId" id="mExcluirId" />
+                    <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none">
+                        <i class="bi bi-trash"></i> Apagar
+                    </button>
                 </form>
             </div>
         </div>
@@ -446,8 +457,14 @@
                     quando = a.DataHora.ToString("dd/MM/yyyy 'às' HH:mm"),
                     local = a.LocalAula.Nome,
                     preco = a.Preco.ToString("C"),
+                    // "Individual"/"Em dupla"/"Em trio" — sem isto o professor via R$ 150 numa
+                    // aula e R$ 110 na outra sem nada na tela explicando a diferença.
+                    tamanho = PrecoDaAula.Rotulo(a.QuantidadeAlunos),
                     status = a.Status,
                     iso = a.DataHora.ToString("o"),
+                    // A frase da confirmação muda com o que está em jogo: apagar lançamento
+                    // errado de ontem não é o mesmo que desmarcar quem está esperando.
+                    confirmacaoExcluir = ExclusaoDeAula.Confirmacao(a, DateTime.Now),
                     whats = string.IsNullOrEmpty(a.Aluno != null ? a.Aluno.Celular : a.TelefoneAlunoAvulso)
                         ? null
                         : WhatsAppLinkHelper.GerarLink(
@@ -470,6 +487,9 @@
                 document.getElementById('mQuando').textContent = a.quando;
                 document.getElementById('mLocal').textContent = a.local;
                 document.getElementById('mPreco').textContent = a.preco;
+                // Só quando não é individual: escrever "Individual" em toda aula seria ruído
+                // na tela que o professor abre trinta vezes por dia.
+                document.getElementById('mTamanho').textContent = a.tamanho === 'Individual' ? '' : '· ' + a.tamanho;
 
                 document.getElementById('mAcompanhantesLinha').classList.toggle('d-none', !a.acompanhantes);
                 document.getElementById('mAcompanhantes').textContent = a.acompanhantes || '';
@@ -488,6 +508,8 @@
                 alterna('fRecusar', 'mRecusarId', a.status === 'Pendente');
                 alterna('fConcluir', 'mConcluirId', a.status === 'Confirmada');
                 alterna('fCancelar', 'mCancelarId', a.status === 'Confirmada');
+                // Apagar vale em qualquer status — o erro de lançamento pode estar em todos.
+                document.getElementById('mExcluirId').value = a.id;
 
                 var whats = document.getElementById('mWhats');
                 whats.classList.toggle('d-none', !a.whats || a.status === 'Pendente');
@@ -513,6 +535,13 @@
                     ? 'Essa aula é em menos de 24 horas. Pela política do Padelizou, o aluno deve ser cobrado normalmente mesmo com o cancelamento. Confirmar o cancelamento mesmo assim?'
                     : 'Confirmar o cancelamento desta aula?';
                 if (!confirm(msg)) e.preventDefault();
+            });
+
+            // Apagar não tem volta e some do histórico — a confirmação explica isso, e explica
+            // diferente quando tem alguém do outro lado esperando (ver Services/ExclusaoDeAula).
+            document.getElementById('fExcluir').addEventListener('submit', function (e) {
+                var a = porId[parseInt(document.getElementById('mExcluirId').value, 10)];
+                if (!confirm(a ? a.confirmacaoExcluir : 'Apagar esta aula?')) e.preventDefault();
             });
         })();
     </script>

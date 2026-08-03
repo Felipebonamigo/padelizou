@@ -24,12 +24,30 @@ namespace padelizou.Controllers
                 .Where(l => l.ProfessorId == professorId && l.Ativo)
                 .ToListAsync();
 
+            // A tela sugere o preço sozinha quando o professor escolhe o local e o tamanho da
+            // aula, e desconta na hora se o nome digitado for de um aluno com preço combinado.
+            // Tudo de uma vez, porque o JS precisa reagir a cada tecla — buscar no servidor a
+            // cada letra do nome seria pior em toda quadra com sinal ruim.
+            ViewBag.PrecosCombinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
+
             return View(locais);
+        }
+
+        // O mapa de "quem paga quanto" deste professor, pronto pra consulta por chave
+        // (ver Services/PrecoDaAula.Chave). Usado pela tela de marcar aula e pelo cálculo
+        // do preço na hora de gravar.
+        private async Task<Dictionary<string, decimal>> PrecosCombinadosDoProfessorAsync(int professorId)
+        {
+            var precos = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId)
+                .ToListAsync();
+
+            return PrecoDaAula.PorAluno(precos);
         }
 
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
-            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia)
+            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -66,6 +84,16 @@ namespace padelizou.Controllers
             var quantidade = recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1;
             var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
 
+            // Quantos alunos e, com isso, quanto custa. O campo `preco` continua mandando
+            // quando vem preenchido — a tela sugere, o professor decide. Sem ele, a conta é a
+            // de Services/PrecoDaAula: tamanho da aula, e o acordo com aquele aluno na
+            // individual. Refeita aqui no servidor porque o valor que chega do formulário é o
+            // que o navegador quis mandar.
+            var alunos = PrecoDaAula.Tamanho(quantidadeAlunos);
+            var combinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
+            combinados.TryGetValue(PrecoDaAula.Chave(null, nomeAluno), out var combinado);
+            var precoDaAula = preco ?? PrecoDaAula.Sugerido(local, alunos, combinado > 0 ? combinado : null);
+
             var novasAulas = new List<Aula>();
             var puladas = 0;
 
@@ -93,7 +121,8 @@ namespace padelizou.Controllers
                     LocalAulaId = localId,
                     LocalAula = local,
                     DataHora = horario,
-                    Preco = preco ?? local.PrecoPadrao,
+                    Preco = precoDaAula,
+                    QuantidadeAlunos = alunos,
                     Status = "Confirmada",
                     RecorrenciaId = recorrenciaId
                 });
@@ -200,6 +229,64 @@ namespace padelizou.Controllers
             return RedirectToAction("MinhaAgenda");
         }
 
+        // 5. APAGAR A AULA — o desfazer de quem lançou errado. Diferente de Cancelar, que é
+        // um fato registrado (ver Services/ExclusaoDeAula).
+        [HttpPost]
+        public async Task<IActionResult> ExcluirAula(int aulaId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId no filtro é a autorização: sem ele, qualquer professor logado
+            // apagaria a aula de qualquer outro só mandando o id.
+            var aula = await _context.Aulas
+                .Include(a => a.LocalAula)
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+
+            if (aula == null)
+            {
+                TempData["Erro"] = "Aula não encontrada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var avisar = ExclusaoDeAula.PrecisaAvisarAluno(aula, DateTime.Now);
+            var alunoId = aula.AlunoId;
+            var quando = aula.DataHora;
+            var ondeSeria = aula.LocalAula.Nome;
+            var eventoGoogle = aula.GoogleEventId;
+
+            // As anotações caem por cascade (ver DbPadelContext) — são sobre esta aula.
+            _context.Aulas.Remove(aula);
+            await _context.SaveChangesAsync();
+
+            if (eventoGoogle != null)
+            {
+                await _googleCalendarService.RemoverEventoAsync(professorId.Value, eventoGoogle);
+            }
+
+            if (avisar && alunoId is int destinatario)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(destinatario,
+                        "Aula apagada pelo professor",
+                        $"A aula de {quando:dd/MM 'às' HH:mm} em {ondeSeria} foi apagada da agenda. "
+                        + "Fale com seu professor se não era pra ser.",
+                        Url.Action("MinhasAulas", "Aulas"));
+                }
+                catch (Exception ex)
+                {
+                    // A aula já foi apagada; falhar o aviso não desfaz nem justifica erro na tela.
+                    _logger.LogWarning(ex, "Falha ao avisar o aluno {AlunoId} da exclusão da aula {AulaId}", destinatario, aulaId);
+                }
+            }
+
+            TempData["Sucesso"] = avisar
+                ? $"Aula de {quando:dd/MM 'às' HH:mm} apagada. O aluno foi avisado."
+                : $"Aula de {quando:dd/MM 'às' HH:mm} apagada.";
+
+            return RedirectToAction("MinhaAgenda");
+        }
 
     }
 }
