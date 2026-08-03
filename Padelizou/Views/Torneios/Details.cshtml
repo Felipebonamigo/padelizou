@@ -2040,6 +2040,16 @@
 
                             window.pdzJogadores[alvo] = dados;
                             if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
+                        } else if (dados.cpfInvalido) {
+                            // Tem 11 números mas o dígito verificador não fecha. Dizer
+                            // "não cadastrado" aqui convidaria a pessoa a cadastrar alguém
+                            // com CPF inventado — que foi como nasceu o jogador ".".
+                            delete window.pdzJogadores[alvo];
+                            if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
+                            status.innerHTML = '<span class="text-danger fw-semibold">'
+                                + '<i class="bi bi-x-circle-fill"></i> Esse CPF não existe — confira os números.</span>';
+                            camposDe(alvo).forEach(function (el) { el.value = ''; });
+                            travar(alvo, true);
                         } else {
                             delete window.pdzJogadores[alvo];
                             if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();

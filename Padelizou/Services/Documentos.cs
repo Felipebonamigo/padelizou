@@ -16,7 +16,43 @@ public static class Documentos
         return limpo.Length == 0 ? null : limpo;
     }
 
-    // Só confere o tamanho: validar dígito verificador rejeitaria os CPFs de teste que o
-    // próprio time usa em homologação.
+    // Só confere o TAMANHO. Serve pra consulta e pra normalização — não pra deixar entrar.
+    // Quem grava gente nova usa CpfEhValido (abaixo).
     public static bool CpfTemFormatoValido(string? valor) => SomenteDigitos(valor).Length == 11;
+
+    // O CPF de verdade, com dígito verificador. Só ter 11 números não prova nada: foi assim
+    // que, em 03/08/2026, entrou no torneio real um jogador chamado "." com um CPF inventado.
+    // CPF errado é pior do que parece — é por ele que o parceiro sem conta assume o próprio
+    // cadastro depois (ver o pré-cadastro em AuthController.Cadastro). Errado, o histórico
+    // fica preso num fantasma.
+    //
+    // Antes isto não era feito "pra não rejeitar os CPFs de teste da homologação". Os seeds
+    // e os testes gravam direto pelo EF, sem passar por aqui, então a validação não os
+    // alcança — o motivo não se sustentava.
+    public static bool CpfEhValido(string? valor)
+    {
+        var cpf = SomenteDigitos(valor);
+        if (cpf.Length != 11) return false;
+
+        // 11111111111, 00000000000 e afins passam na conta dos dígitos por acidente
+        // matemático, e são o que se digita quando se quer enrolar.
+        if (cpf.All(d => d == cpf[0])) return false;
+
+        return DigitoConfere(cpf, ateOnde: 9) && DigitoConfere(cpf, ateOnde: 10);
+    }
+
+    // Regra da Receita: soma ponderada decrescente, resto 11; resto < 2 vira dígito 0.
+    private static bool DigitoConfere(string cpf, int ateOnde)
+    {
+        var soma = 0;
+        for (var i = 0; i < ateOnde; i++)
+        {
+            soma += (cpf[i] - '0') * (ateOnde + 1 - i);
+        }
+
+        var resto = soma * 10 % 11;
+        if (resto == 10) resto = 0;
+
+        return resto == cpf[ateOnde] - '0';
+    }
 }

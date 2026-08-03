@@ -28,8 +28,10 @@ public class InscricaoRepetidaTests
         var categoria = new Categoria { Nome = "5ª Masculina", Codigo = "C5M", TorneioId = torneio.Id };
         ctx.Categorias.Add(categoria);
 
+        // CPFs com dígito verificador de verdade: estes passam pelo controller, e o
+        // controller agora recusa CPF inventado (ver Services/Documentos.CpfEhValido).
         var a = new Jogador { Nome = "Otávio", Cpf = "11144477735" };
-        var b = new Jogador { Nome = "Geovani", Cpf = "22255588896" };
+        var b = new Jogador { Nome = "Geovani", Cpf = "22255588846" };
         var c = new Jogador { Nome = "Diego", Cpf = "33366699957" };
         ctx.Jogadores.AddRange(a, b, c);
         await ctx.SaveChangesAsync();

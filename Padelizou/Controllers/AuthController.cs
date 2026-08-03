@@ -685,9 +685,22 @@ namespace padelizou.Controllers
             cpf = Documentos.SomenteDigitos(cpf);
             celular = Documentos.SomenteDigitosOuNulo(celular);
 
-            if (!Documentos.CpfTemFormatoValido(cpf))
+            // Dígito verificador, não só o tamanho: o CPF é a CHAVE que liga a conta nova ao
+            // pré-cadastro feito na inscrição. Errado, a pessoa cria uma segunda conta e o
+            // histórico dela fica preso na primeira.
+            if (!Documentos.CpfEhValido(cpf))
             {
-                ViewBag.Erro = "CPF inválido — informe os 11 números.";
+                ViewBag.Erro = "CPF inválido — confira os números.";
+                await PopularCatalogosAsync();
+                return View();
+            }
+
+            // Nome que pareça nome (ver Services/NomeDePessoa) — é assim que a pessoa vai
+            // aparecer na chave, no placar e no ranking.
+            nome = NomeDePessoa.Arrumar(nome);
+            if (NomeDePessoa.Problema(nome, "O nome") is { } nomeEstranho)
+            {
+                ViewBag.Erro = nomeEstranho;
                 await PopularCatalogosAsync();
                 return View();
             }

@@ -128,9 +128,27 @@ namespace Padelizou.Controllers
                 nome2 = null; cpf2 = ""; celular2 = null; cidade2 = null; estado2 = null;
             }
 
-            if (cpf1.Length != 11 || (!semParceiro && cpf2.Length != 11))
+            // CPF com dígito verificador, não só 11 números. Foi por aqui que entrou no
+            // torneio real um jogador chamado "." com um CPF inventado — e CPF errado é pior
+            // do que parece: é por ele que o parceiro sem conta assume o próprio cadastro
+            // depois. Errado, o histórico fica preso num fantasma.
+            if (!Documentos.CpfEhValido(cpf1) || (!semParceiro && !Documentos.CpfEhValido(cpf2)))
             {
-                TempData["Erro"] = "CPF inválido — informe os 11 números, sem pontos ou traço.";
+                TempData["Erro"] = "CPF inválido — confira os números. "
+                    + (semParceiro ? "" : "Se for o do parceiro e você não tiver, marque \"ainda não tenho parceiro\" e feche a dupla depois pelo link de convite.");
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
+            // Nome que pareça nome. O `required` do HTML aceita um ponto, e foi exatamente um
+            // ponto que alguém digitou pra passar do campo do parceiro que não sabia preencher.
+            nome1 = NomeDePessoa.Arrumar(nome1);
+            nome2 = semParceiro ? null : NomeDePessoa.Arrumar(nome2);
+
+            var nomeEstranho = NomeDePessoa.Problema(nome1, "O nome do jogador 1")
+                               ?? (semParceiro ? null : NomeDePessoa.Problema(nome2, "O nome do parceiro"));
+            if (nomeEstranho != null)
+            {
+                TempData["Erro"] = nomeEstranho;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
@@ -384,9 +402,9 @@ namespace Padelizou.Controllers
             }
 
             var cpf = Documentos.SomenteDigitos(cpfNovoParceiro ?? "");
-            if (cpf.Length != 11)
+            if (!Documentos.CpfEhValido(cpf))
             {
-                TempData["Erro"] = "CPF inválido — informe os 11 números do novo parceiro.";
+                TempData["Erro"] = "CPF inválido — confira os números do novo parceiro.";
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
@@ -404,7 +422,17 @@ namespace Padelizou.Controllers
                     TempData["Erro"] = "Esse CPF ainda não tem cadastro — informe também o nome do parceiro.";
                     return RedirectToAction("Details", "Torneios", new { id = torneioId });
                 }
-                novo = new Jogador { Nome = nomeNovoParceiro.Trim(), Cpf = cpf };
+
+                // Mesma régua da inscrição: nome que pareça nome (ver Services/NomeDePessoa).
+                var nomeArrumado = NomeDePessoa.Arrumar(nomeNovoParceiro);
+                var problemaNoNome = NomeDePessoa.Problema(nomeArrumado, "O nome do parceiro");
+                if (problemaNoNome != null)
+                {
+                    TempData["Erro"] = problemaNoNome;
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                novo = new Jogador { Nome = nomeArrumado, Cpf = cpf };
                 _context.Jogadores.Add(novo);
                 await _context.SaveChangesAsync();
             }

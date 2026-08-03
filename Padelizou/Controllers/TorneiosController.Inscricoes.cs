@@ -25,9 +25,10 @@ namespace Padelizou.Controllers
             // Mesma limpeza de DuplasController.Create: CPF com máscara estoura a coluna de
             // 11 chars e derruba a página em vez de avisar o jogador.
             cpf = Documentos.SomenteDigitos(cpf);
-            if (!Documentos.CpfTemFormatoValido(cpf))
+            // Dígito verificador, não só 11 números — mesma régua da inscrição em dupla.
+            if (!Documentos.CpfEhValido(cpf))
             {
-                TempData["Erro"] = "CPF inválido — informe os 11 números, sem pontos ou traço.";
+                TempData["Erro"] = "CPF inválido — confira os números.";
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
@@ -36,6 +37,14 @@ namespace Padelizou.Controllers
             if (LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeJogador, "O nome") is { } nomeLongo)
             {
                 TempData["Erro"] = nomeLongo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // ...e que pareça um nome (ver Services/NomeDePessoa).
+            nome = NomeDePessoa.Arrumar(nome);
+            if (NomeDePessoa.Problema(nome, "O nome") is { } nomeEstranho)
+            {
+                TempData["Erro"] = nomeEstranho;
                 return RedirectToAction("Details", new { id = torneioId });
             }
 

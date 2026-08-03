@@ -445,7 +445,15 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> BuscarJogadorPorCpf(string cpf, int? categoriaId = null)
         {
             cpf = Documentos.SomenteDigitos(cpf);
-            if (!Documentos.CpfTemFormatoValido(cpf)) return Json(new { encontrado = false });
+
+            // CPF que não fecha o dígito verificador é dito na hora. Antes ele caía no mesmo
+            // "não encontrado" de um CPF novo e legítimo, e a tela respondia "preencha os
+            // dados abaixo" — convidando a pessoa a cadastrar alguém com CPF inventado, que é
+            // exatamente como nasceu o jogador chamado "." no torneio real.
+            if (!Documentos.CpfEhValido(cpf))
+            {
+                return Json(new { encontrado = false, cpfInvalido = Documentos.CpfTemFormatoValido(cpf) });
+            }
 
             var jogador = await _context.Jogadores
                 .Where(j => j.Cpf == cpf)
