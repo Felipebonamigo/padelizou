@@ -33,6 +33,8 @@ public static class CatalogoElogios
         new("FairPlay", "Fair Play", "bi-hand-thumbs-up"),
         // Padel tem moda: entrar na quadra bem vestido é meio caminho da vitória moral.
         new("LookBonito", "Look Bonito", "bi-sunglasses"),
+        // O terceiro tempo conta: tem gente que é lembrada pela mesa depois do jogo.
+        new("BomDeCopo", "Bom de Copo", "bi-cup-straw"),
     };
 
     public static TipoElogio? Obter(string codigo) => Todos.FirstOrDefault(t => t.Codigo == codigo);
