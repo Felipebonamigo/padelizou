@@ -442,7 +442,7 @@ namespace Padelizou.Controllers
         // e colher nome/celular/cidade de terceiros.
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> BuscarJogadorPorCpf(string cpf)
+        public async Task<IActionResult> BuscarJogadorPorCpf(string cpf, int? categoriaId = null)
         {
             cpf = Documentos.SomenteDigitos(cpf);
             if (!Documentos.CpfTemFormatoValido(cpf)) return Json(new { encontrado = false });
@@ -466,6 +466,17 @@ namespace Padelizou.Controllers
                 .OrderByDescending(EstatisticasService.OrdemCategoria)
                 .FirstOrDefault();
 
+            // Ele já está inscrito NESTA categoria? A tela avisa na hora em que o CPF é
+            // digitado — antes valia o silêncio, e a pessoa só descobria depois de já existir
+            // uma inscrição repetida. Sozinho vira oferta de juntar; com dupla fechada, um
+            // não. Ver Services/InscricaoRepetida.
+            var repetidas = categoriaId is int cat
+                ? await InscricaoRepetida.ProcurarAsync(_context, cat, new[] { jogador.Id })
+                : new List<InscricaoRepetida.Achado>();
+
+            var solo = InscricaoRepetida.QuePodemSerJuntadas(repetidas).FirstOrDefault();
+            var fechada = repetidas.FirstOrDefault(r => r.Situacao == InscricaoRepetida.Situacao.ComParceiro);
+
             return Json(new
             {
                 encontrado = true,
@@ -477,7 +488,10 @@ namespace Padelizou.Controllers
                 cidade = jogador.Cidade ?? "",
                 estado = jogador.Estado ?? "",
                 categoriaDeclarada = maisForte ?? "",
-                forcaDeclarada = EstatisticasService.OrdemCategoria(maisForte)
+                forcaDeclarada = EstatisticasService.OrdemCategoria(maisForte),
+                jaInscritoSozinho = solo != null,
+                jaInscritoComParceiro = fechada != null,
+                parceiroAtual = fechada?.NomeDoParceiro ?? "",
             });
         }
 

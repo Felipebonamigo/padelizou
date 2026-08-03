@@ -98,6 +98,10 @@ namespace Padelizou.Controllers
             string? nome2, string? cpf2, string? celular2, string? cidade2, string? estado2,
             bool impSextaNoite, bool impSabadoManha, bool impSabadoTarde,
             bool semParceiro = false, bool ignorarBloqueio = false, string? chaveAcesso = null,
+            // "Ele já está inscrito sozinho — pode juntar." Vem marcado na tela, depois de o
+            // aviso aparecer (ver Services/InscricaoRepetida). Sem isto, o servidor recusa e
+            // repete a pergunta, porque juntar APAGA a inscrição do outro.
+            bool juntarComInscricaoSolo = false,
             // Forma que o jogador declarou no checkout. Só é perguntada quando o organizador
             // abriu todas as formas — é ela que decide a taxa (ver CobrancaDoTorneio).
             string? formaPagamentoEscolhida = null)
@@ -208,6 +212,32 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // 2c. O MESMO jogador duas vezes na mesma categoria. Aconteceu de verdade: o
+            //     Otávio ficou como parceiro de um e, logo abaixo, sozinho procurando
+            //     parceiro — duas vagas pra uma pessoa só, e uma dupla fantasma no sorteio.
+            //
+            //     Quando a inscrição que já existe é SOLO, ela é justamente a que esta veio
+            //     substituir: o certo é oferecer juntar, não dar um "não" seco. A regra e as
+            //     frases moram em Services/InscricaoRepetida.
+            var repetidas = await InscricaoRepetida.ProcurarAsync(_context, categoriaId, idsExistentes);
+
+            var recusa = InscricaoRepetida.MotivoParaRecusar(repetidas);
+            if (recusa != null)
+            {
+                TempData["Erro"] = recusa;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
+            var juntaveis = InscricaoRepetida.QuePodemSerJuntadas(repetidas);
+            if (juntaveis.Count > 0 && !juntarComInscricaoSolo)
+            {
+                // Sem a confirmação não se apaga nada: quem chegou por aba velha (ou por POST
+                // montado à mão) tem que ver a pergunta antes.
+                TempData["Erro"] = InscricaoRepetida.PerguntaParaJuntar(juntaveis)
+                    + " Marque \"juntar com a inscrição que já existe\" na tela de inscrição e envie de novo.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             // 3. Agora sim, cria os jogadores que não existiam e completa o cadastro.
             if (jogador1 == null)
             {
@@ -241,6 +271,19 @@ namespace Padelizou.Controllers
             // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
             if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
             {
+                // Juntar com a inscrição solo NÃO vale aqui. A dupla só nasce quando o
+                // webhook confirma o pagamento, e apagar a inscrição do outro agora deixaria
+                // ele sem nada caso o checkout fosse abandonado — que é o desfecho mais
+                // comum de um checkout.
+                if (juntaveis.Count > 0)
+                {
+                    TempData["Erro"] = InscricaoRepetida.PerguntaParaJuntar(juntaveis)
+                        + " Como este torneio cobra pelo site, primeiro desista da inscrição "
+                        + "sozinha e depois faça a inscrição da dupla — assim ninguém fica sem "
+                        + "vaga se o pagamento não for concluído.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
                 // SemParceiro marca que isto é uma DUPLA aberta, não um americano — os dois
                 // chegam aqui com Jogador2Id nulo (ver DadosInscricaoTorneio).
                 var dadosInscricao = new DadosInscricaoTorneio(
@@ -274,6 +317,17 @@ namespace Padelizou.Controllers
             };
 
             _context.Duplas.Add(dupla);
+
+            // As inscrições sozinhas que esta veio substituir saem JUNTO, no mesmo
+            // SaveChanges: apagar antes deixaria a pessoa sem vaga nenhuma se a criação
+            // falhasse no meio.
+            if (juntaveis.Count > 0)
+            {
+                var idsParaSair = juntaveis.Select(j => j.DuplaId).Distinct().ToList();
+                var solosParaSair = await _context.Duplas.Where(d => idsParaSair.Contains(d.Id)).ToListAsync();
+                _context.Duplas.RemoveRange(solosParaSair);
+            }
+
             await _context.SaveChangesAsync(); // Inscrição finalizada!
 
             var inscritos = jogador2 == null
@@ -283,11 +337,15 @@ namespace Padelizou.Controllers
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
             await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
 
-            TempData["Sucesso"] = emListaDeEspera
+            var juntadas = juntaveis.Count > 0
+                ? $" {(juntaveis.Count > 1 ? "As inscrições sozinhas saíram" : "A inscrição sozinha saiu")} — agora é uma só."
+                : "";
+
+            TempData["Sucesso"] = (emListaDeEspera
                 ? "Vagas esgotadas — sua inscrição entrou na lista de espera. Se alguém desistir, você é chamado na ordem de inscrição."
                 : jogador2 == null
                     ? "Inscrição confirmada! Você está sem parceiro — defina o parceiro pela tela do torneio quando encontrar alguém."
-                    : "Inscrição confirmada com sucesso!";
+                    : "Inscrição confirmada com sucesso!") + juntadas;
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
         }
 
@@ -296,7 +354,9 @@ namespace Padelizou.Controllers
         // sai é avisado, quem entra também.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> TrocarParceiro(int duplaId, string cpfNovoParceiro, string? nomeNovoParceiro)
+        public async Task<IActionResult> TrocarParceiro(int duplaId, string cpfNovoParceiro, string? nomeNovoParceiro,
+            // "Ele já está inscrito sozinho — pode juntar." Marcado na tela depois do aviso.
+            bool juntarComInscricaoSolo = false)
         {
             var jogadorLogadoId = ObterJogadorIdLogado();
             if (jogadorLogadoId == null) return Forbid();
@@ -355,22 +415,37 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
-            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio, novo);
+            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio, novo, juntarComInscricaoSolo);
             if (impedimento != null)
             {
                 TempData["Erro"] = impedimento;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // A inscrição sozinha dele, se existir, sai junto: é ela que esta troca veio
+            // substituir, e deixá-la de pé é o defeito que se está corrigindo.
+            var absorvidas = juntarComInscricaoSolo
+                ? InscricaoRepetida.QuePodemSerJuntadas(
+                    await InscricaoRepetida.ProcurarAsync(_context, dupla.CategoriaId, new[] { novo.Id }, ignorarDuplaId: dupla.Id))
+                : new List<InscricaoRepetida.Achado>();
+
             var antigo = dupla.Jogador2;
             dupla.Jogador2Id = novo.Id;
+
+            if (absorvidas.Count > 0)
+            {
+                var ids = absorvidas.Select(a => a.DuplaId).Distinct().ToList();
+                _context.Duplas.RemoveRange(await _context.Duplas.Where(d => ids.Contains(d.Id)).ToListAsync());
+            }
+
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, antigo, novo);
 
-            TempData["Sucesso"] = antigo == null
+            var juntou = absorvidas.Count > 0 ? " A inscrição sozinha dele saiu — agora é uma só." : "";
+            TempData["Sucesso"] = (antigo == null
                 ? $"Parceiro definido: {novo.Nome}. Sua dupla está completa!"
-                : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.";
+                : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.") + juntou;
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
         }
 
@@ -379,15 +454,24 @@ namespace Padelizou.Controllers
         // Separar as duas cópias deixaria o caminho do convite mais frouxo que o outro — e
         // é justamente o caminho aberto por link, o que qualquer um alcança.
         // Devolve a mensagem do impedimento, ou null quando pode entrar.
-        private async Task<string?> MotivoParaNaoSerParceiroAsync(Dupla dupla, Torneio torneio, Jogador candidato)
+        private async Task<string?> MotivoParaNaoSerParceiroAsync(
+            Dupla dupla, Torneio torneio, Jogador candidato, bool juntarComInscricaoSolo = false)
         {
-            // Não pode já estar em outra dupla desta MESMA categoria.
-            bool jaNaCategoria = await _context.Duplas.AnyAsync(d => d.CategoriaId == dupla.CategoriaId
-                && d.Id != dupla.Id
-                && (d.Jogador1Id == candidato.Id || d.Jogador2Id == candidato.Id));
-            if (jaNaCategoria)
+            // Não pode já estar em outra dupla desta MESMA categoria. Mas "já está inscrito"
+            // tem dois sabores muito diferentes (ver Services/InscricaoRepetida): com dupla
+            // fechada é um não; SOZINHO é justamente a inscrição que esta troca vem
+            // substituir, e aí a resposta certa é perguntar se junta.
+            var repetidas = await InscricaoRepetida.ProcurarAsync(
+                _context, dupla.CategoriaId, new[] { candidato.Id }, ignorarDuplaId: dupla.Id);
+
+            var recusa = InscricaoRepetida.MotivoParaRecusar(repetidas);
+            if (recusa != null) return recusa;
+
+            var juntaveis = InscricaoRepetida.QuePodemSerJuntadas(repetidas);
+            if (juntaveis.Count > 0 && !juntarComInscricaoSolo)
             {
-                return $"{candidato.Nome} já está inscrito nesta categoria com outra dupla.";
+                return InscricaoRepetida.PerguntaParaJuntar(juntaveis)
+                     + " Marque \"juntar com a inscrição que já existe\" e confirme de novo.";
             }
 
             // ...nem violar a regra de uma categoria por jogador (ignorando esta categoria,
