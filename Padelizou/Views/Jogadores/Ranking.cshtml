@@ -205,6 +205,7 @@
     <!-- Navegação principal -->
     <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3 mt-2" role="tablist" style="white-space: nowrap;">
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill" data-bs-target="#tab-pontos" type="button"><i class="bi bi-list-ol"></i> Por categoria</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-padelimetro" type="button"><i class="bi bi-speedometer2"></i> Padelímetro</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-trofeus" type="button"><i class="bi bi-trophy-fill"></i> Troféus</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vjog" type="button"><i class="bi bi-person-check-fill"></i> Vitórias (jogadores)</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vdup" type="button"><i class="bi bi-people-fill"></i> Vitórias (duplas)</button></li>
@@ -277,6 +278,64 @@
                         </table></div></div>
                     </div>
                 }
+            }
+        </div>
+
+        @* ============================ 1b. PADELÍMETRO (a unidade é PDZ) ============================ *@
+        <div class="tab-pane fade" id="tab-padelimetro" role="tabpanel">
+            <p class="text-muted small mb-2">
+                O <strong>Padelímetro</strong> é o nível do jogador, de 0 a 1000 <strong>PDZ</strong> — muda a cada jogo de torneio:
+                sobe quando vence, desce quando perde, e vencer favorito vale mais. Ele nasce no primeiro jogo,
+                e os 10 primeiros são de calibração (o número anda mais rápido até se encontrar).
+            </p>
+            @if (!Model.Padelimetro.Any())
+            {
+                <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+                    <i class="bi bi-speedometer2 display-6 text-muted"></i>
+                    <p class="text-muted mb-0">Ninguém tem Padelímetro ainda — ele nasce no primeiro jogo de torneio.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    @* No celular ficam as colunas que respondem "quem está na frente": posição, nome e PDZ. *@
+                    <thead><tr>
+                        <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
+                        <th class="text-center d-none d-sm-table-cell">Faixa</th>
+                        <th class="text-center d-none d-sm-table-cell">Jogos</th>
+                        <th class="text-end">PDZ</th>
+                    </tr></thead>
+                    <tbody>
+                        @{ var posPdz = 1; }
+                        @foreach (var l in Model.Padelimetro)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posPdz))</td>
+                                <td>
+                                    <a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a>
+                                    @if (l.EmCalibracao)
+                                    {
+                                        <span class="badge bg-secondary ms-1" title="Primeiros 10 jogos: o número anda mais rápido até se encontrar (@l.Jogos de 10).">em calibração</span>
+                                    }
+                                </td>
+                                <td class="text-center d-none d-sm-table-cell">
+                                    @if (l.FaixaRotulo != null)
+                                    {
+                                        <span class="badge rounded-pill bg-light text-dark border"
+                                              title="Faixa da @l.FaixaRotulo na escada @l.FaixaEscada">@l.FaixaRotulo@(l.FaixaEscada == "feminina" ? " fem" : "")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center text-muted d-none d-sm-table-cell">@l.Jogos</td>
+                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pdz <span class="text-muted small fw-normal">PDZ</span></td>
+                            </tr>
+                            posPdz++;
+                        }
+                    </tbody>
+                </table></div></div>
             }
         </div>
 

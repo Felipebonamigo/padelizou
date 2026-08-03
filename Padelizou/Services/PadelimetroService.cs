@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
+using Padelizou.ViewModels;
 
 namespace Padelizou.Services;
 
@@ -12,6 +13,10 @@ public interface IPadelimetroService
     // Replay: zera tudo e reconstrói do zero a partir das partidas finalizadas, em
     // ordem cronológica. Devolve quantas partidas contaram.
     Task<int> RecalcularTudoAsync();
+
+    // A aba Padelímetro do ranking: todo mundo com nível, do maior pro menor.
+    // filtroJogadores nulo = país todo (mesmo contrato do ObterJogadoresDoLocalAsync).
+    Task<List<PadelimetroLinhaVM>> ListarRankingAsync(HashSet<int>? filtroJogadores);
 }
 
 // Quem decide QUAIS partidas movem o Padelímetro e escreve o resultado no banco.
@@ -111,6 +116,60 @@ public class PadelimetroService : IPadelimetroService
 
         await _context.SaveChangesAsync();
         return aplicadas;
+    }
+
+    public async Task<List<PadelimetroLinhaVM>> ListarRankingAsync(HashSet<int>? filtroJogadores)
+    {
+        var q = _context.Jogadores.Where(j => j.Padelimetro != null);
+        if (filtroJogadores != null) q = q.Where(j => filtroJogadores.Contains(j.Id));
+
+        var jogadores = await q
+            .OrderByDescending(j => j.Padelimetro)
+            .ThenByDescending(j => j.JogosDePadelimetro) // no empate, quem jogou mais sustenta melhor o número
+            .ThenBy(j => j.Nome)
+            .ToListAsync();
+        if (jogadores.Count == 0) return new();
+
+        // A escada de cada um (masc/fem) decide só o RÓTULO da faixa, nunca o número —
+        // e vem da inscrição não-mista mais recente, igual ao perfil.
+        var ids = jogadores.Select(j => j.Id).ToHashSet();
+        var inscricoes = await _context.Duplas
+            .Where(d => d.NomeTime == null
+                     && (ids.Contains(d.Jogador1Id) || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
+            .Select(d => new
+            {
+                d.Jogador1Id,
+                d.Jogador2Id,
+                Categoria = d.Categoria.Nome,
+                Data = d.Categoria.Torneio.DataInicio,
+            })
+            .ToListAsync();
+
+        var escadaFeminina = new Dictionary<int, bool>();
+        foreach (var i in inscricoes.OrderByDescending(i => i.Data)) // mais recente primeiro; a primeira vista vence
+        {
+            if (FaixasDePadelimetro.EhMista(i.Categoria)) continue;
+            bool feminina = FaixasDePadelimetro.EhFeminina(i.Categoria);
+            foreach (var id in new[] { i.Jogador1Id, i.Jogador2Id ?? -1 })
+                if (id > 0 && ids.Contains(id) && !escadaFeminina.ContainsKey(id))
+                    escadaFeminina[id] = feminina;
+        }
+
+        return jogadores.Select(j =>
+        {
+            FaixasDePadelimetro.Faixa? faixa = escadaFeminina.TryGetValue(j.Id, out var feminina)
+                ? FaixasDePadelimetro.DoNivel(j.Padelimetro!.Value, feminina)
+                : null;
+            return new PadelimetroLinhaVM
+            {
+                Jogador = j,
+                Pdz = j.Padelimetro!.Value,
+                Jogos = j.JogosDePadelimetro,
+                EmCalibracao = Padelimetro.EmCalibracao(j.JogosDePadelimetro),
+                FaixaRotulo = faixa?.Rotulo,
+                FaixaEscada = faixa?.Escada,
+            };
+        }).ToList();
     }
 
     // Os 4 jogadores da partida — nulo quando não são 4 pessoas DISTINTAS (dado torto:

@@ -322,6 +322,43 @@ public class PadelimetroServiceTests
     }
 
     [Fact]
+    public async Task Lista_do_ranking_ordena_por_pdz_e_rotula_a_faixa_pela_escada_certa()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var servico = new PadelimetroService(ctx);
+
+        // Um jogo masculino (5ª, entrada 500) e um feminino (2ª fem, entrada 500 também —
+        // escala única!): os números empatam, mas as faixas saem de escadas diferentes.
+        var (pMasc, timeM1, _) = MontarPartidaFinalizada(ctx, "5ª Categoria Masculina", sufixo: 1);
+        var (pFem, timeF1, _) = MontarPartidaFinalizada(ctx, "2ª Categoria Feminina", sufixo: 2);
+        await servico.AplicarAsync(pMasc.Id);
+        await servico.AplicarAsync(pFem.Id);
+
+        var lista = await servico.ListarRankingAsync(null);
+
+        Assert.Equal(8, lista.Count);
+        // Ordena do maior pro menor, e todo mundo em calibração aparece marcado.
+        Assert.Equal(lista.Select(l => l.Pdz).OrderByDescending(p => p), lista.Select(l => l.Pdz));
+        Assert.All(lista, l => Assert.True(l.EmCalibracao));
+
+        var vencedorMasc = lista.Single(l => l.Jogador.Id == timeM1[0].Id);
+        Assert.Equal(528, vencedorMasc.Pdz);
+        Assert.Equal("5ª", vencedorMasc.FaixaRotulo);
+        Assert.Equal("masculina", vencedorMasc.FaixaEscada);
+
+        // O MESMO número na escada feminina rotula outra faixa — escala única, faixas próprias.
+        var vencedoraFem = lista.Single(l => l.Jogador.Id == timeF1[0].Id);
+        Assert.Equal(528, vencedoraFem.Pdz);
+        Assert.Equal("2ª", vencedoraFem.FaixaRotulo);
+        Assert.Equal("feminina", vencedoraFem.FaixaEscada);
+
+        // O filtro regional corta a lista (mesmo contrato do hub: conjunto de ids).
+        var soUmaPessoa = await servico.ListarRankingAsync(new HashSet<int> { timeM1[0].Id });
+        Assert.Single(soUmaPessoa);
+        Assert.Equal(timeM1[0].Id, soUmaPessoa[0].Jogador.Id);
+    }
+
+    [Fact]
     public async Task Finalizar_pela_mesa_move_o_padelimetro_de_verdade()
     {
         using var ctx = TestInfra.NovoContexto();

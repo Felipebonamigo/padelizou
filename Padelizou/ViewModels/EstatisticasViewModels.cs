@@ -198,6 +198,21 @@ public class RankingHubVM
     public List<string> EstadosDisponiveis { get; set; } = new();
     public List<string> CidadesDisponiveis { get; set; } = new();
     public bool TemFiltro => Cidades.Count > 0 || !string.IsNullOrWhiteSpace(Estado);
+
+    // Aba Padelímetro: jogadores ordenados pelo nível (a unidade exibida é PDZ). Regras
+    // em RANKING.md; a lista respeita o mesmo filtro regional do resto do hub.
+    public List<PadelimetroLinhaVM> Padelimetro { get; set; } = new();
+}
+
+// Uma linha da aba Padelímetro do ranking.
+public class PadelimetroLinhaVM
+{
+    public Jogador Jogador { get; set; } = null!;
+    public int Pdz { get; set; }                 // o nível 0–1000 (unidade PDZ)
+    public int Jogos { get; set; }               // partidas contadas (10+ = calibrado)
+    public bool EmCalibracao { get; set; }
+    public string? FaixaRotulo { get; set; }     // "4ª", "Open"... nulo = sem escada conhecida
+    public string? FaixaEscada { get; set; }     // "masculina" | "feminina"
 }
 
 // Uma linha do ranking de UM torneio (agregado por jogador dentro daquele torneio).

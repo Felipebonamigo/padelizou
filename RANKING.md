@@ -154,7 +154,10 @@ decreto), nós calibramos com dados reais: todo jogo de MISTA cruza as duas popu
   Padelizou). Slogan de guerra: "o Padelímetro não mente". Garantir @padelimetro no
   Instagram antes de anunciar.
 - Grafia: com acento nas telas; `padelimetro` sem acento em slug/código.
-- Exibição: "Padelímetro 620 · faixa da 4ª"; em pílula apertada, "620 · 4ª".
+- **Unidade: PDZ** (decisão do Felipe, 03/08/2026) — o número se lê "620 PDZ".
+- Exibição: "Padelímetro 620 PDZ · faixa da 4ª"; em pílula apertada, "620 · 4ª".
+- Onde mora no site: aba **Padelímetro** dentro da página de Ranking (ao lado do
+  ranking por categoria), respeitando o mesmo filtro regional do hub.
 - Números NÃO coincidem com o QT Level de propósito (faixas deles: 250 de largura,
   cortes 1050/1300/1550/1750, teto ~2000; soma 1800–3300).
 - O "ajuste de categoria" do QT (bump ao sair de chave) não é copiado: no Elo, sair de

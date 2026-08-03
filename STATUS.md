@@ -71,8 +71,11 @@ O que existe em código:
 - Gancho único no `FinalizarPartida` da Mesa (em try/catch: falha não trava torneio).
 - **Replay determinístico** no admin ("Recalcular Padelímetro") — reconstrói tudo do
   zero em ordem cronológica; mudou a regra, roda de novo. Testado: replay = ao vivo.
-- Perfil público: pílula "Padelímetro 985 · faixa da Open", selo "em calibração
+- Perfil público: pílula "Padelímetro 985 PDZ · faixa da Open", selo "em calibração
   (3 de 10 jogos)", "faltam X pra subir" e o extrato com o porquê de cada movimento.
+- **Aba "Padelímetro" na página de Ranking** (decisão do Felipe: a unidade se chama
+  **PDZ**) — lista todo mundo com nível, do maior pro menor, com faixa, jogos e selo de
+  calibração; respeita o filtro regional e a busca por nome do hub.
 - Fora da conta (verificado ao vivo com os 3 casos no banco local): torneio restrito,
   categoria/dupla de TIMES, dupla incompleta, partida sem placar.
 

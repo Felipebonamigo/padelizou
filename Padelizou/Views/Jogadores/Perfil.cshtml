@@ -62,7 +62,7 @@
                           style="@(calibrando ? "" : "background:#0b3d2e;color:#9be3c0;")font-size:.9rem;"
                           title="@(calibrando ? "Em calibração: os primeiros 10 jogos movem o número mais rápido, até ele se encontrar." : "O nível do jogador, de 0 a 1000 — muda a cada jogo de torneio.")">
                         <i class="bi bi-speedometer2"></i>
-                        Padelímetro @nivelPdz@(faixaPdz != null ? $" · faixa da {faixaPdz.Rotulo}" : "")
+                        Padelímetro @nivelPdz PDZ@(faixaPdz != null ? $" · faixa da {faixaPdz.Rotulo}" : "")
                     </span>
                     @if (calibrando)
                     {
