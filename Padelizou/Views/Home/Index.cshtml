@@ -134,21 +134,26 @@ else
                 @foreach (var m in Model.MeusTorneios)
                 {
                     bool rolando = m.Torneio.Status != "Inscrições Abertas";
+                    @* O selo fica ABAIXO do título, na linha dos detalhes: ao lado dele (como
+                       era), no celular o título sobrava truncado em "Torneio d..." — o selo e
+                       o botão comiam a largura de quem a tela existe pra mostrar. *@
                     <div class="col-12 col-md-6">
-                        <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3 h-100">
-                            <span class="badge rounded-pill flex-shrink-0 @(rolando ? "bg-danger" : "bg-success")">
-                                @(rolando ? m.Torneio.Status : "Inscrito")
-                            </span>
-                            <div class="flex-grow-1 overflow-hidden">
-                                <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@m.Torneio.Nome</strong>
-                                <small class="text-muted">@m.Categoria</small>
-                                @if (m.ListaDeEspera)
-                                {
-                                    <span class="badge text-bg-warning ms-1">lista de espera</span>
-                                }
+                        <div class="card border-0 shadow-sm p-3 h-100 pdz-cartao-linha">
+                            <div class="flex-grow-1 pdz-cartao-linha-texto">
+                                <strong class="pdz-cartao-linha-titulo">@m.Torneio.Nome</strong>
+                                <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                                    <span class="badge rounded-pill @(rolando ? "bg-danger" : "bg-success")">
+                                        @(rolando ? m.Torneio.Status : "Inscrito")
+                                    </span>
+                                    <small class="text-muted">@m.Categoria</small>
+                                    @if (m.ListaDeEspera)
+                                    {
+                                        <span class="badge text-bg-warning">lista de espera</span>
+                                    }
+                                </div>
                             </div>
                             <a asp-controller="Torneios" asp-action="Details" asp-route-id="@m.Torneio.Id"
-                               class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">@(rolando ? "Acompanhar" : "Ver")</a>
+                               class="btn btn-sm btn-padel rounded-pill px-3 pdz-cartao-linha-acao">@(rolando ? "Acompanhar" : "Ver")</a>
                         </div>
                     </div>
                 }
@@ -164,17 +169,19 @@ else
             @foreach (var t in Model.EmAndamento)
             {
                 <div class="col-12 col-md-6">
-                    <div class="card border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3 h-100">
-                        <span class="badge rounded-pill bg-danger flex-shrink-0"><i class="bi bi-record-circle"></i> @t.Status</span>
-                        <div class="flex-grow-1 overflow-hidden">
-                            <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@t.Nome</strong>
-                            @if (!string.IsNullOrEmpty(t.LocalTorneio))
-                            {
-                                <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>
-                            }
+                    <div class="card border-0 shadow-sm p-3 h-100 pdz-cartao-linha">
+                        <div class="flex-grow-1 pdz-cartao-linha-texto">
+                            <strong class="pdz-cartao-linha-titulo">@t.Nome</strong>
+                            <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                                <span class="badge rounded-pill bg-danger"><i class="bi bi-record-circle"></i> @t.Status</span>
+                                @if (!string.IsNullOrEmpty(t.LocalTorneio))
+                                {
+                                    <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>
+                                }
+                            </div>
                         </div>
                         <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
-                           class="btn btn-sm btn-padel rounded-pill px-3 flex-shrink-0">Acompanhar</a>
+                           class="btn btn-sm btn-padel rounded-pill px-3 pdz-cartao-linha-acao">Acompanhar</a>
                     </div>
                 </div>
             }

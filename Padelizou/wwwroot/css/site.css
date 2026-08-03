@@ -967,3 +967,43 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-ink);
     border-color: var(--pdz-border);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Cartão-linha: um item de lista com selo, texto e UMA ação (Home: "Seus
+   torneios" e "Acontecendo agora"; serve pra qualquer lista parecida).
+
+   No desktop é uma linha: texto cresce, ação à direita, título corta com
+   reticências. No celular EMPILHA — o desenho antigo mantinha a linha e, a
+   375px, o selo e o botão comiam a largura: o título, a única coisa que a
+   pessoa precisa ler, sobrava truncado em "Torneio d...". Empilhado, o título
+   tem a largura inteira e o botão vira alvo de dedo, não de mouse.
+   ──────────────────────────────────────────────────────────────────────────── */
+.pdz-cartao-linha {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
+.pdz-cartao-linha .pdz-cartao-linha-titulo {
+    color: var(--pdz-ink);
+    /* No celular o título pode usar DUAS linhas — nome de torneio é comprido.
+       Três já vira parágrafo: corta com reticências dali em diante. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .pdz-cartao-linha { flex-direction: row; align-items: center; }
+    .pdz-cartao-linha .pdz-cartao-linha-texto { min-width: 0; }
+    /* Na linha, uma linha só: o cartão do lado precisa da mesma altura. */
+    .pdz-cartao-linha .pdz-cartao-linha-titulo { -webkit-line-clamp: 1; line-clamp: 1; }
+    .pdz-cartao-linha .pdz-cartao-linha-acao { flex-shrink: 0; }
+}
+
+@media (max-width: 767.98px) {
+    /* Botão de largura inteira: no dedo, alvo pequeno à direita é erro de toque. */
+    .pdz-cartao-linha .pdz-cartao-linha-acao { width: 100%; }
+}
