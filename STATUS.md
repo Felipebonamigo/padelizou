@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
+> Última atualização: **03/08/2026** — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. **1.127 testes.**
+> Antes: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
 > Antes, no mesmo dia — 🔑 **admin manda em qualquer torneio** (`build-184`), pra socorrer organizador travado sem depender dele; **estorno automático** (desfaz a inscrição e chama a fila) e **caderneta de cobrança do "por fora"** no Financeiro. **1.011 testes.**
 > Antes, no mesmo dia — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
 > Antes, no mesmo dia — 🍺 **o bar do clube nasceu, e ninguém sabe**: comanda, cardápio, caixa do dia e contas a pagar/receber, tudo atrás da chave `Bar__Habilitado` que nasce **desligada** — enquanto isso só admin do Padelizou enxerga, nem o dono do clube. Pedido de um cliente; entregue em duas fases no mesmo dia (`build-176` em dev). **967 testes.**
@@ -50,6 +51,58 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 03/08/2026 — 👨‍🏫 O primeiro professor de verdade usou, e trouxe cinco problemas
+
+O **Jonatas** cadastrou o local dele (Batata Padel), lançou aulas, instalou o app — e cada
+coisa que ele tentou fazer encostou num limite. Os cinco pedidos têm a mesma raiz: **o código
+supunha um professor mais simples do que o professor real**.
+
+- **Aula em dupla e em trio.** Existia **um** preço por local, e o painel anunciava "aula
+  individual" enquanto ele cobrava três valores diferentes conforme quantos alunos dividem a
+  quadra. `LocalAula` ganhou `PrecoDupla`/`PrecoTrio` (o **total** da aula, que é o que ele
+  fala pro aluno e o que entra no financeiro) e `Aula` ganhou `QuantidadeAlunos`.
+  **A regra mora em `Services/PrecoDaAula`** e **a mesma conta roda no JavaScript** das duas
+  telas — se as duas divergirem, o professor vê um valor e salva outro.
+  Sem preço pro tamanho pedido, cai pro **tamanho menor mais próximo que ele informou**:
+  preencheu dupla e deixou trio vazio, o trio sugere o valor da dupla — perto, dá pra ajustar
+  pra cima. Cair no individual cobraria três pessoas pelo preço de uma.
+
+- **Apagar um local.** Só existia *Desativar*, então **errar o nome no primeiro cadastro**
+  deixava o local errado na lista pra sempre. Agora some de vez quando não tem aula nenhuma
+  (horários e pacotes vão junto, e a confirmação diz quais). **Com aula, recusa e explica** —
+  apagar levaria junto o histórico do que ele ganhou ali, e `Aula.LocalAulaId` é `Restrict`:
+  o banco recusaria de qualquer jeito, entregando um **erro 500 no lugar da explicação**.
+  De quebra, a tabela de preços de um local **virou editável** (antes só o custo era).
+
+- **Preço combinado com um aluno.** O aluno antigo que nunca teve reajuste é a **regra, não a
+  exceção** — sem lugar pra guardar, ele corrigia o valor na mão em toda aula e esquecia numa.
+  Nova tabela `PrecoDeAluno`, editável direto na lista de **Alunos** do painel.
+  **Vale na aula individual daquele aluno**; em dupla ou trio manda o preço do tamanho, porque
+  o desconto foi dado a **uma pessoa** e não à quadra inteira — valendo lá, o lugar do
+  acompanhante sairia de graça sem ele perceber.
+
+- **Excluir a aula.** Só dava pra *Cancelar*, que é um **fato registrado** (conta pra política
+  de 24h, aparece no financeiro) e continua na tela — não serve pra desfazer lançamento errado.
+  Apagar tira a linha, **remove o evento da Google Agenda** (senão o horário some daqui e
+  continua ocupado lá, que é onde ele olha antes de marcar outra coisa) e **avisa o aluno com
+  conta** quando ainda havia aula pela frente. A confirmação muda conforme o que está em jogo.
+
+- **Instalou o app e o app seguia pedindo pra instalar.** Os Primeiros Passos mediam
+  `PushSubscription` — ou seja, **"aceitou notificação"**, não "instalou". Quem instala sem
+  liberar aviso ficava com o passo pendente **pra sempre**. `Jogador` ganhou `InstalouAppEm`,
+  carimbado pelo **navegador** (o único que sabe: a requisição que chega no servidor é idêntica
+  instalado ou não), e o passo passou a aceitar **as duas provas**.
+
+⚠️ **A migração entra com `defaultValue: 1` em `QuantidadeAlunos`, não o `0` que o EF gera
+sozinho** — toda aula anterior era individual, era o único preço que existia. O padrão do EF
+escreveria "aula com zero alunos" em cima do histórico inteiro do Jonatas.
+
+**39 testes novos · 1.127 no total**, verdes em Debug **e** Release. Conferido ao vivo no
+ambiente local com conta de professor descartável (apagada depois): o preço muda com o tamanho
+(120 → 150 → 180), o acordo de R$ 90 vale na individual e **não vaza** pra dupla, local com
+aula recusa a exclusão e sem aula some, aula apagada sai da agenda, e o passo do app fecha
+sozinho (0 de 5 → 1 de 5, "Instale o app no celular" riscado).
 
 ### 31/07/2026 (noite) — ✏️ O que só dava pra decidir na criação virou editável
 
