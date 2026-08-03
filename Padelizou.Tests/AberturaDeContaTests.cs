@@ -242,7 +242,7 @@ public class AberturaDeContaTests
         asaas.Configurado.Returns(true);
         asaas.CriarSubcontaAsync(Arg.Any<DadosDaSubconta>()).Returns(
             ((SubcontaCriada?)null,
-             (FalhaAoCriarSubconta?)new FalhaAoCriarSubconta("Já existe conta com este CPF.", PodeTentarManual: true)));
+             (FalhaAoCriarSubconta?)new FalhaAoCriarSubconta("Já existe conta com este CPF.", JaTemConta: true)));
 
         var (c, ctx, j) = Montar(asaas);
         using var _ = ctx;
@@ -253,6 +253,32 @@ public class AberturaDeContaTests
         Assert.Null(salvo.AsaasWalletId);
         Assert.False(salvo.ReceberPagamentoOnline);
         Assert.NotNull(c.TempData["Erro"]);
+    }
+
+    [Fact]
+    public async Task Teto_de_subcontas_do_periodo_de_avaliacao_nao_deixa_o_organizador_sem_saida()
+    {
+        // O Período de Avaliação do Asaas deixa a conta-mãe criar no máximo 10 subcontas nos
+        // primeiros 60 dias. Na décima primeira, a recusa não fala nada de "conta já existe" —
+        // e a versão anterior deste código só oferecia o caminho manual quando reconhecia o
+        // texto do erro. Resultado: tela sem saída justo pro organizador de número 11.
+        var asaas = Substitute.For<IAsaasService>();
+        asaas.Configurado.Returns(true);
+        asaas.CriarSubcontaAsync(Arg.Any<DadosDaSubconta>()).Returns(
+            ((SubcontaCriada?)null,
+             (FalhaAoCriarSubconta?)new FalhaAoCriarSubconta(
+                 "Limite de subcontas do período de avaliação atingido.", JaTemConta: false)));
+
+        var (c, ctx, _j) = Montar(asaas);
+        using var _ = ctx;
+
+        await c.AbrirConta(3000m, new DateTime(1990, 5, 20), "91520-000", "Av. Assis Brasil", "1234", "Sarandi", null);
+
+        var erro = c.TempData["Erro"] as string;
+        Assert.NotNull(erro);
+        Assert.Contains("Limite de subcontas", erro);
+        // O que importa: a saída continua na tela. Colar o código funciona em QUALQUER recusa.
+        Assert.Contains("colar o código", erro);
     }
 
     [Fact]

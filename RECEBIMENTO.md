@@ -42,31 +42,48 @@ Aula e jogo: 10%, mínimo R$ 1. Torneio tem mínimo de R$ 4.
 
 ---
 
-## 2. ⚠️ O risco com data: período regulatório
+## 2. O Período de Avaliação — resolvido, com um limite que sobra
 
-A documentação do Asaas descreve um **período regulatório** para contas novas, com teto de:
+**Conferido em 03/08/2026 na API de produção:** nossa conta está `APPROVED` nos quatro itens
+(comercial, bancário, documentação e geral). Não há teto de emissão pesando sobre ela.
 
-- **10 subcontas** de titulares diferentes
-- **R$ 2.000 emitidos em cobranças por subconta**
+⚠️ **Mas ter a conta aprovada NÃO isenta do Período de Avaliação de subcontas** — a aprovação
+é o **pré-requisito de acesso** ao recurso, e o período começa quando a **primeira subconta**
+é criada. Isso foi confirmado pelo próprio suporte do Asaas depois de eu ter concluído o
+contrário lendo a documentação.
 
-E diz que, atingido o teto, **bloqueia** novas cobranças.
+Os números oficiais, contados a partir da primeira subconta:
 
-Nossa conta foi aberta em **23/07/2026**, então está dentro dessa janela. Um torneio de 32
-duplas a R$ 150 por pessoa são R$ 9.600 — muito acima de R$ 2.000.
+| Limite | Valor |
+|---|---|
+| Subcontas que a conta-mãe pode criar | **10** |
+| Cobranças **emitidas** por subconta | **R$ 2.000** |
+| Duração | **60 dias** |
 
-**Não deu pra apurar na documentação se esse teto pega a nossa conta raiz emitindo com
-split**, que é a nossa arquitetura (a subconta não emite nada; quem emite somos nós). Pode
-ser que não pegue. Mas se pegar, o primeiro torneio pago trava no meio, com gente inscrita.
+### O que disso pega o Padelizou, e o que não pega
 
-### Perguntas exatas pro gerente de conta
+**Os R$ 2.000 NÃO pegam.** O texto do Asaas diz "a subconta que atingir R$ 2.000,00 não
+poderá **emitir** novas cobranças" — e no Padelizou o organizador **nunca emite nada**. Quem
+emite é a conta-mãe, com split pra carteira dele. Um torneio de R$ 9.600 deixa o contador da
+subconta dele em zero.
 
-1. **Qual o teto de emissão da nossa conta hoje?** Em valor e em quantidade, e até quando
-   vale o período de avaliação.
-2. Esse teto conta o **valor bruto** das cobranças que emitimos, mesmo com split mandando a
-   maior parte pra carteira de terceiro?
-3. O que acontece exatamente quando bate o teto — recusa a cobrança nova, ou suspende a
-   conta?
-4. Dá pra **antecipar a liberação** mandando documentação agora, antes de 08/08?
+Testado no sandbox em 03/08: **R$ 3.600 de split acumulados** numa subconta nova sem nenhum
+documento enviado, sem uma recusa. (Sandbox pode não aplicar o período — é evidência forte,
+não prova. O que sustenta de verdade é a palavra "emitir" no texto oficial.)
+
+A única interferência possível: se a subconta ficar bloqueada porque o organizador emitiu
+cobranças **por conta própria**, fora do Padelizou, aí o split pra ela falha.
+
+**As 10 subcontas PEGAM.** É o limite real: do 11º organizador em diante a criação automática
+falha nos primeiros 60 dias. A tela cai sozinha no caminho manual (ver
+[MANUAL-CONTA-RECEBIMENTO.md](MANUAL-CONTA-RECEBIMENTO.md)), e há teste cobrindo isso.
+
+**Não criar subconta "pra começar a contagem":** os 60 dias correm a partir da primeira, e o
+prazo vencendo bloqueia por si só. A primeira deve ser de um organizador real, pra que a
+análise do Asaas comece com cenário de verdade.
+
+Também confirmado: encerrar o Período de Avaliação **não bloqueia saldo nem impede saque** —
+no pior caso a subconta para de emitir cobrança nova; o que já entrou continua dela.
 
 ---
 
@@ -93,12 +110,13 @@ Mesmo com subconta, o titular ainda:
 O que a subconta elimina é ele **sair do site, achar e digitar um código** — que já é a maior
 parte da desistência, mas não é "um clique e pronto".
 
-### O que mais perguntar
+### O que ainda vale perguntar
 
-5. Nossa conta tem liberação pra **criar subcontas por API**? Precisa de aprovação?
-6. E pra **white label** (o titular não ver a marca do Asaas em lugar nenhum)? A
-   documentação diz que isso exige aprovação do gerente.
-7. O envio de documentos pode ser **embutido na nossa tela**, ou o titular sempre recebe um
+1. Depois dos 60 dias e da análise, **o teto de 10 subcontas sobe pra quanto?** É o número
+   que decide se o caminho automático serve pro lançamento ou só pros primeiros.
+2. **White label** (o titular não ver a marca do Asaas em lugar nenhum) exige aprovação do
+   gerente — vale pedir junto.
+3. O envio de documentos pode ser **embutido na nossa tela**, ou o titular sempre recebe um
    link/e-mail do Asaas?
 
 ### O custo do nosso lado

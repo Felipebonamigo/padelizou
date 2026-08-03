@@ -268,7 +268,7 @@ public class AsaasService : IAsaasService
                 var (motivo, jaTemConta) = LerRecusa(conteudo);
                 _logger.LogWarning("Asaas recusou a criação de subconta ({Status}): {Motivo}",
                     resposta.StatusCode, motivo);
-                return (null, new FalhaAoCriarSubconta(motivo, PodeTentarManual: jaTemConta));
+                return (null, new FalhaAoCriarSubconta(motivo, JaTemConta: jaTemConta));
             }
 
             using var json = JsonDocument.Parse(conteudo);
@@ -279,7 +279,7 @@ public class AsaasService : IAsaasService
                 _logger.LogError("Asaas criou a subconta mas não devolveu walletId.");
                 return (null, new FalhaAoCriarSubconta(
                     "A conta foi criada, mas não recebemos o identificador dela. Fale com a gente.",
-                    PodeTentarManual: true));
+                    JaTemConta: false));
             }
 
             // A apiKey que veio junto morre aqui, junto com `conteudo`: ela move dinheiro da
@@ -291,7 +291,7 @@ public class AsaasService : IAsaasService
             _logger.LogError(ex, "Falha ao criar subconta no Asaas.");
             return (null, new FalhaAoCriarSubconta(
                 "Não conseguimos falar com o meio de pagamento agora. Tente de novo em instantes.",
-                PodeTentarManual: true));
+                JaTemConta: false));
         }
     }
 

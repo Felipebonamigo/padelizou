@@ -303,9 +303,14 @@ public class PagamentosController : Controller
 
         if (sucesso == null)
         {
-            TempData["Erro"] = falha?.PodeTentarManual == true
-                ? $"{falha.Motivo} Se você já tem conta lá, use a opção de colar o código."
-                : falha?.Motivo ?? "Não foi possível criar a conta agora.";
+            // O caminho manual é oferecido em QUALQUER recusa, não só nas que a gente sabe
+            // interpretar: colar o código funciona sempre. O motivo mais provável de cair
+            // aqui e não ser "já tem conta" é o teto de 10 subcontas do Período de Avaliação
+            // do Asaas — e nesse caso deixar o organizador sem saída seria o pior desfecho.
+            TempData["Erro"] = falha?.JaTemConta == true
+                ? $"{falha.Motivo} Use a conta que você já tem: cole o código dela aqui embaixo."
+                : $"{falha?.Motivo ?? "Não foi possível criar a conta agora."} " +
+                  "Se você já tem conta no meio de pagamento, dá pra colar o código dela aqui embaixo.";
             return RedirectToAction(nameof(Configurar));
         }
 

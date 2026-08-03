@@ -36,9 +36,17 @@ public record DadosDaSubconta(
 // pra gerar outra chave.
 public record SubcontaCriada(string WalletId);
 
-// Por que a criação falhou, no jeito de falar de quem está lendo a tela. `PodeTentarManual`
-// separa "não deu, tenta de novo" de "essa pessoa já tem conta lá, mande ela colar o código".
-public record FalhaAoCriarSubconta(string Motivo, bool PodeTentarManual);
+// Por que a criação falhou, no jeito de falar de quem está lendo a tela.
+//
+// `JaTemConta` NÃO decide se vale oferecer o caminho manual — esse é sempre oferecido, porque
+// colar o código funciona em qualquer cenário de recusa. Serve só pra escolher a frase: quem
+// já tem conta lá precisa ouvir "use a que você tem", e não "tente de novo mais tarde".
+//
+// Antes isso governava a oferta do caminho manual, e havia um cenário previsível em que ele
+// sumia: o Período de Avaliação do Asaas deixa a conta-mãe criar no MÁXIMO 10 subcontas nos
+// primeiros 60 dias. Na décima primeira, a recusa não fala de conta existente, o texto não
+// casava com nada, e o organizador ficava sem saída nenhuma na tela.
+public record FalhaAoCriarSubconta(string Motivo, bool JaTemConta);
 
 public interface IAsaasService
 {
