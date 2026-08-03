@@ -239,6 +239,91 @@ public class AsaasService : IAsaasService
         }
     }
 
+    public async Task<(SubcontaCriada?, FalhaAoCriarSubconta?)> CriarSubcontaAsync(DadosDaSubconta dados)
+    {
+        try
+        {
+            var corpo = new Dictionary<string, object?>
+            {
+                ["name"] = dados.Nome,
+                ["email"] = dados.Email,
+                ["cpfCnpj"] = SomenteDigitos(dados.CpfCnpj),
+                ["mobilePhone"] = SomenteDigitos(dados.Celular),
+                ["incomeValue"] = dados.FaturamentoMensal,
+                ["address"] = dados.Endereco,
+                ["addressNumber"] = dados.Numero,
+                ["province"] = dados.Bairro,
+                ["postalCode"] = SomenteDigitos(dados.Cep),
+            };
+
+            using var request = Requisicao(HttpMethod.Post, "accounts", corpo);
+            var resposta = await _httpClient.SendAsync(request);
+            var conteudo = await resposta.Content.ReadAsStringAsync();
+
+            if (!resposta.IsSuccessStatusCode)
+            {
+                // NUNCA logar o conteúdo inteiro aqui: o corpo enviado leva endereço e CPF, e
+                // o Asaas devolve trechos dele no erro. Só o código e a descrição do problema.
+                var (motivo, jaTemConta) = LerRecusa(conteudo);
+                _logger.LogWarning("Asaas recusou a criação de subconta ({Status}): {Motivo}",
+                    resposta.StatusCode, motivo);
+                return (null, new FalhaAoCriarSubconta(motivo, PodeTentarManual: jaTemConta));
+            }
+
+            using var json = JsonDocument.Parse(conteudo);
+            var walletId = json.RootElement.TryGetProperty("walletId", out var w) ? w.GetString() : null;
+
+            if (string.IsNullOrWhiteSpace(walletId))
+            {
+                _logger.LogError("Asaas criou a subconta mas não devolveu walletId.");
+                return (null, new FalhaAoCriarSubconta(
+                    "A conta foi criada, mas não recebemos o identificador dela. Fale com a gente.",
+                    PodeTentarManual: true));
+            }
+
+            // A apiKey que veio junto morre aqui, junto com `conteudo`: ela move dinheiro da
+            // conta dele e o split não precisa dela. Ver o comentário em SubcontaCriada.
+            return (new SubcontaCriada(walletId), null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao criar subconta no Asaas.");
+            return (null, new FalhaAoCriarSubconta(
+                "Não conseguimos falar com o meio de pagamento agora. Tente de novo em instantes.",
+                PodeTentarManual: true));
+        }
+    }
+
+    // O Asaas devolve {"errors":[{"code":"...","description":"..."}]}. A descrição dele já vem
+    // em português e é mais específica do que qualquer texto genérico nosso — vale repassar.
+    private static (string Motivo, bool JaTemConta) LerRecusa(string conteudo)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(conteudo);
+            if (json.RootElement.TryGetProperty("errors", out var erros) && erros.GetArrayLength() > 0)
+            {
+                var primeiro = erros[0];
+                var descricao = primeiro.TryGetProperty("description", out var d) ? d.GetString() : null;
+                var codigo = primeiro.TryGetProperty("code", out var c) ? c.GetString() : null;
+
+                // CPF que já tem conta lá é o caso comum, e não é erro nenhum: essa pessoa
+                // só precisa colar o código da conta que ela já tem.
+                bool jaTemConta = (codigo ?? "").Contains("already", StringComparison.OrdinalIgnoreCase)
+                    || (descricao ?? "").Contains("já", StringComparison.OrdinalIgnoreCase)
+                    || (descricao ?? "").Contains("existe", StringComparison.OrdinalIgnoreCase);
+
+                return (descricao ?? "O meio de pagamento recusou os dados informados.", jaTemConta);
+            }
+        }
+        catch (JsonException) { /* corpo não-JSON: cai no texto genérico */ }
+
+        return ("O meio de pagamento recusou os dados informados.", false);
+    }
+
+    private static string SomenteDigitos(string? valor) =>
+        new((valor ?? "").Where(char.IsDigit).ToArray());
+
     private HttpRequestMessage Requisicao(HttpMethod metodo, string caminho, object? corpo = null)
     {
         var request = new HttpRequestMessage(metodo, $"{_settings.BaseUrl.TrimEnd('/')}/{caminho.TrimStart('/')}");

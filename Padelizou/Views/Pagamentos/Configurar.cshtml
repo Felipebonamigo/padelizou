@@ -15,6 +15,8 @@
     decimal exemploComissao = Math.Max(Math.Round(exemploValor * percentualAula / 100m, 2), minimaAula);
 
     bool jaConectado = Padelizou.Services.ContaDeRecebimento.Conectada(Model);
+    bool podeAbrirConta = ViewBag.PodeAbrirConta == true && !jaConectado;
+    string? faltaNoPerfil = ViewBag.FaltaNoPerfil as string;
 }
 
 <div class="container mt-4 mb-5">
@@ -87,6 +89,88 @@
                     </div>
                 </div>
             </div>
+
+            @* ── Caminho novo: abrir a conta aqui dentro ──────────────────────────────────
+               Antes o único jeito era sair do site, criar conta no gateway, achar um código
+               chamado "Wallet ID" e voltar pra colar. Cinco passos, dois deles fora daqui —
+               e cada um é um lugar onde o organizador desiste e volta pro "por fora". *@
+            @if (podeAbrirConta)
+            {
+                <div class="card shadow-sm border-0 mb-3" style="border-top: 4px solid var(--pdz-lime) !important;">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-1"><i class="bi bi-magic text-success"></i> Criar minha conta agora</h5>
+                        <p class="text-muted small">
+                            Sem sair do Padelizou. A gente abre pra você e já deixa conectada.
+                        </p>
+
+                        @if (faltaNoPerfil != null)
+                        {
+                            <div class="alert alert-warning border-0 small mb-0">
+                                <i class="bi bi-exclamation-triangle-fill"></i> @faltaNoPerfil
+                                <a asp-controller="Auth" asp-action="EditarPerfil" class="alert-link">Editar meu perfil</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-controller="Pagamentos" asp-action="AbrirConta" method="post">
+                                @Html.AntiForgeryToken()
+
+                                <div class="small text-muted mb-3">
+                                    Vamos usar o que já está no seu perfil: <strong>@Model.Nome</strong>,
+                                    @Model.Email e seu CPF. Faltam só estes:
+                                </div>
+
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label small fw-semibold mb-1" for="cep">CEP</label>
+                                        <input type="text" class="form-control" id="cep" name="cep"
+                                               inputmode="numeric" maxlength="9" placeholder="00000-000" required>
+                                    </div>
+                                    <div class="col-12 col-md-8">
+                                        <label class="form-label small fw-semibold mb-1" for="endereco">Rua / Avenida</label>
+                                        <input type="text" class="form-control" id="endereco" name="endereco" required>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <label class="form-label small fw-semibold mb-1" for="numero">Número</label>
+                                        <input type="text" class="form-control" id="numero" name="numero"
+                                               placeholder="S/N se não tiver" required>
+                                    </div>
+                                    <div class="col-6 col-md-8">
+                                        <label class="form-label small fw-semibold mb-1" for="bairro">Bairro</label>
+                                        <input type="text" class="form-control" id="bairro" name="bairro" required>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-semibold mb-1" for="faturamentoMensal">
+                                            Quanto você fatura por mês, mais ou menos?
+                                        </label>
+                                        <input type="text" class="form-control" id="faturamentoMensal"
+                                               name="faturamentoMensal" inputmode="decimal" placeholder="3.000,00" required>
+                                        <div class="form-text">Pode ser estimativa. É exigência do cadastro.</div>
+                                    </div>
+                                </div>
+
+                                @* Endereço não fica guardado aqui, e isso merece estar escrito na
+                                   tela: é dado que a pessoa está entregando, ela tem o direito de
+                                   saber pra onde vai. *@
+                                <div class="small text-muted mb-3">
+                                    <i class="bi bi-shield-check"></i>
+                                    Estes dados vão direto para o meio de pagamento e
+                                    <strong>não ficam guardados no Padelizou</strong>.
+                                </div>
+
+                                <button type="submit" class="btn btn-padel rounded-pill w-100">
+                                    <i class="bi bi-check2-circle"></i> Criar minha conta de recebimento
+                                </button>
+                                <div class="form-text text-center mt-2">
+                                    Depois você recebe um e-mail para ativar e enviar documentos.
+                                </div>
+                            </form>
+                        }
+                    </div>
+                </div>
+
+                <div class="text-center text-muted small mb-3">— ou, se você já tem conta —</div>
+            }
 
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">

@@ -7,6 +7,34 @@ public record CobrancaAsaas(string PaymentId, string InvoiceUrl);
 // Quanto o jogador paga, quanto vai pro dono do torneio/aula e quanto fica de comissão.
 public record RateioComissao(decimal ValorTotal, decimal ValorRepasse, decimal Comissao);
 
+// O que o Asaas exige pra abrir a conta de recebimento de um organizador/professor.
+//
+// Nome, e-mail, CPF e celular saem do cadastro dele. Endereço e faturamento são pedidos na
+// hora e NÃO ficam no nosso banco: atravessam a requisição e acabam ali. Guardar endereço de
+// todo organizador seria assumir uma responsabilidade que a gente não precisa ter.
+public record DadosDaSubconta(
+    string Nome,
+    string Email,
+    string CpfCnpj,
+    string Celular,
+    decimal FaturamentoMensal,
+    string Cep,
+    string Endereco,
+    string Numero,
+    string Bairro);
+
+// Só o WalletId volta pra cima.
+//
+// A resposta do Asaas traz também uma apiKey — devolvida UMA única vez — que dá poder de
+// mover o dinheiro da conta do organizador. Pro split a gente só precisa do walletId, então
+// ela é descartada de propósito: guardar uma chave dessas por usuário seria criar um passivo
+// enorme sem ganho nenhum. Se um dia precisar, o Asaas tem endpoint pra gerar outra.
+public record SubcontaCriada(string WalletId);
+
+// Por que a criação falhou, no jeito de falar de quem está lendo a tela. `PodeTentarManual`
+// separa "não deu, tenta de novo" de "essa pessoa já tem conta lá, mande ela colar o código".
+public record FalhaAoCriarSubconta(string Motivo, bool PodeTentarManual);
+
 public interface IAsaasService
 {
     // Falso quando a ApiKey não está configurada — o chamador cai no fluxo "pago por fora".
@@ -35,4 +63,8 @@ public interface IAsaasService
     // Devolve o dinheiro ao jogador. Cobrança ainda não paga é cancelada em vez de estornada —
     // são endpoints diferentes no Asaas.
     Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga);
+
+    // Abre a conta de recebimento do organizador sem que ele saia do Padelizou. Devolve o
+    // walletId em caso de sucesso, ou o motivo escrito pra tela em caso de recusa.
+    Task<(SubcontaCriada? Sucesso, FalhaAoCriarSubconta? Falha)> CriarSubcontaAsync(DadosDaSubconta dados);
 }

@@ -44,6 +44,13 @@ public class PagamentosController : Controller
         ViewBag.ComissaoMinima = _settings.ComissaoMinima;
         ViewBag.MinimasPorTipo = _settings.ComissaoMinimaPorTipo;
         ViewBag.ModoPadrao = _settings.ModoComissaoPadrao;
+
+        // Abrir a conta aqui dentro só é oferecido se o gateway estiver de pé e o cadastro
+        // dele tiver o necessário — prometer o caminho fácil e recusar depois do formulário
+        // preenchido é pior do que já mostrar o que falta.
+        ViewBag.PodeAbrirConta = _asaas.Configurado;
+        ViewBag.FaltaNoPerfil = AberturaDeConta.FaltaNoPerfil(jogador);
+
         return View(jogador);
     }
 
@@ -251,6 +258,65 @@ public class PagamentosController : Controller
             ? "Estorno solicitado — o valor volta pro jogador pelo Asaas."
             : "Cobrança cancelada.";
         return RedirectToAction(nameof(Meus));
+    }
+
+    // Abre a conta de recebimento SEM o organizador sair do Padelizou. O caminho antigo (ir
+    // no site do meio de pagamento, achar o código, voltar e colar) continua existindo pra
+    // quem já tem conta — mas deixou de ser o único.
+    //
+    // Nada do endereço é gravado: ele atravessa daqui pro gateway e acaba na resposta.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AbrirConta(decimal? faturamentoMensal, string? cep,
+        string? endereco, string? numero, string? bairro, string? modoComissao)
+    {
+        var jogador = await _context.Jogadores.FindAsync(ObterJogadorIdLogado());
+        if (jogador == null) return NotFound();
+
+        if (ContaDeRecebimento.Conectada(jogador))
+        {
+            TempData["Erro"] = "Sua conta de recebimento já está conectada.";
+            return RedirectToAction(nameof(Configurar));
+        }
+
+        if (!_asaas.Configurado)
+        {
+            TempData["Erro"] = "O pagamento pelo app está fora do ar no momento.";
+            return RedirectToAction(nameof(Configurar));
+        }
+
+        if (AberturaDeConta.FaltaNoPerfil(jogador) is { } faltaPerfil)
+        {
+            TempData["Erro"] = faltaPerfil + " Ajuste em Editar Perfil e volte aqui.";
+            return RedirectToAction(nameof(Configurar));
+        }
+
+        if (AberturaDeConta.ProblemaNoFormulario(faturamentoMensal, cep, endereco, numero, bairro) is { } problema)
+        {
+            TempData["Erro"] = problema;
+            return RedirectToAction(nameof(Configurar));
+        }
+
+        var (sucesso, falha) = await _asaas.CriarSubcontaAsync(AberturaDeConta.Montar(
+            jogador, faturamentoMensal!.Value, cep!, endereco!, numero!, bairro!));
+
+        if (sucesso == null)
+        {
+            TempData["Erro"] = falha?.PodeTentarManual == true
+                ? $"{falha.Motivo} Se você já tem conta lá, use a opção de colar o código."
+                : falha?.Motivo ?? "Não foi possível criar a conta agora.";
+            return RedirectToAction(nameof(Configurar));
+        }
+
+        jogador.AsaasWalletId = sucesso.WalletId;
+        jogador.ReceberPagamentoOnline = true;
+        jogador.ModoComissao = modoComissao is "Somada" or "Descontada" ? modoComissao : null;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Conta de recebimento criada para o jogador {JogadorId}.", jogador.Id);
+
+        TempData["Sucesso"] = AberturaDeConta.DepoisDeCriar;
+        return RedirectToAction(nameof(Configurar));
     }
 
     [HttpPost]
