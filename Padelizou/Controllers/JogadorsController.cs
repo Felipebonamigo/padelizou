@@ -71,6 +71,27 @@ public class JogadoresController : Controller
         // chegou à final/foi campeão. Base da regra anti-sandbagging. Null se ainda não comprovou.
         ViewBag.CategoriaPrevista = await _estatisticas.ObterNivelComprovadoJogadorAsync(id);
 
+        // ---- Padelímetro (fase 1: só MOSTRAR, nada trava — RANKING.md) ----
+        // A régua é única, mas o RÓTULO da faixa depende da escada: o mesmo 500 é "5ª" na
+        // masculina e "2ª" na feminina. A escada vem da inscrição não-mista mais recente
+        // (mista fica fora da escada de propósito); sem nenhuma, masculina por padrão.
+        if (jogador.Padelimetro is int nivelPadelimetro)
+        {
+            var categoriaRecente = historicoDuplas
+                .Select(d => d.Categoria.Nome)
+                .FirstOrDefault(n => !FaixasDePadelimetro.EhMista(n));
+            bool reguaFeminina = FaixasDePadelimetro.EhFeminina(categoriaRecente);
+
+            ViewBag.PadelimetroFaixa = FaixasDePadelimetro.DoNivel(nivelPadelimetro, reguaFeminina);
+            ViewBag.PadelimetroFalta = FaixasDePadelimetro.FaltaPraSubir(nivelPadelimetro, reguaFeminina);
+            ViewBag.PadelimetroEmCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
+            ViewBag.PadelimetroExtrato = await _context.HistoricosDePadelimetro
+                .Where(h => h.JogadorId == id)
+                .OrderByDescending(h => h.CriadoEm).ThenByDescending(h => h.Id)
+                .Take(8)
+                .ToListAsync();
+        }
+
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
 

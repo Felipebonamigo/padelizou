@@ -51,6 +51,30 @@
         {
             <p class="text-muted">Ranking: <strong>@ViewBag.Pontos pts</strong> <span class="small">· @ViewBag.TotalTorneios torneio(s)</span></p>
 
+            @* Padelímetro: o nível 0–1000 (RANKING.md). Fase 1 = só mostrar; nada trava. *@
+            @if (Model.jogador.Padelimetro is int nivelPdz)
+            {
+                var faixaPdz = ViewBag.PadelimetroFaixa as Padelizou.Services.FaixasDePadelimetro.Faixa;
+                bool calibrando = ViewBag.PadelimetroEmCalibracao == true;
+                int? faltaPdz = ViewBag.PadelimetroFalta as int?;
+                <p class="mb-2">
+                    <span class="badge rounded-pill @(calibrando ? "bg-secondary" : "")"
+                          style="@(calibrando ? "" : "background:#0b3d2e;color:#9be3c0;")font-size:.9rem;"
+                          title="@(calibrando ? "Em calibração: os primeiros 10 jogos movem o número mais rápido, até ele se encontrar." : "O nível do jogador, de 0 a 1000 — muda a cada jogo de torneio.")">
+                        <i class="bi bi-speedometer2"></i>
+                        Padelímetro @nivelPdz@(faixaPdz != null ? $" · faixa da {faixaPdz.Rotulo}" : "")
+                    </span>
+                    @if (calibrando)
+                    {
+                        <span class="small text-muted d-block mt-1">em calibração (@Model.jogador.JogosDePadelimetro de 10 jogos)</span>
+                    }
+                    else if (faltaPdz is int falta)
+                    {
+                        <span class="small text-muted d-block mt-1">faltam @falta pra subir de faixa</span>
+                    }
+                </p>
+            }
+
             @if (ViewBag.EstouSeguindo != null)
             {
                 bool estouSeguindo = (bool)ViewBag.EstouSeguindo;
@@ -104,6 +128,27 @@
         <div class="card border-0 shadow-sm mb-4 p-3">
             <h6 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow"></i> Evolução nos últimos 12 meses</h6>
             @await Html.PartialAsync("_GraficoEvolucao", evolucao)
+        </div>
+    }
+
+    <!-- EXTRATO DO PADELÍMETRO: cada movimento com o porquê — transparência que ninguém dá -->
+    var extratoPdz = ViewBag.PadelimetroExtrato as List<Padelizou.Models.HistoricoDePadelimetro>;
+    @if (extratoPdz != null && extratoPdz.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4 p-3">
+            <h6 class="fw-bold mb-1"><i class="bi bi-speedometer2"></i> Padelímetro — últimos movimentos</h6>
+            <p class="text-muted small mb-2">O nível muda a cada jogo de torneio: sobe quando vence, desce quando perde — e vencer favorito vale mais.</p>
+            <ul class="list-unstyled mb-0">
+                @foreach (var mov in extratoPdz)
+                {
+                    <li class="d-flex justify-content-between align-items-baseline gap-2 py-1 border-bottom">
+                        <span class="small">@mov.Motivo</span>
+                        <span class="fw-bold text-nowrap @(mov.Delta > 0 ? "text-success" : mov.Delta < 0 ? "text-danger" : "text-muted")">
+                            @(mov.Delta > 0 ? $"+{mov.Delta}" : mov.Delta < 0 ? mov.Delta.ToString() : $"{mov.NivelDepois}")
+                        </span>
+                    </li>
+                }
+            </ul>
         </div>
     }
 

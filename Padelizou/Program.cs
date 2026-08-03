@@ -130,6 +130,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
+builder.Services.AddScoped<IPadelimetroService, PadelimetroService>();
 builder.Services.AddScoped<ISessaoGrupoService, SessaoGrupoService>();
 // Timeout curto: o envio acontece DENTRO da ação do jogador. Um provedor pendurado não pode
 // segurar a resposta da tela — melhor perder a mensagem do que travar quem clicou.

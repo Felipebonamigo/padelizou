@@ -118,5 +118,22 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-speedometer2"></i> Recalcular Padelímetro</h5>
+                    <p class="text-muted small mb-3">
+                        Zera e reconstrói o nível de todo mundo a partir das partidas finalizadas, em
+                        ordem cronológica. É o botão de "mudou a regra" — determinístico, rodar de
+                        novo dá no mesmo lugar.
+                    </p>
+                    <form asp-controller="Admin" asp-action="RecalcularPadelimetro" method="post"
+                          onsubmit="return confirm('Recalcular o Padelímetro de todos os jogadores do zero?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Recalcular agora</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

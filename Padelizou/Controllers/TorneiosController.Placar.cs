@@ -116,6 +116,19 @@ namespace Padelizou.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // PADELÍMETRO: o placar acabou de virar oficial — move o nível dos 4
+                // jogadores (regras em RANKING.md; restrito/time/W.O. o serviço filtra).
+                // Falha aqui não pode travar a Mesa no meio do torneio: o replay do
+                // admin reconstrói qualquer jogo perdido.
+                try
+                {
+                    await _padelimetro.AplicarAsync(partida.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Padelímetro falhou na partida {PartidaId}", partida.Id);
+                }
+
                 // GATILHOS DO ROBÔ (Usando _context.Partidas). A fase de grupos existe em duas
                 // grafias ("Fase de Grupos" nos seeds antigos, "Grupo A/B/..." no GerarChaves) —
                 // o gatilho precisa aceitar as duas, senão o mata-mata nunca é gerado.

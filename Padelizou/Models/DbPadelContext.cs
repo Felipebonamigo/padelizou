@@ -81,6 +81,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<AnotacaoAula> AnotacoesAula { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
+    // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
+    public DbSet<HistoricoDePadelimetro> HistoricosDePadelimetro { get; set; }
+
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
     //        => optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DB_PADEL;Trusted_Connection=True;TrustServerCertificate=True;");
@@ -318,6 +321,24 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ParaJogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<HistoricoDePadelimetro>(entity =>
+        {
+            // O extrato de um jogador se consulta inteiro e em ordem — é o gráfico do perfil.
+            entity.HasIndex(h => new { h.JogadorId, h.CriadoEm });
+
+            // Jogador Restrict (a linha de Jogador nunca é apagada de verdade — LGPD raspa
+            // os dados e mantém a linha); a partida Cascade: sumiu o jogo, sai a linha do
+            // extrato, e o replay reacerta o total.
+            entity.HasOne(h => h.Jogador)
+                .WithMany()
+                .HasForeignKey(h => h.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(h => h.Partida)
+                .WithMany()
+                .HasForeignKey(h => h.PartidaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<AnotacaoAula>(entity =>
         {

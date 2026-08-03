@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **03/08/2026** — 📊 **métricas do admin por dia, semana ou mês** (semana só respondia "estamos crescendo?"; dia responde "o que aconteceu hoje?" e mês responde "como está o ano?", que é a conta do teto do MEI). **1.165 testes.**
+> Última atualização: **03/08/2026 (noite)** — 🎯 **nasceu o Padelímetro** (fase 1: só mostrar), o nosso ataque ao maior trunfo do concorrente. Nível 0–1000 por jogador, Elo por jogo de torneio, seed pela categoria da estreia, extrato com o porquê de cada movimento no perfil, replay determinístico no admin. Espec completa em **[RANKING.md](RANKING.md)** (duas trilhas: nível decide ONDE joga, ponto anual premia). **1.195 testes.**
+> Antes, no mesmo dia — 📊 **métricas do admin por dia, semana ou mês** (semana só respondia "estamos crescendo?"; dia responde "o que aconteceu hoje?" e mês responde "como está o ano?", que é a conta do teto do MEI). **1.165 testes.**
 > Antes, no mesmo dia — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. Junto, o **CI passou a dizer qual teste caiu** sem precisar de login. **1.132 testes**, no ar em prod e dev (`build-204`).
 > Antes: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
 > Antes, no mesmo dia — 🔑 **admin manda em qualquer torneio** (`build-184`), pra socorrer organizador travado sem depender dele; **estorno automático** (desfaz a inscrição e chama a fila) e **caderneta de cobrança do "por fora"** no Financeiro. **1.011 testes.**
@@ -52,6 +53,31 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 03/08/2026 (noite) — 🎯 Padelímetro, fase 1
+
+O plano de ataque ao "QT Level" do concorrente, desenhado com o Felipe e escrito em
+[RANKING.md](RANKING.md) — que é a fonte da verdade das regras. O resumo do desenho:
+**duas trilhas** (o ponto anual premia e expira em 12 meses; o **nível** decide onde a
+pessoa PODE jogar), escala única 0–1000 pra todo mundo (mulher jogando masculina sem
+regra especial), faixas de 100 por categoria, **soma da dupla** como segundo porteiro,
+subida imediata/descida com folga e a regra do bicampeão. Nome escolhido: **Padelímetro**
+("o Padelímetro não mente"). Fase 1 é só MOSTRAR — nada trava inscrição.
+
+O que existe em código:
+- `Services/Padelimetro.cs` — o motor puro (Elo divisor 400, K 40→20, fator de games
+  1,0–1,6) e `Services/FaixasDePadelimetro.cs` — a régua (faixas, entradas, somas).
+- `Jogador.Padelimetro` (nulo = nunca jogou) + `HistoricoDePadelimetro` (o extrato).
+- Gancho único no `FinalizarPartida` da Mesa (em try/catch: falha não trava torneio).
+- **Replay determinístico** no admin ("Recalcular Padelímetro") — reconstrói tudo do
+  zero em ordem cronológica; mudou a regra, roda de novo. Testado: replay = ao vivo.
+- Perfil público: pílula "Padelímetro 985 · faixa da Open", selo "em calibração
+  (3 de 10 jogos)", "faltam X pra subir" e o extrato com o porquê de cada movimento.
+- Fora da conta (verificado ao vivo com os 3 casos no banco local): torneio restrito,
+  categoria/dupla de TIMES, dupla incompleta, partida sem placar.
+
+⚠️ O retroativo NÃO roda sozinho no deploy: é o botão do admin. Em dev tem 24 partidas
+finalizadas esperando; em prod ainda não há partida nenhuma (nada a recalcular).
 
 ### 03/08/2026 — 📊 Métricas por dia, semana ou mês
 

@@ -580,5 +580,25 @@ namespace padelizou.Controllers
 
             return RedirectToAction("Index");
         }
+
+        // Replay do Padelímetro: zera e reconstrói o nível de TODO MUNDO a partir das
+        // partidas finalizadas, em ordem cronológica (RANKING.md). É o botão de "mudou a
+        // regra" e o de "algum jogo se perdeu do extrato" — determinístico, rodar duas
+        // vezes dá no mesmo lugar.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecalcularPadelimetro([FromServices] IPadelimetroService padelimetro)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var partidas = await padelimetro.RecalcularTudoAsync();
+            var comNivel = await _context.Jogadores.CountAsync(j => j.Padelimetro != null);
+
+            TempData["Sucesso"] = partidas == 0
+                ? "Nenhuma partida contável — ninguém ganhou Padelímetro ainda."
+                : $"Padelímetro recalculado: {partidas} partida(s) contada(s), {comNivel} jogador(es) com nível.";
+
+            return RedirectToAction("Index");
+        }
     }
 }

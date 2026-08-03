@@ -145,7 +145,10 @@ public static class TestInfra
             Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
             Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()),
-            NullLogger<TorneiosController>.Instance);
+            NullLogger<TorneiosController>.Instance,
+            // Padelímetro de verdade (não dublê): finalizar partida nos testes deve mover
+            // o nível igual à produção — é justamente o que os testes querem ver.
+            new PadelimetroService(ctx));
 
         controller.ControllerContext = new ControllerContext
         {

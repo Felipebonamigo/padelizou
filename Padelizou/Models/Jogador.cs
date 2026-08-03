@@ -188,6 +188,17 @@ public partial class Jogador
     // Até quando a mensalidade de assinante está quitada. Nulo = nunca pagou.
     public DateTime? AssinaturaProfessorPagaAte { get; set; }
 
+    // ---- Padelímetro (Services/Padelimetro + RANKING.md) ----
+    // O nível de habilidade, 0–1000. Nulo = nunca teve partida contada — o número NASCE
+    // na primeira partida de torneio, com o valor de entrada da categoria em que ela foi
+    // jogada. Quem escreve aqui é só o PadelimetroService (gancho do FinalizarPartida e
+    // replay); o extrato de cada movimento vive em HistoricoDePadelimetro.
+    public int? Padelimetro { get; set; }
+
+    // Quantas partidas já contaram. Menos de 10 = "em calibração" (K dobrado, o número
+    // anda mais rápido até se encontrar).
+    public int JogosDePadelimetro { get; set; }
+
     // Quando o app foi aberto instalado (tela de início) pela primeira vez. Carimbado pelo
     // próprio navegador, que é o único que sabe: o servidor vê a mesma requisição instalado
     // ou não.
