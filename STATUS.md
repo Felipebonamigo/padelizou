@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **03/08/2026** — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. **1.127 testes.**
+> Última atualização: **03/08/2026** — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. Junto, o **CI passou a dizer qual teste caiu** sem precisar de login. **1.132 testes**, no ar em `build-201`.
 > Antes: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
 > Antes, no mesmo dia — 🔑 **admin manda em qualquer torneio** (`build-184`), pra socorrer organizador travado sem depender dele; **estorno automático** (desfaz a inscrição e chama a fila) e **caderneta de cobrança do "por fora"** no Financeiro. **1.011 testes.**
 > Antes, no mesmo dia — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
@@ -98,7 +98,17 @@ supunha um professor mais simples do que o professor real**.
 sozinho** — toda aula anterior era individual, era o único preço que existia. O padrão do EF
 escreveria "aula com zero alunos" em cima do histórico inteiro do Jonatas.
 
-**39 testes novos · 1.127 no total**, verdes em Debug **e** Release. Conferido ao vivo no
+**Junto, uma correção de encanamento:** o CI passou a **dizer qual teste caiu**. Em 01/08 a
+suíte reprovou três vezes seguidas em commits de código idêntico (um deles mudava *uma linha
+de markdown*), o deploy travou e não deu pra saber o que quebrou — o log completo do CI só se
+lê autenticado, e a anotação pública dizia só *"exit code 1"*. Agora o `dotnet test` gera um
+`.trx` e, **só quando falha**, um passo imprime `::error::TESTE VERMELHO: <nome>` por teste
+quebrado; `::error::` vira anotação, e anotação é pública. Sem cano (`| tee`) de propósito:
+com cano quem devolve o código de saída é o `tee`, e uma suíte **vermelha passaria por verde**.
+A instabilidade em si **segue sem diagnóstico** — passou 5 vezes seguidas em 03/08 e não
+reproduz local. Da próxima vez que ficar vermelha, o CI entrega o nome.
+
+**44 testes novos · 1.132 no total**, verdes em Debug **e** Release. Conferido ao vivo no
 ambiente local com conta de professor descartável (apagada depois): o preço muda com o tamanho
 (120 → 150 → 180), o acordo de R$ 90 vale na individual e **não vaza** pra dupla, local com
 aula recusa a exclusão e sem aula some, aula apagada sai da agenda, e o passo do app fecha
