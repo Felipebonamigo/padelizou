@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **03/08/2026 (noite)** — 🎯 **nasceu o Padelímetro** (fase 1: só mostrar), o nosso ataque ao maior trunfo do concorrente. Nível 0–1000 por jogador, Elo por jogo de torneio, seed pela categoria da estreia, extrato com o porquê de cada movimento no perfil, replay determinístico no admin. Espec completa em **[RANKING.md](RANKING.md)** (duas trilhas: nível decide ONDE joga, ponto anual premia). **1.195 testes.**
+> Última atualização: **03/08/2026 (fim de tarde)** — 🧹 **a fila do teste real do "Interno Los Corneteiros"**: **ninguém entra 2× na mesma categoria** (inscrição solo existente vira oferta de juntar; dupla fechada recusa), **nome que pareça nome e CPF com dígito verificador** (fim do jogador "." com CPF inventado), e o **celular parou de quebrar** na Home (título truncado em "Torneio d..."), na Agenda (barra do calendário) e no Gerenciar Inscritos (lista torta). **1.242 testes.**
+> Antes, no mesmo dia — 🎯 **nasceu o Padelímetro** (fase 1: só mostrar), o nosso ataque ao maior trunfo do concorrente. Nível 0–1000 por jogador, Elo por jogo de torneio, seed pela categoria da estreia, extrato com o porquê de cada movimento no perfil, replay determinístico no admin. Espec completa em **[RANKING.md](RANKING.md)** (duas trilhas: nível decide ONDE joga, ponto anual premia). **1.195 testes.**
 > Antes, no mesmo dia — 📊 **métricas do admin por dia, semana ou mês** (semana só respondia "estamos crescendo?"; dia responde "o que aconteceu hoje?" e mês responde "como está o ano?", que é a conta do teto do MEI). **1.165 testes.**
 > Antes, no mesmo dia — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. Junto, o **CI passou a dizer qual teste caiu** sem precisar de login. **1.132 testes**, no ar em prod e dev (`build-204`).
 > Antes: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
@@ -53,6 +54,45 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 03/08/2026 (fim de tarde) — 🧹 O teste real do "Interno Los Corneteiros" e a fila que ele gerou
+
+O torneio de teste com gente de verdade rodou a tarde inteira e cada esquisitice virou
+conserto no mesmo dia:
+
+- **Ninguém entra 2× na mesma categoria** (`Services/InscricaoRepetida`). O Otávio apareceu
+  como parceiro de um E sozinho "procurando parceiro" — duas vagas pra uma pessoa. A causa é
+  o uso CERTO do sistema (se inscrever sozinho, e depois alguém te inscrever como parceiro),
+  então a resposta não é um "não" seco: inscrição existente **sozinha vira oferta de juntar**
+  (ela sai, fica só a dupla, no MESMO SaveChanges); **com parceiro, recusa** dizendo com quem
+  — confirmar não pode virar jeito de roubar parceiro alheio. O aviso aparece **enquanto o
+  CPF é digitado**. Torneio que cobra pelo site não junta (a dupla só nasce no webhook, e
+  apagar antes deixaria o outro sem vaga se o checkout fosse abandonado).
+
+- **Nome que pareça nome e CPF que exista** (`Services/NomeDePessoa`,
+  `Documentos.CpfEhValido`). Entrou no torneio um jogador chamado **"."** com CPF de 11
+  números quaisquer. Agora o CPF fecha dígito verificador (repetidos tipo 111.111.111-11
+  barrados à parte) e o nome exige duas letras, sem números. Vale nas 4 portas: dupla,
+  americano, troca de parceiro e cadastro. O campo de CPF diz **"esse CPF não existe"** na
+  hora — antes caía no mesmo "não cadastrado" do CPF legítimo e a tela *convidava* a
+  cadastrar o fantasma. ⚠️ CPF errado prende o histórico num fantasma: é por ele que o
+  parceiro sem conta assume o próprio cadastro depois.
+
+- **O celular parou de quebrar** nas três telas flagradas pelo Felipe: **Home** (selo +
+  título + botão numa linha — o título, a única coisa que importa, sobrava truncado em
+  "Torneio d..."; virou o componente `pdz-cartao-linha` no site.css: empilha no celular com
+  botão de largura cheia, linha no desktop), **Agenda** (a barra do FullCalendar com 3 blocos
+  não cabia em 375px; empilhada abaixo de 768px) e **Gerenciar Inscritos** (3 filhos num
+  justify-between = colunas desalinhadas e botão quebrando no meio; virou 2 filhos com
+  nowrap, selos discretos e Remover só com ícone). Sem `overflow-x: hidden` global de
+  propósito: a navbar é sticky e overflow em ancestral mata `position: sticky`.
+
+**1.242 testes.** Conferido no navegador em 375px e 1385px, caso a caso.
+
+📌 **Pro lançamento de 08/08:** quando o Interno acabar, **marcar o torneio como Restrito**
+(ponto de ranking é calculado na hora — some sozinho, não existe "resetar") e **rodar o
+replay do Padelímetro** no admin (esse é guardado). O torneio está com `Restrito=false` em
+prod; é por isso que pontua.
 
 ### 03/08/2026 (noite) — 🎯 Padelímetro, fase 1
 
