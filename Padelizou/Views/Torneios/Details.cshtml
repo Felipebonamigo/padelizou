@@ -591,6 +591,26 @@
                                 Sua vaga fica garantida. Assim que encontrar alguém, você define o parceiro
                                 aqui mesmo na página do torneio — antes do sorteio das chaves.
                             </p>
+
+                            @*
+                                Ele JÁ está inscrito nesta categoria. Aparece assim que o CPF é
+                                digitado, não depois de gravar: era assim que nascia gente
+                                inscrita duas vezes (uma como parceiro, outra sozinha
+                                procurando parceiro), ocupando duas vagas e virando uma dupla
+                                fantasma no sorteio.
+                                Sozinho vira oferta de juntar; com dupla fechada, um não que
+                                trava o envio. Ver Services/InscricaoRepetida.
+                            *@
+                            <div class="alert alert-warning border-0 py-2 px-3 mt-3 d-none" id="pdzJaInscrito">
+                                <p class="small mb-2" id="pdzJaInscritoTexto"></p>
+                                <div class="form-check" id="pdzJuntarBloco">
+                                    <input class="form-check-input" type="checkbox" value="true"
+                                           name="juntarComInscricaoSolo" id="pdzJuntar">
+                                    <label class="form-check-label small fw-bold" for="pdzJuntar">
+                                        Sim, juntar com a inscrição que já existe
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -718,7 +738,9 @@
 
             <partial name="_EscolhaFormaPagamento" model="Model" />
 
-            <button type="submit" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
+            @* O id existe pro aviso de "já inscrito" poder travar o envio quando o parceiro
+               escolhido já tem dupla fechada nesta categoria. *@
+            <button type="submit" id="btn-inscrever-dupla" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
                 <i class="bi bi-check2-circle"></i> Confirmar Inscrição da Dupla
             </button>
         </form>
@@ -1421,47 +1443,71 @@
                                 @foreach (var dupla in cat.Duplas.OrderBy(d => d.EmListaDeEspera).ThenBy(d => d.Id))
                                 {
                                     <li class="list-group-item bg-transparent px-0">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span>
-                                            @if (dupla.EhTime)
-                                            {
-                                                <span><i class="bi bi-people-fill"></i> @dupla.NomeTime</span>
-                                            }
-                                            else
-                                            {
-                                                @dupla.Jogador1.Nome <text>/</text>
-                                                @if (dupla.Jogador2 != null)
+                                    @*
+                                        UMA linha só, com DOIS filhos: quem está inscrito à esquerda,
+                                        a barra de ações à direita. Já foram três filhos num
+                                        `justify-content-between`, e por isso as colunas de botão
+                                        nunca alinhavam entre as linhas — cada linha distribuía a
+                                        sobra de um jeito. Com `ms-auto` num grupo só, os botões
+                                        formam coluna de verdade numa lista de 25 inscritos.
+                                    *@
+                                    <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2">
+                                        @* Os selos ficam FORA do bloco que trunca: é o nome que pode
+                                           ser comprido demais, e "Não pago" cortado pela metade seria
+                                           pior do que nome cortado. *@
+                                        <span class="flex-grow-1 d-flex align-items-center gap-2 pdz-inscrito-esquerda">
+                                            <span class="pdz-inscrito-nome">
+                                                @if (dupla.EhTime)
                                                 {
-                                                    @dupla.Jogador2.Nome
+                                                    <span><i class="bi bi-people-fill"></i> @dupla.NomeTime</span>
                                                 }
                                                 else
                                                 {
-                                                    <em class="text-muted">procurando parceiro</em>
+                                                    <span class="fw-semibold">@dupla.Jogador1.Nome</span>
+                                                    @* A barra só existe quando há dois nomes pra separar.
+                                                       Solta no fim ("Jeferson Vier/") ela parecia dado
+                                                       cortado pela metade. *@
+                                                    @if (dupla.Jogador2 != null)
+                                                    {
+                                                        <span class="text-muted">/</span>
+                                                        <span class="fw-semibold">@dupla.Jogador2.Nome</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <em class="text-muted ms-1">procurando parceiro</em>
+                                                    }
                                                 }
-                                            }
+                                            </span>
+
+                                            @* Selos discretos: numa lista de 25 linhas, três badges
+                                               saturadas por linha viram uma parede colorida e nenhuma
+                                               chama atenção. "Sem parceiro" saiu — dizia de novo o
+                                               que o "procurando parceiro" ao lado já diz. *@
                                             @if (dupla.EmListaDeEspera)
                                             {
-                                                <span class="badge bg-warning text-dark ms-2">Lista de espera</span>
-                                            }
-                                            @if (!dupla.Completa)
-                                            {
-                                                <span class="badge bg-info text-dark ms-2">Sem parceiro</span>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle flex-shrink-0">Lista de espera</span>
                                             }
                                             @if (Model.PrecoInscricao > 0)
                                             {
                                                 @if (dupla.Pago)
                                                 {
-                                                    <span class="badge bg-success ms-2" title="@(dupla.PagoEm?.ToString("dd/MM/yyyy HH:mm"))">
+                                                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle flex-shrink-0"
+                                                          title="@(dupla.PagoEm?.ToString("dd/MM/yyyy HH:mm"))">
                                                         <i class="bi bi-check-circle"></i> Pago
                                                     </span>
                                                 }
                                                 else
                                                 {
-                                                    <span class="badge bg-danger ms-2">Não pago</span>
+                                                    <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle flex-shrink-0">Não pago</span>
                                                 }
                                             }
                                         </span>
-                                        <div class="d-flex gap-2 flex-wrap">
+
+                                        @* `flex-nowrap` + `text-nowrap` nos botões: sem isso o
+                                           "Marcar como pago" quebrava NO MEIO DELE MESMO e a linha
+                                           ficava com duas alturas diferentes. Aqui a barra inteira
+                                           desce pra baixo do nome quando não cabe, em bloco. *@
+                                        <div class="d-flex gap-2 flex-nowrap ms-lg-auto pdz-inscrito-acoes">
                                             @* Marcar pago vale em QUALQUER status: muita gente
                                                acerta o Pix depois das inscrições encerradas, e
                                                antes o botão sumia justo nessa hora. A lista
@@ -1470,40 +1516,47 @@
                                             {
                                                 <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                    <button type="submit" class="btn btn-sm @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
+                                                    <button type="submit" class="btn btn-sm text-nowrap @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
                                                         <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
                                                         @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
                                                     </button>
                                                 </form>
                                             }
-                                        </div>
-                                        @if (Model.Status == "Inscrições Abertas")
-                                        {
-                                            <div class="d-flex gap-2 flex-wrap">
+
+                                            @if (Model.Status == "Inscrições Abertas")
+                                            {
                                                 @if (!dupla.Completa)
                                                 {
                                                     @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
-                                                       que a maioria vai usar, por isso vem antes do formulário de CPF. *@
+                                                       que a maioria vai usar, por isso vem antes do formulário de CPF.
+                                                       Contornado, e não preenchido de verde: com 25 duplas sem parceiro
+                                                       eram 25 botões berrantes, e destaque que se repete em toda linha
+                                                       deixa de ser destaque. *@
                                                     <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
                                                         <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                        <button type="submit" class="btn btn-sm btn-padel">
+                                                        <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
                                                             <i class="bi bi-link-45deg"></i> Convidar por link
                                                         </button>
                                                     </form>
                                                 }
-                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
                                                         data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
                                                     <i class="bi bi-arrow-left-right"></i>
                                                     @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
                                                 </button>
+                                                @* Só o ícone: "Remover" é a ação que ninguém procura e
+                                                   a única sem volta. Escrita por extenso, ela puxava o
+                                                   olho em toda linha e ainda era a que mais empurrava
+                                                   a barra pra segunda fileira. *@
                                                 <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                        <i class="bi bi-trash"></i> Remover
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            title="Remover do torneio" aria-label="Remover @(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.Nome) do torneio">
+                                                        <i class="bi bi-trash"></i>
                                                     </button>
                                                 </form>
-                                            </div>
-                                        }
+                                            }
+                                        </div>
                                     </div>
 
                                     @if (Model.Status == "Inscrições Abertas")
@@ -1888,24 +1941,79 @@
             });
         }
 
+        // "Esse CPF já está inscrito nesta categoria." Só olha o campo do PARCEIRO (alvo 2):
+        // no campo 1 quem se inscreve é você mesmo, e o servidor já absorve a sua inscrição
+        // sozinha sem precisar perguntar nada.
+        //
+        // Duas respostas bem diferentes (ver Services/InscricaoRepetida):
+        //   sozinho      → oferta de juntar, com a caixa de confirmação;
+        //   com parceiro → um não, e o botão de enviar trava.
+        function pdzAvisarSeJaInscrito(alvo, dados) {
+            if (alvo !== '2') return;
+
+            var caixa = document.getElementById('pdzJaInscrito');
+            var texto = document.getElementById('pdzJaInscritoTexto');
+            var bloco = document.getElementById('pdzJuntarBloco');
+            var juntar = document.getElementById('pdzJuntar');
+            var enviar = document.getElementById('btn-inscrever-dupla');
+            if (!caixa) return;
+
+            // Toda consulta nova começa limpando: senão o aviso do CPF anterior fica na tela
+            // depois de a pessoa corrigir o número.
+            juntar.checked = false;
+            caixa.classList.add('d-none');
+            if (enviar) enviar.disabled = false;
+
+            if (!dados.encontrado) return;
+
+            if (dados.jaInscritoComParceiro) {
+                texto.innerHTML = '<strong>' + dados.nome + '</strong> já está inscrito nesta categoria, '
+                    + 'em dupla com <strong>' + dados.parceiroAtual + '</strong>. '
+                    + 'Ninguém joga duas vezes na mesma categoria — escolha outro parceiro.';
+                bloco.classList.add('d-none');
+                caixa.classList.remove('d-none');
+                if (enviar) enviar.disabled = true;
+                return;
+            }
+
+            if (dados.jaInscritoSozinho) {
+                texto.innerHTML = '<strong>' + dados.nome + '</strong> já está inscrito nesta categoria, '
+                    + 'sozinho, procurando parceiro. Quer juntar? A inscrição sozinha dele sai e fica '
+                    + 'só a dupla — a vaga é a mesma, ninguém perde lugar.';
+                bloco.classList.remove('d-none');
+                caixa.classList.remove('d-none');
+            }
+        }
+
         document.querySelectorAll('.js-cpf').forEach(function (inputCpf) {
             var alvo = inputCpf.dataset.alvo;
             var status = document.querySelector('.js-cpf-status[data-alvo="' + alvo + '"]');
-            var ultimoConsultado = '';
 
             travar(alvo, true);
 
             function consultar() {
                 var cpf = inputCpf.value.replace(/\D/g, '');
-                if (cpf.length !== 11 || cpf === ultimoConsultado) return;
-                ultimoConsultado = cpf;
+                // A trava de repetição vive no próprio elemento (e não numa variável desta
+                // closure) pra quem está fora conseguir zerá-la: trocar de CATEGORIA muda a
+                // resposta de "já está inscrito?" pro MESMO CPF, e sem isso o aviso ficaria
+                // congelado na resposta da categoria anterior.
+                if (cpf.length !== 11 || cpf === inputCpf.dataset.ultimoConsultado) return;
+                inputCpf.dataset.ultimoConsultado = cpf;
 
                 status.innerHTML = '<span class="text-muted">Consultando…</span>';
 
-                fetch(urlBusca + '?cpf=' + cpf)
+                // A categoria vai junto: é ela que decide se este CPF já está inscrito. Sem
+                // ela o servidor não tem como responder, e o aviso só apareceria depois de
+                // gravar — que é tarde.
+                var categoriaEscolhida = document.querySelector('#inscricao select[name="categoriaId"]');
+                var qsCategoria = categoriaEscolhida && categoriaEscolhida.value
+                    ? '&categoriaId=' + encodeURIComponent(categoriaEscolhida.value) : '';
+
+                fetch(urlBusca + '?cpf=' + cpf + qsCategoria)
                     .then(function (r) { return r.json(); })
                     .then(function (dados) {
                         var nome = campo('nome', alvo);
+                        pdzAvisarSeJaInscrito(alvo, dados);
                         if (dados.encontrado) {
                             status.innerHTML = '<span class="text-success fw-semibold">'
                                 + '<i class="bi bi-check-circle-fill"></i> ' + dados.nome + ' — já cadastrado</span>';
@@ -1945,7 +2053,7 @@
                     })
                     .catch(function () {
                         // Sem resposta do servidor, deixar tudo trancado impediria a inscrição.
-                        ultimoConsultado = '';
+                        inputCpf.dataset.ultimoConsultado = '';
                         status.innerHTML = '<span class="text-danger">Não deu pra consultar o CPF agora — '
                             + 'confira os dados e siga.</span>';
                         travar(alvo, false);
@@ -1957,7 +2065,7 @@
             inputCpf.addEventListener('input', function () {
                 if (inputCpf.value.replace(/\D/g, '').length < 11) {
                     status.innerHTML = '';
-                    ultimoConsultado = '';
+                    inputCpf.dataset.ultimoConsultado = '';
                     camposDe(alvo).forEach(function (el) { el.value = ''; });
                     travar(alvo, true);
                     delete window.pdzJogadores[alvo];
@@ -1969,6 +2077,16 @@
             });
 
             inputCpf.addEventListener('blur', consultar);
+
+            // Trocar de categoria muda a resposta de "já está inscrito?" pro MESMO CPF —
+            // sem refazer a consulta, o aviso ficaria falando da categoria anterior.
+            var selectCategoria = document.querySelector('#inscricao select[name="categoriaId"]');
+            if (selectCategoria) {
+                selectCategoria.addEventListener('change', function () {
+                    inputCpf.dataset.ultimoConsultado = '';
+                    consultar();
+                });
+            }
         });
     })();
 
@@ -2089,3 +2207,29 @@
         aplicar(); // respeita o estado se o navegador restaurar o formulário
     })();
 </script>
+@*
+    Gerenciar Inscritos: a lista que o organizador olha com 25 linhas na tela. O _Layout só
+    tem seção "Scripts", então o CSS fica no corpo mesmo — em vez de mexer no site.css, que
+    todas as telas carregam, por causa de uma.
+*@
+<style>
+    /* A barra de ações não encolhe: sem isto o flex espremia os botões pra caber o nome
+       comprido, e "Marcar como pago" quebrava no meio de si mesmo. */
+    .pdz-inscrito-acoes { flex-shrink: 0; }
+
+    /* `min-width: 0` libera o truncamento: sem ele um nome longo EMPURRA a barra de ações
+       pra fora, e a linha inteira estica. Com ele, o nome corta com reticências e a coluna
+       de botões fica no lugar em todas as linhas. Precisa estar nos DOIS níveis — o item
+       flex de fora e o de dentro —, senão o de fora continua crescendo. */
+    .pdz-inscrito-esquerda, .pdz-inscrito-nome { min-width: 0; }
+
+    /* Só cortar onde a linha é lado a lado. No celular a barra de ações desce pra baixo do
+       nome, sobra largura inteira, e cortar ali seria esconder à toa. */
+    @@media (min-width: 992px) {
+        .pdz-inscrito-nome {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+</style>
