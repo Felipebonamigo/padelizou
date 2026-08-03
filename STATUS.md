@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **03/08/2026** — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. Junto, o **CI passou a dizer qual teste caiu** sem precisar de login. **1.132 testes**, no ar em prod e dev (`build-204`).
+> Última atualização: **03/08/2026** — 📊 **métricas do admin por dia, semana ou mês** (semana só respondia "estamos crescendo?"; dia responde "o que aconteceu hoje?" e mês responde "como está o ano?", que é a conta do teto do MEI). **1.165 testes.**
+> Antes, no mesmo dia — 👨‍🏫 **o primeiro professor de verdade usou e trouxe cinco problemas** (o Jonatas): **aula em dupla e trio com preço próprio**, **preço combinado por aluno**, **apagar um local**, **excluir uma aula** e o app que **seguia pedindo pra instalar depois de instalado**. Todos com a mesma raiz — o código supunha um professor mais simples do que o professor real. Junto, o **CI passou a dizer qual teste caiu** sem precisar de login. **1.132 testes**, no ar em prod e dev (`build-204`).
 > Antes: **31/07/2026** — 🗓️ **categorias editáveis depois de publicado** (`build-186`: adicionar, mudar limite de vagas e remover — só sai categoria VAZIA, com inscrições abertas, e nunca a última) e **check-in do dia virou opcional** (`build-191`: nasce ligado, desligado some o botão **e** a rota recusa). **1.023 testes.**
 > Antes, no mesmo dia — 🔑 **admin manda em qualquer torneio** (`build-184`), pra socorrer organizador travado sem depender dele; **estorno automático** (desfaz a inscrição e chama a fila) e **caderneta de cobrança do "por fora"** no Financeiro. **1.011 testes.**
 > Antes, no mesmo dia — 🛠️ **a fila do "o que ainda melhorar"** foi fechada (`build-178`, prod + dev): o jogador **desiste sozinho** (e o parceiro não é arrastado junto), o sorteio **não deixa mais ninguém de fora calado**, existe **vigia de erros 500** por e-mail no VPS, e **todo aviso sai também por e-mail** — push só alcança quem instalou o app.
@@ -51,6 +52,35 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 03/08/2026 — 📊 Métricas por dia, semana ou mês
+
+A tela do admin só somava por semana. Semana é boa pra tendência e péssima pra duas perguntas
+que se faz o tempo todo: *"o que aconteceu **hoje**, depois que mandei o link no grupo?"* e
+*"como está o ano?"* — essa segunda é a mesma conta do **teto do MEI**, que aparece logo acima
+na mesma página.
+
+Agora são três botões, cada um com o tanto de história que faz sentido pra ele: **14 dias**
+(cabe na tela e já mostra o ritmo da semana), **8 semanas** (o que sempre existiu) e
+**12 meses** (cobre o ano fiscal do MEI). Título e subtítulo acompanham — a tela dizia
+"semana a semana" fixo, e ia mentir assim que mostrasse dias.
+
+A regra mora em `Services/FaixasDeMetricas`, testável sem banco, e guarda duas decisões que
+erram fácil:
+
+- **a semana começa na SEGUNDA**, não no domingo. Domingo é o dia 0 do .NET, mas o fim de
+  semana é o *evento* — com a conta ingênua, o torneio de sábado-e-domingo aparece partido em
+  duas linhas;
+- **o fim do mês acompanha o tamanho do mês**, não 30 dias fixos (senão fevereiro sobra dois
+  dias dentro de março).
+
+Semana continua sendo o padrão: link antigo, parâmetro digitado errado ou vazio caem nela em
+vez de dar erro numa tela que só serve pra ler.
+
+Conferido ao vivo, e **as contas fecham entre as visões**: no diário 1+1+3+2+1+26 = 34
+cadastros; no mensal, agosto 1 + julho 33 = 34. Sem buraco e sem contar duas vezes — e é do
+mesmo somatório que sai o valor arrecadado. No celular (375px) a página não rola de lado.
+**33 testes novos · 1.165 no total.**
 
 ### 03/08/2026 — 👨‍🏫 O primeiro professor de verdade usou, e trouxe cinco problemas
 
