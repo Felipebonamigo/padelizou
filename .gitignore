@@ -29,3 +29,7 @@ appsettings.json.bak
 # (o deploy apaga e recria), então nada aqui precisa ser versionado — e foto de gente real
 # não deve entrar no repositório.
 Padelizou/wwwroot/uploads/
+
+# Relatório .trx dos testes. O CI passou a gerá-lo pra conseguir nomear o teste que caiu
+# (ver .github/workflows/ci.yml), e quem roda o mesmo comando aqui ganha a pasta também.
+Padelizou.Tests/TestResults/

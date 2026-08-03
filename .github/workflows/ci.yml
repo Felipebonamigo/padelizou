@@ -30,7 +30,35 @@ jobs:
         run: dotnet build Padelizou.slnx -c Release --no-restore
 
       - name: Rodar os testes
-        run: dotnet test Padelizou.slnx -c Release --no-build --nologo
+        # O relatório .trx existe só pro passo seguinte. Sem cano (`| tee`) de propósito:
+        # com cano, quem devolve o código de saída é o tee, e uma suíte VERMELHA passaria
+        # por verde — liberando deploy de código que não passou nos testes.
+        run: dotnet test Padelizou.slnx -c Release --no-build --nologo --logger "trx;LogFileName=resultado.trx"
+
+      - name: Dizer QUAL teste caiu
+        # O log completo do CI só se lê autenticado (a API devolve 403 sem token). Em
+        # 01/08/2026 a suíte reprovou três vezes seguidas em commits de código idêntico e
+        # não deu pra saber o que quebrou sem alguém abrir a aba Actions no navegador.
+        #
+        # `::error::` vira ANOTAÇÃO, e anotação é pública: o nome do teste passa a estar ao
+        # alcance de quem só tem o sha. Este passo nunca muda o resultado do job — o job já
+        # está vermelho pelo passo anterior, e o `exit 0` daqui não desfaz isso.
+        if: failure()
+        shell: bash
+        run: |
+          relatorio=$(find . -name resultado.trx | head -1)
+          if [ -z "$relatorio" ]; then
+            echo "::error::Os testes falharam antes de gerar o relatorio (erro de compilacao ou de ambiente)."
+            exit 0
+          fi
+          quebrados=$(grep -oE 'testName="[^"]+"[^>]*outcome="Failed"' "$relatorio" \
+                      | grep -oE 'testName="[^"]+"' | sed 's/testName="//;s/"$//' | sort -u)
+          if [ -z "$quebrados" ]; then
+            echo "::error::A suite falhou mas nenhum teste aparece como Failed no relatorio."
+            exit 0
+          fi
+          echo "$quebrados" | while IFS= read -r teste; do echo "::error::TESTE VERMELHO: $teste"; done
+          exit 0
 
   # Se os testes passaram no main, gera o pacote pronto pra deploy e anexa
   # num release "build-N-sha". O VPS só instala pacotes daqui — ou seja,
