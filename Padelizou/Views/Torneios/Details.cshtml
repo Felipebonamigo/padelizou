@@ -1563,7 +1563,8 @@
                                     {
                                         <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
                                             <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
-                                                  class="bg-white border rounded p-2">
+                                                  class="bg-white border rounded p-2 pdz-form-parceiro"
+                                                  data-categoria="@dupla.CategoriaId">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <div class="row g-2 align-items-center">
                                                     <div class="col-md-4">
@@ -1580,6 +1581,22 @@
                                                         </button>
                                                     </div>
                                                 </div>
+
+                                                @* A recusa de "esse já está inscrito sozinho" manda MARCAR isto —
+                                                   e até aqui a caixa só existia na aba Inscreva-se. O organizador
+                                                   lia a instrução no aviso vermelho e não tinha o que marcar: beco
+                                                   sem saída na tela, com o servidor pronto pra juntar o tempo todo.
+                                                   Nasce escondida porque no caso comum não há nada a juntar; o
+                                                   script mostra quando o CPF digitado for de uma inscrição solo. *@
+                                                <div class="form-check mt-2 d-none pdz-juntar-caixa">
+                                                    <input class="form-check-input" type="checkbox" value="true"
+                                                           name="juntarComInscricaoSolo" id="juntar-@dupla.Id" />
+                                                    <label class="form-check-label small" for="juntar-@dupla.Id">
+                                                        Juntar com a inscrição que já existe
+                                                        <span class="text-muted d-block pdz-juntar-quem"></span>
+                                                    </label>
+                                                </div>
+
                                                 <small class="text-muted d-block mt-1">
                                                     Só quem está na dupla (ou o organizador) pode alterar, e só enquanto as inscrições estão abertas.
                                                 </small>
@@ -2097,6 +2114,69 @@
                     consultar();
                 });
             }
+        });
+    })();
+
+    // ── "Definir por CPF" também sabe juntar inscrições ─────────────────────────────────
+    //
+    // O servidor sempre soube (TrocarParceiro aceita juntarComInscricaoSolo) e a recusa
+    // mandava MARCAR a caixa — que só existia na aba Inscreva-se. O organizador lia
+    // "marque juntar com a inscrição que já existe" no aviso vermelho e não tinha o que
+    // marcar: instrução apontando pra um controle inexistente.
+    //
+    // Aqui a caixa aparece sozinha assim que o CPF digitado for de alguém já inscrito
+    // sozinho naquela categoria — ele não precisa nem saber que ela existe antes disso.
+    (function () {
+        var urlBusca = '@Url.Action("BuscarJogadorPorCpf", "Torneios")';
+
+        document.querySelectorAll('.pdz-form-parceiro').forEach(function (form) {
+            var inputCpf = form.querySelector('input[name="cpfNovoParceiro"]');
+            var inputNome = form.querySelector('input[name="nomeNovoParceiro"]');
+            var caixa = form.querySelector('.pdz-juntar-caixa');
+            var quem = form.querySelector('.pdz-juntar-quem');
+            var check = caixa ? caixa.querySelector('input[type="checkbox"]') : null;
+            if (!inputCpf || !caixa || !check) return;
+
+            function esconder() {
+                caixa.classList.add('d-none');
+                check.checked = false;
+                quem.textContent = '';
+            }
+
+            function consultar() {
+                var cpf = (inputCpf.value || '').replace(/\D/g, '');
+                if (cpf.length !== 11) { esconder(); return; }
+                if (inputCpf.dataset.ultimo === cpf) return;
+                inputCpf.dataset.ultimo = cpf;
+
+                fetch(urlBusca + '?cpf=' + cpf + '&categoriaId=' + form.dataset.categoria)
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        // Nome preenchido sozinho pra quem já tem cadastro: o campo de nome
+                        // ali do lado é só pra quem ainda NÃO tem, e deixá-lo em branco
+                        // fazia o organizador achar que precisava digitar.
+                        if (d && d.nome && inputNome && !inputNome.value) inputNome.value = d.nome;
+
+                        if (d && d.jaInscritoSozinho) {
+                            quem.textContent = 'A inscrição sozinha de ' + (d.nome || 'quem você digitou')
+                                + ' sai e a dupla fica valendo — a vaga é a mesma, ninguém perde lugar.';
+                            caixa.classList.remove('d-none');
+                            // Já marcada: quem digitou o CPF de alguém inscrito sozinho está
+                            // justamente tentando juntar os dois. Deixar desmarcada devolveria
+                            // a mesma recusa que trouxe ele até aqui.
+                            check.checked = true;
+                        } else {
+                            esconder();
+                        }
+                    })
+                    .catch(function () { /* sem rede o servidor ainda recusa e explica */ });
+            }
+
+            inputCpf.addEventListener('blur', consultar);
+            inputCpf.addEventListener('input', function () {
+                if ((inputCpf.value || '').replace(/\D/g, '').length < 11) { esconder(); inputCpf.dataset.ultimo = ''; }
+                else consultar();
+            });
         });
     })();
 

@@ -1,0 +1,177 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
+using Padelizou.Controllers;
+using Padelizou.Models;
+using Padelizou.Services;
+using System.Security.Claims;
+
+namespace Padelizou.Tests;
+
+// O caso real do "Interno Los Corneteiros" (04/08/2026): o organizador tentou pôr o Gabriel
+// — que estava inscrito SOZINHO, procurando parceiro — como parceiro do Anderson, que também
+// estava sozinho. A recusa veio dizendo "marque 'juntar com a inscrição que já existe'", e
+// essa caixa só existia na aba Inscreva-se. Ele lia a instrução e não tinha o que marcar.
+public class OrganizadorJuntaInscricoesTests
+{
+    private static async Task<(DbPadelContext ctx, Torneio torneio, Categoria cat,
+        Jogador organizador, Jogador anderson, Jogador gabriel)> MontarAsync()
+    {
+        var ctx = TestInfra.NovoContexto();
+
+        var torneio = new Torneio { Nome = "Interno", Codigo = "INT1", Status = "Inscrições Abertas" };
+        ctx.Torneios.Add(torneio);
+        await ctx.SaveChangesAsync();
+
+        var cat = new Categoria { Nome = "4ª Masculina", Codigo = "C4M", TorneioId = torneio.Id };
+        ctx.Categorias.Add(cat);
+
+        var organizador = new Jogador { Nome = "Organizador", Cpf = "11144477735" };
+        var anderson = new Jogador { Nome = "Anderson Matteus Schwaab", Cpf = "22255588846" };
+        var gabriel = new Jogador { Nome = "Gabriel Moreira", Cpf = "33366699957" };
+        ctx.Jogadores.AddRange(organizador, anderson, gabriel);
+        await ctx.SaveChangesAsync();
+
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador
+        {
+            TorneioId = torneio.Id, JogadorId = organizador.Id, NivelAcesso = "Criador",
+        });
+        await ctx.SaveChangesAsync();
+
+        return (ctx, torneio, cat, organizador, anderson, gabriel);
+    }
+
+    private static Dupla Sozinho(DbPadelContext ctx, Categoria cat, Jogador quem)
+    {
+        var dupla = new Dupla { CategoriaId = cat.Id, Jogador1Id = quem.Id, Jogador2Id = null, Codigo = "D" + quem.Id };
+        ctx.Duplas.Add(dupla);
+        ctx.SaveChanges();
+        return dupla;
+    }
+
+    private static DuplasController Controller(DbPadelContext ctx, int usuarioLogadoId)
+    {
+        var controller = new DuplasController(
+            ctx, new EstatisticasService(ctx),
+            Substitute.For<IEmailService>(),
+            Substitute.For<IPushNotificationService>(),
+            Substitute.For<IPagamentoInscricaoService>(),
+            NullLogger<DuplasController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+                },
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = TestInfra.UrlDeTeste();
+        return controller;
+    }
+
+    [Fact]
+    public async Task Sem_confirmar_a_juncao_nada_muda_e_a_tela_explica_o_que_fazer()
+    {
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        Sozinho(ctx, cat, gabriel);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null, juntarComInscricaoSolo: false);
+
+        // As duas inscrições continuam de pé — apagar uma sem perguntar seria pior que recusar.
+        Assert.Equal(2, await ctx.Duplas.CountAsync());
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+
+        var erro = controller.TempData["Erro"] as string;
+        Assert.NotNull(erro);
+        Assert.Contains("Gabriel", erro);
+        Assert.Contains("juntar com a inscrição que já existe", erro);
+    }
+
+    [Fact]
+    public async Task Confirmando_vira_UMA_dupla_e_a_inscricao_sozinha_sai()
+    {
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        Sozinho(ctx, cat, gabriel);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null, juntarComInscricaoSolo: true);
+
+        // Uma dupla só, completa, e a vaga do Gabriel não virou uma segunda inscrição.
+        var duplas = await ctx.Duplas.ToListAsync();
+        Assert.Single(duplas);
+        Assert.Equal(anderson.Id, duplas[0].Jogador1Id);
+        Assert.Equal(gabriel.Id, duplas[0].Jogador2Id);
+        Assert.Null(controller.TempData["Erro"]);
+    }
+
+    [Fact]
+    public async Task O_organizador_pode_fazer_isso_mesmo_sem_estar_na_dupla()
+    {
+        // Era o ponto do pedido: até aqui a leitura fácil era "só quem está na dupla mexe".
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null);
+
+        Assert.Equal(gabriel.Id, (await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+    }
+
+    [Fact]
+    public async Task Quem_nao_organiza_nem_esta_na_dupla_continua_barrado()
+    {
+        // A caixa nova não pode ter afrouxado quem PODE mexer.
+        var (ctx, _t, cat, _organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var intruso = new Jogador { Nome = "Intruso", Cpf = "52998224725" };
+        ctx.Jogadores.Add(intruso);
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, intruso.Id);
+        var resultado = await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null,
+            juntarComInscricaoSolo: true);
+
+        Assert.IsType<ForbidResult>(resultado);
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+    }
+
+    [Fact]
+    public async Task Dupla_ja_fechada_continua_sendo_um_nao_mesmo_marcando_a_caixa()
+    {
+        // Juntar só vale pra inscrição SOZINHA. Quem já tem parceiro sairia de uma dupla que
+        // não é dele — a caixa não pode virar atalho pra isso.
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var outro = new Jogador { Nome = "Outro", Cpf = "52998224725" };
+        ctx.Jogadores.Add(outro);
+        await ctx.SaveChangesAsync();
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = gabriel.Id, Jogador2Id = outro.Id, Codigo = "DUP",
+        });
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, gabriel.Cpf, null, juntarComInscricaoSolo: true);
+
+        Assert.Equal(2, await ctx.Duplas.CountAsync());
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.NotNull(controller.TempData["Erro"]);
+    }
+}
