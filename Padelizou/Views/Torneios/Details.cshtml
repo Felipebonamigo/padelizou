@@ -36,6 +36,28 @@
             <span class="small text-muted">— pagamento combinado com o organizador</span>
         }
     </p>
+
+    @* Quantos já entraram, no torneio INTEIRO. A tela contava por categoria, mas só depois
+       de escolher uma no seletor — pro total o organizador somava de cabeça passando por
+       todas. E é o total que ele responde no WhatsApp o dia inteiro. *@
+    @{
+        var contagem = Padelizou.Services.QuantosInscritos.Contar(
+            Model, Model.Categorias, ViewBag.InscricoesAmericanas as List<Padelizou.Models.InscricaoAmericana> ?? new());
+    }
+    <p class="mb-0">
+        <span class="badge rounded-pill" style="background-color: var(--pdz-navy-fixed);">
+            <i class="bi bi-people-fill"></i> @contagem.Rotulo
+        </span>
+        @* Fila separada de propósito: quem espera não está inscrito, e somar os dois faria o
+           organizador anunciar vaga que ele não tem. *@
+        @if (contagem.NaEspera > 0)
+        {
+            <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">
+                <i class="bi bi-hourglass-split"></i>
+                @contagem.NaEspera na lista de espera
+            </span>
+        }
+    </p>
 </div>
 
 @* As duas perguntas que o organizador respondia no WhatsApp o torneio inteiro — "quando
@@ -231,10 +253,16 @@
         }
         <div class="mb-3">
             <label class="form-label fw-bold small">Categoria</label>
+            @* O número vai no próprio nome da opção: sem isso, saber onde ainda tem vaga
+               exigia abrir uma categoria de cada vez e voltar. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
                 @foreach (var cat in Model.Categorias)
                 {
-                    <option value="@cat.Id" selected="@(cat.Id == categoriaSelecionadaId)">@cat.Nome</option>
+                    var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
+                    var limite = cat.LimiteDuplas.HasValue ? $"/{cat.LimiteDuplas}" : "";
+                    <option value="@cat.Id" selected="@(cat.Id == categoriaSelecionadaId)">
+                        @cat.Nome (@quantos@limite)
+                    </option>
                 }
             </select>
         </div>
@@ -249,17 +277,25 @@
             <div class="categoria-inscritos-conteudo" data-categoria-id="@cat.Id" style="display: @(cat.Id == categoriaSelecionadaId ? "block" : "none");">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div class="d-flex gap-2 flex-wrap">
+                        @* Singular certo: escrevia "1 duplas" desde sempre, e agora ficaria
+                           logo abaixo do total do cabeçalho, que acerta. *@
                         @if (cat.DeTimes)
                         {
-                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">@cat.Duplas.Count(d => d.NomeTime != null) times</span>
+                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">
+                                @Padelizou.Services.QuantosInscritos.Rotulo(cat.Duplas.Count(d => d.NomeTime != null), "time", "times")
+                            </span>
                         }
                         else if (Model.Formato == "Americano")
                         {
-                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">@inscritosAmericano.Count inscritos</span>
+                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">
+                                @Padelizou.Services.QuantosInscritos.Rotulo(inscritosAmericano.Count, "inscrito", "inscritos")
+                            </span>
                         }
                         else
                         {
-                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">@duplasConfirmadas.Count duplas</span>
+                            <span class="badge" style="background-color: var(--pdz-navy-fixed);">
+                                @Padelizou.Services.QuantosInscritos.Rotulo(duplasConfirmadas.Count, "dupla", "duplas")
+                            </span>
                         }
                         @{
                             int qtdEspera = Model.Formato == "Americano" ? esperaAmericano.Count : duplasEspera.Count;
