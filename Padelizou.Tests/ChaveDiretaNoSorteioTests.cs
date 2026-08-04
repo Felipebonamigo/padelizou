@@ -108,6 +108,51 @@ public class ChaveDiretaNoSorteioTests
     }
 
     [Fact]
+    public async Task Torneio_completo_com_categorias_times_e_chave_direta_na_mesma_grade()
+    {
+        // A forma real do Interno: 4 categorias comuns + 8 times + o mata-mata paralelo,
+        // 5 quadras, 12 min por jogo. É a combinação que o sorteio de verdade vai encontrar,
+        // e a única em que TIME e CHAVE DIRETA dividem a mesma grade — os dois tratam
+        // conflito de horário por regras diferentes (dupla x pessoa).
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, categorias) = MontarTorneioComoOInterno(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var jogos = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Include(p => p.Dupla1).Include(p => p.Dupla2)
+            .ToListAsync();
+
+        // Cada categoria comum virou grupos; o mata-mata virou primeira rodada.
+        Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+        Assert.Equal(8, jogos.Count(j => j.Fase == ChaveamentoMataMata.PrimeiraRodada));
+        Assert.All(categorias.comuns, cat =>
+            Assert.True(ctx.Set<GrupoTorneio>().Any(g => g.CategoriaId == cat.Id),
+                $"{cat.Nome} devia ter grupos sorteados"));
+        Assert.True(ctx.Set<GrupoTorneio>().Any(g => g.CategoriaId == categorias.times.Id));
+        Assert.Empty(ctx.Set<GrupoTorneio>().Where(g => g.CategoriaId == categorias.chave.Id));
+
+        // O que mais importa no dia: ninguém chamado pra duas quadras no mesmo horário.
+        // Time entra pelo Id da dupla (o Jogador1Id dele é o organizador, e comparar por
+        // pessoa faria todo time brigar com todo time).
+        var conflitos = jogos
+            .GroupBy(j => j.HorarioPrevisto)
+            .SelectMany(horario => horario
+                .SelectMany(j => new[] { j.Dupla1, j.Dupla2 })
+                .SelectMany(d => d.EhTime
+                    ? new[] { $"time-{d.Id}" }
+                    : new[] { $"j-{d.Jogador1Id}", $"j-{d.Jogador2Id}" })
+                .GroupBy(quem => quem)
+                .Where(g => g.Count() > 1)
+                .Select(g => $"{horario.Key:dd/MM HH:mm} {g.Key}"))
+            .ToList();
+
+        Assert.Empty(conflitos);
+    }
+
+    [Fact]
     public async Task Chave_direta_acima_do_teto_e_recusada_antes_de_sortear()
     {
         using var ctx = TestInfra.NovoContexto();
@@ -122,6 +167,81 @@ public class ChaveDiretaNoSorteioTests
     }
 
     // ---- cenário ----
+
+    // O Interno como ele é: 4ª (4 duplas), 5ª (9), 6ªM (11), 6ªF (8), 8 times e o
+    // Mata-Mata Geral com 24 duplas feitas dos MESMOS 48 homens, remontados.
+    private static (Torneio torneio, Jogador organizador,
+                    (List<Categoria> comuns, Categoria times, Categoria chave) categorias)
+        MontarTorneioComoOInterno(DbPadelContext ctx)
+    {
+        var organizador = new Jogador { Nome = "Organizador", Cpf = "99900000099" };
+        ctx.Jogadores.Add(organizador);
+
+        var torneio = new Torneio
+        {
+            Nome = "Ensaio do Interno",
+            Codigo = "ENSAIO",
+            Status = "Chaves em Sorteio",
+            DataInicio = new DateTime(2026, 8, 5, 8, 0, 0),
+            QuantidadeQuadras = 5,
+            TempoPrevistoPartidaMinutos = 12,
+            HoraFimDoDia = new TimeSpan(23, 0, 0),
+            HoraInicioDiasSeguintes = new TimeSpan(8, 0, 0),
+        };
+        ctx.Torneios.Add(torneio);
+
+        var quarta = new Categoria { Nome = "4ª Masculina", Codigo = "4M", Torneio = torneio };
+        var quinta = new Categoria { Nome = "5ª Masculina", Codigo = "5M", Torneio = torneio };
+        var sextaM = new Categoria { Nome = "6ª Masculina", Codigo = "6M", Torneio = torneio };
+        var sextaF = new Categoria { Nome = "6ª Feminina", Codigo = "6F", Torneio = torneio };
+        var times = new Categoria
+        {
+            Nome = "Times", Codigo = "TM", Torneio = torneio,
+            DeTimes = true, QuantidadeTimes = 8, QuantidadeGrupos = 2, ClassificadosPorGrupo = 2,
+        };
+        var chave = new Categoria { Nome = "Mata-Mata Geral", Codigo = "MM", Torneio = torneio, ChaveDireta = true };
+        ctx.Categorias.AddRange(quarta, quinta, sextaM, sextaF, times, chave);
+        ctx.SaveChanges();
+
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = organizador.Id });
+
+        // 48 homens e 16 mulheres.
+        var homens = Enumerable.Range(1, 48).Select(TestInfra.NovoJogador).ToList();
+        var mulheres = Enumerable.Range(49, 16).Select(TestInfra.NovoJogador).ToList();
+        ctx.Jogadores.AddRange(homens);
+        ctx.Jogadores.AddRange(mulheres);
+        ctx.SaveChanges();
+
+        void Inscrever(Categoria cat, List<Jogador> gente, int primeiro, int quantasDuplas)
+        {
+            for (int i = 0; i < quantasDuplas; i++)
+                ctx.Duplas.Add(new Dupla
+                {
+                    Categoria = cat,
+                    Jogador1 = gente[primeiro + i * 2],
+                    Jogador2 = gente[primeiro + i * 2 + 1],
+                });
+        }
+
+        Inscrever(quarta, homens, 0, 4);     // homens 1..8
+        Inscrever(quinta, homens, 8, 9);     // homens 9..26
+        Inscrever(sextaM, homens, 26, 11);   // homens 27..48
+        Inscrever(sextaF, mulheres, 0, 8);   // 8 duplas femininas COMPLETAS
+
+        // O mata-mata remonta os mesmos 48: o homem n joga com o n+24, então ninguém
+        // repete o parceiro da categoria dele — que é o caso real.
+        for (int i = 0; i < 24; i++)
+            ctx.Duplas.Add(new Dupla { Categoria = chave, Jogador1 = homens[i], Jogador2 = homens[i + 24] });
+
+        foreach (var nome in new[] { "ST Led", "Target.it", "Kayser Imóveis", "CredHub",
+                                     "Valandro Gestão", "Málaga Seguros", "Pro Tech", "Argentus XP" })
+            ctx.Duplas.Add(new Dupla { Categoria = times, Jogador1 = organizador, NomeTime = nome });
+
+        ctx.SaveChanges();
+
+        return (torneio, organizador,
+                (new List<Categoria> { quarta, quinta, sextaM, sextaF }, times, chave));
+    }
 
     // Um torneio como o Interno: uma categoria normal com 12 duplas e uma chave direta com
     // N duplas montadas a partir dos MESMOS 24 jogadores, remontados em outros pares.
