@@ -1,0 +1,63 @@
+@model Padelizou.Models.Partida
+@*
+    Uma vaga do chaveamento: o jogo com os dois lados e o placar, ou o buraco à espera de
+    quem passar. O horário e a quadra ficam no cabeçalho da vaga porque é a pergunta que o
+    jogador leva pro quadro — "que horas eu jogo e onde".
+*@
+@{
+    var jogo = Model;
+}
+
+@if (jogo == null)
+{
+    <div class="pdz-chave-vaga pdz-chave-vaga-vazia">
+        <span class="pdz-chave-lado"><span class="pdz-chave-nome text-muted">A definir</span></span>
+        <span class="pdz-chave-lado"><span class="pdz-chave-nome text-muted">A definir</span></span>
+    </div>
+}
+else
+{
+    var venceu1 = jogo.VencedorId == jogo.Dupla1Id;
+    var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
+    var aoVivo = jogo.Status == "AoVivo";
+
+    string Nome(Padelizou.Models.Dupla? d)
+    {
+        if (d == null) return "A definir";
+        if (d.EhTime) return d.NomeTime ?? "Time";
+        var n1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
+        var n2 = d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?";
+        return $"{n1} / {n2}";
+    }
+
+    <div class="pdz-chave-vaga @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
+        <div class="pdz-chave-quando">
+            @if (aoVivo)
+            {
+                <span class="pdz-chave-aovivo">● AO VIVO</span>
+            }
+            else if (jogo.HorarioPrevisto is DateTime h)
+            {
+                <span>@h.ToString("dd/MM HH:mm")</span>
+            }
+            else
+            {
+                <span>por ordem</span>
+            }
+
+            @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+            {
+                <span class="pdz-chave-quadra">@jogo.NomeQuadra</span>
+            }
+        </div>
+
+        <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+            <span class="pdz-chave-nome">@Nome(jogo.Dupla1)</span>
+            <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
+        </span>
+        <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+            <span class="pdz-chave-nome">@Nome(jogo.Dupla2)</span>
+            <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
+        </span>
+    </div>
+}

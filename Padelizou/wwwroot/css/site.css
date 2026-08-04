@@ -1399,3 +1399,113 @@ button, a, input, select { touch-action: manipulation; }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ── Chaveamento do mata-mata ──────────────────────────────────────────────
+   Dois lados caminhando pro centro, como um chaveamento de copa: as rodadas mais
+   antigas nas pontas, a final no meio com o troféu. O desenho anterior era uma
+   fileira da esquerda pra direita e mostrava só as fases JÁ existentes — numa chave
+   recém-sorteada virava uma coluna solta e um "Campeão: aguardando" do outro lado da
+   tela. Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
+.pdz-chave {
+    display: flex;
+    align-items: stretch;
+    gap: .75rem;
+    overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
+    padding-bottom: .75rem;
+}
+
+.pdz-chave-coluna,
+.pdz-chave-centro {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;   /* é o que dá o "afunilamento" do chaveamento */
+    gap: .5rem;
+    flex: 0 0 11.5rem;
+}
+
+.pdz-chave-centro {
+    flex-basis: 13rem;
+    justify-content: center;
+    gap: .75rem;
+}
+
+.pdz-chave-fase {
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--pdz-muted);
+    margin-bottom: .25rem;
+}
+
+.pdz-chave-vaga {
+    border: 1px solid var(--pdz-border);
+    border-radius: 10px;
+    background: var(--pdz-surface);
+    padding: .4rem .55rem;
+    font-size: .8rem;
+}
+
+/* Vaga ainda sem dono: tracejada, pra ler como "aqui vai entrar alguém". */
+.pdz-chave-vaga-vazia {
+    border-style: dashed;
+    background: transparent;
+}
+
+.pdz-chave-vaga-aovivo {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 2px rgba(217, 83, 79, .18);
+}
+
+.pdz-chave-quando {
+    display: flex;
+    justify-content: space-between;
+    gap: .4rem;
+    font-size: .66rem;
+    color: var(--pdz-muted);
+    margin-bottom: .25rem;
+}
+
+.pdz-chave-quadra { font-weight: 700; }
+
+.pdz-chave-aovivo {
+    color: #d9534f;
+    font-weight: 700;
+}
+
+.pdz-chave-lado {
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    color: var(--pdz-ink);
+}
+
+.pdz-chave-nome {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdz-chave-games {
+    flex: 0 0 1rem;
+    text-align: right;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.pdz-chave-venceu { color: var(--padel-green); font-weight: 700; }
+
+.pdz-chave-trofeu {
+    text-align: center;
+    padding: .75rem .5rem;
+    border-radius: 12px;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+}
+
+@media (max-width: 575.98px) {
+    .pdz-chave-coluna, .pdz-chave-centro { flex-basis: 10rem; }
+    .pdz-chave-vaga { font-size: .74rem; }
+}

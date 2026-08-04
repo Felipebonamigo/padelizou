@@ -1963,22 +1963,6 @@
                             var ordemFases = new[] { Padelizou.Services.ChaveamentoMataMata.PrimeiraRodada,
                                                      "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
                             var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
-
-                            var partidaFinal = jogosMata.FirstOrDefault(p => p.Fase == "Final");
-                            Padelizou.Models.Dupla? campea = null;
-                            if (partidaFinal != null && partidaFinal.Status == "Finalizada" && partidaFinal.VencedorId != null)
-                            {
-                                campea = partidaFinal.VencedorId == partidaFinal.Dupla1Id ? partidaFinal.Dupla1 : partidaFinal.Dupla2;
-                            }
-
-                            Func<Padelizou.Models.Dupla, string> nomeDupla = d =>
-                            {
-                                if (d == null) return "A definir";
-                                if (d.EhTime) return d.NomeTime!;   // categoria de times: o nome é do time
-                                var n1 = d.Jogador1?.Nome?.Split(' ')[0] ?? "?";
-                                var n2 = d.Jogador2?.Nome?.Split(' ')[0] ?? "?";
-                                return $"{n1} / {n2}";
-                            };
                         }
 
                         <div class="mt-5 pt-3 border-top">
@@ -2039,64 +2023,10 @@
                             }
                             else
                             {
-                                <p class="text-muted small mb-4">Deslize para o lado para ver o chaveamento completo.</p>
-                                <div class="bracket-container">
-                                    @foreach (var fase in fasesPresentes)
-                                    {
-                                        var jogosDaFase = jogosMata.Where(p => p.Fase == fase).OrderBy(p => p.Id).ToList();
-                                        var ehFinal = fase == "Final";
-                                        <div class="bracket-column" style="@(ehFinal ? "justify-content: center;" : "")">
-                                            <div class="bracket-header @(ehFinal ? "text-danger" : "")">
-                                                @if (ehFinal)
-                                                {
-                                                    <i class="bi bi-trophy-fill"></i>
-                                                }
-                                                @fase
-                                            </div>
-                                            @foreach (var p in jogosDaFase)
-                                            {
-                                                var venceu1 = p.VencedorId == p.Dupla1Id;
-                                                var venceu2 = p.VencedorId == p.Dupla2Id;
-                                                var aoVivo = p.Status == "AoVivo";
-                                                <div class="bracket-match @(aoVivo ? "border border-danger" : "")">
-                                                    <div class="bracket-team">
-                                                        <span class="team-name fw-bold text-truncate @(venceu1 ? "text-success" : "text-muted")" style="max-width: 150px; font-size: 0.95rem;">@nomeDupla(p.Dupla1)</span>
-                                                        <span class="fw-bold fs-5 @(venceu1 ? "text-success" : "text-secondary")">@(p.GamesDupla1?.ToString() ?? "-")</span>
-                                                    </div>
-                                                    <div class="bracket-team">
-                                                        <span class="team-name fw-bold text-truncate @(venceu2 ? "text-success" : "text-muted")" style="max-width: 150px; font-size: 0.95rem;">@nomeDupla(p.Dupla2)</span>
-                                                        <span class="fw-bold fs-5 @(venceu2 ? "text-success" : "text-secondary")">@(p.GamesDupla2?.ToString() ?? "-")</span>
-                                                    </div>
-                                                    @if (aoVivo)
-                                                    {
-                                                        <div class="text-center small text-danger fw-bold mt-1">● AO VIVO</div>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-                                    }
-
-                                    <div class="bracket-column" style="justify-content: center; min-width: 200px;">
-                                        <div class="text-center">
-                                            @* O mascote só entra quando existe campeão de verdade. Chave
-                                               ainda em aberto continua com o troféu: comemorar antes da
-                                               final estraga o momento em que a comemoração vale. *@
-                                            @if (campea != null)
-                                            {
-                                                <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
-                                                     width="120" height="124" class="rounded-3 mb-1" />
-                                                <h5 class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</h5>
-                                                <p class="fw-bold mb-0" style="color: var(--padel-green);">@nomeDupla(campea)</p>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-award-fill text-warning" style="font-size: 4rem; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));"></i>
-                                                <h5 class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</h5>
-                                                <p class="text-muted small">Aguardando...</p>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
+                                @* Chaveamento de verdade: dois lados caminhando pro centro,
+                                   com as rodadas que ainda não aconteceram entrando como
+                                   vagas em branco. Ver Views/Torneios/_ChaveDoMataMata. *@
+                                <partial name="_ChaveDoMataMata" model="jogosMata" />
                             }
                         </div>
                     </div>
