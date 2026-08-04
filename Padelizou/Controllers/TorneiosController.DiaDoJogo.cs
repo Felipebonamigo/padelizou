@@ -77,6 +77,7 @@ namespace Padelizou.Controllers
 
             vm.PorCategoria = torneio.Categorias.Select(c => new FinanceiroCategoriaVM
             {
+                CategoriaId = c.Id,
                 Categoria = c.Nome,
                 Inscritos = duplas.Count(d => d.CategoriaId == c.Id && !d.EmListaDeEspera)
                           + americanos.Count(a => a.CategoriaId == c.Id && !a.EmListaDeEspera),
@@ -164,6 +165,29 @@ namespace Padelizou.Controllers
                         TaxaDoTorneioExterno.PessoasInscritas(duplasDoTorneio, americanosDoTorneio),
                         torneio.PrecoInscricao,
                         _taxas.ComissaoPercentualExterno);
+
+                // A tabela por categoria também lia só do gateway, e por isso mostrava
+                // "R$ 0,00" em toda linha enquanto o topo já somava certo — mesmo defeito
+                // dos cartões, uma camada abaixo, que sobreviveu à primeira correção.
+                //
+                // A dupla paga por DUAS pessoas; a inscrição sem parceiro ocupa uma vaga de
+                // dupla mas quem está lá é uma pessoa só. Mesma regra da caderneta.
+                decimal ValorDaDupla(Dupla d) => torneio.PrecoInscricao * (d.Jogador2Id != null ? 2 : 1);
+
+                foreach (var linha in vm.PorCategoria)
+                {
+                    var duplasDaCategoria = duplasDoTorneio
+                        .Where(d => d.CategoriaId == linha.CategoriaId && !d.EmListaDeEspera).ToList();
+                    var americanosDaCategoria = americanosDoTorneio
+                        .Where(i => i.CategoriaId == linha.CategoriaId && !i.EmListaDeEspera).ToList();
+
+                    linha.Arrecadado = duplasDaCategoria.Where(d => d.Pago).Sum(ValorDaDupla)
+                                     + americanosDaCategoria.Where(i => i.Pago).Sum(_ => torneio.PrecoInscricao);
+                    linha.AReceber = duplasDaCategoria.Where(d => !d.Pago).Sum(ValorDaDupla)
+                                   + americanosDaCategoria.Where(i => !i.Pago).Sum(_ => torneio.PrecoInscricao);
+                    // Estorno não existe aqui: quem devolve é o organizador, por fora.
+                    linha.Estornado = 0m;
+                }
             }
 
             return View(vm);

@@ -46,7 +46,13 @@ public class FinanceiroTorneioVM
     public decimal ArrecadadoNaTela => CobraPorFora ? RecebidoPorFora : Arrecadado;
     public decimal AguardandoNaTela => CobraPorFora ? AReceberPorFora : Pendente;
     public decimal TaxaNaTela => CobraPorFora ? TaxaExterno : TaxaPlataforma;
-    public decimal LiquidoNaTela => ArrecadadoNaTela - TaxaNaTela;
+
+    // Nunca negativo. "Líquido pra você" quer dizer "do que entrou, quanto é seu" — e disso
+    // não dá pra ter menos que nada. No "por fora" a taxa é devida sobre TODOS os inscritos,
+    // não sobre quem já pagou, então antes de alguém acertar a conta dava "−R$ 12,00", que
+    // o organizador lê como se o torneio tivesse dado prejuízo. O valor devido continua
+    // escrito na linha "taxa" logo abaixo — nada some, só para de assustar.
+    public decimal LiquidoNaTela => Math.Max(0m, ArrecadadoNaTela - TaxaNaTela);
 
     // Estorno é coisa de cobrança do site: no "por fora" quem devolve é o organizador, por
     // fora também, e o sistema não tem como saber. Card zerado ali seria só ruído.
@@ -66,10 +72,23 @@ public class FinanceiroTorneioVM
 
 public class FinanceiroCategoriaVM
 {
+    // O id, e não só o nome: nome de categoria se edita e já houve torneio com dois nomes
+    // iguais — casar a linha da tabela com a categoria pelo texto era pedir pra somar
+    // dinheiro na fileira errada.
+    public int CategoriaId { get; set; }
     public string Categoria { get; set; } = "";
     public int Inscritos { get; set; }
     public int ListaDeEspera { get; set; }
+
+    // Vale pras duas formas: no online é o que o gateway confirmou, no "por fora" é o que o
+    // organizador marcou na caderneta. Ficava sempre em zero no "por fora" — mesmo defeito
+    // dos cartões do topo, uma camada abaixo, e que sobreviveu à primeira correção.
     public decimal Arrecadado { get; set; }
+
+    // Só no "por fora": quanto daquela categoria ainda está pra entrar. No online essa conta
+    // não existe por categoria (a inscrição só nasce quando o dinheiro entra).
+    public decimal AReceber { get; set; }
+
     public decimal Pendente { get; set; }
     public decimal Estornado { get; set; }
 }

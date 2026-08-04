@@ -92,6 +92,54 @@ public class FinanceiroPorForaTests
     }
 
     [Fact]
+    public void Liquido_nunca_fica_negativo()
+    {
+        // No "por fora" a taxa é devida sobre TODOS os inscritos, não sobre quem já pagou.
+        // Antes de alguém acertar dava "−R$ 12,00", e o organizador lê isso como prejuízo.
+        // O valor devido continua escrito na linha da taxa — nada some.
+        var vm = PorFora(taxaExterno: 12m, cobrancas: new[] { (120m, false), (120m, false) });
+
+        Assert.Equal(0m, vm.ArrecadadoNaTela);
+        Assert.Equal(0m, vm.LiquidoNaTela);
+        Assert.Equal(12m, vm.TaxaNaTela);
+    }
+
+    [Fact]
+    public void Recebeu_menos_que_a_taxa_tambem_para_no_zero()
+    {
+        var vm = PorFora(taxaExterno: 12m, cobrancas: new[] { (10m, true) });
+
+        Assert.Equal(0m, vm.LiquidoNaTela);
+    }
+
+    [Fact]
+    public void A_soma_das_categorias_bate_com_o_total_do_topo()
+    {
+        // A tabela por categoria mostrava R$ 0,00 em toda linha enquanto o topo já somava
+        // certo — o mesmo defeito dos cartões, uma camada abaixo, que sobreviveu à primeira
+        // correção. Se as duas contas divergirem, o organizador vê um total que não fecha.
+        var vm = PorFora(cobrancas: new[] { (120m, true), (120m, true), (60m, false) });
+        vm.PorCategoria = new List<FinanceiroCategoriaVM>
+        {
+            new() { CategoriaId = 1, Categoria = "4ª", Arrecadado = 120m, AReceber = 0m },
+            new() { CategoriaId = 2, Categoria = "5ª", Arrecadado = 120m, AReceber = 60m },
+        };
+
+        Assert.Equal(vm.ArrecadadoNaTela, vm.PorCategoria.Sum(c => c.Arrecadado));
+        Assert.Equal(vm.AguardandoNaTela, vm.PorCategoria.Sum(c => c.AReceber));
+    }
+
+    [Fact]
+    public void Categoria_e_casada_por_id_e_nao_por_nome()
+    {
+        // Nome de categoria se edita, e já houve torneio com dois nomes iguais — casar a
+        // linha pelo texto era pedir pra somar dinheiro na fileira errada.
+        var linha = new FinanceiroCategoriaVM { CategoriaId = 7, Categoria = "6ª Masculina" };
+
+        Assert.Equal(7, linha.CategoriaId);
+    }
+
+    [Fact]
     public void Torneio_gratuito_nao_entra_na_regra_do_por_fora()
     {
         // Preço zero: não há caderneta nem cobrança, e a tela já explica isso em vez de

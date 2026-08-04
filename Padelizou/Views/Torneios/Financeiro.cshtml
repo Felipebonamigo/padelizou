@@ -119,8 +119,12 @@
                             <th>Categoria</th>
                             <th class="text-center">Inscritos</th>
                             <th class="text-center d-none d-sm-table-cell">Espera</th>
-                            <th class="text-end">Arrecadado</th>
-                            <th class="text-end d-none d-sm-table-cell">Estornado</th>
+                            <th class="text-end">@(Model.CobraPorFora ? "Recebido" : "Arrecadado")</th>
+                            @* No "por fora" o que falta entrar é a informação útil da linha;
+                               estorno ali nem existe (quem devolve é o organizador). *@
+                            <th class="text-end d-none d-sm-table-cell">
+                                @(Model.CobraPorFora ? "A receber" : "Estornado")
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -140,7 +144,16 @@
                                     }
                                 </td>
                                 <td class="text-end text-success">@c.Arrecadado.ToString("C", ptBr)</td>
-                                <td class="text-end text-muted d-none d-sm-table-cell">@(c.Estornado > 0 ? c.Estornado.ToString("C", ptBr) : "—")</td>
+                                <td class="text-end d-none d-sm-table-cell @(Model.CobraPorFora ? "text-warning" : "text-muted")">
+                                    @if (Model.CobraPorFora)
+                                    {
+                                        @(c.AReceber > 0 ? c.AReceber.ToString("C", ptBr) : "—")
+                                    }
+                                    else
+                                    {
+                                        @(c.Estornado > 0 ? c.Estornado.ToString("C", ptBr) : "—")
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
