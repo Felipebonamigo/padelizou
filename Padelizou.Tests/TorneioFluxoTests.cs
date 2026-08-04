@@ -188,13 +188,14 @@ public class TorneioFluxoTests
         Assert.All(semis, p => Assert.True(p.HorarioPrevisto!.Value.TimeOfDay <= new TimeSpan(14, 0, 0)));
     }
 
-    // Motor genérico (25/07/2026): antes o mata-mata só fechava com 1/2/4/8 grupos.
-    // Agora QUALQUER nº de grupos fecha: todos os 1ºs + melhores 2ºs completam o quadro.
+    // Motor genérico: QUALQUER nº de grupos fecha o mata-mata. Regra de 05/08/2026: TODO
+    // classificado avança — o quadro cresce pra caber todo mundo e os melhores pegam BYE
+    // (pulam a primeira rodada), em vez de os piores 2ºs serem cortados sem jogar.
     [Theory]
-    [InlineData(9, "Semifinal", 2)]         // 3 grupos → quadro de 4 (3 primeiros + melhor 2º)
-    [InlineData(15, "Quartas de Final", 4)] // 5 grupos → quadro de 8 (5 primeiros + 3 melhores 2ºs)
-    [InlineData(18, "Quartas de Final", 4)] // 6 grupos → quadro de 8 (6 primeiros + 2 melhores 2ºs)
-    [InlineData(24, "Oitavas de Final", 8)] // 8 grupos → quadro de 16 (todos 1ºs e 2ºs)
+    [InlineData(9, "Quartas de Final", 2)]  // 3 grupos → 6 no quadro de 8: 2 jogos + 2 byes
+    [InlineData(15, "Oitavas de Final", 2)] // 5 grupos → 10 no quadro de 16: 2 jogos + 6 byes
+    [InlineData(18, "Oitavas de Final", 4)] // 6 grupos → 12 no quadro de 16: 4 jogos + 4 byes
+    [InlineData(24, "Oitavas de Final", 8)] // 8 grupos → 16 no quadro de 16: cheio, sem bye
     public async Task Qualquer_numero_de_grupos_fecha_o_mata_mata(int qtdDuplas, string primeiraFase, int jogosEsperados)
     {
         using var ctx = TestInfra.NovoContexto();

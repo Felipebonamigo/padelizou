@@ -25,11 +25,12 @@ public static class ChaveProjetada
 
     public record ConfrontoProjetado(Vaga Lado1, Vaga Lado2);
 
-    // Fase vazia = não dá pra projetar (grupo de menos).
-    public static (string Fase, List<ConfrontoProjetado> Confrontos) Montar(
+    // Fase vazia = não dá pra projetar (grupo de menos). `Byes` são as vagas que pulam a
+    // primeira rodada — os melhores, na mesma regra do sorteio de verdade.
+    public static (string Fase, List<ConfrontoProjetado> Confrontos, List<Vaga> Byes) Montar(
         IReadOnlyList<string> grupos, int classificadosPorGrupo = 2)
     {
-        if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>());
+        if (grupos.Count == 0) return ("", new List<ConfrontoProjetado>(), new List<Vaga>());
 
         int passam = Math.Max(1, classificadosPorGrupo);
 
@@ -52,11 +53,11 @@ public static class ChaveProjetada
             }
         }
 
-        var (fase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, passam);
+        var (fase, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, passam);
 
-        return (fase, confrontos
-            .Select(c => new ConfrontoProjetado(vagas[c.Dupla1Id], vagas[c.Dupla2Id]))
-            .ToList());
+        return (fase,
+            confrontos.Select(c => new ConfrontoProjetado(vagas[c.Dupla1Id], vagas[c.Dupla2Id])).ToList(),
+            byes.Select(id => vagas[id]).ToList());
     }
 
     // ---- O caminho inteiro, da primeira fase à final ----
@@ -68,47 +69,43 @@ public static class ChaveProjetada
     // diante, por procedência ("Vencedor do jogo 1 x Vencedor do jogo 4"). O jogador quer
     // ver o CAMINHO — quem encontra na semi se passar, e de que lado da chave está.
     //
-    // O encadeamento usa o mesmo ParearVencedores do robô, e os jogos são numerados na
-    // ordem em que nascem: é essa ordem que o robô lê (OrderBy Id) pra montar a fase
-    // seguinte, então o mapa aqui e a chave de verdade contam a mesma história.
+    // O encadeamento repete o do robô de verdade: os que avançam são os VENCEDORES na ordem
+    // dos jogos, seguidos dos BYES (os melhores, que pularam a rodada), pareados primeiro x
+    // último — o mesmo AvancoDaChave + ParearVencedores. Duas contas divergiriam no dia em
+    // que a regra mudasse, e o mapa prometeria um cruzamento que a chave não faria.
     public static List<RodadaProjetada> MontarCompleta(
         IReadOnlyList<string> grupos, int classificadosPorGrupo = 2)
     {
-        var (fase, primeiraRodada) = Montar(grupos, classificadosPorGrupo);
+        var (fase, primeiraRodada, byes) = Montar(grupos, classificadosPorGrupo);
         if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
 
         var rodadas = new List<RodadaProjetada>();
         int proximoNumero = 1;
 
-        var numeros = new List<int>();
         var jogos = new List<JogoProjetado>();
         foreach (var confronto in primeiraRodada)
-        {
-            int numero = proximoNumero++;
-            numeros.Add(numero);
-            jogos.Add(new JogoProjetado(numero, confronto.Lado1.Rotulo, confronto.Lado2.Rotulo));
-        }
+            jogos.Add(new JogoProjetado(proximoNumero++, confronto.Lado1.Rotulo, confronto.Lado2.Rotulo));
         rodadas.Add(new RodadaProjetada(fase, jogos));
 
-        // Cada rodada entrega tantos vencedores quantos jogos teve; a próxima é o nome do
-        // quadro desse tanto de gente (4 vencedores = Semifinal, 2 = Final).
-        while (numeros.Count > 1)
-        {
-            var proximos = new List<int>();
-            var jogosDaRodada = new List<JogoProjetado>();
+        // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes.
+        var entrantes = jogos.Select(j => $"Vencedor do jogo {j.Numero}").ToList();
+        entrantes.AddRange(byes.Select(b => $"{b.Rotulo} (passou direto)"));
 
-            foreach (var par in ChaveamentoMataMata.ParearVencedores(numeros))
+        while (entrantes.Count > 1)
+        {
+            var jogosDaRodada = new List<JogoProjetado>();
+            var proximos = new List<string>();
+
+            // O pareamento do robô: primeiro x último da lista de quem avança.
+            for (int i = 0; i < entrantes.Count / 2; i++)
             {
-                int numero = proximoNumero++;
-                proximos.Add(numero);
-                jogosDaRodada.Add(new JogoProjetado(
-                    numero,
-                    $"Vencedor do jogo {par.Dupla1Id}",
-                    $"Vencedor do jogo {par.Dupla2Id}"));
+                var jogo = new JogoProjetado(proximoNumero++, entrantes[i], entrantes[entrantes.Count - 1 - i]);
+                jogosDaRodada.Add(jogo);
+                proximos.Add($"Vencedor do jogo {jogo.Numero}");
             }
 
-            rodadas.Add(new RodadaProjetada(ChaveamentoMataMata.NomeFase(numeros.Count), jogosDaRodada));
-            numeros = proximos;
+            rodadas.Add(new RodadaProjetada(ChaveamentoMataMata.NomeFase(entrantes.Count), jogosDaRodada));
+            entrantes = proximos;
         }
 
         return rodadas;

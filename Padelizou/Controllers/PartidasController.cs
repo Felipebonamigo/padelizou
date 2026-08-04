@@ -348,40 +348,16 @@ namespace Padelizou.Controllers
                 horarioAtual = ultimoJogo.HorarioPrevisto.Value.AddMinutes(tempoPartida);
             }
 
-            var classificacao = duplas.Select(dupla =>
-            {
-                var jogos = partidasGrupos.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
-                int vitorias = 0, saldo = 0;
-                foreach (var jogo in jogos)
-                {
-                    bool ehDupla1 = jogo.Dupla1Id == dupla.Id;
-                    int pro = ehDupla1 ? (jogo.GamesDupla1 ?? 0) : (jogo.GamesDupla2 ?? 0);
-                    int contra = ehDupla1 ? (jogo.GamesDupla2 ?? 0) : (jogo.GamesDupla1 ?? 0);
-                    saldo += (pro - contra);
-                    if (pro > contra) vitorias++;
-                }
-                return new { Dupla = dupla, Vitorias = vitorias, Saldo = saldo, Grupo = dupla.Grupo };
-            })
-            .GroupBy(c => c.Grupo).OrderBy(g => g.Key).ToList();
-
-            // Motor único de chaveamento (mesmo do TorneiosController): funciona pra
-            // QUALQUER nº de grupos — todos os 1ºs + melhores 2ºs completando o quadro.
-            // Na categoria de TIMES, passam quantos o organizador definiu ao criá-la.
+            // Motor único de chaveamento (mesmo do TorneiosController): TODO classificado
+            // avança, os melhores pegam bye, e a régua de classificação mora num lugar só
+            // (Services/ClassificacaoDeGrupos) — três cópias de um ranking elegeriam três
+            // campeões diferentes no primeiro desempate que divergisse.
             var categoriaDoRobo = await _context.Categorias.FindAsync(categoriaId);
             int classificamPorGrupo = Math.Max(1, categoriaDoRobo?.ClassificadosPorGrupo ?? 2);
 
-            var classificados = new List<ChaveamentoMataMata.Classificado>();
-            foreach (var grupo in classificacao)
-            {
-                var rankingDoGrupo = grupo.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ToList();
-                for (int pos = 0; pos < rankingDoGrupo.Count && pos < classificamPorGrupo; pos++)
-                {
-                    classificados.Add(new ChaveamentoMataMata.Classificado(
-                        rankingDoGrupo[pos].Dupla.Id, grupo.Key ?? "?", rankingDoGrupo[pos].Vitorias, rankingDoGrupo[pos].Saldo, pos + 1));
-                }
-            }
+            var classificados = ClassificacaoDeGrupos.Calcular(duplas, partidasGrupos, classificamPorGrupo);
 
-            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
+            var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
             if (confrontos.Count == 0) return;
 
             var novasPartidas = new List<Partida>();

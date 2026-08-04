@@ -618,33 +618,17 @@ namespace Padelizou.Controllers
             // usa o número que o organizador definiu ao criá-la.
             int classificamPorGrupo = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
 
-            // 1. Calcula o ranking final real de cada grupo e monta a lista de classificados.
-            var classificados = new List<ChaveamentoMataMata.Classificado>();
-            foreach (var grupo in grupos)
-            {
-                foreach (var dupla in grupo.Duplas)
-                {
-                    var meusJogos = partidasFinalizadas.Where(p => p.Dupla1Id == dupla.Id || p.Dupla2Id == dupla.Id).ToList();
-                    dupla.Vitorias = meusJogos.Count(p => p.VencedorId == dupla.Id);
+            // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
+            //    — a mesma que o robô do Controle de Placar e a detecção de bye usam.
+            var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
+            var classificados = ClassificacaoDeGrupos.Calcular(
+                duplasDosGrupos, partidasFinalizadas, classificamPorGrupo);
 
-                    int gf = meusJogos.Where(p => p.Dupla1Id == dupla.Id).Sum(p => p.GamesDupla1 ?? 0) +
-                             meusJogos.Where(p => p.Dupla2Id == dupla.Id).Sum(p => p.GamesDupla2 ?? 0);
-                    int gc = meusJogos.Where(p => p.Dupla1Id == dupla.Id).Sum(p => p.GamesDupla2 ?? 0) +
-                             meusJogos.Where(p => p.Dupla2Id == dupla.Id).Sum(p => p.GamesDupla1 ?? 0);
-                    dupla.SaldoGames = gf - gc;
-                }
-
-                var ranking = grupo.Duplas.OrderByDescending(d => d.Vitorias).ThenByDescending(d => d.SaldoGames).ToList();
-                for (int pos = 0; pos < ranking.Count && pos < classificamPorGrupo; pos++)
-                {
-                    classificados.Add(new ChaveamentoMataMata.Classificado(
-                        ranking[pos].Id, grupo.Nome, ranking[pos].Vitorias, ranking[pos].SaldoGames, pos + 1));
-                }
-            }
-
-            // 2. Motor único de chaveamento: funciona pra QUALQUER nº de grupos
-            //    (todos os 1ºs + melhores 2ºs completando o quadro; 1 grupo = final direta).
-            var (nomeFase, confrontos) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
+            // 2. Motor único de chaveamento: TODO classificado avança; o quadro cresce pra
+            //    caber todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes
+            //    não ganham partida aqui — é a ausência dela que o robô de avanço lê depois
+            //    (Services/AvancoDaChave) pra somá-los aos vencedores.
+            var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
             if (confrontos.Count == 0) return;
 
             var jogosDoMataMata = confrontos

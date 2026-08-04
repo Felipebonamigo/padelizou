@@ -45,43 +45,80 @@ public static class AvancoDaChave
             return new List<int>();
 
         var avancam = partidasDaFase.Select(p => p.VencedorId!.Value).ToList();
-        avancam.AddRange(await ByesAsync(context, categoriaId));
+        avancam.AddRange(await ByesDaCategoriaAsync(context, categoriaId));
         return avancam;
     }
 
-    // Duplas de uma chave direta que ainda não jogaram nada nesta categoria.
+    // Quem passou DIRETO pra fase seguinte sem jogar a primeira rodada do mata-mata.
     //
-    // Não ter partida é a definição de bye: quem perdeu tem jogo, quem venceu tem jogo, quem
-    // passou direto não tem. Por isso a consulta se esgota sozinha — depois da primeira
-    // rodada todo mundo que segue vivo já jogou, e daí em diante ela volta vazia sem
-    // precisar saber em que fase estamos.
-    private static async Task<List<int>> ByesAsync(DbPadelContext context, int categoriaId)
+    // Bye é "não ter jogo de mata-mata": quem perdeu tem jogo, quem venceu tem jogo, quem
+    // pulou a rodada não tem. Por isso a consulta se esgota sozinha — depois da primeira
+    // rodada todo sobrevivente já jogou, e daí em diante ela volta vazia sem precisar saber
+    // em que fase estamos.
+    //
+    // O que muda por tipo de categoria é QUEM É CANDIDATO a bye:
+    //  • chave direta: toda dupla inscrita que entrou no sorteio;
+    //  • pós-grupos: só quem CLASSIFICOU — a dupla eliminada no grupo também não tem jogo
+    //    de mata-mata, e sem essa régua ela entraria nas oitavas de carona, ressuscitada.
+    // Público porque o DESENHO da chave também precisa saber quem descansou: sem isso as
+    // duplas de bye somem do quadro — jogam a fase seguinte e não aparecem em lugar nenhum.
+    public static async Task<List<int>> ByesDaCategoriaAsync(DbPadelContext context, int categoriaId)
     {
         var categoria = await context.Categorias
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == categoriaId);
+        if (categoria == null) return new List<int>();
 
-        if (categoria is not { ChaveDireta: true }) return new List<int>();
-
-        var confrontos = await context.Partidas
-            .Where(p => p.CategoriaId == categoriaId)
-            .Select(p => new { p.Dupla1Id, p.Dupla2Id })
-            .ToListAsync();
-
-        var jaJogaram = confrontos
-            .SelectMany(c => new[] { c.Dupla1Id, c.Dupla2Id })
-            .ToHashSet();
-
-        // O mesmo filtro do sorteio: dupla sem parceiro ou na lista de espera nunca entrou
-        // na chave, e não pode entrar por esta porta.
-        var candidatas = await context.Duplas
+        var duplas = await context.Duplas
             .Where(d => d.CategoriaId == categoriaId)
             .ToListAsync();
 
-        return candidatas
-            .Where(d => !ForaDoSorteio.FicaDeFora(d) && !jaJogaram.Contains(d.Id))
-            .OrderBy(d => d.Id)
-            .Select(d => d.Id)
+        var partidas = await context.Partidas
+            .Where(p => p.CategoriaId == categoriaId)
+            .ToListAsync();
+
+        var partidasDeMataMata = partidas
+            .Where(p => !FasesTorneio.EhFaseDeGrupos(p.Fase))
+            .ToList();
+
+        var jaJogaramMataMata = partidasDeMataMata
+            .SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id })
+            .ToHashSet();
+
+        // Sem mata-mata nenhum ainda não existe bye — existe fase de grupos em andamento.
+        if (partidasDeMataMata.Count == 0 && !categoria.ChaveDireta) return new List<int>();
+
+        // ⚠️ Bye é coisa da PRIMEIRA rodada do mata-mata. Assim que a segunda fase nasce,
+        // quem descansou já entrou nela — e daí em diante "não ter jogo" quer dizer outra
+        // coisa: eliminado no grupo, ou cortado por uma regra antiga. Sem esta parada, uma
+        // categoria com o mata-mata em andamento ressuscitaria gente a cada fase.
+        if (partidasDeMataMata.Select(p => p.Fase).Distinct().Count() > 1) return new List<int>();
+
+        if (categoria.ChaveDireta)
+        {
+            // O mesmo filtro do sorteio: dupla sem parceiro ou na lista de espera nunca
+            // entrou na chave, e não pode entrar por esta porta.
+            return duplas
+                .Where(d => !ForaDoSorteio.FicaDeFora(d) && !jaJogaramMataMata.Contains(d.Id))
+                .OrderBy(d => d.Id)
+                .Select(d => d.Id)
+                .ToList();
+        }
+
+        // Pós-grupos: recalcula a classificação com a MESMA régua da geração do mata-mata
+        // (Services/ClassificacaoDeGrupos). Os jogos de grupo estão todos finalizados — o
+        // mata-mata só nasce depois deles —, então a conta dá sempre o mesmo resultado.
+        var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
+        var classificados = ClassificacaoDeGrupos.Calcular(
+            duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2));
+
+        // Do melhor pro pior — a ordem em que os byes entram no pareamento importa: o
+        // ParearVencedores cruza primeiro x último, então o melhor bye pega o pior vencedor.
+        return classificados
+            .OrderBy(c => c.Posicao)
+            .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
+            .Where(c => !jaJogaramMataMata.Contains(c.DuplaId))
+            .Select(c => c.DuplaId)
             .ToList();
     }
 }

@@ -1509,3 +1509,55 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-chave-coluna, .pdz-chave-centro { flex-basis: 10rem; }
     .pdz-chave-vaga { font-size: .74rem; }
 }
+
+/* Chaveamento de cima pra baixo: primeira rodada no topo, final embaixo, troféu no pé.
+   Cada fase é uma linha; os jogos se centralizam e a chave afunila sozinha. */
+.pdz-chave-v {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.pdz-chave-v-rodada {
+    display: flex;
+    justify-content: center;
+    gap: .6rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;          /* rodada larga (8 jogos) rola dentro de si no celular */
+    padding-bottom: .25rem;
+}
+
+.pdz-chave-v-rodada .pdz-chave-vaga {
+    flex: 1 1 0;
+    min-width: 10.5rem;
+    max-width: 15rem;
+}
+
+.pdz-chave-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    font-size: .62rem;
+    font-weight: 700;
+    color: var(--pdz-muted);
+}
+
+/* A dupla que descansou entra nomeada na fase seguinte, com o selo dizendo por quê. */
+.pdz-chave-selobye {
+    flex: 0 0 auto;
+    font-size: .6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+}
+
+.pdz-chave-v .pdz-chave-trofeu { max-width: 16rem; margin: 0 auto; }

@@ -343,6 +343,25 @@ namespace Padelizou.Controllers
                 ViewBag.MataMataPorCategoria = partidasMataMata
                     .GroupBy(p => p.CategoriaId)
                     .ToDictionary(g => g.Key, g => g.ToList());
+
+                // Quem passou DIRETO (bye) em cada categoria: sem isto essas duplas somem do
+                // desenho da chave — jogam a fase seguinte sem aparecer em vaga nenhuma. A
+                // ORDEM da lista é a do pareamento (melhor → pior), e o desenho conta com ela.
+                var byesPorCategoria = new Dictionary<int, List<Dupla>>();
+                foreach (var categoriaId in ((Dictionary<int, List<Partida>>)ViewBag.MataMataPorCategoria).Keys)
+                {
+                    var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, categoriaId);
+                    if (byeIds.Count == 0) continue;
+
+                    var duplasDeBye = await _context.Duplas
+                        .Include(d => d.Jogador1).Include(d => d.Jogador2)
+                        .Where(d => byeIds.Contains(d.Id))
+                        .ToListAsync();
+                    byesPorCategoria[categoriaId] = byeIds
+                        .Select(id => duplasDeBye.First(d => d.Id == id))
+                        .ToList();
+                }
+                ViewBag.ByesPorCategoria = byesPorCategoria;
             }
 
             return View(torneio);

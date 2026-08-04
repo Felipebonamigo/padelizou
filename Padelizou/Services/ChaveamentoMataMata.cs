@@ -3,18 +3,21 @@ namespace Padelizou.Services;
 // Motor ÚNICO de chaveamento do mata-mata pós-grupos, usado pelos robôs do
 // TorneiosController (Mesa de Controle) e do PartidasController (Controle de Placar).
 //
-// Regras (generalizam o antigo comportamento, que só fechava chave com 1/2/4/8 grupos):
-// - 1 grupo só: gera uma Final direta 1º x 2º do grupo (fecha categorias de 2-3 duplas,
-//   que antes nunca tinham campeão).
-// - N grupos: o quadro é a MAIOR potência de 2 que cabe em 2N. TODOS os 1ºs colocados
-//   classificam; os MELHORES 2ºs (comparados entre grupos por vitórias e saldo de games)
-//   completam o quadro. Ex.: 3 grupos → quadro de 4 (3 primeiros + melhor segundo);
-//   5 grupos → quadro de 8 (5 primeiros + 3 melhores segundos); 8 grupos → quadro de 16.
-//   Obs.: com grupos de tamanhos diferentes (regra do resto) a comparação entre 2ºs não é
-//   perfeitamente justa — critério pragmático, mesmo usado em circuitos amadores.
-// - Nome da fase pelo tamanho do quadro: 16=Oitavas, 8=Quartas, 4=Semifinal, 2=Final.
-// - Semeadura 1º melhor x 2º pior (1 x último, 2 x penúltimo...), evitando reedição de
-//   confronto do mesmo grupo na 1ª fase quando há troca possível.
+// Regras (decisão de produto de 05/08/2026, pedida pelo Felipe no Interno):
+// - TODO classificado avança — 1º e 2º de cada grupo (ou quantos a categoria definir).
+//   A régua antiga cortava pro MAIOR quadro que coubesse: com 3 grupos, dois segundos
+//   colocados eram eliminados sem jogar mata-mata nenhum. Agora o quadro é a MENOR
+//   potência de 2 que CABE todo mundo, e as vagas que sobram viram BYE.
+// - O BYE é dos melhores: quem fez a melhor campanha pula a primeira rodada e entra
+//   direto na seguinte, enquanto os piores ranqueados jogam uma etapa a mais.
+//   Ex.: 3 grupos → 6 classificados → quadro de 8: os 2 melhores 1ºs descansam,
+//   os outros 4 disputam 2 jogos.
+// - 1 grupo só: Final direta 1º x 2º (fecha categorias de 2-3 duplas).
+// - Nome da fase pelo tamanho do QUADRO: 32=Primeira Rodada, 16=Oitavas, 8=Quartas,
+//   4=Semifinal, 2=Final. Com bye a fase tem menos jogos que o nome promete — quem
+//   confere se ela fechou conta as partidas que existem (Services/AvancoDaChave).
+// - Semeadura por LADO da chave: dois classificados do mesmo grupo caem em metades
+//   opostas e só podem se reencontrar NA FINAL.
 public static class ChaveamentoMataMata
 {
     // Um classificado de grupo: Posicao é 1 (campeão do grupo) ou 2 (vice do grupo).
@@ -67,13 +70,11 @@ public static class ChaveamentoMataMata
 
     // Monta a primeira fase do mata-mata. Fase vazia = nada a gerar (sem classificados).
     //
-    // classificadosPorGrupo generaliza a régua histórica dos "melhores 2ºs": com 2 (o
-    // padrão de sempre) o comportamento é idêntico ao antigo; a categoria de TIMES passa
-    // o número que o organizador decidiu, e a mesma comparação de campanha vale pra
-    // completar o quadro com 3ºs, 4ºs... A validação de que a conta fecha um quadro é
-    // feita ANTES do sorteio (Services/CategoriaDeTimes) — aqui, se sobrar gente além da
-    // potência de 2, corta-se a pior campanha da pior posição, nunca um 1º de grupo.
-    public static (string Fase, List<Confronto> Confrontos) MontarPrimeiraFase(
+    // Byes: as vagas do quadro que sobram vão pros MELHORES (posição no grupo primeiro,
+    // campanha depois) — eles entram direto na fase seguinte, e o robô de avanço os soma
+    // aos vencedores (Services/AvancoDaChave). classificadosPorGrupo é 2 no padrão; a
+    // categoria de TIMES passa o número que o organizador decidiu.
+    public static (string Fase, List<Confronto> Confrontos, List<int> Byes) MontarPrimeiraFase(
         List<Classificado> classificados, int classificadosPorGrupo = 2)
     {
         // Posição no grupo manda primeiro (todo 1º entra antes de qualquer 2º); dentro da
@@ -84,14 +85,18 @@ public static class ChaveamentoMataMata
             .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
             .ToList();
 
-        if (candidatos.Count < 2) return ("", new List<Confronto>());
+        if (candidatos.Count < 2) return ("", new List<Confronto>(), new List<int>());
 
-        int quadro = MaiorPotenciaDe2Ate(candidatos.Count);
-        var cabecas = candidatos.Take(quadro).ToList();
+        // O quadro CABE todo mundo: ninguém que classificou é cortado. A régua antiga usava
+        // a maior potência que coubesse DENTRO e eliminava os piores 2ºs sem mata-mata
+        // nenhum — com 3 grupos, duas duplas classificadas iam embora sem jogar.
+        int quadro = MenorPotenciaDe2APartirDe(candidatos.Count);
+        var passamDireto = candidatos.Take(quadro - candidatos.Count).Select(c => c.DuplaId).ToList();
+        var cabecas = candidatos.Skip(passamDireto.Count).ToList();
 
         // Os melhores abrem os jogos, na ordem; o resto é distribuído contra eles.
-        var mandantes = cabecas.Take(quadro / 2).ToList();
-        var adversarios = cabecas.Skip(quadro / 2).ToList();   // do melhor pro pior
+        var mandantes = cabecas.Take(cabecas.Count / 2).ToList();
+        var adversarios = cabecas.Skip(cabecas.Count / 2).ToList();   // do melhor pro pior
 
         // ⚠️ QUEM CAI DE QUAL LADO DA CHAVE.
         //
@@ -119,7 +124,7 @@ public static class ChaveamentoMataMata
             confrontos.Add(new Confronto(mandantes[i].DuplaId, escolhido.DuplaId));
         }
 
-        return (NomeFase(quadro), confrontos);
+        return (NomeFase(quadro), confrontos, passamDireto);
     }
 
     // O adversário do mandante, escolhido do PIOR pro melhor (é o que mantém "1º melhor x

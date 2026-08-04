@@ -1,29 +1,27 @@
-@model List<Padelizou.Models.Partida>
+@model (List<Padelizou.Models.Partida> Jogos, List<Padelizou.Models.Dupla> Byes)
 @*
-    O chaveamento do mata-mata desenhado como chaveamento: dois lados que caminham pro
-    centro e se encontram na final, com o troféu no meio.
+    O chaveamento do mata-mata, de CIMA PRA BAIXO: a primeira rodada no topo, cada fase
+    numa linha abaixo da anterior, e a final embaixo com o troféu — pedido do Felipe
+    (05/08/2026), no lugar do desenho em colunas da esquerda pra direita.
 
-    O desenho anterior era uma fileira de colunas da esquerda pra direita, e mostrava só as
-    fases que JÁ existiam — numa chave recém-sorteada isso virava uma coluna de jogos e um
-    "Campeão: aguardando..." solto do outro lado da tela, sem nada no meio. As rodadas que
-    ainda não aconteceram entram como vagas em branco, que é justamente o que deixa a pessoa
-    ver o caminho dela até a final.
+    Toda vaga é numerada, e as fases futuras dizem a PROCEDÊNCIA ("Vencedor do jogo 3"):
+    é o que deixa qualquer um seguir o próprio caminho até a final sem adivinhar geometria.
 
-    A ORDEM dos jogos em cada coluna não é a de criação: o pareamento do mata-mata é primeiro
-    x último, então desenhar na ordem de criação colaria jogos que vão pra lados opostos da
-    chave. Quem resolve isso é Services/OrdemDoQuadro.
+    Os BYES aparecem NOMEADOS na primeira fase futura — a dupla que descansou joga a fase
+    seguinte, e sem isso ela some do quadro (foi exatamente o defeito apontado: 24 duplas
+    na chave, só 16 visíveis). O pareamento reproduz o robô: quem avança são os vencedores
+    na ordem dos jogos, seguidos dos byes do melhor pro pior, cruzados primeiro x último
+    (Services/AvancoDaChave + ParearVencedores).
 *@
 @{
-    var jogos = Model ?? new List<Padelizou.Models.Partida>();
+    var jogos = Model.Jogos ?? new List<Padelizou.Models.Partida>();
+    var byes = Model.Byes ?? new List<Padelizou.Models.Dupla>();
 
     var ordemDasFases = new[]
     {
         Padelizou.Services.ChaveamentoMataMata.PrimeiraRodada,
         "Oitavas de Final", "Quartas de Final", "Semifinal", "Final"
     };
-
-    // A chave começa na fase mais antiga que existe de verdade.
-    var primeira = Array.FindIndex(ordemDasFases, f => jogos.Any(j => j.Fase == f));
 
     string NomeDaDupla(Padelizou.Models.Dupla? d)
     {
@@ -34,43 +32,81 @@
         return $"{n1} / {n2}";
     }
 
-    // Cada rodada vira uma lista de "vagas": jogo de verdade, ou buraco esperando os
-    // classificados. Quem não existe ainda tem o TAMANHO conhecido — é metade da anterior.
-    var rodadas = new List<(string Fase, List<Padelizou.Models.Partida?> Vagas)>();
+    // Cada vaga do desenho: um jogo real, ou um jogo futuro descrito por procedência.
+    // Numeração GLOBAL na ordem de criação — a mesma que o robô lê pra montar a fase
+    // seguinte, então "Vencedor do jogo 3" aqui e na chave de verdade são o mesmo jogo.
+    var rodadas = new List<(string Fase, List<VagaVM> Vagas)>();
+    int numero = 1;
 
+    var primeira = Array.FindIndex(ordemDasFases, f => jogos.Any(j => j.Fase == f));
     if (primeira >= 0)
     {
+        // Quem entra na próxima rodada, na ordem do pareamento do robô.
+        var entrantes = new List<VagaVM.Lado>();
+
         for (int i = primeira; i < ordemDasFases.Length; i++)
         {
             var fase = ordemDasFases[i];
-            var daFase = jogos.Where(j => j.Fase == fase).OrderBy(j => j.Id)
-                              .Cast<Padelizou.Models.Partida?>().ToList();
+            var reais = jogos.Where(j => j.Fase == fase).OrderBy(j => j.Id).ToList();
+            var vagas = new List<VagaVM>();
 
-            // ⚠️ Quantas vagas a fase tem quando ela ainda não existe: quem sabe é o NOME
-            // dela (Oitavas são 8 jogos, Quartas 4...), não "metade da anterior".
-            //
-            // A diferença aparece na CHAVE DIRETA com bye: a primeira rodada de 24 duplas
-            // tem 8 jogos, e a seguinte tem 8 também — não 4 —, porque os 8 vencedores se
-            // juntam às 8 duplas que passaram direto. Contando pela metade, a chave apareceria
-            // encolhendo rápido demais e faltariam vagas no desenho.
-            int vagas = daFase.Count > 0
-                ? daFase.Count
-                : Padelizou.Services.ChaveamentoMataMata.JogosDaFase(fase);
+            if (reais.Count > 0)
+            {
+                foreach (var jogo in reais)
+                    vagas.Add(new VagaVM { Numero = numero++, Jogo = jogo });
 
-            while (daFase.Count < vagas) daFase.Add(null);
+                entrantes = vagas.Select(v => VagaVM.Lado.VencedorDe(v.Numero)).ToList();
+                entrantes.AddRange(byes.Select(b => VagaVM.Lado.Bye(NomeDaDupla(b))));
+            }
+            else
+            {
+                // Fase futura: pareia quem avança, primeiro x último — o robô de verdade.
+                int jogosDaFase = entrantes.Count / 2;
+                if (jogosDaFase == 0) break;
 
-            rodadas.Add((fase, Padelizou.Services.OrdemDoQuadro.Ordenar(daFase)));
+                var proximos = new List<VagaVM.Lado>();
+                for (int k = 0; k < jogosDaFase; k++)
+                {
+                    var vaga = new VagaVM
+                    {
+                        Numero = numero++,
+                        Lado1 = entrantes[k],
+                        Lado2 = entrantes[entrantes.Count - 1 - k],
+                    };
+                    vagas.Add(vaga);
+                    proximos.Add(VagaVM.Lado.VencedorDe(vaga.Numero));
+                }
+                entrantes = proximos;
+            }
 
-            if (fase == "Final") break;
+            rodadas.Add((fase, vagas));
+            if (fase == "Final" || entrantes.Count < 2) break;
         }
     }
 
-    var final = rodadas.Count > 0 ? rodadas[^1] : default;
-    var caminho = rodadas.Count > 1 ? rodadas.Take(rodadas.Count - 1).ToList() : new();
-    var partidaFinal = final.Vagas?.FirstOrDefault();
+    var partidaFinal = rodadas.Count > 0 && rodadas[^1].Fase == "Final"
+        ? rodadas[^1].Vagas.FirstOrDefault()?.Jogo : null;
     var campea = partidaFinal is { Status: "Finalizada", VencedorId: not null }
         ? (partidaFinal.VencedorId == partidaFinal.Dupla1Id ? partidaFinal.Dupla1 : partidaFinal.Dupla2)
         : null;
+}
+
+@functions {
+    public class VagaVM
+    {
+        public int Numero { get; set; }
+        public Padelizou.Models.Partida? Jogo { get; set; }
+        public Lado? Lado1 { get; set; }
+        public Lado? Lado2 { get; set; }
+
+        public class Lado
+        {
+            public string Rotulo { get; set; } = "";
+            public bool EhBye { get; set; }
+            public static Lado VencedorDe(int numero) => new() { Rotulo = $"Vencedor do jogo {numero}" };
+            public static Lado Bye(string nome) => new() { Rotulo = nome, EhBye = true };
+        }
+    }
 }
 
 @if (rodadas.Count == 0)
@@ -78,64 +114,92 @@
     return;
 }
 
-<p class="text-muted small mb-3">
-    <i class="bi bi-arrows-move"></i> Deslize para o lado se a chave não couber na tela.
-</p>
-
-<div class="pdz-chave">
-    @* Lado esquerdo: primeira metade de cada rodada, da mais antiga pra semifinal. *@
-    @foreach (var rodada in caminho)
+<div class="pdz-chave-v">
+    @foreach (var (fase, vagas) in rodadas)
     {
-        var metade = (rodada.Vagas.Count + 1) / 2;
-        <div class="pdz-chave-coluna">
-            <div class="pdz-chave-fase">@rodada.Fase</div>
-            @foreach (var vaga in rodada.Vagas.Take(metade))
-            {
-                <partial name="_ChaveVaga" model="vaga" />
-            }
+        <div class="pdz-chave-v-fase">
+            <div class="pdz-chave-fase">@fase</div>
+            <div class="pdz-chave-v-rodada">
+                @foreach (var vaga in vagas)
+                {
+                    var jogo = vaga.Jogo;
+                    if (jogo != null)
+                    {
+                        var venceu1 = jogo.VencedorId == jogo.Dupla1Id;
+                        var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
+                        var aoVivo = jogo.Status == "AoVivo";
+
+                        <div class="pdz-chave-vaga @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
+                            <div class="pdz-chave-quando">
+                                <span class="pdz-chave-num">@vaga.Numero</span>
+                                @if (aoVivo)
+                                {
+                                    <span class="pdz-chave-aovivo">● AO VIVO</span>
+                                }
+                                else if (jogo.HorarioPrevisto is DateTime h)
+                                {
+                                    <span>@h.ToString("dd/MM HH:mm")</span>
+                                }
+                                else
+                                {
+                                    <span>por ordem</span>
+                                }
+                                @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+                                {
+                                    <span class="pdz-chave-quadra">@jogo.NomeQuadra</span>
+                                }
+                            </div>
+                            <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
+                                <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
+                            </span>
+                            <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
+                                <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="pdz-chave-vaga pdz-chave-vaga-vazia">
+                            <div class="pdz-chave-quando">
+                                <span class="pdz-chave-num">@vaga.Numero</span>
+                                <span>a definir</span>
+                            </div>
+                            <span class="pdz-chave-lado @(vaga.Lado1?.EhBye == true ? "" : "text-muted")">
+                                <span class="pdz-chave-nome">@(vaga.Lado1?.Rotulo ?? "A definir")</span>
+                                @if (vaga.Lado1?.EhBye == true)
+                                {
+                                    <span class="pdz-chave-selobye" title="Passou direto — descansou a primeira rodada">bye</span>
+                                }
+                            </span>
+                            <span class="pdz-chave-lado @(vaga.Lado2?.EhBye == true ? "" : "text-muted")">
+                                <span class="pdz-chave-nome">@(vaga.Lado2?.Rotulo ?? "A definir")</span>
+                                @if (vaga.Lado2?.EhBye == true)
+                                {
+                                    <span class="pdz-chave-selobye" title="Passou direto — descansou a primeira rodada">bye</span>
+                                }
+                            </span>
+                        </div>
+                    }
+                }
+            </div>
         </div>
     }
 
-    <div class="pdz-chave-centro">
-        <div class="pdz-chave-fase text-center">@final.Fase</div>
-        @foreach (var vaga in final.Vagas)
+    <div class="pdz-chave-trofeu">
+        @if (campea != null)
         {
-            <partial name="_ChaveVaga" model="vaga" />
+            <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
+                 width="110" height="114" class="rounded-3" />
+            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
+            <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
         }
-
-        <div class="pdz-chave-trofeu">
-            @* O mascote só entra quando existe campeão de verdade. Chave em aberto continua
-               com o troféu: comemorar antes da final estraga o momento em que a comemoração
-               vale. *@
-            @if (campea != null)
-            {
-                <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
-                     width="110" height="114" class="rounded-3" />
-                <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-                <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
-            }
-            else
-            {
-                <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #e0a800;"></i>
-                <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-                <div class="text-muted small">Aguardando...</div>
-            }
-        </div>
+        else
+        {
+            <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #e0a800;"></i>
+            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
+            <div class="text-muted small">Aguardando...</div>
+        }
     </div>
-
-    @* Lado direito: a segunda metade, em colunas espelhadas (da semifinal de volta à
-       rodada mais antiga) — é o que faz os dois lados caminharem PRA DENTRO. *@
-    @foreach (var rodada in Enumerable.Reverse(caminho))
-    {
-        var metade = (rodada.Vagas.Count + 1) / 2;
-        if (rodada.Vagas.Count <= metade) { continue; }
-
-        <div class="pdz-chave-coluna">
-            <div class="pdz-chave-fase">@rodada.Fase</div>
-            @foreach (var vaga in rodada.Vagas.Skip(metade))
-            {
-                <partial name="_ChaveVaga" model="vaga" />
-            }
-        </div>
-    }
 </div>
