@@ -150,6 +150,34 @@ public class OrganizadorJuntaInscricoesTests
     }
 
     [Fact]
+    public async Task Time_nao_aceita_parceiro_nem_convite()
+    {
+        // Time é gravado como Dupla com NomeTime e Jogador1Id = ORGANIZADOR. Sem esta recusa
+        // nada estouraria: a troca simplesmente penduraria um jogador na linha do time, calada,
+        // quebrando a premissa de que nenhuma regra de jogador enxerga essa linha.
+        var (ctx, _t, cat, organizador, _a, gabriel) = await MontarAsync();
+        using var _ = ctx;
+
+        var time = new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = organizador.Id, NomeTime = "Argentus XP", Codigo = "TIME1", Pago = true,
+        };
+        ctx.Duplas.Add(time);
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, organizador.Id);
+
+        await controller.TrocarParceiro(time.Id, gabriel.Cpf, null, juntarComInscricaoSolo: true);
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == time.Id)).Jogador2Id);
+        Assert.NotNull(controller.TempData["Erro"]);
+
+        controller.TempData.Clear();
+        await controller.GerarConvite(time.Id);
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == time.Id)).ConviteToken);
+        Assert.NotNull(controller.TempData["Erro"]);
+    }
+
+    [Fact]
     public async Task Dupla_ja_fechada_continua_sendo_um_nao_mesmo_marcando_a_caixa()
     {
         // Juntar só vale pra inscrição SOZINHA. Quem já tem parceiro sairia de uma dupla que

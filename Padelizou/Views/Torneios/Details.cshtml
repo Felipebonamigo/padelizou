@@ -1525,25 +1525,34 @@
 
                                             @if (Model.Status == "Inscrições Abertas")
                                             {
-                                                @if (!dupla.Completa)
+                                                @* Time não tem parceiro pra convidar nem pra definir: quem monta a
+                                                   lista é o organizador, na tela de times. Pior que inútil, era
+                                                   perigoso — o time é gravado como Dupla com Jogador1Id = organizador
+                                                   (ver TorneiosController.Times), então "Definir por CPF" num time
+                                                   NÃO dava erro: pendurava um jogador na linha do time, calado. O
+                                                   controller também recusa; isto aqui é só não oferecer. *@
+                                                @if (!dupla.EhTime)
                                                 {
-                                                    @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
-                                                       que a maioria vai usar, por isso vem antes do formulário de CPF.
-                                                       Contornado, e não preenchido de verde: com 25 duplas sem parceiro
-                                                       eram 25 botões berrantes, e destaque que se repete em toda linha
-                                                       deixa de ser destaque. *@
-                                                    <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
-                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                        <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
-                                                            <i class="bi bi-link-45deg"></i> Convidar por link
-                                                        </button>
-                                                    </form>
+                                                    @if (!dupla.Completa)
+                                                    {
+                                                        @* Fecha a dupla sem ninguém precisar do CPF do outro — o caminho
+                                                           que a maioria vai usar, por isso vem antes do formulário de CPF.
+                                                           Contornado, e não preenchido de verde: com 25 duplas sem parceiro
+                                                           eram 25 botões berrantes, e destaque que se repete em toda linha
+                                                           deixa de ser destaque. *@
+                                                        <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
+                                                            <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+                                                                <i class="bi bi-link-45deg"></i> Convidar por link
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                                                            data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
+                                                        <i class="bi bi-arrow-left-right"></i>
+                                                        @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
+                                                    </button>
                                                 }
-                                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
-                                                        data-bs-toggle="collapse" data-bs-target="#trocaParceiro-@dupla.Id">
-                                                    <i class="bi bi-arrow-left-right"></i>
-                                                    @(dupla.Completa ? "Trocar parceiro" : "Definir por CPF")
-                                                </button>
                                                 @* Só o ícone: "Remover" é a ação que ninguém procura e
                                                    a única sem volta. Escrita por extenso, ela puxava o
                                                    olho em toda linha e ainda era a que mais empurrava
@@ -1559,7 +1568,7 @@
                                         </div>
                                     </div>
 
-                                    @if (Model.Status == "Inscrições Abertas")
+                                    @if (Model.Status == "Inscrições Abertas" && !dupla.EhTime)
                                     {
                                         <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
                                             <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"

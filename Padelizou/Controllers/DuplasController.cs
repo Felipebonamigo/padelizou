@@ -390,6 +390,17 @@ namespace Padelizou.Controllers
             var torneio = dupla.Categoria.Torneio;
             int torneioId = torneio.Id;
 
+            // Time não tem parceiro. E aqui a recusa não é formalidade: o time é gravado como
+            // Dupla com Jogador1Id = ORGANIZADOR (ver TorneiosController.Times), então nada
+            // aqui estouraria — a troca simplesmente penduraria um jogador na linha do time,
+            // sem erro nenhum, quebrando a premissa de que nenhuma regra de jogador enxerga
+            // essa linha. Quem monta a lista de times é o organizador, na tela de times.
+            if (dupla.EhTime)
+            {
+                TempData["Erro"] = "Time não tem parceiro — a lista de times se altera em \"Gerenciar times e estrutura\".";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             // Só quem está na dupla ou organiza o torneio pode mexer.
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
             if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneioId)) return Forbid();
@@ -535,6 +546,14 @@ namespace Padelizou.Controllers
             if (dupla == null) return NotFound();
 
             var torneio = dupla.Categoria.Torneio;
+
+            // Mesma razão de TrocarParceiro: time não tem parceiro, e o link geraria um
+            // convite pra entrar numa linha que é de time.
+            if (dupla.EhTime)
+            {
+                TempData["Erro"] = "Time não tem parceiro — a lista de times se altera em \"Gerenciar times e estrutura\".";
+                return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            }
 
             bool ehDaDupla = dupla.Jogador1Id == jogadorLogadoId || dupla.Jogador2Id == jogadorLogadoId;
             if (!ehDaDupla && !await UsuarioEhOrganizadorAsync(torneio.Id)) return Forbid();
