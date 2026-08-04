@@ -695,7 +695,8 @@ namespace Padelizou.Controllers
             // limite nenhum.
             int? setsFaseGrupos = null, int? gamesFaseGrupos = null,
             int? setsFaseMataMata = null, int? gamesFaseMataMata = null,
-            int? setsFaseFinal = null, int? gamesFaseFinal = null)
+            int? setsFaseFinal = null, int? gamesFaseFinal = null,
+            int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -735,6 +736,15 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
+            // Duração zerada faria a grade marcar todos os jogos no mesmo minuto. Quem não
+            // quer horário nenhum tem a chave própria pra isso, logo abaixo.
+            if (tempoPrevistoPartidaMinutos is <= 0)
+            {
+                TempData["Erro"] = "A duração de cada jogo precisa ser de pelo menos 1 minuto. "
+                                 + "Pra jogar sem hora marcada, use \"Sem horário previsto\".";
+                return RedirectToAction("Details", new { id });
+            }
+
             torneio.Nome = nome;
             torneio.DataInicio = dataInicio;
             torneio.PrecoInscricao = precoInscricao;
@@ -747,6 +757,8 @@ namespace Padelizou.Controllers
             torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
             torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
             torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
+            torneio.TempoPrevistoPartidaMinutos = tempoPrevistoPartidaMinutos ?? torneio.TempoPrevistoPartidaMinutos;
+            torneio.SemHorarioPrevisto = semHorarioPrevisto;
 
             // O local É o clube. A tela de edição pedia os dois — o mesmo dado duas vezes — e
             // eles podiam divergir: o cabeçalho do torneio mostra o LocalTorneio, então dava

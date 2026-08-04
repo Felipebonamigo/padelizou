@@ -384,6 +384,10 @@
     <script src="~/js/instalar-app.js" asp-append-version="true"></script>
     <script src="~/js/push.js" asp-append-version="true"></script>
     <script src="~/js/mascaras.js" asp-append-version="true"></script>
+    @* Confirmação bonita no lugar do confirm() do navegador. Vale em TODA tela: basta o
+       formulário ter data-confirmar. Ver Views/Shared/_ModalConfirmar.cshtml. *@
+    <partial name="_ModalConfirmar" />
+    <script src="~/js/confirmar.js" asp-append-version="true"></script>
     @if (User.Identity?.IsAuthenticated == true)
     {
         <partial name="_InstalarPwaModal" />

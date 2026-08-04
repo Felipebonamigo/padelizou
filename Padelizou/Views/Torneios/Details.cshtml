@@ -16,6 +16,19 @@
     var ficamDeFora = Model.Categorias
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.Listar(c.Duplas))
         .ToList();
+
+    // Texto da confirmação de sortear as chaves (o modal em _ModalConfirmar).
+    // Quem fica de fora aparece POR NOME: "3 inscritos" não deixa ninguém reconhecer o amigo
+    // que vai perder o torneio, que é justamente a informação capaz de mudar a decisão.
+    var nomesDeFora = string.Join(", ", ficamDeFora.Take(4)
+        .Select(d => d.Jogador1.ComoChamar.Split(' ')[0]
+                     + " (" + Padelizou.Services.ForaDoSorteio.Motivo(d) + ")"));
+    var detalheDeFora = ficamDeFora.Any()
+        ? $"{ficamDeFora.Count} fica{(ficamDeFora.Count == 1 ? "" : "m")} de fora: {nomesDeFora}{(ficamDeFora.Count > 4 ? "…" : "")}"
+        : null;
+    var horarioOuOrdem = Model.SemHorarioPrevisto
+        ? "Os jogos entram numa ordem, pra você chamar conforme a quadra vaga."
+        : "Os jogos ganham horário na hora.";
 }
 
 <!-- Cabeçalho do Torneio -->
@@ -398,7 +411,10 @@
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
                                         <form asp-controller="Torneios" asp-action="Desistir" method="post" class="mt-2"
-                                              onsubmit="return confirm('@(sozinho ? "Cancelar sua inscrição neste torneio?" : "Sair da dupla? Seu parceiro continua inscrito e vai precisar achar outro.")');">
+                                              data-confirmar-tom="perigo"
+                                              data-confirmar-titulo="@(sozinho ? "Cancelar sua inscrição?" : "Sair da dupla?")"
+                                              data-confirmar="@(sozinho ? "Sua vaga volta pra fila e alguém da lista de espera pode assumir." : "Seu parceiro continua inscrito e vai precisar achar outro antes do sorteio.")"
+                                              data-confirmar-ok="@(sozinho ? "Cancelar inscrição" : "Sair da dupla")">
                                             <input type="hidden" name="duplaId" value="@dupla.Id" />
                                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
                                                 <i class="bi bi-box-arrow-left"></i>
@@ -868,11 +884,25 @@
                                     <strong>@prev.Duplas duplas</strong> em @prev.Grupos grupos =
                                     @prev.JogosDeGrupo jogos de grupo + @prev.JogosDeMataMata de mata-mata =
                                     <strong>@prev.TotalDeJogos jogos</strong>, em @Model.QuantidadeQuadras
-                                    @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras") de @Model.TempoPrevistoPartidaMinutos min.
+                                    @(Model.QuantidadeQuadras == 1 ? "quadra" : "quadras")@(prev.SemHorarioPrevisto ? "." : $" de {Model.TempoPrevistoPartidaMinutos} min.")
                                     <br />
-                                    Começa <strong>@prev.Inicio.ToString("dddd dd/MM 'às' HH:mm")</strong> e o último jogo
-                                    termina <strong>@prev.FimPrevisto.ToString("dddd dd/MM 'às' HH:mm")</strong>
-                                    — @prev.Dias @(prev.Dias == 1 ? "dia" : "dias") de quadra.
+                                    @if (prev.SemHorarioPrevisto)
+                                    {
+                                        @* Sem hora marcada não há o que prever: prometer um fim
+                                           que ninguém calculou seria pior que não dizer nada. *@
+                                        <text>
+                                            Os jogos saem <strong>numa ordem, sem hora marcada</strong> — você chama
+                                            cada um pela Mesa de Controle conforme a quadra vaga.
+                                        </text>
+                                    }
+                                    else
+                                    {
+                                        <text>
+                                            Começa <strong>@prev.Inicio.ToString("dddd dd/MM 'às' HH:mm")</strong> e o último jogo
+                                            termina <strong>@prev.FimPrevisto.ToString("dddd dd/MM 'às' HH:mm")</strong>
+                                            — @prev.Dias @(prev.Dias == 1 ? "dia" : "dias") de quadra.
+                                        </text>
+                                    }
                                 </div>
                                 @if (prev.EstouraOPrazo)
                                 {
@@ -917,8 +947,15 @@
                             </div>
                         }
 
+                        @* A confirmação diz a CONSEQUÊNCIA, não repete o nome do botão: é o que
+                           decide se a pessoa aperta ou vai fechar a dupla de alguém antes.
+                           Os textos são montados no topo desta view. *@
                         <form asp-controller="Torneios" asp-action="GerarChaves" method="post"
-                              onsubmit="return confirm('@(ficamDeFora.Any() ? $"{ficamDeFora.Count} inscrito(s) vão ficar de fora do sorteio. Sortear mesmo assim?" : "Sortear os grupos e gerar as chaves?")');">
+                              data-confirmar-titulo="Sortear as chaves?"
+                              data-confirmar="Os grupos são sorteados agora. @horarioOuOrdem Depois disso ninguém mais entra, sai ou troca de parceiro."
+                              data-confirmar-ok="Sortear agora"
+                              data-confirmar-tom="@(ficamDeFora.Any() ? "perigo" : "padrao")"
+                              data-confirmar-detalhe="@detalheDeFora">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <button type="submit" class="btn btn-primary fw-bold shadow-sm">
                                 <i class="bi bi-diagram-3-fill"></i> Sortear Grupos e Gerar Chaves
@@ -1187,6 +1224,44 @@
                                 </div>
                             </div>
 
+                            @* Quanto dura um jogo é o que monta a grade inteira — e até agora
+                               só dava pra dizer na criação, antes de saber quanta gente vinha. *@
+                            <div class="mb-3 mt-2 border-top pt-3">
+                                <label class="form-label fw-bold" for="editTempoPartida">
+                                    <i class="bi bi-clock-history"></i> Duração de cada jogo
+                                </label>
+                                <div class="row g-3 align-items-start">
+                                    <div class="col-md-5">
+                                        <div class="input-group">
+                                            <input type="number" min="1" max="240" name="tempoPrevistoPartidaMinutos"
+                                                   id="editTempoPartida" class="form-control"
+                                                   value="@Model.TempoPrevistoPartidaMinutos" />
+                                            <span class="input-group-text">min</span>
+                                        </div>
+                                        <div class="small text-muted mt-1">
+                                            É com esse tempo que a grade calcula os horários e a previsão de término.
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="form-check form-switch p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                                            <input class="form-check-input ms-0 me-2" type="checkbox" role="switch"
+                                                   name="semHorarioPrevisto" value="true" id="editSemHorario"
+                                                   @(Model.SemHorarioPrevisto ? "checked" : "")>
+                                            <label class="form-check-label fw-bold ms-2" for="editSemHorario">
+                                                Sem horário previsto (por ordem de liberação)
+                                            </label>
+                                            <div class="small text-muted mt-1">
+                                                Os jogos ficam <strong>numa ordem</strong>, sem hora marcada, e entram
+                                                na quadra conforme ela vaga — você chama pela Mesa de Controle.
+                                                É como roda a maioria dos internos: ninguém prevê quanto dura um jogo,
+                                                e grade que atrasa cedo passa o dia inteiro mentindo.
+                                                Ligado, o campo de duração acima deixa de valer.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <button type="submit" class="btn btn-padel fw-bold shadow-sm">
                                 <i class="bi bi-check-circle-fill"></i> Salvar Alterações
                             </button>
@@ -1226,7 +1301,9 @@
                             Manda push pra todos os inscritos de uma vez — "chaves saíram", "chuva, atrasou 1h".
                         </p>
                         <form asp-action="Comunicar" method="post"
-                              onsubmit="return confirm('Enviar este aviso para todos os inscritos?');">
+                              data-confirmar-titulo="Avisar todo mundo?"
+                              data-confirmar="A mensagem sai agora por notificação, e-mail e WhatsApp pra todos os inscritos. Não dá pra desfazer."
+                              data-confirmar-ok="Enviar aviso">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <div class="row g-2">
                                 <div class="col-12 col-md-4">
@@ -1346,7 +1423,10 @@
                               || pedidoRegistro.Status == Padelizou.Models.SolicitacaoRegistroResultados.Confirmada)
                             {
                                 <form asp-action="CancelarRegistroResultados" asp-route-id="@Model.Id" method="post"
-                                      onsubmit="return confirm('Cancelar o pedido de equipe?');">
+                                      data-confirmar-tom="perigo"
+                                      data-confirmar-titulo="Cancelar o pedido de equipe?"
+                                      data-confirmar="Ninguém do Padelizou vai ao seu torneio lançar os jogos. Dá pra pedir de novo depois."
+                                      data-confirmar-ok="Cancelar pedido">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill">
                                         Cancelar pedido
@@ -1397,7 +1477,10 @@
                                         @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
                                         {
                                             <form asp-controller="Torneios" asp-action="RemoverCategoria" method="post"
-                                                  onsubmit="return confirm('Remover a categoria @cat.Nome deste torneio?');">
+                                                  data-confirmar-tom="perigo"
+                                                  data-confirmar-titulo="Remover a categoria?"
+                                                  data-confirmar="A @cat.Nome sai deste torneio. Ela está vazia, então ninguém perde inscrição."
+                                                  data-confirmar-ok="Remover categoria">
                                                 <input type="hidden" name="categoriaId" value="@cat.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                                     <i class="bi bi-trash"></i> Remover
@@ -1643,7 +1726,11 @@
                                                    a única sem volta. Escrita por extenso, ela puxava o
                                                    olho em toda linha e ainda era a que mais empurrava
                                                    a barra pra segunda fileira. *@
-                                                <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
+                                                <form asp-controller="Torneios" asp-action="RemoverDupla" method="post"
+                                                      data-confirmar-tom="perigo"
+                                                      data-confirmar-titulo="Remover do torneio?"
+                                                      data-confirmar="@(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.NomeNaTela + (dupla.Jogador2 != null ? " e " + dupla.Jogador2.NomeNaTela : "")) sai do torneio e é avisado. Se houver lista de espera, a vaga é oferecida pra próxima."
+                                                      data-confirmar-ok="Remover">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     <button type="submit" class="btn btn-sm btn-outline-danger"
                                                             title="Remover do torneio" aria-label="Remover @(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.NomeNaTela) do torneio">
@@ -2354,16 +2441,24 @@
         var form = cpf1.closest('form');
         if (!form) return;
 
-        form.addEventListener('submit', function (ev) {
+        // A pergunta depende do CPF digitado, então os atributos são escritos AGORA, no
+        // submit. Este ouvinte está no <form> e o do modal está no document: o de dentro
+        // corre primeiro, escreve o data-confirmar, e o de fora encontra tudo pronto.
+        // Ver wwwroot/js/confirmar.js.
+        form.addEventListener('submit', function () {
             var digitado = (cpf1.value || '').replace(/\D/g, '');
-            if (!digitado || digitado === meuCpf) return;
+
+            if (!digitado || digitado === meuCpf) {
+                delete form.dataset.confirmar;   // é você mesmo: não pergunta nada
+                return;
+            }
 
             var quem = (window.pdzJogadores && window.pdzJogadores['1'] && window.pdzJogadores['1'].nome)
                 ? window.pdzJogadores['1'].nome : 'outra pessoa';
 
-            var ok = confirm('Você está inscrevendo ' + quem + ', que não é você. Tem certeza disso?\n\n'
-                + 'Se ela tiver cadastro no Padelizou, vai receber um aviso de que foi inscrita.');
-            if (!ok) ev.preventDefault();
+            form.dataset.confirmarTitulo = 'Inscrever ' + quem + '?';
+            form.dataset.confirmar = 'O CPF não é o seu. Se essa pessoa tiver cadastro no Padelizou, ela recebe um aviso de que foi inscrita.';
+            form.dataset.confirmarOk = 'Inscrever';
         });
     })();
 

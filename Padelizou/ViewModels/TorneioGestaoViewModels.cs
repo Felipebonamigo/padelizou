@@ -177,4 +177,8 @@ public class PrevisaoGradeVM
 
     public int Dias { get; set; }
     public bool EstouraOPrazo { get; set; }
+
+    // Torneio por ordem de liberação: a contagem de jogos continua valendo (é o tamanho do
+    // dia), mas relógio nenhum vale — não há horário a prever nem prazo a estourar.
+    public bool SemHorarioPrevisto { get; set; }
 }

@@ -275,6 +275,19 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // Torneio "por ordem de liberação": os jogos ficam SEM hora e vão pra quadra
+            // conforme ela vaga, chamados pela Mesa. A ordem é a de criação — a mesma em que
+            // eles entrariam na grade. Não calcular horário aqui é o ponto: horário inventado
+            // que ninguém cumpre é pior que horário nenhum, porque o jogador confia nele.
+            if (torneio.SemHorarioPrevisto)
+            {
+                _context.Partidas.AddRange(jogosPraAgendar);
+                torneio.Status = "Fase de Grupos";
+                await _context.SaveChangesAsync();
+                await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
+                return RedirectToAction("Details", new { id = torneio.Id });
+            }
+
             // Agora sim os horários: N quadras em paralelo, parando no fim do expediente e
             // retomando no dia seguinte. O encaixe é ciente de conflito: a mesma PESSOA nunca
             // cai em duas quadras no mesmo horário (ver GradeDeJogos.Encaixar) — o que só
@@ -408,6 +421,20 @@ namespace Padelizou.Controllers
                     continue;
                 }
 
+                // Chave direta não tem fase de grupos: são N-1 jogos e pronto (cada jogo
+                // elimina uma dupla até sobrar o campeão). Contá-la pela régua dos grupos
+                // inventava grupos que não existem e inflava a previsão — com 24 duplas, a
+                // tela prometia 22 grupos e 98 jogos num torneio que tem bem menos.
+                if (categoria.ChaveDireta)
+                {
+                    int naChave = categoria.Duplas.Count(d => d.Jogador2Id != null && !d.EmListaDeEspera);
+                    if (naChave < 2) continue;
+
+                    duplas += naChave;
+                    jogosDeMataMata += naChave - 1;
+                    continue;
+                }
+
                 // Dupla sem parceiro ainda não é uma dupla: não entra em grupo nenhum.
                 int daCategoria = categoria.Duplas.Count(d => d.Jogador2Id != null);
                 var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
@@ -438,8 +465,13 @@ namespace Padelizou.Controllers
                 Inicio = inicio,
                 FimPrevisto = fim,
                 Dias = ultimo == null ? 1 : PrevisaoDoTorneio.DiasOcupados(inicio, ultimo.Value),
+                SemHorarioPrevisto = torneio.SemHorarioPrevisto,
                 // Comparação por DIA: o limite é "até domingo", não "até domingo às 00h".
-                EstouraOPrazo = torneio.DataFim != null && ultimo != null
+                // Sem horário previsto não existe prazo a estourar: não há hora marcada pra
+                // comparar, e avisar "passa do dia" com base numa conta que não vai valer
+                // seria assustar o organizador com um número inventado.
+                EstouraOPrazo = !torneio.SemHorarioPrevisto
+                                && torneio.DataFim != null && ultimo != null
                                 && ultimo.Value.Date > torneio.DataFim.Value.Date
             };
         }
@@ -478,6 +510,10 @@ namespace Padelizou.Controllers
 
             var torneio = await _context.Torneios.FindAsync(torneioId.Value);
             if (torneio == null) return;
+
+            // Torneio por ordem de liberação não tem grade: o mata-mata entra na fila como
+            // todo o resto, sem hora. Ver Torneio.SemHorarioPrevisto.
+            if (torneio.SemHorarioPrevisto) return;
 
             var ultimoMarcado = await _context.Partidas
                 .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)

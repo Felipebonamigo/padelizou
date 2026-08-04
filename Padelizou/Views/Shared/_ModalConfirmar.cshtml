@@ -1,0 +1,48 @@
+@*
+    Confirmação padrão do Padelizou, no lugar do confirm() do navegador.
+
+    O confirm() nativo é feio, ignora o tema, aparece colado na barra de endereço (longe do
+    botão que a pessoa apertou), e no celular vem com o nome do site em cima — "padelizou.com.br
+    diz". Pior: ele não tem espaço pra CONSEQUÊNCIA, que é a única coisa que importa numa
+    confirmação. "Sortear os grupos?" não ajuda ninguém a decidir; "depois disso ninguém mais
+    entra nem troca de parceiro" ajuda.
+
+    Como usar — nada de JavaScript na view, só atributos no <form> (ou no <a>):
+
+        <form ... data-confirmar="Depois de sortear, ninguém mais entra."
+                  data-confirmar-titulo="Sortear as chaves?"
+                  data-confirmar-ok="Sortear agora"
+                  data-confirmar-tom="perigo">
+
+    `data-confirmar` é a única obrigatória. `tom="perigo"` pinta de vermelho e vale pro que
+    não tem volta (remover, cancelar inscrição). A regra de quando interceptar mora em
+    wwwroot/js/confirmar.js.
+*@
+<div class="modal fade pdz-confirmar" id="pdzConfirmarModal" tabindex="-1"
+     aria-labelledby="pdzConfirmarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="pdz-confirmar-icone" data-tom="padrao">
+                    <i class="bi bi-question-lg"></i>
+                </div>
+
+                <h5 class="pdz-confirmar-titulo" id="pdzConfirmarTitulo">Tem certeza?</h5>
+                <p class="pdz-confirmar-texto mb-0"></p>
+
+                <div class="pdz-confirmar-detalhe d-none"></div>
+            </div>
+
+            <div class="modal-footer">
+                @* Cancelar vem primeiro no DOM e recebe o foco: se a pessoa abriu sem querer
+                   e apertou Enter, o que acontece é NADA. *@
+                <button type="button" class="btn pdz-confirmar-cancelar" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" class="btn pdz-confirmar-ok">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

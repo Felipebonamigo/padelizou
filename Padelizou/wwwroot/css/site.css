@@ -1052,3 +1052,107 @@ button, a, input, select { touch-action: manipulation; }
     /* Botão de largura inteira: no dedo, alvo pequeno à direita é erro de toque. */
     .pdz-cartao-linha .pdz-cartao-linha-acao { width: 100%; }
 }
+
+/* ── Confirmação (substitui o confirm() do navegador) ───────────────────────
+   O nativo ignora o tema, abre colado na barra de endereço — longe do botão que
+   a pessoa apertou — e no celular vem carimbado com "padelizou.com.br diz".
+   Marcação em Views/Shared/_ModalConfirmar.cshtml, comportamento em js/confirmar.js. */
+.pdz-confirmar .modal-content {
+    border: 1px solid var(--pdz-border);
+    border-radius: 18px;
+    background: var(--pdz-surface);
+    box-shadow: var(--pdz-shadow-lg);
+    overflow: hidden;
+}
+
+.pdz-confirmar .modal-body { padding: 2rem 1.75rem 1.25rem; }
+
+.pdz-confirmar-icone {
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 1.1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+}
+
+.pdz-confirmar-icone[data-tom="padrao"] {
+    color: var(--pdz-navy);
+    background: rgba(163, 216, 39, .18);
+}
+
+.pdz-confirmar-icone[data-tom="perigo"] {
+    color: #d9534f;
+    background: rgba(217, 83, 79, .14);
+}
+
+/* No escuro o ícone padrão precisa da cor viva: o navy sobre fundo escuro some. */
+:root[data-theme="dark"] .pdz-confirmar-icone[data-tom="padrao"],
+:root[data-theme="dark"] .pdz-confirmar-icone[data-tom="perigo"] { color: var(--pdz-lime); }
+:root[data-theme="dark"] .pdz-confirmar-icone[data-tom="perigo"] { color: #ff8a85; }
+
+.pdz-confirmar-titulo {
+    font-weight: 700;
+    color: var(--pdz-ink);
+    margin-bottom: .5rem;
+}
+
+.pdz-confirmar-texto {
+    color: var(--pdz-muted);
+    line-height: 1.5;
+}
+
+/* A consequência, quando existe: é o que a pessoa precisa ler antes de decidir. */
+.pdz-confirmar-detalhe {
+    margin-top: 1rem;
+    padding: .7rem .9rem;
+    border-radius: 12px;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    color: var(--pdz-ink);
+    font-size: .875rem;
+    text-align: left;
+}
+
+.pdz-confirmar .modal-footer {
+    border-top: 0;
+    padding: .5rem 1.75rem 1.6rem;
+    gap: .6rem;
+    flex-wrap: nowrap;
+}
+
+.pdz-confirmar .modal-footer > .btn {
+    flex: 1;
+    margin: 0;
+    border-radius: 999px;
+    font-weight: 700;
+    padding: .6rem 1rem;
+}
+
+.pdz-confirmar-cancelar {
+    color: var(--pdz-muted);
+    background: transparent;
+    border: 1px solid var(--pdz-border);
+}
+
+.pdz-confirmar-cancelar:hover {
+    color: var(--pdz-ink);
+    background: var(--pdz-surface-alt);
+}
+
+.pdz-confirmar-ok {
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+    border: 1px solid transparent;
+}
+
+.pdz-confirmar-ok:hover { background: var(--pdz-lime-600); }
+
+.pdz-confirmar-ok.pdz-confirmar-ok-perigo {
+    color: #fff;
+    background: #d9534f;
+}
+
+.pdz-confirmar-ok.pdz-confirmar-ok-perigo:hover { background: #c9302c; }

@@ -101,6 +101,17 @@ public partial class Torneio
     public Clube Clube { get; set; } = null!;
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
 
+    // Torneio SEM hora marcada: os jogos nascem numa ORDEM e vão pra quadra conforme ela
+    // vaga, chamados pela Mesa de Controle. É como roda a maioria dos internos de clube —
+    // ninguém consegue prever quanto dura um jogo de 4 games com desempate, e uma grade que
+    // atrasa 40 min logo cedo passa o resto do dia mentindo pra todo mundo.
+    //
+    // Ligado, o sorteio NÃO calcula horário nenhum: `Partida.HorarioPrevisto` fica nulo e a
+    // ordem é a de criação. As telas passam a mostrar "1º, 2º, 3º jogo" no lugar da hora, e
+    // os avisos que dependem de relógio ("seu jogo é o próximo", "sua quadra atrasou") não
+    // têm base pra existir — a Mesa é que avisa, quando chama.
+    public bool SemHorarioPrevisto { get; set; }
+
     // Janela de jogos. DataInicio guarda só a data — sem a hora de abertura a grade
     // começava à meia-noite.
     //
