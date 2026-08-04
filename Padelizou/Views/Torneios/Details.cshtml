@@ -1499,14 +1499,14 @@
                                                 }
                                                 else
                                                 {
-                                                    <span class="fw-semibold">@dupla.Jogador1.Nome</span>
+                                                    <span class="fw-semibold">@dupla.Jogador1.NomeNaTela</span>
                                                     @* A barra só existe quando há dois nomes pra separar.
                                                        Solta no fim ("Jeferson Vier/") ela parecia dado
                                                        cortado pela metade. *@
                                                     @if (dupla.Jogador2 != null)
                                                     {
                                                         <span class="text-muted">/</span>
-                                                        <span class="fw-semibold">@dupla.Jogador2.Nome</span>
+                                                        <span class="fw-semibold">@dupla.Jogador2.NomeNaTela</span>
                                                     }
                                                     else
                                                     {
@@ -1596,7 +1596,7 @@
                                                 <form asp-controller="Torneios" asp-action="RemoverDupla" method="post" onsubmit="return confirm('Remover esta dupla do torneio?');">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                            title="Remover do torneio" aria-label="Remover @(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.Nome) do torneio">
+                                                            title="Remover do torneio" aria-label="Remover @(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.NomeNaTela) do torneio">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </form>

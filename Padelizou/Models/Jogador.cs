@@ -25,17 +25,26 @@ public partial class Jogador
     public DateTime? TokenRecuperacaoExpiraEm { get; set; }
 
     // ---- Exibição ----
-    // Duas formas, porque o contexto mudou o que é útil:
+    // Três formas, porque o contexto mudou o que é útil:
+
+    // O nome completo com a caixa arrumada. Cada um digita como quer — na mesma lista
+    // conviviam "ALAN DA SILVEIRA MACHADO" e "charls gustavio polese" — e a coluna `Nome`
+    // continua guardando exatamente o que a pessoa escreveu. Ver Services/NomeBonito.
+    [NotMapped]
+    public string NomeNaTela => Padelizou.Services.NomeBonito.Formatar(Nome);
 
     // Lista, placar, check-in, painel: o nome curto pelo qual reconhecem a pessoa.
     [NotMapped]
-    public string ComoChamar => string.IsNullOrWhiteSpace(Apelido) ? Nome : Apelido!;
+    public string ComoChamar => string.IsNullOrWhiteSpace(Apelido)
+        ? NomeNaTela
+        : Padelizou.Services.NomeBonito.Formatar(Apelido);
 
     // Perfil e resultado de busca: o nome completo com o apelido ao lado, pra ligar
     // "quem eu procurei" com "quem eu conheço".
     [NotMapped]
-    public string NomeComApelido =>
-        string.IsNullOrWhiteSpace(Apelido) ? Nome : $"{Nome} ({Apelido})";
+    public string NomeComApelido => string.IsNullOrWhiteSpace(Apelido)
+        ? NomeNaTela
+        : $"{NomeNaTela} ({Padelizou.Services.NomeBonito.Formatar(Apelido)})";
 
     public string? Login { get; set; }
 

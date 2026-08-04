@@ -96,6 +96,6 @@ public partial class Dupla
     [NotMapped]
     public string NomeDeExibicao => NomeTime
         ?? (Jogador1 == null ? $"Dupla {Id}"
-            : Jogador2 == null ? Jogador1.Nome
-            : $"{Jogador1.Nome} & {Jogador2.Nome}");
+            : Jogador2 == null ? Jogador1.NomeNaTela
+            : $"{Jogador1.NomeNaTela} & {Jogador2.NomeNaTela}");
 }
