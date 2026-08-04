@@ -70,6 +70,57 @@ public class EvolutionApiService : IWhatsAppService
         }
     }
 
+    public async Task<EstadoDoCanal> ConsultarEstadoAsync()
+    {
+        if (!_settings.Configurado) return EstadoDoCanal.Desligado;
+
+        try
+        {
+            var url = $"{_settings.BaseUrl.TrimEnd('/')}/instance/connectionState/{_settings.Instancia}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("apikey", _settings.ApiKey);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode) return EstadoDoCanal.SemResposta;
+
+            var corpo = await response.Content.ReadAsStringAsync();
+
+            // "open" é o único estado que envia. "connecting" parece esperança, mas foi
+            // exatamente nele que a instância ficou presa por 17h em 03/08 — tratar como
+            // conectado seria deixar o vigia dormir justo na hora em que ele é necessário.
+            return corpo.Contains("\"state\":\"open\"", StringComparison.OrdinalIgnoreCase)
+                ? EstadoDoCanal.Conectado
+                : EstadoDoCanal.Desconectado;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não consegui consultar o estado do canal de WhatsApp.");
+            return EstadoDoCanal.SemResposta;
+        }
+    }
+
+    public async Task<bool> ReligarAsync()
+    {
+        if (!_settings.Configurado) return false;
+
+        try
+        {
+            var url = $"{_settings.BaseUrl.TrimEnd('/')}/instance/restart/{_settings.Instancia}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("apikey", _settings.ApiKey);
+
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não consegui religar o canal de WhatsApp.");
+            return false;
+        }
+    }
+
     // O WhatsApp identifica pelo número com código do país. O cadastro guarda só DDD+número
     // (é o que o formulário pede), então o 55 entra aqui — mas só quando ainda não veio, pra
     // um "5551..." colado de algum lugar não virar "555551...".

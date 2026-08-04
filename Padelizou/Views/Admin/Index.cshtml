@@ -14,6 +14,30 @@
         <div class="alert alert-success">@TempData["Sucesso"]</div>
     }
 
+    @* O selo do canal de WhatsApp. Só aparece quando é PROBLEMA: no dev ele vive desligado de
+       propósito, e um alarme sempre aceso é um alarme que ninguém mais olha. O estado vem da
+       última passada do vigia (memória), não de uma consulta na hora — o painel não pode
+       depender de uma chamada de rede pra abrir. *@
+    @{
+        var estadoWhats = Padelizou.Services.VigiaDoWhatsAppBackgroundService.UltimoEstado;
+        var checadoEm = Padelizou.Services.VigiaDoWhatsAppBackgroundService.UltimaChecagem;
+    }
+    @if (Padelizou.Services.DiagnosticoDoCanal.EhProblema(estadoWhats))
+    {
+        <div class="alert alert-danger border-0 shadow-sm">
+            <h5 class="fw-bold mb-1"><i class="bi bi-whatsapp"></i> O WhatsApp não está enviando</h5>
+            <p class="mb-1">@Padelizou.Services.DiagnosticoDoCanal.Frase(estadoWhats)</p>
+            <p class="small mb-0">
+                A grande maioria das contas só é alcançável por WhatsApp — enquanto isso durar,
+                o aviso não chega em quase ninguém, e o que falha <strong>não é reenviado</strong>.
+                @if (checadoEm != null)
+                {
+                    <text>Conferido às @checadoEm.Value.ToString("HH:mm").</text>
+                }
+            </p>
+        </div>
+    }
+
     <div class="row g-3">
         <div class="col-md-6">
             <a asp-controller="Admin" asp-action="Metricas" class="text-decoration-none">

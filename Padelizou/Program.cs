@@ -152,6 +152,7 @@ builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
+builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 

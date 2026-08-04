@@ -1055,6 +1055,32 @@ existe), Apple US$ 99/**ano** + Mac pra publicar, com risco de recusa por "site 
   nativa do Android e o "Adicionar à Tela de Início" do iPhone foram simulados e conferidos
   estado por estado, mas quem confirma é o Felipe instalando no aparelho dele.
 
+### 04/08/2026 — O WhatsApp ficou 17 horas fora e ninguém soube
+
+O Felipe perguntou se as notificações estavam certas. **Não estavam.** O canal caiu em
+**03/08 às 18h36** e seguia fora — **~200 avisos falharam** (163 erro interno + 38 recusados),
+cada um escrevendo no log, e nada nem ninguém foi avisado.
+
+- **Consertado com um restart da instância** — o pareamento estava vivo, só o socket tinha
+  morrido, então **não precisou de QR**. A instância estava presa em `connecting`, que parece
+  esperança e não envia nada. Confirmado com mensagem real + zero falhas novas depois.
+- **O número que muda a leitura de tudo:** das **67 contas ativas**, **63 só são alcançáveis
+  por WhatsApp** e **2 têm o app instalado**. O WhatsApp não é um canal a mais — é *o* canal.
+  Com ele fora, o aviso não chega em 94% das pessoas.
+- **Segunda queda em cinco dias** (30/07 foi `device_removed`, que exigiu QR; 03/08 foi socket,
+  que o restart resolve). Vai acontecer de novo.
+- **O problema nunca foi a queda — foi o silêncio.** Daí o `VigiaDoWhatsAppBackgroundService`:
+  confere de **5 em 5 minutos**, **religa sozinho** quando o restart tem chance, e só manda
+  e-mail (no máximo de 6h em 6h) quando o conserto exige gente — QR novo ou container caído.
+  A decisão mora em `VigiaDoWhatsApp.Decidir`, pura e testada; o serviço é só o relógio.
+  Espera 20s depois do restart antes de reavaliar, senão o e-mail sairia por um problema que
+  se resolveu dez segundos depois.
+- **Selo vermelho no `/Admin`** quando o canal está fora, lido da última passada do vigia (não
+  de uma consulta na hora — o painel não pode depender de rede pra abrir). No dev não aparece:
+  lá o canal é desligado de propósito, e alarme sempre aceso é alarme que ninguém olha.
+- ⚠️ **Os ~200 avisos perdidos não voltam.** Não existe fila nem reenvio: cada aviso é tentado
+  uma vez. Se algum jogo ou torneio dependia de um deles ontem à noite, ninguém foi avisado.
+
 ### 30/07/2026 (noite) — O clube vira balcão
 
 O Felipe pediu a melhor proposta pra área do clube ("pode ser a parte de maior lucro depois
