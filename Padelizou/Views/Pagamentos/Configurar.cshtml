@@ -1,5 +1,10 @@
 @model Jogador
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @{
+    // A taxa do "por fora" sai da configuração, não escrita à mão: ela já mudou uma vez, e
+    // um número solto na tela viraria mentira no dia seguinte.
+    var taxaExterno = TaxasOpcoes.Value.ComissaoPercentualExterno.ToString("0.#");
+
     ViewData["Title"] = "Receber Pagamentos - Padelizou";
     var comissoes = ViewBag.ComissoesPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
     var minimas = ViewBag.MinimasPorTipo as IDictionary<string, decimal> ?? new Dictionary<string, decimal>();
@@ -25,7 +30,9 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h2 class="fw-bold" style="color: var(--pdz-ink);">Receber pelo app</h2>
-                    <p class="text-muted mb-0">O dinheiro das suas inscrições e aulas cai direto na sua conta.</p>
+                    <p class="text-muted mb-0">
+                        O dinheiro dos seus torneios, aulas e quadras cai direto na sua conta.
+                    </p>
                 </div>
                 <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
             </div>
@@ -186,51 +193,45 @@
                     <form asp-controller="Pagamentos" asp-action="Configurar" method="post">
                         @Html.AntiForgeryToken()
 
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" role="switch"
-                                   id="receberPagamentoOnline" name="receberPagamentoOnline" value="true"
-                                   @(Model.ReceberPagamentoOnline ? "checked" : "")>
-                            <input type="hidden" name="receberPagamentoOnline" value="false">
-                            <label class="form-check-label fw-semibold" for="receberPagamentoOnline">
-                                Quero receber pelo app
-                            </label>
-                            <div class="text-muted small">
-                                Desligado, nada muda: você combina e recebe por fora, como sempre fez.
+                        @* A chave só aparece pra quem JÁ está conectado, que é quem precisa
+                           dela — pra desligar. Pra quem está entrando, colar o código já é o
+                           consentimento, e o switch em cima do formulário só criava um passo
+                           a mais antes de poder digitar qualquer coisa. *@
+                        @if (jaConectado)
+                        {
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="receberPagamentoOnline" name="receberPagamentoOnline" value="true"
+                                       @(Model.ReceberPagamentoOnline ? "checked" : "")>
+                                <input type="hidden" name="receberPagamentoOnline" value="false">
+                                <label class="form-check-label fw-semibold" for="receberPagamentoOnline">
+                                    Receber pelo app
+                                </label>
+                                <div class="text-muted small">
+                                    Desligando, nada se perde: você volta a combinar por fora, como sempre fez.
+                                </div>
                             </div>
-                        </div>
+                        }
+                        else
+                        {
+                            @* Sem a chave visível, o valor precisa ir junto assim mesmo —
+                               senão o binder receberia false e desligaria o recebimento de
+                               quem acabou de colar o código. *@
+                            <input type="hidden" name="receberPagamentoOnline" value="true">
+                        }
 
-                        <div id="camposRecebimento" class="@(Model.ReceberPagamentoOnline ? "" : "d-none")">
-                            <hr class="my-4">
-
-                            @* ── O passo a passo ──────────────────────────────────────────
-                               O campo sozinho ("Wallet ID") era linguagem de programador e não
-                               dizia de onde tirar o valor. Numerado, cada passo é uma coisa só. *@
-                            <h6 class="fw-bold mb-3">Como conectar sua conta</h6>
-
-                            <ol class="ps-3 mb-4 small">
-                                <li class="mb-3">
-                                    <strong>Abra uma conta no nosso parceiro de pagamentos, o Asaas.</strong>
-                                    <div class="text-muted">
-                                        É de graça e <strong>pode ser no seu CPF</strong> — não precisa de CNPJ.
-                                    </div>
-                                    <a href="https://www.asaas.com" target="_blank" rel="noopener"
-                                       class="btn btn-sm btn-outline-primary rounded-pill mt-2">
-                                        Abrir conta <i class="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                </li>
-                                <li class="mb-3">
-                                    <strong>Lá dentro, vá em Configurações › Integrações e copie o "Wallet ID".</strong>
-                                    <div class="text-muted">
-                                        É um código comprido, com traços — algo como
-                                        <code class="user-select-all">8a2c4b1e-9f33-4d0a-b7c1-5e6f7a8b9c0d</code>.
-                                        Ele identifica sua conta e <strong>não dá acesso a nada</strong>:
-                                        serve só pra dizer pra onde mandar o seu dinheiro.
-                                    </div>
-                                </li>
-                                <li>
-                                    <strong>Cole aqui embaixo e salve.</strong>
-                                </li>
-                            </ol>
+                        <div id="camposRecebimento" class="@(jaConectado && !Model.ReceberPagamentoOnline ? "d-none" : "")">
+                            @* Aqui NÃO se ensina a abrir conta: quem chega neste bloco já tem
+                               uma. O bloco de cima é que abre. Ter os dois ensinando a criar
+                               conta fazia a tela parecer repetida — e a repetição escondia
+                               qual dos dois caminhos era o fácil. *@
+                            <h6 class="fw-bold mb-1">Já tenho conta no Asaas</h6>
+                            <p class="text-muted small mb-3">
+                                Entre no Asaas, vá em <strong>Configurações › Integrações</strong> e copie o
+                                <strong>"Wallet ID"</strong>. É um código comprido com traços, tipo
+                                <code class="user-select-all">8a2c4b1e-9f33-4d0a-b7c1-5e6f7a8b9c0d</code>.
+                                Ele só diz pra onde mandar o seu dinheiro — <strong>não dá acesso à sua conta</strong>.
+                            </p>
 
                             <div class="mb-4">
                                 <label for="asaasWalletId" class="form-label fw-semibold">
@@ -253,13 +254,17 @@
                                     — com mínimo de @minimaAula.ToString("C") em aulas e jogos.
                                 </div>
 
+                                @* Sem "aluno" nem "jogador" nos rótulos: nesta tela cai quem dá
+                                   aula, quem organiza torneio e quem tem clube. Descrever o que
+                                   ACONTECE com o preço serve pros três; dizer quem paga só serve
+                                   pra um, e deixa os outros dois traduzindo. *@
                                 <div class="form-check border rounded-3 p-3 mb-2">
                                     <input class="form-check-input ms-0 me-2" type="radio" name="modoComissao"
                                            id="modoSomada" value="Somada" @(modoAtual == "Somada" ? "checked" : "")>
                                     <label class="form-check-label" for="modoSomada">
-                                        <strong>O aluno paga a taxa</strong>
+                                        <strong>A taxa vai por cima do meu preço</strong>
                                         <div class="text-muted small mt-1">
-                                            Numa aula de @exemploValor.ToString("C"): ele paga
+                                            Você anuncia @exemploValor.ToString("C"), quem contrata paga
                                             <strong>@((exemploValor + exemploComissao).ToString("C"))</strong>
                                             e você recebe os @exemploValor.ToString("C") cheios.
                                         </div>
@@ -270,9 +275,9 @@
                                     <input class="form-check-input ms-0 me-2" type="radio" name="modoComissao"
                                            id="modoDescontada" value="Descontada" @(modoAtual == "Descontada" ? "checked" : "")>
                                     <label class="form-check-label" for="modoDescontada">
-                                        <strong>Eu pago a taxa</strong>
+                                        <strong>A taxa sai de dentro do meu preço</strong>
                                         <div class="text-muted small mt-1">
-                                            Numa aula de @exemploValor.ToString("C"): ele paga
+                                            Você anuncia @exemploValor.ToString("C"), quem contrata paga
                                             @exemploValor.ToString("C") e você recebe
                                             <strong>@((exemploValor - exemploComissao).ToString("C"))</strong>.
                                         </div>
@@ -293,15 +298,51 @@
                     </form>
                 </div>
             </div>
+
+            @* ── A terceira opção, que existe e não estava escrita ────────────────────────
+               A tela oferecia dois jeitos de receber pelo app e nenhum de dizer "não quero".
+               Quem chega aqui e não quer conta em gateway nenhum saía sem saber que já podia
+               trabalhar do mesmo jeito. Vale pra QUEM RECEBE, não só pra professor: quem dá
+               aula, quem organiza torneio e quem tem clube caem todos nesta tela. *@
+            <div class="card border-0 mt-3" style="background-color: var(--pdz-surface-alt);">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-2"><i class="bi bi-hand-thumbs-up"></i> Não quer nada disso?</h6>
+                    <p class="small mb-2">
+                        Tudo bem — dá pra usar o Padelizou inteiro sem conectar conta nenhuma.
+                        Você combina o pagamento direto com a pessoa, como sempre fez.
+                    </p>
+                    <ul class="small mb-2">
+                        <li>
+                            <strong>Aula e aluguel de quadra:</strong> marca por fora e o Padelizou
+                            <strong>não cobra nada</strong> por isso. A agenda, os avisos e o histórico
+                            continuam funcionando igual.
+                        </li>
+                        <li>
+                            <strong>Torneio:</strong> existe a opção <strong>"Por fora"</strong> na criação —
+                            @taxaExterno% sobre os inscritos, pago depois. As chaves saem quando essa taxa
+                            estiver acertada.
+                        </li>
+                    </ul>
+                    <p class="small text-muted mb-0">
+                        Conectar a conta serve pra uma coisa só: o jogador pagar na hora de se inscrever,
+                        em vez de você correr atrás de quem não pagou.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // Os campos de recebimento só fazem sentido com o switch ligado.
-        document.getElementById('receberPagamentoOnline').addEventListener('change', function () {
-            document.getElementById('camposRecebimento').classList.toggle('d-none', !this.checked);
-        });
+        // A chave só existe pra quem já está conectado (é o botão de desligar). Sem ela na
+        // tela, não há nada a alternar — e procurar o elemento sem conferir quebrava o script
+        // inteiro pra quem está chegando agora.
+        var chave = document.getElementById('receberPagamentoOnline');
+        if (chave) {
+            chave.addEventListener('change', function () {
+                document.getElementById('camposRecebimento').classList.toggle('d-none', !this.checked);
+            });
+        }
     </script>
 }
