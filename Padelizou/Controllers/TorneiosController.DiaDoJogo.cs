@@ -154,6 +154,16 @@ namespace Padelizou.Controllers
                     // Quem deve primeiro: é a lista que o organizador abre pra cobrar.
                     .OrderBy(c => c.Pago).ThenBy(c => c.Categoria).ThenBy(c => c.Nomes)
                     .ToList();
+
+                // A taxa que o Padelizou ainda tem a receber deste torneio. Já paga ou
+                // negociada vira zero: descontar de novo mostraria um líquido menor do que
+                // o organizador realmente tem na mão.
+                vm.TaxaExterno = TaxaDoTorneioExterno.ChavesLiberadas(torneio)
+                    ? 0m
+                    : TaxaDoTorneioExterno.Valor(
+                        TaxaDoTorneioExterno.PessoasInscritas(duplasDoTorneio, americanosDoTorneio),
+                        torneio.PrecoInscricao,
+                        _taxas.ComissaoPercentualExterno);
             }
 
             return View(vm);

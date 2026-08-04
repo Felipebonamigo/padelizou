@@ -31,33 +31,75 @@
         </div>
     }
 
+    @* Os quatro cartões liam SÓ do gateway. Num torneio "por fora" não passa cobrança
+       nenhuma por lá, então ficavam em R$ 0,00 pra sempre enquanto a caderneta logo abaixo
+       mostrava milhares recebidos — e o organizador lia o zero em letra garrafal e achava
+       que o sistema tinha perdido o dinheiro dele. Agora cada número lê da fonte certa. *@
+    @if (Model.CobraPorFora)
+    {
+        <p class="small text-muted mb-2">
+            <i class="bi bi-info-circle"></i>
+            Neste torneio o dinheiro <strong>não passa pelo Padelizou</strong> — os números abaixo
+            saem do que você marcou como recebido na sua caderneta.
+        </p>
+    }
+
     <div class="row g-2 mb-4">
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm p-3 h-100">
-                <small class="text-muted text-uppercase" style="font-size:.7rem;">Arrecadado</small>
-                <div class="fw-bold fs-4 text-success">@Model.Arrecadado.ToString("C", ptBr)</div>
-                <small class="text-muted">@Model.Pagantes pagante(s)</small>
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">
+                    @(Model.CobraPorFora ? "Você já recebeu" : "Arrecadado")
+                </small>
+                <div class="fw-bold fs-4 text-success">@Model.ArrecadadoNaTela.ToString("C", ptBr)</div>
+                <small class="text-muted">
+                    @Model.PagantesNaTela @(Model.CobraPorFora ? "acertaram" : "pagante(s)")
+                </small>
             </div>
         </div>
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm p-3 h-100">
-                <small class="text-muted text-uppercase" style="font-size:.7rem;">Aguardando</small>
-                <div class="fw-bold fs-4 text-warning">@Model.Pendente.ToString("C", ptBr)</div>
-                <small class="text-muted">@Model.Pendentes.Count cobrança(s)</small>
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">
+                    @(Model.CobraPorFora ? "A receber" : "Aguardando")
+                </small>
+                <div class="fw-bold fs-4 text-warning">@Model.AguardandoNaTela.ToString("C", ptBr)</div>
+                <small class="text-muted">
+                    @if (Model.CobraPorFora)
+                    {
+                        @(Model.CobrancaPorFora.Count(c => !c.Pago)) <text> ainda devem</text>
+                    }
+                    else
+                    {
+                        @Model.Pendentes.Count <text> cobrança(s)</text>
+                    }
+                </small>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm p-3 h-100">
-                <small class="text-muted text-uppercase" style="font-size:.7rem;">Estornado</small>
-                <div class="fw-bold fs-4 text-danger">@Model.Estornado.ToString("C", ptBr)</div>
-                <small class="text-muted">devolvido</small>
+        @* Estorno é coisa de cobrança do site: no "por fora" quem devolve é o organizador,
+           por fora também, e o sistema não tem como saber. Um zero ali seria só ruído. *@
+        @if (Model.MostraEstornado)
+        {
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <small class="text-muted text-uppercase" style="font-size:.7rem;">Estornado</small>
+                    <div class="fw-bold fs-4 text-danger">@Model.Estornado.ToString("C", ptBr)</div>
+                    <small class="text-muted">devolvido</small>
+                </div>
             </div>
-        </div>
+        }
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <small class="text-muted text-uppercase" style="font-size:.7rem;">Líquido pra você</small>
-                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.Liquido.ToString("C", ptBr)</div>
-                <small class="text-muted">taxa: @Model.TaxaPlataforma.ToString("C", ptBr)</small>
+                <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@Model.LiquidoNaTela.ToString("C", ptBr)</div>
+                <small class="text-muted">
+                    @if (Model.CobraPorFora && Model.TaxaNaTela == 0)
+                    {
+                        <text>taxa do Padelizou já acertada</text>
+                    }
+                    else
+                    {
+                        <text>taxa: @Model.TaxaNaTela.ToString("C", ptBr)</text>
+                    }
+                </small>
             </div>
         </div>
     </div>

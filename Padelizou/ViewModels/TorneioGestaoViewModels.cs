@@ -31,10 +31,34 @@ public class FinanceiroTorneioVM
     public decimal RecebidoPorFora => CobrancaPorFora.Where(c => c.Pago).Sum(c => c.Valor);
     public decimal AReceberPorFora => CobrancaPorFora.Where(c => !c.Pago).Sum(c => c.Valor);
 
+    // A taxa de 5% do "por fora". Zero quando já foi paga ou negociada — aí não há o que
+    // descontar do que o organizador recebeu.
+    public decimal TaxaExterno { get; set; }
+
+    // ── Os quatro números do topo ─────────────────────────────────────────────────────────
+    //
+    // Liam SÓ de Pagamento, que é o dinheiro que passou pelo gateway. Num torneio "por fora"
+    // não passa nenhum, então os quatro ficavam em R$ 0,00 pra sempre — enquanto a caderneta
+    // logo abaixo, na mesma tela, mostrava R$ 4.080 recebidos. Duas verdades sobre o mesmo
+    // dinheiro, e a que estava em letra garrafal era a cega.
+    //
+    // Agora cada número sabe de onde ler: gateway quando o site cobra, caderneta quando não.
+    public decimal ArrecadadoNaTela => CobraPorFora ? RecebidoPorFora : Arrecadado;
+    public decimal AguardandoNaTela => CobraPorFora ? AReceberPorFora : Pendente;
+    public decimal TaxaNaTela => CobraPorFora ? TaxaExterno : TaxaPlataforma;
+    public decimal LiquidoNaTela => ArrecadadoNaTela - TaxaNaTela;
+
+    // Estorno é coisa de cobrança do site: no "por fora" quem devolve é o organizador, por
+    // fora também, e o sistema não tem como saber. Card zerado ali seria só ruído.
+    public bool MostraEstornado => !CobraPorFora;
+
+    // Quantos já acertaram — a versão de "pagantes" que funciona nas duas formas.
+    public int PagantesNaTela => CobraPorFora ? CobrancaPorFora.Count(c => c.Pago) : Pagantes;
+
     // Quanto sobra pro organizador depois da comissão da plataforma.
     public decimal Liquido => Arrecadado - TaxaPlataforma;
 
-    public bool TemMovimento => Arrecadado > 0 || Pendente > 0;
+    public bool TemMovimento => ArrecadadoNaTela > 0 || AguardandoNaTela > 0;
 
     // Torneio gratuito: a tela explica em vez de mostrar zeros.
     public bool EhGratuito => Torneio.PrecoInscricao <= 0;
