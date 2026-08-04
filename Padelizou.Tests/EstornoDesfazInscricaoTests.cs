@@ -105,8 +105,11 @@ public class EstornoDesfazInscricaoTests
 
         // Ser promovido em silêncio é o mesmo que não ser promovido: quem entra na lista de
         // espera justamente não fica olhando a página.
+        // O canal fica em Arg.Any de propósito: o que importa aqui é que o aviso saiu, não por
+        // onde. Prender o valor faz este teste quebrar toda vez que alguém mexer no alcance.
         await push.Received().EnviarParaJogadorAsync(c.Id,
-            Arg.Is<string>(t => t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>());
+            Arg.Is<string>(t => t.Contains("vaga")), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Any<AlcanceDoAviso>());
     }
 
     [Fact]

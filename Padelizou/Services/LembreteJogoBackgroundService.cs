@@ -78,21 +78,21 @@ public class LembreteJogoBackgroundService : BackgroundService
 
         foreach (var confirmacao in pendentes)
         {
-            var mensagem = $"Fala {confirmacao.Jogador.Nome}! Confirma se você vai no nosso jogo fixo " +
-                           $"em {(grupo.Clube?.Nome ?? "nosso clube")} dia {sessao.DataHora:dd/MM 'às' HH:mm}? " +
-                           $"Entra no app pra confirmar sua presença.";
-
-            var enviado = await whatsAppService.EnviarAsync(confirmacao.Jogador.Celular, mensagem);
-            if (enviado)
-            {
-                confirmacao.LembreteEnviadoEm = agora;
-            }
-
+            // Um aviso só, por um caminho só. Até 04/08/2026 este lembrete mandava WhatsApp
+            // DIRETO e depois chamava o push — que, desde que o fan-out entrou, também manda
+            // WhatsApp. Resultado: a mesma pessoa recebia a mesma coisa duas vezes, e mensagem
+            // repetida é o que faz alguém apertar "bloquear" (e "denunciar" logo em seguida).
             await pushService.EnviarParaJogadorAsync(
                 confirmacao.JogadorId,
                 "Jogo em 24h!",
-                $"Confirma presença no jogo fixo dia {sessao.DataHora:dd/MM 'às' HH:mm}.",
-                "/Agenda");
+                $"Confirma presença no jogo fixo dia {sessao.DataHora:dd/MM 'às' HH:mm}"
+                  + (grupo.Clube != null ? $" em {grupo.Clube.Nome}." : "."),
+                "/Agenda",
+                AlcanceDoAviso.AppEWhatsApp);
+
+            // Marcado como enviado por ter sido DESPACHADO, não entregue: a fila entrega
+            // depois, e insistir a cada passada transformaria um lembrete em perseguição.
+            confirmacao.LembreteEnviadoEm = agora;
         }
 
         if (pendentes.Any())

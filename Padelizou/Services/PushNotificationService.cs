@@ -11,16 +11,18 @@ public class PushNotificationService : IPushNotificationService
     private readonly DbPadelContext _context;
     private readonly VapidDetails _vapidDetails;
     private readonly IWhatsAppService _whatsApp;
+    private readonly FilaDeWhatsApp _fila;
     private readonly IEmailService _email;
     private readonly SiteSettings _site;
     private readonly ILogger<PushNotificationService> _logger;
 
     public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
-        IWhatsAppService whatsApp, IEmailService email, IOptions<SiteSettings> siteOptions,
-        ILogger<PushNotificationService> logger)
+        IWhatsAppService whatsApp, FilaDeWhatsApp fila, IEmailService email,
+        IOptions<SiteSettings> siteOptions, ILogger<PushNotificationService> logger)
     {
         _context = context;
         _whatsApp = whatsApp;
+        _fila = fila;
         _email = email;
         _site = siteOptions.Value;
         _logger = logger;
@@ -28,16 +30,20 @@ public class PushNotificationService : IPushNotificationService
         _vapidDetails = new VapidDetails(settings.Subject, settings.PublicKey, settings.PrivateKey);
     }
 
-    public async Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null)
+    public async Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null,
+        AlcanceDoAviso alcance = AlcanceDoAviso.SoApp)
     {
-        // WhatsApp e e-mail saem ANTES do return de quem não tem push, e de propósito: quem
-        // não instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que os
-        // outros canais existem pra alcançar. Ficam aqui, num lugar só, em vez de nos ~30
-        // pontos que mandam aviso — assim nenhum aviso novo nasce esquecendo um canal.
+        // E-mail e push saem ANTES do return de quem não tem push, e de propósito: quem não
+        // instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que os outros
+        // canais existem pra alcançar. Ficam aqui, num lugar só, em vez de nos ~30 pontos que
+        // mandam aviso — assim nenhum aviso novo nasce esquecendo um canal.
         //
-        // O e-mail é o que hoje alcança MAIS gente: o push depende de instalar o app e o
-        // WhatsApp depende do chip, que ainda não está ligado.
-        await EnviarWhatsAppAsync(jogadorId, titulo, corpo, url);
+        // O WhatsApp é a exceção: só vai quando o aviso PEDIU (ver AlcanceDoAviso). Ele tem
+        // um custo que os outros não têm — a Meta restringe o número — e por isso é o único
+        // canal onde o silêncio é o padrão.
+        if (alcance == AlcanceDoAviso.AppEWhatsApp)
+            await EnviarWhatsAppAsync(jogadorId, titulo, corpo, url);
+
         await EnviarEmailAsync(jogadorId, titulo, corpo, url);
         await EnviarPushAsync(jogadorId, titulo, corpo, url);
     }
@@ -102,9 +108,11 @@ public class PushNotificationService : IPushNotificationService
         return entregues;
     }
 
-    // Falha aqui não pode derrubar o aviso: o push é o canal principal, e uma indisponibilidade
-    // do provedor de mensagem não pode fazer o jogador deixar de ser notificado (nem a ação que
-    // gerou o aviso estourar na cara de quem clicou).
+    // Enfileira, não envia. Quem entrega é o EntregadorDeWhatsAppBackgroundService, uma
+    // mensagem de cada vez com respiro entre elas — a rajada é o que a Meta pune, não o total.
+    //
+    // Falha aqui não pode derrubar o aviso: o push é o canal principal, e um problema no canal
+    // de mensagem não pode fazer a ação que gerou o aviso estourar na cara de quem clicou.
     private async Task EnviarWhatsAppAsync(int jogadorId, string titulo, string corpo, string? url)
     {
         try
@@ -117,7 +125,7 @@ public class PushNotificationService : IPushNotificationService
             if (destinatario == null) return;
             if (!AvisoPorWhatsApp.PodeReceber(destinatario.NotificarWhatsApp, destinatario.Celular)) return;
 
-            await _whatsApp.EnviarAsync(destinatario.Celular,
+            _fila.Enfileirar(destinatario.Celular!,
                 AvisoPorWhatsApp.Montar(titulo, corpo, url, _site.Url));
         }
         catch (Exception ex)

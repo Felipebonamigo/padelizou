@@ -297,7 +297,9 @@ namespace padelizou.Controllers
                     novasAulas.Count == 1
                         ? $"{aluno!.Nome} quer aula em {local.Nome}, {primeira.DataHora:dd/MM 'às' HH:mm}."
                         : $"{aluno!.Nome} pediu {novasAulas.Count} aulas em {local.Nome}, a partir de {primeira.DataHora:dd/MM}.",
-                    Url.Action("MinhaAgenda", "Aulas"));
+                    // O professor perde dinheiro se demorar pra responder — e professor não
+                    // fica de olho em e-mail entre uma aula e outra.
+                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
             }
             catch (Exception ex)
             {
@@ -376,7 +378,8 @@ namespace padelizou.Controllers
                     "Aula desmarcada",
                     $"O aluno desmarcou a aula de {aula.DataHora:dd/MM 'às' HH:mm}"
                       + (cobra ? " (fora do prazo — marcada como cobrável)." : "."),
-                    Url.Action("MinhaAgenda", "Aulas"));
+                    // Sem isso o professor viaja até a quadra pra não dar aula nenhuma.
+                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
             }
             catch (Exception ex)
             {

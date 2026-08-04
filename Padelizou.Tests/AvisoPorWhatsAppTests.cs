@@ -65,60 +65,62 @@ public class AvisoPorWhatsAppTests
     }
 
     [Fact]
-    public async Task Quem_nao_instalou_o_app_recebe_no_WhatsApp_mesmo_assim()
+    public async Task Aviso_comum_NAO_vai_pro_WhatsApp()
     {
-        // O ponto do canal novo: sem push, o jogador não recebia nada. O envio precisa
-        // acontecer ANTES do return de quem não tem inscrição de push.
-        using var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador
-        {
-            Id = 7, Nome = "Sem App", Cpf = "1",
-            Celular = "51999998888", NotificarWhatsApp = true,
-        });
-        await ctx.SaveChangesAsync();
+        // A garantia mais importante deste arquivo. Até 04/08/2026 todo aviso ia pro WhatsApp
+        // por padrão, e uma noite de torneio (24 cadastros em uma hora) fez a Meta restringir
+        // o número. Agora o silêncio é o padrão: aviso novo nasce sem o canal, e quem quiser
+        // precisa pedir na cara.
+        using var ctx = ContextoComJogador(7);
+        var fila = NovaFila();
 
-        var whats = Substitute.For<IWhatsAppService>();
-        await Servico(ctx, whats).EnviarParaJogadorAsync(7, "Jogo em 24h!", "Confirma presença.", "/Agenda");
+        await Servico(ctx, fila).EnviarParaJogadorAsync(7, "Você entrou numa dupla!", "Copa X", "/x");
 
-        await whats.Received(1).EnviarAsync("51999998888",
-            Arg.Is<string>(m => m != null && m.Contains("Jogo em 24h!") && m.Contains("https://padelizou.com.br/Agenda")));
+        Assert.Equal(0, fila.Pendentes);
+    }
+
+    [Fact]
+    public async Task Aviso_marcado_como_urgente_vai_pro_WhatsApp()
+    {
+        // Sem push, o jogador não recebe nada — é essa pessoa que o canal existe pra alcançar.
+        using var ctx = ContextoComJogador(7);
+        var fila = NovaFila();
+
+        await Servico(ctx, fila).EnviarParaJogadorAsync(7, "Jogo em 24h!", "Confirma presença.",
+            "/Agenda", AlcanceDoAviso.AppEWhatsApp);
+
+        Assert.True(fila.TentarLer(out var mensagem));
+        Assert.Equal("51999998888", mensagem!.Celular);
+        Assert.Contains("Jogo em 24h!", mensagem.Texto);
+        Assert.Contains("https://padelizou.com.br/Agenda", mensagem.Texto);
     }
 
     [Fact]
     public async Task Quem_desmarcou_a_preferencia_nao_recebe()
     {
-        using var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador
-        {
-            Id = 8, Nome = "Não Quero", Cpf = "2",
-            Celular = "51999998888", NotificarWhatsApp = false,
-        });
-        await ctx.SaveChangesAsync();
+        using var ctx = ContextoComJogador(8, aceitaWhats: false);
+        var fila = NovaFila();
 
-        var whats = Substitute.For<IWhatsAppService>();
-        await Servico(ctx, whats).EnviarParaJogadorAsync(8, "Jogo em 24h!", "Confirma presença.", "/Agenda");
+        await Servico(ctx, fila).EnviarParaJogadorAsync(8, "Jogo em 24h!", "Confirma presença.",
+            "/Agenda", AlcanceDoAviso.AppEWhatsApp);
 
-        await whats.DidNotReceiveWithAnyArgs().EnviarAsync(default, default!);
+        Assert.Equal(0, fila.Pendentes);
     }
 
     [Fact]
-    public async Task Provedor_fora_do_ar_nao_derruba_o_aviso()
+    public async Task O_aviso_e_ENFILEIRADO_nao_enviado_na_hora()
     {
-        // A ação que gerou o aviso (marcar placar, abrir torneio) não pode estourar na cara de
-        // quem clicou porque um provedor de mensagem caiu.
-        using var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador
-        {
-            Id = 9, Nome = "Azarado", Cpf = "3",
-            Celular = "51999998888", NotificarWhatsApp = true,
-        });
-        await ctx.SaveChangesAsync();
-
+        // A rajada é o que a Meta pune, não o total. Enfileirar também tira a chamada de rede
+        // do caminho da ação do jogador.
+        using var ctx = ContextoComJogador(9);
+        var fila = NovaFila();
         var whats = Substitute.For<IWhatsAppService>();
-        whats.EnviarAsync(Arg.Any<string?>(), Arg.Any<string>())
-             .Returns<Task<bool>>(_ => throw new HttpRequestException("provedor fora do ar"));
 
-        await Servico(ctx, whats).EnviarParaJogadorAsync(9, "Jogo em 24h!", "Confirma presença.", "/Agenda");
+        await Servico(ctx, fila, whats).EnviarParaJogadorAsync(9, "Jogo em 24h!", "Confirma.",
+            "/Agenda", AlcanceDoAviso.AppEWhatsApp);
+
+        Assert.Equal(1, fila.Pendentes);
+        await whats.DidNotReceiveWithAnyArgs().EnviarAsync(default, default!);
     }
 
     [Fact]
@@ -126,25 +128,35 @@ public class AvisoPorWhatsAppTests
     {
         // O texto desse botão fala do app instalado — é teste de push. Um teste que chega no
         // WhatsApp de todo mundo é o tipo de aviso que faz a pessoa desligar o canal.
-        using var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador
-        {
-            Id = 10, Nome = "Com App", Cpf = "4",
-            Celular = "51999998888", NotificarWhatsApp = true,
-        });
+        using var ctx = ContextoComJogador(10);
         ctx.Add(new PushSubscriptionJogador
         {
             JogadorId = 10, Endpoint = "https://exemplo/push/10", P256dh = "p", Auth = "a",
         });
         await ctx.SaveChangesAsync();
+        var fila = NovaFila();
 
-        var whats = Substitute.For<IWhatsAppService>();
-        await Servico(ctx, whats).EnviarParaTodosInscritosAsync("Padelizou", "Notificação de teste");
+        await Servico(ctx, fila).EnviarParaTodosInscritosAsync("Padelizou", "Notificação de teste");
 
-        await whats.DidNotReceiveWithAnyArgs().EnviarAsync(default, default!);
+        Assert.Equal(0, fila.Pendentes);
     }
 
-    private static PushNotificationService Servico(DbPadelContext ctx, IWhatsAppService whats) =>
+    private static DbPadelContext ContextoComJogador(int id, bool aceitaWhats = true)
+    {
+        var ctx = TestInfra.NovoContexto();
+        ctx.Jogadores.Add(new Jogador
+        {
+            Id = id, Nome = "Fulano", Cpf = id.ToString(),
+            Celular = "51999998888", NotificarWhatsApp = aceitaWhats,
+        });
+        ctx.SaveChanges();
+        return ctx;
+    }
+
+    private static FilaDeWhatsApp NovaFila() => new(NullLogger<FilaDeWhatsApp>.Instance);
+
+    private static PushNotificationService Servico(DbPadelContext ctx, FilaDeWhatsApp fila,
+        IWhatsAppService? whats = null) =>
         new(ctx,
             Options.Create(new VapidSettings
             {
@@ -152,7 +164,8 @@ public class AvisoPorWhatsAppTests
                 PublicKey = "BExemploDeChavePublicaQueNaoEUsadaPorqueNaoHaInscricaoDePushNesteTeste",
                 PrivateKey = "chave-privada-de-teste",
             }),
-            whats,
+            whats ?? Substitute.For<IWhatsAppService>(),
+            fila,
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             NullLogger<PushNotificationService>.Instance);

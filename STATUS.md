@@ -1056,6 +1056,46 @@ existe), Apple US$ 99/**ano** + Mac pra publicar, com risco de recusa por "site 
   nativa do Android e o "Adicionar à Tela de Início" do iPhone foram simulados e conferidos
   estado por estado, mas quem confirma é o Felipe instalando no aparelho dele.
 
+### 04/08/2026 (tarde) — A Meta restringiu o número, e o canal foi redesenhado
+
+Depois de religado, o número apareceu com **"Sua conta está restringida"** — 4h de bloqueio,
+motivo *spam*. Isso reexplicou tudo: as falhas de ontem às 18h36 não eram socket morrendo, era
+a Meta **já cortando os envios**.
+
+**A causa, com os dados na mão:** entre 18h e 19h do dia 03/08 **24 pessoas se cadastraram**
+(53 no dia), e cada uma disparou avisos automáticos. Um número com **4 dias de vida** saiu do
+zero e mandou dezenas de mensagens em uma hora, pra gente que nunca tinha escrito pra ele. A
+primeira falha foi **18h36** — no meio dessa primeira hora.
+
+Não foi o chip recauchutado (ligação de quem procurava o dono antigo é tráfego de ENTRADA, e
+entrada não restringe ninguém). Mas ser chip novo importou: **reputação zero deixa a barreira
+baixa**. O mesmo disparo num número com meses de conversa normal provavelmente teria passado.
+
+- **Envio desligado na hora** (`Evolution__BaseUrl` vazio no systemd, backup do drop-in em
+  `/root/whatsapp.conf.desligado-04-08`). O vigia entende como "desligado" e fica quieto.
+- **O padrão virou o silêncio.** `AlcanceDoAviso.SoApp` é o valor por omissão de
+  `EnviarParaJogadorAsync`: **aviso novo nasce sem WhatsApp**. Antes era o contrário, e é por
+  isso que cada aviso novo entrava no canal sem ninguém decidir.
+- **De 26 tipos de aviso, só 9 pedem WhatsApp** — os que são pessoais, urgentes e acionáveis:
+  seu jogo é o próximo · jogo em 24h · chaves saíram · inscrição confirmada · abriu vaga (os
+  **dois** caminhos, estorno e desistência) · pagamento pendente · nova solicitação de aula ·
+  aula desmarcada · aula apagada. **Os 8 disparos em massa saíram todos**, incluindo o "Novo
+  torneio aberto", que sozinho mandava 63 mensagens de uma vez.
+- **Fila com respiro** (`FilaDeWhatsApp` + `EntregadorDeWhatsAppBackgroundService`): uma
+  mensagem por vez, **7 a 16s entre elas, sorteado** — cadência exata de relógio é assinatura
+  de robô. O respiro vem DEPOIS de entregar, então aviso solitário e urgente sai na hora. Fila
+  em memória (aviso é perecível) e limitada a 500: cheia, **devolve false** em vez de segurar a
+  ação do jogador. ⚠️ `BoundedChannelFullMode.Drop*` seria a escolha óbvia pelo nome e está
+  errada — com ela `TryWrite` devolve `true` mesmo jogando a mensagem fora.
+- **"Receber por WhatsApp" nasce DESMARCADO** no cadastro, único canal assim. Marcado por
+  omissão, a pessoa "aceitava" sem nunca ter decidido — e é exatamente essa mensagem que vira
+  denúncia.
+- **Defeito achado no caminho:** o lembrete de 24h mandava **duas vezes** — WhatsApp direto e
+  de novo pelo push (que passou a mandar WhatsApp quando o fan-out entrou). Mensagem repetida é
+  o que faz alguém apertar "bloquear".
+- **1.398 testes.** ⚠️ **As 63 contas que já existem seguem com o WhatsApp marcado** — elas
+  nunca escolheram isso, foi o padrão antigo. Decisão do Felipe se desmarca todas.
+
 ### 04/08/2026 — O WhatsApp ficou 17 horas fora e ninguém soube
 
 O Felipe perguntou se as notificações estavam certas. **Não estavam.** O canal caiu em

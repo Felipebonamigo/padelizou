@@ -60,9 +60,14 @@
         <input class="form-check-input" type="checkbox" name="notificarEmail" value="true" id="notifEmail" style="transform: scale(1.2);" @(Model.NotificarEmail ? "checked" : "") />
         <label class="form-check-label" for="notifEmail">Receber por e-mail</label>
     </div>
+    @* Nasce DESMARCADO, ao contrário do e-mail. Quem recebe mensagem que não pediu denuncia,
+       e denúncia no WhatsApp derruba o número do Padelizou pra todo mundo. *@
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="notificarWhatsApp" value="true" id="notifWhats" style="transform: scale(1.2);" @(Model.NotificarWhatsApp ? "checked" : "") />
-        <label class="form-check-label" for="notifWhats">Receber por WhatsApp</label>
+        <label class="form-check-label" for="notifWhats">
+            Receber por WhatsApp
+            <span class="text-muted small d-block">Só o essencial: seu jogo começando, chaves saindo, aula desmarcada.</span>
+        </label>
     </div>
     <small class="text-muted d-block mt-2">Desmarque os dois pra parar de receber avisos. Pode mudar isso quando quiser.</small>
 

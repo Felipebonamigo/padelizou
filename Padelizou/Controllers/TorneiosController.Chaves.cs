@@ -339,7 +339,9 @@ namespace Padelizou.Controllers
                     await _pushService.EnviarParaJogadorAsync(jogadorId,
                         $"Chaves do {torneio.Nome} saíram!",
                         AvisosDoDiaDeJogo.CorpoDasChaves(quando),
-                        url);
+                        // Diz a que HORAS a pessoa joga. Quem não vir isso aparece na hora
+                        // errada — ou não aparece.
+                        url, AlcanceDoAviso.AppEWhatsApp);
                 }
             }
             catch (Exception ex)

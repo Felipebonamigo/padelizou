@@ -492,7 +492,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             {
                 await _push.EnviarParaJogadorAsync(id!.Value, "Abriu vaga — vocês estão dentro!",
                     $"Alguém saiu de {torneio?.Nome ?? "um torneio"} e vocês saíram da lista de espera. Boa sorte!",
-                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null);
+                    // Virou jogo de verdade pra quem estava esperando, e tem prazo: quem não
+                    // ficar sabendo a tempo perde a vaga que acabou de ganhar.
+                    torneio != null ? $"/Torneios/Details/{torneio.Id}" : null, AlcanceDoAviso.AppEWhatsApp);
             }
             catch (Exception ex)
             {
@@ -763,7 +765,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                     emListaDeEspera
                         ? $"{torneio.Nome} · {categoria.Nome} estava lotado. Se alguém desistir, vocês são chamados."
                         : $"{torneio.Nome} · {categoria.Nome}. Boa sorte!",
-                    $"/Torneios/Details/{torneio.Id}");
+                    // Confirmação de algo que a pessoa acabou de fazer e pagar: é o recibo.
+                    $"/Torneios/Details/{torneio.Id}", AlcanceDoAviso.AppEWhatsApp);
             }
             catch (Exception ex)
             {

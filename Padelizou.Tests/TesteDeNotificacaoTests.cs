@@ -41,6 +41,9 @@ public class TesteDeNotificacaoTests
                 PrivateKey = "chave-privada-de-teste",
             }),
             whats,
+            // O teste do painel manda DIRETO, sem passar pela fila: quem está testando precisa
+            // do resultado na tela, e um "enfileirado, aguarde" não confere nada.
+            new FilaDeWhatsApp(NullLogger<FilaDeWhatsApp>.Instance),
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             NullLogger<PushNotificationService>.Instance);

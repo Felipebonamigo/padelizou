@@ -153,6 +153,8 @@ builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
+builder.Services.AddSingleton<FilaDeWhatsApp>();
+builder.Services.AddHostedService<EntregadorDeWhatsAppBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 

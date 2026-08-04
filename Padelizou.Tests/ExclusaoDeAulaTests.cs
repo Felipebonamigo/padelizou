@@ -181,7 +181,9 @@ public class ExclusaoDeAulaTests
 
         await controller.ExcluirAula(aula.Id);
 
+        // Canal em Arg.Any: o teste garante que o aluno foi avisado, não por qual caminho.
         await push.Received(1).EnviarParaJogadorAsync(
-            aluno.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
+            aluno.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),
+            Arg.Any<AlcanceDoAviso>());
     }
 }

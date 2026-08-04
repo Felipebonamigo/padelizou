@@ -132,7 +132,10 @@ namespace Padelizou.Controllers
                     await _pushService.EnviarParaJogadorAsync(jogadorId,
                         "Seu jogo é o próximo!",
                         AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
-                        url);
+                        // O aviso mais importante do sistema: a pessoa está no clube, o jogo é
+                        // agora, e ela não vai abrir e-mail. Se um só aviso valesse o WhatsApp,
+                        // seria este.
+                        url, AlcanceDoAviso.AppEWhatsApp);
                 }
 
                 proxima.AvisoProximoEnviadoEm = DateTime.Now;

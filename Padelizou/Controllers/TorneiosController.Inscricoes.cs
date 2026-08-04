@@ -311,14 +311,18 @@ namespace Padelizou.Controllers
             var promovidos = new[] { proximaDaFila.Jogador1Id, proximaDaFila.Jogador2Id }
                 .Where(i => i != null).Select(i => i!.Value).ToList();
 
+            // Mesmo evento que o da desistência com pagamento, e por isso o mesmo alcance: a
+            // vaga abrir por estorno ou por desistência direta é diferença nossa, não de quem
+            // estava na fila esperando.
             await AvisarAsync(promovidos, "Abriu vaga — vocês estão dentro!",
                 $"Alguém desistiu de {torneio.Nome} e vocês saíram da lista de espera. Boa sorte!",
-                torneio.Id);
+                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
         }
 
         // Push falha calado (quem não instalou o app não recebe nada), então o aviso que
         // importa vai também por e-mail — é o que a maioria tem.
-        private async Task AvisarAsync(IEnumerable<int> jogadorIds, string titulo, string corpo, int torneioId)
+        private async Task AvisarAsync(IEnumerable<int> jogadorIds, string titulo, string corpo, int torneioId,
+            AlcanceDoAviso alcance = AlcanceDoAviso.SoApp)
         {
             var url = Url.Action("Details", "Torneios", new { id = torneioId });
 
@@ -326,7 +330,7 @@ namespace Padelizou.Controllers
             {
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url);
+                    await _pushService.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url, alcance);
                 }
                 catch (Exception ex)
                 {

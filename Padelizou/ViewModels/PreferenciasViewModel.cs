@@ -7,7 +7,12 @@ public class PreferenciasViewModel
     public bool PerfilPrivado { get; set; }
     public string? Instagram { get; set; }
     public bool NotificarEmail { get; set; } = true;
-    public bool NotificarWhatsApp { get; set; } = true;
+
+    // Desmarcado por padrão desde 04/08/2026, ao contrário de todos os outros. O WhatsApp é o
+    // único canal em que mandar pra quem não pediu tem consequência: a Meta restringiu o
+    // número do Padelizou justamente por isso. Marcado por omissão, a pessoa "aceitava" sem
+    // nunca ter decidido — e é exatamente essa mensagem que vira denúncia.
+    public bool NotificarWhatsApp { get; set; }
     public bool AceitaConvitesJogo { get; set; } = true;
     public bool NotificarTorneiosAbertos { get; set; } = true;
     public bool NotificarSeguidosTorneio { get; set; } = true;

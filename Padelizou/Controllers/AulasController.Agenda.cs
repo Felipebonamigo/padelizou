@@ -346,7 +346,8 @@ namespace padelizou.Controllers
                         "Aula apagada pelo professor",
                         $"A aula de {quando:dd/MM 'às' HH:mm} em {ondeSeria} foi apagada da agenda. "
                         + "Fale com seu professor se não era pra ser.",
-                        Url.Action("MinhasAulas", "Aulas"));
+                        // Mesmo motivo do lado do professor: o aluno iria à quadra à toa.
+                        Url.Action("MinhasAulas", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
                 }
                 catch (Exception ex)
                 {

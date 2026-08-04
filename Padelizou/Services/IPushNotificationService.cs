@@ -4,7 +4,11 @@ public interface IPushNotificationService
 {
     // Manda a notificação pra todos os dispositivos inscritos do jogador. Remove do banco
     // as subscriptions que o navegador já invalidou (410/404).
-    Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null);
+    // `alcance` é SoApp por omissão de propósito: aviso novo nasce sem WhatsApp. O contrário
+    // — WhatsApp por padrão — foi o que fez a Meta restringir o número em 04/08/2026, porque
+    // cada aviso novo entrava no canal sem ninguém decidir isso.
+    Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null,
+        AlcanceDoAviso alcance = AlcanceDoAviso.SoApp);
 
     // Manda pra todo mundo que tem pelo menos uma inscrição de push ativa (instalou o app
     // e aceitou notificações). Retorna quantos jogadores distintos foram notificados.

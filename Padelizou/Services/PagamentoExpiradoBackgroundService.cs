@@ -61,7 +61,9 @@ public class PagamentoExpiradoBackgroundService : BackgroundService
                 var texto = $"Sua inscrição de {pagamento.Valor:C} expira em ~{horas}h. Pague pra garantir a vaga!";
 
                 await push.EnviarParaJogadorAsync(pagamento.JogadorId,
-                    "Pagamento pendente", texto, pagamento.InvoiceUrl);
+                    // Tem hora pra vencer e custa a vaga. Aviso que chega tarde aqui é o mesmo
+                    // que não ter chegado.
+                    "Pagamento pendente", texto, pagamento.InvoiceUrl, AlcanceDoAviso.AppEWhatsApp);
 
                 if (pagamento.Jogador?.Email != null)
                 {
