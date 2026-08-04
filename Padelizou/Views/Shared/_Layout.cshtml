@@ -107,6 +107,23 @@
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
             <div class="container">
+                @* A seta de voltar é do APP, não da página — por isso mora aqui na barra e não
+                   no corpo. Quase 60 telas já têm um "Voltar ao X" próprio, que diz PRA ONDE
+                   vai; repetir um genérico dentro do conteúdo daria dois botões em cada uma.
+
+                   Nasce como <a href> de verdade, com destino de reserva no href: sem
+                   JavaScript, ou pra quem chegou direto por link do WhatsApp, ele ainda leva a
+                   algum lugar. O script troca isso por history.back() quando há de onde voltar.
+
+                   Some nos destinos que já estão a um toque na barra (ver NavegacaoDeVolta). *@
+                @if (Padelizou.Services.NavegacaoDeVolta.Mostrar(currentController, currentAction))
+                {
+                    <a class="pdz-voltar" id="pdzVoltar" aria-label="Voltar"
+                       href="@Padelizou.Services.NavegacaoDeVolta.DestinoDeReserva(currentController)">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                }
+
                 <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
                     @* Na barra vão as raquetes SOLTAS, não o logo completo: o disco do logo é
                        escuro (#3C404B) e a barra também — contraste de 1,7:1, o círculo some.

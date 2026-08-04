@@ -74,3 +74,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+// ── Seta de voltar da barra de cima ──────────────────────────────────────────────────────
+//
+// O link já nasce com um destino de reserva no href (ver Services/NavegacaoDeVolta), então
+// sem JavaScript ele continua levando a algum lugar. O que este trecho faz é preferir o
+// caminho de verdade quando ele existe: voltar pra tela ANTERIOR, com a rolagem e a posição
+// da lista onde a pessoa deixou — coisa que um href fixo nunca devolve.
+//
+// O `document.referrer` é o teste de "vim de dentro do site". Ele fica vazio quando alguém
+// abriu o link do WhatsApp, tocou numa notificação ou entrou pelo app instalado: nesses casos
+// history.back() sairia do Padelizou, e é justamente aí que o destino de reserva vale.
+document.addEventListener('DOMContentLoaded', function () {
+    var voltar = document.getElementById('pdzVoltar');
+    if (!voltar) return;
+
+    voltar.addEventListener('click', function (ev) {
+        var veioDeDentro = document.referrer && document.referrer.indexOf(window.location.origin) === 0;
+        if (veioDeDentro && window.history.length > 1) {
+            ev.preventDefault();
+            window.history.back();
+        }
+        // Sem histórico de dentro: deixa o link seguir pro destino de reserva.
+    });
+});

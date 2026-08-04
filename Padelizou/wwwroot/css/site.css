@@ -220,6 +220,46 @@ a:hover { color: var(--pdz-lime-600); }
 :root[data-bs-theme="dark"] .pdz-mesa-ok { color: #4cd08a; }
 :root[data-bs-theme="dark"] .pdz-mesa-enviando { color: #6ea8fe; }
 
+/* Seta de voltar: fica ANTES da marca, que é onde a mão procura — em app nativo o voltar é
+   sempre o canto superior esquerdo. Círculo discreto pra ler como parte do app, não como
+   botão da página (as telas já têm os seus "Voltar ao X", que dizem pra onde vão). */
+.pdz-voltar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    margin-right: .4rem;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(255, 255, 255, .10);
+    font-size: 1.05rem;
+    line-height: 1;
+    text-decoration: none;
+    transition: background-color .15s ease;
+}
+.pdz-voltar:hover,
+.pdz-voltar:focus-visible {
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
+}
+
+@media (max-width: 575.98px) {
+    /* 40px é o alvo de toque mínimo confortável no celular. */
+    .pdz-voltar { width: 40px; height: 40px; margin-right: .25rem; }
+}
+
+/* Onde a barra não tem folga pra seta E nome, o nome sai — as raquetes já identificam.
+   A faixa é essa e não outra: abaixo de 992px o menu está recolhido no sanduíche e sobra
+   espaço de sobra; acima de 1400px cabe tudo. No meio, os itens ficam todos abertos ao mesmo
+   tempo e a barra já vivia no limite (ver o comentário de largura em .pdz-brand-logo) — os
+   40px da seta reabriam a rolagem lateral, medida em 1280px: 1310 de conteúdo pra 1265 de
+   tela. O seletor casa só quando a seta existe; sem ela, o nome continua onde sempre esteve. */
+@media (min-width: 992px) and (max-width: 1399.98px) {
+    .pdz-voltar ~ .navbar-brand .pdz-wordmark { display: none; }
+}
+
 .pdz-brand-logo {
     /* Raquetes soltas (imagem transparente, mais larga que alta). Largura fixa em 38px porque
        era a largura do logo antigo: a conta do estouro da navbar em 1280px foi fechada com esse
