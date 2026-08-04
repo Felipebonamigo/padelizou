@@ -26,18 +26,36 @@ function atualizarPalpitrometro(container, data) {
     const badge2 = container.querySelector('[data-pct="2"]');
     const dupla1Lidera = data.percentualDupla1 >= data.percentualDupla2;
 
-    badge1.innerHTML = data.percentualDupla1 + '%<i class="bi bi-caret-down-fill"></i>';
-    badge2.innerHTML = data.percentualDupla2 + '%<i class="bi bi-caret-down-fill"></i>';
-    badge1.style.display = dupla1Lidera ? 'block' : 'none';
-    badge2.style.display = dupla1Lidera ? 'none' : 'block';
+    // Duas apresentações do MESMO palpitrômetro. No cartão grande só o lado que lidera
+    // mostra o número, com uma seta apontando a barra. Na LINHA das listas os dois números
+    // ficam sempre à vista, um de cada lado — ali eles são o palpitrômetro inteiro, e
+    // esconder um deixaria a linha dizendo pela metade.
+    const emLinha = container.classList.contains('pdz-palpite-linha');
+
+    if (emLinha) {
+        badge1.textContent = data.percentualDupla1 + '%';
+        badge2.textContent = data.percentualDupla2 + '%';
+    } else {
+        badge1.innerHTML = data.percentualDupla1 + '%<i class="bi bi-caret-down-fill"></i>';
+        badge2.innerHTML = data.percentualDupla2 + '%<i class="bi bi-caret-down-fill"></i>';
+        badge1.style.display = dupla1Lidera ? 'block' : 'none';
+        badge2.style.display = dupla1Lidera ? 'none' : 'block';
+    }
 
     container.querySelector('[data-bar="1"]').style.width = data.percentualDupla1 + '%';
     container.querySelector('[data-bar="2"]').style.width = data.percentualDupla2 + '%';
 
+    // O ✓ na frente do nome só existe no cartão grande; na linha o campo é o próprio
+    // número, e reescrever o texto dele apagaria a porcentagem.
     container.querySelectorAll('.palpite-opcao').forEach(op => {
         const souEuAgora = String(data.meuVotoDuplaId) === op.dataset.duplaId;
         op.classList.toggle('fw-bold', souEuAgora);
         op.innerText = (souEuAgora ? '✓ ' : '') + op.innerText.replace(/^✓ /, '');
+    });
+
+    // Marca de "foi em quem eu votei", nas duas apresentações.
+    container.querySelectorAll('[data-dupla-id]').forEach(op => {
+        op.classList.toggle('pdz-palpite-meu', String(data.meuVotoDuplaId) === op.dataset.duplaId);
     });
 
     const totalEl = container.querySelector('.pdz-total-votos');

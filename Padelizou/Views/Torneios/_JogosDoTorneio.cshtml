@@ -243,7 +243,7 @@
         <div class="pdz-jogos-lista">
             @foreach (var jogo in agendadasList)
             {
-                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false)" />
+                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId)" />
             }
         </div>
     </div>
@@ -259,7 +259,7 @@
         <div class="pdz-jogos-lista">
             @foreach (var jogo in finalizadasList)
             {
-                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, true)" />
+                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, true, palpites.GetValueOrDefault(jogo.Id), meuId)" />
             }
         </div>
     </div>

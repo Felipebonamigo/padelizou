@@ -1,15 +1,17 @@
-@model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada)
+@model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada, Padelizou.ViewModels.PalpiteResumoVM? Palpites, int? MeuId)
 @*
     Um jogo em UMA LINHA, para as listas de Agendadas e Finalizadas.
 
     O cartão grande (placar gigante, chips com foto, palpitrômetro aberto) existe pra UM jogo
     que está acontecendo agora — ali a tela tem um assunto só. Numa lista de 48 agendados ele
     vira uma parede: cada jogo ocupava meia tela, e ver a grade do dia exigia rolar sem parar.
-    O que se procura numa lista é outra coisa — "que horas eu jogo", "contra quem", "já
-    acabou?" — e isso cabe numa linha.
+    O que se procura numa lista é outra coisa — "que horas eu jogo", "contra quem", "quanto
+    ficou?" — e isso cabe numa linha.
 
-    O cartão grande fica só no AO VIVO. Aqui: horário, quem joga, placar (se acabou), a
-    categoria, e as ações do organizador em ícone.
+    O placar fica ao LADO de cada dupla, um em cima do outro, e não como "4 x 0" numa coluna
+    à parte: assim o número está encostado em quem o fez, e não é preciso lembrar qual dupla
+    era a primeira. Mesma razão de o palpitrômetro ficar no meio com as duas porcentagens à
+    vista — a linha inteira se lê de uma passada.
 *@
 @{
     var jogo = Model.Jogo;
@@ -18,20 +20,28 @@
     var venceu1 = Model.Finalizada && g1 > g2;
     var venceu2 = Model.Finalizada && g2 > g1;
 
+    var r = Model.Palpites;
+    // Sem voto nenhum não há palpitrômetro a mostrar: duas barras zeradas ocupariam o
+    // meio da linha sem dizer nada.
+    bool temPalpite = r != null && r.TotalVotos > 0;
+    bool podeVotar = jogo.Status == "Agendada" && Model.MeuId.HasValue;
+    bool mostraPalpitrometro = temPalpite || podeVotar;
+
     string Lado(Padelizou.Models.Dupla d) =>
         d == null ? "A definir"
         : d.EhTime ? (d.NomeTime ?? "Time")
         : d.Jogador1.ComoChamar.Split(' ')[0]
           + " / " + (d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?");
+
+    // Sem voto nenhum a barra fica no meio, não em "0% x 0%" — zero dos dois lados parece
+    // defeito, e o que se quer dizer ali é "ninguém palpitou ainda, opine você".
+    int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
+    int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
 }
 
 <div class="pdz-jogo-linha @(Model.Finalizada ? "pdz-jogo-linha-fim" : "")">
     <div class="pdz-jogo-linha-quando">
-        @if (Model.Finalizada)
-        {
-            <span class="pdz-jogo-linha-placar">@g1 <span class="text-muted">x</span> @g2</span>
-        }
-        else if (jogo.HorarioPrevisto is DateTime h)
+        @if (jogo.HorarioPrevisto is DateTime h)
         {
             <span class="pdz-jogo-linha-hora">@h.ToString("HH:mm")</span>
             <span class="pdz-jogo-linha-dia">@h.ToString("dd/MM")</span>
@@ -44,8 +54,20 @@
     </div>
 
     <div class="pdz-jogo-linha-times">
-        <div class="@(venceu1 ? "fw-bold" : venceu2 ? "text-muted" : "")">@Lado(jogo.Dupla1)</div>
-        <div class="@(venceu2 ? "fw-bold" : venceu1 ? "text-muted" : "")">@Lado(jogo.Dupla2)</div>
+        <div class="pdz-jogo-linha-time @(venceu1 ? "fw-bold" : venceu2 ? "text-muted" : "")">
+            <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla1)</span>
+            @if (Model.Finalizada)
+            {
+                <span class="pdz-jogo-linha-games">@g1</span>
+            }
+        </div>
+        <div class="pdz-jogo-linha-time @(venceu2 ? "fw-bold" : venceu1 ? "text-muted" : "")">
+            <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla2)</span>
+            @if (Model.Finalizada)
+            {
+                <span class="pdz-jogo-linha-games">@g2</span>
+            }
+        </div>
         <div class="pdz-jogo-linha-onde">
             @jogo.Categoria.Nome · @jogo.Fase
             @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
@@ -55,14 +77,40 @@
         </div>
     </div>
 
+    @if (mostraPalpitrometro)
+    {
+        @* Mesmo container e mesmos data-* do palpitrômetro grande, de propósito: assim o
+           votarPalpite() e o atualizarPalpitrometro() já existentes funcionam aqui sem
+           saber que existe uma versão em linha. O que muda é a classe, que a atualização
+           lê pra manter as DUAS porcentagens visíveis (ver wwwroot/js/palpitrometro.js). *@
+        <div class="pdz-palpitrometro pdz-palpite-linha @(temPalpite ? "" : "pdz-palpite-vazio")" data-partida-id="@jogo.Id"
+             title="@(Model.Finalizada ? "Como a galera palpitou" : temPalpite ? $"{r!.TotalVotos} palpite(s)" : podeVotar ? "Ninguém palpitou ainda — toque numa porcentagem" : "Palpites da galera")">
+            <span class="pdz-palpite-pct text-success @(r?.MeuVotoDuplaId == jogo.Dupla1Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
+                  data-pct="1" data-dupla-id="@jogo.Dupla1Id" data-votavel="@podeVotar.ToString().ToLower()"
+                  onclick="votarPalpite(this)">@pct1%</span>
+
+            <div class="progress pdz-palpite-barra">
+                <div class="progress-bar bg-success" data-bar="1" style="width: @pct1.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
+                <div class="progress-bar bg-primary" data-bar="2" style="width: @pct2.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
+            </div>
+
+            <span class="pdz-palpite-pct text-primary @(r?.MeuVotoDuplaId == jogo.Dupla2Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
+                  data-pct="2" data-dupla-id="@jogo.Dupla2Id" data-votavel="@podeVotar.ToString().ToLower()"
+                  onclick="votarPalpite(this)">@pct2%</span>
+        </div>
+    }
+
     @if (Model.EhOrganizador)
     {
         <div class="pdz-jogo-linha-acoes">
             @if (!Model.Finalizada)
             {
+                @* Verde, não vermelho: play vermelho é o botão do YouTube, e aqui a ação é
+                   COMEÇAR o jogo. Vermelho num play diz "assistir", e ainda por cima é a cor
+                   que o resto do site usa pra coisa destrutiva. *@
                 <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
                     @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-danger" title="Colocar no ar" aria-label="Colocar no ar">
+                    <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
                         <i class="bi bi-play-fill"></i>
                     </button>
                 </form>

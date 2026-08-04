@@ -1242,3 +1242,99 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-jogo-linha-quando { flex-basis: 3.4rem; }
     .pdz-jogo-linha-hora, .pdz-jogo-linha-placar { font-size: .95rem; }
 }
+
+/* Placar ao lado de cada dupla, um em cima do outro — e não "4 x 0" numa coluna à
+   parte. Assim o número fica encostado em quem o fez, sem exigir que se lembre qual
+   dupla era a primeira. */
+.pdz-jogo-linha-time {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+}
+
+.pdz-jogo-linha-nome {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdz-jogo-linha-games {
+    flex: 0 0 1.3rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;   /* os placares alinham em coluna */
+    font-weight: 700;
+}
+
+/* Palpitrômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
+   entre elas. A versão grande (Ao Vivo) mostra só o lado que lidera; aqui os dois
+   números SÃO o palpitrômetro. Comportamento em wwwroot/js/palpitrometro.js. */
+.pdz-palpite-linha {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex: 0 0 9.5rem;
+}
+
+.pdz-palpite-linha .pdz-palpite-barra {
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--pdz-surface-alt);
+}
+
+.pdz-palpite-pct {
+    font-size: .72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 2.1rem;
+    text-align: center;
+}
+
+.pdz-palpite-pct.votavel { cursor: pointer; }
+.pdz-palpite-pct.votavel:hover { text-decoration: underline; }
+
+/* Em quem eu votei: na linha não cabe "✓ Nome", então a marca é um anel no número. */
+.pdz-palpite-linha .pdz-palpite-meu {
+    border-radius: 999px;
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+}
+
+@media (max-width: 767.98px) {
+    /* No celular a linha já está apertada: a barra sai e ficam só os dois números,
+       que é a informação de fato. */
+    .pdz-palpite-linha { flex-basis: auto; gap: .25rem; }
+    .pdz-palpite-linha .pdz-palpite-barra { display: none; }
+}
+
+/* Prévia do mata-mata por colocação ("1º do Grupo A x 2º do Grupo C"). */
+.pdz-chave-projetada {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: .5rem;
+}
+
+.pdz-chave-projetada-jogo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .55rem .8rem;
+    border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
+    border-radius: 10px;
+    background: var(--pdz-surface-alt);
+    color: var(--pdz-ink);
+    font-size: .85rem;
+}
+
+.pdz-chave-projetada-vs {
+    color: var(--pdz-muted);
+    font-size: .75rem;
+    flex: 0 0 auto;
+}
+
+/* Ninguém palpitou ainda: barra no meio e apagada, pra não competir com quem já tem
+   palpite de verdade. */
+.pdz-palpite-vazio { opacity: .45; }

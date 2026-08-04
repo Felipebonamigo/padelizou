@@ -1988,10 +1988,46 @@
 
                             @if (!fasesPresentes.Any())
                             {
-                                <div class="alert alert-light border text-muted">
-                                    <i class="bi bi-hourglass-split"></i> O mata-mata desta categoria ainda não começou —
-                                    ele é gerado automaticamente quando o último jogo da fase de grupos é finalizado.
-                                </div>
+                                @* Prévia por COLOCAÇÃO. "Ainda não começou" é verdade e é
+                                   inútil: quem está jogando a última rodada do grupo quer
+                                   saber o que ganha terminando em primeiro. O cruzamento sai
+                                   do mesmo motor do sorteio de verdade — ver
+                                   Services/ChaveProjetada. *@
+                                var gruposDaCategoria = categoria.GruposTorneio
+                                    .Select(g => g.Nome).OrderBy(n => n).ToList();
+                                var projecao = Padelizou.Services.ChaveProjetada.Montar(
+                                    gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2);
+
+                                if (projecao.Confrontos.Count == 0)
+                                {
+                                    <div class="alert alert-light border text-muted">
+                                        <i class="bi bi-hourglass-split"></i> O mata-mata desta categoria ainda não começou —
+                                        ele é gerado automaticamente quando o último jogo da fase de grupos é finalizado.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-light border small mb-3">
+                                        <i class="bi bi-eye"></i>
+                                        <strong>Prévia da @projecao.Fase</strong> — o quadro se preenche sozinho quando o
+                                        último jogo dos grupos acabar.
+                                        <span class="d-block text-muted mt-1">
+                                            Quem cai em qual lado pode mudar: entre os segundos colocados, quem passa e
+                                            contra quem joga depende da campanha de cada dupla.
+                                        </span>
+                                    </div>
+
+                                    <div class="pdz-chave-projetada">
+                                        @foreach (var confronto in projecao.Confrontos)
+                                        {
+                                            <div class="pdz-chave-projetada-jogo">
+                                                <span>@confronto.Lado1.Rotulo</span>
+                                                <span class="pdz-chave-projetada-vs">x</span>
+                                                <span>@confronto.Lado2.Rotulo</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             }
                             else
                             {
