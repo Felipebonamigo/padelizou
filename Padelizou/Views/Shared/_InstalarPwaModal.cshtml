@@ -9,9 +9,9 @@
 <div id="pwaInstallOverlay" class="pdz-pwa-overlay" style="display:none;">
     <div class="pdz-pwa-card">
         <button type="button" class="pdz-pwa-close" onclick="fecharInstalarPwaModal()" aria-label="Fechar">&times;</button>
-        <div class="pdz-pwa-eyebrow"><i class="bi bi-phone"></i> INSTALAÇÃO</div>
-        <h3 class="pdz-pwa-title">Adicionar Padelizou à tela inicial</h3>
-        <p class="pdz-pwa-subtitle">Use o Padelizou como se fosse um app, sem precisar procurar o link no navegador.</p>
+        <div class="pdz-pwa-eyebrow" id="pwaEyebrow"><i class="bi bi-phone"></i> INSTALAÇÃO</div>
+        <h3 class="pdz-pwa-title" id="pwaTitle">Adicionar Padelizou à tela inicial</h3>
+        <p class="pdz-pwa-subtitle" id="pwaSubtitle">Use o Padelizou como se fosse um app, sem precisar procurar o link no navegador.</p>
 
         <div id="pwaAcaoNativa" style="display:none;">
             <div class="pdz-pwa-steps mb-1">
@@ -230,6 +230,12 @@
 <script>
     var CHAVE_PWA_DISPENSADO = 'pdzPwaInstallDismissed';
 
+    // Verdadeiro só no PRIMEIRO carregamento depois de criar a conta (o Cadastro deixa o
+    // sinal no TempData, que morre ao ser lido). Nesse modo o convite ignora o "já dispensei"
+    // do aparelho: quem fechou o modal semana passada como visitante acabou de virar OUTRA
+    // pessoa pro sistema — uma conta nova, que ainda não disse não.
+    var conviteDeBoasVindas = @((TempData["ConviteInstalarApp"] as bool?) == true ? "true" : "false");
+
     // Monta o conteúdo conforme o que o aparelho realmente oferece. Roda de novo quando o
     // `beforeinstallprompt` chega atrasado: aí o modal que abriu com o passo a passo escrito
     // troca sozinho pelo botão de um toque, sem a pessoa precisar fechar e abrir.
@@ -242,6 +248,16 @@
         document.getElementById('pwaStepsAndroid').style.display = (!nativa && plataforma === 'android') ? 'block' : 'none';
         document.getElementById('pwaStepsDesktop').style.display = (!nativa && !plataforma) ? 'block' : 'none';
         document.getElementById('pwaCta').textContent = nativa ? 'Agora não' : 'Entendi';
+
+        // Boas-vindas: mesma mecânica, outra conversa. O título genérico fala de atalho; aqui
+        // o argumento é o que a pessoa GANHA — os avisos do jogo dela chegarem no celular.
+        if (conviteDeBoasVindas) {
+            document.getElementById('pwaEyebrow').innerHTML = '<i class="bi bi-check-circle-fill"></i> CONTA CRIADA';
+            document.getElementById('pwaTitle').textContent = 'Falta 1 toque pra virar app';
+            document.getElementById('pwaSubtitle').textContent =
+                'Instala o Padelizou na tela inicial pra receber os avisos que importam: ' +
+                'seu jogo chegando, as chaves saindo, aula marcada.';
+        }
     }
 
     function abrirInstalarPwaModal() {
@@ -268,7 +284,17 @@
 
     (function () {
         function aparecerSozinho() {
-            if (localStorage.getItem(CHAVE_PWA_DISPENSADO) === '1' || pdzAppInstalado()) return;
+            if (pdzAppInstalado()) return;
+
+            // Conta recém-criada: convida SEMPRE, inclusive no computador (lá o bloco de
+            // desktop ensina o ícone da barra de endereço) e mesmo que este aparelho já tenha
+            // dispensado o modal genérico algum dia.
+            if (conviteDeBoasVindas) {
+                abrirInstalarPwaModal();
+                return;
+            }
+
+            if (localStorage.getItem(CHAVE_PWA_DISPENSADO) === '1') return;
             if (!pdzPlataforma()) return; // no computador não interrompe: lá o menu dá conta
 
             abrirInstalarPwaModal();

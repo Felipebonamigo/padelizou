@@ -1098,6 +1098,16 @@ baixa**. O mesmo disparo num número com meses de conversa normal provavelmente 
   o que faz alguém apertar "bloquear".
 - **1.398 testes.** ⚠️ **As 63 contas que já existem seguem com o WhatsApp marcado** — elas
   nunca escolheram isso, foi o padrão antigo. Decisão do Felipe se desmarca todas.
+- **O cadastro agora termina convidando a instalar o app.** A primeira tela depois de criar a
+  conta abre o modal de instalação em modo boas-vindas ("Conta criada — falta 1 toque pra
+  virar app"), vendendo o que a pessoa ganha: os avisos do jogo dela no celular. Ignora o "já
+  dispensei" do aparelho (conta nova ainda não disse não) e aparece até no computador. O sinal
+  vem por TempData — morre sozinho no primeiro carregamento, sem tocar banco. É o ataque à
+  raiz do problema do WhatsApp: **cada instalação é alguém alcançável por push**, o único
+  canal 100% nosso (hoje: 2 de 67). Ensaiado com cadastro real no localhost: 1º carregamento
+  convida, 2º não. Direção decidida com o Felipe: **TWA na Play Store** (conta como empresa
+  pelo CNPJ do MEI, US$ 25 única vez) e **iPhone fica no PWA** — App Store (US$ 99/ano) só se
+  usuário de iPhone sentir falta. **1.402 testes.**
 
 ### 04/08/2026 — O WhatsApp ficou 17 horas fora e ninguém soube
 

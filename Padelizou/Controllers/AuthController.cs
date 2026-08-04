@@ -797,6 +797,12 @@ namespace padelizou.Controllers
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 
+            // A primeira tela depois do cadastro convida a instalar o app (o modal do layout
+            // lê este sinal). É O momento: a pessoa acabou de criar a conta, ainda não foi
+            // fazer outra coisa, e cada instalação é alguém alcançável por push — o único
+            // canal de aviso que é 100% nosso (o WhatsApp provou isso em 04/08/2026).
+            TempData["ConviteInstalarApp"] = true;
+
             return RedirectToAction("Perfil");
         }
 
