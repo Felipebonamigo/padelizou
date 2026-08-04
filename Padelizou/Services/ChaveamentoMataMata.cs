@@ -89,30 +89,78 @@ public static class ChaveamentoMataMata
         int quadro = MaiorPotenciaDe2Ate(candidatos.Count);
         var cabecas = candidatos.Take(quadro).ToList();
 
-        // Metade de cima (melhores) x metade de baixo invertida (1 x último, 2 x penúltimo...).
-        var alta = cabecas.Take(quadro / 2).ToList();
-        var baixa = cabecas.Skip(quadro / 2).Reverse().ToList();
+        // Os melhores abrem os jogos, na ordem; o resto é distribuído contra eles.
+        var mandantes = cabecas.Take(quadro / 2).ToList();
+        var adversarios = cabecas.Skip(quadro / 2).ToList();   // do melhor pro pior
 
-        // Evita 1º x 2º do MESMO grupo na primeira fase, trocando com um vizinho quando possível.
-        for (int i = 0; i < alta.Count; i++)
+        // ⚠️ QUEM CAI DE QUAL LADO DA CHAVE.
+        //
+        // Não basta cruzar "melhor x pior": os dois classificados de um MESMO GRUPO precisam
+        // cair em METADES OPOSTAS do quadro. Senão eles se reencontram já na semifinal —
+        // dois que acabaram de se enfrentar na fase de grupos decidindo vaga na final, e um
+        // deles eliminado por quem já tinha enfrentado. Só podem se cruzar de novo NA FINAL.
+        //
+        // O desenho antigo (melhor x pior direto, invertendo a lista) produzia exatamente
+        // isso: com 4 grupos, o 1ºA saía no jogo 1 e o 2ºA no jogo 4 — e os jogos 1 e 4
+        // desembocam na MESMA semifinal.
+        var ladoDoJogo = LadosDoQuadro(mandantes.Count);
+        var gruposNoLado = new[] { new HashSet<string>(), new HashSet<string>() };
+
+        for (int i = 0; i < mandantes.Count; i++)
+            gruposNoLado[ladoDoJogo[i]].Add(mandantes[i].Grupo);
+
+        var confrontos = new List<Confronto>(mandantes.Count);
+
+        for (int i = 0; i < mandantes.Count; i++)
         {
-            if (alta[i].Grupo != baixa[i].Grupo) continue;
-            for (int j = 0; j < baixa.Count; j++)
-            {
-                if (j == i) continue;
-                if (alta[j].Grupo != baixa[i].Grupo && alta[i].Grupo != baixa[j].Grupo)
-                {
-                    (baixa[i], baixa[j]) = (baixa[j], baixa[i]);
-                    break;
-                }
-            }
+            var escolhido = EscolherAdversario(adversarios, mandantes[i], gruposNoLado[ladoDoJogo[i]]);
+            adversarios.Remove(escolhido);
+            gruposNoLado[ladoDoJogo[i]].Add(escolhido.Grupo);
+            confrontos.Add(new Confronto(mandantes[i].DuplaId, escolhido.DuplaId));
         }
 
-        var confrontos = new List<Confronto>(alta.Count);
-        for (int i = 0; i < alta.Count; i++)
-            confrontos.Add(new Confronto(alta[i].DuplaId, baixa[i].DuplaId));
-
         return (NomeFase(quadro), confrontos);
+    }
+
+    // O adversário do mandante, escolhido do PIOR pro melhor (é o que mantém "1º melhor x
+    // último pior"), respeitando duas regras em ordem de importância:
+    //
+    //   1. não pode já ter alguém do grupo dele nesta metade da chave — é a regra que
+    //      empurra o reencontro pra final;
+    //   2. não pode ser do mesmo grupo do mandante — reeditar na estreia o jogo que os dois
+    //      acabaram de fazer no grupo.
+    //
+    // As duas são afrouxadas na marra se não sobrar ninguém: com número torto de grupos (5
+    // grupos num quadro de 8, por exemplo) nem sempre existe arranjo perfeito, e um
+    // confronto imperfeito é melhor que um jogo sem adversário.
+    private static Classificado EscolherAdversario(
+        List<Classificado> disponiveis, Classificado mandante, HashSet<string> gruposDesteLado)
+    {
+        for (int i = disponiveis.Count - 1; i >= 0; i--)
+            if (!gruposDesteLado.Contains(disponiveis[i].Grupo) && disponiveis[i].Grupo != mandante.Grupo)
+                return disponiveis[i];
+
+        for (int i = disponiveis.Count - 1; i >= 0; i--)
+            if (disponiveis[i].Grupo != mandante.Grupo)
+                return disponiveis[i];
+
+        return disponiveis[^1];
+    }
+
+    // A qual metade do quadro cada jogo pertence (0 ou 1), na ordem de criação.
+    //
+    // Sai do desenho da chave: dois jogos estão na mesma metade quando os vencedores deles
+    // podem se encontrar antes da final. Services/OrdemDoQuadro sabe essa geometria — a
+    // primeira metade da ordem de desenho é um lado, a segunda é o outro.
+    private static int[] LadosDoQuadro(int jogos)
+    {
+        var ordem = OrdemDoQuadro.De(jogos);
+        var lado = new int[jogos];
+
+        for (int posicao = 0; posicao < ordem.Count; posicao++)
+            lado[ordem[posicao] - 1] = posicao < (ordem.Count + 1) / 2 ? 0 : 1;
+
+        return lado;
     }
 
     // ---- CHAVE DIRETA: mata-mata sem fase de grupos ----

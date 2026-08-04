@@ -92,25 +92,84 @@ public class ChaveProjetadaTests
         Assert.Empty(confrontos);
     }
 
-    // A regra escrita pelo Felipe: o 1º do primeiro grupo pega o 2º do ÚLTIMO grupo, o 2º do
-    // primeiro pega o 1º do último, e assim caminhando pro meio. É o cruzamento clássico —
-    // fica travado aqui porque é o que a tela promete.
-    [Fact]
-    public void O_primeiro_de_um_grupo_cruza_com_o_segundo_do_grupo_espelhado()
+    // A REGRA MAIS IMPORTANTE DO CHAVEAMENTO: dois classificados do mesmo grupo só podem se
+    // reencontrar NA FINAL.
+    //
+    // Eles acabaram de se enfrentar na fase de grupos; cruzá-los de novo na semi faria a vaga
+    // na decisão sair de um jogo que já aconteceu, e eliminaria um dos dois por quem ele já
+    // tinha enfrentado. É o que o quadro anterior fazia: com 4 grupos, o 1ºA saía no jogo 1 e
+    // o 2ºA no jogo 4 — e os jogos 1 e 4 desembocam na MESMA semifinal.
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    public void Dois_do_mesmo_grupo_so_se_reencontram_na_final(int quantosGrupos)
     {
-        var (_, confrontos) = ChaveProjetada.Montar(new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" });
+        var grupos = Enumerable.Range(0, quantosGrupos)
+            .Select(i => $"Grupo {(char)('A' + i)}").ToList();
 
-        var comoFicou = confrontos
-            .Select(c => $"{c.Lado1.Rotulo} x {c.Lado2.Rotulo}")
-            .ToList();
+        var (_, confrontos) = ChaveProjetada.Montar(grupos);
 
-        Assert.Equal(new[]
+        int jogos = confrontos.Count;
+        int rodadasAteAFinal = TotalDeRodadas(jogos);
+
+        foreach (var grupo in grupos)
         {
-            "1º do Grupo A x 2º do Grupo D",
-            "1º do Grupo B x 2º do Grupo C",
-            "1º do Grupo C x 2º do Grupo B",
-            "1º do Grupo D x 2º do Grupo A",
-        }, comoFicou);
+            // Em que jogo caiu cada classificado deste grupo.
+            var ondeCairam = confrontos
+                .Select((c, indice) => (c, indice))
+                .Where(x => x.c.Lado1.Grupo == grupo || x.c.Lado2.Grupo == grupo)
+                .Select(x => x.indice)
+                .ToList();
+
+            Assert.Equal(2, ondeCairam.Count);
+
+            int encontro = RodadaDoEncontro(ondeCairam[0], ondeCairam[1], jogos);
+            Assert.True(encontro == rodadasAteAFinal,
+                $"{grupo}: os dois classificados se encontrariam na rodada {encontro} de {rodadasAteAFinal}");
+        }
+    }
+
+    [Fact]
+    public void Ninguem_reedita_na_estreia_o_jogo_que_acabou_de_fazer_no_grupo()
+    {
+        foreach (int quantos in new[] { 2, 3, 4, 5, 6, 8 })
+        {
+            var grupos = Enumerable.Range(0, quantos)
+                .Select(i => $"Grupo {(char)('A' + i)}").ToList();
+
+            var (_, confrontos) = ChaveProjetada.Montar(grupos);
+
+            Assert.All(confrontos, c =>
+                Assert.False(c.Lado1.Grupo == c.Lado2.Grupo,
+                    $"{quantos} grupos: {c.Lado1.Rotulo} x {c.Lado2.Rotulo} reedita jogo de grupo"));
+        }
+    }
+
+    // Em que rodada os vencedores de dois jogos se encontrariam. Reproduz o cruzamento do
+    // robô (jogo j contra jogo N+1-j) sem usar a conta de lados da produção — se as duas
+    // divergirem, é aqui que aparece.
+    private static int RodadaDoEncontro(int jogoA, int jogoB, int jogos)
+    {
+        int a = jogoA, b = jogoB, n = jogos, rodada = 1;
+
+        while (n > 1)
+        {
+            rodada++;
+            a = Math.Min(a, n - 1 - a);
+            b = Math.Min(b, n - 1 - b);
+            n /= 2;
+            if (a == b) return rodada;
+        }
+
+        return rodada;
+    }
+
+    private static int TotalDeRodadas(int jogos)
+    {
+        int rodadas = 1;
+        while (jogos > 1) { jogos /= 2; rodadas++; }
+        return rodadas;
     }
 
     // ---- O caminho inteiro até a final ----
