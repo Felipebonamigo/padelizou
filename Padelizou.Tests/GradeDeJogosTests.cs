@@ -363,6 +363,42 @@ public class GradeDeJogosTests
         Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
     }
 
+    // ---- Encaixar: a quadra sai da posição dentro do horário ----
+    // A grade sabia ONDE cada jogo cai (é a N-ésima vaga daquele horário) e não estava
+    // dizendo: todo jogo nascia "Quadra a definir" mesmo com as cinco quadras cadastradas,
+    // e o jogador ficava com a hora sem o lugar.
+
+    [Fact]
+    public void Cada_jogo_do_mesmo_horario_cai_numa_quadra_diferente()
+    {
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4), JogoEntre(5, 6), JogoEntre(7, 8) };
+        var inicio = new DateTime(2026, 8, 5, 20, 0, 0);
+        var quadras = new[] { "Quadra A", "Quadra B" };
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 0, 0), 2, 12, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios, null, quadras);
+
+        Assert.All(jogos, j => Assert.NotNull(j.NomeQuadra));
+        foreach (var doHorario in jogos.GroupBy(j => j.HorarioPrevisto))
+        {
+            var nomes = doHorario.Select(j => j.NomeQuadra).ToList();
+            Assert.Equal(nomes.Count, nomes.Distinct().Count());
+        }
+    }
+
+    [Fact]
+    public void Torneio_sem_quadra_cadastrada_segue_sem_nome()
+    {
+        // Inventar "Quadra 1" onde o clube chama de "Central" seria pior que não dizer nada.
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4) };
+        var inicio = new DateTime(2026, 8, 5, 20, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 0, 0), 2, 12, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios);
+
+        Assert.All(jogos, j => Assert.Null(j.NomeQuadra));
+    }
+
     [Fact]
     public void Id_de_dupla_nao_se_confunde_com_id_de_jogador()
     {

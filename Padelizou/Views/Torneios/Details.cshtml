@@ -1995,10 +1995,10 @@
                                    Services/ChaveProjetada. *@
                                 var gruposDaCategoria = categoria.GruposTorneio
                                     .Select(g => g.Nome).OrderBy(n => n).ToList();
-                                var projecao = Padelizou.Services.ChaveProjetada.Montar(
+                                var rodadasProjetadas = Padelizou.Services.ChaveProjetada.MontarCompleta(
                                     gruposDaCategoria, categoria.ClassificadosPorGrupo ?? 2);
 
-                                if (projecao.Confrontos.Count == 0)
+                                if (rodadasProjetadas.Count == 0)
                                 {
                                     <div class="alert alert-light border text-muted">
                                         <i class="bi bi-hourglass-split"></i> O mata-mata desta categoria ainda não começou —
@@ -2009,21 +2009,29 @@
                                 {
                                     <div class="alert alert-light border small mb-3">
                                         <i class="bi bi-eye"></i>
-                                        <strong>Prévia da @projecao.Fase</strong> — o quadro se preenche sozinho quando o
-                                        último jogo dos grupos acabar.
+                                        <strong>Prévia do caminho até a final</strong> — o quadro se preenche sozinho
+                                        quando o último jogo dos grupos acabar.
                                         <span class="d-block text-muted mt-1">
-                                            Quem cai em qual lado pode mudar: entre os segundos colocados, quem passa e
-                                            contra quem joga depende da campanha de cada dupla.
+                                            Entre os segundos colocados, quem passa e de que lado da chave cai depende da
+                                            campanha de cada dupla — por isso os confrontos ainda podem mudar.
                                         </span>
                                     </div>
 
-                                    <div class="pdz-chave-projetada">
-                                        @foreach (var confronto in projecao.Confrontos)
+                                    <div class="pdz-chave-projetada-rodadas">
+                                        @foreach (var rodada in rodadasProjetadas)
                                         {
-                                            <div class="pdz-chave-projetada-jogo">
-                                                <span>@confronto.Lado1.Rotulo</span>
-                                                <span class="pdz-chave-projetada-vs">x</span>
-                                                <span>@confronto.Lado2.Rotulo</span>
+                                            <div class="pdz-chave-projetada-rodada">
+                                                <div class="pdz-chave-projetada-fase">@rodada.Fase</div>
+                                                @foreach (var jogo in rodada.Jogos)
+                                                {
+                                                    <div class="pdz-chave-projetada-jogo">
+                                                        <span class="pdz-chave-projetada-num">@jogo.Numero</span>
+                                                        <span class="pdz-chave-projetada-lados">
+                                                            <span class="d-block">@jogo.Lado1</span>
+                                                            <span class="d-block text-muted">@jogo.Lado2</span>
+                                                        </span>
+                                                    </div>
+                                                }
                                             </div>
                                         }
                                     </div>

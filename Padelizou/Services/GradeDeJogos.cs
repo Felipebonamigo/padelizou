@@ -110,8 +110,14 @@ public static class GradeDeJogos
     // exatamente o comportamento antigo, e negativo pra nunca colidir com um Id de jogador.
     // É o que vale pra categoria de TIMES: lá `Jogador1Id` é o ORGANIZADOR em todos os
     // times, e comparar por pessoa faria todo time conflitar com todo time.
+    // `quadras` são os nomes cadastrados no torneio, em ordem. Cada horário comporta uma
+    // partida por quadra, então quem entra em N-ésimo naquele horário joga na N-ésima
+    // quadra — a grade já sabia ONDE, só não estava dizendo. Sem isso todo jogo nascia com
+    // "Quadra a definir" mesmo num torneio com as cinco quadras cadastradas, e o jogador
+    // tinha a hora sem ter o lugar (que é metade da informação de que ele precisa).
     public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
-        IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null)
+        IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null,
+        IReadOnlyList<string>? quadras = null)
     {
         int[] Ocupantes(int duplaId) =>
             ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
@@ -120,6 +126,7 @@ public static class GradeDeJogos
 
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
+        var ocupadasNoHorario = new Dictionary<DateTime, int>();
 
         for (int i = 0; i < horarios.Count; i++)
         {
@@ -145,6 +152,17 @@ public static class GradeDeJogos
             }
 
             jogo.HorarioPrevisto = horario;
+
+            // A quadra sai da POSIÇÃO dentro do horário: o primeiro jogo das 20h vai pra
+            // primeira quadra, o segundo pra segunda. Torneio sem quadra cadastrada segue
+            // sem nome — inventar "Quadra 1" onde o clube chama de "Central" seria pior.
+            if (quadras is { Count: > 0 })
+            {
+                int posicao = ocupadasNoHorario.GetValueOrDefault(horario);
+                if (posicao < quadras.Count) jogo.NomeQuadra = quadras[posicao];
+                ocupadasNoHorario[horario] = posicao + 1;
+            }
+
             foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);
             foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) quem.Add(pessoa);
             fila.Remove(jogo);

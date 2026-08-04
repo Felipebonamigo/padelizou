@@ -302,7 +302,8 @@ namespace Padelizou.Controllers
                 jogosPraAgendar.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
-            GradeDeJogos.Encaixar(jogosPraAgendar, horarios, OcupantesPorDupla(torneio));
+            GradeDeJogos.Encaixar(jogosPraAgendar, horarios, OcupantesPorDupla(torneio),
+                await QuadrasDoTorneioAsync(torneio.Id));
             _context.Partidas.AddRange(jogosPraAgendar);
 
             torneio.Status = "Fase de Grupos";
@@ -495,6 +496,16 @@ namespace Padelizou.Controllers
         private static Dictionary<int, int[]> OcupantesPorDupla(Torneio torneio) =>
             OcupantesPorDupla(torneio.Categorias.SelectMany(c => c.Duplas));
 
+        // Os nomes das quadras do torneio, na ordem — é o que transforma "a definir" em
+        // "Quadra C" na tela do jogador. Torneio que não cadastrou quadra devolve lista
+        // vazia, e a grade segue sem nomear (ver GradeDeJogos.Encaixar).
+        private async Task<List<string>> QuadrasDoTorneioAsync(int torneioId) =>
+            await _context.Quadras
+                .Where(q => q.TorneioId == torneioId)
+                .OrderBy(q => q.Nome)
+                .Select(q => q.Nome)
+                .ToListAsync();
+
         private async Task<Dictionary<int, int[]>> OcupantesPorDuplaAsync(int torneioId) =>
             OcupantesPorDupla(await _context.Duplas
                 .Where(d => d.Categoria.TorneioId == torneioId)
@@ -537,7 +548,8 @@ namespace Padelizou.Controllers
             // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o
             // horário, mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale
             // pra quem chegou longe na categoria dele e na chave direta ao mesmo tempo.
-            GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value));
+            GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value),
+                await QuadrasDoTorneioAsync(torneioId.Value));
         }
 
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).

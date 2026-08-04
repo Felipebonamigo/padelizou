@@ -1338,3 +1338,64 @@ button, a, input, select { touch-action: manipulation; }
 /* Ninguém palpitou ainda: barra no meio e apagada, pra não competir com quem já tem
    palpite de verdade. */
 .pdz-palpite-vazio { opacity: .45; }
+
+/* Prévia do mata-mata em COLUNAS por rodada, uma ao lado da outra — o caminho até a
+   final se lê da esquerda pra direita, como um chaveamento de verdade. */
+.pdz-chave-projetada-rodadas {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
+    padding-bottom: .5rem;
+}
+
+.pdz-chave-projetada-rodada {
+    flex: 0 0 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.pdz-chave-projetada-fase {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--pdz-muted);
+}
+
+.pdz-chave-projetada-jogo {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .7rem;
+    border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
+    border-radius: 10px;
+    background: var(--pdz-surface-alt);
+    color: var(--pdz-ink);
+    font-size: .82rem;
+}
+
+.pdz-chave-projetada-num {
+    flex: 0 0 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--pdz-surface);
+    border: 1px solid var(--pdz-border);
+    color: var(--pdz-muted);
+    font-size: .7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdz-chave-projetada-lados {
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.pdz-chave-projetada-lados > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

@@ -58,4 +58,59 @@ public static class ChaveProjetada
             .Select(c => new ConfrontoProjetado(vagas[c.Dupla1Id], vagas[c.Dupla2Id]))
             .ToList());
     }
+
+    // ---- O caminho inteiro, da primeira fase à final ----
+
+    public record JogoProjetado(int Numero, string Lado1, string Lado2);
+    public record RodadaProjetada(string Fase, List<JogoProjetado> Jogos);
+
+    // A primeira rodada sai por colocação ("1º do Grupo A x 2º do Grupo D"); da segunda em
+    // diante, por procedência ("Vencedor do jogo 1 x Vencedor do jogo 4"). O jogador quer
+    // ver o CAMINHO — quem encontra na semi se passar, e de que lado da chave está.
+    //
+    // O encadeamento usa o mesmo ParearVencedores do robô, e os jogos são numerados na
+    // ordem em que nascem: é essa ordem que o robô lê (OrderBy Id) pra montar a fase
+    // seguinte, então o mapa aqui e a chave de verdade contam a mesma história.
+    public static List<RodadaProjetada> MontarCompleta(
+        IReadOnlyList<string> grupos, int classificadosPorGrupo = 2)
+    {
+        var (fase, primeiraRodada) = Montar(grupos, classificadosPorGrupo);
+        if (primeiraRodada.Count == 0) return new List<RodadaProjetada>();
+
+        var rodadas = new List<RodadaProjetada>();
+        int proximoNumero = 1;
+
+        var numeros = new List<int>();
+        var jogos = new List<JogoProjetado>();
+        foreach (var confronto in primeiraRodada)
+        {
+            int numero = proximoNumero++;
+            numeros.Add(numero);
+            jogos.Add(new JogoProjetado(numero, confronto.Lado1.Rotulo, confronto.Lado2.Rotulo));
+        }
+        rodadas.Add(new RodadaProjetada(fase, jogos));
+
+        // Cada rodada entrega tantos vencedores quantos jogos teve; a próxima é o nome do
+        // quadro desse tanto de gente (4 vencedores = Semifinal, 2 = Final).
+        while (numeros.Count > 1)
+        {
+            var proximos = new List<int>();
+            var jogosDaRodada = new List<JogoProjetado>();
+
+            foreach (var par in ChaveamentoMataMata.ParearVencedores(numeros))
+            {
+                int numero = proximoNumero++;
+                proximos.Add(numero);
+                jogosDaRodada.Add(new JogoProjetado(
+                    numero,
+                    $"Vencedor do jogo {par.Dupla1Id}",
+                    $"Vencedor do jogo {par.Dupla2Id}"));
+            }
+
+            rodadas.Add(new RodadaProjetada(ChaveamentoMataMata.NomeFase(numeros.Count), jogosDaRodada));
+            numeros = proximos;
+        }
+
+        return rodadas;
+    }
 }
