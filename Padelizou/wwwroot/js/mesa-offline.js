@@ -11,6 +11,7 @@
 // no momento do toque — então placar velho preso na fila nunca atropela um mais novo.
 const MesaOffline = (function () {
     let torneioId, limiteGames, chaveFila;
+    const limitePorPartida = {};
     const estado = {};          // partidaId -> {games1, games2, sets1, sets2}
     let fila = {};              // partidaId -> {placar: {...estado, marcadoEm}, finalizar: ms|null}
     let enviando = false;
@@ -59,15 +60,22 @@ const MesaOffline = (function () {
 
     // ---------- toques ----------
 
+    // Cada partida tem o limite da FASE dela: com "grupos até 4, final até 6" a mesma Mesa
+    // mostra jogos de limites diferentes lado a lado. Sem partida informada, vale o do torneio.
+    function limiteDaPartida(id) {
+        return limitePorPartida[id] || limiteGames;
+    }
+
     function tocar(id, campo, delta) {
         const e = estado[id];
-        const limite = campo.startsWith("games") ? limiteGames : 99;
+        const limiteGamesAqui = limiteDaPartida(id);
+        const limite = campo.startsWith("games") ? limiteGamesAqui : 99;
         const anterior = e[campo];
         e[campo] = Math.min(limite, Math.max(0, e[campo] + delta));
         desenhar(id);
 
         // Aviso do limite só ao CRUZAR a linha — repetir a cada toque vira buzina.
-        if (campo.startsWith("games") && e[campo] >= limiteGames && anterior < limiteGames) {
+        if (campo.startsWith("games") && e[campo] >= limiteGamesAqui && anterior < limiteGamesAqui) {
             const btn = document.getElementById("btnFim_" + id);
             if (btn) { btn.classList.replace("btn-dark", "btn-success"); btn.classList.add("shadow-lg"); }
         }
@@ -165,7 +173,12 @@ const MesaOffline = (function () {
         limiteGames = config.limiteGames || 9;
         chaveFila = "pdz-mesa-fila-v1-" + torneioId;
 
-        for (const id of config.partidas) {
+        // `partidas` aceita o Id solto (forma antiga) ou {id, games} — a Mesa passa o limite
+        // da FASE de cada jogo, que é o que muda entre uma partida de grupo e uma final.
+        for (const item of config.partidas) {
+            const id = (item && typeof item === "object") ? item.id : item;
+            if (item && typeof item === "object" && item.games > 0) limitePorPartida[id] = item.games;
+
             estado[id] = {
                 games1: parseInt(document.getElementById("gamesA_" + id)?.innerText) || 0,
                 games2: parseInt(document.getElementById("gamesB_" + id)?.innerText) || 0,

@@ -75,8 +75,7 @@ public static class GradeDeJogos
         }
     }
 
-    // Encaixa cada jogo num horário SEM pôr o mesmo inscrito (dupla ou time) em duas
-    // quadras ao mesmo tempo.
+    // Encaixa cada jogo num horário SEM pôr o mesmo inscrito em duas quadras ao mesmo tempo.
     //
     // O encaixe antigo era posicional: jogo i ganhava o horário i. Só que os jogos de um
     // grupo saem em sequência — (A,B), (A,C), (B,C) — e com 2+ quadras os horários vêm em
@@ -88,8 +87,26 @@ public static class GradeDeJogos
     // lados estão livres naquele horário. Se todos os que restam colidem (ex.: 1 grupo só
     // com mais quadras que jogos), entra o primeiro assim mesmo — atrasar a grade inteira
     // por causa de um conflito inevitável seria pior que o conflito.
-    public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios)
+    //
+    // ⚠️ "O mesmo inscrito" é PESSOA, não dupla. Enquanto cada um jogava numa categoria só,
+    // dupla e pessoa davam na mesma; com a categoria de CHAVE DIRETA a mesma pessoa disputa
+    // duas coisas no mesmo torneio (a categoria dela e o mata-mata paralelo), em duplas de
+    // Ids diferentes — comparar dupla marcaria as duas no mesmo horário, em quadras
+    // diferentes, e ninguém descobriria antes de o nome ser chamado duas vezes.
+    //
+    // Daí `ocupantesPorDupla`: quem de fato ocupa a quadra quando aquela dupla joga. Dupla
+    // ausente do mapa (e o mapa inteiro ausente) cai no Id NEGADO dela — injetivo, então é
+    // exatamente o comportamento antigo, e negativo pra nunca colidir com um Id de jogador.
+    // É o que vale pra categoria de TIMES: lá `Jogador1Id` é o ORGANIZADOR em todos os
+    // times, e comparar por pessoa faria todo time conflitar com todo time.
+    public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
+        IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null)
     {
+        int[] Ocupantes(int duplaId) =>
+            ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
+                ? pessoas
+                : new[] { -duplaId };
+
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
 
@@ -100,12 +117,14 @@ public static class GradeDeJogos
             if (!ocupados.TryGetValue(horario, out var quem))
                 ocupados[horario] = quem = new HashSet<int>();
 
-            var jogo = fila.FirstOrDefault(p => !quem.Contains(p.Dupla1Id) && !quem.Contains(p.Dupla2Id))
-                       ?? fila[0];
+            bool Livre(Partida p) =>
+                !Ocupantes(p.Dupla1Id).Any(quem.Contains) && !Ocupantes(p.Dupla2Id).Any(quem.Contains);
+
+            var jogo = fila.FirstOrDefault(Livre) ?? fila[0];
 
             jogo.HorarioPrevisto = horario;
-            quem.Add(jogo.Dupla1Id);
-            quem.Add(jogo.Dupla2Id);
+            foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);
+            foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) quem.Add(pessoa);
             fila.Remove(jogo);
         }
     }

@@ -401,21 +401,23 @@ namespace Padelizou.Controllers
         // --- ROBÔ 2: GERA O AVANÇO DAS CHAVES (Oitavas -> Quartas -> Semis -> Final) ---
         private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int torneioId, string faseConcluida)
         {
-            var proximaFase = ChaveamentoMataMata.ProximaFase(faseConcluida);
-            if (proximaFase == null) return;
+            // Fase que não encadeia (grupos, Americano, Final) para aqui.
+            if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
 
-            // Busca os vencedores da fase que acabou de jogar
-            var vencedores = await _context.Partidas
-                .Where(p => p.CategoriaId == categoriaId && p.Fase == faseConcluida && p.Status == "Finalizada")
-                .OrderBy(p => p.Id)
-                .Select(p => p.VencedorId!.Value)
-                .ToListAsync();
+            // Vencedores da fase + quem passou direto (bye), com a fase completa conferida
+            // lá dentro. A regra é a MESMA do robô da Mesa de Controle, de propósito: as
+            // duas telas finalizam partida e as duas precisam decidir igual, senão cada uma
+            // monta uma chave. Ver Services/AvancoDaChave.
+            var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
+            if (avancam.Count < 2) return;
 
-            // Só avança com a fase completa, e nunca gera a próxima em duplicidade.
-            if (vencedores.Count != ChaveamentoMataMata.JogosDaFase(faseConcluida)) return;
+            // Quem manda no nome da próxima fase é quanta gente sobrou, não o encadeamento
+            // por nome: com bye, a primeira rodada entrega 16 e o que vem são Oitavas.
+            var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
+
             if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
 
-            foreach (var confronto in ChaveamentoMataMata.ParearVencedores(vencedores))
+            foreach (var confronto in ChaveamentoMataMata.ParearVencedores(avancam))
             {
                 _context.Partidas.Add(new Partida
                 {

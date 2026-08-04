@@ -289,4 +289,97 @@ public class GradeDeJogosTests
         Assert.Equal(horarios[1], jogos[1].HorarioPrevisto);
         Assert.Equal(horarios[2], jogos[2].HorarioPrevisto);
     }
+
+    // ---- Encaixar: conflito é de PESSOA, não de dupla ----
+    // A chave direta pôs cada jogador em DUAS duplas do mesmo torneio (a da categoria dele e
+    // a do mata-mata paralelo). Comparando dupla, a grade marcava as duas no mesmo horário em
+    // quadras diferentes — e o defeito só apareceria com o nome sendo chamado duas vezes.
+
+    [Fact]
+    public void A_mesma_pessoa_em_duas_duplas_nao_joga_em_duas_quadras_ao_mesmo_tempo()
+    {
+        // Dupla 1 = jogadores 10 e 11 (a categoria dele).
+        // Dupla 3 = o jogador 10 DE NOVO, agora com 30 (a chave direta paralela).
+        // O terceiro jogo não tem ninguém em comum — é ele que sobe pra vaga disputada.
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4), JogoEntre(5, 6) };
+        var ocupantes = new Dictionary<int, int[]>
+        {
+            [1] = new[] { 10, 11 },
+            [2] = new[] { 20, 21 },
+            [3] = new[] { 10, 30 },   // o jogador 10 outra vez
+            [4] = new[] { 40, 41 },
+            [5] = new[] { 50, 51 },
+            [6] = new[] { 60, 61 },
+        };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        // Com 2 quadras as duas primeiras vagas são o MESMO horário — é aí que o defeito
+        // aparecia: os jogos 1 e 2 caíam juntos e o jogador 10 era chamado em duas quadras.
+        Assert.Equal(horarios[0], horarios[1]);
+
+        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+
+        Assert.NotEqual(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
+        // E sem buraco na grade: o jogo livre ocupou a vaga que sobrou, em vez de a grade
+        // andar um horário só pra fugir do conflito.
+        Assert.Equal(jogos[0].HorarioPrevisto, jogos[2].HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Duplas_sem_ninguem_em_comum_seguem_dividindo_o_horario()
+    {
+        // O contrário do teste acima: sem pessoa repetida, a grade não pode ficar mais lenta.
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4) };
+        var ocupantes = new Dictionary<int, int[]>
+        {
+            [1] = new[] { 10, 11 },
+            [2] = new[] { 20, 21 },
+            [3] = new[] { 30, 31 },
+            [4] = new[] { 40, 41 },
+        };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+
+        Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Time_fora_do_mapa_continua_comparando_por_dupla()
+    {
+        // Na categoria de TIMES o Jogador1Id é o ORGANIZADOR em todos os times. Se eles
+        // entrassem no mapa por pessoa, todo time conflitaria com todo time e a grade
+        // inteira viraria uma fila de um jogo por horário.
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4) };
+        var mapaSoDeDuplasComuns = new Dictionary<int, int[]>();   // nenhum time listado
+
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios, mapaSoDeDuplasComuns);
+
+        Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Id_de_dupla_nao_se_confunde_com_id_de_jogador()
+    {
+        // A dupla fora do mapa cai no Id NEGADO justamente pra isso: se caísse no Id positivo,
+        // a dupla 10 ocuparia o mesmo espaço que o JOGADOR 10 e as duas se repeliriam sem motivo.
+        var jogos = new List<Partida> { JogoEntre(10, 2), JogoEntre(3, 4) };
+        var ocupantes = new Dictionary<int, int[]>
+        {
+            [2] = new[] { 20, 21 },
+            [3] = new[] { 10, 11 },   // jogador 10, homônimo do Id da dupla 10
+            [4] = new[] { 40, 41 },
+        };
+        var inicio = new DateTime(2026, 8, 1, 18, 0, 0);
+        var horarios = GradeDeJogos.Horarios(inicio, new TimeSpan(23, 50, 0), 2, 50, jogos.Count).ToList();
+
+        GradeDeJogos.Encaixar(jogos, horarios, ocupantes);
+
+        Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
+    }
 }

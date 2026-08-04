@@ -33,6 +33,9 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             ViewBag.TorneioId = id;
+            // O torneio inteiro porque a Mesa monta o limite de games de CADA jogo a partir
+            // da fase dele (Services/FormatoDaPartida) — grupo até 4, final até 6.
+            ViewBag.Torneio = await _context.Torneios.FindAsync(id);
             return View(partidasEmAndamento);
         }
 

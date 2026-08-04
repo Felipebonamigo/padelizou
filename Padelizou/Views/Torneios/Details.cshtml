@@ -494,8 +494,8 @@
                     <label class="form-label fw-bold">Selecione a Categoria</label>
                     <select name="categoriaId" class="form-select" required>
                         <option value="">-- Escolha uma categoria --</option>
-                        @* Categoria de times fora: nela quem cadastra é o organizador. *@
-                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
+                        @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
                         {
                             <option value="@cat.Id">@cat.Nome</option>
                         }
@@ -540,8 +540,8 @@
                 <label class="form-label fw-bold">Selecione a Categoria</label>
                 <select name="categoriaId" class="form-select" required>
                     <option value="">-- Escolha uma categoria --</option>
-                    @* Categoria de times fora: nela quem cadastra é o organizador. *@
-                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
+                    @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
+                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
                     {
                         <option value="@cat.Id">@cat.Nome</option>
                     }
@@ -1137,6 +1137,56 @@
                                 </div>
                             </div>
 
+                            @* Formato das partidas: existia só na CRIAÇÃO, e ninguém acerta o
+                               tamanho do jogo antes de saber quanta gente entrou. Agora dá pra
+                               ajustar depois — e o valor daqui é o que a Mesa de Controle
+                               obedece de verdade (Services/FormatoDaPartida). *@
+                            <div class="mb-3 mt-2 border-top pt-3">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-stopwatch"></i> Formato das partidas
+                                </label>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                                            <div class="fw-bold small mb-2">Fase de grupos</div>
+                                            <label class="small text-muted">Sets</label>
+                                            <input type="number" min="1" max="5" name="setsFaseGrupos"
+                                                   class="form-control form-control-sm mb-2" value="@Model.SetsFaseGrupos" />
+                                            <label class="small text-muted">Games por set</label>
+                                            <input type="number" min="1" max="99" name="gamesFaseGrupos"
+                                                   class="form-control form-control-sm" value="@Model.GamesFaseGrupos" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                                            <div class="fw-bold small mb-2">Mata-mata</div>
+                                            <label class="small text-muted">Sets</label>
+                                            <input type="number" min="1" max="5" name="setsFaseMataMata"
+                                                   class="form-control form-control-sm mb-2" value="@Model.SetsFaseMataMata" />
+                                            <label class="small text-muted">Games por set</label>
+                                            <input type="number" min="1" max="99" name="gamesFaseMataMata"
+                                                   class="form-control form-control-sm" value="@Model.GamesFaseMataMata" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
+                                            <div class="fw-bold small mb-2">Semifinais e final</div>
+                                            <label class="small text-muted">Sets</label>
+                                            <input type="number" min="1" max="5" name="setsFaseFinal"
+                                                   class="form-control form-control-sm mb-2" value="@Model.SetsFaseFinal" />
+                                            <label class="small text-muted">Games por set</label>
+                                            <input type="number" min="1" max="99" name="gamesFaseFinal"
+                                                   class="form-control form-control-sm" value="@Model.GamesFaseFinal" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-2">
+                                    É o limite que a <strong>Mesa de Controle</strong> respeita ao marcar o placar.
+                                    Mudar aqui vale pros jogos que ainda vão ser marcados — placar já registrado não muda.
+                                    "Mata-mata" cobre a primeira rodada, oitavas e quartas.
+                                </div>
+                            </div>
+
                             <button type="submit" class="btn btn-padel fw-bold shadow-sm">
                                 <i class="bi bi-check-circle-fill"></i> Salvar Alterações
                             </button>
@@ -1719,11 +1769,15 @@
         <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-4" id="categoriaPills" role="tablist" style="-webkit-overflow-scrolling: touch; white-space: nowrap;">
             @{
                 var primeiraCat = true;
+                // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
+                // sorteados OU chave direta (que nunca terá grupo, só o mata-mata puro —
+                // sem isto ela não ganhava aba nenhuma e a chave dela ficava invisível).
+                Func<Padelizou.Models.Categoria, bool> temChaveParaMostrar = c =>
+                    (c.GruposTorneio != null && c.GruposTorneio.Any()) || c.ChaveDireta;
             }
             @foreach (var categoria in Model.Categorias)
             {
-                // Só mostra categorias que tenham grupos sorteados
-                if (categoria.GruposTorneio != null && categoria.GruposTorneio.Any())
+                if (temChaveParaMostrar(categoria))
                 {
                     <li class="nav-item me-2" role="presentation">
                         <button class="nav-link rounded-pill fw-bold border @(primeiraCat ? "active" : "")"
@@ -1744,7 +1798,7 @@
             }
             @foreach (var categoria in Model.Categorias)
             {
-                if (categoria.GruposTorneio != null && categoria.GruposTorneio.Any())
+                if (temChaveParaMostrar(categoria))
                 {
                     ViewData["CategoriaAtual"] = categoria.Nome;
                     <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
@@ -1816,7 +1870,11 @@
                             var jogosMata = (mataMataDict != null && mataMataDict.ContainsKey(categoria.Id))
                                 ? mataMataDict[categoria.Id] : new List<Padelizou.Models.Partida>();
 
-                            var ordemFases = new[] { "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+                            @* "Primeira Rodada" é o quadro de 32 da CHAVE DIRETA (24 duplas com
+                               bye, por exemplo). Sem ela aqui, a rodada de abertura existiria no
+                               banco e na Mesa, mas sumiria do desenho da chave. *@
+                            var ordemFases = new[] { Padelizou.Services.ChaveamentoMataMata.PrimeiraRodada,
+                                                     "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
                             var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
 
                             var partidaFinal = jogosMata.FirstOrDefault(p => p.Fase == "Final");

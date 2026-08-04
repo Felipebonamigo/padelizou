@@ -22,8 +22,11 @@ public static class ChaveamentoMataMata
 
     public record Confronto(int Dupla1Id, int Dupla2Id);
 
+    public const string PrimeiraRodada = "Primeira Rodada";
+
     public static string NomeFase(int tamanhoQuadro) => tamanhoQuadro switch
     {
+        32 => PrimeiraRodada,
         16 => "Oitavas de Final",
         8 => "Quartas de Final",
         4 => "Semifinal",
@@ -33,15 +36,22 @@ public static class ChaveamentoMataMata
     // Encadeamento das fases. Null = não há próxima (Final, fases de grupo, Americano...).
     public static string? ProximaFase(string? fase) => fase switch
     {
+        PrimeiraRodada => "Oitavas de Final",
         "Oitavas de Final" => "Quartas de Final",
         "Quartas de Final" => "Semifinal",
         "Semifinal" => "Final",
         _ => null
     };
 
-    // Quantos jogos uma fase completa tem (= vencedores esperados pra fase fechar).
+    // Quantos jogos uma fase COMPLETA tem (= vencedores esperados pra fase fechar).
+    //
+    // ⚠️ Só vale pra chave cheia. Numa chave direta com bye a primeira rodada tem MENOS
+    // jogos que o quadro pede (24 duplas num quadro de 32 = 8 jogos, não 16), então quem
+    // decide se a fase fechou conta as partidas que existem de verdade — ver o robô de
+    // progressão em TorneiosController.Chaves.
     public static int JogosDaFase(string? fase) => fase switch
     {
+        PrimeiraRodada => 16,
         "Oitavas de Final" => 8,
         "Quartas de Final" => 4,
         "Semifinal" => 2,
@@ -103,6 +113,65 @@ public static class ChaveamentoMataMata
             confrontos.Add(new Confronto(alta[i].DuplaId, baixa[i].DuplaId));
 
         return (NomeFase(quadro), confrontos);
+    }
+
+    // ---- CHAVE DIRETA: mata-mata sem fase de grupos ----
+
+    // Teto de uma chave direta. 32 duplas = 5 rodadas e 31 jogos; acima disso o quadro
+    // precisaria de um nome de fase que não existe (e é evento de outro tamanho).
+    public const int MaximoDeDuplasNaChaveDireta = 32;
+
+    public record PrimeiraRodadaDaChave(string Fase, List<Confronto> Confrontos, List<int> Byes);
+
+    // Recusa ANTES do sorteio, quando ajustar ainda é de graça. Null = pode sortear.
+    public static string? ProblemaNaChaveDireta(int duplas) => duplas switch
+    {
+        < 2 => "Uma chave direta precisa de pelo menos 2 duplas.",
+        > MaximoDeDuplasNaChaveDireta => $"O máximo de uma chave direta é {MaximoDeDuplasNaChaveDireta} duplas.",
+        _ => null
+    };
+
+    public static int MenorPotenciaDe2APartirDe(int minimo)
+    {
+        int p = 1;
+        while (p < minimo) p *= 2;
+        return p;
+    }
+
+    // Monta a PRIMEIRA rodada de um mata-mata puro a partir das duplas já na ordem do
+    // sorteio (embaralhadas por quem chamou — aqui não existe cabeça de chave: numa chave
+    // direta de duplas remontadas ninguém tem campanha, e ranking fingido seria pior que
+    // sorteio limpo).
+    //
+    // O total quase nunca é potência de 2, e é aí que mora a regra: o quadro é a menor
+    // potência de 2 que CABE todo mundo, e as vagas que sobram viram BYE — a dupla não joga
+    // a primeira rodada e entra direto na segunda. Com 24 duplas: quadro de 32, 8 byes e
+    // 8 jogos (as outras 16). Os byes saem do começo da lista sorteada.
+    //
+    // Quem recebe os byes é devolvido à parte porque o robô de progressão precisa somá-los
+    // aos vencedores pra fechar a rodada seguinte — sozinhos, os 8 vencedores fariam 4 jogos
+    // e os 8 que pegaram bye sumiriam do torneio sem perder.
+    public static PrimeiraRodadaDaChave MontarChaveDireta(IReadOnlyList<int> duplasSorteadas)
+    {
+        if (duplasSorteadas.Count < 2 || duplasSorteadas.Count > MaximoDeDuplasNaChaveDireta)
+            return new PrimeiraRodadaDaChave("", new List<Confronto>(), new List<int>());
+
+        int quadro = MenorPotenciaDe2APartirDe(duplasSorteadas.Count);
+        int byes = quadro - duplasSorteadas.Count;
+
+        var passamDireto = duplasSorteadas.Take(byes).ToList();
+        var jogam = duplasSorteadas.Skip(byes).ToList();
+
+        // Mesma semeadura do mata-mata pós-grupos: primeiro da metade de cima x último da
+        // metade de baixo, pra que os dois lados da chave se encontrem só no fim.
+        var alta = jogam.Take(jogam.Count / 2).ToList();
+        var baixa = jogam.Skip(jogam.Count / 2).Reverse().ToList();
+
+        var confrontos = new List<Confronto>(alta.Count);
+        for (int i = 0; i < alta.Count; i++)
+            confrontos.Add(new Confronto(alta[i], baixa[i]));
+
+        return new PrimeiraRodadaDaChave(NomeFase(quadro), confrontos, passamDireto);
     }
 
     // Pareia os vencedores de uma fase concluída para a próxima (1º x último da lista).

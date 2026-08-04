@@ -130,6 +130,37 @@ namespace Padelizou.Controllers
                 // O mínimo para ter jogo não é 3, é 2 duplas (Para uma chave final direta)!
                 if (duplas.Count < 2) continue;
 
+                // ---- Ramo de CHAVE DIRETA: mata-mata puro, sem grupo nenhum ----
+                // Sorteio limpo, sem cabeça de chave: as duplas aqui são remontadas
+                // misturando categorias, então ninguém tem campanha comparável — semear por
+                // ranking seria dar ares de critério a um chute.
+                if (categoria.ChaveDireta)
+                {
+                    if (ChaveamentoMataMata.ProblemaNaChaveDireta(duplas.Count) is { } problemaChave)
+                    {
+                        TempData["Erro"] = $"{categoria.Nome}: {problemaChave}";
+                        return RedirectToAction("Details", new { id });
+                    }
+
+                    var sorteadas = duplas.OrderBy(_ => Guid.NewGuid()).Select(d => d.Id).ToList();
+                    var primeiraRodada = ChaveamentoMataMata.MontarChaveDireta(sorteadas);
+
+                    jogosPraAgendar.AddRange(primeiraRodada.Confrontos.Select(confronto => new Partida
+                    {
+                        TorneioId = torneio.Id,
+                        CategoriaId = categoria.Id,
+                        Dupla1Id = confronto.Dupla1Id,
+                        Dupla2Id = confronto.Dupla2Id,
+                        Fase = primeiraRodada.Fase,
+                        Status = "Agendada",
+                        Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                    }));
+
+                    // Quem pegou bye não ganha partida agora — é a AUSÊNCIA de partida que
+                    // o robô lê depois pra somá-lo aos vencedores da primeira rodada.
+                    continue;
+                }
+
                 // ORDENAÇÃO PELO RANKING (Define os Cabeças de Chave)
                 var duplasOrdenadas = duplas
                     .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
@@ -245,8 +276,9 @@ namespace Padelizou.Controllers
             }
 
             // Agora sim os horários: N quadras em paralelo, parando no fim do expediente e
-            // retomando no dia seguinte. O encaixe é ciente de conflito: o mesmo inscrito
-            // (dupla ou time) nunca cai em duas quadras no mesmo horário (ver GradeDeJogos).
+            // retomando no dia seguinte. O encaixe é ciente de conflito: a mesma PESSOA nunca
+            // cai em duas quadras no mesmo horário (ver GradeDeJogos.Encaixar) — o que só
+            // passou a importar quando a chave direta pôs cada jogador em duas duplas.
             var horarios = GradeDeJogos.Horarios(
                 torneio.AberturaDaGrade,
                 torneio.HoraFimDoDia,
@@ -255,7 +287,7 @@ namespace Padelizou.Controllers
                 jogosPraAgendar.Count,
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
-            GradeDeJogos.Encaixar(jogosPraAgendar, horarios);
+            GradeDeJogos.Encaixar(jogosPraAgendar, horarios, OcupantesPorDupla(torneio));
             _context.Partidas.AddRange(jogosPraAgendar);
 
             torneio.Status = "Fase de Grupos";
@@ -412,6 +444,28 @@ namespace Padelizou.Controllers
             };
         }
 
+        // Quem de fato ocupa a quadra quando cada dupla joga: as DUAS pessoas dela.
+        //
+        // Sem isto a grade compara duplas, e a mesma pessoa inscrita na categoria dela E numa
+        // chave direta paralela seria marcada em duas quadras no mesmo horário — duas duplas
+        // de Ids diferentes, o mesmo sujeito.
+        //
+        // Time fica FORA do mapa de propósito (cai no Id da dupla, como sempre foi): lá o
+        // Jogador1Id é o organizador em todos os times, e comparar por pessoa faria todo time
+        // conflitar com todo time, empurrando a grade inteira pra frente.
+        private static Dictionary<int, int[]> OcupantesPorDupla(IEnumerable<Dupla> duplas) =>
+            duplas
+                .Where(d => !d.EhTime && d.Jogador2Id != null)
+                .ToDictionary(d => d.Id, d => new[] { d.Jogador1Id, d.Jogador2Id!.Value });
+
+        private static Dictionary<int, int[]> OcupantesPorDupla(Torneio torneio) =>
+            OcupantesPorDupla(torneio.Categorias.SelectMany(c => c.Duplas));
+
+        private async Task<Dictionary<int, int[]>> OcupantesPorDuplaAsync(int torneioId) =>
+            OcupantesPorDupla(await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == torneioId)
+                .ToListAsync());
+
         // TODO jogo do torneio nasce com horário previsto — inclusive os do mata-mata, que
         // só existem depois que a fase de grupos acaba. Sem isso o jogador via "a definir" na
         // fase que mais importa, e a Mesa de Controle não tinha ordem nenhuma pra seguir.
@@ -442,27 +496,31 @@ namespace Padelizou.Controllers
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o
-            // horário, mas o mesmo classificado nunca joga em duas quadras ao mesmo tempo.
-            GradeDeJogos.Encaixar(jogos, horarios);
+            // horário, mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale
+            // pra quem chegou longe na categoria dele e na chave direta ao mesmo tempo.
+            GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value));
         }
 
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).
         private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int? torneioId, string faseConcluida)
         {
-            var proximaFase = ChaveamentoMataMata.ProximaFase(faseConcluida);
-            if (proximaFase == null) return;
+            // Fase que não encadeia (grupos, Americano, Final) para aqui.
+            if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
 
-            var vencedores = await _context.Partidas
-                .Where(p => p.CategoriaId == categoriaId && p.Fase == faseConcluida && p.Status == "Finalizada")
-                .OrderBy(p => p.Id)
-                .Select(p => p.VencedorId!.Value)
-                .ToListAsync();
+            // Vencedores da fase + quem passou direto (bye), com a fase completa conferida
+            // lá dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
+            var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
+            if (avancam.Count < 2) return;
 
-            // Só avança com a fase completa, e nunca gera a próxima em duplicidade.
-            if (vencedores.Count != ChaveamentoMataMata.JogosDaFase(faseConcluida)) return;
+            // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24
+            // entrega 16 (8 vencedores + 8 byes), que são Oitavas — e não as Quartas que o
+            // encadeamento por NOME sugeriria. Quem manda é quanta gente sobrou.
+            var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
+
+            // Nunca gera a próxima fase em duplicidade (dois finalizamentos quase simultâneos).
             if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
 
-            var novos = ChaveamentoMataMata.ParearVencedores(vencedores)
+            var novos = ChaveamentoMataMata.ParearVencedores(avancam)
                 // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
                 .Select(confronto => new Partida
                 {

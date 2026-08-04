@@ -130,9 +130,17 @@
    aqui só se diz QUAIS partidas estão na tela. *@
 <script src="~/js/mesa-offline.js" asp-append-version="true"></script>
 <script>
+@{
+    // Cada jogo carrega o limite de games da FASE dele: o organizador configura "grupos até
+    // 4, final até 6" e a mesma Mesa mostra os dois lado a lado. Antes isto era um `9` fixo
+    // aqui, e o que ele escolhia no cadastro não valia em lugar nenhum.
+    var torneioDaMesa = ViewBag.Torneio as Padelizou.Models.Torneio;
+    var partidasDaMesa = (Model ?? Enumerable.Empty<Padelizou.Models.Partida>())
+        .Select(p => $"{{id:{p.Id},games:{Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p.Fase).Games}}}");
+}
     MesaOffline.iniciar({
         torneioId: @ViewBag.TorneioId,
-        limiteGames: 9,
-        partidas: [@string.Join(",", (Model ?? Enumerable.Empty<Padelizou.Models.Partida>()).Select(p => p.Id))]
+        limiteGames: @Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, Padelizou.Services.FasesTorneio.FaseDeGrupos).Games,
+        partidas: [@Html.Raw(string.Join(",", partidasDaMesa))]
     });
 </script>

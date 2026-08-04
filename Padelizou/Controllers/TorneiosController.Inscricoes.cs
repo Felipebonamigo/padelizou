@@ -63,6 +63,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // Chave direta é convite, não inscrição: as duplas são montadas pelo organizador
+            // (quase sempre remontando gente que já está inscrita nas categorias normais).
+            if (categoria.ChaveDireta)
+            {
+                TempData["Erro"] = "Essa chave é montada pelo organizador — não dá pra se inscrever nela.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null || torneio.Status != "Inscrições Abertas")
             {

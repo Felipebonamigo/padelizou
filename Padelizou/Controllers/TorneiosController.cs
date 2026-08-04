@@ -329,7 +329,10 @@ namespace Padelizou.Controllers
 
                 // Chaveamento do mata-mata: as partidas de fase eliminatória por categoria, pra
                 // a view desenhar o bracket com os confrontos REAIS (antes era um desenho fixo).
-                var fasesMataMata = new[] { "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+                // "Primeira Rodada" é a abertura da CHAVE DIRETA (quadro de 32 com bye) — sem
+                // ela na lista, a rodada existe no banco e não aparece no desenho da chave.
+                var fasesMataMata = new[] { ChaveamentoMataMata.PrimeiraRodada,
+                                            "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
                 var partidasMataMata = await _context.Partidas
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                     .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)

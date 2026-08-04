@@ -689,7 +689,13 @@ namespace Padelizou.Controllers
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
             bool usaCheckIn = false,
-            bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false)
+            bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false,
+            // Formato das partidas. Nulo = aba antiga (sem os campos) ou campo em branco:
+            // nesse caso o que está gravado FICA, em vez de virar zero e deixar a Mesa sem
+            // limite nenhum.
+            int? setsFaseGrupos = null, int? gamesFaseGrupos = null,
+            int? setsFaseMataMata = null, int? gamesFaseMataMata = null,
+            int? setsFaseFinal = null, int? gamesFaseFinal = null)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -717,10 +723,30 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
+            // Formato das partidas. Zero ou negativo é recusado ANTES de gravar: com zero
+            // games a Mesa de Controle não deixaria marcar nem um ponto, e o organizador só
+            // descobriria com a quadra ocupada.
+            var formatoPedido = new[] {
+                setsFaseGrupos, gamesFaseGrupos, setsFaseMataMata,
+                gamesFaseMataMata, setsFaseFinal, gamesFaseFinal };
+            if (formatoPedido.Any(v => v is <= 0))
+            {
+                TempData["Erro"] = "Sets e games precisam ser pelo menos 1.";
+                return RedirectToAction("Details", new { id });
+            }
+
             torneio.Nome = nome;
             torneio.DataInicio = dataInicio;
             torneio.PrecoInscricao = precoInscricao;
             torneio.ClubeId = clubeId;
+
+            // Nulo = campo não veio (aba antiga em cache) — mantém o que já estava gravado.
+            torneio.SetsFaseGrupos = setsFaseGrupos ?? torneio.SetsFaseGrupos;
+            torneio.GamesFaseGrupos = gamesFaseGrupos ?? torneio.GamesFaseGrupos;
+            torneio.SetsFaseMataMata = setsFaseMataMata ?? torneio.SetsFaseMataMata;
+            torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
+            torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
+            torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
 
             // O local É o clube. A tela de edição pedia os dois — o mesmo dado duas vezes — e
             // eles podiam divergir: o cabeçalho do torneio mostra o LocalTorneio, então dava

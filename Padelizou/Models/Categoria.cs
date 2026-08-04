@@ -41,4 +41,17 @@ public partial class Categoria
     public int? QuantidadeTimes { get; set; }
     public int? QuantidadeGrupos { get; set; }
     public int? ClassificadosPorGrupo { get; set; }
+
+    // ---- Categoria de CHAVE DIRETA ----
+    // Mata-mata puro: sem fase de grupos, quem perde está fora na primeira derrota. Nasceu
+    // pro torneio querer uma chave PARALELA às categorias — duplas remontadas misturando
+    // gente de 4ª, 5ª e 6ª, disputando um mata-mata à parte no mesmo fim de semana.
+    //
+    // Duas consequências que o resto do código precisa respeitar:
+    //  • o sorteio não cria grupo nenhum aqui (Services/ChaveamentoMataMata.MontarChaveDireta
+    //    monta a primeira rodada direto, com bye pra quem sobra do quadro);
+    //  • a mesma PESSOA fica inscrita duas vezes no torneio (na categoria dela e aqui), o que
+    //    obriga a grade a evitar conflito por jogador — ver Services/GradeDeJogos.Encaixar.
+    // Quem cadastra as duplas é o organizador, como na de times: jogador não se inscreve.
+    public bool ChaveDireta { get; set; }
 }
