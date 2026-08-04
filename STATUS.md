@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **04/08/2026 (noite)** — 💸 **o Financeiro do torneio "por fora" mostrava R$ 0,00 com R$ 4.080 recebidos logo abaixo**. Os quatro cartões liam só de `Pagamento` (o gateway), e no "por fora" não passa cobrança nenhuma por lá — duas verdades na mesma tela, e a de letra garrafal era a cega. Agora cada número lê da fonte certa, os rótulos mudam junto ("Você já recebeu"/"A receber"), **Estornado some** (quem devolve ali é o organizador, o sistema não sabe) e o líquido só desconta a taxa de 5% que ainda está em aberto. **A tabela "Por categoria" tinha o MESMO defeito uma camada abaixo e sobreviveu à primeira correção** (`build-238`): somava de `Pagamento` e mostrava R$ 0,00 em toda linha enquanto o topo, já corrigido, exibia o total certo — a mesma tela discordando de si mesma outra vez. As linhas saem da caderneta, **casadas por `CategoriaId` e não por nome** (nome se edita, e este projeto já teve torneio com dois nomes iguais), e a coluna "Estornado" vira **"A receber"**. Conferindo no navegador apareceu outro: com ninguém tendo pago, "LÍQUIDO PRA VOCÊ: **−R$ 12,00**" — a taxa é devida sobre TODOS os inscritos, não sobre quem já acertou, e o organizador lê negativo como prejuízo; agora para no zero e o valor devido segue escrito na linha da taxa. Junto no dia: **caixa de juntar inscrições no "Definir por CPF"** (a recusa mandava marcar uma caixa que só existia na outra aba), **time deixou de aceitar parceiro** — na tela e no servidor, porque `Jogador1Id` do time é o ORGANIZADOR e a troca penduraria um jogador na linha do time calada —, **quantos inscritos** no cabeçalho e por categoria, e **nome com a caixa arrumada** na exibição (o banco continua com o que a pessoa escreveu). **1.402 testes**, no ar em prod e dev.
+> Última atualização: **04/08/2026 (fim da noite)** — 🥊 **chave direta: um mata-mata PARALELO dentro do torneio** (pedido do Virgili, véspera do Interno). 24 duplas remontadas misturando 4ª, 5ª e 6ª — os mesmos 48 jogadores em outros pares. 24 não fecha quadro, então o quadro é 32 e **8 duplas entram direto na segunda rodada**; o bye é a parte perigosa, porque quem passa direto não venceu nada e sem somá-lo ao avanço **8 duplas sumiriam sem nunca ter perdido**. A regra virou `Services/AvancoDaChave` — um lugar só, porque os dois robôs eram cópias e cada uma escolheria um campeão. Junto, dois defeitos que a feature expôs: a **grade comparava DUPLA, não pessoa** (com cada um em duas duplas, o mesmo sujeito seria chamado pra duas quadras no mesmo horário), e o **limite de games que ninguém lia** — o torneio guardava três formatos, a criação perguntava os três e a Mesa tinha `limiteGames: 9` cravado no JavaScript; o Virgili escolheu 4 e a Mesa deixava marcar 9, calada. Agora vale de verdade, é **editável depois de criado**, e semifinal acompanha a final. E a chave direta **não conta dinheiro**: contaria a mesma pessoa duas vezes no Financeiro e na taxa de 5%. **1.436 testes**, `build-242`, no ar.
+> Antes, no mesmo dia — 💸 **o Financeiro do torneio "por fora" mostrava R$ 0,00 com R$ 4.080 recebidos logo abaixo**. Os quatro cartões liam só de `Pagamento` (o gateway), e no "por fora" não passa cobrança nenhuma por lá — duas verdades na mesma tela, e a de letra garrafal era a cega. Agora cada número lê da fonte certa, os rótulos mudam junto ("Você já recebeu"/"A receber"), **Estornado some** (quem devolve ali é o organizador, o sistema não sabe) e o líquido só desconta a taxa de 5% que ainda está em aberto. **A tabela "Por categoria" tinha o MESMO defeito uma camada abaixo e sobreviveu à primeira correção** (`build-238`): somava de `Pagamento` e mostrava R$ 0,00 em toda linha enquanto o topo, já corrigido, exibia o total certo — a mesma tela discordando de si mesma outra vez. As linhas saem da caderneta, **casadas por `CategoriaId` e não por nome** (nome se edita, e este projeto já teve torneio com dois nomes iguais), e a coluna "Estornado" vira **"A receber"**. Conferindo no navegador apareceu outro: com ninguém tendo pago, "LÍQUIDO PRA VOCÊ: **−R$ 12,00**" — a taxa é devida sobre TODOS os inscritos, não sobre quem já acertou, e o organizador lê negativo como prejuízo; agora para no zero e o valor devido segue escrito na linha da taxa. Junto no dia: **caixa de juntar inscrições no "Definir por CPF"** (a recusa mandava marcar uma caixa que só existia na outra aba), **time deixou de aceitar parceiro** — na tela e no servidor, porque `Jogador1Id` do time é o ORGANIZADOR e a troca penduraria um jogador na linha do time calada —, **quantos inscritos** no cabeçalho e por categoria, e **nome com a caixa arrumada** na exibição (o banco continua com o que a pessoa escreveu). **1.402 testes**, no ar em prod e dev.
 >
 > **Padrão do dia, anotado porque se repetiu quatro vezes:** os bugs não eram de conta errada, eram de **tela contando uma história diferente da do dado** — uma recusa apontando pra caixa inexistente, um beco sem saída pro 11º organizador, botão de parceiro numa linha de time, e o Financeiro com R$ 0,00 ao lado de R$ 4.080. Quando a causa é "esta tela lê da fonte errada", a correção certa é varrer **todos** os lugares que leem daquela fonte — não só o que está no print.
 > Antes, no mesmo dia — 👨‍🏫 **marcar aula deixou de começar catando o telefone do aluno** (2º pedido do Jonatas). **Telefone virou opcional**; a lista de quem já fez aula com ele vem pronta na página e filtra sem acento, com selo **"aluno recorrente"** pra quem já voltou; e existe **"Procurar no Padelizou"** sob demanda, nunca por tecla (quadra com sinal ruim). O ganho escondido: escolher alguém com conta agora grava o **vínculo de verdade** (`Aula.AlunoId`) — antes a aula nascia como nome solto mesmo pra quem estava cadastrado, e o aluno não via nada no próprio app. Aluno avulso que se cadastrar depois é ligado à conta pelo painel, com o **acordo de preço indo junto** (ele foi combinado com a pessoa, não com o nome). **1.339 testes.**
@@ -62,6 +63,66 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 04/08/2026 (fim da noite) — 🥊 Chave direta: um mata-mata paralelo dentro do torneio
+
+Pedido do Virgili na véspera do Interno: um mata-mata **separado do chaveamento, como se
+fosse outra categoria**, com 24 duplas remontadas misturando 4ª, 5ª e 6ª — na conta, os
+**mesmos 48 jogadores** do torneio, cada um aparecendo uma vez, em outro par.
+
+**`Categoria.ChaveDireta`** é a categoria que pula a fase de grupos. A regra que dá trabalho
+é que **24 não fecha quadro**: o quadro é a menor potência de 2 que cabe (32), sobram 8
+vagas, e essas 8 duplas **entram direto na segunda rodada**. Daí a primeira rodada tem 8
+jogos (16 duplas), e o que sai dela são 16 — 8 vencedores + 8 byes — que são as Oitavas.
+
+⚠️ **O bye é a parte perigosa da feature.** Quem passa direto não venceu nada, então não
+está entre os vencedores. Sem somá-lo, os 8 vencedores fariam 4 jogos entre si e **8 duplas
+sumiriam do torneio sem nunca ter perdido**. A regra de quem avança virou
+`Services/AvancoDaChave`, num lugar só — os dois robôs (Mesa de Controle e Controle de
+Placar) eram cópias um do outro, e é exatamente o tipo de regra em que duas cópias elegem
+dois campeões diferentes. O bye é derivado de "dupla sem partida nenhuma", o que faz a regra
+**se esgotar sozinha**: depois da primeira rodada todo mundo vivo já jogou.
+
+No caminho, o robô parou de comparar os vencedores com uma **constante por nome de fase**
+(Oitavas = 8 jogos...). Isso só vale na chave cheia: a primeira rodada com bye tem menos
+jogos do que o nome promete, e o robô esperaria pra sempre por vencedores que nunca viriam.
+Agora conta as partidas que existem — mais geral e uma dependência a menos.
+
+**Dois defeitos que a feature expôs, e que valiam antes dela:**
+
+- 🔴 **A grade evitava conflito por DUPLA, não por pessoa.** Enquanto cada um jogava numa
+  categoria só, dava na mesma. Com a chave direta o mesmo jogador está em **duas duplas do
+  mesmo torneio**, de Ids diferentes — e a grade marcaria as duas no mesmo horário, em
+  quadras diferentes. Ninguém descobriria antes de o nome ser chamado duas vezes.
+  `GradeDeJogos.Encaixar` agora recebe quem ocupa a quadra. **Time fica de fora de propósito**
+  (cai no Id da dupla, como sempre): lá o `Jogador1Id` é o ORGANIZADOR em todos os times, e
+  por pessoa todo time conflitaria com todo time, enfileirando a grade inteira.
+
+- 🔴 **O limite de games não valia.** O torneio guarda três formatos (grupos, mata-mata,
+  final) desde sempre, a tela de criação pergunta os três — e **ninguém lia**: a Mesa tinha
+  `limiteGames: 9` cravado no JavaScript. O Virgili escolheu 4 games no cadastro e a Mesa
+  deixava marcar até 9, calada. `Services/FormatoDaPartida` traduz fase → formato, cada jogo
+  carrega o limite da **fase dele** (a mesma Mesa mostra um jogo de grupo até 4 e uma
+  semifinal até 6, lado a lado), e os campos viraram **editáveis depois de criado** — ninguém
+  acerta o tamanho do jogo antes de saber quanta gente entrou. **Semifinal acompanha a
+  final**, não o mata-mata: quem diz "as semis e a final são mais longas" está falando das
+  duas.
+
+**Chave direta não conta dinheiro.** O Financeiro soma `PrecoInscricao × 2` por dupla e a
+taxa de 5% conta pessoas por dupla — 24 duplas a mais dobrariam os dois, faturando a **mesma
+pessoa duas vezes pelo mesmo torneio**. É a regra que já valia pro TIME. A diferença é onde o
+filtro mora: a flag é da CATEGORIA e quem calcula a taxa **não carrega a navegação**, então
+uma propriedade calculada devolveria `false` calada e cobraria a mais — por isso o filtro é
+na query, nos dois pontos.
+
+**1.436 testes** (30 novos), `build-242` no ar. Conferido no navegador: 9 toques param em 4
+no jogo de grupo e em 6 na semifinal, na mesma Mesa; a chave direta ganha aba própria com o
+quadro da Primeira Rodada. E um teste roda o **torneio inteiro do sorteio ao campeão**
+passando pelos byes (23 jogos pra 24 duplas), com a grade sem ninguém em duas quadras.
+
+**Em produção:** categoria `Mata-Mata Geral` criada no torneio 18 com as 24 duplas, e o
+formato do Interno ajustado (grupos 4 · mata-mata 4 · semis e final 6). O sorteio da chave
+sai junto com o `Gerar Chaves` do torneio, com os 8 byes sorteados na hora.
 
 ### 03/08/2026 (fim de tarde) — 🧹 O teste real do "Interno Los Corneteiros" e a fila que ele gerou
 
