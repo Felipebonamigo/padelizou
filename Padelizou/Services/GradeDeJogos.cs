@@ -84,9 +84,20 @@ public static class GradeDeJogos
     // dela), mas o defeito valia igualzinho pras duplas.
     //
     // Guloso de primeira vaga: pra cada horário, entra o primeiro jogo da fila cujos dois
-    // lados estão livres naquele horário. Se todos os que restam colidem (ex.: 1 grupo só
-    // com mais quadras que jogos), entra o primeiro assim mesmo — atrasar a grade inteira
-    // por causa de um conflito inevitável seria pior que o conflito.
+    // lados estão livres naquele horário.
+    //
+    // ⚠️ Quando NADA cabe, a vaga fica VAZIA e o jogo tenta o horário seguinte — uma quadra
+    // parada é muito mais barata que uma pessoa chamada em duas ao mesmo tempo. A versão
+    // anterior enfiava o jogo assim mesmo, e isso furava justamente no fim da fila: sobram
+    // poucos jogos, todos com gente já escalada naquele horário, e o conflito aparecia no
+    // último lugar onde alguém olharia. Foi o CI que pegou — o sorteio da chave direta é
+    // ALEATÓRIO, então cada execução monta uma grade diferente e a falha só aparecia em
+    // alguns sorteios.
+    //
+    // Pular custa vaga, então quem chama precisa oferecer MAIS horários que jogos (ver
+    // `MargemDeHorarios`). O último recurso continua existindo: se as vagas restantes forem
+    // exatamente os jogos que faltam, entra com conflito mesmo — deixar jogo sem horário
+    // nenhum seria pior.
     //
     // ⚠️ "O mesmo inscrito" é PESSOA, não dupla. Enquanto cada um jogava numa categoria só,
     // dupla e pessoa davam na mesma; com a categoria de CHAVE DIRETA a mesma pessoa disputa
@@ -110,17 +121,28 @@ public static class GradeDeJogos
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
 
-        foreach (var horario in horarios)
+        for (int i = 0; i < horarios.Count; i++)
         {
             if (fila.Count == 0) break;
 
+            var horario = horarios[i];
             if (!ocupados.TryGetValue(horario, out var quem))
                 ocupados[horario] = quem = new HashSet<int>();
 
             bool Livre(Partida p) =>
                 !Ocupantes(p.Dupla1Id).Any(quem.Contains) && !Ocupantes(p.Dupla2Id).Any(quem.Contains);
 
-            var jogo = fila.FirstOrDefault(Livre) ?? fila[0];
+            var jogo = fila.FirstOrDefault(Livre);
+
+            if (jogo == null)
+            {
+                // Nada cabe sem repetir gente. Deixa a quadra vaga e tenta no próximo
+                // horário — a menos que as vagas que sobram sejam contadas: aí não há mais
+                // pra onde empurrar, e um conflito é melhor que um jogo sem horário.
+                int vagasRestantes = horarios.Count - i - 1;
+                if (vagasRestantes >= fila.Count) continue;
+                jogo = fila[0];
+            }
 
             jogo.HorarioPrevisto = horario;
             foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);
@@ -128,6 +150,14 @@ public static class GradeDeJogos
             fila.Remove(jogo);
         }
     }
+
+    // Quantos horários pedir além do número de jogos, pra que o `Encaixar` possa deixar uma
+    // vaga vazia em vez de dobrar alguém. Sem folga ele não teria escolha: cada jogo teria
+    // exatamente uma vaga, e "pular" viraria "deixar jogo sem horário".
+    //
+    // Três rodadas de folga é bastante — o conflito acontece no rabo da fila, com poucos
+    // jogos restantes. Vaga que sobra não custa nada: ela simplesmente não é usada.
+    public static int MargemDeHorarios(int quadras) => Math.Max(quadras, 1) * 3;
 
     // Quantas rodadas cabem num dia que abre às `abertura`.
     // null = dia sem hora pra acabar.

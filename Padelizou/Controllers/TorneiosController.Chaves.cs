@@ -297,7 +297,9 @@ namespace Padelizou.Controllers
                 torneio.HoraFimDoDia,
                 torneio.QuantidadeQuadras,
                 torneio.TempoPrevistoPartidaMinutos,
-                jogosPraAgendar.Count,
+                // Folga: sem vaga sobrando, o encaixe não teria como deixar uma quadra vazia
+                // pra evitar chamar a mesma pessoa duas vezes. Ver GradeDeJogos.
+                jogosPraAgendar.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             GradeDeJogos.Encaixar(jogosPraAgendar, horarios, OcupantesPorDupla(torneio));
@@ -528,7 +530,8 @@ namespace Padelizou.Controllers
 
             var horarios = GradeDeJogos.Horarios(
                 inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                torneio.TempoPrevistoPartidaMinutos, jogos.Count,
+                torneio.TempoPrevistoPartidaMinutos,
+                jogos.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
                 aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
 
             // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o

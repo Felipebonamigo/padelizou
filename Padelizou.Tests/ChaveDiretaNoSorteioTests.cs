@@ -37,36 +37,50 @@ public class ChaveDiretaNoSorteioTests
         Assert.Equal(8, duplas.Count(d => !naPrimeiraRodada.Contains(d.Id)));
     }
 
-    [Fact]
-    public async Task Ninguem_e_chamado_pra_duas_quadras_no_mesmo_horario()
+    // ⚠️ 25 sorteios, não um. O chaveamento da chave direta é ALEATÓRIO (`OrderBy(Guid)`),
+    // então cada execução monta uma grade diferente: um teste de uma rodada só afirma "esse
+    // sorteio deu certo", e passa ou falha por sorte. Foi assim que o furo do encaixe chegou
+    // ao CI verde na máquina e vermelho lá — a versão antiga enfiava o jogo no horário mesmo
+    // sem vaga livre, e só alguns sorteios caíam nisso.
+    [Theory]
+    [InlineData(24)]
+    [InlineData(20)]
+    [InlineData(12)]
+    public async Task Ninguem_e_chamado_pra_duas_quadras_no_mesmo_horario(int duplasNaChave)
     {
         // O ponto mais perigoso da feature: cada pessoa está em DUAS duplas do mesmo torneio
         // (a da categoria dela e a da chave direta). A grade compara PESSOA por causa disso.
-        using var ctx = TestInfra.NovoContexto();
-        var (torneio, org, _) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
-        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        for (int sorteio = 1; sorteio <= 25; sorteio++)
+        {
+            using var ctx = TestInfra.NovoContexto();
+            var (torneio, org, _) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave);
+            var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
 
-        await controller.GerarChaves(torneio.Id);
+            await controller.GerarChaves(torneio.Id);
 
-        var jogos = await ctx.Partidas
-            .Where(p => p.TorneioId == torneio.Id)
-            .Include(p => p.Dupla1).Include(p => p.Dupla2)
-            .ToListAsync();
+            var jogos = await ctx.Partidas
+                .Where(p => p.TorneioId == torneio.Id)
+                .Include(p => p.Dupla1).Include(p => p.Dupla2)
+                .ToListAsync();
 
-        var conflitos = jogos
-            .GroupBy(j => j.HorarioPrevisto)
-            .SelectMany(porHorario => porHorario
-                .SelectMany(j => new[]
-                {
-                    j.Dupla1.Jogador1Id, j.Dupla1.Jogador2Id!.Value,
-                    j.Dupla2.Jogador1Id, j.Dupla2.Jogador2Id!.Value,
-                })
-                .GroupBy(jogadorId => jogadorId)
-                .Where(g => g.Count() > 1)
-                .Select(g => new { porHorario.Key, JogadorId = g.Key }))
-            .ToList();
+            var conflitos = jogos
+                .GroupBy(j => j.HorarioPrevisto)
+                .SelectMany(porHorario => porHorario
+                    .SelectMany(j => new[]
+                    {
+                        j.Dupla1.Jogador1Id, j.Dupla1.Jogador2Id!.Value,
+                        j.Dupla2.Jogador1Id, j.Dupla2.Jogador2Id!.Value,
+                    })
+                    .GroupBy(jogadorId => jogadorId)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => $"{porHorario.Key:dd/MM HH:mm} jogador {g.Key}"))
+                .ToList();
 
-        Assert.Empty(conflitos);
+            Assert.Empty(conflitos);
+
+            // E ninguém pode ficar sem horário por causa da folga de vagas.
+            Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+        }
     }
 
     [Fact]
