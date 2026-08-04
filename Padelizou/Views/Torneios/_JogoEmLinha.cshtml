@@ -1,0 +1,94 @@
+@model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada)
+@*
+    Um jogo em UMA LINHA, para as listas de Agendadas e Finalizadas.
+
+    O cartão grande (placar gigante, chips com foto, palpitrômetro aberto) existe pra UM jogo
+    que está acontecendo agora — ali a tela tem um assunto só. Numa lista de 48 agendados ele
+    vira uma parede: cada jogo ocupava meia tela, e ver a grade do dia exigia rolar sem parar.
+    O que se procura numa lista é outra coisa — "que horas eu jogo", "contra quem", "já
+    acabou?" — e isso cabe numa linha.
+
+    O cartão grande fica só no AO VIVO. Aqui: horário, quem joga, placar (se acabou), a
+    categoria, e as ações do organizador em ícone.
+*@
+@{
+    var jogo = Model.Jogo;
+    var g1 = jogo.GamesDupla1 ?? 0;
+    var g2 = jogo.GamesDupla2 ?? 0;
+    var venceu1 = Model.Finalizada && g1 > g2;
+    var venceu2 = Model.Finalizada && g2 > g1;
+
+    string Lado(Padelizou.Models.Dupla d) =>
+        d == null ? "A definir"
+        : d.EhTime ? (d.NomeTime ?? "Time")
+        : d.Jogador1.ComoChamar.Split(' ')[0]
+          + " / " + (d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?");
+}
+
+<div class="pdz-jogo-linha @(Model.Finalizada ? "pdz-jogo-linha-fim" : "")">
+    <div class="pdz-jogo-linha-quando">
+        @if (Model.Finalizada)
+        {
+            <span class="pdz-jogo-linha-placar">@g1 <span class="text-muted">x</span> @g2</span>
+        }
+        else if (jogo.HorarioPrevisto is DateTime h)
+        {
+            <span class="pdz-jogo-linha-hora">@h.ToString("HH:mm")</span>
+            <span class="pdz-jogo-linha-dia">@h.ToString("dd/MM")</span>
+        }
+        else
+        {
+            @* Torneio por ordem de liberação: não há hora, e inventar uma seria mentir. *@
+            <span class="pdz-jogo-linha-dia">por ordem</span>
+        }
+    </div>
+
+    <div class="pdz-jogo-linha-times">
+        <div class="@(venceu1 ? "fw-bold" : venceu2 ? "text-muted" : "")">@Lado(jogo.Dupla1)</div>
+        <div class="@(venceu2 ? "fw-bold" : venceu1 ? "text-muted" : "")">@Lado(jogo.Dupla2)</div>
+        <div class="pdz-jogo-linha-onde">
+            @jogo.Categoria.Nome · @jogo.Fase
+            @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+            {
+                <span>· @jogo.NomeQuadra</span>
+            }
+        </div>
+    </div>
+
+    @if (Model.EhOrganizador)
+    {
+        <div class="pdz-jogo-linha-acoes">
+            @if (!Model.Finalizada)
+            {
+                <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-danger" title="Colocar no ar" aria-label="Colocar no ar">
+                        <i class="bi bi-play-fill"></i>
+                    </button>
+                </form>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
+                        data-jogo-id="@jogo.Id"
+                        data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao"
+                        title="Trocar horário" aria-label="Trocar horário">
+                    <i class="bi bi-arrow-left-right"></i>
+                </button>
+            }
+            <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
+               class="btn btn-sm btn-outline-secondary"
+               title="@(Model.Finalizada ? "Corrigir placar" : "Editar jogo")"
+               aria-label="@(Model.Finalizada ? "Corrigir placar" : "Editar jogo")">
+                <i class="bi bi-pencil"></i>
+            </a>
+        </div>
+    }
+    else if (Model.Finalizada && !string.IsNullOrEmpty(jogo.LinkTransmissao))
+    {
+        <div class="pdz-jogo-linha-acoes">
+            <a href="@jogo.LinkTransmissao" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-secondary" title="Assistir" aria-label="Assistir">
+                <i class="bi bi-play-btn"></i>
+            </a>
+        </div>
+    }
+</div>

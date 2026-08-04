@@ -103,6 +103,13 @@ namespace Padelizou.Controllers
                 .OrderBy(q => q.Nome)
                 .ToListAsync();
 
+            // Até quantos games vai ESTE jogo (a fase manda). A tela tinha max="9" cravado,
+            // igual a Mesa tinha — o organizador configurava 4 e nada respeitava.
+            var torneio = partida.TorneioId is int torneioId
+                ? await _context.Torneios.FindAsync(torneioId)
+                : null;
+            ViewBag.Formato = FormatoDaPartida.De(torneio, partida.Fase);
+
             return View(partida);
         }
 

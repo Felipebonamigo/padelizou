@@ -2,6 +2,13 @@
 @{
     ViewData["Title"] = "Controle de Partida";
     var quadras = ViewBag.Quadras as List<Padelizou.Models.Quadra> ?? new List<Padelizou.Models.Quadra>();
+
+    // Até quantos games vai ESTE jogo — quem manda é a fase dele (grupos, mata-mata,
+    // semifinal/final), como o organizador configurou. Ver Services/FormatoDaPartida.
+    var formato = ViewBag.Formato as Padelizou.Services.FormatoDaPartida.Formato
+                  ?? new Padelizou.Services.FormatoDaPartida.Formato(
+                         Padelizou.Services.FormatoDaPartida.SetsPadrao,
+                         Padelizou.Services.FormatoDaPartida.GamesPadrao);
 }
 
 <div class="container mt-4">
@@ -61,7 +68,7 @@
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador1Id" class="text-decoration-none">@Model.Dupla1.Jogador1.ComoChamar</a></h6>
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador2Id" class="text-decoration-none">@(Model.Dupla1.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 }
-                                <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" max="9" />
+                                <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@formato.Games" />
                             </div>
 
                             <div class="col-2">
@@ -78,8 +85,29 @@
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador1Id" class="text-decoration-none">@Model.Dupla2.Jogador1.ComoChamar</a></h6>
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador2Id" class="text-decoration-none">@(Model.Dupla2.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 }
-                                <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2" placeholder="0" min="0" max="9" />
+                                <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@formato.Games" />
                             </div>
+                        </div>
+
+                        @* A regra da fase, escrita: sem isso o organizador não tem como saber
+                           por que o campo para em 4 — e "para em 4" era justamente o que a tela
+                           NÃO fazia, com max="9" cravado independente do que ele configurou. *@
+                        <p class="text-center small text-muted mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            @Model.Fase — este jogo vai até <strong>@formato.Games games</strong>@(formato.Sets > 1 ? $", melhor de {formato.Sets} sets" : "").
+                        </p>
+
+                        @* Chegou no limite? O caminho de terminar o jogo tem que estar À MÃO.
+                           Antes, "finalizar" morava escondido num <select> lá em cima, e quem
+                           acabou de digitar 4 x 0 estava olhando pro placar, não pro topo. *@
+                        <div id="pdzFinalizarAqui" class="alert alert-success d-none align-items-center justify-content-between gap-2 flex-wrap">
+                            <span>
+                                <i class="bi bi-flag-fill"></i>
+                                Chegou aos <strong>@formato.Games games</strong>. Pode encerrar o jogo.
+                            </span>
+                            <button type="button" id="pdzBotaoFinalizar" class="btn btn-success fw-bold">
+                                <i class="bi bi-check-circle-fill"></i> Finalizar jogo
+                            </button>
                         </div>
 
                         <hr class="text-muted" />
@@ -115,3 +143,37 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // O atalho de finalizar aparece quando o placar bate o limite da FASE. É só um
+        // atalho: o <select> de status continua lá e manda igual — quem quiser encerrar
+        // antes (WO, desistência, chuva) segue podendo, e é por isso que este botão não
+        // some nem trava nada, só facilita o caminho de sempre.
+        (function () {
+            var limite = @formato.Games;
+            var aviso = document.getElementById('pdzFinalizarAqui');
+            var botao = document.getElementById('pdzBotaoFinalizar');
+            var campos = Array.from(document.querySelectorAll('.js-games'));
+            var status = document.querySelector('select[name="status"]');
+            if (!aviso || !botao || campos.length === 0 || !status) return;
+
+            function conferir() {
+                var bateu = campos.some(function (c) { return parseInt(c.value || '0', 10) >= limite; });
+                // d-none e d-flex brigam: o alert precisa dos dois estados explícitos.
+                aviso.classList.toggle('d-none', !bateu || status.value === 'Finalizada');
+                aviso.classList.toggle('d-flex', bateu && status.value !== 'Finalizada');
+            }
+
+            campos.forEach(function (c) { c.addEventListener('input', conferir); });
+            status.addEventListener('change', conferir);
+
+            botao.addEventListener('click', function () {
+                status.value = 'Finalizada';
+                botao.closest('form').requestSubmit();
+            });
+
+            conferir();
+        })();
+    </script>
+}

@@ -237,62 +237,13 @@
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }
 
-        <div class="row">
+        @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela
+           cada um. O cartão cheio (placar gigante + palpitrômetro aberto) fica só no AO VIVO,
+           que é onde a tela tem um assunto só. *@
+        <div class="pdz-jogos-lista">
             @foreach (var jogo in agendadasList)
             {
-                <div class="col-md-6 mb-3">
-                    <div class="card border-primary shadow-sm">
-                        <div class="card-body text-center">
-                            @* Só o organizador mexe no jogo. O ControlePlacar já recusa quem
-                               não pode, mas mostrar o botão pra todo mundo era ruído — e um
-                               convite a clicar e levar "acesso negado" na cara. *@
-                            @if (ehOrganizador)
-                            {
-                                <div class="d-flex justify-content-center gap-2 mb-2 flex-wrap">
-                                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm btn-danger fw-bold">
-                                            ▶ Colocar no ar
-                                        </button>
-                                    </form>
-                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning">
-                                        ✏️ Editar
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-outline-primary"
-                                            data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
-                                            data-jogo-id="@jogo.Id"
-                                            data-jogo-rotulo="@jogo.Codigo · @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "sem horário") · @jogo.Dupla1.NomeDeExibicao x @jogo.Dupla2.NomeDeExibicao">
-                                        🔁 Trocar horário
-                                    </button>
-                                </div>
-                            }
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="badge bg-secondary">
-                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra a definir" : jogo.NomeQuadra)
-                                </span>
-                                <span class="badge bg-primary">
-                                    📅 @(jogo.HorarioPrevisto?.ToString("dd/MM HH:mm") ?? "Horário a definir")
-                                </span>
-                            </div>
-
-                            <div class="d-flex flex-column align-items-center">
-                                <partial name="_LadoDaPartida" model="jogo.Dupla1" />
-                            </div>
-                            <h5 class="my-2 text-muted fw-bold">VS</h5>
-                            <div class="d-flex flex-column align-items-center">
-                                <partial name="_LadoDaPartida" model="jogo.Dupla2" />
-                            </div>
-
-                            <hr class="my-2">
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
-                            </div>
-
-                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
-                        </div>
-                    </div>
-                </div>
+                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false)" />
             }
         </div>
     </div>
@@ -304,59 +255,11 @@
             <p class="text-muted">Nenhum jogo finalizado ainda.</p>
         }
 
-        <div class="row">
+        @* Jogo que acabou é histórico: o que se procura aqui é o PLACAR e quem ganhou. *@
+        <div class="pdz-jogos-lista">
             @foreach (var jogo in finalizadasList)
             {
-                var games1 = jogo.GamesDupla1 ?? 0;
-                var games2 = jogo.GamesDupla2 ?? 0;
-                var classeDupla1 = games1 > games2 ? "text-success fw-bold" : "text-muted";
-                var classeDupla2 = games2 > games1 ? "text-success fw-bold" : "text-muted";
-
-                <div class="col-md-6 mb-3">
-                    <div class="card border-success shadow-sm">
-                        <div class="card-body text-center">
-                            @if (ehOrganizador)
-                            {
-                                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="btn btn-sm btn-warning mb-2">
-                                    ✏️ Corrigir placar
-                                </a>
-                            }
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="badge bg-secondary">
-                                    📍 @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Não informada" : jogo.NomeQuadra)
-                                </span>
-                                <span class="badge bg-success">✅ Finalizado</span>
-                            </div>
-
-                            <div class="d-flex flex-column align-items-center @classeDupla1">
-                                <partial name="_LadoDaPartida" model="jogo.Dupla1" />
-                            </div>
-
-                            <h3 class="my-2 fw-bold text-dark">
-                                @games1 x @games2
-                            </h3>
-
-                            <div class="d-flex flex-column align-items-center @classeDupla2">
-                                <partial name="_LadoDaPartida" model="jogo.Dupla2" />
-                            </div>
-
-                            <hr class="my-2">
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted fw-bold">@jogo.Categoria.Nome - @jogo.Fase</small>
-
-                                @if (!string.IsNullOrEmpty(jogo.LinkTransmissao))
-                                {
-                                    <a href="@jogo.LinkTransmissao" target="_blank" class="btn btn-sm btn-outline-secondary shadow-sm">
-                                        📼 Assistir VT
-                                    </a>
-                                }
-                            </div>
-
-                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
-                        </div>
-                    </div>
-                </div>
+                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, true)" />
             }
         </div>
     </div>
