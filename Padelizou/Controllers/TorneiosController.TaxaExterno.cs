@@ -18,8 +18,13 @@ namespace Padelizou.Controllers
         // mora num lugar só.
         private async Task<int> PessoasInscritasAsync(int torneioId)
         {
+            // Chave direta fora da base: as duplas dela são as MESMAS pessoas já contadas na
+            // categoria em que se inscreveram. Contar de novo cobraria do organizador duas
+            // vezes pela mesma gente. O filtro é na query (não numa propriedade calculada)
+            // porque aqui a Categoria não vem carregada — e um `false` silencioso viraria
+            // dinheiro cobrado a mais.
             var duplas = await _context.Duplas
-                .Where(d => d.Categoria.TorneioId == torneioId).ToListAsync();
+                .Where(d => d.Categoria.TorneioId == torneioId && !d.Categoria.ChaveDireta).ToListAsync();
             var americanas = await _context.InscricoesAmericanas
                 .Where(i => i.Categoria.TorneioId == torneioId).ToListAsync();
             return TaxaDoTorneioExterno.PessoasInscritas(duplas, americanas);

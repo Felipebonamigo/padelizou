@@ -26,6 +26,12 @@ public static class TaxaDoTorneioExterno
     // seria cobrar por fantasma). Lista de espera fica fora — ela não joga e o organizador
     // não recebeu dela. TIME também fica fora: ele é cadastrado pelo organizador, não paga
     // inscrição pelo sistema — mesma cortesia dos impedimentos, errar pra menos.
+    //
+    // ⚠️ A CHAVE DIRETA também fica fora, mas o filtro dela NÃO está aqui: é a categoria que
+    // carrega a flag, e quem chama nem sempre traz a Categoria carregada — uma propriedade
+    // calculada devolveria `false` calada e cobraria a mais. Por isso ela é filtrada na
+    // QUERY de quem chama (TorneiosController.TaxaExterno e .DiaDoJogo). A razão é a mesma
+    // do time: quem joga a chave direta já foi contado na categoria em que se inscreveu.
     public static int PessoasInscritas(IEnumerable<Dupla> duplas, IEnumerable<InscricaoAmericana> americanas)
     {
         int pessoas = 0;

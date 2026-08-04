@@ -111,9 +111,15 @@ namespace Padelizou.Controllers
             // seria uma segunda verdade sobre o mesmo dinheiro.
             if (vm.CobraPorFora)
             {
+                // CHAVE DIRETA fica fora do dinheiro: ela é montada pelo organizador com gente
+                // que JÁ está inscrita (e paga) na categoria dela — cobrar de novo seria cobrar
+                // a mesma pessoa duas vezes pelo mesmo torneio. Sem este filtro, um mata-mata
+                // paralelo de 24 duplas dobraria o arrecadado da tela. Mesma razão dos times,
+                // e o filtro vive na QUERY de propósito: assim não depende de navegação
+                // carregada pra estar certo. Ver Services/TaxaDoTorneioExterno.
                 var duplasDoTorneio = await _context.Duplas
                     .Include(d => d.Jogador1).Include(d => d.Jogador2).Include(d => d.Categoria)
-                    .Where(d => d.Categoria.TorneioId == id)
+                    .Where(d => d.Categoria.TorneioId == id && !d.Categoria.ChaveDireta)
                     .ToListAsync();
 
                 var americanosDoTorneio = await _context.InscricoesAmericanas
