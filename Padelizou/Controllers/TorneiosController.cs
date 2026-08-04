@@ -362,6 +362,20 @@ namespace Padelizou.Controllers
                         .ToList();
                 }
                 ViewBag.ByesPorCategoria = byesPorCategoria;
+
+                // Os jogos de GRUPO, pra tabela de cada grupo mostrar os resultados ao lado
+                // da classificação. Sem isso a tabela dizia "V 0 · D 0 · SG 0" sem nenhuma
+                // pista de quais jogos faltavam — e o placar já estava no sistema, só não
+                // aparecia onde a pessoa estava olhando.
+                ViewBag.JogosDeGrupo = await _context.Partidas
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                    .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                    .Where(p => p.TorneioId == id
+                             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                    .OrderBy(p => p.HorarioPrevisto).ThenBy(p => p.Id)
+                    .ToListAsync();
             }
 
             return View(torneio);

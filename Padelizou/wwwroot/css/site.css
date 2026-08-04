@@ -1400,53 +1400,103 @@ button, a, input, select { touch-action: manipulation; }
     white-space: nowrap;
 }
 
-/* ── Chaveamento do mata-mata ──────────────────────────────────────────────
-   Dois lados caminhando pro centro, como um chaveamento de copa: as rodadas mais
-   antigas nas pontas, a final no meio com o troféu. O desenho anterior era uma
-   fileira da esquerda pra direita e mostrava só as fases JÁ existentes — numa chave
-   recém-sorteada virava uma coluna solta e um "Campeão: aguardando" do outro lado da
-   tela. Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
-.pdz-chave {
-    display: flex;
-    align-items: stretch;
-    gap: .75rem;
-    overflow-x: auto;          /* chave grande rola dentro de si, nunca estica a página */
-    padding-bottom: .75rem;
+/* ── Chaveamento do mata-mata: ÁRVORE de cima pra baixo ────────────────────
+   A primeira rodada no topo, cada fase numa linha abaixo ligada por linhas que
+   mostram de onde vem cada vaga, e a final no pé com o troféu.
+
+   Vale pra TODO mata-mata — o pós-grupos e o que é só mata-mata usam o mesmo
+   componente, então os dois têm exatamente a mesma cara.
+
+   Uma grade de N colunas (N = vagas da primeira linha). Cada fase abaixo tem metade
+   das vagas, e cada vaga ocupa o DOBRO de colunas — é isso que a centraliza sobre os
+   dois jogos que a alimentam, sem cálculo de pixel.
+
+   ⚠️ A rolagem lateral é UMA só, no container de fora. Uma rolagem por linha
+   desalinharia as colunas: a semifinal deixaria de ficar embaixo das quartas que a
+   alimentam, e as linhas de ligação apontariam pro nada.
+   Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
+.pdz-arv-rolagem {
+    overflow-x: auto;
+    padding-bottom: .5rem;
 }
 
-.pdz-chave-coluna,
-.pdz-chave-centro {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;   /* é o que dá o "afunilamento" do chaveamento */
-    gap: .5rem;
-    flex: 0 0 11.5rem;
+.pdz-arv {
+    display: grid;
+    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr));
+    min-width: min-content;
 }
 
-.pdz-chave-centro {
-    flex-basis: 13rem;
-    justify-content: center;
-    gap: .75rem;
+.pdz-arv-fase,
+.pdz-arv-linha {
+    grid-column: 1 / -1;       /* rótulo e linha ocupam a largura toda da grade */
 }
 
-.pdz-chave-fase {
-    font-size: .68rem;
+.pdz-arv-linha {
+    display: grid;
+    grid-template-columns: subgrid;   /* herda as colunas do pai: tudo alinhado */
+}
+
+@supports not (grid-template-columns: subgrid) {
+    .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(7.5rem, 1fr)); }
+}
+
+.pdz-arv-fase {
+    font-size: .64rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .04em;
+    letter-spacing: .05em;
     color: var(--pdz-muted);
-    margin-bottom: .25rem;
+    margin: .5rem 0 .2rem;
 }
 
+.pdz-arv-celula {
+    padding: 0 .25rem;
+    min-width: 0;
+}
+
+/* A ligação com os dois pais logo acima: dois cotovelos que se encontram no meio e
+   um talo que desce até esta vaga. Tudo em porcentagem da PRÓPRIA célula, então
+   funciona igual numa vaga de 2 colunas e numa de 8. */
+.pdz-arv-liga {
+    position: relative;
+    display: block;
+    height: 14px;
+}
+
+.pdz-arv-liga::before,
+.pdz-arv-liga::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    height: 50%;
+    width: 25%;
+    border-bottom: 2px solid var(--pdz-border);
+}
+
+.pdz-arv-liga::before { left: 25%; border-left: 2px solid var(--pdz-border); }
+.pdz-arv-liga::after  { left: 50%; border-right: 2px solid var(--pdz-border); }
+
+.pdz-arv-liga > i {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 50%;
+    border-left: 2px solid var(--pdz-border);
+}
+
+/* ---- A vaga ----
+   Compacta de propósito: numa chave de 24 duplas são 16 vagas lado a lado, e cartão
+   grande vira parede de rolagem. Cabe o essencial — quem joga, o placar, e a etiqueta
+   fina com hora e quadra. */
 .pdz-chave-vaga {
     border: 1px solid var(--pdz-border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: var(--pdz-surface);
-    padding: .4rem .55rem;
-    font-size: .8rem;
+    padding: .3rem .45rem;
+    font-size: .72rem;
+    line-height: 1.35;
 }
 
-/* Vaga ainda sem dono: tracejada, pra ler como "aqui vai entrar alguém". */
 .pdz-chave-vaga-vazia {
     border-style: dashed;
     background: transparent;
@@ -1459,24 +1509,37 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-chave-quando {
     display: flex;
-    justify-content: space-between;
-    gap: .4rem;
-    font-size: .66rem;
+    align-items: center;
+    gap: .3rem;
+    font-size: .6rem;
     color: var(--pdz-muted);
-    margin-bottom: .25rem;
+    margin-bottom: .15rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-.pdz-chave-quadra { font-weight: 700; }
+.pdz-chave-quadra { margin-left: auto; font-weight: 700; }
+.pdz-chave-aovivo { color: #d9534f; font-weight: 700; }
 
-.pdz-chave-aovivo {
-    color: #d9534f;
+.pdz-chave-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    font-size: .58rem;
     font-weight: 700;
+    color: var(--pdz-muted);
 }
 
 .pdz-chave-lado {
     display: flex;
     align-items: baseline;
-    gap: .4rem;
+    gap: .3rem;
     color: var(--pdz-ink);
 }
 
@@ -1489,13 +1552,40 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-chave-games {
-    flex: 0 0 1rem;
-    text-align: right;
+    flex: 0 0 auto;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
 }
 
 .pdz-chave-venceu { color: var(--padel-green); font-weight: 700; }
+
+/* De onde vem quem vai ocupar a vaga. A LINHA já mostra isso; o número é só a
+   confirmação pra quem está procurando o próprio jogo. */
+.pdz-arv-vem {
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+    font-size: .66rem;
+    color: var(--pdz-muted);
+}
+
+/* Quem passou direto: vaga com cara de "já está dentro", sem placar nem horário. */
+.pdz-arv-bye {
+    border-style: solid;
+    border-color: var(--pdz-lime);
+    background: var(--pdz-surface-alt);
+}
+
+.pdz-chave-selobye {
+    font-size: .55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .02rem .35rem;
+    border-radius: 999px;
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+}
 
 .pdz-chave-trofeu {
     text-align: center;
@@ -1503,61 +1593,87 @@ button, a, input, select { touch-action: manipulation; }
     border-radius: 12px;
     background: var(--pdz-surface-alt);
     border: 1px solid var(--pdz-border);
+    max-width: 16rem;
+    margin: 0 auto;
 }
 
 @media (max-width: 575.98px) {
-    .pdz-chave-coluna, .pdz-chave-centro { flex-basis: 10rem; }
-    .pdz-chave-vaga { font-size: .74rem; }
+    .pdz-arv { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
+    @supports not (grid-template-columns: subgrid) {
+        .pdz-arv-linha { grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(6.5rem, 1fr)); }
+    }
+    .pdz-chave-vaga { font-size: .68rem; }
 }
 
-/* Chaveamento de cima pra baixo: primeira rodada no topo, final embaixo, troféu no pé.
-   Cada fase é uma linha; os jogos se centralizam e a chave afunila sozinha. */
-.pdz-chave-v {
+/* ── Jogos do grupo, embaixo da tabela de classificação ────────────────────
+   A tabela mostra V/D/SG; estes são os jogos que produziram (ou vão produzir)
+   aqueles números. Ficam juntos de propósito: o placar já existia no sistema, só
+   não aparecia onde a pessoa estava olhando. */
+.pdz-grupo-jogos {
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: .35rem;
+    padding: .6rem .75rem .75rem;
+    border-top: 1px solid var(--pdz-border);
 }
 
-.pdz-chave-v-rodada {
-    display: flex;
-    justify-content: center;
-    gap: .6rem;
-    flex-wrap: nowrap;
-    overflow-x: auto;          /* rodada larga (8 jogos) rola dentro de si no celular */
-    padding-bottom: .25rem;
-}
-
-.pdz-chave-v-rodada .pdz-chave-vaga {
-    flex: 1 1 0;
-    min-width: 10.5rem;
-    max-width: 15rem;
-}
-
-.pdz-chave-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.15rem;
-    height: 1.15rem;
-    border-radius: 50%;
-    background: var(--pdz-surface-alt);
+.pdz-grupo-jogo {
     border: 1px solid var(--pdz-border);
+    border-radius: 8px;
+    background: var(--pdz-surface-alt);
+    padding: .35rem .5rem;
+    font-size: .78rem;
+    line-height: 1.35;
+}
+
+.pdz-grupo-jogo-aovivo {
+    border-color: #d9534f;
+    box-shadow: 0 0 0 2px rgba(217, 83, 79, .15);
+}
+
+.pdz-grupo-jogo-quando {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
     font-size: .62rem;
-    font-weight: 700;
     color: var(--pdz-muted);
+    margin-bottom: .1rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-/* A dupla que descansou entra nomeada na fase seguinte, com o selo dizendo por quê. */
-.pdz-chave-selobye {
-    flex: 0 0 auto;
-    font-size: .6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    padding: .05rem .4rem;
-    border-radius: 999px;
-    color: var(--pdz-navy-fixed);
-    background: var(--pdz-lime);
+.pdz-grupo-jogo-quadra { margin-left: auto; font-weight: 700; }
+
+.pdz-grupo-jogo-lado {
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    color: var(--pdz-ink);
 }
 
-.pdz-chave-v .pdz-chave-trofeu { max-width: 16rem; margin: 0 auto; }
+/* Legibilidade acima de "caber": no celular a chave NÃO encolhe o cartão — ele mantém
+   largura e fonte confortáveis e a chave rola de lado. Espremer pra caber na tela
+   deixava o cartão com 90px e fonte de 10px, com os nomes truncados em nada; rolar é
+   um incômodo, não conseguir ler é um defeito. */
+.pdz-arv,
+.pdz-arv-linha {
+    grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
+}
+
+@supports (grid-template-columns: subgrid) {
+    .pdz-arv-linha { grid-template-columns: subgrid; }
+}
+
+.pdz-chave-vaga { font-size: .76rem; }
+.pdz-chave-quando { font-size: .64rem; }
+
+@media (max-width: 575.98px) {
+    .pdz-arv,
+    .pdz-arv-linha {
+        grid-template-columns: repeat(var(--pdz-arv-colunas), minmax(9.5rem, 1fr));
+    }
+    @supports (grid-template-columns: subgrid) {
+        .pdz-arv-linha { grid-template-columns: subgrid; }
+    }
+    .pdz-chave-vaga { font-size: .76rem; }
+}

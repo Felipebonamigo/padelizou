@@ -66,9 +66,22 @@ const MesaOffline = (function () {
         return limitePorPartida[id] || limiteGames;
     }
 
+    // Até onde o placar pode ir AGORA. O limite não é teto seco: jogo até 4 que empata em
+    // 3x3 vai até 5, até 6 que empata em 5x5 vai até 7 — o "vencer por dois" do padel.
+    // Jogo até 9 não estende: 8x8 se resolve no tie-break, e o 9º game é ele. Quem separa
+    // os casos é a paridade. Mesma conta de Services/FormatoDaPartida.TetoDeGames.
+    function tetoDaPartida(id) {
+        const limite = limiteDaPartida(id);
+        if (limite <= 1 || limite % 2 !== 0) return limite;
+
+        const e = estado[id];
+        const empatouNaPenultima = e.games1 >= limite - 1 && e.games2 >= limite - 1;
+        return empatouNaPenultima ? limite + 1 : limite;
+    }
+
     function tocar(id, campo, delta) {
         const e = estado[id];
-        const limiteGamesAqui = limiteDaPartida(id);
+        const limiteGamesAqui = tetoDaPartida(id);
         const limite = campo.startsWith("games") ? limiteGamesAqui : 99;
         const anterior = e[campo];
         e[campo] = Math.min(limite, Math.max(0, e[campo] + delta));

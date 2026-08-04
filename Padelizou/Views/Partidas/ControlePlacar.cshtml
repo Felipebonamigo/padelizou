@@ -95,6 +95,12 @@
                         <p class="text-center small text-muted mb-3">
                             <i class="bi bi-info-circle"></i>
                             @Model.Fase — este jogo vai até <strong>@formato.Games games</strong>@(formato.Sets > 1 ? $", melhor de {formato.Sets} sets" : "").
+                            @if (formato.Games % 2 == 0 && formato.Games > 1)
+                            {
+                                <text>
+                                    Empatando em @(formato.Games - 1)x@(formato.Games - 1), vai até @(formato.Games + 1).
+                                </text>
+                            }
                         </p>
 
                         @* Chegou no limite? O caminho de terminar o jogo tem que estar À MÃO.
@@ -158,8 +164,27 @@
             var status = document.querySelector('select[name="status"]');
             if (!aviso || !botao || campos.length === 0 || !status) return;
 
+            // O limite não é teto seco: jogo até 4 que empata em 3x3 vai até 5 (o "vencer
+            // por dois"); até 9 não estende, porque 8x8 se resolve no tie-break e o 9º game
+            // é ele. Mesma conta de Services/FormatoDaPartida.
+            function teto(g1, g2) {
+                if (limite <= 1 || limite % 2 !== 0) return limite;
+                return (g1 >= limite - 1 && g2 >= limite - 1) ? limite + 1 : limite;
+            }
+
             function conferir() {
-                var bateu = campos.some(function (c) { return parseInt(c.value || '0', 10) >= limite; });
+                var g1 = parseInt(campos[0].value || '0', 10);
+                var g2 = parseInt(campos[1] ? campos[1].value || '0' : '0', 10);
+                var alvo = teto(g1, g2);
+
+                // O campo acompanha o teto do momento: em 3x3 ele libera o 5º game.
+                campos.forEach(function (c) { c.setAttribute('max', alvo); });
+
+                // Encerrar só quando ALGUÉM venceu — em 3x3 (jogo até 4) ninguém venceu
+                // ainda, apesar de o 3 estar a um game do fim.
+                var bateu = (g1 >= alvo || g2 >= alvo)
+                         || (g1 >= limite && g1 > g2) || (g2 >= limite && g2 > g1);
+
                 // d-none e d-flex brigam: o alert precisa dos dois estados explícitos.
                 aviso.classList.toggle('d-none', !bateu || status.value === 'Finalizada');
                 aviso.classList.toggle('d-flex', bateu && status.value !== 'Finalizada');

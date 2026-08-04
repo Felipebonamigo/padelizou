@@ -66,4 +66,36 @@ public class FormatoDaPartidaTests
     {
         Assert.Equal(FormatoDaPartida.GamesPadrao, FormatoDaPartida.De(null, "Final").Games);
     }
+
+    // ---- O limite não é teto seco: "vencer por dois" ----
+    // Regra da quadra (Felipe, 05/08/2026): jogo até 4 que empata em 3x3 vai até 5; até 6
+    // que empata em 5x5 vai até 7. Já o de 9 NÃO estende — 8x8 se resolve no tie-break, e o
+    // 9º game é ele. Quem separa os casos é a paridade do limite.
+
+    [Theory]
+    [InlineData(4, 0, 0, 4)]   // começo de jogo: teto normal
+    [InlineData(4, 3, 0, 4)]   // 3x0 não é empate — segue valendo 4
+    [InlineData(4, 3, 3, 5)]   // empatou na penúltima: vai até 5
+    [InlineData(4, 4, 3, 5)]   // e continua valendo depois do empate
+    [InlineData(6, 5, 5, 7)]
+    [InlineData(6, 5, 4, 6)]
+    [InlineData(9, 8, 8, 9)]   // ímpar não estende: o 9º game É o tie-break
+    [InlineData(1, 0, 0, 1)]
+    public void O_teto_sobe_um_game_quando_empata_na_penultima(int limite, int g1, int g2, int teto)
+    {
+        Assert.Equal(teto, FormatoDaPartida.TetoDeGames(limite, g1, g2));
+    }
+
+    [Theory]
+    [InlineData(4, 4, 0, true)]    // alguém chegou em 4 na frente: acabou
+    [InlineData(4, 3, 3, false)]   // empate na penúltima: NINGUÉM venceu ainda
+    [InlineData(4, 4, 3, true)]    // 4x3 já decide (o desempate foi jogado)
+    [InlineData(4, 5, 4, true)]    // e o teto estendido também encerra
+    [InlineData(4, 2, 1, false)]
+    [InlineData(9, 9, 7, true)]
+    [InlineData(9, 8, 8, false)]
+    public void Encerrar_so_quando_alguem_venceu(int limite, int g1, int g2, bool pode)
+    {
+        Assert.Equal(pode, FormatoDaPartida.PodeEncerrar(limite, g1, g2));
+    }
 }

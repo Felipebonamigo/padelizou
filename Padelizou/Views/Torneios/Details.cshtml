@@ -17,6 +17,17 @@
         .SelectMany(c => Padelizou.Services.ForaDoSorteio.Listar(c.Duplas))
         .ToList();
 
+    // Nome curto de dupla: primeiro nome de cada um. Usado nas listas densas (jogos do
+    // grupo, chaveamento), onde nome completo estoura a largura e trunca os DOIS lados.
+    Func<Padelizou.Models.Dupla?, string> NomeCurtoDaDupla = d =>
+    {
+        if (d == null) return "A definir";
+        if (d.EhTime) return d.NomeTime ?? "Time";
+        var p1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
+        var p2 = d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?";
+        return $"{p1} / {p2}";
+    };
+
     // Texto da confirmação de sortear as chaves (o modal em _ModalConfirmar).
     // Quem fica de fora aparece POR NOME: "3 inscritos" não deixa ninguém reconhecer o amigo
     // que vai perder o torneio, que é justamente a informação capaz de mudar a decisão.
@@ -1944,6 +1955,61 @@
                                                     </tbody>
                                                 </table>
                                             </div>
+
+                                            @* Os JOGOS deste grupo, logo abaixo da tabela.
+                                               Sem eles a classificação mostrava "V 0 · D 0"
+                                               sem nenhuma pista de quais jogos faltavam — e o
+                                               placar já estava no sistema, só não aparecia
+                                               onde a pessoa estava olhando. *@
+                                            @{
+                                                var todosOsJogosDeGrupo = ViewBag.JogosDeGrupo as List<Padelizou.Models.Partida>
+                                                                          ?? new List<Padelizou.Models.Partida>();
+                                                var idsDoGrupo = grupo.Duplas.Select(d => d.Id).ToHashSet();
+                                                var jogosDesteGrupo = todosOsJogosDeGrupo
+                                                    .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
+                                                    .ToList();
+                                            }
+                                            @if (jogosDesteGrupo.Count > 0)
+                                            {
+                                                <div class="pdz-grupo-jogos">
+                                                    @foreach (var jogoDoGrupo in jogosDesteGrupo)
+                                                    {
+                                                        var acabou = jogoDoGrupo.Status == "Finalizada";
+                                                        var noAr = jogoDoGrupo.Status == "AoVivo";
+                                                        var ganhou1 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla1Id;
+                                                        var ganhou2 = jogoDoGrupo.VencedorId == jogoDoGrupo.Dupla2Id;
+
+                                                        <div class="pdz-grupo-jogo @(noAr ? "pdz-grupo-jogo-aovivo" : "")">
+                                                            <div class="pdz-grupo-jogo-quando">
+                                                                @if (noAr)
+                                                                {
+                                                                    <span class="pdz-chave-aovivo">● AO VIVO</span>
+                                                                }
+                                                                else if (jogoDoGrupo.HorarioPrevisto is DateTime hg)
+                                                                {
+                                                                    <span>@hg.ToString("dd/MM HH:mm")</span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span>por ordem</span>
+                                                                }
+                                                                @if (!string.IsNullOrEmpty(jogoDoGrupo.NomeQuadra))
+                                                                {
+                                                                    <span class="pdz-grupo-jogo-quadra">@jogoDoGrupo.NomeQuadra</span>
+                                                                }
+                                                            </div>
+                                                            <div class="pdz-grupo-jogo-lado @(ganhou1 ? "pdz-chave-venceu" : ganhou2 ? "text-muted" : "")">
+                                                                <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla1)</span>
+                                                                <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla1?.ToString() ?? "0") : "–")</span>
+                                                            </div>
+                                                            <div class="pdz-grupo-jogo-lado @(ganhou2 ? "pdz-chave-venceu" : ganhou1 ? "text-muted" : "")">
+                                                                <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla2)</span>
+                                                                <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla2?.ToString() ?? "0") : "–")</span>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
                                         </div>
                                     </div>
                                 </div>
