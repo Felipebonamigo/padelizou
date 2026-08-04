@@ -251,12 +251,12 @@ a:hover { color: var(--pdz-lime-600); }
 }
 
 /* Onde a barra não tem folga pra seta E nome, o nome sai — as raquetes já identificam.
-   A faixa é essa e não outra: abaixo de 992px o menu está recolhido no sanduíche e sobra
+   A faixa é essa e não outra: abaixo de 1200px o menu está recolhido no sanduíche e sobra
    espaço de sobra; acima de 1400px cabe tudo. No meio, os itens ficam todos abertos ao mesmo
    tempo e a barra já vivia no limite (ver o comentário de largura em .pdz-brand-logo) — os
    40px da seta reabriam a rolagem lateral, medida em 1280px: 1310 de conteúdo pra 1265 de
    tela. O seletor casa só quando a seta existe; sem ela, o nome continua onde sempre esteve. */
-@media (min-width: 992px) and (max-width: 1399.98px) {
+@media (min-width: 1200px) and (max-width: 1399.98px) {
     .pdz-voltar ~ .navbar-brand .pdz-wordmark { display: none; }
 }
 
@@ -336,12 +336,14 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-user-chip:hover { background: rgba(255, 255, 255, .16); color: #fff; }
 .pdz-user-chip i { color: var(--pdz-lime-300); font-size: 1.15rem; }
 
-/* No desktop o chip precisa ser mais curto que os 190px de cima: entre 992px e ~1400px a barra
-   inteira mal cabe, e o nome do usuário era a peça que decidia se cabia ou não. Com "Felipe" a
-   página não rolava de lado; com "Felipe Carboni Bonamigo dos Santos" rolava 58px. Layout que
-   depende do tamanho do nome de quem entrou quebra sem ninguém mexer em nada. O `text-truncate`
-   do span corta com reticências, e o nome inteiro continua no `title`. */
-@media (min-width: 992px) {
+/* No desktop o chip precisa ser mais curto que os 190px de cima: com o menu todo aberto a barra
+   mal cabe, e o nome do usuário era a peça que decidia se cabia ou não. Com "Felipe" a página
+   não rolava de lado; com "Felipe Carboni Bonamigo dos Santos" rolava 58px. Layout que depende
+   do tamanho do nome de quem entrou quebra sem ninguém mexer em nada. O `text-truncate` do span
+   corta com reticências, e o nome inteiro continua no `title`.
+   Começa em 1200px porque é aí que o menu deixa de ser sanduíche (navbar-expand-xl); abaixo
+   disso o chip está dentro do menu recolhido e pode usar a largura toda. */
+@media (min-width: 1200px) {
     .pdz-user-chip { max-width: 120px; }
 }
 
@@ -393,8 +395,10 @@ a:hover { color: var(--pdz-lime-600); }
 
 /* No celular o submenu de "Jogos" nascia com 30px de altura — o padrão de alvo de toque é 44px,
    e os itens de primeiro nível do menu já têm 41px. Quem abre o menu está com o celular na mão,
-   muitas vezes na beira da quadra. */
-@media (max-width: 991.98px) {
+   muitas vezes na beira da quadra.
+   Vale até 1199.98px porque é até ali que o menu fica no sanduíche (navbar-expand-xl): a regra
+   é sobre o menu estar RECOLHIDO, não sobre ser celular. */
+@media (max-width: 1199.98px) {
     .pdz-navbar .dropdown-item {
         padding-top: .55rem;
         padding-bottom: .55rem;
@@ -411,7 +415,8 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-btn-ghost:hover { background: rgba(255, 255, 255, .14); color: #fff; }
 
-@media (max-width: 991.98px) {
+/* Espaçamento do menu ABERTO no sanduíche — acompanha o ponto de quebra do navbar-expand-xl. */
+@media (max-width: 1199.98px) {
     .navbar-collapse { margin-top: .75rem; }
     .pdz-navbar .nav-link { padding: .6rem .9rem; }
     .pdz-authbar { margin-top: .5rem; }

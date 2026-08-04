@@ -105,7 +105,13 @@
        busca do JS pega o primeiro que encontra, então a origem fica sempre a mesma. *@
     @Html.AntiForgeryToken()
     <header>
-        <nav class="navbar navbar-expand-lg navbar-dark pdz-navbar sticky-top">
+        @* expand-XL, não expand-lg: entre 992 e 1199px os itens do menu abriam todos ao mesmo
+           tempo e não cabiam — 1221px de conteúdo pra 985px de tela, medido em 1000px, o que
+           dava rolagem lateral em todo notebook pequeno. O remendo do `max-width: 120px` no
+           nome do usuário (ver site.css) foi uma tentativa anterior de espremer isso.
+           Nessa faixa o menu passa a ficar no sanduíche, onde sobra espaço de sobra.
+           As regras de CSS que dependem de "o menu está recolhido" acompanharam pra 1199.98. *@
+        <nav class="navbar navbar-expand-xl navbar-dark pdz-navbar sticky-top">
             <div class="container">
                 @* A seta de voltar é do APP, não da página — por isso mora aqui na barra e não
                    no corpo. Quase 60 telas já têm um "Voltar ao X" próprio, que diz PRA ONDE
