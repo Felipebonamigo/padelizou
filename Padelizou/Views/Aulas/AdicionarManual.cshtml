@@ -11,6 +11,20 @@
     var tabelaDeLocais = Model.ToDictionary(
         l => l.Id,
         l => new { individual = l.PrecoPadrao, dupla = l.PrecoDupla, trio = l.PrecoTrio });
+
+    // Quem já fez aula com este professor. Vai inteiro pro JS pelo mesmo motivo dos preços:
+    // filtrar no navegador funciona com o sinal que a quadra tiver.
+    var meusAlunos = ViewBag.MeusAlunos as List<Padelizou.Services.AlunoDoProfessor>
+                     ?? new List<Padelizou.Services.AlunoDoProfessor>();
+    var alunosParaJs = meusAlunos.Select(a => new
+    {
+        alunoId = a.AlunoId,
+        nome = a.Nome,
+        celular = a.Celular,
+        total = a.TotalDeAulas,
+        recorrente = a.Recorrente,
+        temConta = a.TemConta,
+    });
 }
 
 <div class="container mt-5 mb-5">
@@ -74,16 +88,45 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Nome do aluno</label>
-                                <input type="text" name="nomeAluno" id="input-nome-aluno" class="form-control bg-light" required maxlength="100" />
+                                <label class="form-label fw-bold text-muted small" for="input-nome-aluno">Nome do aluno</label>
+                                <input type="text" name="nomeAluno" id="input-nome-aluno" class="form-control bg-light"
+                                       required maxlength="100" autocomplete="off"
+                                       placeholder="Digite pra buscar entre os seus alunos" />
+                                @* Guarda a conta do aluno escolhido. Sem isto a aula nascia
+                                   como nome solto mesmo pra quem tem cadastro — e aí o aluno
+                                   não via a própria aula no app. *@
+                                <input type="hidden" name="alunoId" id="input-aluno-id" value="" />
+
+                                @* Atalho: os alunos dele, filtrados enquanto digita. Marcar a
+                                   aula do aluno de toda terça passa a ser um toque. *@
+                                <div id="lista-alunos" class="list-group mt-1 d-none"
+                                     style="max-height: 240px; overflow-y: auto;"></div>
+
+                                <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                                    <div id="aluno-escolhido" class="small d-none"></div>
+                                    @* Procurar no cadastro do site é sob demanda, nunca por
+                                       tecla: é chamada de rede, e a lista de cima já resolve
+                                       o caso comum sem sair do aparelho. *@
+                                    <button type="button" id="btn-buscar-sistema"
+                                            class="btn btn-sm btn-outline-secondary rounded-pill d-none">
+                                        <i class="bi bi-search"></i> Procurar no Padelizou
+                                    </button>
+                                </div>
+
                                 @* Aparece só quando o nome digitado bate com um acordo. É o
                                    aviso de que o valor sugerido não é o da tabela do local. *@
                                 <div class="form-text text-success d-none" id="aviso-preco-combinado"></div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Telefone / WhatsApp</label>
-                                <input type="text" name="telefoneAluno" class="form-control bg-light" required
+                                <label class="form-label fw-bold text-muted small">
+                                    Telefone / WhatsApp <span class="fw-normal">(opcional)</span>
+                                </label>
+                                @* Deixou de ser obrigatório em 04/08/2026: quem marca é o
+                                   professor, e ele quase nunca tem o número do aluno na mão
+                                   na beira da quadra. *@
+                                <input type="text" name="telefoneAluno" id="input-telefone-aluno"
+                                       class="form-control bg-light"
                                        data-mascara="celular" inputmode="numeric" placeholder="(00) 00000-0000" />
                             </div>
 
@@ -127,12 +170,20 @@
             var $inputPreco = $('#input-preco');
             var $inputNome = $('#input-nome-aluno');
             var $avisoCombinado = $('#aviso-preco-combinado');
+            var $inputAlunoId = $('#input-aluno-id');
+            var $inputTelefone = $('#input-telefone-aluno');
+            var $listaAlunos = $('#lista-alunos');
+            var $escolhido = $('#aluno-escolhido');
+            var $btnBuscar = $('#btn-buscar-sistema');
+            // Trava pra escolher um aluno não disparar o handler que LIMPA a escolha.
+            var escolhendo = false;
 
             // A tabela de preços de cada local e os acordos por aluno, mandados de uma vez pelo
             // servidor. O preço tem que aparecer no instante em que o professor escolhe o
             // tamanho da aula, e uma ida ao servidor por clique falharia na quadra sem sinal.
             var LOCAIS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(tabelaDeLocais));
             var COMBINADOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(precosCombinados));
+            var MEUS_ALUNOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(alunosParaJs));
 
             $checkRecorrente.on('change', function () {
                 $grupoSemanas.toggle(this.checked);
@@ -149,8 +200,13 @@
 
             // O acordo particular vale na aula INDIVIDUAL daquele aluno: o desconto foi dado a
             // uma pessoa, não à quadra inteira. Em dupla ou trio manda o preço do tamanho.
+            //
+            // Com aluno escolhido da lista a chave é a CONTA dele; sem conta, o nome. É a
+            // mesma regra do servidor (Services/PrecoDaAula.Chave) — se divergir, o professor
+            // vê um valor na tela e grava outro.
             function combinadoDoNome(nome) {
-                var chave = 'avulso-' + (nome || '').trim().toLowerCase();
+                var id = $inputAlunoId.val();
+                var chave = id ? ('aluno-' + id) : ('avulso-' + (nome || '').trim().toLowerCase());
                 return Object.prototype.hasOwnProperty.call(COMBINADOS, chave) ? COMBINADOS[chave] : null;
             }
 
@@ -176,7 +232,117 @@
 
             $selectLocal.on('change', atualizarSugestao);
             $('input[name="quantidadeAlunos"]').on('change', atualizarSugestao);
-            $inputNome.on('input', atualizarSugestao);
+
+            // ── Atalho dos alunos ────────────────────────────────────────────────────────
+            // O professor marca a aula PELO aluno, e antes disto redigitava nome e telefone
+            // toda vez — inclusive pro aluno de toda terça. A lista dele vem pronta do
+            // servidor; procurar no cadastro do site é botão, nunca por tecla.
+
+            function selo(a) {
+                if (a.recorrente) return '<span class="badge bg-success-subtle text-success-emphasis ms-1">aluno recorrente</span>';
+                if (a.temConta || a.alunoId) return '<span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">tem conta</span>';
+                return '';
+            }
+
+            // A legenda não repete o que o selo já disse. Quem vem da busca não tem contagem
+            // de aulas, então ali o útil é o apelido ou o telefone — serve pra distinguir dois
+            // homônimos, que é a única dúvida real nessa hora.
+            function linha(a) {
+                var sub = a.total
+                    ? (a.total + (a.total === 1 ? ' aula' : ' aulas'))
+                    : (a.apelido || a.celular || '');
+                return '<button type="button" class="list-group-item list-group-item-action py-2">'
+                    + '<span class="fw-semibold">' + $('<div>').text(a.nome).html() + '</span>'
+                    + selo(a)
+                    + (sub ? '<div class="small text-muted">' + $('<div>').text(sub).html() + '</div>' : '')
+                    + '</button>';
+            }
+
+            function mostrarLista(itens) {
+                $listaAlunos.empty();
+                if (!itens.length) { $listaAlunos.addClass('d-none'); return; }
+
+                itens.slice(0, 12).forEach(function (a) {
+                    $(linha(a)).on('click', function () { escolher(a); }).appendTo($listaAlunos);
+                });
+                $listaAlunos.removeClass('d-none');
+            }
+
+            function escolher(a) {
+                escolhendo = true;
+                $inputNome.val(a.nome);
+                $inputAlunoId.val(a.alunoId || '');
+                // Só preenche o telefone se estiver vazio: o que o professor digitou na mão
+                // vale mais que o do cadastro, que pode estar velho.
+                if (a.celular && !$inputTelefone.val()) $inputTelefone.val(a.celular);
+
+                $listaAlunos.addClass('d-none');
+                $btnBuscar.addClass('d-none');
+                $escolhido
+                    .removeClass('d-none')
+                    .html(a.alunoId
+                        ? '<i class="bi bi-person-check-fill text-success"></i> Aula ligada à conta de <strong>'
+                          + $('<div>').text(a.nome).html() + '</strong> — ele vai ver no app dele.'
+                        : '<i class="bi bi-person"></i> <strong>' + $('<div>').text(a.nome).html()
+                          + '</strong> ainda não tem conta no Padelizou.');
+                atualizarSugestao();
+                escolhendo = false;
+            }
+
+            function filtrarLocal() {
+                var termo = semAcento($inputNome.val());
+                if (!termo) { $listaAlunos.addClass('d-none'); $btnBuscar.addClass('d-none'); return; }
+
+                var achados = MEUS_ALUNOS.filter(function (a) {
+                    return semAcento(a.nome).indexOf(termo) >= 0;
+                });
+                mostrarLista(achados);
+
+                // A porta pro cadastro do site aparece quando a lista dele não resolve.
+                $btnBuscar.toggleClass('d-none', termo.length < 3);
+            }
+
+            function semAcento(t) {
+                return (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+            }
+
+            $inputNome.on('input', function () {
+                if (escolhendo) return;
+                // Mudou o nome depois de escolher: deixou de ser aquela pessoa, e manter o
+                // vínculo penduraria a aula na conta errada.
+                $inputAlunoId.val('');
+                $escolhido.addClass('d-none');
+                filtrarLocal();
+                atualizarSugestao();
+            });
+
+            $inputNome.on('focus', filtrarLocal);
+
+            $btnBuscar.on('click', function () {
+                var $b = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procurando…');
+                $.getJSON('@Url.Action("BuscarAlunoNoSistema", "Aulas")', { termo: $inputNome.val() })
+                    .done(function (r) {
+                        if (r.erro) { alert(r.erro); return; }
+                        if (!r.encontrados || !r.encontrados.length) {
+                            $listaAlunos.html('<div class="list-group-item small text-muted">'
+                                + 'Ninguém com esse nome no Padelizou. Pode marcar assim mesmo — '
+                                + 'quando essa pessoa criar conta, dá pra ligar o histórico a ela.</div>')
+                                .removeClass('d-none');
+                            return;
+                        }
+                        mostrarLista(r.encontrados);
+                    })
+                    .fail(function () { alert('Não deu pra procurar agora. Marque pelo nome mesmo.'); })
+                    .always(function () { $b.prop('disabled', false).html('<i class="bi bi-search"></i> Procurar no Padelizou'); });
+            });
+
+            // Clicar fora fecha a lista, mas não quando o clique é NELA — senão o item some
+            // antes do próprio clique chegar.
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('#lista-alunos, #input-nome-aluno, #btn-buscar-sistema').length) {
+                    $listaAlunos.addClass('d-none');
+                }
+            });
         });
     </script>
 }

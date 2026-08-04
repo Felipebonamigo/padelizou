@@ -277,6 +277,76 @@ namespace padelizou.Controllers
             return RedirectToAction("Dashboard");
         }
 
+        // Liga um aluno que foi marcado só pelo nome à conta dele no Padelizou.
+        //
+        // Existe porque a ordem natural é essa: o professor marca a aula de quem ainda não usa
+        // o app, e a pessoa cria conta depois. Sem isto, o histórico ficava partido em dois —
+        // as aulas antigas penduradas num nome solto, as novas na conta — e o aluno nunca via
+        // no próprio app as aulas que já tinha feito.
+        [HttpPost]
+        public async Task<IActionResult> VincularAlunoAConta(string nomeAvulso, int alunoId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var nome = (nomeAvulso ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(nome))
+            {
+                TempData["ErroPrecoAluno"] = "Não achei esse aluno na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // Só as aulas DESTE professor, e só as que ainda não têm dono. Sem os dois
+            // recortes, um id no formulário mexeria na agenda de outro professor ou
+            // reescreveria o vínculo de uma aula que já estava certa.
+            var aulas = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId && a.AlunoId == null && a.NomeAlunoAvulso == nome)
+                .ToListAsync();
+
+            if (aulas.Count == 0)
+            {
+                TempData["ErroPrecoAluno"] = $"Não achei aulas de \"{nome}\" sem conta ligada na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var conta = await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == alunoId);
+            if (conta == null)
+            {
+                TempData["ErroPrecoAluno"] = "Essa conta não existe.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // O professor não vira aluno de si mesmo.
+            if (conta.Id == professorId)
+            {
+                TempData["ErroPrecoAluno"] = "Essa conta é a sua.";
+                return RedirectToAction("Dashboard");
+            }
+
+            foreach (var aula in aulas) aula.AlunoId = conta.Id;
+
+            // O acordo de preço segue junto: ele foi combinado com a PESSOA, e ficar preso ao
+            // nome antigo faria o desconto sumir no dia em que ela criou conta.
+            var acordos = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId)
+                .ToListAsync();
+            var acordoDoNome = acordos.FirstOrDefault(p => PrecoDaAula.Chave(p) == PrecoDaAula.Chave(null, nome));
+            var jaTinhaDaConta = acordos.Any(p => PrecoDaAula.Chave(p) == PrecoDaAula.Chave(conta.Id, null));
+
+            if (acordoDoNome != null && !jaTinhaDaConta)
+            {
+                acordoDoNome.AlunoId = conta.Id;
+                acordoDoNome.NomeAvulso = null;
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoPrecoAluno"] =
+                $"Pronto: {aulas.Count} aula(s) de \"{nome}\" agora estão na conta de {conta.ComoChamar}. "
+                + "Ele passa a ver o histórico no app dele.";
+            return RedirectToAction("Dashboard");
+        }
+
         [HttpPost]
         public async Task<IActionResult> RemoverPrecoDeAluno(int id)
         {

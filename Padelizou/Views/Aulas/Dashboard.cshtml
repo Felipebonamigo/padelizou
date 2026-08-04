@@ -262,6 +262,19 @@
                                         <tr>
                                             <td>
                                                 @aluno.Nome
+                                                @* Quem foi marcado só pelo nome não vê nada no
+                                                   próprio app. Quando cria conta, é aqui que o
+                                                   professor junta o histórico à conta dela. *@
+                                                @if (aluno.AlunoId == null && !string.IsNullOrWhiteSpace(aluno.NomeAvulso))
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-link p-0 ms-1 text-decoration-none small pdz-vincular"
+                                                            data-nome="@aluno.NomeAvulso"
+                                                            data-bs-toggle="collapse" data-bs-target="#vincular-@i"
+                                                            title="Ligar as aulas dele a uma conta do Padelizou">
+                                                        <i class="bi bi-link-45deg"></i> ligar a uma conta
+                                                    </button>
+                                                }
                                                 <div class="d-sm-none small text-muted">última: @aluno.UltimaAula.ToString("dd/MM/yy")</div>
                                             </td>
                                             <td class="text-center">@aluno.TotalAulas</td>
@@ -320,6 +333,45 @@
                                                 }
                                             </td>
                                         </tr>
+
+                                        @* Ligar as aulas de um aluno sem conta à conta que ele
+                                           acabou de criar. Reaproveita a mesma busca da tela de
+                                           marcar aula — um jeito só de procurar gente. *@
+                                        @if (aluno.AlunoId == null && !string.IsNullOrWhiteSpace(aluno.NomeAvulso))
+                                        {
+                                            <tr class="collapse" id="vincular-@i">
+                                                <td colspan="5" class="bg-light">
+                                                    <form asp-controller="Aulas" asp-action="VincularAlunoAConta" method="post"
+                                                          class="row g-2 align-items-end py-2 pdz-form-vincular">
+                                                        <input type="hidden" name="nomeAvulso" value="@aluno.NomeAvulso" />
+                                                        <input type="hidden" name="alunoId" class="pdz-vinc-id" value="" />
+                                                        <div class="col-12">
+                                                            <label class="form-label small text-muted mb-0">
+                                                                Ligar as @aluno.TotalAulas aula(s) de <strong>@aluno.Nome</strong> a qual conta?
+                                                            </label>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="text" class="form-control pdz-vinc-termo"
+                                                                       placeholder="Nome de quem criou a conta" autocomplete="off" />
+                                                                <button type="button" class="btn btn-outline-secondary pdz-vinc-buscar">
+                                                                    <i class="bi bi-search"></i> Procurar
+                                                                </button>
+                                                            </div>
+                                                            <div class="list-group mt-1 d-none pdz-vinc-lista"
+                                                                 style="max-height: 200px; overflow-y: auto;"></div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <button type="submit" class="btn btn-sm btn-padel d-none pdz-vinc-salvar">
+                                                                Ligar à conta escolhida
+                                                            </button>
+                                                            <small class="text-muted d-block mt-1">
+                                                                O histórico passa a aparecer no app dele. Não desfaz sozinho —
+                                                                confira que é a pessoa certa.
+                                                            </small>
+                                                        </div>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
                                     }
                                 </tbody>
                             </table>
@@ -417,3 +469,65 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Ligar um aluno sem conta à conta que ele criou. A busca é sob demanda (botão), nunca
+        // por tecla: é chamada de rede, e o professor costuma estar na quadra.
+        document.querySelectorAll('.pdz-form-vincular').forEach(function (form) {
+            var termo = form.querySelector('.pdz-vinc-termo');
+            var lista = form.querySelector('.pdz-vinc-lista');
+            var campoId = form.querySelector('.pdz-vinc-id');
+            var salvar = form.querySelector('.pdz-vinc-salvar');
+
+            function escapar(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+            form.querySelector('.pdz-vinc-buscar').addEventListener('click', function () {
+                var q = (termo.value || '').trim();
+                if (q.length < 3) { alert('Digite pelo menos 3 letras do nome.'); return; }
+
+                fetch('@Url.Action("BuscarAlunoNoSistema", "Aulas")?termo=' + encodeURIComponent(q))
+                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        lista.innerHTML = '';
+                        lista.classList.remove('d-none');
+
+                        if (r.erro) { lista.innerHTML = '<div class="list-group-item small text-muted">' + escapar(r.erro) + '</div>'; return; }
+                        if (!r.encontrados || !r.encontrados.length) {
+                            lista.innerHTML = '<div class="list-group-item small text-muted">'
+                                + 'Ninguém com esse nome. Ele já criou a conta no Padelizou?</div>';
+                            return;
+                        }
+
+                        r.encontrados.forEach(function (p) {
+                            var b = document.createElement('button');
+                            b.type = 'button';
+                            b.className = 'list-group-item list-group-item-action py-2 small';
+                            b.innerHTML = '<span class="fw-semibold">' + escapar(p.nome) + '</span>'
+                                + (p.apelido ? ' <span class="text-muted">(' + escapar(p.apelido) + ')</span>' : '')
+                                + (p.jaFezAulaComigo ? '<span class="badge bg-warning-subtle text-warning-emphasis ms-1">já é seu aluno</span>' : '');
+                            b.addEventListener('click', function () {
+                                campoId.value = p.alunoId;
+                                termo.value = p.nome;
+                                lista.classList.add('d-none');
+                                salvar.classList.remove('d-none');
+                            });
+                            lista.appendChild(b);
+                        });
+                    })
+                    .catch(function () { alert('Não deu pra procurar agora. Tente de novo.'); });
+            });
+
+            // Mudou o texto depois de escolher: some o botão de salvar, senão ligaria à
+            // conta anterior enquanto a tela mostra outro nome.
+            termo.addEventListener('input', function () {
+                campoId.value = '';
+                salvar.classList.add('d-none');
+            });
+
+            form.addEventListener('submit', function (ev) {
+                if (!campoId.value) { ev.preventDefault(); alert('Escolha a conta na lista antes de ligar.'); }
+            });
+        });
+    </script>
+}

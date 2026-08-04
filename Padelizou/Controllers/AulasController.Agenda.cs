@@ -30,7 +30,68 @@ namespace padelizou.Controllers
             // cada letra do nome seria pior em toda quadra com sinal ruim.
             ViewBag.PrecosCombinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
 
+            // Os alunos que já fizeram aula com ele, pré-carregados pelo mesmo motivo do
+            // parágrafo acima: a lista inteira de um professor cabe folgada numa página, e
+            // filtrar no navegador funciona com o sinal que a quadra tiver.
+            ViewBag.MeusAlunos = await MeusAlunosAsync(professorId.Value);
+
             return View(locais);
+        }
+
+        private async Task<List<AlunoDoProfessor>> MeusAlunosAsync(int professorId)
+        {
+            var aulas = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Where(a => a.ProfessorId == professorId)
+                .ToListAsync();
+
+            return AlunosDoProfessor.Montar(aulas);
+        }
+
+        // Procura no cadastro do Padelizou quem o professor ainda NÃO deu aula.
+        //
+        // Só roda quando ele pede — a lista dos alunos dele já vem pronta na página, e sair
+        // pra rede a cada tecla é justamente o que não funciona na beira da quadra. Devolve
+        // também quem já é aluno dele, marcado, pra ele não cadastrar a mesma pessoa duas
+        // vezes por não ter reconhecido o nome completo.
+        [HttpGet]
+        public async Task<IActionResult> BuscarAlunoNoSistema(string? termo)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return Forbid();
+
+            var procurado = (termo ?? "").Trim();
+            if (procurado.Length < 3)
+            {
+                return Json(new { erro = "Digite pelo menos 3 letras do nome." });
+            }
+
+            // Filtra o grosso no banco e afina sem acento em memória: o Postgres compararia
+            // "Jonatas" com "Jônatas" como diferentes, e é exatamente esse par que o
+            // professor digita errado.
+            var candidatos = await _context.Jogadores
+                .Where(j => j.Id != professorId && EF.Functions.ILike(j.Nome, $"%{procurado}%"))
+                .OrderBy(j => j.Nome)
+                .Take(30)
+                .Select(j => new { j.Id, j.Nome, j.Apelido, j.Celular })
+                .ToListAsync();
+
+            var jaSaoMeus = (await MeusAlunosAsync(professorId.Value))
+                .Where(a => a.AlunoId.HasValue)
+                .ToDictionary(a => a.AlunoId!.Value, a => a.TotalDeAulas);
+
+            return Json(new
+            {
+                encontrados = candidatos.Select(j => new
+                {
+                    alunoId = j.Id,
+                    nome = j.Nome,
+                    apelido = j.Apelido,
+                    celular = j.Celular,
+                    jaFezAulaComigo = jaSaoMeus.ContainsKey(j.Id),
+                    recorrente = jaSaoMeus.TryGetValue(j.Id, out var total) && total > 1,
+                }),
+            });
         }
 
         // O mapa de "quem paga quanto" deste professor, pronto pra consulta por chave
@@ -47,7 +108,8 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
-            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1)
+            DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
+            int? alunoId = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -58,11 +120,10 @@ namespace padelizou.Controllers
                 return RedirectToAction("AdicionarManual");
             }
 
-            if (string.IsNullOrWhiteSpace(telefoneAluno))
-            {
-                TempData["Erro"] = "Informe o telefone do aluno.";
-                return RedirectToAction("AdicionarManual");
-            }
+            // O telefone deixou de ser obrigatório em 04/08/2026. Quem marca a aula é o
+            // PROFESSOR, pelo aluno, e ele quase nunca tem o número na mão na beira da
+            // quadra — exigir isso fazia ele parar a marcação pra ir atrás do contato de
+            // alguém que ele já conhece. O campo continua, opcional.
 
             // As duas colunas são varchar e o Postgres recusa o que passa do tamanho — o
             // professor perderia a aula inteira num erro 500 por colar um nome comprido.
@@ -84,6 +145,17 @@ namespace padelizou.Controllers
             var quantidade = recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1;
             var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
 
+            // Aluno escolhido da lista TEM conta: a aula passa a apontar pra ela, e não pra um
+            // nome solto. É o que faz o aluno enxergar a aula no próprio app, receber o aviso
+            // e ver o histórico — coisa que a marcação por nome nunca deu, mesmo quando a
+            // pessoa estava cadastrada o tempo todo.
+            //
+            // O id vem do formulário, então é conferido: sem isto daria pra pendurar aula na
+            // conta de qualquer pessoa mandando outro número.
+            var alunoVinculado = alunoId is int id
+                ? await _context.Jogadores.FirstOrDefaultAsync(j => j.Id == id)
+                : null;
+
             // Quantos alunos e, com isso, quanto custa. O campo `preco` continua mandando
             // quando vem preenchido — a tela sugere, o professor decide. Sem ele, a conta é a
             // de Services/PrecoDaAula: tamanho da aula, e o acordo com aquele aluno na
@@ -91,7 +163,7 @@ namespace padelizou.Controllers
             // que o navegador quis mandar.
             var alunos = PrecoDaAula.Tamanho(quantidadeAlunos);
             var combinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
-            combinados.TryGetValue(PrecoDaAula.Chave(null, nomeAluno), out var combinado);
+            combinados.TryGetValue(PrecoDaAula.Chave(alunoVinculado?.Id, nomeAluno), out var combinado);
             var precoDaAula = preco ?? PrecoDaAula.Sugerido(local, alunos, combinado > 0 ? combinado : null);
 
             var novasAulas = new List<Aula>();
@@ -115,7 +187,9 @@ namespace padelizou.Controllers
                 novasAulas.Add(new Aula
                 {
                     ProfessorId = professorId.Value,
-                    AlunoId = null,
+                    AlunoId = alunoVinculado?.Id,
+                    // O nome escrito fica MESMO com conta vinculada: é como o professor chama
+                    // a pessoa, e é o que ele procura depois na agenda.
                     NomeAlunoAvulso = nomeAluno.Trim(),
                     TelefoneAlunoAvulso = string.IsNullOrWhiteSpace(telefoneAluno) ? null : telefoneAluno.Trim(),
                     LocalAulaId = localId,
