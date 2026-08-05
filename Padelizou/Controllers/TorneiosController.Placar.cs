@@ -144,7 +144,16 @@ namespace Padelizou.Controllers
             return VoltarPara(voltarPara, id);
         }
 
-        public async Task<IActionResult> FinalizarPartida(int partidaId)
+        // Pra onde ir depois de encerrar. Quem finaliza pela MESA continua na Mesa; quem
+        // finaliza pelo card da lista volta pra lista — mandá-lo pra Mesa seria despejá-lo
+        // numa tela que ele não pediu, e ele teria que voltar pra chamar o próximo jogo.
+        private IActionResult DepoisDeFinalizar(string? voltarPara, int? torneioId) =>
+            string.IsNullOrEmpty(voltarPara) || torneioId == null
+                ? RedirectToAction("MesaControle", new { id = torneioId })
+                : VoltarPara(voltarPara, torneioId.Value);
+
+        // `voltarPara` existe pra quem finaliza DE FORA da Mesa — o botão no card do Ao Vivo.
+        public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null)
         {
             // Usando _context.Partidas (Plural)
             var partida = await _context.Partidas
@@ -162,7 +171,7 @@ namespace Padelizou.Controllers
             // rodar isto duas vezes redispararia robôs de mata-mata e avisos.
             if (partida != null && partida.Status == "Finalizada")
             {
-                return RedirectToAction("MesaControle", new { id = partida.TorneioId });
+                return DepoisDeFinalizar(voltarPara, partida.TorneioId);
             }
 
             if (partida != null)
@@ -230,7 +239,7 @@ namespace Padelizou.Controllers
 
                 await NotificarResultadoAsync(partida, vencedorId, perdedorId);
             }
-            return RedirectToAction("MesaControle", new { id = partida?.TorneioId });
+            return DepoisDeFinalizar(voltarPara, partida?.TorneioId);
         }
 
         // Fim de jogo: avisa quem jogou e quem acompanha esses jogadores. É o momento em que

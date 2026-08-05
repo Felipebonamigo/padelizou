@@ -307,7 +307,12 @@ namespace Padelizou.Controllers
                 .ToListAsync();
             foreach (var dupla in envolvidas)
             {
-                if (dupla.Id == perdedorId && !FasesTorneio.EhFaseDeGrupos(partida.Fase)) dupla.UltimaFase = null;
+                // ⚠️ "Grupos", NÃO null: a coluna é NOT NULL no banco, e o valor neutro é o
+                // padrão do modelo (Dupla.UltimaFase = "Grupos"), que quer dizer "ainda não
+                // foi eliminada". Isto explodiu em produção no meio do torneio — o teste
+                // passou porque o provedor EM MEMÓRIA não impõe NOT NULL. Regra pra levar
+                // adiante: campo obrigatório se "limpa" voltando ao PADRÃO, não pra nulo.
+                if (dupla.Id == perdedorId && !FasesTorneio.EhFaseDeGrupos(partida.Fase)) dupla.UltimaFase = "Grupos";
                 if (dupla.Id == partida.VencedorId && dupla.UltimaFase == "Campeao") dupla.UltimaFase = "Final";
             }
 

@@ -61,6 +61,11 @@ public static class DesfazerDoJogo
         jogo.SetsDupla1 = null;
         jogo.SetsDupla2 = null;
         jogo.VencedorId = null;
+
+        // Quem saca é coisa de jogo EM ANDAMENTO. Deixar o campo preenchido punha a bolinha
+        // do saque numa partida que ainda não começou — e ela promete uma informação que não
+        // existe: ninguém está sacando numa quadra vazia.
+        jogo.DuplaSacandoId = null;
     }
 
     // ---- Finalizada → Ao Vivo ----

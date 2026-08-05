@@ -358,9 +358,24 @@
                                    11px no canto — pequeno pra achar com a quadra rolando e
                                    sem parecer clicável. *@
                                 <div class="mt-3 d-flex gap-2">
+                                    @* FINALIZAR daqui mesmo: o placar já está na tela e já foi
+                                       salvo (cada toque no −/+ grava). Abrir a tela cheia só
+                                       pra apertar "finalizar" era uma ida e volta por jogo. *@
+                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1"
+                                          data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
+                                          data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
+                                          data-confirmar-ok="Finalizar">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="partidaId" value="@jogo.Id" />
+                                        <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                                        <button type="submit" class="btn btn-padel w-100 fw-bold">
+                                            <i class="bi bi-flag-fill"></i> Finalizar
+                                        </button>
+                                    </form>
                                     <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
-                                       class="btn btn-padel flex-grow-1 fw-bold">
-                                        <i class="bi bi-pencil-fill"></i> Marcar placar
+                                       class="btn btn-outline-secondary fw-bold"
+                                       title="Marcar placar, sets, saque e quadra" aria-label="Marcar placar">
+                                        <i class="bi bi-pencil-fill"></i>
                                     </a>
                                     @* DESFAZER o play aqui também. O botão existia só na LINHA
                                        (Agendadas/Finalizadas) e o card do Ao Vivo é outro markup —

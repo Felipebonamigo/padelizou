@@ -83,6 +83,18 @@ namespace Padelizou.Controllers
             vm.ProximoJogo = await _context.Partidas
                 .Where(p => p.HorarioPrevisto != null && p.HorarioPrevisto >= corte
                          && p.Status != "Finalizada"
+                         // ⚠️ Dupla-TIME fora. Na categoria de times o `Jogador1Id` é o
+                         // ORGANIZADOR que cadastrou o time, não quem joga — sem este filtro
+                         // o dono do torneio abria a Home e via "seu próximo jogo" de uma
+                         // partida em que ele não entra em quadra, num torneio em que ele nem
+                         // está inscrito. (E o adversário saía como "Bonamigo e", porque time
+                         // não tem Jogador2.) A mesma armadilha já estava resolvida no aviso
+                         // de "seu jogo é o próximo" — ver AvisosDoDiaDeJogo.JogadoresDa.
+                         //
+                         // Pela COLUNA `NomeTime`, não por `EhTime`: aquilo é propriedade
+                         // calculada em C# e o EF não a traduz pra SQL — a consulta estouraria
+                         // em runtime, que é o jeito mais caro de descobrir.
+                         && p.Dupla1.NomeTime == null && p.Dupla2.NomeTime == null
                          && (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId ||
                              p.Dupla2.Jogador1Id == jogadorId || p.Dupla2.Jogador2Id == jogadorId))
                 .OrderBy(p => p.HorarioPrevisto)

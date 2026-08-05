@@ -149,6 +149,42 @@ public class DesfazerDoJogoTests
     }
 
     [Fact]
+    public async Task Reabrir_devolve_UltimaFase_ao_PADRAO_e_nunca_a_nulo()
+    {
+        // ⚠️ Isto explodiu em produção no meio do torneio: eu limpava com `null` e a coluna é
+        // NOT NULL no banco. O teste anterior passou porque o provedor EM MEMÓRIA não impõe
+        // NOT NULL — por isso este confere o VALOR, e não só o "salvou sem erro".
+        //
+        // Regra pra levar adiante: campo obrigatório se "limpa" voltando ao PADRÃO do modelo
+        // (aqui "Grupos" = ainda não foi eliminada), nunca pra nulo.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        var doTorneio = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await doTorneio.GerarChaves(torneio.Id);
+
+        foreach (var jogo in await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync())
+            await TestInfra.FinalizarComPlacarAsync(ctx, doTorneio, jogo, 9, 3);
+
+        var semi = await ctx.Partidas
+            .FirstAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal");
+        await TestInfra.FinalizarComPlacarAsync(ctx, doTorneio, semi, 9, 5);
+
+        var perdedorId = semi.VencedorId == semi.Dupla1Id ? semi.Dupla2Id : semi.Dupla1Id;
+        Assert.Equal("Semifinal", (await ctx.Duplas.FindAsync(perdedorId))!.UltimaFase);
+
+        var controller = TestInfra.NovoPartidasController(ctx, org.Id);
+        await controller.ReabrirPartida(semi.Id);
+
+        var perdedor = await ctx.Duplas.FindAsync(perdedorId);
+        Assert.NotNull(perdedor!.UltimaFase);
+        Assert.Equal("Grupos", perdedor.UltimaFase);
+
+        // E nenhuma dupla do torneio pode ficar com o campo nulo depois de qualquer desfazer.
+        Assert.All(await ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToListAsync(),
+            d => Assert.False(string.IsNullOrEmpty(d.UltimaFase)));
+    }
+
+    [Fact]
     public async Task Reabrir_desfaz_o_Padelimetro_daquele_jogo()
     {
         // O nível dos 4 jogadores volta ao que era, e a linha some do extrato — senão o

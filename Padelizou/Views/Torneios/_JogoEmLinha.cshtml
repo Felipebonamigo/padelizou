@@ -43,6 +43,12 @@
 
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
+
+    // A bolinha do saque só em jogo EM QUADRA. Ela responde "quem está sacando AGORA" —
+    // numa partida agendada não há saque nenhum, e o campo pode vir preenchido de um
+    // "colocar no ar" desfeito ou de um placar corrigido depois. Em jogo finalizado ela
+    // também não diz nada: quem sacava no último ponto é trivia, não informação.
+    int? sacandoAgora = jogo.Status == "AoVivo" ? jogo.DuplaSacandoId : null;
 }
 
 @* Os rostos da dupla, sobrepostos. É o que faz alguém achar o próprio jogo varrendo a
@@ -287,7 +293,7 @@
 
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
             @LadoDaDupla(jogo.Dupla1)
-            @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
+            @if (sacandoAgora == jogo.Dupla1Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
             }
@@ -305,7 +311,7 @@
 
         <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
             @LadoDaDupla(jogo.Dupla2)
-            @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
+            @if (sacandoAgora == jogo.Dupla2Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
             }
