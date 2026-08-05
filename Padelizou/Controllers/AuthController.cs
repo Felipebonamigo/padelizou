@@ -410,10 +410,49 @@ namespace padelizou.Controllers
             if (fotoSalva.Salvou) jogador.FotoPerfil = fotoSalva.Caminho;
             else if (fotoSalva.DeuErro) TempData["ErroImagem"] = fotoSalva.Erro;
 
-            jogador.Nome = nome;
-            // Apelido em branco volta a ser nulo — "sem apelido" e "apelido vazio" viram
-            // a mesma coisa, senão ComoChamar teria que testar string vazia em todo lugar.
-            jogador.Apelido = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim();
+            // ── Nome e apelido têm carência (ver Services/TrocaDeNome) ────────────────────
+            //
+            // A recusa NÃO derruba o resto do formulário: quem só queria arrumar o telefone
+            // salva normalmente, e o campo travado volta ao valor antigo com o aviso do lado.
+            // Devolver a tela inteira com erro faria a pessoa perder o que digitou.
+            var agora = DateTime.Now;
+            var apelidoLimpo = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim();
+            var avisos = new List<string>();
+
+            if (TrocaDeNome.Mudou(jogador.Nome, nome))
+            {
+                var pode = TrocaDeNome.PodeTrocarNome(jogador.NomeAlteradoEm, agora);
+                if (pode.Pode)
+                {
+                    jogador.Nome = nome;
+                    jogador.NomeAlteradoEm = agora;
+                    avisos.Add(TrocaDeNome.AvisoDepoisDeTrocar("Nome",
+                        agora.AddMonths(TrocaDeNome.MesesParaTrocarNome)));
+                }
+                else
+                {
+                    avisos.Add(TrocaDeNome.Recusa("O nome", pode, agora));
+                }
+            }
+
+            if (TrocaDeNome.Mudou(jogador.Apelido, apelidoLimpo))
+            {
+                var pode = TrocaDeNome.PodeTrocarApelido(jogador.ApelidoAlteradoEm, agora);
+                if (pode.Pode)
+                {
+                    // Apelido em branco volta a ser nulo — "sem apelido" e "apelido vazio"
+                    // viram a mesma coisa, senão ComoChamar teria que testar string vazia em
+                    // todo lugar.
+                    jogador.Apelido = apelidoLimpo;
+                    jogador.ApelidoAlteradoEm = agora;
+                    avisos.Add(TrocaDeNome.AvisoDepoisDeTrocar("Apelido",
+                        agora.AddMonths(TrocaDeNome.MesesParaTrocarApelido)));
+                }
+                else
+                {
+                    avisos.Add(TrocaDeNome.Recusa("O apelido", pode, agora));
+                }
+            }
             jogador.Email = email;
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             // A cidade do perfil é texto livre e alimenta o filtro do ranking. Sem arrumar na
@@ -482,7 +521,12 @@ namespace padelizou.Controllers
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
 
-            TempData["Sucesso"] = "Perfil atualizado!";
+            // O aviso da carência vem JUNTO com o "perfil atualizado", não no lugar dele: o
+            // resto do formulário foi salvo, e sumir com a confirmação faria parecer que nada
+            // foi. É o "avise-o ao alterar" do pedido.
+            TempData["Sucesso"] = avisos.Count == 0
+                ? "Perfil atualizado!"
+                : "Perfil atualizado! " + string.Join(" ", avisos);
 
             // Recém-chegado ao ofício vai direto pro que falta. O painel do professor cobraria
             // isso de qualquer forma, mas pedir agora — enquanto a pessoa ainda está mexendo no

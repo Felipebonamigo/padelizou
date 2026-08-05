@@ -40,19 +40,62 @@
                             <input type="file" name="foto" class="form-control" accept="image/*" style="max-width: 320px; margin: 0 auto;" />
                         </div>
 
+                        @* A regra tem que ser lida ANTES de digitar. Descobrir a carência só
+                           depois de salvar seria gastar a troca do semestre por engano — e é
+                           justamente o que o aviso existe pra impedir. *@
+                        @{
+                            var agoraPerfil = DateTime.Now;
+                            var podeNome = Padelizou.Services.TrocaDeNome.PodeTrocarNome(Model.NomeAlteradoEm, agoraPerfil);
+                            var podeApelido = Padelizou.Services.TrocaDeNome.PodeTrocarApelido(Model.ApelidoAlteradoEm, agoraPerfil);
+                        }
+
                         <div class="mb-3">
                             <label class="form-label fw-bold text-muted small">Nome Completo</label>
-                            <input type="text" name="nome" class="form-control bg-light" maxlength="100" required value="@Model.Nome" />
+                            <input type="text" name="nome" class="form-control bg-light" maxlength="100" required
+                                   value="@Model.Nome" readonly="@(!podeNome.Pode)" />
+                            @if (podeNome.Pode)
+                            {
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i>
+                                    @Padelizou.Services.TrocaDeNome.AvisoAntesDeTrocar("o nome",
+                                        Padelizou.Services.TrocaDeNome.MesesParaTrocarNome)
+                                </small>
+                            }
+                            else
+                            {
+                                <small class="text-warning">
+                                    <i class="bi bi-lock-fill"></i>
+                                    Você trocou o nome há pouco. A próxima troca a partir de
+                                    <strong>@podeNome.LiberaEm?.ToString("dd/MM/yyyy")</strong>.
+                                </small>
+                            }
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label fw-bold text-muted small">Apelido <span class="fw-normal">(opcional)</span></label>
                             <input type="text" name="apelido" class="form-control bg-light" maxlength="40"
-                                   placeholder="Como te chamam na quadra" value="@Model.Apelido" />
-                            <small class="text-muted">
+                                   placeholder="Como te chamam na quadra" value="@Model.Apelido"
+                                   readonly="@(!podeApelido.Pode)" />
+                            <small class="text-muted d-block">
                                 Se preencher, é assim que você aparece nas listas, no placar e na chamada do torneio —
                                 e as pessoas te acham buscando pelo apelido.
                             </small>
+                            @if (podeApelido.Pode)
+                            {
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i>
+                                    @Padelizou.Services.TrocaDeNome.AvisoAntesDeTrocar("o apelido",
+                                        Padelizou.Services.TrocaDeNome.MesesParaTrocarApelido)
+                                </small>
+                            }
+                            else
+                            {
+                                <small class="text-warning">
+                                    <i class="bi bi-lock-fill"></i>
+                                    Você trocou o apelido há pouco. A próxima troca a partir de
+                                    <strong>@podeApelido.LiberaEm?.ToString("dd/MM/yyyy")</strong>.
+                                </small>
+                            }
                         </div>
 
                         <div class="mb-3">

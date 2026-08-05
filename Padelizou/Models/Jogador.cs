@@ -16,6 +16,16 @@ public partial class Jogador
     // pelo apelido, e ninguém acha "José Carlos" procurando por "Zeca".
     public string? Apelido { get; set; }
 
+    // Quando o nome e o apelido foram trocados pela última vez. NULO = nunca trocou desde o
+    // cadastro, e a primeira troca é livre (ver Services/TrocaDeNome): quem digitou errado na
+    // pressa não pode ficar seis meses preso ao erro.
+    //
+    // A trava existe porque o nome é como as pessoas te acham: lista de inscritos, placar da
+    // mesa, ranking, histórico de torneio. Trocar toda semana faz o parceiro de terça não
+    // reconhecer quem entrou na dupla dele.
+    public DateTime? NomeAlteradoEm { get; set; }
+    public DateTime? ApelidoAlteradoEm { get; set; }
+
     public string Cpf { get; set; } = null!;
 
     // Recuperação de senha: token de uso único, com validade curta. Guardado em claro
