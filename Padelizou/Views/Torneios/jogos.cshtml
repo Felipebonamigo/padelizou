@@ -22,4 +22,7 @@
 @section Scripts {
     <script src="~/js/cronometro-jogos.js" asp-append-version="true"></script>
     <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
+    @* asp-append-version obrigatório: o Service Worker guarda script em cache e sem a versão
+       o organizador fica preso no JS velho indefinidamente. *@
+    <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
 }

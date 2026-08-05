@@ -2161,6 +2161,36 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-live-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .pdz-live-input { -moz-appearance: textfield; appearance: textfield; }
 
+/* − [ 0 ] + : o alvo do dedo é o BOTÃO, não o campo. No balcão, de pé, com o celular numa
+   mão, mirar num campo de dois caracteres é o que fazia o placar não ser marcado. */
+.pdz-live-contador {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+.pdz-live-passo {
+    width: 2.1rem;
+    height: 2.1rem;
+    flex: 0 0 auto;
+    border: 1px solid var(--pdz-border);
+    border-radius: 10px;
+    background: var(--pdz-surface);
+    color: var(--pdz-ink);
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdz-live-passo:active { transform: scale(.94); }
+
+/* Enquanto o POST vai e a página não voltou: o segundo toque mandaria o mesmo game de novo,
+   e no 3G do clube isso acontece. */
+.pdz-live-passo:disabled { opacity: .45; }
+
 .pdz-live-salvar-barra {
     display: flex;
     align-items: center;

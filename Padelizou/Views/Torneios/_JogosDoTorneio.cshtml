@@ -294,11 +294,22 @@
                                     {
                                         @* `form="..."` em vez de embrulhar os cards: o palpitrômetro
                                            já tem formulário dentro do card, e formulário aninhado é
-                                           HTML inválido — o navegador desmonta e o POST sai capenga. *@
+                                           HTML inválido — o navegador desmonta e o POST sai capenga.
+
+                                           −/+ ao lado do número: digitar exige mirar num campo de
+                                           2 caracteres, com o celular numa mão e a quadra rolando.
+                                           Cada toque JÁ SALVA (ver js/placar-ao-vivo.js) — "editei e
+                                           não marcou" é o pior jeito de falhar num placar. *@
                                         <input type="hidden" name="partidaId" value="@jogo.Id" form="pdzPlacaresAoVivo" />
-                                        <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
-                                               name="games1" value="@(jogo.GamesDupla1 ?? 0)" min="0" max="99"
-                                               form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla1.NomeDeExibicao" />
+                                        <span class="pdz-live-contador">
+                                            <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                    aria-label="Menos um game">−</button>
+                                            <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
+                                                   name="games1" value="@(jogo.GamesDupla1 ?? 0)" min="0" max="99"
+                                                   form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla1.NomeDeExibicao" />
+                                            <button type="button" class="pdz-live-passo" data-passo="1"
+                                                    aria-label="Mais um game">+</button>
+                                        </span>
                                     }
                                     else
                                     {
@@ -321,9 +332,15 @@
                                     }
                                     @if (ehOrganizador)
                                     {
-                                        <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
-                                               name="games2" value="@(jogo.GamesDupla2 ?? 0)" min="0" max="99"
-                                               form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla2.NomeDeExibicao" />
+                                        <span class="pdz-live-contador">
+                                            <button type="button" class="pdz-live-passo" data-passo="-1"
+                                                    aria-label="Menos um game">−</button>
+                                            <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
+                                                   name="games2" value="@(jogo.GamesDupla2 ?? 0)" min="0" max="99"
+                                                   form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla2.NomeDeExibicao" />
+                                            <button type="button" class="pdz-live-passo" data-passo="1"
+                                                    aria-label="Mais um game">+</button>
+                                        </span>
                                     }
                                     else
                                     {
@@ -340,11 +357,25 @@
                                    placar é A ação da tela, e ela vivia como um link cinza de
                                    11px no canto — pequeno pra achar com a quadra rolando e
                                    sem parecer clicável. *@
-                                <div class="mt-3">
+                                <div class="mt-3 d-flex gap-2">
                                     <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
-                                       class="btn btn-padel w-100 fw-bold">
+                                       class="btn btn-padel flex-grow-1 fw-bold">
                                         <i class="bi bi-pencil-fill"></i> Marcar placar
                                     </a>
+                                    @* DESFAZER o play aqui também. O botão existia só na LINHA
+                                       (Agendadas/Finalizadas) e o card do Ao Vivo é outro markup —
+                                       resultado: era impossível tirar da quadra o jogo chamado por
+                                       engano, que é exatamente onde o erro acontece. *@
+                                    <form asp-controller="Partidas" asp-action="VoltarParaAgendado" asp-route-id="@jogo.Id" method="post"
+                                          data-confirmar="O jogo volta pra lista de agendados, com a mesma hora e a mesma quadra. O placar em tela é zerado."
+                                          data-confirmar-titulo="Tirar da quadra?"
+                                          data-confirmar-ok="Voltar pra agendado">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-outline-secondary fw-bold"
+                                                title="Voltar pra agendado" aria-label="Voltar pra agendado">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             }
                         </div>
