@@ -2351,3 +2351,19 @@ button, a, input, select { touch-action: manipulation; }
     text-transform: none;
     letter-spacing: 0;
 }
+
+/* Nome de jogador é LINK pro perfil dele — o caminho de sempre pra ver com quem se vai
+   jogar. Herda a cor do texto pra não pintar a lista inteira de azul; o sublinhado no
+   hover é que diz que dá pra clicar. */
+.pdz-jl-nome a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.pdz-jl-nome a:hover,
+.pdz-jl-nome a:focus {
+    color: var(--padel-green);
+    text-decoration: underline;
+}
+
+.pdz-jl-barra { color: var(--pdz-muted); }

@@ -31,11 +31,8 @@
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
     bool mostraPalpitrometro = temPalpite || jogo.Status == "Agendada";
 
-    string Lado(Padelizou.Models.Dupla d) =>
-        d == null ? "A definir"
-        : d.EhTime ? (d.NomeTime ?? "Time")
-        : d.Jogador1.ComoChamar.Split(' ')[0]
-          + " / " + (d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?");
+    string PrimeiroNome(Padelizou.Models.Jogador? j) =>
+        j?.ComoChamar.Split(' ')[0] ?? "?";
 
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
@@ -47,6 +44,51 @@
 @functions {
     private static string Foto(Padelizou.Models.Jogador? j) =>
         string.IsNullOrEmpty(j?.FotoPerfil) ? "/img/default-avatar.png" : j!.FotoPerfil!;
+}
+
+@* Um lado da partida: rostos e nomes, CADA JOGADOR clicável pro perfil dele.
+   O link existia no cartão antigo e se perdeu quando a linha foi compactada — o nome
+   virou texto puro. É o caminho de sempre pra ver o histórico de quem vai jogar, e some
+   sem avisar: nada na tela indica que aquilo deixou de ser clicável. *@
+@{
+    Func<Padelizou.Models.Dupla, Microsoft.AspNetCore.Html.IHtmlContent> LadoDaDupla = d =>
+    {
+        var html = new Microsoft.AspNetCore.Html.HtmlContentBuilder();
+
+        if (d == null)
+        {
+            html.AppendHtml("<span class=\"pdz-jl-nome text-muted\">A definir</span>");
+            return html;
+        }
+
+        if (d.EhTime)
+        {
+            html.AppendHtml("<span class=\"pdz-jl-rostos\"><span class=\"pdz-jl-rosto pdz-jl-rosto-time\"><i class=\"bi bi-people-fill\"></i></span></span>");
+            html.AppendHtml("<span class=\"pdz-jl-nome\">").Append(d.NomeTime ?? "Time").AppendHtml("</span>");
+            return html;
+        }
+
+        html.AppendHtml($"<span class=\"pdz-jl-rostos\">"
+            + $"<img class=\"pdz-jl-rosto\" src=\"{Foto(d.Jogador1)}\" alt=\"\" loading=\"lazy\" />"
+            + $"<img class=\"pdz-jl-rosto\" src=\"{Foto(d.Jogador2)}\" alt=\"\" loading=\"lazy\" />"
+            + "</span>");
+
+        html.AppendHtml("<span class=\"pdz-jl-nome\">");
+        html.AppendHtml($"<a href=\"/Jogadores/Perfil/{d.Jogador1Id}\">").Append(PrimeiroNome(d.Jogador1)).AppendHtml("</a>");
+        html.AppendHtml("<span class=\"pdz-jl-barra\"> / </span>");
+
+        if (d.Jogador2Id is int segundo)
+        {
+            html.AppendHtml($"<a href=\"/Jogadores/Perfil/{segundo}\">").Append(PrimeiroNome(d.Jogador2)).AppendHtml("</a>");
+        }
+        else
+        {
+            html.Append("?");
+        }
+
+        html.AppendHtml("</span>");
+        return html;
+    };
 }
 
 <div class="pdz-jl @(Model.Finalizada ? "pdz-jl-fim" : "")">
@@ -153,18 +195,7 @@
         }
 
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
-            <span class="pdz-jl-rostos">
-                @if (jogo.Dupla1.EhTime)
-                {
-                    <span class="pdz-jl-rosto pdz-jl-rosto-time"><i class="bi bi-people-fill"></i></span>
-                }
-                else
-                {
-                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla1.Jogador1)" alt="" loading="lazy" />
-                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla1.Jogador2)" alt="" loading="lazy" />
-                }
-            </span>
-            <span class="pdz-jl-nome">@Lado(jogo.Dupla1)</span>
+            @LadoDaDupla(jogo.Dupla1)
             @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
@@ -182,18 +213,7 @@
         </div>
 
         <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
-            <span class="pdz-jl-rostos">
-                @if (jogo.Dupla2.EhTime)
-                {
-                    <span class="pdz-jl-rosto pdz-jl-rosto-time"><i class="bi bi-people-fill"></i></span>
-                }
-                else
-                {
-                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla2.Jogador1)" alt="" loading="lazy" />
-                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla2.Jogador2)" alt="" loading="lazy" />
-                }
-            </span>
-            <span class="pdz-jl-nome">@Lado(jogo.Dupla2)</span>
+            @LadoDaDupla(jogo.Dupla2)
             @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
             {
                 <span class="pdz-bolinha" title="Sacando"></span>
