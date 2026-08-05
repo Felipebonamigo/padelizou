@@ -1,14 +1,15 @@
 @model (Padelizou.Models.Partida Jogo, bool EhOrganizador, bool Finalizada, Padelizou.ViewModels.PalpiteResumoVM? Palpites, int? MeuId)
 @*
-    Um jogo numa linha, para as listas de Agendadas e Finalizadas.
+    Um jogo na lista de Agendadas / Finalizadas.
 
-    O cartão grande (placar gigante, chips com foto) existe pra UM jogo acontecendo agora —
-    ali a tela tem um assunto só. Numa lista de 48 agendados ele vira parede: cada jogo
-    ocupava meia tela e ver a grade do dia exigia rolar sem parar.
+    Três perguntas se responde aqui, e a linha antiga respondia mal duas delas: QUEM joga
+    (só o nome, sem rosto — numa lista de 47 jogos ninguém acha o seu), QUANDO e ONDE
+    (categoria, fase e quadra saíam como um risco de texto cinza de 11px, o mesmo peso do
+    resto). Agora: rosto junto do nome, e categoria/fase/quadra como etiquetas na primeira
+    linha, que é onde o olho bate primeiro.
 
-    As duplas ficam LADO A LADO com o "×" no meio, que é como se lê um confronto em qualquer
-    lugar ("A × B"), e o palpitrômetro vai embaixo, ocupando a linha inteira — nomeado e
-    explicado, porque "50%" solto ao lado do jogo não diz a ninguém que aquilo é um voto.
+    O cartão grande (placar gigante, cronômetro) continua sendo do AO VIVO — ali a tela tem
+    um assunto só. Aqui é lista, e lista se varre.
 *@
 @{
     var jogo = Model.Jogo;
@@ -28,63 +29,49 @@
         : d.Jogador1.ComoChamar.Split(' ')[0]
           + " / " + (d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?");
 
-    // Sem voto a barra fica no meio — "0% x 0%" parece defeito, e o que se quer dizer é
-    // "ninguém palpitou ainda, opine você".
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
 }
 
-<div class="pdz-jogo-linha @(Model.Finalizada ? "pdz-jogo-linha-fim" : "")">
-    <div class="pdz-jogo-linha-topo">
-        <div class="pdz-jogo-linha-quando">
+@* Os rostos da dupla, sobrepostos. É o que faz alguém achar o próprio jogo varrendo a
+   lista — nome sozinho, numa tela de 47 jogos, obriga a ler tudo. Time entra com um ícone
+   só: lá não são duas pessoas, é uma equipe. *@
+@functions {
+    private static string Foto(Padelizou.Models.Jogador? j) =>
+        string.IsNullOrEmpty(j?.FotoPerfil) ? "/img/default-avatar.png" : j!.FotoPerfil!;
+}
+
+<div class="pdz-jl @(Model.Finalizada ? "pdz-jl-fim" : "")">
+    <div class="pdz-jl-cabecalho">
+        <span class="pdz-jl-quando">
             @if (jogo.HorarioPrevisto is DateTime h)
             {
-                <span class="pdz-jogo-linha-hora">@h.ToString("HH:mm")</span>
-                <span class="pdz-jogo-linha-dia">@h.ToString("dd/MM")</span>
+                <strong>@h.ToString("HH:mm")</strong>
+                <span>@h.ToString("dd/MM")</span>
             }
             else
             {
                 @* Torneio por ordem de liberação: não há hora, e inventar uma seria mentir. *@
-                <span class="pdz-jogo-linha-dia">por ordem</span>
+                <strong>por ordem</strong>
             }
-        </div>
+        </span>
 
-        <div class="pdz-jogo-linha-confronto">
-            <span class="pdz-jogo-linha-time pdz-jogo-linha-time-esq @(venceu1 ? "fw-bold" : venceu2 ? "text-muted" : "")">
-                <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla1)</span>
-                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
-                {
-                    <span class="pdz-bolinha" title="Sacando"></span>
-                }
-                @if (Model.Finalizada)
-                {
-                    <span class="pdz-jogo-linha-games">@g1</span>
-                }
-            </span>
-
-            <span class="pdz-jogo-linha-versus">×</span>
-
-            <span class="pdz-jogo-linha-time @(venceu2 ? "fw-bold" : venceu1 ? "text-muted" : "")">
-                @if (Model.Finalizada)
-                {
-                    <span class="pdz-jogo-linha-games">@g2</span>
-                }
-                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
-                {
-                    <span class="pdz-bolinha" title="Sacando"></span>
-                }
-                <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla2)</span>
-            </span>
-        </div>
+        <span class="pdz-jl-etiquetas">
+            <span class="pdz-jl-etiqueta pdz-jl-categoria">@jogo.Categoria.Nome</span>
+            <span class="pdz-jl-etiqueta pdz-jl-fase">@jogo.Fase</span>
+            @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+            {
+                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra</span>
+            }
+        </span>
 
         @if (Model.EhOrganizador)
         {
-            <div class="pdz-jogo-linha-acoes">
+            <span class="pdz-jl-acoes">
                 @if (!Model.Finalizada)
                 {
                     @* Verde, não vermelho: play vermelho é o botão do YouTube (lê como
-                       "assistir"), e vermelho é a cor que o resto do site usa pra coisa
-                       destrutiva. Aqui a ação é COMEÇAR o jogo. *@
+                       "assistir") e vermelho é a cor do destrutivo no resto do site. *@
                     <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
@@ -101,37 +88,77 @@
                 }
                 <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
                    class="btn btn-sm btn-outline-secondary"
-                   title="@(Model.Finalizada ? "Corrigir placar" : "Editar jogo")"
-                   aria-label="@(Model.Finalizada ? "Corrigir placar" : "Editar jogo")">
+                   title="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")"
+                   aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">
                     <i class="bi bi-pencil"></i>
                 </a>
-            </div>
+            </span>
         }
         else if (Model.Finalizada && !string.IsNullOrEmpty(jogo.LinkTransmissao))
         {
-            <div class="pdz-jogo-linha-acoes">
+            <span class="pdz-jl-acoes">
                 <a href="@jogo.LinkTransmissao" target="_blank" rel="noopener"
                    class="btn btn-sm btn-outline-secondary" title="Assistir" aria-label="Assistir">
                     <i class="bi bi-play-btn"></i>
                 </a>
-            </div>
+            </span>
         }
     </div>
 
-    <div class="pdz-jogo-linha-onde">
-        @jogo.Categoria.Nome · @jogo.Fase
-        @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
-        {
-            <span>· @jogo.NomeQuadra</span>
-        }
+    <div class="pdz-jl-confronto">
+        <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
+            <span class="pdz-jl-rostos">
+                @if (jogo.Dupla1.EhTime)
+                {
+                    <span class="pdz-jl-rosto pdz-jl-rosto-time"><i class="bi bi-people-fill"></i></span>
+                }
+                else
+                {
+                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla1.Jogador1)" alt="" loading="lazy" />
+                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla1.Jogador2)" alt="" loading="lazy" />
+                }
+            </span>
+            <span class="pdz-jl-nome">@Lado(jogo.Dupla1)</span>
+            @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
+            {
+                <span class="pdz-bolinha" title="Sacando"></span>
+            }
+            @if (Model.Finalizada)
+            {
+                <span class="pdz-jl-games">@g1</span>
+            }
+        </div>
+
+        <span class="pdz-jl-versus">×</span>
+
+        <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
+            <span class="pdz-jl-rostos">
+                @if (jogo.Dupla2.EhTime)
+                {
+                    <span class="pdz-jl-rosto pdz-jl-rosto-time"><i class="bi bi-people-fill"></i></span>
+                }
+                else
+                {
+                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla2.Jogador1)" alt="" loading="lazy" />
+                    <img class="pdz-jl-rosto" src="@Foto(jogo.Dupla2.Jogador2)" alt="" loading="lazy" />
+                }
+            </span>
+            <span class="pdz-jl-nome">@Lado(jogo.Dupla2)</span>
+            @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
+            {
+                <span class="pdz-bolinha" title="Sacando"></span>
+            }
+            @if (Model.Finalizada)
+            {
+                <span class="pdz-jl-games">@g2</span>
+            }
+        </div>
     </div>
 
     @if (mostraPalpitrometro)
     {
-        @* Mesmo container e mesmos data-* do palpitrômetro grande, de propósito: o
-           votarPalpite() e o atualizarPalpitrometro() já existentes funcionam aqui sem
-           saber que existe uma versão em linha. O que muda é a classe, que a atualização
-           lê pra manter as DUAS porcentagens visíveis (ver wwwroot/js/palpitrometro.js). *@
+        @* Mesmo container e mesmos data-* do palpitrômetro grande, de propósito: votar e
+           atualizar passam pelo código que já existe (wwwroot/js/palpitrometro.js). *@
         <div class="pdz-palpite-bloco">
             <div class="pdz-palpite-rotulo">
                 <i class="bi bi-graph-up"></i> PALPITRÔMETRO

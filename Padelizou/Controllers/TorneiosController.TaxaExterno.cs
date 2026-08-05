@@ -47,8 +47,10 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
+            // Esta tela é dinheiro do começo ao fim — o valor devido e o botão de pagar. Quem
+            // só ajuda a organizar não entra: a conta é de quem recebeu as inscrições.
             bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
-            if (!ehAdmin && !await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (!ehAdmin && !await PodeVerDinheiroAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             if (!TaxaDoTorneioExterno.SeAplica(torneio)) return RedirectToAction("Details", new { id });
 
@@ -71,8 +73,10 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
+            // Gerar cobrança em nome de outra pessoa não é "ajudar na mesa": quem paga a taxa
+            // é quem ficou com o dinheiro das inscrições.
             var meuId = ObterJogadorIdLogado() ?? 0;
-            if (!await EhOrganizadorAsync(id, meuId)) return Forbid();
+            if (!await PodeVerDinheiroAsync(id, meuId)) return Forbid();
 
             if (!TaxaDoTorneioExterno.SeAplica(torneio) || TaxaDoTorneioExterno.ChavesLiberadas(torneio))
                 return RedirectToAction("Details", new { id });

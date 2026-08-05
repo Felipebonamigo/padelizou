@@ -68,6 +68,12 @@ public class FinanceiroTorneioVM
 
     // Torneio gratuito: a tela explica em vez de mostrar zeros.
     public bool EhGratuito => Torneio.PrecoInscricao <= 0;
+
+    // Quem ajuda a organizar abre esta mesma tela pra marcar quem já acertou, mas sem
+    // nenhum valor — nem total, nem por categoria, nem o da linha. Ver Services/
+    // AcessoAoDinheiroDoTorneio. Nasce FALSO: a tela só mostra dinheiro quando alguém
+    // afirmou que pode, nunca por esquecimento de preencher.
+    public bool PodeVerDinheiro { get; set; }
 }
 
 public class FinanceiroCategoriaVM
@@ -139,6 +145,11 @@ public class RelatorioTorneioVM
     public decimal Arrecadado { get; set; }
     public decimal TaxaPlataforma { get; set; }
     public decimal Liquido => Arrecadado - TaxaPlataforma;
+
+    // O relatório serve pra duas coisas — mostrar o pódio e prestar contas. Quem ajuda a
+    // organizar leva o pódio; o bloco de dinheiro é de quem criou (ver Services/
+    // AcessoAoDinheiroDoTorneio). Nasce falso pelo mesmo motivo do FinanceiroTorneioVM.
+    public bool PodeVerDinheiro { get; set; }
 
     public List<PodioCategoriaVM> Podios { get; set; } = new();
     public List<FinanceiroCategoriaVM> PorCategoria { get; set; } = new();

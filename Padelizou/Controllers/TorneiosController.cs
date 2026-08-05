@@ -123,6 +123,24 @@ namespace Padelizou.Controllers
                 .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
 
+        // Organizar junto não é ver o caixa. Quem CRIOU o torneio (e o admin da plataforma, que
+        // precisa disso pra dar suporte) vê dinheiro; quem foi adicionado pra ajudar, não —
+        // ver o dinheiro é o único poder que não vem junto (ver AcessoAoDinheiroDoTorneio).
+        private async Task<bool> PodeVerDinheiroAsync(int torneioId, int jogadorId)
+        {
+            if (jogadorId <= 0) return false;
+
+            var nivel = await _context.TorneioOrganizadores
+                .Where(o => o.TorneioId == torneioId && o.JogadorId == jogadorId)
+                .Select(o => o.NivelAcesso)
+                .FirstOrDefaultAsync();
+
+            var ehAdmin = await _context.Jogadores
+                .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
+
+            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, ehAdmin);
+        }
+
         private int? ObterJogadorIdLogado()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -299,6 +317,10 @@ namespace Padelizou.Controllers
             ViewBag.TaxaServico = exibicao?.Taxa;
 
             ViewBag.PodeGerenciar = jogadorLogadoId.HasValue && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
+
+            // Organiza junto, mas o caixa é de quem criou (ver AcessoAoDinheiroDoTorneio).
+            ViewBag.PodeVerDinheiro = jogadorLogadoId.HasValue
+                && await PodeVerDinheiroAsync(id, jogadorLogadoId.Value);
 
             // Pedido de equipe pra registrar os resultados: o mais recente manda na tela.
             ViewBag.RegistroHabilitado = _registro.Habilitado;

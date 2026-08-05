@@ -857,10 +857,22 @@
                             e as chaves são liberadas mediante o pagamento da taxa do Padelizou — ou negociação
                             com a gente. Leva um minuto.
                         </div>
-                        <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
-                           class="btn btn-warning fw-bold shadow-sm">
-                            <i class="bi bi-credit-card"></i> Ver e pagar a taxa
-                        </a>
+                        @* A taxa é conta de quem ficou com o dinheiro das inscrições. Mandar o
+                           ajudante pra lá daria um 403 na cara dele; melhor dizer de quem é. *@
+                        @if (ViewBag.PodeVerDinheiro == true)
+                        {
+                            <a asp-controller="Torneios" asp-action="TaxaPlataforma" asp-route-id="@Model.Id"
+                               class="btn btn-warning fw-bold shadow-sm">
+                                <i class="bi bi-credit-card"></i> Ver e pagar a taxa
+                            </a>
+                        }
+                        else
+                        {
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-shield-lock"></i>
+                                Quem criou o torneio precisa fazer esse passo — a taxa aparece na conta dele.
+                            </p>
+                        }
                     }
                     else if (Model.Status == "Chaves em Sorteio" && Model.Formato == "Americano")
                     {
@@ -994,6 +1006,15 @@
                     </ul>
 
                     <label class="form-label fw-bold small">Adicionar novo organizador</label>
+
+                    @* O aviso fica ONDE se decide, não numa ajuda escondida: é aqui que o
+                       criador escolhe dar acesso a alguém, e é aqui que ele precisa saber
+                       exatamente o que está dando — e o que NÃO está. *@
+                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2 small mb-2">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <div>@Padelizou.Services.AcessoAoDinheiroDoTorneio.AvisoAoAdicionar</div>
+                    </div>
+
                     @{ ViewData["BuscaOrgTorneioId"] = Model.Id; }
                     <partial name="_BuscaOrganizador" />
                     @{ ViewData["BuscaOrgTorneioId"] = null; }
@@ -1295,8 +1316,17 @@
                                 <i class="bi bi-clipboard-check"></i> Check-in do dia
                             </a>
                         }
+                        @* Pra quem ajuda, a mesma tela é só a caderneta — prometer "Financeiro"
+                           seria mandá-lo procurar números que ele não vai encontrar. *@
                         <a asp-action="Financeiro" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                            <i class="bi bi-cash-stack"></i> Financeiro
+                            @if (ViewBag.PodeVerDinheiro == true)
+                            {
+                                <i class="bi bi-cash-stack"></i> <text>Financeiro</text>
+                            }
+                            else
+                            {
+                                <i class="bi bi-journal-check"></i> <text>Quem já acertou</text>
+                            }
                         </a>
                         <a asp-action="Relatorio" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
                             <i class="bi bi-file-earmark-text"></i> Relatório / PDF

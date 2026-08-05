@@ -94,8 +94,9 @@
         </div>
     }
 
-    <!-- Financeiro -->
-    @if (Model.Arrecadado > 0)
+    @* Financeiro — só pra quem criou. O resto do relatório (pódio, público, números do
+       torneio) vale pra quem ajudou a organizar: é o que ele fez acontecer. *@
+    @if (Model.PodeVerDinheiro && Model.Arrecadado > 0)
     {
         <h5 class="fw-bold border-bottom pb-2 mb-3 mt-4" style="color: var(--pdz-ink);">Financeiro</h5>
         <table class="table table-sm">

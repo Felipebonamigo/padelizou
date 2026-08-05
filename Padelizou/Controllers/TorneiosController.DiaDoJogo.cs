@@ -45,8 +45,12 @@ namespace Padelizou.Controllers
             var pendentes = pagamentos.Where(p => p.Status == "Pendente").ToList();
             var estornados = pagamentos.Where(p => p.Status == "Estornado").ToList();
 
+            // Quem só ajuda entra pra marcar quem acertou, e a view esconde todo valor.
+            var podeVerDinheiro = await PodeVerDinheiroAsync(id, ObterJogadorIdLogado() ?? 0);
+
             var vm = new FinanceiroTorneioVM
             {
+                PodeVerDinheiro = podeVerDinheiro,
                 Torneio = torneio,
                 Arrecadado = confirmados.Sum(p => p.Valor),
                 Pendente = pendentes.Sum(p => p.Valor),
@@ -242,6 +246,7 @@ namespace Padelizou.Controllers
 
             var vm = new RelatorioTorneioVM
             {
+                PodeVerDinheiro = await PodeVerDinheiroAsync(id, ObterJogadorIdLogado() ?? 0),
                 Torneio = torneio,
                 TotalDuplas = duplas.Count,
                 TotalJogadores = jogadores.Count,

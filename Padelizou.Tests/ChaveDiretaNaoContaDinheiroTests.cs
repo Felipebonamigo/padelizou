@@ -61,7 +61,15 @@ public class ChaveDiretaNaoContaDinheiroTests
         ctx.Categorias.AddRange(categoria, chave);
         ctx.SaveChanges();
 
-        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = organizador.Id });
+        // "Criador" e não o padrão do modelo: quem paga a taxa dos 5% é quem ficou com o
+        // dinheiro das inscrições, e desde 05/08/2026 essa área recusa quem só ajuda a
+        // organizar (ver AcessoAoDinheiroDoTorneio). O organizador daqui É o dono do torneio.
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador
+        {
+            TorneioId = torneio.Id,
+            JogadorId = organizador.Id,
+            NivelAcesso = "Criador",
+        });
 
         int n = 0;
         void Inscrever(Categoria cat, int quantas)

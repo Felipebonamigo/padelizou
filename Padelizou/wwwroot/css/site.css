@@ -2103,3 +2103,152 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-mesa-passo { width: 3.5rem; height: 3.5rem; font-size: 1.75rem; }
     .pdz-mesa-numero { min-width: 3.25rem; height: 3.5rem; font-size: 2rem; }
 }
+
+/* ── Jogo na lista (Agendadas / Finalizadas) ───────────────────────────────
+   Três perguntas: quem joga, quando, e onde. A versão anterior respondia mal duas —
+   nome sem rosto (numa lista de 47 jogos ninguém acha o seu) e categoria/fase/quadra
+   como um risco de texto cinza de 11px, com o mesmo peso do resto.
+   Marcação em Views/Torneios/_JogoEmLinha.cshtml. */
+.pdz-jl {
+    border: 1px solid var(--pdz-border);
+    border-left: 3px solid var(--pdz-lime);
+    border-radius: 12px;
+    background: var(--pdz-surface);
+    padding: .65rem .85rem;
+}
+
+.pdz-jl-fim { border-left-color: var(--pdz-muted); }
+
+/* Primeira linha: hora, etiquetas e ações. É onde o olho bate primeiro. */
+.pdz-jl-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    flex-wrap: wrap;
+    margin-bottom: .5rem;
+}
+
+.pdz-jl-quando {
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+    color: var(--pdz-ink);
+    font-size: .82rem;
+}
+
+.pdz-jl-quando strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.pdz-jl-quando span { color: var(--pdz-muted); font-size: .72rem; }
+
+.pdz-jl-etiquetas {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.pdz-jl-etiqueta {
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .12rem .5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+/* Categoria e fase têm pesos diferentes: a categoria diz se o jogo é MEU, a fase diz
+   em que altura do torneio ele está. */
+.pdz-jl-categoria {
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+}
+
+.pdz-jl-fase {
+    color: var(--pdz-ink);
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+}
+
+.pdz-jl-quadra {
+    color: var(--pdz-muted);
+    background: transparent;
+    border: 1px dashed var(--pdz-border);
+}
+
+.pdz-jl-acoes {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin-left: auto;
+}
+
+.pdz-jl-acoes form { margin: 0; }
+
+/* Segunda linha: o confronto, com rosto. */
+.pdz-jl-confronto {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.pdz-jl-dupla {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    color: var(--pdz-ink);
+    font-size: .88rem;
+}
+
+.pdz-jl-venceu { font-weight: 700; }
+.pdz-jl-perdeu { color: var(--pdz-muted); }
+
+.pdz-jl-rostos { display: inline-flex; flex: 0 0 auto; }
+
+.pdz-jl-rosto {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--pdz-surface);
+    background: var(--pdz-surface-alt);
+}
+
+/* Sobrepostos: dois rostos ocupam o espaço de um e meio, e ainda assim se distinguem. */
+.pdz-jl-rosto + .pdz-jl-rosto { margin-left: -10px; }
+
+.pdz-jl-rosto-time {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--padel-green);
+}
+
+.pdz-jl-nome {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdz-jl-games {
+    flex: 0 0 auto;
+    font-weight: 800;
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.pdz-jl-versus {
+    flex: 0 0 auto;
+    color: var(--pdz-muted);
+    font-size: .8rem;
+}
+
+@media (max-width: 575.98px) {
+    /* No celular o confronto empilha: duas duplas com rosto lado a lado em 375px
+       truncariam os dois nomes, e quem joga é a informação principal da linha. */
+    .pdz-jl-confronto { flex-direction: column; align-items: stretch; gap: .25rem; }
+    .pdz-jl-versus { display: none; }
+    .pdz-jl-acoes { margin-left: 0; width: 100%; justify-content: flex-end; }
+}

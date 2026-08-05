@@ -9,7 +9,12 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div>
-            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-cash-stack"></i> Financeiro do torneio</h2>
+            @* Quem ajuda a organizar entra aqui só pra marcar quem acertou — chamar isso de
+               "Financeiro" prometeria uma tela de dinheiro que ele não vai ver. *@
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi @(Model.PodeVerDinheiro ? "bi-cash-stack" : "bi-journal-check")"></i>
+                @(Model.PodeVerDinheiro ? "Financeiro do torneio" : "Quem já acertou")
+            </h2>
             <p class="text-muted small mb-0">@Model.Torneio.Nome</p>
         </div>
         <div class="d-flex gap-2">
@@ -22,6 +27,16 @@
         </div>
     </div>
 
+    @* Quem ajuda a organizar precisa saber POR QUE não há valor nenhum na tela — senão lê
+       como página quebrada e vem perguntar. *@
+    @if (!Model.PodeVerDinheiro)
+    {
+        <div class="alert alert-info d-flex align-items-start gap-2">
+            <i class="bi bi-shield-lock-fill fs-5"></i>
+            <div>@Padelizou.Services.AcessoAoDinheiroDoTorneio.ExplicacaoParaQuemAjuda</div>
+        </div>
+    }
+
     @if (Model.EhGratuito)
     {
         <div class="alert alert-light border">
@@ -31,6 +46,11 @@
         </div>
     }
 
+@* ══ DAQUI ATÉ O FIM DO "POR CATEGORIA" É DINHEIRO: só quem criou o torneio vê. ══════════
+   Quem foi adicionado pra ajudar continua com a caderneta logo abaixo, pra marcar quem
+   acertou — o poder de trabalhar sem o de abrir o caixa. *@
+@if (Model.PodeVerDinheiro)
+{
     @* Os quatro cartões liam SÓ do gateway. Num torneio "por fora" não passa cobrança
        nenhuma por lá, então ficavam em R$ 0,00 pra sempre enquanto a caderneta logo abaixo
        mostrava milhares recebidos — e o organizador lia o zero em letra garrafal e achava
@@ -168,6 +188,8 @@
             }
         </div>
     </div>
+}
+@* ══ FIM DO BLOCO DE DINHEIRO ═══════════════════════════════════════════════════════════ *@
 
     @* ── A caderneta do "por fora" ─────────────────────────────────────────────────────
        Neste torneio o dinheiro não passa pelo site, então a lista "aguardando pagamento"
@@ -180,24 +202,39 @@
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
-                        <i class="bi bi-journal-check"></i> Quem já acertou com você
+                        <i class="bi bi-journal-check"></i>
+                        @(Model.PodeVerDinheiro ? "Quem já acertou com você" : "Quem já acertou o pagamento")
                     </h6>
-                    <div class="small">
-                        <span class="text-success fw-bold">@Model.RecebidoPorFora.ToString("C", ptBr) recebido</span>
-                        @if (Model.AReceberPorFora > 0)
-                        {
-                            <span class="text-danger fw-bold ms-2">@Model.AReceberPorFora.ToString("C", ptBr) a receber</span>
-                        }
-                    </div>
+                    @if (Model.PodeVerDinheiro)
+                    {
+                        <div class="small">
+                            <span class="text-success fw-bold">@Model.RecebidoPorFora.ToString("C", ptBr) recebido</span>
+                            @if (Model.AReceberPorFora > 0)
+                            {
+                                <span class="text-danger fw-bold ms-2">@Model.AReceberPorFora.ToString("C", ptBr) a receber</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        @* Contagem, não quantia: o ajudante precisa saber quanta gente falta
+                           pra tocar o trabalho, e isso não é dinheiro. *@
+                        <div class="small text-muted">
+                            @Model.CobrancaPorFora.Count(c => c.Pago) de @Model.CobrancaPorFora.Count já acertaram
+                        </div>
+                    }
                 </div>
 
-                <p class="small text-muted">
-                    O Padelizou não vê esse dinheiro — quem marca é você, conforme o Pix cai.
-                    @if (!string.IsNullOrWhiteSpace(Model.Torneio.ChavePixOrganizador))
-                    {
-                        <text>Sua chave Pix aparece pro jogador na página do torneio.</text>
-                    }
-                </p>
+                @if (Model.PodeVerDinheiro)
+                {
+                    <p class="small text-muted">
+                        O Padelizou não vê esse dinheiro — quem marca é você, conforme o Pix cai.
+                        @if (!string.IsNullOrWhiteSpace(Model.Torneio.ChavePixOrganizador))
+                        {
+                            <text>Sua chave Pix aparece pro jogador na página do torneio.</text>
+                        }
+                    </p>
+                }
 
                 @if (!Model.CobrancaPorFora.Any())
                 {
@@ -223,13 +260,25 @@
                                 </small>
                             </div>
 
-                            <span class="fw-bold text-nowrap @(c.Pago ? "text-success" : "text-danger")">
-                                @c.Valor.ToString("C", ptBr)
-                            </span>
+                            @if (Model.PodeVerDinheiro)
+                            {
+                                <span class="fw-bold text-nowrap @(c.Pago ? "text-success" : "text-danger")">
+                                    @c.Valor.ToString("C", ptBr)
+                                </span>
+                            }
+                            else
+                            {
+                                @* Pago ou não, em palavra: é o que o ajudante precisa ver pra
+                                   marcar, e nenhuma quantia sai da tela dele. *@
+                                <span class="badge rounded-pill text-nowrap @(c.Pago ? "bg-success" : "bg-secondary")">
+                                    @(c.Pago ? "pago" : "em aberto")
+                                </span>
+                            }
 
                             @* Cobrar é o que o organizador faz mais: a mensagem já vai pronta,
-                               com o valor e a chave Pix, pra ele não digitar trinta vezes. *@
-                            @if (!c.Pago && !string.IsNullOrWhiteSpace(c.Celular))
+                               com o valor e a chave Pix, pra ele não digitar trinta vezes.
+                               Fica com quem criou: a mensagem leva a quantia e a chave dele. *@
+                            @if (Model.PodeVerDinheiro && !c.Pago && !string.IsNullOrWhiteSpace(c.Celular))
                             {
                                 var texto = $"Oi {c.PrimeiroNome}! Sua inscrição em {Model.Torneio.Nome} "
                                           + $"({c.Categoria}) é {c.Valor.ToString("C", ptBr)}."
@@ -262,8 +311,29 @@
         </div>
     }
 
-    <!-- Aguardando pagamento -->
-    @if (Model.Pendentes.Any())
+    @* Sem caderneta e sem dinheiro na tela, quem ajuda ficaria olhando uma página vazia
+       tentando entender o que fez de errado. *@
+    @if (!Model.PodeVerDinheiro && !Model.CobraPorFora)
+    {
+        <div class="alert alert-light border mb-0">
+            <i class="bi bi-info-circle"></i>
+            @if (Model.EhGratuito)
+            {
+                <text>Este torneio é <strong>gratuito</strong> — não há pagamento pra marcar.</text>
+            }
+            else
+            {
+                <text>
+                    Neste torneio o pagamento é <strong>pelo site</strong>: a inscrição só existe depois
+                    que o dinheiro entra, então não há nada pra marcar aqui.
+                </text>
+            }
+        </div>
+    }
+
+    @* Aguardando pagamento: cobranças do gateway, com valor e link da fatura. É dinheiro do
+       começo ao fim, e quem paga aqui já paga pelo site — o ajudante não tem o que marcar. *@
+    @if (Model.PodeVerDinheiro && Model.Pendentes.Any())
     {
         <div class="card border-0 shadow-sm">
             <div class="card-body">
