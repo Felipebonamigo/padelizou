@@ -159,6 +159,34 @@
             <p class="text-muted">Nenhum jogo rolando no momento.</p>
         }
 
+        @* PLACAR DE TODAS AS QUADRAS DE UMA VEZ.
+           Com 5 quadras rodando, marcar um game era: abrir o Controle de Placar, mexer,
+           salvar, voltar, achar o próximo card. Cinco vezes, a cada game, a noite inteira.
+           Aqui os números são editados na própria lista e vão juntos num POST.
+
+           O formulário fica VAZIO de propósito: os campos moram dentro dos cards e se ligam
+           a ele por `form="pdzPlacaresAoVivo"`. Embrulhar os cards não daria — o
+           palpitrômetro já tem formulário lá dentro, e formulário aninhado é HTML inválido.
+
+           A tela cheia continua existindo e não é redundante: é lá que se marca SET, quem
+           saca, quadra, link e o FINALIZAR. *@
+        @if (ehOrganizador && aoVivoList.Count > 0)
+        {
+            <form asp-controller="Torneios" asp-action="SalvarPlacaresAoVivo" method="post" id="pdzPlacaresAoVivo">
+                <input type="hidden" name="id" value="@Model.TorneioId" />
+                <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+            </form>
+
+            <div class="pdz-live-salvar-barra">
+                <button type="submit" form="pdzPlacaresAoVivo" class="btn btn-padel fw-bold">
+                    <i class="bi bi-check2-all"></i> Salvar placares
+                </button>
+                <span class="form-text ms-2">
+                    Edite os números direto nos cards e salve os @aoVivoList.Count jogo(s) de uma vez.
+                </span>
+            </div>
+        }
+
         @*
             Convite pra se cadastrar: a tela ao vivo é a porta de entrada mais visitada
             por quem ainda não tem conta (o torcedor abre o link que o organizador manda).
@@ -239,7 +267,20 @@
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla1 ?? 0)</span>
                                     }
-                                    <span class="pdz-live-games">@(jogo.GamesDupla1 ?? 0)</span>
+                                    @if (ehOrganizador)
+                                    {
+                                        @* `form="..."` em vez de embrulhar os cards: o palpitrômetro
+                                           já tem formulário dentro do card, e formulário aninhado é
+                                           HTML inválido — o navegador desmonta e o POST sai capenga. *@
+                                        <input type="hidden" name="partidaId" value="@jogo.Id" form="pdzPlacaresAoVivo" />
+                                        <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
+                                               name="games1" value="@(jogo.GamesDupla1 ?? 0)" min="0" max="99"
+                                               form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla1.NomeDeExibicao" />
+                                    }
+                                    else
+                                    {
+                                        <span class="pdz-live-games">@(jogo.GamesDupla1 ?? 0)</span>
+                                    }
                                 </div>
                             </div>
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
@@ -255,7 +296,16 @@
                                     {
                                         <span class="pdz-live-sets" title="Sets">@(jogo.SetsDupla2 ?? 0)</span>
                                     }
-                                    <span class="pdz-live-games">@(jogo.GamesDupla2 ?? 0)</span>
+                                    @if (ehOrganizador)
+                                    {
+                                        <input type="number" class="pdz-live-games pdz-live-input" inputmode="numeric"
+                                               name="games2" value="@(jogo.GamesDupla2 ?? 0)" min="0" max="99"
+                                               form="pdzPlacaresAoVivo" aria-label="Games de @jogo.Dupla2.NomeDeExibicao" />
+                                    }
+                                    else
+                                    {
+                                        <span class="pdz-live-games">@(jogo.GamesDupla2 ?? 0)</span>
+                                    }
                                 </div>
                             </div>
 

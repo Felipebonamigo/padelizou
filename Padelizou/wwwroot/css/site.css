@@ -2137,6 +2137,38 @@ button, a, input, select { touch-action: manipulation; }
     background: transparent;
 }
 
+/* Placar editável no próprio card do AO VIVO. Herda o tamanho do placar (pdz-live-games),
+   porque quem digita no balcão está de pé, com o celular numa mão — campo pequeno aqui é
+   erro de digitação com a quadra esperando. */
+.pdz-live-input {
+    width: 2.4em;
+    text-align: center;
+    background: var(--pdz-surface);
+    color: inherit;
+    border: 1px solid var(--pdz-border);
+    border-radius: 8px;
+    padding: .05em .15em;
+}
+
+.pdz-live-input:focus {
+    outline: 2px solid var(--pdz-accent, #a3e635);
+    outline-offset: 1px;
+}
+
+/* Some as setinhas do number: elas roubam metade da largura do campo e ninguém acerta
+   naquele alvo de 8px com o dedo. O teclado numérico do celular vem do inputmode. */
+.pdz-live-input::-webkit-outer-spin-button,
+.pdz-live-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pdz-live-input { -moz-appearance: textfield; appearance: textfield; }
+
+.pdz-live-salvar-barra {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .25rem;
+    margin-bottom: .9rem;
+}
+
 /* "Vencedor Primeira Rodada 1" como LINK pro jogo citado. Sublinhado pontilhado em vez de
    cor de link: numa lista de 80 linhas, dezenas de links azuis virariam ruído — o pontilhado
    diz "dá pra clicar" sem gritar. */

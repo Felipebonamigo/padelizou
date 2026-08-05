@@ -76,6 +76,74 @@ namespace Padelizou.Controllers
 
         [HttpPost]
         [Authorize]
+        // SALVAR O PLACAR DE TODOS OS JOGOS AO VIVO DE UMA VEZ.
+        //
+        // Com 5 quadras rodando, marcar um game significava: abrir o Controle de Placar,
+        // mexer, salvar, voltar, achar o próximo card, repetir. Cinco vezes, a cada game, a
+        // noite inteira. Aqui os números são editados na própria lista e vão juntos num POST.
+        //
+        // A tela cheia continua existindo e não é redundante: é lá que se marca SET, quem
+        // saca, quadra, link de transmissão e o FINALIZAR. Isto aqui é o atalho do que se
+        // repete, não um substituto.
+        //
+        // ⚠️ Jogador não altera nada: a ação exige organizador (ou admin), e a tela nem
+        // desenha os campos pra quem não é — oferecer um campo que o servidor vai recusar é
+        // desleixo que o usuário paga.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvarPlacaresAoVivo(
+            int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            if (partidaId.Length == 0 || partidaId.Length != games1.Length || partidaId.Length != games2.Length)
+            {
+                TempData["Erro"] = "Não recebi os placares — tente de novo.";
+                return VoltarPara(voltarPara, id);
+            }
+
+            var doTorneio = await _context.Partidas
+                .Where(p => p.TorneioId == id && partidaId.Contains(p.Id))
+                .ToListAsync();
+
+            int mexidos = 0;
+            for (int i = 0; i < partidaId.Length; i++)
+            {
+                var partida = doTorneio.FirstOrDefault(p => p.Id == partidaId[i]);
+
+                // Só jogo EM QUADRA. Se ele saiu do ar entre a tela carregar e o salvar (outra
+                // pessoa finalizou), o certo é não mexer: sobrescrever um placar já encerrado
+                // é justamente o que faz resultado sumir sem ninguém entender.
+                if (partida == null || partida.Status != "AoVivo") continue;
+
+                // O teto da FASE manda (Services/FormatoDaPartida): num torneio até 4, digitar
+                // 9 seria um placar que aquele jogo não pode ter.
+                var formato = FormatoDaPartida.De(torneio, partida.Fase);
+                int teto = FormatoDaPartida.TetoDeGames(formato.Games, games1[i], games2[i]);
+
+                int g1 = Math.Clamp(games1[i], 0, teto);
+                int g2 = Math.Clamp(games2[i], 0, teto);
+
+                if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2) continue;
+
+                partida.GamesDupla1 = g1;
+                partida.GamesDupla2 = g2;
+                mexidos++;
+            }
+
+            if (mexidos > 0) await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = mexidos == 0
+                ? "Nenhum placar mudou."
+                : $"{mexidos} placar(es) salvos.";
+
+            return VoltarPara(voltarPara, id);
+        }
+
         public async Task<IActionResult> FinalizarPartida(int partidaId)
         {
             // Usando _context.Partidas (Plural)
