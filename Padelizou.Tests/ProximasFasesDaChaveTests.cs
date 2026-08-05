@@ -142,10 +142,12 @@ public class ProximasFasesDaChaveTests
         var semis = jogos.Where(j => j.Fase == "Semifinal").ToList();
         var final = jogos.Single(j => j.Fase == "Final");
 
-        // Última quartas às 19:30 + 30min → as duas semis às 20:00 (cabem nas 2 quadras).
-        Assert.Equal(DateTime.Parse("2026-08-08 20:00"), semis[0].Horario);
-        Assert.Equal(DateTime.Parse("2026-08-08 20:00"), semis[1].Horario);
-        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), final.Horario);
+        // Última quartas às 19:30, jogos de 30 min: a fase acaba 20:00 e a semi abre 20:30 —
+        // uma rodada de folga, porque quem sai das quartas é quem joga a semi. As duas semis
+        // cabem nas 2 quadras, e a final abre 21:30 pela mesma conta.
+        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), semis[0].Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), semis[1].Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 21:30"), final.Horario);
     }
 
     [Fact]
@@ -162,8 +164,65 @@ public class ProximasFasesDaChaveTests
         var semis = Montar(quartas, quadras: 1, duracao: 40)
             .Where(j => j.Fase == "Semifinal").Select(j => j.Horario).ToList();
 
-        Assert.Equal(DateTime.Parse("2026-08-08 21:40"), semis[0]);
-        Assert.Equal(DateTime.Parse("2026-08-08 22:20"), semis[1]);
+        // Últimas quartas 21:00 → acabam 21:40, e a semi abre 22:20 (a folga de uma rodada).
+        Assert.Equal(DateTime.Parse("2026-08-08 22:20"), semis[0]);
+        Assert.Equal(DateTime.Parse("2026-08-08 23:00"), semis[1]);
+    }
+
+    // ---- Uma fase nunca encosta na fase que a alimenta ----
+
+    [Fact]
+    public void A_final_nao_cai_no_mesmo_horario_da_semifinal_que_a_decide()
+    {
+        // O defeito, visto pelo Felipe na tela do Interno Los Corneteiros (05/08/2026):
+        // "Semifinal 2 22:01" e logo abaixo "Final 22:01". A conta de slots era CORRIDA entre
+        // as rodadas — com 5 quadras, as 2 semis ocupavam 2 delas, sobravam 3 vagas no mesmo
+        // horário e a final entrava numa. Fisicamente impossível: os finalistas ainda estavam
+        // em quadra jogando a semi.
+        var quartas = new[]
+        {
+            Jogo(1, "Quartas de Final", "A1/A2", "B1/B2", "21:37"),
+            Jogo(2, "Quartas de Final", "C1/C2", "D1/D2", "21:37"),
+            Jogo(3, "Quartas de Final", "E1/E2", "F1/F2", "21:37"),
+            Jogo(4, "Quartas de Final", "G1/G2", "H1/H2", "21:37"),
+        };
+
+        var jogos = Montar(quartas, quadras: 5, duracao: 12);
+        var semis = jogos.Where(j => j.Fase == "Semifinal").ToList();
+        var final = jogos.Single(j => j.Fase == "Final");
+
+        Assert.All(semis, s => Assert.NotEqual(s.Horario, final.Horario));
+        Assert.True(final.Horario > semis.Max(s => s.Horario));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(8)]
+    public void Nenhuma_fase_comeca_antes_de_a_anterior_acabar(int quadras)
+    {
+        // A regra vale em qualquer número de quadras — e é justamente quando a rodada NÃO
+        // enche as quadras que a conta corrida furava. 8 jogos de primeira rodada + 8 byes
+        // percorrem oitavas → quartas → semi → final, então a varredura pega toda fronteira.
+        var primeira = Enumerable.Range(1, 8)
+            .Select(i => Jogo(i, "Primeira Rodada", $"A{i}", $"B{i}", "19:00"))
+            .ToList();
+        var byes = Enumerable.Range(1, 8).Select(i => $"Cabeça {i}").ToList();
+
+        var jogos = Montar(primeira, byes, quadras: quadras, duracao: 30);
+
+        foreach (var fase in jogos.Select(j => j.Fase).Distinct())
+        {
+            var anterior = jogos.Where(j => j.Fase == fase).Max(j => j.Horario)!.Value;
+            var seguintes = jogos.SkipWhile(j => j.Fase != fase).Where(j => j.Fase != fase).ToList();
+
+            Assert.All(seguintes, j => Assert.True(j.Horario > anterior,
+                $"{quadras} quadra(s): {j.FaseNumerada} às {j.Horario:HH:mm} não espera a {fase}, " +
+                $"que só acaba depois de {anterior:HH:mm}"));
+        }
     }
 
     [Fact]

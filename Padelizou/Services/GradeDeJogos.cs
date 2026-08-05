@@ -216,4 +216,29 @@ public static class GradeDeJogos
 
         return proximo;
     }
+
+    // Quando a PRÓXIMA FASE pode abrir, dado o último jogo da fase que a alimenta.
+    //
+    // Não é o mesmo que `DepoisDe`. `DepoisDe` responde "quando o jogo anterior acaba", e uma
+    // fase que abre exatamente aí é uma fase colada na anterior: quem joga a semifinal das 22h
+    // é quem disputa a final, então marcar a final para as 22h50 é chamar a mesma dupla pra
+    // quadra no minuto em que ela sai dela. Uma RODADA INTEIRA de folga entre as fases é o que
+    // dá o descanso — e é a razão de as etapas de uma categoria acontecerem "adiantadas" em
+    // relação às outras: elas se afastam justamente pra não empilhar na mesma gente.
+    //
+    // (Pior ainda era o caso que trouxe esta regra: a projeção emendava a rodada seguinte na
+    // contagem de quadras da anterior, e quando a rodada anterior não enchia as quadras, a
+    // Final saía no MESMO horário da Semifinal que a alimenta — um jogo antes de existirem os
+    // dois finalistas.)
+    //
+    // ⚠️ Se a virada já joga a fase pro dia seguinte, o descanso não é somado: a noite inteira
+    // já é folga, e adiar mais só atrasaria a abertura do dia sem dar descanso a ninguém.
+    public static DateTime AberturaDaProximaFase(DateTime ultimoJogoDaFase, TimeSpan ultimoInicioDoDia,
+        TimeSpan aberturaDiasSeguintes, int duracaoMinutos)
+    {
+        var fimDaFase = DepoisDe(ultimoJogoDaFase, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
+        if (fimDaFase.Date != ultimoJogoDaFase.Date) return fimDaFase;
+
+        return DepoisDe(fimDaFase, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
+    }
 }

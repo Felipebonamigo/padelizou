@@ -338,9 +338,12 @@ namespace Padelizou.Controllers
 
             Agendar(deGrupo, torneio.AberturaDaGrade);
 
+            // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
+            // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
+            // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
             var fimDosGrupos = deGrupo.Count > 0 ? deGrupo.Max(j => j.HorarioPrevisto) : null;
             Agendar(deMataMata, fimDosGrupos is DateTime ultimo
-                ? GradeDeJogos.DepoisDe(ultimo, torneio.HoraFimDoDia,
+                ? GradeDeJogos.AberturaDaProximaFase(ultimo, torneio.HoraFimDoDia,
                                         torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos)
                 : torneio.AberturaDaGrade);
 
@@ -572,11 +575,16 @@ namespace Padelizou.Controllers
                 .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
                 .MaxAsync(p => p.HorarioPrevisto);
 
+            // Uma rodada de folga depois de tudo que já está marcado — não o minuto em que o
+            // último jogo acaba. Quem joga a semifinal das 22h é quem disputa a final: colar
+            // uma fase na outra é chamar a mesma dupla de volta pra quadra sem descanso, e no
+            // limite (quando a fase anterior não enche as quadras) as duas caem na MESMA hora.
+            //
             // Vira o dia na abertura dos DIAS SEGUINTES: o mata-mata quase sempre cai no
             // domingo, que começa cedo — não às 18h da sexta em que o torneio abriu.
             var inicio = ultimoMarcado == null
                 ? torneio.AberturaDaGrade
-                : GradeDeJogos.DepoisDe(ultimoMarcado.Value, torneio.HoraFimDoDia,
+                : GradeDeJogos.AberturaDaProximaFase(ultimoMarcado.Value, torneio.HoraFimDoDia,
                                         torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
 
             var horarios = GradeDeJogos.Horarios(

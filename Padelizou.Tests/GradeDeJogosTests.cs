@@ -418,4 +418,48 @@ public class GradeDeJogosTests
 
         Assert.Equal(jogos[0].HorarioPrevisto, jogos[1].HorarioPrevisto);
     }
+
+    // ---- A folga entre uma fase e a seguinte ----
+    // Quem joga a semifinal é quem disputa a final. Abrir a final no minuto em que a semi
+    // termina chama a mesma dupla de volta pra quadra sem descanso — e é o mesmo motivo pelo
+    // qual as etapas de uma categoria acontecem "adiantadas" em relação às outras.
+
+    [Fact]
+    public void A_proxima_fase_deixa_uma_rodada_de_folga_depois_da_anterior()
+    {
+        // Último jogo da semi às 20h, jogos de 30 min: ela termina 20h30 e a final abre 21h —
+        // não 20h30, que é o instante em que os finalistas saem da quadra.
+        var ultimoDaSemi = new DateTime(2026, 8, 15, 20, 0, 0);
+
+        var abertura = GradeDeJogos.AberturaDaProximaFase(
+            ultimoDaSemi, Ate22h, new TimeSpan(8, 0, 0), 30);
+
+        Assert.Equal(new DateTime(2026, 8, 15, 21, 0, 0), abertura);
+    }
+
+    [Fact]
+    public void Nunca_devolve_o_horario_do_proprio_jogo_anterior()
+    {
+        // O defeito que trouxe esta regra: Semifinal e Final apareciam na MESMA hora.
+        foreach (var duracao in new[] { 12, 30, 40, 50, 60 })
+        {
+            var ultimo = new DateTime(2026, 8, 15, 9, 0, 0);
+            var abertura = GradeDeJogos.AberturaDaProximaFase(ultimo, Ate22h, new TimeSpan(8, 0, 0), duracao);
+
+            Assert.True(abertura >= ultimo.AddMinutes(duracao * 2),
+                $"duração {duracao}: fase seguinte abriu em {abertura:HH:mm}, colada em {ultimo:HH:mm}");
+        }
+    }
+
+    [Fact]
+    public void Virou_o_dia_e_o_descanso_ja_aconteceu_a_noite_inteira()
+    {
+        // Empurrar mais uma rodada aqui só atrasaria a abertura do dia seguinte sem dar folga
+        // nenhuma a ninguém: entre 22h40 e as 8h da manhã cabe descanso de sobra.
+        var ultimo = new DateTime(2026, 8, 15, 21, 40, 0);
+
+        var abertura = GradeDeJogos.AberturaDaProximaFase(ultimo, Ate22h, new TimeSpan(8, 0, 0), 40);
+
+        Assert.Equal(new DateTime(2026, 8, 16, 8, 0, 0), abertura);
+    }
 }

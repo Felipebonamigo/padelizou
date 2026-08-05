@@ -157,6 +157,44 @@ public class TorneioFluxoTests
         Assert.Empty(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto == null).ToListAsync());
     }
 
+    // A fase seguinte não encosta na anterior: quem joga a semifinal é quem disputa a final,
+    // e marcar a final para o minuto em que a semi termina é chamar a mesma dupla de volta pra
+    // quadra sem descanso. Uma rodada de folga entre as fases (GradeDeJogos.AberturaDaProximaFase)
+    // — a mesma conta que a projeção mostra na tela, pra grade e previsão não divergirem.
+    [Fact]
+    public async Task Cada_fase_deixa_uma_rodada_de_folga_pra_seguinte()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        torneio.QuantidadeQuadras = 4;   // sobram quadras: é aí que a conta corrida furava
+        torneio.TempoPrevistoPartidaMinutos = 30;
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        var grupos = await ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToListAsync();
+        var fimDosGrupos = grupos.Max(p => p.HorarioPrevisto!.Value);
+
+        foreach (var jogo in grupos)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var semis = await ctx.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal").ToListAsync();
+        Assert.All(semis, p => Assert.True(p.HorarioPrevisto >= fimDosGrupos.AddMinutes(60),
+            $"semifinal às {p.HorarioPrevisto:HH:mm} colada no último jogo de grupo ({fimDosGrupos:HH:mm})"));
+
+        foreach (var semi in semis)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, semi, 9, 5);
+
+        var fimDasSemis = semis.Max(p => p.HorarioPrevisto!.Value);
+        var final = await ctx.Partidas
+            .SingleAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Final");
+
+        Assert.True(final.HorarioPrevisto >= fimDasSemis.AddMinutes(60),
+            $"final às {final.HorarioPrevisto:HH:mm} colada na semifinal ({fimDasSemis:HH:mm})");
+    }
+
     [Fact]
     public async Task Mata_mata_respeita_o_expediente_e_vira_o_dia()
     {

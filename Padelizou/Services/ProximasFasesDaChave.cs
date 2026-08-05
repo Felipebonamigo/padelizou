@@ -18,6 +18,9 @@ namespace Padelizou.Services;
 // grade que já valem pro resto (Services/GradeDeJogos). Atrasar na prática é normal e não
 // muda o slot — decisão do Felipe em 05/08/2026.
 //
+// ⚠️ Cada rodada abre uma rodada DEPOIS do fim da anterior (GradeDeJogos.AberturaDaProximaFase),
+// nunca colada nela: os dois finalistas saem da semifinal, então a final tem que deixar folga.
+//
 // O pareamento usa a MESMA regra do avanço de verdade (ChaveamentoMataMata.ParearVencedores):
 // primeiro cruza com último. Uma conta paralela diria um cruzamento que o sorteio não faz.
 public static class ProximasFasesDaChave
@@ -97,16 +100,17 @@ public static class ProximasFasesDaChave
 
         var jogos = new List<JogoQueVem>();
         var proximos = new List<Lado>();
-        var horario = horarioBase;
-        int noSlot = 0;
+
+        // O mata-mata abre uma rodada DEPOIS do fim da fase de grupos, não colado nela: quem
+        // joga o último jogo do grupo é candidato a classificar, e cairia direto na quadra.
+        var horarios = HorariosDaRodada(confrontos.Count,
+            AbrirRodada(horarioBase, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes),
+            quadras, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes);
 
         for (int i = 0; i < confrontos.Count; i++)
         {
-            horario = ProximoSlot(horario, ref noSlot, quadras, duracaoMinutos,
-                ultimoInicioDoDia, aberturaDiasSeguintes);
-
             int numero = i + 1;
-            jogos.Add(new JogoQueVem(categoria, fase, numero, horario,
+            jogos.Add(new JogoQueVem(categoria, fase, numero, horarios[i],
                 new Lado(confrontos[i].Lado1.Rotulo), new Lado(confrontos[i].Lado2.Rotulo)));
             proximos.Add(new Lado($"Vencedor {fase} {numero}"));
         }
@@ -116,20 +120,24 @@ public static class ProximasFasesDaChave
         // o bye ainda não tem nome: é a colocação ("2º do Grupo C").
         proximos.AddRange(byes.Select(b => new Lado(b.Rotulo)));
 
-        jogos.AddRange(Encadear(proximos, categoria, horario,
+        jogos.AddRange(Encadear(proximos, categoria, horarios[^1],
             duracaoMinutos, quadras, ultimoInicioDoDia, aberturaDiasSeguintes));
 
         return jogos;
     }
 
     // ---- O encadeamento, rodada a rodada, até a final ----
+    //
+    // `ultimoDaFaseAnterior` é o horário do ÚLTIMO jogo da fase que alimenta esta — cada
+    // rodada se afasta dele por conta própria (ver AbrirRodada). A conta corrida de slots que
+    // existia aqui atravessava a fronteira das rodadas, e quando a rodada anterior não enchia
+    // as quadras a seguinte começava no MESMO horário dela: a Final saía junto com a Semifinal
+    // que a decide.
     private static List<JogoQueVem> Encadear(
-        List<Lado> lados, string categoria, DateTime? horarioBase,
+        List<Lado> lados, string categoria, DateTime? ultimoDaFaseAnterior,
         int duracaoMinutos, int quadras, TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes)
     {
         var jogos = new List<JogoQueVem>();
-        var horario = horarioBase;
-        int noSlot = 0;
 
         // Trava de segurança: uma chave real nunca passa de meia dúzia de rodadas, e um dado
         // torto não pode virar laço infinito numa página que o jogador abre.
@@ -144,36 +152,56 @@ public static class ProximasFasesDaChave
             var confrontos = Parear(lados);
             var proximos = new List<Lado>(confrontos.Count);
 
+            var horarios = HorariosDaRodada(confrontos.Count,
+                AbrirRodada(ultimoDaFaseAnterior, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes),
+                quadras, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes);
+
             for (int i = 0; i < confrontos.Count; i++)
             {
-                horario = ProximoSlot(horario, ref noSlot, quadras, duracaoMinutos,
-                    ultimoInicioDoDia, aberturaDiasSeguintes);
-
                 int numero = i + 1;
-                jogos.Add(new JogoQueVem(categoria, fase, numero, horario,
+                jogos.Add(new JogoQueVem(categoria, fase, numero, horarios[i],
                     confrontos[i].Lado1, confrontos[i].Lado2));
                 proximos.Add(new Lado($"Vencedor {fase} {numero}"));
             }
 
             lados = proximos;
+            ultimoDaFaseAnterior = horarios[^1];
             if (fase == "Final") break;
         }
 
         return jogos;
     }
 
-    // As quadras rodam em paralelo: o relógio só anda quando a leva enche.
-    private static DateTime? ProximoSlot(DateTime? horario, ref int noSlot, int quadras,
+    // Quando a rodada abre: uma rodada de folga depois do fim da anterior. A regra mora em
+    // GradeDeJogos.AberturaDaProximaFase, que é a mesma usada na grade de verdade — projeção
+    // e grade dizendo horas diferentes seria pior que não projetar.
+    private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, int duracaoMinutos,
+        TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes) =>
+        ultimoDaFaseAnterior is DateTime ultimo
+            ? GradeDeJogos.AberturaDaProximaFase(ultimo, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos)
+            : null;
+
+    // Os jogos de UMA rodada ao longo do relógio: as quadras rodam em paralelo, então a hora
+    // só anda quando a leva enche. Torneio por ordem de liberação não tem hora — e aí a lista
+    // é de nulos, que é a resposta honesta.
+    private static List<DateTime?> HorariosDaRodada(int quantidade, DateTime? abertura, int quadras,
         int duracaoMinutos, TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes)
     {
-        if (noSlot % Math.Max(1, quadras) == 0 && horario != null)
+        var horarios = new List<DateTime?>(quantidade);
+        var horario = abertura;
+
+        for (int i = 0; i < quantidade; i++)
         {
-            horario = GradeDeJogos.DepoisDe(
-                horario.Value, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
+            if (i > 0 && i % Math.Max(1, quadras) == 0 && horario != null)
+            {
+                horario = GradeDeJogos.DepoisDe(
+                    horario.Value, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
+            }
+
+            horarios.Add(horario);
         }
 
-        noSlot++;
-        return horario;
+        return horarios;
     }
 
     // Primeiro cruza com último — a regra de ChaveamentoMataMata.ParearVencedores, aplicada
