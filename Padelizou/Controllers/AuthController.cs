@@ -418,6 +418,7 @@ namespace padelizou.Controllers
             var agora = DateTime.Now;
             var apelidoLimpo = string.IsNullOrWhiteSpace(apelido) ? null : apelido.Trim();
             var avisos = new List<string>();
+            bool recusouAlgo = false;
 
             if (TrocaDeNome.Mudou(jogador.Nome, nome))
             {
@@ -432,6 +433,7 @@ namespace padelizou.Controllers
                 else
                 {
                     avisos.Add(TrocaDeNome.Recusa("O nome", pode, agora));
+                    recusouAlgo = true;
                 }
             }
 
@@ -451,8 +453,12 @@ namespace padelizou.Controllers
                 else
                 {
                     avisos.Add(TrocaDeNome.Recusa("O apelido", pode, agora));
+                    recusouAlgo = true;
                 }
             }
+
+            // A tranquilizada entra UMA vez, no fim — não colada em cada recusa.
+            if (recusouAlgo) avisos.Add(TrocaDeNome.ORestoFoiSalvo);
             jogador.Email = email;
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             // A cidade do perfil é texto livre e alimenta o filtro do ranking. Sem arrumar na

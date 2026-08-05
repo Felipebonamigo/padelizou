@@ -65,7 +65,11 @@ public static class TrocaDeNome
         var quando = resultado.LiberaEm?.ToString("dd/MM/yyyy") ?? "";
 
         return $"{oQue} só pode ser trocado de novo em {quando}" +
-               (dias > 0 ? $" — faltam {dias} dia{(dias == 1 ? "" : "s")}." : ".") +
-               " O resto do perfil você salva normalmente.";
+               (dias > 0 ? $" — faltam {dias} dia{(dias == 1 ? "" : "s")}." : ".");
     }
+
+    // Vai UMA vez no fim do aviso, não colada em cada recusa: quem trocou nome e apelido no
+    // mesmo save lia a mesma frase duas vezes seguidas, e texto repetido faz a tela parecer
+    // feita às pressas — além de empurrar a informação útil pra longe.
+    public const string ORestoFoiSalvo = "O resto do perfil você salva normalmente.";
 }

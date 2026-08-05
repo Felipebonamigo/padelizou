@@ -124,8 +124,18 @@ public class TrocaDeNomeTests
 
         Assert.Contains(r.LiberaEm!.Value.ToString("dd/MM/yyyy"), texto);
         Assert.Contains("faltam", texto);
-        // E deixa claro que o resto do formulário foi salvo.
-        Assert.Contains("O resto do perfil", texto);
+    }
+
+    [Fact]
+    public void A_tranquilizada_do_resto_do_perfil_NAO_vem_colada_na_recusa()
+    {
+        // Quem trocou nome E apelido no mesmo save lia "o resto do perfil você salva
+        // normalmente" duas vezes seguidas. O controller acrescenta essa frase uma vez só,
+        // no fim — texto repetido faz a tela parecer feita às pressas.
+        var r = TrocaDeNome.PodeTrocarNome(Hoje.AddMonths(-1), Hoje);
+
+        Assert.DoesNotContain(TrocaDeNome.ORestoFoiSalvo, TrocaDeNome.Recusa("O nome", r, Hoje));
+        Assert.DoesNotContain(TrocaDeNome.ORestoFoiSalvo, TrocaDeNome.Recusa("O apelido", r, Hoje));
     }
 
     [Fact]
