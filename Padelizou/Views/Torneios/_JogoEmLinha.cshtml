@@ -52,6 +52,10 @@
         <div class="pdz-jogo-linha-confronto">
             <span class="pdz-jogo-linha-time pdz-jogo-linha-time-esq @(venceu1 ? "fw-bold" : venceu2 ? "text-muted" : "")">
                 <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla1)</span>
+                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
+                {
+                    <span class="pdz-bolinha" title="Sacando"></span>
+                }
                 @if (Model.Finalizada)
                 {
                     <span class="pdz-jogo-linha-games">@g1</span>
@@ -64,6 +68,10 @@
                 @if (Model.Finalizada)
                 {
                     <span class="pdz-jogo-linha-games">@g2</span>
+                }
+                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
+                {
+                    <span class="pdz-bolinha" title="Sacando"></span>
                 }
                 <span class="pdz-jogo-linha-nome">@Lado(jogo.Dupla2)</span>
             </span>

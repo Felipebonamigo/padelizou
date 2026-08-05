@@ -1940,3 +1940,166 @@ button, a, input, select { touch-action: manipulation; }
 }
 .pdz-chip-compacto a { min-width: 0; max-width: 100%; }
 
+
+/* Explicação do chaveamento, no topo da fase final. "Folgou a 1ª rodada" ao lado de um
+   nome não se explica sozinho — e o próprio conceito de chave (quem perde sai, de onde
+   vem cada vaga) não é óbvio pra quem nunca olhou uma tabela de torneio. */
+.pdz-mm-ajuda {
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+    padding: .6rem .8rem;
+    border-radius: 10px;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    color: var(--pdz-muted);
+    font-size: .78rem;
+    line-height: 1.45;
+}
+
+.pdz-mm-ajuda strong { color: var(--pdz-ink); }
+
+/* O selo de quem folgou: texto por extenso, não sigla. Cabe porque a vaga futura tem
+   uma linha só de nome. */
+.pdz-chave-selobye {
+    flex: 0 0 auto;
+    font-size: .58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+    white-space: nowrap;
+}
+
+/* ── Bolinha do saque ──────────────────────────────────────────────────────
+   No padel, saber de quem é o saque é metade da leitura do jogo pra quem chega no
+   meio de um game ou acompanha de fora. A bolinha é amarela de bola de padel, com um
+   brilho e a costura — em texto ("saque") ela competiria com o nome da dupla. */
+.pdz-bolinha {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: .7rem;
+    height: .7rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #f4ff8a 0%, #d8e94a 45%, #b6c92f 100%);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .18) inset, 0 0 6px rgba(216, 233, 74, .55);
+    vertical-align: middle;
+}
+
+/* ---- Escolha de quem saca, no Controle de Placar ---- */
+.pdz-saque-escolha {
+    margin: 0 0 1rem;
+    padding: .75rem .9rem;
+    border-radius: 12px;
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+}
+
+.pdz-saque-titulo {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--pdz-ink);
+    margin-bottom: .5rem;
+}
+
+.pdz-saque-opcoes {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+/* O radio some e o rótulo inteiro vira o alvo: no celular, com a quadra rolando, o
+   alvo de toque tem que ser o cartão, não um círculo de 14px. */
+.pdz-saque-opcao {
+    flex: 1 1 8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: .35rem;
+    padding: .5rem .6rem;
+    border-radius: 999px;
+    border: 1px solid var(--pdz-border);
+    background: var(--pdz-surface);
+    color: var(--pdz-ink);
+    font-size: .82rem;
+    cursor: pointer;
+}
+
+.pdz-saque-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+
+.pdz-saque-opcao:has(input:checked) {
+    border-color: var(--pdz-lime);
+    background: var(--pdz-lime);
+    color: var(--pdz-navy-fixed);
+    font-weight: 700;
+}
+
+.pdz-saque-limpar { flex: 0 0 auto; color: var(--pdz-muted); }
+
+/* ── Os botões de games na Mesa de Controle ────────────────────────────────
+   São O controle da tela: no dia do torneio o organizador aperta estes dois a cada
+   ponto, em pé, com o celular na mão e a quadra rolando. Eram `btn-sm` — alvo de
+   ~28px, abaixo do mínimo confortável de toque e fácil de errar. Agora são quadrados
+   de 48px (56px no celular), com o número grande no meio.
+
+   `touch-action: manipulation` tira o atraso de 300ms do duplo-toque: marcando ponto
+   a ponto, esse atraso vira sensação de travamento. */
+.pdz-mesa-passo {
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.pdz-mesa-passo-menos {
+    color: var(--pdz-ink);
+    background: var(--pdz-surface);
+    border: 1px solid var(--pdz-border);
+}
+
+.pdz-mesa-passo-menos:hover { background: var(--pdz-surface-alt); }
+
+.pdz-mesa-passo-mais {
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+    border: 1px solid transparent;
+}
+
+.pdz-mesa-passo-mais:hover { background: var(--pdz-lime-600); }
+
+/* Botão colado num do outro num btn-group perde o canto arredondado; aqui eles são
+   três peças separadas, com o número no meio. */
+.pdz-mesa-passo + .pdz-mesa-numero,
+.pdz-mesa-numero + .pdz-mesa-passo { margin-left: .35rem; }
+
+.pdz-mesa-numero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3rem;
+    height: 3rem;
+    font-size: 1.75rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--pdz-ink);
+}
+
+@media (max-width: 575.98px) {
+    .pdz-mesa-passo { width: 3.5rem; height: 3.5rem; font-size: 1.75rem; }
+    .pdz-mesa-numero { min-width: 3.25rem; height: 3.5rem; font-size: 2rem; }
+}

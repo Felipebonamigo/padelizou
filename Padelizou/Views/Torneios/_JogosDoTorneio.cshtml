@@ -215,10 +215,17 @@
                                 // destaque. O set só aparece quando o jogo de fato virou 2 sets.
                                 bool mostrarSets = (jogo.SetsDupla1 ?? 0) > 0 || (jogo.SetsDupla2 ?? 0) > 0;
                             }
+                            @* A bolinha do saque: no padel, saber de quem é o saque é metade
+                               da leitura do jogo pra quem chega no meio de um game. Quem
+                               marca é o organizador, no Controle de Placar. *@
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla1" />
                                 </div>
+                                @if (jogo.DuplaSacandoId == jogo.Dupla1Id)
+                                {
+                                    <span class="pdz-bolinha" title="Sacando"></span>
+                                }
                                 <div class="pdz-live-placar @(ganhando1 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
                                     {
@@ -231,6 +238,10 @@
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla2" />
                                 </div>
+                                @if (jogo.DuplaSacandoId == jogo.Dupla2Id)
+                                {
+                                    <span class="pdz-bolinha" title="Sacando"></span>
+                                }
                                 <div class="pdz-live-placar @(ganhando2 ? "pdz-live-placar-ganhando" : "")">
                                     @if (mostrarSets)
                                     {
@@ -244,9 +255,14 @@
                                dele (a rota recusa, mas o convite já passava desleixo). *@
                             @if (ehOrganizador)
                             {
-                                <div class="text-end mt-2">
-                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="pdz-live-editar">
-                                        <i class="bi bi-pencil-fill"></i> Editar jogo
+                                @* Botão de verdade, largura cheia: no jogo AO VIVO marcar o
+                                   placar é A ação da tela, e ela vivia como um link cinza de
+                                   11px no canto — pequeno pra achar com a quadra rolando e
+                                   sem parecer clicável. *@
+                                <div class="mt-3">
+                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
+                                       class="btn btn-padel w-100 fw-bold">
+                                        <i class="bi bi-pencil-fill"></i> Marcar placar
                                     </a>
                                 </div>
                             }

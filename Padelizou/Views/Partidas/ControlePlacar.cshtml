@@ -89,6 +89,30 @@
                             </div>
                         </div>
 
+                        @* Quem está SACANDO. No padel é metade da leitura do jogo: quem chega
+                           no meio de um game precisa disso pra entender o que está rolando.
+                           Fica junto do placar porque quem sabe é quem está olhando a quadra. *@
+                        <div class="pdz-saque-escolha">
+                            <span class="pdz-saque-titulo"><span class="pdz-bolinha"></span> Quem está sacando</span>
+                            <div class="pdz-saque-opcoes">
+                                <label class="pdz-saque-opcao @(Model.DuplaSacandoId == Model.Dupla1Id ? "ativa" : "")">
+                                    <input type="radio" name="duplaSacandoId" value="@Model.Dupla1Id"
+                                           @(Model.DuplaSacandoId == Model.Dupla1Id ? "checked" : "") />
+                                    <span>@(Model.Dupla1.EhTime ? Model.Dupla1.NomeTime : $"{Model.Dupla1.Jogador1.ComoChamar.Split(' ')[0]} / {Model.Dupla1.Jogador2?.ComoChamar.Split(' ')[0] ?? "?"}")</span>
+                                </label>
+                                <label class="pdz-saque-opcao @(Model.DuplaSacandoId == Model.Dupla2Id ? "ativa" : "")">
+                                    <input type="radio" name="duplaSacandoId" value="@Model.Dupla2Id"
+                                           @(Model.DuplaSacandoId == Model.Dupla2Id ? "checked" : "") />
+                                    <span>@(Model.Dupla2.EhTime ? Model.Dupla2.NomeTime : $"{Model.Dupla2.Jogador1.ComoChamar.Split(' ')[0]} / {Model.Dupla2.Jogador2?.ComoChamar.Split(' ')[0] ?? "?"}")</span>
+                                </label>
+                                <label class="pdz-saque-opcao pdz-saque-limpar @(Model.DuplaSacandoId == null ? "ativa" : "")">
+                                    <input type="radio" name="duplaSacandoId" value=""
+                                           @(Model.DuplaSacandoId == null ? "checked" : "") />
+                                    <span>Não mostrar</span>
+                                </label>
+                            </div>
+                        </div>
+
                         @* A regra da fase, escrita: sem isso o organizador não tem como saber
                            por que o campo para em 4 — e "para em 4" era justamente o que a tela
                            NÃO fazia, com max="9" cravado independente do que ele configurou. *@

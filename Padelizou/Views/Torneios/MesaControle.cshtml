@@ -53,9 +53,9 @@
                                     <div class="text-center">
                                         <small class="text-muted d-block fw-bold">GAMES</small>
                                         <div class="btn-group">
-                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', -1)" class="btn btn-sm btn-outline-secondary">-</button>
-                                            <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesA_@partida.Id">@partida.GamesDupla1</span>
-                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', 1)" class="btn btn-sm btn-primary">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', -1)" class="btn pdz-mesa-passo pdz-mesa-passo-menos">−</button>
+                                            <span class="pdz-mesa-numero" id="gamesA_@partida.Id">@partida.GamesDupla1</span>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games1', 1)" class="btn pdz-mesa-passo pdz-mesa-passo-mais">+</button>
                                         </div>
                                     </div>
                                 </div>
@@ -85,9 +85,9 @@
                                     </div>
                                     <div class="text-center">
                                         <div class="btn-group">
-                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', -1)" class="btn btn-sm btn-outline-secondary">-</button>
-                                            <span class="btn btn-sm btn-light fw-bold fs-4 px-4 text-primary" id="gamesB_@partida.Id">@partida.GamesDupla2</span>
-                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', 1)" class="btn btn-sm btn-primary">+</button>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', -1)" class="btn pdz-mesa-passo pdz-mesa-passo-menos">−</button>
+                                            <span class="pdz-mesa-numero" id="gamesB_@partida.Id">@partida.GamesDupla2</span>
+                                            <button onclick="MesaOffline.tocar(@partida.Id, 'games2', 1)" class="btn pdz-mesa-passo pdz-mesa-passo-mais">+</button>
                                         </div>
                                     </div>
                                 </div>

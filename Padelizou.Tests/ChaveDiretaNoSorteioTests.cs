@@ -167,6 +167,34 @@ public class ChaveDiretaNoSorteioTests
     }
 
     [Fact]
+    public async Task Jogo_de_grupo_vem_antes_do_mata_mata_na_grade()
+    {
+        // Fases embaralhadas no mesmo horário confundem quem está no clube: a abertura da
+        // chave direta caía no meio dos jogos de grupo das outras categorias. Grupo primeiro;
+        // as fases seguintes (semi, final) nem passam por aqui — nascem depois, pelo robô,
+        // emendadas no fim de tudo, e por isso a final é sempre o último jogo.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, chave) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+
+        var ultimoDeGrupo = jogos
+            .Where(j => Padelizou.Services.FasesTorneio.EhFaseDeGrupos(j.Fase))
+            .Max(j => j.HorarioPrevisto);
+        var primeiroDoMataMata = jogos
+            .Where(j => j.CategoriaId == chave.Id)
+            .Min(j => j.HorarioPrevisto);
+
+        Assert.NotNull(ultimoDeGrupo);
+        Assert.NotNull(primeiroDoMataMata);
+        Assert.True(primeiroDoMataMata >= ultimoDeGrupo,
+            $"mata-mata às {primeiroDoMataMata:HH:mm} começaria antes do fim dos grupos ({ultimoDeGrupo:HH:mm})");
+    }
+
+    [Fact]
     public async Task Chave_direta_acima_do_teto_e_recusada_antes_de_sortear()
     {
         using var ctx = TestInfra.NovoContexto();

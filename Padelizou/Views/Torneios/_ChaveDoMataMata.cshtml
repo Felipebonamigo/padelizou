@@ -95,6 +95,19 @@
         }
     }
 
+    // A explicação do quadro, com os números DESTA chave. Sem ela, quem abre a tela vê
+    // "folgou a 1ª rodada" ao lado de um nome e não tem como saber por que aquela dupla
+    // ganhou a folga — nem que isso é normal em qualquer chaveamento.
+    int duplasNaChave = 0, folgaram = 0;
+    string faseDaFolga = "";
+    if (fases.Count > 0)
+    {
+        var abertura = fases[0];
+        folgaram = byes.Count;
+        duplasNaChave = abertura.Vagas.Count(v => v.Jogo != null) * 2 + folgaram;
+        faseDaFolga = fases.Count > 1 ? fases[1].Nome : "";
+    }
+
     var jogoFinal = fases.Count > 0 && fases[^1].Nome == "Final"
         ? fases[^1].Vagas.FirstOrDefault()?.Jogo : null;
     var campea = jogoFinal is { Status: "Finalizada", VencedorId: not null }
@@ -107,7 +120,9 @@
     {
         public string Rotulo { get; set; } = "";
         public bool EhBye { get; set; }
-        public static LadoVM VencedorDe(int numero) => new() { Rotulo = $"Vencedor do jogo {numero}" };
+        // "Quem ganhar o jogo 3", não "Vencedor do jogo 3": é como a pessoa fala e pergunta
+        // ("quem ganhar aquele jogo pega quem?"), e não parece um campo de formulário.
+        public static LadoVM VencedorDe(int numero) => new() { Rotulo = $"Quem ganhar o jogo {numero}" };
         public static LadoVM Bye(string nome) => new() { Rotulo = nome, EhBye = true };
     }
 
@@ -126,6 +141,24 @@
 }
 
 <div class="pdz-mm">
+    <div class="pdz-mm-ajuda">
+        <i class="bi bi-info-circle"></i>
+        <span>
+            Quem perde está fora. Cada jogo é numerado — nas fases que ainda não aconteceram
+            está escrito de qual jogo sai cada vaga.
+            @if (folgaram > 0)
+            {
+                <text>
+                    São <strong>@duplasNaChave duplas</strong> e a chave tem
+                    <strong>@(duplasNaChave + folgaram) lugares</strong>, então
+                    <strong>@folgaram</strong> @(folgaram == 1 ? "dupla folga" : "duplas folgam")
+                    a primeira rodada e @(folgaram == 1 ? "entra" : "entram")
+                    direto @(string.IsNullOrEmpty(faseDaFolga) ? "na fase seguinte" : $"n{(faseDaFolga == "Final" ? "a" : "as")} {faseDaFolga.ToLowerInvariant()}").
+                </text>
+            }
+        </span>
+    </div>
+
     @foreach (var (nome, vagas) in fases)
     {
         <div class="pdz-mm-fase">
@@ -187,7 +220,10 @@
                                     <span class="pdz-chave-nome">@(lado?.Rotulo ?? "A definir")</span>
                                     @if (lado?.EhBye == true)
                                     {
-                                        <span class="pdz-chave-selobye" title="Passou direto — descansou a rodada anterior">bye</span>
+                                        @* "bye" é jargão de tabela de torneio: quem não é do
+                                           meio não faz ideia do que significa, e era a única
+                                           palavra da tela que precisava ser explicada. *@
+                                        <span class="pdz-chave-selobye">folgou a 1ª rodada</span>
                                     }
                                 </span>
                             }

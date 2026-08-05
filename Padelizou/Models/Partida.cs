@@ -65,4 +65,13 @@ public partial class Partida
     // a sincronização offline ser "o último estado vence": um placar guardado no celular sem
     // internet não pode atropelar um mais novo vindo de outro aparelho.
     public DateTime? PlacarMarcadoEm { get; set; }
+
+    // Qual dupla está SACANDO agora. Nulo = ninguém marcou (jogo que não começou, ou
+    // organizador que não usa).
+    //
+    // No padel o saque é metade da leitura do jogo: quem chega na quadra no meio de um
+    // game, ou acompanha de fora, precisa saber de quem é o saque pra entender o que está
+    // acontecendo. Quem controla é o organizador, na mesma tela em que marca o placar —
+    // ele é quem está olhando pra quadra.
+    public int? DuplaSacandoId { get; set; }
 }

@@ -193,7 +193,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false)
+        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
@@ -212,6 +212,13 @@ namespace Padelizou.Controllers
             partida.GamesDupla2 = gamesDupla2;
             partida.NomeQuadra = nomeQuadra;
             partida.LinkTransmissao = linkTransmissao;
+
+            // Quem saca só pode ser uma das duas duplas DESTE jogo. Vazio = não mostrar.
+            // Sem essa checagem, um POST montado à mão apontaria a bolinha do saque pra uma
+            // dupla de outra partida, e a tela mostraria um nome que não está em quadra.
+            partida.DuplaSacandoId = duplaSacandoId == partida.Dupla1Id || duplaSacandoId == partida.Dupla2Id
+                ? duplaSacandoId
+                : null;
 
             // Aplica o link (e a quadra) a todos os PRÓXIMOS jogos da mesma quadra — a câmera
             // costuma cobrir a quadra o dia inteiro. Só toca jogos ainda não finalizados; os que
