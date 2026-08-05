@@ -1340,32 +1340,6 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-palpite-linha .pdz-palpite-barra { display: none; }
 }
 
-/* Prévia do mata-mata por colocação ("1º do Grupo A x 2º do Grupo C"). */
-.pdz-chave-projetada {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: .5rem;
-}
-
-.pdz-chave-projetada-jogo {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: .5rem;
-    padding: .55rem .8rem;
-    border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
-    border-radius: 10px;
-    background: var(--pdz-surface-alt);
-    color: var(--pdz-ink);
-    font-size: .85rem;
-}
-
-.pdz-chave-projetada-vs {
-    color: var(--pdz-muted);
-    font-size: .75rem;
-    flex: 0 0 auto;
-}
-
 /* Ninguém palpitou ainda: barra no meio e apagada, pra não competir com quem já tem
    palpite de verdade. */
 .pdz-palpite-vazio { opacity: .45; }
@@ -1407,54 +1381,67 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-muted);
 }
 
+/* Mesma anatomia da vaga da chave de verdade (.pdz-chave-vaga): etiqueta fina em cima
+   com número, hora e quadra, e os dois lados embaixo ocupando a largura toda.
+
+   Era um flex de duas colunas — número à esquerda, um bloco com TUDO à direita. Como o
+   bloco encolhia até o conteúdo, ele descolava do número e ia parar no canto direito do
+   cartão, deixando um vão no meio e os nomes soltos longe do quadro. */
 .pdz-chave-projetada-jogo {
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-    padding: .5rem .7rem;
+    padding: .45rem .6rem;
     border: 1px dashed var(--pdz-border);   /* tracejado: ainda não é fato */
     border-radius: 10px;
     background: var(--pdz-surface-alt);
     color: var(--pdz-ink);
     font-size: .82rem;
+    line-height: 1.35;
 }
 
 /* Hora e quadra do jogo projetado. Menor e mais apagada que os lados: quem olha o quadro
    procura primeiro QUEM joga; o quando vem logo depois, e é a metade que faltava — o
    jogador precisa saber a que horas voltar e pra qual quadra ir. */
 .pdz-chave-projetada-quando {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
     font-size: .68rem;
     font-weight: 600;
     letter-spacing: .02em;
     color: var(--pdz-muted);
-    margin-bottom: .12rem;
+    margin-bottom: .2rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
+/* Encostada na direita, como na chave real: hora e quadra são duas informações
+   diferentes, e emendadas no meio da linha viravam uma frase só. */
+.pdz-chave-projetada-quadra { margin-left: auto; font-weight: 700; }
+
 .pdz-chave-projetada-num {
-    flex: 0 0 1.5rem;
-    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.15rem;
+    height: 1.15rem;
     border-radius: 50%;
     background: var(--pdz-surface);
     border: 1px solid var(--pdz-border);
     color: var(--pdz-muted);
-    font-size: .7rem;
+    font-size: .62rem;
     font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.pdz-chave-projetada-lados {
-    min-width: 0;
-    line-height: 1.3;
-}
-
-.pdz-chave-projetada-lados > span {
+.pdz-chave-projetada-lado {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* O de baixo apagado, igual à chave real: dá pra ler o confronto de relance sem
+   confundir as duas linhas. */
+.pdz-chave-projetada-lado-2 { color: var(--pdz-muted); }
 
 /* ── Chaveamento do mata-mata: ÁRVORE de cima pra baixo ────────────────────
    A primeira rodada no topo, cada fase numa linha abaixo ligada por linhas que

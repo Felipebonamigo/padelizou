@@ -2145,22 +2145,30 @@
                                                         && projecaoDaCategoria.TryGetValue(rodada.Fase, out var daFase)
                                                         && i < daFase.Count ? daFase[i] : null;
 
+                                                    @* Número junto da hora, na etiqueta de cima, e os
+                                                       lados soltos ocupando a largura toda — a mesma
+                                                       anatomia da vaga da chave de verdade
+                                                       (_ChaveDoMataMata). Com o número numa coluna
+                                                       própria os nomes eram empurrados pro canto
+                                                       direito do cartão, longe do quadro. *@
                                                     <div class="pdz-chave-projetada-jogo">
-                                                        <span class="pdz-chave-projetada-num">@jogo.Numero</span>
-                                                        <span class="pdz-chave-projetada-lados">
+                                                        <div class="pdz-chave-projetada-quando">
+                                                            <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                             @if (previsto?.Horario is DateTime quando)
                                                             {
-                                                                <span class="pdz-chave-projetada-quando">
-                                                                    @quando.ToString("dd/MM HH:mm")
-                                                                    @if (!string.IsNullOrEmpty(previsto.Quadra))
-                                                                    {
-                                                                        <span>· @previsto.Quadra</span>
-                                                                    }
-                                                                </span>
+                                                                <span>@quando.ToString("dd/MM HH:mm")</span>
+                                                                @if (!string.IsNullOrEmpty(previsto.Quadra))
+                                                                {
+                                                                    <span class="pdz-chave-projetada-quadra">@previsto.Quadra</span>
+                                                                }
                                                             }
-                                                            <span class="d-block">@jogo.Lado1</span>
-                                                            <span class="d-block text-muted">@jogo.Lado2</span>
-                                                        </span>
+                                                            else
+                                                            {
+                                                                <span>a definir</span>
+                                                            }
+                                                        </div>
+                                                        <span class="pdz-chave-projetada-lado">@jogo.Lado1</span>
+                                                        <span class="pdz-chave-projetada-lado pdz-chave-projetada-lado-2">@jogo.Lado2</span>
                                                     </div>
                                                 }
                                             </div>
