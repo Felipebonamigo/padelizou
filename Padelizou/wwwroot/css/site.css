@@ -716,6 +716,14 @@ a:hover { color: var(--pdz-lime-600); }
 /* =========================================================
    FORMULÁRIOS
    ========================================================= */
+
+/* Coluna dos cartões de entrar / recuperar senha. Largura fixa em vez de coluna do
+   grid: com `col-md-5` o iPad caía na faixa 768–991px, onde o container do Bootstrap
+   tem 720px — sobravam 300px pra coluna e o padding do cartão comia 96 deles. O
+   resultado era um cartão mais estreito no tablet do que no celular: título em duas
+   linhas, botão em duas, e o e-mail digitado cortado no meio. */
+.pdz-auth-col { max-width: 460px; }
+
 .form-label { color: var(--pdz-ink); font-weight: 600; }
 .form-control, .form-select {
     border-radius: 12px;

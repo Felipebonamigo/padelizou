@@ -4,9 +4,11 @@
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-5">
+        @* Largura fixa, não coluna do grid: no iPad o col-md-5 dava um cartão mais
+           estreito que no celular. Ver .pdz-auth-col no site.css. *@
+        <div class="col-12 pdz-auth-col">
             <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
-                <div class="card-body p-5">
+                <div class="card-body p-4 p-sm-5">
                     <div class="text-center mb-4">
                         <img src="~/image/logo-icon.webp" asp-append-version="true" alt="Padelizou" style="height: 60px;" />
                         <h3 class="mt-3 fw-bold" style="color: var(--pdz-ink);">Área do Jogador</h3>
