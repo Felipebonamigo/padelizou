@@ -64,20 +64,24 @@ public class LoginRetornoTests
         var resultado = await controller.Login("felipe.bona", Senha, "https://site-de-fora.com/x");
 
         // Cai no destino padrão, não no site de fora.
-        var redirecionamento = Assert.IsType<RedirectToActionResult>(resultado);
-        Assert.Equal("Perfil", redirecionamento.ActionName);
+        var local = Assert.IsType<LocalRedirectResult>(resultado);
+        Assert.Equal("/", local.Url);
     }
 
     [Fact]
-    public async Task Sem_returnUrl_segue_indo_pro_perfil()
+    public async Task Sem_returnUrl_vai_pro_INICIO_e_nao_pro_perfil()
     {
+        // Mudou em 05/08/2026, a pedido do Felipe: quem entra pelo celular tocava em "Entrar"
+        // na barra (o único caminho fácil ali) e caía nas próprias estatísticas, tendo que
+        // achar de novo o torneio que estava aberto. Quem acaba de entrar quer voltar ao que
+        // estava fazendo — e quando não estava em nada, o início é a tela que serve.
         using var ctx = TestInfra.NovoContexto();
         var controller = ControllerComJogador(ctx);
 
         var resultado = await controller.Login("felipe.bona", Senha, null);
 
-        var redirecionamento = Assert.IsType<RedirectToActionResult>(resultado);
-        Assert.Equal("Perfil", redirecionamento.ActionName);
+        var local = Assert.IsType<LocalRedirectResult>(resultado);
+        Assert.Equal("/", local.Url);
     }
 
     [Fact]

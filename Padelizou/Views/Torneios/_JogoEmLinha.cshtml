@@ -163,7 +163,12 @@
 
        O container do palpitrômetro abraça as duas linhas + a barra porque o JS que vota e
        atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitrometro.js). *@
-    <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
+    @* ⚠️ `pdz-palpite-linha` NÃO é decoração: é a marca que diz ao JS que esta é a versão
+       EM LINHA do palpitrômetro. Sem ela, o atualizarPalpitrometro cai no comportamento do
+       cartão grande — carimba a setinha e ESCONDE o lado perdedor. Na linha isso apagava uma
+       das duas porcentagens depois do voto, e como a porcentagem é o próprio botão, sumia
+       junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitrometro.js. *@
+    <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
          @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\"") : null)>
 
         @if (mostraPalpitrometro)

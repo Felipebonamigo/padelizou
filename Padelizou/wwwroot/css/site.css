@@ -2263,6 +2263,14 @@ button, a, input, select { touch-action: manipulation; }
     display: flex;
     flex-direction: column;
     gap: .2rem;
+
+    /* O corpo carrega `pdz-palpite-linha` porque é assim que o JS reconhece a versão em
+       linha do palpitrômetro (ver _JogoEmLinha). Aquela classe foi desenhada pra uma faixa
+       horizontal e traz `align-items: center` + `flex-basis`, que aqui centralizariam as
+       linhas do confronto em vez de esticá-las. Anulados na fonte pra ninguém precisar
+       descobrir isso de novo. */
+    align-items: stretch;
+    flex-basis: auto;
 }
 
 .pdz-jl-dupla {

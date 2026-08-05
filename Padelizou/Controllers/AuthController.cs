@@ -104,9 +104,15 @@ namespace padelizou.Controllers
         // torneio, por exemplo) volta pra ela depois de entrar. Sem isso a pessoa caía no
         // perfil e tinha que achar o torneio de novo — no meio de uma inscrição, é o
         // suficiente pra desistir.
+        //
+        // Na falta dele, vale de onde a pessoa VEIO (Referer). O botão "Entrar" da barra —
+        // por onde quase todo mundo entra, e o único caminho fácil no celular — nunca mandou
+        // returnUrl: a pessoa olhava um torneio, tocava em Entrar e caía no perfil. Resolver
+        // aqui cobre os links que existem hoje e os que alguém escrever amanhã sem lembrar.
         public IActionResult Login(string? returnUrl)
         {
-            ViewBag.ReturnUrl = returnUrl;
+            ViewBag.ReturnUrl = VoltarDepoisDoLogin.DeOndeVeio(
+                returnUrl, Request.Headers.Referer.ToString(), Request.Host.Value);
             return View();
         }
 
@@ -249,11 +255,18 @@ namespace padelizou.Controllers
 
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-            // IsLocalUrl é o que impede o login de virar trampolim pra outro site: o returnUrl
-            // vem da barra de endereços, e "entre aqui e você cai lá" é golpe clássico.
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
+            // Volta pra tela em que a pessoa estava; sem destino, o INÍCIO — e não o perfil.
+            // Quem acabou de entrar quer continuar o que estava fazendo, não ver as próprias
+            // estatísticas; no celular, cair no perfil significa rolar tudo de novo pra achar
+            // o torneio que estava aberto.
+            //
+            // IsLocalUrl fica: é o que impede o login de virar trampolim pra outro site — o
+            // returnUrl vem da barra de endereços, e "entre aqui e você cai lá" é golpe
+            // clássico. VoltarDepoisDoLogin.Destino já filtra, e os dois juntos não doem.
+            var destino = VoltarDepoisDoLogin.Destino(returnUrl);
+            if (Url.IsLocalUrl(destino)) return LocalRedirect(destino);
 
-            return RedirectToAction("Perfil");
+            return RedirectToAction("Index", "Home");
         }
 
         // 3. TELA DE PERFIL (Só entra se estiver logado!)
