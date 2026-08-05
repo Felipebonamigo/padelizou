@@ -58,6 +58,11 @@ function atualizarPalpitrometro(container, data) {
         op.classList.toggle('pdz-palpite-meu', String(data.meuVotoDuplaId) === op.dataset.duplaId);
     });
 
+    // Saiu do zero: o estado "ninguém palpitou" some. Sem isto o palpitrômetro continuava
+    // com cara de apagado DEPOIS do voto, e quem acabou de votar concluía que não tinha
+    // funcionado — foi o que aconteceu no Interno.
+    if (data.totalVotos > 0) container.classList.remove('pdz-palpite-vazio');
+
     const totalEl = container.querySelector('.pdz-total-votos');
     if (totalEl) totalEl.innerText = data.totalVotos + ' voto(s)';
 }

@@ -1780,3 +1780,33 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-mm-fase:last-of-type .pdz-chave-vaga { font-size: .85rem; }
+
+/* O palpitrômetro em linha precisa PARECER clicável — antes ele era só um "50%" solto,
+   com o conjunto a 45% de opacidade quando ninguém tinha votado. Lido como desabilitado:
+   a pessoa clicava, o voto entrava e a barra continuava apagada, então ela concluía que
+   não era permitido palpitar. Agora quem pode votar vê uma pílula de verdade. */
+.pdz-palpite-vazio { opacity: 1; }
+
+.pdz-palpite-vazio .pdz-palpite-barra { opacity: .5; }
+
+.pdz-palpite-pct.votavel {
+    padding: .05rem .3rem;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    background: transparent;
+}
+
+.pdz-palpite-pct.votavel:hover {
+    text-decoration: none;
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+    border-color: var(--pdz-lime);
+}
+
+/* Já votei: preenchido, não só contornado — a diferença tem que ser visível de relance. */
+.pdz-palpite-linha .pdz-palpite-meu {
+    outline: none;
+    color: var(--pdz-navy-fixed);
+    background: var(--pdz-lime);
+    border-color: var(--pdz-lime);
+}
