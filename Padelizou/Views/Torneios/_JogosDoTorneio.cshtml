@@ -40,6 +40,8 @@
     int? meuId = ViewBag.MeuId as int?;
     var categoriasDoTorneio = ViewBag.CategoriasDoTorneio as List<Padelizou.Models.Categoria> ?? new();
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
+    // As quadras que o torneio usa — a lista do "mudar de quadra".
+    var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
 }
 
 @if (TempData["Sucesso"] != null)
@@ -435,6 +437,77 @@
                     select.value = '';
                     Array.from(select.options).forEach(function (opcao) {
                         opcao.hidden = opcao.getAttribute('data-jogo-id') === jogoA;
+                    });
+                });
+            });
+        </script>
+
+        @* MODAL: mudar SÓ a quadra, sem mexer na hora. A troca de horário arrasta o slot
+           inteiro e quase nunca é o que se quer quando a quadra molha ou a final merece a
+           do meio. Quadra ocupada naquele horário não é recusada: as duas trocam de lugar
+           (Services/TrocaDeQuadra) — recusar deixaria o organizador no mesmo beco. *@
+        <div class="modal fade" id="modalTrocarQuadra" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content">
+                    <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="jogoId" id="quadraJogoId" value="" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Mudar de quadra</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2">
+                            Jogo escolhido: <strong id="quadraJogoRotulo">—</strong>
+                        </p>
+                        @if (quadrasDoTorneio.Count == 0)
+                        {
+                            <p class="mb-0">
+                                Este torneio não tem quadras cadastradas — cadastre as quadras na edição
+                                do torneio pra poder escolher aqui.
+                            </p>
+                        }
+                        else
+                        {
+                            <label class="form-label fw-bold" for="quadraDestino">Pra qual quadra?</label>
+                            <select name="quadra" id="quadraDestino" class="form-select" required>
+                                <option value="">Escolha a quadra...</option>
+                                @foreach (var nome in quadrasDoTorneio)
+                                {
+                                    <option value="@nome" data-quadra="@nome">@nome</option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                O horário não muda. Se a quadra já tiver jogo nesse horário, os dois trocam de quadra.
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-padel fw-bold" @(quadrasDoTorneio.Count == 0 ? "disabled" : "")>
+                            Mudar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão da linha diz qual é o jogo; a quadra atual dele sai da lista, porque
+            // "mudar pra onde já está" não é uma escolha.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalTrocarQuadra');
+                if (!modal) return;
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    document.getElementById('quadraJogoId').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('quadraJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    var select = document.getElementById('quadraDestino');
+                    if (!select) return;
+                    var atual = botao.getAttribute('data-jogo-quadra') || '';
+                    select.value = '';
+                    Array.from(select.options).forEach(function (opcao) {
+                        opcao.hidden = opcao.getAttribute('data-quadra') === atual && atual !== '';
                     });
                 });
             });

@@ -499,6 +499,41 @@ namespace Padelizou.Controllers
             return agora > liberaQuadra ? agora : liberaQuadra;
         }
 
+        // Mudar a QUADRA de um jogo sem mexer na hora. A troca de horário arrasta o slot
+        // inteiro (hora + quadra) e quase nunca era o que o organizador queria: a quadra 3
+        // molhou, a 1 é a coberta, a final merece a do meio. Regras em Services/TrocaDeQuadra
+        // — inclusive a que importa: quadra ocupada no mesmo horário TROCA de dono em vez de
+        // recusar, senão o organizador fica no mesmo beco.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var doTorneio = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var jogo = doTorneio.FirstOrDefault(p => p.Id == jogoId);
+            var quadras = await QuadrasEmUsoAsync(id);
+
+            if (TrocaDeQuadra.MotivoParaNaoMudar(jogo, quadra, id, quadras) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
+            var deOnde = jogo!.NomeQuadra;
+            TrocaDeQuadra.Mudar(jogo, quadra, ocupante);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = ocupante == null
+                ? $"O jogo {jogo.Codigo} agora é na {quadra}."
+                : $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
+                  $"assume a {deOnde ?? "quadra que estava livre"}.";
+
+            return RedirectToAction("Jogos", new { id });
+        }
+
         // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a
         // conta; quem conhece a vida (a dupla que só chega às 10h, o jogo que rende mais com
         // público) é o organizador — e ele troca o slot inteiro (hora + quadra) de A com B.

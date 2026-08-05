@@ -568,6 +568,11 @@ namespace Padelizou.Controllers
             ViewBag.CategoriasDoTorneio = categoriasDoTorneio;
             ViewBag.CategoriaFiltroAtual = categoriaFiltroIds ?? Array.Empty<int>();
 
+            // As quadras que o torneio usa — é a lista do "mudar de quadra". Vem dos JOGOS e
+            // só na falta deles do cadastro, pelo mesmo motivo de sempre: renomear o cadastro
+            // depois do sorteio não reescreve os jogos (ver QuadrasEmUsoAsync).
+            ViewBag.QuadrasDoTorneio = await QuadrasEmUsoAsync(torneioId);
+
             // No Americano a classificação É o placar do torneio — quem somou mais games.
             // Ela morava numa página separada, sem botão de voltar; agora é uma aba aqui,
             // ao lado de Ao Vivo, que é onde o pessoal já está olhando.
