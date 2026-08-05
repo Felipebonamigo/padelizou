@@ -344,8 +344,11 @@ namespace Padelizou.Controllers
         // não há resultado que ela precise esperar.
         private static void EncaixarNasLevas(Torneio torneio, List<Partida> jogos,
             ISet<int> categoriasDeChaveDireta, IReadOnlyDictionary<int, int[]> ocupantes,
-            IReadOnlyList<string> quadras)
+            IReadOnlyList<string> quadras,
+            DateTime? aPartirDe = null, IReadOnlyList<Partida>? jaMarcados = null)
         {
+            var abre = aPartirDe ?? torneio.AberturaDaGrade;
+            var intocados = jaMarcados ?? Array.Empty<Partida>();
             bool NaoEsperaNinguem(Partida j) =>
                 categoriasDeChaveDireta.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
 
@@ -363,18 +366,31 @@ namespace Padelizou.Controllers
                     torneio.TempoPrevistoPartidaMinutos,
                     // Folga: sem vaga sobrando, o encaixe não teria como deixar uma quadra
                     // vazia pra evitar chamar a mesma pessoa duas vezes. Ver GradeDeJogos.
-                    daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
-                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+                    daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras)
+                        + intocados.Count,
+                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes);
 
-                GradeDeJogos.Encaixar(daLeva, horarios, ocupantes, quadras);
+                // Vaga que já tem dono sai da lista: num recálculo no meio do torneio, os
+                // jogos que já rolaram e os que estão em quadra continuam ocupando as
+                // quadras deles.
+                var vagas = GradeDeJogos.Descontando(horarios,
+                        intocados.Where(p => p.HorarioPrevisto != null).Select(p => p.HorarioPrevisto!.Value))
+                    .Take(daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras))
+                    .ToList();
+
+                GradeDeJogos.Encaixar(daLeva, vagas, ocupantes, quadras, intocados);
             }
 
-            Agendar(abertura, torneio.AberturaDaGrade);
+            Agendar(abertura, abre);
 
             // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
             // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
             // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
-            var fimDosGrupos = abertura
+            //
+            // Conta os jogos de grupo INTOCADOS junto: num recálculo no meio do torneio a
+            // maior parte dos grupos já rolou, e olhar só pros remarcados diria que a fase de
+            // grupos acabou cedo — o mata-mata subiria pra cima dela.
+            var fimDosGrupos = abertura.Concat(intocados)
                 .Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase) && j.HorarioPrevisto != null)
                 .Select(j => j.HorarioPrevisto!.Value)
                 .DefaultIfEmpty()
@@ -383,18 +399,29 @@ namespace Padelizou.Controllers
             Agendar(depoisDosGrupos, fimDosGrupos != default
                 ? GradeDeJogos.AberturaDaProximaFase(fimDosGrupos, torneio.HoraFimDoDia,
                                         torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos)
-                : torneio.AberturaDaGrade);
+                : abre);
         }
 
-        // REFAZER A GRADE: os mesmos confrontos, horários recalculados do zero.
+        // RECALCULAR OS HORÁRIOS: os mesmos confrontos, a grade refeita a partir de agora.
         //
-        // O sorteio e a grade são coisas diferentes, e só a segunda muda aqui — quem joga
-        // contra quem fica exatamente igual. Serve pra quando a regra da grade melhora depois
-        // do sorteio (foi o caso: a chave direta passou a abrir o torneio em vez de fechá-lo),
-        // ou pra quando o organizador mudou quadras, duração ou horário de início.
+        // ⚠️ Isto NÃO é o que faz o torneio andar. Preencher as vagas do mata-mata quando os
+        // classificados saem é automático (ProcessarMataMataAutomatico e
+        // ProcessarAvancoMataMataAutomatico, disparados ao finalizar a última partida de uma
+        // fase) — o organizador nunca precisa apertar nada pra isso. Este botão é o REMENDO
+        // pro dia em que a realidade não cabe na grade: chuva, jogo que passou de três sets,
+        // dupla que não apareceu. Aí o relógio do papel deixou de valer, e alguém precisa
+        // redistribuir o que FALTA.
         //
-        // ⚠️ Recusa se QUALQUER jogo já saiu de "Agendada". Remarcar um jogo que já rolou é
-        // apagar história; e mexer no horário de quem já está em quadra é pior ainda.
+        // O que ele preserva:
+        //   • jogos FINALIZADOS e EM QUADRA não mudam de hora nem de quadra — remarcar o que
+        //     já rolou é apagar história, e mexer em quem está jogando é pior;
+        //   • eles continuam ocupando a quadra deles na conta (entram como `jaMarcados`), pra
+        //     que o recálculo não marque nada por cima;
+        //   • os confrontos não mudam. O sorteio é uma coisa, a grade é outra.
+        //
+        // O que ele muda: o horário e a quadra de tudo que ainda está "Agendada", começando
+        // no primeiro horário livre a partir de AGORA (ou da abertura do torneio, se nada
+        // começou ainda).
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
@@ -413,39 +440,63 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Jogos", new { id });
             }
 
-            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            var remarcar = todos.Where(p => p.Status == "Agendada").ToList();
+            var intocados = todos.Where(p => p.Status != "Agendada").ToList();
 
-            if (jogos.FirstOrDefault(p => p.Status != "Agendada") is { } jaRolou)
+            if (remarcar.Count == 0)
             {
-                TempData["Erro"] = $"O torneio já começou (o jogo {jaRolou.Codigo} está {jaRolou.Status}). " +
-                                   "A grade só pode ser refeita antes do primeiro jogo.";
+                TempData["Erro"] = todos.Count == 0
+                    ? "Não há jogos pra remarcar: sorteie as chaves primeiro."
+                    : "Todos os jogos já foram jogados ou estão em quadra — não há horário pra recalcular.";
                 return RedirectToAction("Jogos", new { id });
             }
 
-            if (jogos.Count == 0)
-            {
-                TempData["Erro"] = "Não há jogos pra remarcar: sorteie as chaves primeiro.";
-                return RedirectToAction("Jogos", new { id });
-            }
-
-            foreach (var jogo in jogos)
+            foreach (var jogo in remarcar)
             {
                 jogo.HorarioPrevisto = null;
                 jogo.NomeQuadra = null;
             }
 
-            EncaixarNasLevas(torneio, jogos,
+            EncaixarNasLevas(torneio, remarcar,
                 torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
-                OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(id));
+                OcupantesPorDupla(torneio), await QuadrasEmUsoAsync(id),
+                AberturaDoRecalculo(torneio, intocados), intocados);
 
             await _context.SaveChangesAsync();
 
-            var primeiro = jogos.Where(j => j.HorarioPrevisto != null).Min(j => j.HorarioPrevisto);
-            var ultimo = jogos.Where(j => j.HorarioPrevisto != null).Max(j => j.HorarioPrevisto);
-            TempData["Sucesso"] = $"Grade refeita: {jogos.Count} jogos, de {primeiro:dd/MM HH:mm} a {ultimo:HH:mm}. " +
-                                  "Os confrontos não mudaram.";
+            var marcados = remarcar.Where(j => j.HorarioPrevisto != null).ToList();
+            TempData["Sucesso"] = marcados.Count == 0
+                ? "Nada foi remarcado: não sobrou horário no expediente do torneio."
+                : $"Horários recalculados: {marcados.Count} jogos, de " +
+                  $"{marcados.Min(j => j.HorarioPrevisto):dd/MM HH:mm} a {marcados.Max(j => j.HorarioPrevisto):HH:mm}. " +
+                  (intocados.Count > 0 ? $"Os {intocados.Count} já jogados ou em quadra não mudaram. " : "") +
+                  "Os confrontos não mudaram.";
 
             return RedirectToAction("Jogos", new { id });
+        }
+
+        // De onde o recálculo parte.
+        //
+        // Torneio que ainda não começou: a abertura da grade, como no sorteio. Torneio EM
+        // ANDAMENTO: agora — é justamente porque o relógio andou mais que a grade que alguém
+        // apertou o botão. Nunca antes do fim de quem está em quadra: a quadra só vaga quando
+        // o jogo dela acaba.
+        private static DateTime AberturaDoRecalculo(Torneio torneio, IReadOnlyList<Partida> intocados)
+        {
+            if (intocados.Count == 0) return torneio.AberturaDaGrade;
+
+            var agora = DateTime.Now;
+            var emQuadra = intocados
+                .Where(p => p.Status == "AoVivo")
+                .Select(p => p.HorarioInicioReal ?? p.HorarioPrevisto ?? agora)
+                .DefaultIfEmpty(agora)
+                .Max();
+
+            var liberaQuadra = GradeDeJogos.DepoisDe(emQuadra, torneio.HoraFimDoDia,
+                torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
+
+            return agora > liberaQuadra ? agora : liberaQuadra;
         }
 
         // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a

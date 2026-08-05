@@ -305,28 +305,85 @@ public class ChaveDiretaNoSorteioTests
     }
 
     [Fact]
-    public async Task Refazer_a_grade_e_recusado_depois_do_primeiro_jogo()
+    public async Task Recalcular_no_meio_do_torneio_nao_toca_em_quem_ja_jogou()
     {
-        // Remarcar jogo que já rolou é apagar história, e mexer no horário de quem já está em
-        // quadra é pior ainda.
+        // O botão serve JUSTAMENTE pro torneio em andamento: chuva, jogo que passou de três
+        // sets, dupla que não apareceu. Mas remarcar o que já rolou é apagar história.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, org, _) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
 
         await controller.GerarChaves(torneio.Id);
 
-        var jogo = await ctx.Partidas.FirstAsync(p => p.TorneioId == torneio.Id);
-        await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
-        var horarios = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
-            .Select(p => new { p.Id, p.HorarioPrevisto }).ToListAsync();
+        // Joga a primeira leva inteira.
+        var primeiraLeva = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .OrderBy(p => p.HorarioPrevisto).Take(5).ToListAsync();
+        foreach (var jogo in primeiraLeva)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var jogadosAntes = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id && p.Status == "Finalizada")
+            .Select(p => new { p.Id, p.HorarioPrevisto, p.NomeQuadra }).ToListAsync();
+        var confrontosAntes = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.Dupla1Id, p.Dupla2Id }).ToListAsync();
 
         await controller.RefazerGrade(torneio.Id);
 
-        var depois = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
-            .Select(p => new { p.Id, p.HorarioPrevisto }).ToListAsync();
+        var jogadosDepois = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id && p.Status == "Finalizada")
+            .Select(p => new { p.Id, p.HorarioPrevisto, p.NomeQuadra }).ToListAsync();
+        var confrontosDepois = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.Dupla1Id, p.Dupla2Id }).ToListAsync();
 
-        Assert.Equal(horarios.OrderBy(x => x.Id), depois.OrderBy(x => x.Id));
-        Assert.NotNull(controller.TempData["Erro"]);
+        Assert.Equal(jogadosAntes.OrderBy(x => x.Id), jogadosDepois.OrderBy(x => x.Id));
+        Assert.Equal(confrontosAntes.OrderBy(x => x.Id), confrontosDepois.OrderBy(x => x.Id));
+        Assert.Null(controller.TempData["Erro"]);
+
+        // E ninguém ficou sem hora nem em duas quadras ao mesmo tempo.
+        var todas = await ctx.Partidas
+            .Include(p => p.Dupla1).Include(p => p.Dupla2)
+            .Where(p => p.TorneioId == torneio.Id).ToListAsync();
+        Assert.All(todas, p => Assert.NotNull(p.HorarioPrevisto));
+
+        foreach (var noHorario in todas.GroupBy(p => p.HorarioPrevisto!.Value))
+        {
+            var pessoas = noHorario
+                .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
+                .Where(x => x != null).ToList();
+            Assert.Equal(pessoas.Count, pessoas.Distinct().Count());
+        }
+    }
+
+    [Fact]
+    public async Task Preencher_as_vagas_do_mata_mata_e_AUTOMATICO_e_nao_depende_de_botao()
+    {
+        // A garantia que o organizador pediu: nada de depender de botão pro torneio andar.
+        // Ao finalizar a última partida de uma fase, a rodada seguinte NASCE — com confronto,
+        // hora e quadra —, e o "Recalcular horários" existe só pra quando a vida atrasa.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, chave) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var primeiraRodada = await ctx.Partidas
+            .Where(p => p.CategoriaId == chave.Id).ToListAsync();
+        Assert.Equal(8, primeiraRodada.Count);
+
+        foreach (var jogo in primeiraRodada)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        // Sem nenhum clique a mais: as oitavas já existem, com hora e quadra.
+        var oitavas = await ctx.Partidas
+            .Where(p => p.CategoriaId == chave.Id && p.Fase == "Oitavas de Final").ToListAsync();
+
+        Assert.Equal(8, oitavas.Count);                        // 8 vencedores + 8 byes
+        Assert.All(oitavas, p => Assert.NotNull(p.HorarioPrevisto));
+        Assert.All(oitavas, p => Assert.Equal("Agendada", p.Status));   // já vão pra Mesa
     }
 
     [Fact]
