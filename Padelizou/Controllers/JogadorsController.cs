@@ -129,6 +129,13 @@ public class JogadoresController : Controller
         bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
         ViewBag.PodeModerarComentarios = souEuMesmo || souAdmin;
 
+        // O meu comentário volta pro formulário: é um por perfil, então comentar de novo é
+        // editar — e um campo vazio faria parecer que dá pra escrever um segundo.
+        ViewBag.MeuComentario = meuId.HasValue
+            ? ((List<Padelizou.Models.ComentarioPerfil>)ViewBag.Comentarios)
+                .FirstOrDefault(c => c.AutorId == meuId.Value)
+            : null;
+
         if (souEuMesmo)
         {
             // É o próprio perfil: mostra parceiros de sempre e os confrontos (jogou contra / rivais)
@@ -192,15 +199,29 @@ public class JogadoresController : Controller
     public async Task<IActionResult> DarElogio(int id, string tipo)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        if (meuId != id && CatalogoElogios.Obter(tipo) != null)
+        var escolhido = CatalogoElogios.Obter(tipo);
+        if (meuId == id || escolhido == null) return RedirectToAction("Perfil", new { id });
+
+        // É UM elogio por pessoa, e ele é trocável: clicar em outro muda a escolha em vez de
+        // empilhar. Antes dava pra marcar os 18 no mesmo perfil, e aí o número do badge dizia
+        // "quem clicou mais" em vez de "quantas pessoas acham isso".
+        var meuElogio = await _context.Elogios
+            .FirstOrDefaultAsync(e => e.DeJogadorId == meuId && e.ParaJogadorId == id);
+
+        if (meuElogio == null)
         {
-            var jaDei = await _context.Elogios
-                .AnyAsync(e => e.DeJogadorId == meuId && e.ParaJogadorId == id && e.Tipo == tipo);
-            if (!jaDei)
-            {
-                _context.Elogios.Add(new Elogio { DeJogadorId = meuId, ParaJogadorId = id, Tipo = tipo });
-                await _context.SaveChangesAsync();
-            }
+            _context.Elogios.Add(new Elogio { DeJogadorId = meuId, ParaJogadorId = id, Tipo = tipo });
+            await _context.SaveChangesAsync();
+        }
+        else if (meuElogio.Tipo != tipo)
+        {
+            // Trocar calado faria o elogio anterior sumir da tela sem explicação — a pessoa
+            // pensaria que perdeu o clique, e clicaria de novo.
+            var anterior = CatalogoElogios.Obter(meuElogio.Tipo)?.Titulo ?? meuElogio.Tipo;
+            meuElogio.Tipo = tipo;
+            meuElogio.CriadoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = $"Trocamos seu elogio de \"{anterior}\" para \"{escolhido.Titulo}\".";
         }
 
         return RedirectToAction("Perfil", new { id });
@@ -209,11 +230,14 @@ public class JogadoresController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoverElogio(int id, string tipo)
+    public async Task<IActionResult> RemoverElogio(int id)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        // Sem casar pelo tipo: é um só, e o pedido aqui é "tira o meu". Casar pelo tipo faria
+        // o botão não fazer nada quando a página estivesse aberta desde antes de uma troca.
         var elogio = await _context.Elogios
-            .FirstOrDefaultAsync(e => e.DeJogadorId == meuId && e.ParaJogadorId == id && e.Tipo == tipo);
+            .FirstOrDefaultAsync(e => e.DeJogadorId == meuId && e.ParaJogadorId == id);
         if (elogio != null)
         {
             _context.Elogios.Remove(elogio);
@@ -249,7 +273,30 @@ public class JogadoresController : Controller
         }
         else
         {
-            _context.ComentariosPerfil.Add(new ComentarioPerfil { AutorId = meuId, PerfilId = id, Texto = texto });
+            // Um comentário por pessoa em cada perfil: comentar de novo EDITA o que ela já
+            // escreveu. Sem isso, quem quisesse corrigir uma frase acabava com dois textos
+            // parecidos no perfil do outro — e só o dono do perfil podia apagar o primeiro.
+            var meuComentario = await _context.ComentariosPerfil
+                .FirstOrDefaultAsync(c => c.AutorId == meuId && c.PerfilId == id);
+
+            if (meuComentario == null)
+            {
+                _context.ComentariosPerfil.Add(new ComentarioPerfil { AutorId = meuId, PerfilId = id, Texto = texto });
+            }
+            else if (meuComentario.Texto != texto)
+            {
+                meuComentario.Texto = texto;
+                meuComentario.CriadoEm = DateTime.Now;
+
+                // Texto editado é texto novo: a denúncia anterior era sobre o que estava
+                // escrito antes, e mantê-la deixaria o admin julgando uma frase que não
+                // existe mais. Se o novo texto também for ofensivo, denuncia-se de novo.
+                meuComentario.DenunciadoEm = null;
+                meuComentario.DenunciadoPorId = null;
+
+                TempData["Sucesso"] = "Comentário atualizado.";
+            }
+
             await _context.SaveChangesAsync();
         }
 

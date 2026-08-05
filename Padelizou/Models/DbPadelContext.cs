@@ -307,8 +307,11 @@ public partial class DbPadelContext : DbContext
         });
         modelBuilder.Entity<Elogio>(entity =>
         {
-            // Impede o mesmo jogador dar o mesmo tipo de elogio 2x pra mesma pessoa.
-            entity.HasIndex(e => new { e.DeJogadorId, e.ParaJogadorId, e.Tipo }).IsUnique();
+            // UM elogio por pessoa: quem já elogiou alguém pode TROCAR a escolha, não somar
+            // mais uma. Antes o índice incluía o Tipo, então uma pessoa só empilhava quantos
+            // elogios quisesse no mesmo perfil e o contador virava "quem clica mais, pesa
+            // mais" — a mesma razão pela qual AvaliacaoProfessor é uma por aluno.
+            entity.HasIndex(e => new { e.DeJogadorId, e.ParaJogadorId }).IsUnique();
 
             // Mesmo raciocínio do SeguidorJogador: dois FKs pra Jogador, um Cascade e outro
             // Restrict, pra evitar o conflito de múltiplos caminhos de cascade.
@@ -374,6 +377,10 @@ public partial class DbPadelContext : DbContext
         });
         modelBuilder.Entity<ComentarioPerfil>(entity =>
         {
+            // UM comentário por pessoa em cada perfil — comentar de novo EDITA o mesmo texto.
+            // Mesma regra do Elogio: sem isso, um perfil vira mural de quem escreve mais.
+            entity.HasIndex(e => new { e.AutorId, e.PerfilId }).IsUnique();
+
             // Mesmo raciocínio do Elogio/SeguidorJogador: dois FKs pra Jogador, um Cascade e
             // outro Restrict, pra evitar o conflito de múltiplos caminhos de cascade.
             entity.HasOne(e => e.Autor)

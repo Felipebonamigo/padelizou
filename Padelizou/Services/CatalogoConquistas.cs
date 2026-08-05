@@ -115,7 +115,10 @@ public static class CatalogoConquistas
         {
             new() { Codigo = "QueridoDaQuadra", Titulo = "Querido da Quadra", Icone = "bi-heart-fill",
                     Conquistada = d.ElogiosRecebidos >= ElogiosParaQuerido,
-                    Descricao = $"Receba {ElogiosParaQuerido} elogios de outros jogadores." },
+                    // "Jogadores diferentes" e não "elogios": desde que virou um elogio por
+                    // pessoa, essa conta é a mesma — mas antes uma pessoa sozinha podia dar
+                    // os 5 e destravar a conquista, e a descrição não deixava isso claro.
+                    Descricao = $"Receba elogios de {ElogiosParaQuerido} jogadores diferentes." },
 
             // A escada de quem constrói o padel em volta
             new() { Codigo = "DoTime", Titulo = "Do time", Icone = "bi-shield-fill",

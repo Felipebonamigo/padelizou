@@ -13,8 +13,10 @@
     bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
     int? meuId = ViewBag.MeuId;
     bool podeElogiar = meuId.HasValue && meuId.Value != Model.jogador.Id && !perfilBloqueado;
-    var meusTiposDados = elogiosRecebidos.Where(e => e.EuDei).Select(e => e.Codigo).ToHashSet();
+    @* É um elogio por pessoa: no máximo um código volta como "eu dei". *@
+    var meuElogio = elogiosRecebidos.FirstOrDefault(e => e.EuDei);
     var comentarios = ViewBag.Comentarios as List<Padelizou.Models.ComentarioPerfil> ?? new();
+    var meuComentario = ViewBag.MeuComentario as Padelizou.Models.ComentarioPerfil;
     bool podeModerarComentarios = ViewBag.PodeModerarComentarios == true;
     var categoriaPrevista = ViewBag.CategoriaPrevista as NivelComprovadoVM;
 }
@@ -212,10 +214,22 @@
                 @if (podeElogiar)
                 {
                     <button type="button" class="btn btn-sm btn-padel rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalElogiar">
-                        <i class="bi bi-plus-lg"></i> Elogiar
+                        @if (meuElogio != null)
+                        {
+                            <i class="bi bi-pencil"></i> <text>Trocar elogio</text>
+                        }
+                        else
+                        {
+                            <i class="bi bi-plus-lg"></i> <text>Elogiar</text>
+                        }
                     </button>
                 }
             </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success py-2 small mb-2">@TempData["Sucesso"]</div>
+            }
 
             @if (elogiosRecebidos.Any())
             {
@@ -281,12 +295,21 @@
 
             @if (podeElogiar)
             {
+                @* Um comentário por pessoa: quem já escreveu vê o próprio texto de volta e
+                   edita. Campo vazio faria parecer que dá pra deixar um segundo. *@
                 <form asp-controller="Jogadores" asp-action="ComentarPerfil" asp-route-id="@Model.jogador.Id" method="post" class="mb-3">
                     <textarea name="texto" class="form-control mb-2" rows="2" maxlength="500"
-                              placeholder="Deixe um elogio pro @Model.jogador.Nome.Split(' ')[0] — sem ofensas, por favor."></textarea>
-                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
-                        <i class="bi bi-send-fill"></i> Comentar
-                    </button>
+                              placeholder="Deixe um elogio pro @Model.jogador.Nome.Split(' ')[0] — sem ofensas, por favor.">@meuComentario?.Texto</textarea>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                            <i class="bi @(meuComentario != null ? "bi-check-lg" : "bi-send-fill")"></i>
+                            @(meuComentario != null ? "Salvar alteração" : "Comentar")
+                        </button>
+                        @if (meuComentario != null)
+                        {
+                            <small class="text-muted">Você já comentou aqui — editar substitui o seu texto.</small>
+                        }
+                    </div>
                 </form>
             }
 
@@ -500,14 +523,27 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small mb-3">Toque num elogio pra dar. Toque de novo pra tirar.</p>
+                    @* Um por pessoa: clicar em outro TROCA. Sem essa frase, quem já tinha
+                       escolhido clicaria num segundo esperando somar. *@
+                    @if (meuElogio != null)
+                    {
+                        <p class="text-muted small mb-3">
+                            Você escolheu <strong>@meuElogio.Titulo</strong>. É um elogio por pessoa —
+                            toque em outro pra trocar, ou no que está marcado pra tirar.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">Escolha <strong>um</strong> elogio — o que mais combina com essa pessoa.</p>
+                    }
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var t in catalogoElogios)
                         {
-                            bool jaDei = meusTiposDados.Contains(t.Codigo);
-                            <form asp-controller="Jogadores" asp-action="@(jaDei ? "RemoverElogio" : "DarElogio")" asp-route-id="@Model.jogador.Id" method="post">
+                            bool ehOMeu = meuElogio?.Codigo == t.Codigo;
+                            <form asp-controller="Jogadores" asp-action="@(ehOMeu ? "RemoverElogio" : "DarElogio")" asp-route-id="@Model.jogador.Id" method="post">
                                 <input type="hidden" name="tipo" value="@t.Codigo" />
-                                <button type="submit" class="pdz-elogio-chip @(jaDei ? "pdz-elogio-chip-ativo" : "")">
+                                <button type="submit" class="pdz-elogio-chip @(ehOMeu ? "pdz-elogio-chip-ativo" : "")"
+                                        title="@(ehOMeu ? "Tirar seu elogio" : meuElogio != null ? $"Trocar para {t.Titulo}" : "")">
                                     <i class="bi @t.Icone"></i> @t.Titulo
                                 </button>
                             </form>
