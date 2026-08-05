@@ -436,20 +436,27 @@ namespace Padelizou.Controllers
                 .Where(c => c.TorneioId == torneioId && !c.ChaveDireta && !comMataMata.Contains(c.Id))
                 .ToListAsync();
 
-            // O mata-mata emenda no fim da fase de grupos — o mesmo lugar de onde o robô o
-            // agendaria quando os grupos fecharem.
-            var fimDosGrupos = partidas
+            // O mata-mata de uma categoria emenda no fim dos grupos DELA, não no fim dos
+            // grupos do torneio — é o mesmo lugar de onde o robô o agenda (ver
+            // AgendarNaGradeAsync). A categoria que fecha os grupos às 20h55 não tem por que
+            // esperar a que só fecha às 21h39: são pessoas diferentes e as quadras estão
+            // livres. Enquanto a conta era do torneio inteiro, a previsão empurrava TODAS as
+            // chaves pro fim e fazia o torneio parecer uma hora mais longo do que é.
+            var fimDosGruposPorCategoria = partidas
                 .Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase) && p.HorarioPrevisto != null)
-                .Select(p => p.HorarioPrevisto!.Value)
-                .DefaultIfEmpty()
-                .Max();
+                .GroupBy(p => p.CategoriaId)
+                .ToDictionary(g => g.Key, g => g.Max(p => p.HorarioPrevisto!.Value));
 
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
+                DateTime? fimDosGrupos =
+                    !torneio.SemHorarioPrevisto && fimDosGruposPorCategoria.TryGetValue(categoria.Id, out var fim)
+                        ? fim : null;
+
                 cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
                     categoria.GruposTorneio.Select(g => g.Nome).OrderBy(n => n).ToList(),
                     Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
-                    torneio.SemHorarioPrevisto || fimDosGrupos == default ? null : fimDosGrupos,
+                    fimDosGrupos,
                     categoria.Nome));
             }
 

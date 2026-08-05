@@ -242,6 +242,59 @@ public class TorneioFluxoTests
         Assert.Equal(2, semis.Select(s => s.CategoriaId).Distinct().Count());
     }
 
+    // A categoria que fecha os grupos mais cedo COMEÇA o mata-mata mais cedo — não espera a
+    // categoria mais lenta. São pessoas diferentes e as quadras estão livres; fazer a rápida
+    // esperar só empurra o fim do torneio pra madrugada com quadra vazia.
+    [Fact]
+    public async Task Categoria_que_termina_os_grupos_antes_comeca_o_mata_mata_antes()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, grande, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 8);
+        torneio.QuantidadeQuadras = 2;   // aperta a grade, pra fase de grupos render bastante
+        torneio.TempoPrevistoPartidaMinutos = 30;
+
+        // Categoria pequena, com gente diferente: fecha os grupos muito antes da grande.
+        var pequena = new Categoria { Nome = "Categoria Rápida", Codigo = "RAP", TorneioId = torneio.Id };
+        ctx.Categorias.Add(pequena);
+        await ctx.SaveChangesAsync();
+
+        for (int i = 0; i < 4; i++)
+        {
+            var j1 = TestInfra.NovoJogador(200 + i * 2);
+            var j2 = TestInfra.NovoJogador(201 + i * 2);
+            ctx.Jogadores.AddRange(j1, j2);
+            ctx.Duplas.Add(new Dupla { Categoria = pequena, Jogador1 = j1, Jogador2 = j2 });
+        }
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+
+        // A rápida abre o dia e fecha logo; a grande vai até tarde. É a forma do Interno:
+        // a 4ª Masculina acabou 20h e a categoria de Times só às 21h39.
+        var abertura = torneio.DataInicio ?? new DateTime(2026, 7, 1, 9, 0, 0);
+        var daPequena = await ctx.Partidas.Where(p => p.CategoriaId == pequena.Id).ToListAsync();
+        for (int i = 0; i < daPequena.Count; i++)
+            daPequena[i].HorarioPrevisto = abertura.AddMinutes(30 * i);
+        await ctx.SaveChangesAsync();
+
+        var fimDosGruposDaGrande = await ctx.Partidas
+            .Where(p => p.CategoriaId == grande.Id).MaxAsync(p => p.HorarioPrevisto!.Value);
+        Assert.True(fimDosGruposDaGrande > daPequena.Max(p => p.HorarioPrevisto));
+
+        // Só a categoria rápida joga os grupos dela.
+        foreach (var jogo in daPequena)
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var mataMata = await ctx.Partidas
+            .Where(p => p.CategoriaId == pequena.Id && p.Fase == "Semifinal").ToListAsync();
+
+        Assert.NotEmpty(mataMata);
+        Assert.All(mataMata, p => Assert.True(p.HorarioPrevisto < fimDosGruposDaGrande,
+            $"a semifinal da categoria rápida ficou pra {p.HorarioPrevisto:HH:mm}, depois do último " +
+            $"jogo de grupo da outra ({fimDosGruposDaGrande:HH:mm}) — ela não tinha por que esperar"));
+    }
+
     // A garantia que a mudança acima NÃO pode perder: ninguém é chamado pra duas quadras ao
     // mesmo tempo. Enfileirar as categorias garantia isso de graça; emendar em paralelo só é
     // seguro porque o encaixe recebe o que já está marcado e confere PESSOA por PESSOA.
