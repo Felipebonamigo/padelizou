@@ -325,6 +325,9 @@
                   data-confirmar-ok="Recalcular">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" value="@Model.TorneioId" />
+                @* Pra voltar pra ESTA tela. Sem isto, quem estava na página do torneio caía na
+                   lista pura de jogos e via as abas mãe (Inscritos, Grupos, Chaves) sumirem. *@
+                <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                 <button type="submit" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-clock-history"></i> Recalcular horários
                 </button>
@@ -390,6 +393,7 @@
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content">
                     <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoA" id="trocaJogoA" value="" />
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Trocar horário</h5>
@@ -450,6 +454,7 @@
             <div class="modal-dialog">
                 <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content">
                     <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoId" id="quadraJogoId" value="" />
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Mudar de quadra</h5>

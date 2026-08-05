@@ -425,7 +425,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RefazerGrade(int id)
+        public async Task<IActionResult> RefazerGrade(int id, string? voltarPara = null)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -437,7 +437,7 @@ namespace Padelizou.Controllers
             if (torneio.SemHorarioPrevisto)
             {
                 TempData["Erro"] = "Este torneio roda por ordem de liberação: os jogos não têm horário pra refazer.";
-                return RedirectToAction("Jogos", new { id });
+                return VoltarPara(voltarPara, id);
             }
 
             var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
@@ -449,7 +449,7 @@ namespace Padelizou.Controllers
                 TempData["Erro"] = todos.Count == 0
                     ? "Não há jogos pra remarcar: sorteie as chaves primeiro."
                     : "Todos os jogos já foram jogados ou estão em quadra — não há horário pra recalcular.";
-                return RedirectToAction("Jogos", new { id });
+                return VoltarPara(voltarPara, id);
             }
 
             foreach (var jogo in remarcar)
@@ -473,7 +473,7 @@ namespace Padelizou.Controllers
                   (intocados.Count > 0 ? $"Os {intocados.Count} já jogados ou em quadra não mudaram. " : "") +
                   "Os confrontos não mudaram.";
 
-            return RedirectToAction("Jogos", new { id });
+            return VoltarPara(voltarPara, id);
         }
 
         // De onde o recálculo parte.
@@ -499,6 +499,23 @@ namespace Padelizou.Controllers
             return agora > liberaQuadra ? agora : liberaQuadra;
         }
 
+        // Volta pra tela DE ONDE o organizador veio.
+        //
+        // A página do torneio (Details) tem as abas mãe — Inscritos, Grupos, Chaves, Jogos —,
+        // e /Torneios/Jogos é só a lista. Toda ação do organizador redirecionava pra "Jogos",
+        // então quem estava na página do torneio via as abas SUMIREM depois de trocar um
+        // horário ou recalcular a grade, e achava que tinha perdido o caminho de volta.
+        //
+        // Lista fechada de destinos de propósito: `voltarPara` vem do formulário, e um campo
+        // de formulário nunca pode virar redirecionamento pra qualquer lugar.
+        private IActionResult VoltarPara(string? voltarPara, int id) =>
+            voltarPara == "Details"
+                // Com âncora: a página do torneio abre já na aba de jogos, que é de onde a
+                // pessoa saiu. Sem ela, voltar pra Details jogaria o organizador na primeira
+                // aba e ele teria que caçar a lista de novo.
+                ? RedirectToAction("Details", "Torneios", new { id }, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", new { id });
+
         // Mudar a QUADRA de um jogo sem mexer na hora. A troca de horário arrasta o slot
         // inteiro (hora + quadra) e quase nunca era o que o organizador queria: a quadra 3
         // molhou, a 1 é a coberta, a final merece a do meio. Regras em Services/TrocaDeQuadra
@@ -507,7 +524,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra)
+        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -518,7 +535,7 @@ namespace Padelizou.Controllers
             if (TrocaDeQuadra.MotivoParaNaoMudar(jogo, quadra, id, quadras) is { } motivo)
             {
                 TempData["Erro"] = motivo;
-                return RedirectToAction("Jogos", new { id });
+                return VoltarPara(voltarPara, id);
             }
 
             var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
@@ -531,7 +548,7 @@ namespace Padelizou.Controllers
                 : $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
                   $"assume a {deOnde ?? "quadra que estava livre"}.";
 
-            return RedirectToAction("Jogos", new { id });
+            return VoltarPara(voltarPara, id);
         }
 
         // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a
@@ -540,7 +557,7 @@ namespace Padelizou.Controllers
         // Regras em Services/TrocaDeHorario.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> TrocarHorario(int id, int jogoA, int jogoB)
+        public async Task<IActionResult> TrocarHorario(int id, int jogoA, int jogoB, string? voltarPara = null)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -559,7 +576,7 @@ namespace Padelizou.Controllers
                     $"{a.HorarioPrevisto:dd/MM HH:mm} e o {b!.Codigo} é {b.HorarioPrevisto:dd/MM HH:mm}.";
             }
 
-            return RedirectToAction("Jogos", new { id });
+            return VoltarPara(voltarPara, id);
         }
 
         // Push de "chaves publicadas". É o momento em que o torneio deixa de ser uma lista de

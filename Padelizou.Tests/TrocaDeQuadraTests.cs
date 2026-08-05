@@ -168,6 +168,34 @@ public class TrocaDeQuadraTests
     }
 
     [Fact]
+    public async Task Quem_veio_da_pagina_do_torneio_volta_pra_ela_com_as_abas()
+    {
+        // Toda ação do organizador voltava pra /Torneios/Jogos, que é só a lista. Quem estava
+        // na página do torneio via as abas mãe (Inscritos, Grupos, Chaves) SUMIREM depois de
+        // trocar uma quadra, e achava que tinha perdido o caminho de volta.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        ctx.Set<Quadra>().AddRange(Quadras.Select(n => new Quadra { TorneioId = torneio.Id, Nome = n }));
+        await ctx.SaveChangesAsync();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await controller.GerarChaves(torneio.Id);
+        var jogo = await ctx.Partidas.FirstAsync(p => p.TorneioId == torneio.Id);
+        var outra = Quadras.First(q => q != jogo.NomeQuadra);
+
+        var voltandoPraPagina = await controller.TrocarQuadra(torneio.Id, jogo.Id, outra, "Details");
+        var destino = Assert.IsType<Microsoft.AspNetCore.Mvc.RedirectToActionResult>(voltandoPraPagina);
+        Assert.Equal("Details", destino.ActionName);
+        Assert.Equal("jogosDoTorneio", destino.Fragment);   // abre já na aba de jogos
+
+        // Sem origem declarada segue pro comportamento antigo: a lista de jogos.
+        var maisOutra = Quadras.First(q => q != outra && q != jogo.NomeQuadra);
+        var semOrigem = await controller.TrocarQuadra(torneio.Id, jogo.Id, maisOutra);
+        var lista = Assert.IsType<Microsoft.AspNetCore.Mvc.RedirectToActionResult>(semOrigem);
+        Assert.Equal("Jogos", lista.ActionName);
+    }
+
+    [Fact]
     public async Task Quem_nao_organiza_nao_muda_quadra()
     {
         using var ctx = TestInfra.NovoContexto();
