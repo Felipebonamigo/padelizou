@@ -152,9 +152,8 @@ public static class ProximasFasesDaChave
 
     // Uma vaga que já tem dono — os jogos REAIS que estão marcados. A projeção precisa deles
     // pra não prometer uma quadra que já está ocupada. `Quadra` nula é o torneio que não
-    // cadastrou quadra: ela ocupa a vaga sem tomar um nome. A `Fase` vem junto porque final e
-    // semifinal não dividem horário (ver Services/FasesNoMesmoHorario).
-    public record VagaOcupada(DateTime Horario, string? Quadra, string? Fase = null);
+    // cadastrou quadra: ela ocupa a vaga sem tomar um nome.
+    public record VagaOcupada(DateTime Horario, string? Quadra);
 
     // `Quadras` são os nomes NA ORDEM; `Capacidade` é quantos jogos rodam ao mesmo tempo.
     // Os dois existem porque podem discordar: um torneio de 5 quadras pode ter cadastrado só
@@ -185,20 +184,10 @@ public static class ProximasFasesDaChave
         int capacidade = Math.Max(1, grade.Capacidade);
         var ocupadas = new Dictionary<DateTime, HashSet<string>>();
         var lotacao = new Dictionary<DateTime, int>();
-        var fases = new Dictionary<DateTime, HashSet<string>>();
-
-        void AnotarFase(DateTime quando, string? fase)
-        {
-            if (string.IsNullOrEmpty(fase)) return;
-            if (!fases.TryGetValue(quando, out var noHorario))
-                fases[quando] = noHorario = new HashSet<string>();
-            noHorario.Add(fase!);
-        }
 
         foreach (var vaga in jaMarcados ?? Array.Empty<VagaOcupada>())
         {
             lotacao[vaga.Horario] = lotacao.GetValueOrDefault(vaga.Horario) + 1;
-            AnotarFase(vaga.Horario, vaga.Fase);
 
             if (!string.IsNullOrEmpty(vaga.Quadra))
             {
@@ -242,25 +231,16 @@ public static class ProximasFasesDaChave
 
                 if (horario is DateTime h)
                 {
-                    // Duas paradas, e as duas empurram o jogo pro horário seguinte:
-                    //  • horário LOTADO — sem isto a projeção anunciava 8 jogos no mesmo
-                    //    minuto num torneio de 5 quadras;
-                    //  • FINAL junto com SEMIFINAL — finais podem ser juntas, mas final e
-                    //    semi no mesmo horário é impossível na vida real (os finalistas podem
-                    //    estar jogando a semi). Ver Services/FasesNoMesmoHorario.
-                    while (lotacao.GetValueOrDefault(h) >= capacidade
-                           || !FasesNoMesmoHorario.Cabe(rodada.Fase,
-                                   fases.GetValueOrDefault(h) ?? Enumerable.Empty<string>()))
-                    {
+                    // Horário lotado: o jogo escorrega pro seguinte. Sem esta parada, a
+                    // projeção anunciava 8 jogos no mesmo minuto num torneio de 5 quadras.
+                    while (lotacao.GetValueOrDefault(h) >= capacidade)
                         h = GradeDeJogos.DepoisDe(h, grade.UltimoInicioDoDia,
                                                   grade.AberturaDiasSeguintes, grade.DuracaoMinutos);
-                    }
 
                     var nomes = ocupadas.TryGetValue(h, out var usadas) ? usadas : null;
                     quadra = grade.Quadras.FirstOrDefault(q => nomes == null || !nomes.Contains(q));
 
                     lotacao[h] = lotacao.GetValueOrDefault(h) + 1;
-                    AnotarFase(h, rodada.Fase);
                     if (quadra != null)
                     {
                         if (nomes == null) ocupadas[h] = nomes = new HashSet<string>();

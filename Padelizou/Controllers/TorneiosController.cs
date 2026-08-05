@@ -494,7 +494,7 @@ namespace Padelizou.Controllers
             // havia como saber qual.
             var ocupadas = partidas
                 .Where(p => p.HorarioPrevisto != null && !torneio.SemHorarioPrevisto)
-                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra, p.Fase))
+                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra))
                 .ToList();
 
             var projetados = ProximasFasesDaChave.Agendar(

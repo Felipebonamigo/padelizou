@@ -133,15 +133,6 @@ public static class GradeDeJogos
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
         var ocupadasNoHorario = new Dictionary<DateTime, HashSet<string>>();
-        var fasesNoHorario = new Dictionary<DateTime, HashSet<string>>();
-
-        void AnotarFase(DateTime quando, string? fase)
-        {
-            if (string.IsNullOrEmpty(fase)) return;
-            if (!fasesNoHorario.TryGetValue(quando, out var fases))
-                fasesNoHorario[quando] = fases = new HashSet<string>();
-            fases.Add(fase!);
-        }
 
         foreach (var marcado in jaMarcados ?? Array.Empty<Partida>())
         {
@@ -151,8 +142,6 @@ public static class GradeDeJogos
                 ocupados[quando] = quemJa = new HashSet<int>();
             foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) quemJa.Add(pessoa);
             foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) quemJa.Add(pessoa);
-
-            AnotarFase(quando, marcado.Fase);
 
             if (string.IsNullOrEmpty(marcado.NomeQuadra)) continue;
             if (!ocupadasNoHorario.TryGetValue(quando, out var nomes))
@@ -168,15 +157,14 @@ public static class GradeDeJogos
             if (!ocupados.TryGetValue(horario, out var quem))
                 ocupados[horario] = quem = new HashSet<int>();
 
-            var fasesAqui = fasesNoHorario.GetValueOrDefault(horario) ?? new HashSet<string>();
-
-            // Duas condições, e as duas são "impossível na vida real": a mesma PESSOA em duas
-            // quadras, e FINAL junto com SEMIFINAL (ver Services/FasesNoMesmoHorario — os
-            // finalistas podem estar jogando a semi naquele minuto).
+            // A ÚNICA coisa impossível na vida real é a mesma PESSOA em duas quadras ao mesmo
+            // tempo. Fases diferentes dividindo o horário é normal e desejável: a final de uma
+            // categoria pode acontecer junto com a semifinal de outra, porque são pessoas
+            // diferentes — e proibir isso só espalharia a grade e atrasaria o encerramento.
+            // Dentro de UMA categoria a impossibilidade já é estrutural: a folga entre fases
+            // (AberturaDaProximaFase) nunca deixa a final encostar na semifinal que a decide.
             bool Livre(Partida p) =>
-                !Ocupantes(p.Dupla1Id).Any(quem.Contains)
-                && !Ocupantes(p.Dupla2Id).Any(quem.Contains)
-                && FasesNoMesmoHorario.Cabe(p.Fase, fasesAqui);
+                !Ocupantes(p.Dupla1Id).Any(quem.Contains) && !Ocupantes(p.Dupla2Id).Any(quem.Contains);
 
             var jogo = fila.FirstOrDefault(Livre);
 
@@ -191,7 +179,6 @@ public static class GradeDeJogos
             }
 
             jogo.HorarioPrevisto = horario;
-            AnotarFase(horario, jogo.Fase);
 
             // A quadra é a PRIMEIRA LIVRE naquele horário: o primeiro jogo das 20h vai pra
             // primeira quadra, o segundo pra segunda. Livre, e não a posição na fila, porque

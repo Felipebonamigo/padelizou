@@ -167,6 +167,59 @@ public class ChaveDiretaNoSorteioTests
     }
 
     [Fact]
+    public async Task Ninguem_joga_dois_jogos_ao_mesmo_tempo_ATE_A_FINAL()
+    {
+        // O teste acima olha só o sorteio. Mas o mesmo jogador está em DUAS categorias — a
+        // dele e o Mata-Mata Geral —, e cada rodada nova do mata-mata nasce depois, pelo robô,
+        // com a grade já cheia. É aí que a conta pode furar: se o robô marcar a semifinal da
+        // 6ª Masculina no horário em que o cara joga as quartas da chave geral, ele é chamado
+        // pra duas quadras e alguém perde W.O. na mesa.
+        //
+        // Então joga-se o Interno inteiro, do primeiro jogo ao campeão, conferindo TODOS os
+        // horários de TODAS as fases.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, _) = MontarTorneioComoOInterno(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        for (int volta = 0; volta < 12; volta++)
+        {
+            var pendentes = await ctx.Partidas
+                .Where(p => p.TorneioId == torneio.Id && p.Status != "Finalizada")
+                .OrderBy(p => p.HorarioPrevisto).ToListAsync();
+            if (pendentes.Count == 0) break;
+
+            foreach (var jogo in pendentes)
+                await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+        }
+
+        var jogos = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Include(p => p.Dupla1).Include(p => p.Dupla2)
+            .ToListAsync();
+
+        // Chegou até o fim: campeão em toda categoria, e ninguém ficou sem hora.
+        Assert.Contains(jogos, j => j.Fase == "Final" && j.VencedorId != null);
+        Assert.All(jogos, j => Assert.NotNull(j.HorarioPrevisto));
+
+        var conflitos = jogos
+            .GroupBy(j => j.HorarioPrevisto)
+            .SelectMany(horario => horario
+                .SelectMany(j => new[] { (j, j.Dupla1), (j, j.Dupla2) })
+                .SelectMany(x => x.Item2.EhTime
+                    ? new[] { ($"time-{x.Item2.Id}", x.j) }
+                    : new[] { ($"j-{x.Item2.Jogador1Id}", x.j), ($"j-{x.Item2.Jogador2Id}", x.j) })
+                .GroupBy(x => x.Item1)
+                .Where(g => g.Count() > 1)
+                .Select(g => $"{horario.Key:dd/MM HH:mm} {g.Key} em " +
+                             string.Join(" E ", g.Select(x => $"{x.j.Fase}/{x.j.CategoriaId}"))))
+            .ToList();
+
+        Assert.Empty(conflitos);
+    }
+
+    [Fact]
     public async Task A_chave_direta_ABRE_o_torneio_em_vez_de_esperar_os_grupos()
     {
         // A regra era o contrário — a chave direta ia pro fim da fase de grupos, pra que

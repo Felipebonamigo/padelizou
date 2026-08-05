@@ -474,49 +474,64 @@ public class ProximasFasesDaChaveTests
         Assert.Equal("Quadra A", final.Quadra);
     }
 
-    // ---- Final e semifinal não dividem horário ----
-    // Regra do organizador: finais PODEM ser juntas — várias categorias decidindo ao mesmo
-    // tempo é o fecho normal de um interno. Final com semifinal é que é impossível na vida
-    // real: os finalistas podem ser justamente quem está jogando a semi naquele minuto (num
-    // torneio com chave direta as mesmas pessoas disputam duas competições).
+    // ---- O que é impossível, e o que só PARECE ----
+    //
+    // A única coisa impossível na vida real é a mesma PESSOA em dois jogos ao mesmo tempo.
+    // Dentro de UMA categoria isso vira "final não encosta na semifinal que a decide", e a
+    // folga entre fases já garante. Entre categorias DIFERENTES não há impossibilidade
+    // nenhuma: são pessoas diferentes, e proibir espalharia a grade sem motivo.
 
     [Fact]
-    public void Final_nunca_divide_horario_com_semifinal_de_outra_categoria()
+    public void A_final_nunca_divide_horario_com_a_semifinal_DA_PROPRIA_categoria()
     {
-        // Uma categoria já na semifinal e outra pronta pra final: mesmo com quadra sobrando,
-        // a final espera o horário seguinte.
-        var atrasada = ProximasFasesDaChave.Montar(
-            new[]
-            {
-                Jogo(1, "Quartas de Final", "A1", "B1", "21:00"),
-                Jogo(2, "Quartas de Final", "C1", "D1", "21:00"),
-                Jogo(3, "Quartas de Final", "E1", "F1", "21:00"),
-                Jogo(4, "Quartas de Final", "G1", "H1", "21:00"),
-            }, Array.Empty<string>(), "6ª Masculina");
+        var quartas = Enumerable.Range(1, 4)
+            .Select(i => Jogo(i, "Quartas de Final", $"A{i}", $"B{i}", "21:00")).ToList();
 
-        var adiantada = ProximasFasesDaChave.Montar(
-            new[]
-            {
-                Jogo(5, "Semifinal", "I1", "J1", "21:00"),
-                Jogo(6, "Semifinal", "K1", "L1", "21:00"),
-            }, Array.Empty<string>(), "Mata-Mata Geral");
-
-        var jogos = ProximasFasesDaChave.Agendar(new[] { atrasada, adiantada },
-            new ConfiguracaoDaGrade(11, 5, CincoQuadras, FimDoDia, AberturaSeguinte));
+        var jogos = Montar(quartas, quadras: 5, duracao: 11, nomesDeQuadra: CincoQuadras);
 
         foreach (var noHorario in jogos.GroupBy(j => j.Horario))
         {
             var fases = noHorario.Select(j => j.Fase).Distinct().ToList();
             Assert.False(fases.Contains("Final") && fases.Contains("Semifinal"),
-                $"às {noHorario.Key:HH:mm} tem final e semifinal juntas: " +
-                string.Join(", ", noHorario.Select(j => $"{j.Categoria} {j.FaseNumerada}")));
+                $"às {noHorario.Key:HH:mm} a final da mesma categoria caiu junto com a semifinal " +
+                "que decide quem joga ela");
         }
+    }
+
+    [Fact]
+    public void Final_de_uma_categoria_PODE_ser_junto_com_semifinal_de_OUTRA()
+    {
+        // São pessoas diferentes: não há nada de impossível nisso, e adiar a final só
+        // empurraria o encerramento do torneio.
+        var adiantada = ProximasFasesDaChave.Montar(
+            new[]
+            {
+                Jogo(1, "Semifinal", "A1", "B1", "21:00"),
+                Jogo(2, "Semifinal", "C1", "D1", "21:00"),
+            }, Array.Empty<string>(), "5ª Masculina");
+
+        var atrasada = ProximasFasesDaChave.Montar(
+            new[]
+            {
+                Jogo(3, "Quartas de Final", "E1", "F1", "21:00"),
+                Jogo(4, "Quartas de Final", "G1", "H1", "21:00"),
+                Jogo(5, "Quartas de Final", "I1", "J1", "21:00"),
+                Jogo(6, "Quartas de Final", "K1", "L1", "21:00"),
+            }, Array.Empty<string>(), "6ª Masculina");
+
+        var jogos = ProximasFasesDaChave.Agendar(new[] { adiantada, atrasada },
+            new ConfiguracaoDaGrade(11, 5, CincoQuadras, FimDoDia, AberturaSeguinte));
+
+        var final = jogos.Single(j => j.Categoria == "5ª Masculina" && j.Fase == "Final");
+        var semisDaOutra = jogos.Where(j => j.Categoria == "6ª Masculina" && j.Fase == "Semifinal").ToList();
+
+        Assert.Equal(2, semisDaOutra.Count);
+        Assert.Contains(semisDaOutra, s => s.Horario == final.Horario);
     }
 
     [Fact]
     public void Duas_finais_PODEM_dividir_o_mesmo_horario()
     {
-        // A contrapartida: proibir final com final espalharia o encerramento sem motivo.
         var cadeias = new[] { "6ª Masculina", "6ª Feminina", "5ª Masculina" }
             .Select(cat => ProximasFasesDaChave.Montar(
                 new[]
@@ -533,29 +548,6 @@ public class ProximasFasesDaChaveTests
         Assert.All(finais, f => Assert.Equal("Final", f.Fase));
         Assert.Single(finais.Select(f => f.Horario).Distinct());
         Assert.Equal(3, finais.Select(f => f.Quadra).Distinct().Count());
-    }
-
-    [Fact]
-    public void Semifinal_REAL_ja_marcada_tambem_empurra_a_final_projetada()
-    {
-        // A projeção divide a grade com os jogos que já existem: uma semifinal marcada de
-        // verdade às 21:22 impede a final projetada de cair ali.
-        var semis = new[]
-        {
-            Jogo(1, "Semifinal", "A1", "B1", "21:00"),
-            Jogo(2, "Semifinal", "C1", "D1", "21:00"),
-        };
-
-        var ocupadas = new[]
-        {
-            new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), "Quadra A", "Semifinal"),
-        };
-
-        var final = Assert.Single(Montar(semis, quadras: 5, duracao: 11,
-            nomesDeQuadra: CincoQuadras, ocupadas: ocupadas));
-
-        // Abriria 21:22 pela folga, mas lá tem semifinal: escorrega pro seguinte.
-        Assert.Equal(DateTime.Parse("2026-08-08 21:33"), final.Horario);
     }
 
     [Fact]
