@@ -167,12 +167,21 @@ public class ChaveDiretaNoSorteioTests
     }
 
     [Fact]
-    public async Task Jogo_de_grupo_vem_antes_do_mata_mata_na_grade()
+    public async Task A_chave_direta_ABRE_o_torneio_em_vez_de_esperar_os_grupos()
     {
-        // Fases embaralhadas no mesmo horário confundem quem está no clube: a abertura da
-        // chave direta caía no meio dos jogos de grupo das outras categorias. Grupo primeiro;
-        // as fases seguintes (semi, final) nem passam por aqui — nascem depois, pelo robô,
-        // emendadas no fim de tudo, e por isso a final é sempre o último jogo.
+        // A regra era o contrário — a chave direta ia pro fim da fase de grupos, pra que
+        // "fase de grupo primeiro, mata-mata depois" fosse garantia e não preferência.
+        //
+        // Só que isso vale pro mata-mata que SAI dos grupos, que de fato precisa do resultado
+        // deles. A chave direta não espera nada: as duplas já estão definidas, e ela é uma
+        // competição paralela ("como se fosse uma outra categoria", nas palavras do
+        // organizador). Pior: é ela que tem MAIS FASES pela frente — 24 duplas são cinco
+        // rodadas até a final, contra as três de uma categoria de grupos. Empurrá-la pro fim
+        // dos grupos empurrava as cinco rodadas junto, e no Interno isso jogou a final da
+        // chave geral pras 23h18.
+        //
+        // Quem impede o embaralhamento perigoso (a mesma pessoa em duas quadras) é o encaixe,
+        // que compara PESSOA — ver Ninguem_e_chamado_pra_duas_quadras_no_mesmo_horario.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, org, chave) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
@@ -181,17 +190,143 @@ public class ChaveDiretaNoSorteioTests
 
         var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
 
+        var primeiroDoMataMata = jogos.Where(j => j.CategoriaId == chave.Id).Min(j => j.HorarioPrevisto);
         var ultimoDeGrupo = jogos
             .Where(j => Padelizou.Services.FasesTorneio.EhFaseDeGrupos(j.Fase))
             .Max(j => j.HorarioPrevisto);
-        var primeiroDoMataMata = jogos
-            .Where(j => j.CategoriaId == chave.Id)
-            .Min(j => j.HorarioPrevisto);
 
-        Assert.NotNull(ultimoDeGrupo);
-        Assert.NotNull(primeiroDoMataMata);
-        Assert.True(primeiroDoMataMata >= ultimoDeGrupo,
-            $"mata-mata às {primeiroDoMataMata:HH:mm} começaria antes do fim dos grupos ({ultimoDeGrupo:HH:mm})");
+        Assert.Equal(torneio.AberturaDaGrade, primeiroDoMataMata);
+        Assert.True(primeiroDoMataMata < ultimoDeGrupo,
+            $"a chave direta abriria às {primeiroDoMataMata:HH:mm}, sem ganhar nada em relação " +
+            $"ao fim dos grupos ({ultimoDeGrupo:HH:mm})");
+    }
+
+    [Fact]
+    public async Task Mata_mata_que_sai_dos_grupos_continua_esperando_os_grupos()
+    {
+        // A contrapartida do teste acima: o que DEPENDE do resultado dos grupos não pode
+        // subir pro meio deles. Só a chave direta é independente.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, chave) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        foreach (var jogo in await ctx.Partidas
+                     .Where(p => p.TorneioId == torneio.Id && p.CategoriaId != chave.Id).ToListAsync())
+            await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+
+        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+        var fimDosGrupos = jogos
+            .Where(j => Padelizou.Services.FasesTorneio.EhFaseDeGrupos(j.Fase))
+            .Max(j => j.HorarioPrevisto);
+
+        var dosGrupos = jogos
+            .Where(j => j.CategoriaId != chave.Id && !Padelizou.Services.FasesTorneio.EhFaseDeGrupos(j.Fase))
+            .ToList();
+
+        Assert.NotEmpty(dosGrupos);
+        Assert.All(dosGrupos, j => Assert.True(j.HorarioPrevisto > fimDosGrupos,
+            $"{j.Fase} às {j.HorarioPrevisto:HH:mm} subiu pro meio da fase de grupos, que só " +
+            $"acaba {fimDosGrupos:HH:mm} — ela depende de quem classificar"));
+    }
+
+    [Fact]
+    public async Task O_torneio_inteiro_cabe_em_quase_o_minimo_de_quadra()
+    {
+        // O piso de um torneio é aritmética, não algoritmo: N jogos em Q quadras ocupam pelo
+        // menos ceil(N/Q) levas, e nenhuma ordem de fila vence isso. O que a grade PODE fazer
+        // é não desperdiçar quadra — e é isso que este teste tranca.
+        //
+        // Serve de alarme: se alguém voltar a enfileirar categoria atrás de categoria, ou a
+        // empurrar uma chave inteira pro fim, a folga estoura e o teste cai.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, _) = MontarTorneioComoOInterno(ctx);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        // Joga o torneio inteiro, fase após fase.
+        for (int volta = 0; volta < 12; volta++)
+        {
+            var pendentes = await ctx.Partidas
+                .Where(p => p.TorneioId == torneio.Id && p.Status != "Finalizada").ToListAsync();
+            if (pendentes.Count == 0) break;
+            foreach (var jogo in pendentes)
+                await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+        }
+
+        var todas = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+        int duracao = torneio.TempoPrevistoPartidaMinutos;
+        var levas = todas.Select(p => p.HorarioPrevisto).Distinct().Count();
+        int piso = (int)Math.Ceiling(todas.Count / (double)torneio.QuantidadeQuadras);
+
+        // Duas levas de folga: entre uma fase e a seguinte existe o descanso, e uma final
+        // sozinha ocupa uma leva inteira usando uma quadra só.
+        Assert.True(levas <= piso + 2,
+            $"{todas.Count} jogos em {torneio.QuantidadeQuadras} quadras cabem em {piso} levas de " +
+            $"{duracao} min, e a grade usou {levas} — {(levas - piso) * duracao} min de quadra parada");
+    }
+
+    [Fact]
+    public async Task Refazer_a_grade_muda_o_horario_e_nao_o_confronto()
+    {
+        // Sorteio e grade são coisas diferentes. Refazer a grade serve pra quando a regra
+        // melhora depois do sorteio (foi o caso: a chave direta passou a abrir o torneio) ou
+        // pra quando o organizador mexe em quadras, duração ou horário de início.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, _) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var antes = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.Dupla1Id, p.Dupla2Id, p.Fase })
+            .ToListAsync();
+
+        // Dobra as quadras: a grade tem que encolher, e ninguém pode trocar de adversário.
+        torneio.QuantidadeQuadras = 10;
+        await ctx.SaveChangesAsync();
+
+        var fimAntes = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).MaxAsync(p => p.HorarioPrevisto);
+
+        await controller.RefazerGrade(torneio.Id);
+
+        var depois = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.Dupla1Id, p.Dupla2Id, p.Fase })
+            .ToListAsync();
+        var fimDepois = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).MaxAsync(p => p.HorarioPrevisto);
+
+        Assert.Equal(antes.OrderBy(x => x.Id), depois.OrderBy(x => x.Id));
+        Assert.True(fimDepois < fimAntes, $"com o dobro de quadras o torneio devia acabar antes de {fimAntes:HH:mm}");
+        Assert.Empty(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto == null).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Refazer_a_grade_e_recusado_depois_do_primeiro_jogo()
+    {
+        // Remarcar jogo que já rolou é apagar história, e mexer no horário de quem já está em
+        // quadra é pior ainda.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, org, _) = MontarTorneioComChaveDiretaAsync(ctx, duplasNaChave: 24);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.GerarChaves(torneio.Id);
+
+        var jogo = await ctx.Partidas.FirstAsync(p => p.TorneioId == torneio.Id);
+        await TestInfra.FinalizarComPlacarAsync(ctx, controller, jogo, 9, 3);
+        var horarios = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.HorarioPrevisto }).ToListAsync();
+
+        await controller.RefazerGrade(torneio.Id);
+
+        var depois = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id)
+            .Select(p => new { p.Id, p.HorarioPrevisto }).ToListAsync();
+
+        Assert.Equal(horarios.OrderBy(x => x.Id), depois.OrderBy(x => x.Id));
+        Assert.NotNull(controller.TempData["Erro"]);
     }
 
     [Fact]

@@ -308,6 +308,25 @@
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }
 
+        @* REFAZER A GRADE: os mesmos confrontos, horários recalculados. Sorteio e grade são
+           coisas diferentes — aqui só a segunda muda. Aparece só antes do primeiro jogo,
+           porque remarcar jogo que já rolou é apagar história (o servidor recusa de todo
+           jeito, mas oferecer um botão que vai recusar é pior que não oferecer). *@
+        @if (ehOrganizador && agendadasList.Count > 0 && aoVivoList.Count == 0 && finalizadasList.Count == 0)
+        {
+            <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
+                  data-confirmar="Refazer a grade recalcula o horário e a quadra de todos os @agendadasList.Count jogos, do primeiro ao último. Os confrontos não mudam."
+                  data-confirmar-titulo="Refazer a grade de horários?"
+                  data-confirmar-ok="Refazer grade">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.TorneioId" />
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-calendar2-week"></i> Refazer grade de horários
+                </button>
+                <span class="form-text ms-2">Recalcula hora e quadra de todos os jogos. Os confrontos não mudam.</span>
+            </form>
+        }
+
         @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela
            cada um. O cartão cheio (placar gigante + palpitrômetro aberto) fica só no AO VIVO,
            que é onde a tela tem um assunto só. *@

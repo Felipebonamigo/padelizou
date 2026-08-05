@@ -275,20 +275,15 @@ namespace Padelizou.Controllers
                 }
             }
 
-            // ⚠️ FASE MANDA NA ORDEM DA GRADE. Jogo de grupo primeiro, mata-mata depois — e,
-            // dentro do mata-mata, a fase mais adiantada por último. Sem isto a abertura de
-            // uma chave direta caía no meio dos jogos de grupo das outras categorias, e o
-            // torneio ficava com fases embaralhadas no mesmo horário.
+            // ⚠️ A ordem da fila é o CAMINHO CRÍTICO. Ver LevasDaGrade: a chave direta abre o
+            // torneio, os grupos vêm em seguida, e o mata-mata que sai dos grupos fica pra
+            // segunda leva.
             //
             // As fases seguintes (oitavas, semi, final) nem passam por aqui: nascem depois,
-            // pelo robô, que as agenda emendadas no fim de tudo o que já está marcado. Por
-            // isso a final é sempre o último jogo — ela só existe quando o resto já tem hora.
-            jogosPraAgendar = jogosPraAgendar
-                .OrderBy(j => FasesTorneio.EhFaseDeGrupos(j.Fase) ? 0 : 1)
-                .ThenBy(j => Array.IndexOf(
-                    new[] { ChaveamentoMataMata.PrimeiraRodada, "Oitavas de Final",
-                            "Quartas de Final", "Semifinal", "Final" }, j.Fase))
-                .ToList();
+            // pelo robô, que as agenda emendadas nas vagas livres a partir do fim da fase que
+            // as alimenta.
+            var deChaveDireta = torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet();
+            jogosPraAgendar = OrdemDaFila(jogosPraAgendar, deChaveDireta);
 
             // Torneio "por ordem de liberação": os jogos ficam SEM hora e vão pra quadra
             // conforme ela vaga, chamados pela Mesa. A ordem é a de criação — a mesma em que
@@ -303,49 +298,10 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneio.Id });
             }
 
-            // Agora sim os horários: N quadras em paralelo, parando no fim do expediente e
-            // retomando no dia seguinte. O encaixe é ciente de conflito: a mesma PESSOA nunca
-            // cai em duas quadras no mesmo horário (ver GradeDeJogos.Encaixar) — o que só
-            // passou a importar quando a chave direta pôs cada jogador em duas duplas.
-            //
-            // ⚠️ Em DUAS LEVAS, não numa só. Ordenar a fila por fase não basta: quando os
-            // jogos de grupo que sobram conflitam entre si num horário, o encaixe puxa o
-            // próximo livre da fila — e aí um jogo de mata-mata sobe pro meio da fase de
-            // grupos. Agendando o mata-mata só DEPOIS do último jogo de grupo, a ordem das
-            // fases deixa de ser preferência e vira garantia.
-            var ocupantes = OcupantesPorDupla(torneio);
-            var quadras = await QuadrasDoTorneioAsync(torneio.Id);
-
-            var deGrupo = jogosPraAgendar.Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase)).ToList();
-            var deMataMata = jogosPraAgendar.Where(j => !FasesTorneio.EhFaseDeGrupos(j.Fase)).ToList();
-
-            void Agendar(List<Partida> jogos, DateTime inicio)
-            {
-                if (jogos.Count == 0) return;
-
-                var horarios = GradeDeJogos.Horarios(
-                    inicio,
-                    torneio.HoraFimDoDia,
-                    torneio.QuantidadeQuadras,
-                    torneio.TempoPrevistoPartidaMinutos,
-                    // Folga: sem vaga sobrando, o encaixe não teria como deixar uma quadra
-                    // vazia pra evitar chamar a mesma pessoa duas vezes. Ver GradeDeJogos.
-                    jogos.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
-                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
-
-                GradeDeJogos.Encaixar(jogos, horarios, ocupantes, quadras);
-            }
-
-            Agendar(deGrupo, torneio.AberturaDaGrade);
-
-            // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
-            // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
-            // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
-            var fimDosGrupos = deGrupo.Count > 0 ? deGrupo.Max(j => j.HorarioPrevisto) : null;
-            Agendar(deMataMata, fimDosGrupos is DateTime ultimo
-                ? GradeDeJogos.AberturaDaProximaFase(ultimo, torneio.HoraFimDoDia,
-                                        torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos)
-                : torneio.AberturaDaGrade);
+            // Agora sim os horários. A regra mora em EncaixarNasLevas, compartilhada com o
+            // "Refazer grade" — duas cópias divergiriam e o torneio teria duas grades.
+            EncaixarNasLevas(torneio, jogosPraAgendar, deChaveDireta,
+                OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(torneio.Id));
 
             _context.Partidas.AddRange(jogosPraAgendar);
 
@@ -355,6 +311,141 @@ namespace Padelizou.Controllers
             await AvisarChavesPublicadasAsync(torneio, jogosPraAgendar);
 
             return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // A ORDEM DA FILA É O CAMINHO CRÍTICO DO TORNEIO.
+        //
+        // A primeira rodada de uma CHAVE DIRETA não espera resultado de ninguém: as duplas já
+        // estão definidas. E é ela que tem mais fases pela frente — uma chave de 24 duplas são
+        // CINCO rodadas até a final, contra as três de uma categoria que sai de grupos. Deixá-la
+        // pro fim da fase de grupos empurrava essas cinco rodadas todas pra depois, e no Interno
+        // isso jogou a final da chave geral pras 23h18.
+        //
+        // Por isso ela abre o torneio, junto com os grupos e antes deles na fila. Quem garante
+        // que ninguém seja chamado pra duas quadras ao mesmo tempo é o encaixe, que compara
+        // PESSOA (GradeDeJogos.Encaixar) — e é justamente essa chave que põe cada jogador em
+        // duas duplas no mesmo dia.
+        private static readonly string[] OrdemDasFases =
+            { ChaveamentoMataMata.PrimeiraRodada, "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+
+        private static List<Partida> OrdemDaFila(IEnumerable<Partida> jogos, ISet<int> categoriasDeChaveDireta) =>
+            jogos
+                .OrderBy(j => categoriasDeChaveDireta.Contains(j.CategoriaId) ? 0
+                            : FasesTorneio.EhFaseDeGrupos(j.Fase) ? 1 : 2)
+                .ThenBy(j => Array.IndexOf(OrdemDasFases, j.Fase))
+                .ToList();
+
+        // ⚠️ Em DUAS LEVAS, não numa só. Ordenar a fila não basta: quando os jogos que sobram
+        // conflitam entre si num horário, o encaixe puxa o próximo livre da fila — e aí um jogo
+        // de mata-mata sobe pro meio da fase de grupos. Agendando o que SAI DOS GRUPOS só depois
+        // do último jogo de grupo, a ordem das fases deixa de ser preferência e vira garantia.
+        //
+        // A chave direta fica na PRIMEIRA leva de propósito: ela não sai de grupo nenhum, então
+        // não há resultado que ela precise esperar.
+        private static void EncaixarNasLevas(Torneio torneio, List<Partida> jogos,
+            ISet<int> categoriasDeChaveDireta, IReadOnlyDictionary<int, int[]> ocupantes,
+            IReadOnlyList<string> quadras)
+        {
+            bool NaoEsperaNinguem(Partida j) =>
+                categoriasDeChaveDireta.Contains(j.CategoriaId) || FasesTorneio.EhFaseDeGrupos(j.Fase);
+
+            var abertura = OrdemDaFila(jogos.Where(NaoEsperaNinguem), categoriasDeChaveDireta);
+            var depoisDosGrupos = OrdemDaFila(jogos.Where(j => !NaoEsperaNinguem(j)), categoriasDeChaveDireta);
+
+            void Agendar(List<Partida> daLeva, DateTime inicio)
+            {
+                if (daLeva.Count == 0) return;
+
+                var horarios = GradeDeJogos.Horarios(
+                    inicio,
+                    torneio.HoraFimDoDia,
+                    torneio.QuantidadeQuadras,
+                    torneio.TempoPrevistoPartidaMinutos,
+                    // Folga: sem vaga sobrando, o encaixe não teria como deixar uma quadra
+                    // vazia pra evitar chamar a mesma pessoa duas vezes. Ver GradeDeJogos.
+                    daLeva.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
+                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+
+                GradeDeJogos.Encaixar(daLeva, horarios, ocupantes, quadras);
+            }
+
+            Agendar(abertura, torneio.AberturaDaGrade);
+
+            // Uma rodada de folga entre as fases, não só o fim do último jogo: quem disputa o
+            // último jogo do grupo é candidato a classificar, e emendar o mata-mata em cima
+            // dele o poria na quadra no minuto em que saiu dela. Ver AberturaDaProximaFase.
+            var fimDosGrupos = abertura
+                .Where(j => FasesTorneio.EhFaseDeGrupos(j.Fase) && j.HorarioPrevisto != null)
+                .Select(j => j.HorarioPrevisto!.Value)
+                .DefaultIfEmpty()
+                .Max();
+
+            Agendar(depoisDosGrupos, fimDosGrupos != default
+                ? GradeDeJogos.AberturaDaProximaFase(fimDosGrupos, torneio.HoraFimDoDia,
+                                        torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos)
+                : torneio.AberturaDaGrade);
+        }
+
+        // REFAZER A GRADE: os mesmos confrontos, horários recalculados do zero.
+        //
+        // O sorteio e a grade são coisas diferentes, e só a segunda muda aqui — quem joga
+        // contra quem fica exatamente igual. Serve pra quando a regra da grade melhora depois
+        // do sorteio (foi o caso: a chave direta passou a abrir o torneio em vez de fechá-lo),
+        // ou pra quando o organizador mudou quadras, duração ou horário de início.
+        //
+        // ⚠️ Recusa se QUALQUER jogo já saiu de "Agendada". Remarcar um jogo que já rolou é
+        // apagar história; e mexer no horário de quem já está em quadra é pior ainda.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RefazerGrade(int id)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (torneio == null) return NotFound();
+
+            if (torneio.SemHorarioPrevisto)
+            {
+                TempData["Erro"] = "Este torneio roda por ordem de liberação: os jogos não têm horário pra refazer.";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            var jogos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+
+            if (jogos.FirstOrDefault(p => p.Status != "Agendada") is { } jaRolou)
+            {
+                TempData["Erro"] = $"O torneio já começou (o jogo {jaRolou.Codigo} está {jaRolou.Status}). " +
+                                   "A grade só pode ser refeita antes do primeiro jogo.";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            if (jogos.Count == 0)
+            {
+                TempData["Erro"] = "Não há jogos pra remarcar: sorteie as chaves primeiro.";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            foreach (var jogo in jogos)
+            {
+                jogo.HorarioPrevisto = null;
+                jogo.NomeQuadra = null;
+            }
+
+            EncaixarNasLevas(torneio, jogos,
+                torneio.Categorias.Where(c => c.ChaveDireta).Select(c => c.Id).ToHashSet(),
+                OcupantesPorDupla(torneio), await QuadrasDoTorneioAsync(id));
+
+            await _context.SaveChangesAsync();
+
+            var primeiro = jogos.Where(j => j.HorarioPrevisto != null).Min(j => j.HorarioPrevisto);
+            var ultimo = jogos.Where(j => j.HorarioPrevisto != null).Max(j => j.HorarioPrevisto);
+            TempData["Sucesso"] = $"Grade refeita: {jogos.Count} jogos, de {primeiro:dd/MM HH:mm} a {ultimo:HH:mm}. " +
+                                  "Os confrontos não mudaram.";
+
+            return RedirectToAction("Jogos", new { id });
         }
 
         // Troca de horário entre dois jogos, depois do sorteio. A grade automática acerta a
