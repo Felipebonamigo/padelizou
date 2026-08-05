@@ -34,14 +34,26 @@ namespace Padelizou.Controllers
 
         // Só quem organiza o torneio mexe no placar. Partida sem torneio (jogo avulso)
         // não tem dono definido, então fica com o mesmo critério: precisa estar logado.
+        //
+        // ⚠️ O ADMIN DA PLATAFORMA entra junto — e faltava só aqui. Todo o resto do sistema
+        // (TorneiosController.EhOrganizadorAsync, DuplasController) já dava passagem a
+        // IsAdminRaiz/IsAdminGeral, justamente pra socorrer organizador travado sem depender
+        // dele. Este ponto ficou de fora, e o efeito era o pior possível: a Mesa de Controle
+        // ABRIA pro admin (ela usa o outro critério), com todos os botões à vista, e aí
+        // "Começar o jogo" e "Salvar placar" respondiam 403 — no meio do torneio, no clube,
+        // com a quadra esperando.
         private async Task<bool> PodeControlarPlacarAsync(Partida partida)
         {
             var jogadorId = ObterJogadorIdLogado();
             if (jogadorId == null) return false;
             if (partida.TorneioId == null) return true;
 
-            return await _context.TorneioOrganizadores
-                .AnyAsync(o => o.TorneioId == partida.TorneioId && o.JogadorId == jogadorId);
+            if (await _context.TorneioOrganizadores
+                    .AnyAsync(o => o.TorneioId == partida.TorneioId && o.JogadorId == jogadorId))
+                return true;
+
+            return await _context.Jogadores
+                .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
 
         // POST: Partidas/Votar — palpitrômetro (voto do jogador logado em quem vai ganhar a partida)
