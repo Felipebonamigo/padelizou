@@ -2118,16 +2118,46 @@
                                         </span>
                                     </div>
 
+                                    @* HORA e QUADRA vêm da MESMA projeção da aba Jogos
+                                       (ViewBag.JogosQueVem, montada por
+                                       Services/ProximasFasesDaChave). Recalcular aqui daria
+                                       uma segunda conta, e duas contas divergem no dia em que
+                                       a regra mudar — a tela do quadro diria uma hora e a
+                                       lista de jogos diria outra.
+
+                                       O casamento é por (fase, posição na rodada): os dois
+                                       saem do mesmo motor de chaveamento, na mesma ordem. *@
+                                    var projecaoDaCategoria = (ViewBag.JogosQueVem
+                                            as List<Padelizou.Services.ProximasFasesDaChave.JogoQueVem>)
+                                        ?.Where(j => j.Categoria == categoria.Nome)
+                                        .GroupBy(j => j.Fase)
+                                        .ToDictionary(g => g.Key, g => g.ToList());
+
                                     <div class="pdz-chave-projetada-rodadas">
                                         @foreach (var rodada in rodadasProjetadas)
                                         {
                                             <div class="pdz-chave-projetada-rodada">
                                                 <div class="pdz-chave-projetada-fase">@rodada.Fase</div>
-                                                @foreach (var jogo in rodada.Jogos)
+                                                @for (int i = 0; i < rodada.Jogos.Count; i++)
                                                 {
+                                                    var jogo = rodada.Jogos[i];
+                                                    var previsto = projecaoDaCategoria != null
+                                                        && projecaoDaCategoria.TryGetValue(rodada.Fase, out var daFase)
+                                                        && i < daFase.Count ? daFase[i] : null;
+
                                                     <div class="pdz-chave-projetada-jogo">
                                                         <span class="pdz-chave-projetada-num">@jogo.Numero</span>
                                                         <span class="pdz-chave-projetada-lados">
+                                                            @if (previsto?.Horario is DateTime quando)
+                                                            {
+                                                                <span class="pdz-chave-projetada-quando">
+                                                                    @quando.ToString("dd/MM HH:mm")
+                                                                    @if (!string.IsNullOrEmpty(previsto.Quadra))
+                                                                    {
+                                                                        <span>· @previsto.Quadra</span>
+                                                                    }
+                                                                </span>
+                                                            }
                                                             <span class="d-block">@jogo.Lado1</span>
                                                             <span class="d-block text-muted">@jogo.Lado2</span>
                                                         </span>

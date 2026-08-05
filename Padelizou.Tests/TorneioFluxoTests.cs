@@ -157,16 +157,18 @@ public class TorneioFluxoTests
         Assert.Empty(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto == null).ToListAsync());
     }
 
-    // A fase seguinte não encosta na anterior: quem joga a semifinal é quem disputa a final,
-    // e marcar a final para o minuto em que a semi termina é chamar a mesma dupla de volta pra
-    // quadra sem descanso. Uma rodada de folga entre as fases (GradeDeJogos.AberturaDaProximaFase)
-    // — a mesma conta que a projeção mostra na tela, pra grade e previsão não divergirem.
+    // A fase seguinte abre quando a anterior TERMINA — nunca no mesmo horário dela, que seria
+    // a final antes de existirem os dois finalistas.
+    //
+    // ⚠️ Já foi uma rodada inteira de folga; o organizador corrigiu: evitar jogo seguido só
+    // vale se houver OUTRO jogo pra pôr no meio, senão é quadra parada. Quando as quadras são
+    // poucas a própria lotação intercala.
     [Fact]
-    public async Task Cada_fase_deixa_uma_rodada_de_folga_pra_seguinte()
+    public async Task Cada_fase_abre_quando_a_anterior_termina()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
-        torneio.QuantidadeQuadras = 4;   // sobram quadras: é aí que a conta corrida furava
+        torneio.QuantidadeQuadras = 4;   // sobram quadras: nada disputa o horário
         torneio.TempoPrevistoPartidaMinutos = 30;
         await ctx.SaveChangesAsync();
 
@@ -181,8 +183,10 @@ public class TorneioFluxoTests
 
         var semis = await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id && p.Fase == "Semifinal").ToListAsync();
-        Assert.All(semis, p => Assert.True(p.HorarioPrevisto >= fimDosGrupos.AddMinutes(60),
-            $"semifinal às {p.HorarioPrevisto:HH:mm} colada no último jogo de grupo ({fimDosGrupos:HH:mm})"));
+
+        // Com quadra sobrando, a semi entra na leva seguinte à última de grupo. Nem antes
+        // (a fase não teria acabado), nem depois (seria quadra parada à toa).
+        Assert.All(semis, p => Assert.Equal(fimDosGrupos.AddMinutes(30), p.HorarioPrevisto));
 
         foreach (var semi in semis)
             await TestInfra.FinalizarComPlacarAsync(ctx, controller, semi, 9, 5);
@@ -191,8 +195,7 @@ public class TorneioFluxoTests
         var final = await ctx.Partidas
             .SingleAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Final");
 
-        Assert.True(final.HorarioPrevisto >= fimDasSemis.AddMinutes(60),
-            $"final às {final.HorarioPrevisto:HH:mm} colada na semifinal ({fimDasSemis:HH:mm})");
+        Assert.Equal(fimDasSemis.AddMinutes(30), final.HorarioPrevisto);
     }
 
     // Duas categorias avançando ao mesmo tempo dividem as quadras do mesmo horário.

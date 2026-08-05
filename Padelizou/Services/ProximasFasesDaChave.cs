@@ -33,7 +33,12 @@ public static class ProximasFasesDaChave
 
     // Um lado do confronto que ainda não tem dono: ou a dupla que passou direto (bye, e aí
     // tem nome), ou a procedência ("Vencedor Quartas de Final 1", "1º do Grupo A").
-    public record Lado(string Rotulo);
+    //
+    // `DeQualFase`/`DeQualNumero` guardam a procedência DESMONTADA quando ela é um jogo desta
+    // mesma chave — é o que deixa a tela transformar o rótulo em link pro jogo citado. Nulos
+    // no bye (que já tem nome) e na colocação de grupo ("2º do Grupo C"), que não apontam pra
+    // jogo nenhum.
+    public record Lado(string Rotulo, string? DeQualFase = null, int? DeQualNumero = null);
 
     // A categoria vem junto porque a lista de jogos mistura todas: sem ela, duas semifinais
     // de categorias diferentes viram duas linhas idênticas.
@@ -79,7 +84,7 @@ public static class ProximasFasesDaChave
         // Cada jogo da fase atual entrega um vencedor — citado pelo NÚMERO dele naquela
         // fase; cada bye entrega a própria dupla, que já tem nome.
         var lados = daFase
-            .Select((_, i) => new Lado($"Vencedor {faseAtual} {i + 1}"))
+            .Select((_, i) => new Lado($"Vencedor {faseAtual} {i + 1}", faseAtual, i + 1))
             .Concat(byes.Select(b => new Lado(b)))
             .ToList();
 
@@ -109,7 +114,7 @@ public static class ProximasFasesDaChave
             .ToList());
 
         var proximos = confrontos
-            .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}"))
+            .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
             // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do
             // avanço de verdade — é o que faz cada vencedor cruzar com uma vaga que passou
             // direto. Aqui o bye ainda não tem nome: é a colocação ("2º do Grupo C").
@@ -140,7 +145,7 @@ public static class ProximasFasesDaChave
             var confrontos = Parear(lados);
 
             rodadas.Add(new RodadaQueVem(fase, confrontos));
-            lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}")).ToList();
+            lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1)).ToList();
 
             if (fase == "Final") break;
         }

@@ -98,7 +98,17 @@
     };
 }
 
-<div class="pdz-jl @(Model.Finalizada ? "pdz-jl-fim" : "")">
+@* O ENDEREÇO do jogo na página: é pra cá que aponta o "Vencedor Quartas de Final 2" de uma
+   linha projetada. Só faz sentido no mata-mata, que é onde o jogo tem número dentro da fase;
+   jogo de grupo não é citado por ninguém. Ver Services/AncoraDoJogo. *@
+@{
+    var numeroDoJogo = (ViewData["NumeroNaFase"] as Dictionary<int, int>)
+                       ?? (ViewBag.NumeroNaFase as Dictionary<int, int>);
+    var ancora = numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var meuNumero)
+        ? Padelizou.Services.AncoraDoJogo.Id(jogo.Categoria.Nome, jogo.Fase, meuNumero)
+        : null;
+}
+<div class="pdz-jl @(Model.Finalizada ? "pdz-jl-fim" : "")" id="@ancora">
     <div class="pdz-jl-cabecalho">
         <span class="pdz-jl-quando">
             @if (jogo.HorarioPrevisto is DateTime h)
@@ -120,10 +130,8 @@
                "Vencedor Quartas de Final 2" não teria onde ser encontrada. Jogo de grupo não
                numera — o nome do grupo já identifica. *@
             @{
-                var numeroNaFase = (ViewData["NumeroNaFase"] as Dictionary<int, int>)
-                                   ?? (ViewBag.NumeroNaFase as Dictionary<int, int>);
                 var faseNaTela = jogo.Fase != "Final"
-                                 && numeroNaFase != null && numeroNaFase.TryGetValue(jogo.Id, out var n)
+                                 && numeroDoJogo != null && numeroDoJogo.TryGetValue(jogo.Id, out var n)
                     ? $"{jogo.Fase} {n}"
                     : jogo.Fase;
             }

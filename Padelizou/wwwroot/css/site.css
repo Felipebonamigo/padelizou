@@ -1419,6 +1419,18 @@ button, a, input, select { touch-action: manipulation; }
     font-size: .82rem;
 }
 
+/* Hora e quadra do jogo projetado. Menor e mais apagada que os lados: quem olha o quadro
+   procura primeiro QUEM joga; o quando vem logo depois, e é a metade que faltava — o
+   jogador precisa saber a que horas voltar e pra qual quadra ir. */
+.pdz-chave-projetada-quando {
+    display: block;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--pdz-muted);
+    margin-bottom: .12rem;
+}
+
 .pdz-chave-projetada-num {
     flex: 0 0 1.5rem;
     height: 1.5rem;
@@ -2128,6 +2140,33 @@ button, a, input, select { touch-action: manipulation; }
     border-left-style: solid;
     border-left-color: var(--pdz-muted);
     background: transparent;
+}
+
+/* "Vencedor Primeira Rodada 1" como LINK pro jogo citado. Sublinhado pontilhado em vez de
+   cor de link: numa lista de 80 linhas, dezenas de links azuis virariam ruído — o pontilhado
+   diz "dá pra clicar" sem gritar. */
+.pdz-jl-vemde {
+    color: var(--pdz-muted);
+    text-decoration: underline dotted;
+    text-underline-offset: .18em;
+}
+
+.pdz-jl-vemde:hover,
+.pdz-jl-vemde:focus-visible {
+    color: var(--pdz-ink);
+    text-decoration-style: solid;
+}
+
+.pdz-jl-vemde .bi { font-size: .72em; opacity: .7; }
+
+/* O jogo APONTADO pisca ao receber o link, senão a página pula e a pessoa não sabe pra onde
+   olhar. `scroll-margin-top` tira o alvo de baixo da barra fixa do topo. */
+.pdz-jl { scroll-margin-top: 5.5rem; }
+
+.pdz-jl:target {
+    border-color: var(--pdz-accent, #a3e635);
+    box-shadow: 0 0 0 3px rgba(163, 230, 53, .18);
+    transition: box-shadow .2s ease, border-color .2s ease;
 }
 
 .pdz-jl-porvir-selo {

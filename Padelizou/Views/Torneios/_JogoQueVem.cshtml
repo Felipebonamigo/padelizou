@@ -13,7 +13,11 @@
     Sem palpitrômetro e sem botões de organizador de propósito: não há partida no banco pra
     votar nem pra editar. Oferecer o botão daria um beco sem saída.
 *@
-<div class="pdz-jl pdz-jl-porvir">
+@* O ENDEREÇO do jogo na página: é pra cá que aponta o "Vencedor Semifinal 1" de outra
+   linha. O id sai de Services/AncoraDoJogo, o mesmo lugar de onde o link é montado — duas
+   fórmulas separadas viravam clique que não vai a lugar nenhum no dia em que uma mudasse. *@
+<div class="pdz-jl pdz-jl-porvir"
+     id="@Padelizou.Services.AncoraDoJogo.Id(Model.Categoria, Model.Fase, Model.Numero)">
     <div class="pdz-jl-cabecalho">
         <span class="pdz-jl-quando">
             @if (Model.Horario is DateTime h)
@@ -55,12 +59,31 @@
         </span>
     </div>
 
+    @* Cada lado que VEM DE UM JOGO vira link pra ele. Numa lista de 80 linhas, ler "Vencedor
+       Primeira Rodada 1" e ter que rolar a página caçando qual é esse jogo é justamente o
+       trabalho que o número deveria ter poupado. Colocação de grupo ("2º do Grupo C") e bye
+       não viram link: não apontam pra jogo nenhum. *@
+    @{
+        Func<Padelizou.Services.ProximasFasesDaChave.Lado, Microsoft.AspNetCore.Html.IHtmlContent> LadoProjetado = lado =>
+        {
+            var html = new Microsoft.AspNetCore.Html.HtmlContentBuilder();
+
+            if (lado.DeQualFase is { } fase && lado.DeQualNumero is int numero)
+            {
+                var alvo = Padelizou.Services.AncoraDoJogo.Id(Model.Categoria, fase, numero);
+                html.AppendHtml($"<a class=\"pdz-jl-nome pdz-jl-vemde\" href=\"#{alvo}\">")
+                    .Append(lado.Rotulo)
+                    .AppendHtml(" <i class=\"bi bi-arrow-down-right\"></i></a>");
+                return html;
+            }
+
+            html.AppendHtml("<span class=\"pdz-jl-nome text-muted\">").Append(lado.Rotulo).AppendHtml("</span>");
+            return html;
+        };
+    }
+
     <div class="pdz-jl-corpo">
-        <div class="pdz-jl-dupla">
-            <span class="pdz-jl-nome text-muted">@Model.Lado1.Rotulo</span>
-        </div>
-        <div class="pdz-jl-dupla">
-            <span class="pdz-jl-nome text-muted">@Model.Lado2.Rotulo</span>
-        </div>
+        <div class="pdz-jl-dupla">@LadoProjetado(Model.Lado1)</div>
+        <div class="pdz-jl-dupla">@LadoProjetado(Model.Lado2)</div>
     </div>
 </div>

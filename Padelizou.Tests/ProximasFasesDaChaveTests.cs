@@ -156,12 +156,11 @@ public class ProximasFasesDaChaveTests
         var semis = jogos.Where(j => j.Fase == "Semifinal").ToList();
         var final = jogos.Single(j => j.Fase == "Final");
 
-        // Última quartas às 19:30, jogos de 30 min: a fase acaba 20:00 e a semi abre 20:30 —
-        // uma rodada de folga, porque quem sai das quartas é quem joga a semi. As duas semis
-        // cabem nas 2 quadras, e a final abre 21:30 pela mesma conta.
-        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), semis[0].Horario);
-        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), semis[1].Horario);
-        Assert.Equal(DateTime.Parse("2026-08-08 21:30"), final.Horario);
+        // Última quartas às 19:30, jogos de 30 min: a fase acaba 20:00 e a semi abre 20:00.
+        // As duas cabem nas 2 quadras, e a final abre 20:30 pela mesma conta.
+        Assert.Equal(DateTime.Parse("2026-08-08 20:00"), semis[0].Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 20:00"), semis[1].Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 20:30"), final.Horario);
     }
 
     [Fact]
@@ -178,9 +177,10 @@ public class ProximasFasesDaChaveTests
         var semis = Montar(quartas, quadras: 1, duracao: 40)
             .Where(j => j.Fase == "Semifinal").Select(j => j.Horario).ToList();
 
-        // Últimas quartas 21:00 → acabam 21:40, e a semi abre 22:20 (a folga de uma rodada).
-        Assert.Equal(DateTime.Parse("2026-08-08 22:20"), semis[0]);
-        Assert.Equal(DateTime.Parse("2026-08-08 23:00"), semis[1]);
+        // Últimas quartas 21:00 → acabam 21:40, e a semi abre aí. Com UMA quadra, a segunda
+        // semi espera a primeira: é a lotação que intercala, não uma regra de descanso.
+        Assert.Equal(DateTime.Parse("2026-08-08 21:40"), semis[0]);
+        Assert.Equal(DateTime.Parse("2026-08-08 22:20"), semis[1]);
     }
 
     // ---- Uma fase nunca encosta na fase que a alimenta ----
@@ -441,15 +441,15 @@ public class ProximasFasesDaChaveTests
 
         var ocupadas = new[]
         {
-            new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), "Quadra A"),
-            new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), "Quadra B"),
+            new VagaOcupada(DateTime.Parse("2026-08-08 21:11"), "Quadra A"),
+            new VagaOcupada(DateTime.Parse("2026-08-08 21:11"), "Quadra B"),
         };
 
         var final = Assert.Single(Montar(semis, quadras: 5, duracao: 11,
             nomesDeQuadra: CincoQuadras, ocupadas: ocupadas));
 
-        // A final abre 21:22 (21:00 + 11 + 11) e as duas primeiras quadras estão tomadas.
-        Assert.Equal(DateTime.Parse("2026-08-08 21:22"), final.Horario);
+        // A final abre 21:11 (quando a semi acaba) e as duas primeiras quadras estão tomadas.
+        Assert.Equal(DateTime.Parse("2026-08-08 21:11"), final.Horario);
         Assert.Equal("Quadra C", final.Quadra);
     }
 
@@ -464,13 +464,13 @@ public class ProximasFasesDaChaveTests
 
         // As duas quadras do horário de abertura já têm dono.
         var ocupadas = CincoQuadras.Take(2)
-            .Select(q => new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), q))
+            .Select(q => new VagaOcupada(DateTime.Parse("2026-08-08 21:11"), q))
             .ToList();
 
         var final = Assert.Single(Montar(semis, quadras: 2, duracao: 11,
             nomesDeQuadra: CincoQuadras.Take(2).ToList(), ocupadas: ocupadas));
 
-        Assert.Equal(DateTime.Parse("2026-08-08 21:33"), final.Horario);
+        Assert.Equal(DateTime.Parse("2026-08-08 21:22"), final.Horario);
         Assert.Equal("Quadra A", final.Quadra);
     }
 

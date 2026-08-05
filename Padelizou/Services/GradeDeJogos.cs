@@ -278,26 +278,22 @@ public static class GradeDeJogos
 
     // Quando a PRÓXIMA FASE pode abrir, dado o último jogo da fase que a alimenta.
     //
-    // Não é o mesmo que `DepoisDe`. `DepoisDe` responde "quando o jogo anterior acaba", e uma
-    // fase que abre exatamente aí é uma fase colada na anterior: quem joga a semifinal das 22h
-    // é quem disputa a final, então marcar a final para as 22h50 é chamar a mesma dupla pra
-    // quadra no minuto em que ela sai dela. Uma RODADA INTEIRA de folga entre as fases é o que
-    // dá o descanso — e é a razão de as etapas de uma categoria acontecerem "adiantadas" em
-    // relação às outras: elas se afastam justamente pra não empilhar na mesma gente.
+    // A fase seguinte abre assim que a anterior TERMINA — nunca no mesmo horário dela, porque
+    // os dois finalistas saem da semifinal e não podem estar em duas quadras ao mesmo tempo.
+    // Mas também não mais tarde que isso.
     //
-    // (Pior ainda era o caso que trouxe esta regra: a projeção emendava a rodada seguinte na
-    // contagem de quadras da anterior, e quando a rodada anterior não enchia as quadras, a
-    // Final saía no MESMO horário da Semifinal que a alimenta — um jogo antes de existirem os
-    // dois finalistas.)
+    // ⚠️ Já foi uma RODADA INTEIRA de folga, pra ninguém jogar dois jogos seguidos. O
+    // organizador corrigiu (05/08/2026), e a correção é sobre o mundo real: **evitar jogo
+    // seguido só faz sentido se houver outro jogo pra pôr no meio**. Com quadra sobrando, a
+    // folga não vira descanso — vira quadra parada e torneio mais longo. Num interno rápido
+    // (jogos de 11 min, 5 quadras) jogar seguido é o normal; é quando as quadras são poucas
+    // que a grade intercala sozinha — e ela já faz isso, porque o horário cheio empurra a
+    // fase seguinte pra frente (ver Encaixar e ProximasFasesDaChave.Agendar). Ou seja: a
+    // folga aparece quando há com que preenchê-la, e some quando não há. É o que se pediu.
     //
-    // ⚠️ Se a virada já joga a fase pro dia seguinte, o descanso não é somado: a noite inteira
-    // já é folga, e adiar mais só atrasaria a abertura do dia sem dar descanso a ninguém.
+    // Continua existindo separado de `DepoisDe` porque a pergunta é outra — "quando a FASE
+    // pode abrir" e não "quando o próximo jogo cabe" —, e é nessa distinção que a regra mora.
     public static DateTime AberturaDaProximaFase(DateTime ultimoJogoDaFase, TimeSpan ultimoInicioDoDia,
-        TimeSpan aberturaDiasSeguintes, int duracaoMinutos)
-    {
-        var fimDaFase = DepoisDe(ultimoJogoDaFase, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
-        if (fimDaFase.Date != ultimoJogoDaFase.Date) return fimDaFase;
-
-        return DepoisDe(fimDaFase, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
-    }
+        TimeSpan aberturaDiasSeguintes, int duracaoMinutos) =>
+        DepoisDe(ultimoJogoDaFase, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
 }
