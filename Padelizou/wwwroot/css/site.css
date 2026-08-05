@@ -2252,3 +2252,79 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-jl-versus { display: none; }
     .pdz-jl-acoes { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
+
+/* ── Confronto EMPILHADO na lista, em qualquer tamanho de tela ─────────────
+   Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
+   pra ler quem joga contra quem. Empilhado, cada dupla é uma linha — rosto, nome e,
+   quando há palpitrômetro, a PORCENTAGEM DELA na ponta direita. É isso que faz o
+   número apontar pra uma dupla, em vez de o leitor adivinhar se os 100% da esquerda
+   são de quem está em cima. */
+.pdz-jl-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.pdz-jl-dupla {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    color: var(--pdz-ink);
+    font-size: .9rem;
+}
+
+/* A porcentagem encosta na direita, alinhada entre as duas linhas. */
+.pdz-jl-dupla .pdz-palpite-pct {
+    margin-left: auto;
+    min-width: 2.6rem;
+    text-align: right;
+}
+
+.pdz-jl-dupla .pdz-jl-games { margin-left: auto; }
+.pdz-jl-dupla .pdz-jl-games + .pdz-palpite-pct { margin-left: .5rem; }
+
+/* Rodapé do palpitrômetro: o rótulo, a barra e o total de votos numa linha fina. */
+.pdz-jl-palpite {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .35rem;
+    padding-top: .35rem;
+    border-top: 1px dashed var(--pdz-border);
+}
+
+.pdz-palpite-rotulo {
+    flex: 0 0 auto;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--pdz-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.pdz-palpite-ajuda {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.pdz-jl-palpite .pdz-palpite-barra {
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--pdz-surface-alt);
+}
+
+.pdz-palpite-total {
+    flex: 0 0 auto;
+    font-size: .62rem;
+    color: var(--pdz-muted);
+    white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+    /* No celular o rótulo longo empurra a barra pra nada: fica só a palavra. */
+    .pdz-palpite-ajuda { display: none; }
+}

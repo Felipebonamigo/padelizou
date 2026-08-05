@@ -21,7 +21,15 @@
     var r = Model.Palpites;
     bool temPalpite = r != null && r.TotalVotos > 0;
     bool podeVotar = jogo.Status == "Agendada" && Model.MeuId.HasValue;
-    bool mostraPalpitrometro = temPalpite || podeVotar;
+
+    // O palpitrômetro aparece em TODO jogo que ainda vai acontecer, com ou sem voto, e nos
+    // que acabaram só se alguém palpitou (aí ele é histórico).
+    //
+    // Antes ele dependia de haver voto OU de estar logado — e o resultado era uma lista
+    // salpicada, com o bloco aparecendo em dois jogos e sumindo em dez, do lado de jogos
+    // idênticos. Quem visita deslogado é justamente quem ainda pode virar usuário: ver a
+    // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
+    bool mostraPalpitrometro = temPalpite || jogo.Status == "Agendada";
 
     string Lado(Padelizou.Models.Dupla d) =>
         d == null ? "A definir"
@@ -105,7 +113,17 @@
         }
     </div>
 
-    <div class="pdz-jl-confronto">
+    @* As duas duplas EMPILHADAS, uma por linha, em qualquer tamanho de tela.
+       Lado a lado só cabia no desktop, e mesmo lá o "×" no meio fazia o olho ir e voltar
+       pra ler o confronto. Empilhado, cada dupla é uma linha com rosto, nome e — quando há
+       palpitrômetro — a PORCENTAGEM DELA na ponta: assim o número aponta pra uma dupla, em
+       vez de o leitor ter que adivinhar se os 100% da esquerda são de quem está em cima.
+
+       O container do palpitrômetro abraça as duas linhas + a barra porque o JS que vota e
+       atualiza procura os data-pct DENTRO dele (wwwroot/js/palpitrometro.js). *@
+    <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
+         @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\"") : null)>
+
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
             <span class="pdz-jl-rostos">
                 @if (jogo.Dupla1.EhTime)
@@ -127,9 +145,13 @@
             {
                 <span class="pdz-jl-games">@g1</span>
             }
+            @if (mostraPalpitrometro)
+            {
+                <span class="pdz-palpite-pct text-success @(r?.MeuVotoDuplaId == jogo.Dupla1Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
+                      data-pct="1" data-dupla-id="@jogo.Dupla1Id" data-votavel="@podeVotar.ToString().ToLower()"
+                      onclick="votarPalpite(this)">@pct1%</span>
+            }
         </div>
-
-        <span class="pdz-jl-versus">×</span>
 
         <div class="pdz-jl-dupla @(venceu2 ? "pdz-jl-venceu" : venceu1 ? "pdz-jl-perdeu" : "")">
             <span class="pdz-jl-rostos">
@@ -152,50 +174,47 @@
             {
                 <span class="pdz-jl-games">@g2</span>
             }
+            @if (mostraPalpitrometro)
+            {
+                <span class="pdz-palpite-pct text-primary @(r?.MeuVotoDuplaId == jogo.Dupla2Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
+                      data-pct="2" data-dupla-id="@jogo.Dupla2Id" data-votavel="@podeVotar.ToString().ToLower()"
+                      onclick="votarPalpite(this)">@pct2%</span>
+            }
         </div>
-    </div>
 
-    @if (mostraPalpitrometro)
-    {
-        @* Mesmo container e mesmos data-* do palpitrômetro grande, de propósito: votar e
-           atualizar passam pelo código que já existe (wwwroot/js/palpitrometro.js). *@
-        <div class="pdz-palpite-bloco">
-            <div class="pdz-palpite-rotulo">
-                <i class="bi bi-graph-up"></i> PALPITRÔMETRO
-                <span class="pdz-palpite-ajuda">
-                    @if (Model.Finalizada)
-                    {
-                        <text>— como a galera tinha palpitado</text>
-                    }
-                    else if (podeVotar)
-                    {
-                        <text>— toque na porcentagem pra votar em quem você acha que ganha</text>
-                    }
-                    else
-                    {
-                        <text>— em quem a galera acha que ganha</text>
-                    }
+        @if (mostraPalpitrometro)
+        {
+            <div class="pdz-jl-palpite">
+                <span class="pdz-palpite-rotulo">
+                    <i class="bi bi-graph-up"></i> PALPITRÔMETRO
+                    <span class="pdz-palpite-ajuda">
+                        @if (Model.Finalizada)
+                        {
+                            <text>— como a galera tinha palpitado</text>
+                        }
+                        else if (podeVotar)
+                        {
+                            <text>— toque na % pra votar</text>
+                        }
+                        else if (!Model.MeuId.HasValue)
+                        {
+                            @* Deslogado: o convite é o próprio palpitrômetro. *@
+                            <a asp-controller="Auth" asp-action="Login">— entre pra palpitar</a>
+                        }
+                        else
+                        {
+                            <text>— em quem a galera acha que ganha</text>
+                        }
+                    </span>
                 </span>
-                @if (temPalpite)
-                {
-                    <span class="pdz-palpite-total">@r!.TotalVotos voto@(r.TotalVotos == 1 ? "" : "s")</span>
-                }
-            </div>
-
-            <div class="pdz-palpitrometro pdz-palpite-linha @(temPalpite ? "" : "pdz-palpite-vazio")" data-partida-id="@jogo.Id">
-                <span class="pdz-palpite-pct text-success @(r?.MeuVotoDuplaId == jogo.Dupla1Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
-                      data-pct="1" data-dupla-id="@jogo.Dupla1Id" data-votavel="@podeVotar.ToString().ToLower()"
-                      onclick="votarPalpite(this)">@pct1%</span>
 
                 <div class="progress pdz-palpite-barra">
                     <div class="progress-bar bg-success" data-bar="1" style="width: @pct1.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
                     <div class="progress-bar bg-primary" data-bar="2" style="width: @pct2.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
                 </div>
 
-                <span class="pdz-palpite-pct text-primary @(r?.MeuVotoDuplaId == jogo.Dupla2Id ? "pdz-palpite-meu" : "") @(podeVotar ? "votavel" : "")"
-                      data-pct="2" data-dupla-id="@jogo.Dupla2Id" data-votavel="@podeVotar.ToString().ToLower()"
-                      onclick="votarPalpite(this)">@pct2%</span>
+                <span class="pdz-palpite-total pdz-total-votos">@(r?.TotalVotos ?? 0) voto(s)</span>
             </div>
-        </div>
-    }
+        }
+    </div>
 </div>
