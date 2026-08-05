@@ -1491,6 +1491,13 @@ Gerados em 26/07/2026 (PDFs na Área de Trabalho + artifacts no claude.ai):
   Pix R$ 1,99, à vista 2,99% — **27/10/2026 é data de recálculo dos pisos**.
   Vigia do teto MEI já existe (AlertaMeiBackgroundService, e-mail aos 70% e 90%).
   Artifact: `claude.ai/code/artifact/128ee0e3-a783-4bfa-9ff8-d7b24f8f6c43`
+- **Concorrente mapeado: Gripo (gripo.com.br)** — preços conferidos 05/08/2026: clube
+  R$ 149/219 por clube/mês + módulos (NF, TEF, WhatsApp); torneio R$ 4,80/dupla, mínimo
+  R$ 200 (cobra por inscrição mesmo com dinheiro por fora); pagamento online 0,89%.
+  Forte em balcão (nota fiscal, maquininha, comanda, facial); NÃO tem professor nem rede
+  de jogador. Num torneio de 60 duplas somos ~6× mais caros no "só Pix" — o preço precisa
+  seguir comprando o que eles não têm; válvula anotada: faixa fixa por dupla. Comparação
+  completa na seção 3 do artifact de monetização.
 
 > ⚠️ Os 3 documentos refletem o diagnóstico de **25/07 de manhã** e envelheceram: a maior
 > parte do que eles listam como "falta" já foi entregue. Este STATUS.md é a fonte da verdade.
