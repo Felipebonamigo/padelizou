@@ -1495,9 +1495,13 @@ Gerados em 26/07/2026 (PDFs na Área de Trabalho + artifacts no claude.ai):
   R$ 149/219 por clube/mês + módulos (NF, TEF, WhatsApp); torneio R$ 4,80/dupla, mínimo
   R$ 200 (cobra por inscrição mesmo com dinheiro por fora); pagamento online 0,89%.
   Forte em balcão (nota fiscal, maquininha, comanda, facial); NÃO tem professor nem rede
-  de jogador. Num torneio de 60 duplas somos ~6× mais caros no "só Pix" — o preço precisa
-  seguir comprando o que eles não têm; válvula anotada: faixa fixa por dupla. Comparação
-  completa na seção 3 do artifact de monetização.
+  de jogador. Torneio de 60 duplas × R$ 150 (R$ 9.000): Gripo ≈ R$ 368 · nosso externo
+  R$ 450 (briga de perto) · só Pix R$ 900 (**~2,5×** — a conta de 05/08 dizia 6× por erro:
+  comparava 2 torneios nossos com 1 deles; corrigido no mesmo dia) · todas R$ 1.350.
+  Recomendação registrada (decisão em aberto): NÃO baixar % agora — pro Gripo torneio é
+  isca do SaaS de clube, pra nós é o motor até o MRR de professor/clube existir; na gaveta,
+  contra-oferta fixa por dupla pra quando o Gripo for citado. Comparação completa na
+  seção 3 do artifact de monetização.
 
 > ⚠️ Os 3 documentos refletem o diagnóstico de **25/07 de manhã** e envelheceram: a maior
 > parte do que eles listam como "falta" já foi entregue. Este STATUS.md é a fonte da verdade.
