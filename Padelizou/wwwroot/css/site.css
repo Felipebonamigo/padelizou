@@ -663,7 +663,7 @@ a:hover { color: var(--pdz-lime-600); }
     border-radius: 999px;
     text-decoration: none;
 }
-.pdz-live-cronometro { color: #fff; }
+.pdz-live-cronometro { color: #fff; white-space: nowrap; }
 .pdz-live-linha { padding: .3rem 0; }
 .pdz-live-jogadores a,
 .pdz-live-jogadores a * { color: #fff !important; }
@@ -686,10 +686,14 @@ a:hover { color: var(--pdz-lime-600); }
     font-size: 1.6rem;
     font-weight: 800;
 }
+/* Caixinha própria pro set: encostado no games ("1 9") lia como um número só (19). */
 .pdz-live-sets {
-    font-size: .9rem;
+    font-size: .8rem;
     font-weight: 700;
-    opacity: .55;
+    opacity: .8;
+    padding: .05rem .35rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .12);
 }
 .pdz-live-placar-ganhando { color: var(--pdz-lime); }
 .pdz-live-editar {
@@ -1169,11 +1173,14 @@ button, a, input, select { touch-action: manipulation; }
     gap: .5rem;
 }
 
+/* ── Jogo em linha (Agendadas/Finalizadas — Views/Torneios/_JogoEmLinha) ──────
+   Duplas LADO A LADO com o "×" no meio (é como se lê um confronto em qualquer
+   lugar) e o palpitrômetro embaixo, ocupando a linha inteira.
+   Bloco ÚNICO de propósito: este componente já teve duas definições concorrentes
+   neste arquivo, e a metade morta escondia o porquê de o "×" flutuar no meio. */
 .pdz-jogo-linha {
-    display: flex;
-    align-items: center;
-    gap: .9rem;
-    padding: .65rem .9rem;
+    display: block;              /* as três faixas empilham dentro do cartão */
+    padding: .6rem .85rem;
     border: 1px solid var(--pdz-border);
     border-left: 3px solid var(--pdz-lime);
     border-radius: 12px;
@@ -1182,8 +1189,14 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-jogo-linha-fim { border-left-color: var(--pdz-muted); }
 
-/* Coluna do relógio (ou do placar): largura fixa pra tudo alinhar na vertical —
-   é o que deixa a lista varrível de cima a baixo. */
+.pdz-jogo-linha-topo {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+
+/* Coluna do relógio: largura fixa pra tudo alinhar na vertical — é o que deixa a
+   lista varrível de cima a baixo. */
 .pdz-jogo-linha-quando {
     flex: 0 0 4.2rem;
     text-align: center;
@@ -1204,52 +1217,35 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-muted);
 }
 
-.pdz-jogo-linha-placar {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--pdz-ink);
-    white-space: nowrap;
-}
-
-.pdz-jogo-linha-times {
-    flex: 1 1 auto;
-    min-width: 0;          /* deixa o text-overflow funcionar dentro do flex */
-    line-height: 1.25;
-    color: var(--pdz-ink);
-}
-
-.pdz-jogo-linha-times > div {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .pdz-jogo-linha-onde { margin-top: .15rem; }
 
-.pdz-jogo-linha-acoes {
-    display: flex;
-    align-items: center;
-    gap: .35rem;
-    flex: 0 0 auto;
-}
-
-.pdz-jogo-linha-acoes form { margin: 0; }
-
-@media (max-width: 575.98px) {
-    /* No celular a linha aperta, mas NÃO empilha: empilhar devolveria a parede que
-       este componente veio resolver. */
-    .pdz-jogo-linha { gap: .6rem; padding: .55rem .7rem; }
-    .pdz-jogo-linha-quando { flex-basis: 3.4rem; }
-    .pdz-jogo-linha-hora, .pdz-jogo-linha-placar { font-size: .95rem; }
-}
-
-/* Placar ao lado de cada dupla, um em cima do outro — e não "4 x 0" numa coluna à
-   parte. Assim o número fica encostado em quem o fez, sem exigir que se lembre qual
-   dupla era a primeira. */
-.pdz-jogo-linha-time {
+.pdz-jogo-linha-confronto {
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     align-items: baseline;
     gap: .5rem;
+}
+
+.pdz-jogo-linha-time {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+    color: var(--pdz-ink);
+}
+
+/* A dupla da esquerda encosta no "×": o nome preenche a metade inteira (flex 1 1
+   auto, pro ellipsis), então quem alinha é o TEXTO — justify-content sozinho não
+   tem o que empurrar quando o filho ocupa tudo. */
+.pdz-jogo-linha-time-esq { justify-content: flex-end; }
+.pdz-jogo-linha-time-esq .pdz-jogo-linha-nome { text-align: right; }
+
+.pdz-jogo-linha-versus {
+    flex: 0 0 auto;
+    color: var(--pdz-muted);
+    font-size: .8rem;
 }
 
 .pdz-jogo-linha-nome {
@@ -1265,6 +1261,41 @@ button, a, input, select { touch-action: manipulation; }
     text-align: right;
     font-variant-numeric: tabular-nums;   /* os placares alinham em coluna */
     font-weight: 700;
+}
+
+.pdz-jogo-linha-acoes {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    flex: 0 0 auto;
+}
+
+.pdz-jogo-linha-acoes form { margin: 0; }
+
+@media (max-width: 575.98px) {
+    .pdz-jogo-linha { padding: .55rem .7rem; }
+    .pdz-jogo-linha-quando { flex-basis: 3.4rem; }
+    .pdz-jogo-linha-hora { font-size: .95rem; }
+
+    /* No celular o confronto empilha (dois nomes lado a lado truncariam os dois).
+       Empilhado, o "×" do meio vira prefixo da 2ª dupla — sem ele as duas linhas
+       liam como uma lista de quatro jogadores, não como um confronto. */
+    .pdz-jogo-linha-confronto { display: block; }
+    .pdz-jogo-linha-versus { display: none; }
+    .pdz-jogo-linha-time-esq { justify-content: flex-start; }
+    .pdz-jogo-linha-time-esq .pdz-jogo-linha-nome { text-align: left; }
+
+    .pdz-jogo-linha-time:not(.pdz-jogo-linha-time-esq)::before {
+        content: "\00d7";
+        flex: 0 0 auto;
+        color: var(--pdz-muted);
+        font-size: .8rem;
+    }
+
+    /* Nome antes, placar depois: no HTML os games da 2ª dupla vêm ANTES do nome
+       (pra abraçar o "×" no desktop) — empilhado, isso partia o placar ao meio. */
+    .pdz-jogo-linha-time:not(.pdz-jogo-linha-time-esq) .pdz-jogo-linha-nome { order: 1; }
+    .pdz-jogo-linha-time:not(.pdz-jogo-linha-time-esq) .pdz-jogo-linha-games { order: 2; }
 }
 
 /* Palpitrômetro no meio da linha: as duas porcentagens sempre à vista, com a barra
@@ -1353,6 +1384,19 @@ button, a, input, select { touch-action: manipulation; }
     display: flex;
     flex-direction: column;
     gap: .5rem;
+}
+
+@media (max-width: 767.98px) {
+    /* No celular as colunas cortavam no meio ("QUARTAS DE F...") sem nenhuma
+       pista de rolagem — Semifinal e Final ficavam invisíveis. Empilhadas, como
+       a chave de verdade (_ChaveDoMataMata) já faz: as duas ganham a mesma cara. */
+    .pdz-chave-projetada-rodadas {
+        flex-direction: column;
+        overflow-x: visible;
+        gap: 1.1rem;
+    }
+
+    .pdz-chave-projetada-rodada { flex: 1 1 auto; }
 }
 
 .pdz-chave-projetada-fase {
@@ -1811,55 +1855,7 @@ button, a, input, select { touch-action: manipulation; }
     border-color: var(--pdz-lime);
 }
 
-/* ── Jogo em linha, reorganizado ───────────────────────────────────────────
-   Duplas LADO A LADO com o "×" no meio (é como se lê um confronto em qualquer
-   lugar) e o palpitrômetro embaixo, ocupando a linha inteira e com nome — "50%"
-   solto ao lado do jogo não dizia a ninguém que aquilo era um voto. */
-.pdz-jogo-linha {
-    display: block;              /* as três faixas empilham dentro do cartão */
-    padding: .6rem .85rem;
-}
-
-.pdz-jogo-linha-topo {
-    display: flex;
-    align-items: center;
-    gap: .85rem;
-}
-
-.pdz-jogo-linha-confronto {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: .5rem;
-}
-
-.pdz-jogo-linha-time {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: .35rem;
-    color: var(--pdz-ink);
-}
-
-/* A dupla da esquerda alinha pela direita: os dois nomes encostam no "×", que fica
-   no meio de verdade em vez de flutuar depois de um nome curto. */
-.pdz-jogo-linha-time-esq { justify-content: flex-end; }
-
-.pdz-jogo-linha-versus {
-    flex: 0 0 auto;
-    color: var(--pdz-muted);
-    font-size: .8rem;
-}
-
-.pdz-jogo-linha-onde {
-    margin-top: .15rem;
-    font-size: .72rem;
-    color: var(--pdz-muted);
-}
-
-/* ---- O bloco do palpitrômetro ---- */
+/* ---- O bloco do palpitrômetro (embaixo do jogo em linha) ---- */
 .pdz-palpite-bloco {
     margin-top: .5rem;
     padding-top: .45rem;
@@ -1891,11 +1887,56 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-palpite-bloco .pdz-palpite-barra { display: block; height: 8px; }
 .pdz-palpite-bloco .pdz-palpite-pct { font-size: .76rem; min-width: 2.6rem; }
 
-@media (max-width: 575.98px) {
-    /* No celular o confronto empilha: dois nomes lado a lado em 375px truncariam os
-       dois, e o nome de quem joga é a informação principal da linha. */
-    .pdz-jogo-linha-confronto { display: block; }
-    .pdz-jogo-linha-time-esq { justify-content: flex-start; }
-    .pdz-jogo-linha-versus { display: none; }
-    .pdz-jogo-linha-time { display: flex; }
+/* ── Pills de navegação com a cara do site ─────────────────────────────────
+   O ativo azul padrão do Bootstrap não existe na identidade (lima + navy) e
+   brigava com o vermelho do "Ao Vivo". Linha única rolável no celular: pill
+   quebrando em duas linhas desalinhadas lia como bagunça, não como abas. */
+.pdz-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: .35rem;   /* respiro pra rolagem não colar na pill */
 }
+
+.pdz-pills .nav-link {
+    white-space: nowrap;
+    font-weight: 700;
+    color: var(--pdz-ink);
+}
+
+.pdz-pills .nav-link.active {
+    background-color: var(--pdz-lime);
+    color: var(--pdz-navy);
+}
+
+/* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
+   texto vermelho sobre o fundo ativo era ilegível. */
+.pdz-tab-dot {
+    display: inline-block;
+    width: .55em;
+    height: .55em;
+    border-radius: 50%;
+    background: #dc3545;
+    margin-right: .15rem;
+    animation: pdz-live-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Chip de jogador (avatar + nome + clube) ───────────────────────────────
+   Tamanhos por classe (não inline) pra versão compacta poder encolher. */
+.pdz-chip-avatar { width: 36px; height: 36px; object-fit: cover; }
+.pdz-chip-nome { line-height: 1.1; }
+.pdz-chip-clube { line-height: 1.1; }
+
+/* Compacto (tabela do grupo): a coluna da dupla tem ~180px — avatar de 36px +
+   clube + nome quebrando faziam cada linha ocupar três alturas. */
+.pdz-chip-compacto .pdz-chip-avatar { width: 26px; height: 26px; }
+/* !important porque o chip usa d-block, que também é !important no Bootstrap. */
+.pdz-chip-compacto .pdz-chip-clube { display: none !important; }
+.pdz-chip-compacto .pdz-chip-texto { min-width: 0; }
+.pdz-chip-compacto .pdz-chip-nome {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pdz-chip-compacto a { min-width: 0; max-width: 100%; }
+

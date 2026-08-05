@@ -53,46 +53,80 @@
     </div>
 }
 
-<!-- Filtro de Times e Categorias -->
-<form asp-action="@Model.TargetAction" method="get" class="d-flex align-items-center gap-2 flex-wrap mb-3">
-    <input type="hidden" name="id" value="@Model.TorneioId" />
-    <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;">
-        <option value="">Todos os Times</option>
-    </select>
+<!-- Filtro de Times e Categorias — aplica sozinho ao escolher, sem botão "Filtrar":
+     o botão era mais uma coisa pra entender e mais um toque, e esquecer de apertá-lo
+     deixava a tela mentindo sobre o filtro escolhido. -->
+@{
+    // Só oferece o filtro de time quando algum time joga o torneio — a lista vinha
+    // com TODOS os times do sistema, em qualquer torneio.
+    var timesFiltro = ViewBag.Times as Microsoft.AspNetCore.Mvc.Rendering.SelectList;
+    bool temFiltroDeTime = timesFiltro != null && timesFiltro.Any();
+    bool temFiltroDeCategoria = categoriasDoTorneio.Count > 1;
+}
+@if (temFiltroDeTime || temFiltroDeCategoria)
+{
+    <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
+        <input type="hidden" name="id" value="@Model.TorneioId" />
+        @if (temFiltroDeTime)
+        {
+            <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">
+                <option value="">Todos os Times</option>
+            </select>
+        }
 
-    <div class="dropdown">
-        <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
-        </button>
-        <ul class="dropdown-menu p-2" style="min-width: 220px;">
-            @foreach (var cat in categoriasDoTorneio)
-            {
-                <li class="form-check ms-1">
-                    <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
-                    <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
-                </li>
-            }
-        </ul>
-    </div>
+        @if (temFiltroDeCategoria)
+        {
+            <div class="dropdown">
+                <button class="btn pdz-categoria-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    Categorias @(categoriaFiltroAtual.Length > 0 ? $"({categoriaFiltroAtual.Length})" : "")
+                </button>
+                <ul class="dropdown-menu p-2" style="min-width: 220px;">
+                    @foreach (var cat in categoriasDoTorneio)
+                    {
+                        <li class="form-check ms-1">
+                            <input class="form-check-input" type="checkbox" name="categoriaFiltroIds" value="@cat.Id" id="catFiltro@(cat.Id)" @(categoriaFiltroAtual.Contains(cat.Id) ? "checked" : "")>
+                            <label class="form-check-label" for="catFiltro@(cat.Id)">@cat.Nome</label>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </form>
 
-    <button type="submit" class="btn btn-padel">Filtrar</button>
-</form>
+    <script>
+        // Categorias: aplica quando o dropdown FECHA (marcar várias e disparar a cada
+        // clique recarregaria a página no meio da escolha). O evento do Bootstrap
+        // borbulha até o form.
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('filtroJogos');
+            if (!form) return;
+            var estadoInicial = new URLSearchParams(new FormData(form)).toString();
+            form.addEventListener('hidden.bs.dropdown', function () {
+                if (new URLSearchParams(new FormData(form)).toString() !== estadoInicial) {
+                    form.submit();
+                }
+            });
+        });
+    </script>
+}
 
-<!-- Navegação das Sub-Abas -->
-<ul class="nav nav-pills mb-3" id="jogosTabs" role="tablist">
+<!-- Navegação das Sub-Abas. Ícones do site (não emoji, que rende diferente em cada
+     aparelho) e o vermelho do Ao Vivo mora na bolinha pulsante — texto vermelho
+     sobre a pill ativa era ilegível. -->
+<ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link @(defaultAoVivo ? "active" : "") text-danger fw-bold" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
-            🔴 Ao Vivo (@aoVivoList.Count)
+        <button class="nav-link @(defaultAoVivo ? "active" : "")" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
+            <span class="pdz-tab-dot"></span> Ao Vivo (@aoVivoList.Count)
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link @(defaultAoVivo ? "" : "active")" id="agendadas-tab" data-bs-toggle="tab" data-bs-target="#agendadas" type="button" role="tab">
-            📅 Agendadas (@agendadasList.Count)
+            <i class="bi bi-calendar-event"></i> Agendadas (@agendadasList.Count)
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="finalizadas-tab" data-bs-toggle="tab" data-bs-target="#finalizadas" type="button" role="tab">
-            ✅ Finalizadas (@finalizadasList.Count)
+            <i class="bi bi-check2-circle"></i> Finalizadas (@finalizadasList.Count)
         </button>
     </li>
     @* No Americano a classificação é o placar do torneio. Vivia numa página separada, sem
@@ -100,8 +134,8 @@
     @if (classificacaoAmericano != null)
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" id="classificacao-tab" data-bs-toggle="tab" data-bs-target="#classificacao" type="button" role="tab">
-                🏅 Classificação
+            <button class="nav-link" id="classificacao-tab" data-bs-toggle="tab" data-bs-target="#classificacao" type="button" role="tab">
+                <i class="bi bi-award"></i> Classificação
             </button>
         </li>
     }
@@ -159,10 +193,14 @@
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center small opacity-75 mb-3">
+                                @* Quadra só quando existe: "Quadra não definida" em destaque
+                                   era ruído em todo torneio que roda por ordem de chegada. *@
                                 <span>
-                                    <i class="bi bi-geo-alt-fill"></i>
-                                    @(string.IsNullOrEmpty(jogo.NomeQuadra) ? "Quadra não definida" : jogo.NomeQuadra)
-                                    · @jogo.Categoria.Nome · @jogo.Fase
+                                    @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+                                    {
+                                        <i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra <text>· </text>
+                                    }
+                                    @jogo.Categoria.Nome · @jogo.Fase
                                 </span>
                                 <span class="pdz-live-cronometro">
                                     <i class="bi bi-stopwatch-fill"></i>
@@ -202,11 +240,16 @@
                                 </div>
                             </div>
 
-                            <div class="text-end mt-2">
-                                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="pdz-live-editar">
-                                    <i class="bi bi-pencil-fill"></i> Editar jogo
-                                </a>
-                            </div>
+                            @* Só organizador: o torcedor via um "Editar jogo" que não era
+                               dele (a rota recusa, mas o convite já passava desleixo). *@
+                            @if (ehOrganizador)
+                            {
+                                <div class="text-end mt-2">
+                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" class="pdz-live-editar">
+                                        <i class="bi bi-pencil-fill"></i> Editar jogo
+                                    </a>
+                                </div>
+                            }
                         </div>
 
                         @if (youtubeId != null)
@@ -221,9 +264,15 @@
                             </div>
                         }
 
-                        <div class="card-body pt-2">
-                            <partial name="_Palpitrometro" model="(jogo, palpites.GetValueOrDefault(jogo.Id), meuId)" />
-                        </div>
+                        @* Só quando alguém palpitou: em jogo ao vivo não se vota mais, e o
+                           bloco com barra vazia + "0%" + "0 voto(s)" parecia defeito. É a
+                           mesma regra que a versão em linha já segue. *@
+                        @if (palpites.GetValueOrDefault(jogo.Id) is { TotalVotos: > 0 } resumoPalpite)
+                        {
+                            <div class="card-body pt-2">
+                                <partial name="_Palpitrometro" model="(jogo, resumoPalpite, meuId)" />
+                            </div>
+                        }
                     </div>
                 </div>
             }

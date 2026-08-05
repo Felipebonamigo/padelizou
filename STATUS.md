@@ -1,7 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **04/08/2026 (madrugada)** — 🧰 **a véspera do Interno virou uma fila de acertos**: **confirmação bonita** no lugar do `confirm()` do navegador (que ignora o tema, abre longe do botão e não tem espaço pra CONSEQUÊNCIA — agora o de sortear LISTA POR NOME quem vai ficar de fora); **duração do jogo editável** e **torneio sem horário previsto**, por ordem de liberação, que é como roda a maioria dos internos; **Agendadas e Finalizadas viraram LINHA** de 79px (o cartão gigante ficou só no Ao Vivo — com 48 jogos ele era uma parede); e **finalizar pela regra de games da FASE**, com o limite escrito na tela e um atalho quando o placar bate. 🔴 No meio disso o **CI pegou o que a máquina não pegava**: a grade ainda dobrava gente quando nenhum jogo cabia num horário — só aparecia em ALGUNS sorteios, porque a chave direta é aleatória. Agora quadra vazia ganha da pessoa em duas quadras, e o teste roda **25 sorteios por tamanho de chave**. **1.443 testes**, `build-247`.
+> Última atualização: **05/08/2026 (madrugada)** — 🎨 **a tela de jogos ficou legível**: no celular o confronto lia como **lista de quatro nomes** (o "×" era escondido no empilhamento) e o placar finalizado saía **partido** — "9" no canto e "5" antes do nome na linha de baixo; no desktop o "×" boiava num buraco porque o nome tem `flex: 1 1 auto` (pro ellipsis) e o `justify-content` não tinha o que empurrar — o CSS do componente tinha **duas definições concorrentes** e a morta escondia o defeito. Junto: **chave em cima e grupos embaixo quando o mata-mata já começou** (order do flex, sem duplicar markup), **prévia da chave empilhada no celular** (cortava em "QUARTAS DE F..." sem pista de rolagem), **chip compacto** na tabela do grupo (nome não quebra mais em três alturas; o `d-block` do Bootstrap exigiu `!important`), palpitrômetro do Ao Vivo **só quando alguém votou**, **"Editar jogo" escondido do torcedor**, pills com a cara do site (o ativo azul do Bootstrap + texto vermelho era ilegível; o vermelho virou bolinha pulsante), **filtro que aplica sozinho** e o select de time **só com times do torneio** (vinha o sistema inteiro). **1.513 testes** verdes.
+> Antes: **04/08/2026 (madrugada)** — 🧰 **a véspera do Interno virou uma fila de acertos**: **confirmação bonita** no lugar do `confirm()` do navegador (que ignora o tema, abre longe do botão e não tem espaço pra CONSEQUÊNCIA — agora o de sortear LISTA POR NOME quem vai ficar de fora); **duração do jogo editável** e **torneio sem horário previsto**, por ordem de liberação, que é como roda a maioria dos internos; **Agendadas e Finalizadas viraram LINHA** de 79px (o cartão gigante ficou só no Ao Vivo — com 48 jogos ele era uma parede); e **finalizar pela regra de games da FASE**, com o limite escrito na tela e um atalho quando o placar bate. 🔴 No meio disso o **CI pegou o que a máquina não pegava**: a grade ainda dobrava gente quando nenhum jogo cabia num horário — só aparecia em ALGUNS sorteios, porque a chave direta é aleatória. Agora quadra vazia ganha da pessoa em duas quadras, e o teste roda **25 sorteios por tamanho de chave**. **1.443 testes**, `build-247`.
 > Antes, no mesmo dia — 🥊 **chave direta: um mata-mata PARALELO dentro do torneio** (pedido do Virgili, véspera do Interno). 24 duplas remontadas misturando 4ª, 5ª e 6ª — os mesmos 48 jogadores em outros pares. 24 não fecha quadro, então o quadro é 32 e **8 duplas entram direto na segunda rodada**; o bye é a parte perigosa, porque quem passa direto não venceu nada e sem somá-lo ao avanço **8 duplas sumiriam sem nunca ter perdido**. A regra virou `Services/AvancoDaChave` — um lugar só, porque os dois robôs eram cópias e cada uma escolheria um campeão. Junto, dois defeitos que a feature expôs: a **grade comparava DUPLA, não pessoa** (com cada um em duas duplas, o mesmo sujeito seria chamado pra duas quadras no mesmo horário), e o **limite de games que ninguém lia** — o torneio guardava três formatos, a criação perguntava os três e a Mesa tinha `limiteGames: 9` cravado no JavaScript; o Virgili escolheu 4 e a Mesa deixava marcar 9, calada. Agora vale de verdade, é **editável depois de criado**, e semifinal acompanha a final. E a chave direta **não conta dinheiro**: contaria a mesma pessoa duas vezes no Financeiro e na taxa de 5%. **1.436 testes**, `build-242`, no ar.
 > Antes, no mesmo dia — 💸 **o Financeiro do torneio "por fora" mostrava R$ 0,00 com R$ 4.080 recebidos logo abaixo**. Os quatro cartões liam só de `Pagamento` (o gateway), e no "por fora" não passa cobrança nenhuma por lá — duas verdades na mesma tela, e a de letra garrafal era a cega. Agora cada número lê da fonte certa, os rótulos mudam junto ("Você já recebeu"/"A receber"), **Estornado some** (quem devolve ali é o organizador, o sistema não sabe) e o líquido só desconta a taxa de 5% que ainda está em aberto. **A tabela "Por categoria" tinha o MESMO defeito uma camada abaixo e sobreviveu à primeira correção** (`build-238`): somava de `Pagamento` e mostrava R$ 0,00 em toda linha enquanto o topo, já corrigido, exibia o total certo — a mesma tela discordando de si mesma outra vez. As linhas saem da caderneta, **casadas por `CategoriaId` e não por nome** (nome se edita, e este projeto já teve torneio com dois nomes iguais), e a coluna "Estornado" vira **"A receber"**. Conferindo no navegador apareceu outro: com ninguém tendo pago, "LÍQUIDO PRA VOCÊ: **−R$ 12,00**" — a taxa é devida sobre TODOS os inscritos, não sobre quem já acertou, e o organizador lê negativo como prejuízo; agora para no zero e o valor devido segue escrito na linha da taxa. Junto no dia: **caixa de juntar inscrições no "Definir por CPF"** (a recusa mandava marcar uma caixa que só existia na outra aba), **time deixou de aceitar parceiro** — na tela e no servidor, porque `Jogador1Id` do time é o ORGANIZADOR e a troca penduraria um jogador na linha do time calada —, **quantos inscritos** no cabeçalho e por categoria, e **nome com a caixa arrumada** na exibição (o banco continua com o que a pessoa escreveu). **1.402 testes**, no ar em prod e dev.
 >
@@ -64,6 +65,68 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 05/08/2026 (madrugada) — 🎨 A tela de jogos ficou legível
+
+Pedido do Felipe: *"não me parece muito intuitivo nem muito bonito"*. Varredura das quatro
+telas (Ao Vivo, Agendadas, Finalizadas, Chaves e Grupos) em 1385px e 390px, **deslogado** —
+que é como o torcedor abre o link do WhatsApp. A estrutura estava certa; o que quebrava era
+a execução.
+
+**Os três defeitos que faziam a tela parecer errada:**
+
+- 🔴 **No celular o confronto lia como uma lista de quatro nomes.** As duas duplas empilham
+  (lado a lado em 375px truncaria as duas) e o "×" era simplesmente **escondido** — nada
+  dizia que era um **contra** o outro. Agora o "×" vira **prefixo da segunda dupla**
+  (`::before`), que é o que o empilhamento pedia desde o começo.
+
+- 🔴 **O placar das finalizadas saía partido ao meio.** No HTML os games da 2ª dupla vêm
+  **antes** do nome, de propósito — no desktop é o que faz os dois números abraçarem o "×".
+  Empilhado, isso virava "9" no canto direito da 1ª linha e "5 Bruno / Lucas" na 2ª: ler o
+  placar exigia olhar em diagonal. Resolvido com `order` no breakpoint, sem tocar no HTML
+  (que o desktop precisa como está).
+
+- 🔴 **O "×" boiava num buraco no desktop.** O comentário do CSS prometia "os dois nomes
+  encostam no ×" e não acontecia: o nome tem `flex: 1 1 auto` (necessário pro ellipsis) e
+  engole a metade inteira, então o `justify-content: flex-end` da linha não tem o que
+  empurrar. Quem alinha é o **texto**, não a caixa. ⚠️ A causa de raiz era outra: o
+  componente tinha **duas definições de `.pdz-jogo-linha*` neste mesmo arquivo**, com
+  intenções opostas ("no celular NÃO empilha" × "empilha"); a segunda vencia por ordem e a
+  primeira virava armadilha. Consolidadas num bloco só.
+
+**O resto da fila, na mesma leva:**
+
+- **Chave em cima, grupos embaixo — quando o mata-mata já começou.** No celular a aba tinha
+  ~8.500px e a Fase Final morava no fim: pra ver o que está em jogo rolava-se **todos** os
+  grupos, que a essa altura são história. É `order` num flex-column, sem duplicar markup.
+- **A prévia da chave cortava no celular** ("QUARTAS DE F...", "Vence...") — colunas lado a
+  lado com rolagem horizontal sem nenhuma pista, e Semifinal e Final ficavam invisíveis.
+  Empilhada, igual à chave de verdade: as duas passam a ter a mesma cara.
+- **Chip compacto na tabela do grupo**: avatar de 36→26px, clube escondido e nome truncando.
+  "Fernanda Lima / Clube dos Feras" ocupava três alturas e deixava a linha com 180px enquanto
+  J/V/D/SG sobravam espaço. ⚠️ O `display: none` do clube precisa de `!important` — o `d-block`
+  do Bootstrap também é.
+- **Palpitrômetro do Ao Vivo só quando alguém votou.** Em jogo no ar não se vota mais, então
+  o bloco mostrava barra vazia + "0%" + "0 voto(s)" em cada um dos 5 cartões: parecia defeito.
+  É a regra que a versão em linha já seguia.
+- **"Editar jogo" sumiu pro torcedor.** Aparecia em todo cartão Ao Vivo sem checar organizador
+  (a rota é `[Authorize]`, então não era furo — era convite pra uma porta fechada).
+- **Pills com a cara do site**: o ativo era o **azul do Bootstrap**, que não existe na
+  identidade, e "Ao Vivo" em vermelho por cima dele ficava ilegível. O vermelho virou a
+  **bolinha pulsante**, os emojis viraram ícones `bi-*` (emoji rende diferente em cada
+  aparelho) e a fila rola em linha única em vez de quebrar desalinhada.
+- **Filtro sem botão**: aplica ao escolher — e as categorias esperam o dropdown **fechar**,
+  senão marcar a segunda recarregaria a página no meio da escolha. O select de time só lista
+  **times que jogam este torneio** (vinha o cadastro inteiro do sistema), e some quando não
+  há nenhum; com uma categoria só, o filtro de categoria também some.
+- **Quadra só quando existe** (era "Quadra não definida" em destaque em todo torneio por
+  ordem de chegada), **set numa caixinha** (o "1 9" lia como 19), cronômetro sem quebrar no
+  meio, título "Chaves e Grupos" (dizia "Fase de Grupos" numa tela que mostra as duas — e
+  numa chave direta era mentira) e **finalizadas sem `HorarioFimReal`** caindo pro horário
+  previsto em vez de flutuar em ordem arbitrária.
+
+**1.513 testes** verdes. Conferido no navegador nas duas larguras, antes e depois, em quatro
+torneios diferentes (com grupos, com mata-mata em andamento, com prévia e com chave direta).
 
 ### 04/08/2026 (fim da noite) — 🥊 Chave direta: um mata-mata paralelo dentro do torneio
 

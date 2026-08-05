@@ -1858,13 +1858,16 @@
     <!-- ABA: CHAVES E GRUPOS -->
     <div class="tab-pane fade" id="grupos" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-4">
+            @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
+               de uma tela que também mostra a chave — e numa chave direta (sem grupo
+               nenhum) virava mentira. *@
             <h4 class="mb-0 fw-bold" style="color: var(--pdz-ink);">
-                <i class="bi bi-layout-split"></i> Fase de Grupos
+                <i class="bi bi-layout-split"></i> Chaves e Grupos
             </h4>
         </div>
 
         <!-- MENU DE CATEGORIAS (Rolagem Horizontal para Celular) -->
-        <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-4" id="categoriaPills" role="tablist" style="-webkit-overflow-scrolling: touch; white-space: nowrap;">
+        <ul class="nav nav-pills pdz-pills mb-4" id="categoriaPills" role="tablist">
             @{
                 var primeiraCat = true;
                 // Categoria aparece nesta seção quando já tem chave pra mostrar: grupos
@@ -1902,6 +1905,33 @@
                     <div class="tab-pane fade @(primeiraCatContent ? "show active" : "")" id="cat-@(categoria.Id)" role="tabpanel">
                         <!-- O cruzamento mata-mata é gerado automaticamente (TorneiosController.ProcessarMataMataAutomatico)
                              assim que a última partida da Fase de Grupos dessa categoria é finalizada — sem botão manual. -->
+                        @{
+                            // Chaveamento REAL desta categoria (ViewBag preenchido no controller).
+                            // Calculado AQUI em cima porque a ordem visual depende dele.
+                            var mataMataDict = ViewBag.MataMataPorCategoria as Dictionary<int, List<Padelizou.Models.Partida>>;
+                            var jogosMata = (mataMataDict != null && mataMataDict.ContainsKey(categoria.Id))
+                                ? mataMataDict[categoria.Id] : new List<Padelizou.Models.Partida>();
+
+                            @* "Primeira Rodada" é o quadro de 32 da CHAVE DIRETA (24 duplas com
+                               bye, por exemplo). Sem ela aqui, a rodada de abertura existiria no
+                               banco e na Mesa, mas sumiria do desenho da chave. *@
+                            var ordemFases = new[] { Padelizou.Services.ChaveamentoMataMata.PrimeiraRodada,
+                                                     "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+                            var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
+                            bool chaveJaComecou = fasesPresentes.Any();
+                            bool temGrupos = categoria.GruposTorneio.Any();
+                        }
+
+                        @* Com o mata-mata em andamento a CHAVE vem primeiro (order do flex,
+                           sem duplicar markup): é ela que está em jogo — pra vê-la no celular
+                           rolava-se TODOS os grupos, que a essa altura são história. *@
+                        <div class="d-flex flex-column">
+                        @if (temGrupos)
+                        {
+                        <div style="order: @(chaveJaComecou ? 2 : 1);" class="@(chaveJaComecou ? "mt-4 pt-3 border-top" : "")">
+                        <h4 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                            <i class="bi bi-grid-3x3-gap-fill me-2" style="color: var(--padel-green);"></i> Fase de Grupos
+                        </h4>
                         <div class="row">
                             @foreach (var grupo in categoria.GruposTorneio.OrderBy(g => g.Nome))
                             {
@@ -1928,7 +1958,10 @@
                                                         @foreach (var dupla in grupo.Duplas)
                                                         {
                                                             <tr style="border-bottom: 1px solid #f0f0f0;">
-                                                                <td class="text-start ps-3 py-3" style="max-width: 180px;">
+                                                                @* Compacto: avatar menor, clube escondido e nome truncando —
+                                                                   nome quebrando em três linhas fazia cada linha do grupo
+                                                                   ocupar três alturas. *@
+                                                                <td class="text-start ps-3 py-2 pdz-chip-compacto" style="max-width: 180px;">
                                                                     <partial name="_LadoDaPartida" model="dupla" />
                                                                 </td>
 
@@ -2016,22 +2049,10 @@
                             }
                         </div>
 
-                        @{
-                            // Chaveamento REAL desta categoria (ViewBag preenchido no controller).
-                            // Antes isto era um desenho fixo de "Semifinais → Final" que ignorava os dados.
-                            var mataMataDict = ViewBag.MataMataPorCategoria as Dictionary<int, List<Padelizou.Models.Partida>>;
-                            var jogosMata = (mataMataDict != null && mataMataDict.ContainsKey(categoria.Id))
-                                ? mataMataDict[categoria.Id] : new List<Padelizou.Models.Partida>();
-
-                            @* "Primeira Rodada" é o quadro de 32 da CHAVE DIRETA (24 duplas com
-                               bye, por exemplo). Sem ela aqui, a rodada de abertura existiria no
-                               banco e na Mesa, mas sumiria do desenho da chave. *@
-                            var ordemFases = new[] { Padelizou.Services.ChaveamentoMataMata.PrimeiraRodada,
-                                                     "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
-                            var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
+                        </div>
                         }
 
-                        <div class="mt-5 pt-3 border-top">
+                        <div style="order: @(chaveJaComecou ? 1 : 2);" class="@(chaveJaComecou ? "" : "mt-5 pt-3 border-top")">
                             <h4 class="fw-bold mb-2" style="color: var(--pdz-ink);">
                                 <i class="bi bi-diagram-3-fill text-danger me-2"></i> Fase Final (Mata-Mata)
                             </h4>
@@ -2098,6 +2119,7 @@
                                 <partial name="_ChaveDoMataMata" model="(jogosMata, byesDaCategoria)" />
                             }
                         </div>
+                        </div> @* fim do d-flex flex-column que ordena chave/grupos *@
                     </div>
                     primeiraCatContent = false;
                 }

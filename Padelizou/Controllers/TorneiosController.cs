@@ -427,10 +427,21 @@ namespace Padelizou.Controllers
             var partidas = await query.ToListAsync();
 
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
-            ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada").OrderByDescending(p => p.HorarioFimReal).ToList();
+            // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
+            // de flutuar em ordem arbitrária no meio da lista.
+            ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
+                .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
             ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
 
-            ViewBag.Times = new SelectList(_context.Times, "Id", "Nome", timeFiltroId);
+            // Só times que de fato jogam ESTE torneio — a lista vinha com todos os times
+            // do sistema, e a tela esconde o filtro quando ela é vazia.
+            var timesDoTorneio = await _context.Times
+                .Where(t => _context.Partidas.Any(p => p.TorneioId == torneioId &&
+                    (p.Dupla1.Jogador1.TimeId == t.Id || p.Dupla1.Jogador2!.TimeId == t.Id ||
+                     p.Dupla2.Jogador1.TimeId == t.Id || p.Dupla2.Jogador2!.TimeId == t.Id)))
+                .OrderBy(t => t.Nome)
+                .ToListAsync();
+            ViewBag.Times = new SelectList(timesDoTorneio, "Id", "Nome", timeFiltroId);
             ViewBag.TimeAtual = timeFiltroId;
             var categoriasDoTorneio = await _context.Categorias.Where(c => c.TorneioId == torneioId).OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CategoriasDoTorneio = categoriasDoTorneio;
