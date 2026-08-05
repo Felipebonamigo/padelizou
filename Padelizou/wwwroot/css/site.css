@@ -2375,3 +2375,20 @@ button, a, input, select { touch-action: manipulation; }
 }
 
 .pdz-jl-barra { color: var(--pdz-muted); }
+
+/* "N voto(s)" vira o botão de ver quem votou — o próprio número é o alvo, sem outro
+   texto competindo no rótulo. Parece texto até o hover, que é quando ele se anuncia. */
+.pdz-ver-votos {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.pdz-ver-votos:hover .pdz-total-votos,
+.pdz-ver-votos:focus .pdz-total-votos {
+    color: var(--padel-green);
+    text-decoration: underline;
+}

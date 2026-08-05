@@ -34,6 +34,13 @@
     string PrimeiroNome(Padelizou.Models.Jogador? j) =>
         j?.ComoChamar.Split(' ')[0] ?? "?";
 
+    // Nome da dupla em texto puro — o modal "quem votou" recebe por atributo, então aqui
+    // não pode vir marcação.
+    string NomeDaDupla(Padelizou.Models.Dupla? d) =>
+        d == null ? "A definir"
+        : d.EhTime ? (d.NomeTime ?? "Time")
+        : $"{PrimeiroNome(d.Jogador1)} / {PrimeiroNome(d.Jogador2)}";
+
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
 }
@@ -194,7 +201,24 @@
                             <a asp-controller="Auth" asp-action="Login">· entre pra palpitar</a>
                         }
                     </span>
-                    <span class="pdz-total-votos">· @(r?.TotalVotos ?? 0) voto(s)</span>
+                    @* "Ver quem votou" existia só no cartão grande. Na lista o palpitrômetro
+                       virava um número anônimo — e metade da graça dele é justamente saber
+                       QUEM apostou contra você. Vale nas agendadas e nas finalizadas: depois
+                       do jogo é que se cobra quem errou o palpite. *@
+                    @if (temPalpite)
+                    {
+                        <button type="button" class="pdz-ver-votos"
+                                data-partida-id="@jogo.Id"
+                                data-nome1="@NomeDaDupla(jogo.Dupla1)"
+                                data-nome2="@NomeDaDupla(jogo.Dupla2)"
+                                onclick="verVotos(this.dataset.partidaId, this.dataset.nome1, this.dataset.nome2)">
+                            · <span class="pdz-total-votos">@r!.TotalVotos voto(s)</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="pdz-total-votos">· 0 voto(s)</span>
+                    }
                 </span>
             </div>
         }
