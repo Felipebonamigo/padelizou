@@ -79,6 +79,11 @@ public partial class DbPadelContext : DbContext
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
     public DbSet<AnotacaoAula> AnotacoesAula { get; set; }
+
+    // Avaliação técnica do aluno: a régua do professor, as fichas e as notas.
+    public DbSet<FundamentoDoProfessor> FundamentosDoProfessor { get; set; }
+    public DbSet<AvaliacaoDeAluno> AvaliacoesDeAluno { get; set; }
+    public DbSet<NotaDeFundamento> NotasDeFundamento { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
     // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
@@ -355,6 +360,53 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(a => a.Autor)
                 .WithMany()
                 .HasForeignKey(a => a.AutorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<FundamentoDoProfessor>(entity =>
+        {
+            // A régua é lida inteira e em ordem toda vez que o professor abre uma ficha.
+            entity.HasIndex(f => new { f.ProfessorId, f.Modulo, f.Ordem });
+
+            entity.HasOne(f => f.Professor)
+                .WithMany()
+                .HasForeignKey(f => f.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AvaliacaoDeAluno>(entity =>
+        {
+            // As duas consultas que existem: "as fichas deste aluno comigo" (professor) e
+            // "as fichas que me liberaram" (aluno).
+            entity.HasIndex(a => new { a.ProfessorId, a.AlunoId, a.CriadoEm });
+            entity.HasIndex(a => new { a.AlunoId, a.VisivelParaAluno });
+
+            // Mesmo raciocínio do Elogio e da AvaliacaoProfessor: dois FKs pra Jogador, só um
+            // pode ser Cascade, senão dá conflito de múltiplos caminhos.
+            entity.HasOne(a => a.Professor)
+                .WithMany()
+                .HasForeignKey(a => a.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.Aluno)
+                .WithMany()
+                .HasForeignKey(a => a.AlunoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<NotaDeFundamento>(entity =>
+        {
+            // Uma nota por fundamento em cada ficha — a segunda seria duas verdades sobre o
+            // mesmo golpe no mesmo dia, e a evolução não saberia qual ler.
+            entity.HasIndex(n => new { n.AvaliacaoDeAlunoId, n.FundamentoDoProfessorId }).IsUnique();
+
+            entity.HasOne(n => n.Avaliacao)
+                .WithMany(a => a.Notas)
+                .HasForeignKey(n => n.AvaliacaoDeAlunoId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict no fundamento: tirar um item da régua NÃO pode apagar a nota que o
+            // aluno já levou. Por isso remover desativa (Ativo=false) em vez de excluir.
+            entity.HasOne(n => n.Fundamento)
+                .WithMany()
+                .HasForeignKey(n => n.FundamentoDoProfessorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<AvaliacaoProfessor>(entity =>

@@ -1,0 +1,135 @@
+@model List<padelizou.Controllers.FichaDoAluno>
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Minha evolução";
+    var movimentos = ViewBag.Movimentos as Dictionary<int, List<EvolucaoDoAluno.Movimento>> ?? new();
+    var professores = ViewBag.Professores as List<(int ProfessorId, string Professor)> ?? new();
+    int? filtro = ViewBag.ProfessorFiltro;
+}
+
+<div class="container mt-4 mb-5">
+    <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+        <i class="bi bi-graph-up-arrow"></i> Minha evolução
+    </h2>
+    <p class="text-muted small mb-3">O que seu professor avaliou e o que mudou desde a última vez.</p>
+
+    @if (Model.Count == 0)
+    {
+        @* Sem ficha liberada, o aluno precisa saber que isso NÃO é erro nem falta dele — é
+           uma decisão do professor. Sem essa frase, ele conclui que a tela está quebrada. *@
+        <div class="alert alert-light border">
+            <i class="bi bi-info-circle"></i>
+            Você ainda não tem nenhuma avaliação por aqui. Quem decide mostrar a ficha é o
+            professor — se você faz aula e quer acompanhar sua evolução, é com ele.
+        </div>
+    }
+    else
+    {
+        @if (professores.Count > 1)
+        {
+            <div class="mb-3 d-flex flex-wrap gap-1">
+                <a class="btn btn-sm rounded-pill @(filtro == null ? "btn-padel" : "btn-outline-secondary")"
+                   asp-action="MinhaEvolucao">Todos</a>
+                @foreach (var p in professores)
+                {
+                    <a class="btn btn-sm rounded-pill @(filtro == p.ProfessorId ? "btn-padel" : "btn-outline-secondary")"
+                       asp-action="MinhaEvolucao" asp-route-professorId="@p.ProfessorId">@p.Professor.Split(' ')[0]</a>
+                }
+            </div>
+        }
+
+        <div class="d-flex flex-column gap-3">
+            @foreach (var ficha in Model)
+            {
+                var mudou = movimentos.GetValueOrDefault(ficha.Id);
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div>
+                                <span class="fw-bold" style="color: var(--pdz-ink);">@ficha.Modulo</span>
+                                <span class="text-muted small">· com @ficha.Professor</span>
+                            </div>
+                            <small class="text-muted">@ficha.CriadoEm.ToString("dd/MM/yyyy")</small>
+                        </div>
+
+                        @if (mudou != null && mudou.Count > 0)
+                        {
+                            <div class="alert alert-light border py-2 small mb-3">
+                                <i class="bi bi-graph-up-arrow"></i>
+                                <strong>Desde a ficha anterior:</strong> @EvolucaoDoAluno.Resumo(mudou)
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(ficha.RecadoAoAluno))
+                        {
+                            <div class="alert alert-success py-2 mb-3">
+                                <i class="bi bi-chat-left-text"></i> @ficha.RecadoAoAluno
+                            </div>
+                        }
+
+                        @if (ficha.Notas.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">Sem notas nesta ficha ainda.</p>
+                        }
+                        else
+                        {
+                            var porMovimento = mudou?.ToDictionary(m => m.Fundamento) ?? new();
+                            @foreach (var familia in ficha.Notas.GroupBy(n => n.Familia))
+                            {
+                                @if (!string.IsNullOrEmpty(familia.Key))
+                                {
+                                    <h6 class="fw-bold text-uppercase text-muted mt-3" style="font-size:.72rem; letter-spacing:.04em;">
+                                        @familia.Key
+                                    </h6>
+                                }
+                                @foreach (var n in familia)
+                                {
+                                    var m = porMovimento.GetValueOrDefault(n.Fundamento);
+                                    <div class="d-flex align-items-center gap-2 py-2 border-top">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <span class="d-block text-truncate" style="color: var(--pdz-ink);">@n.Fundamento</span>
+                                            @if (m != null && m.Rumo != EvolucaoDoAluno.Rumo.Igual)
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="bi @m.Seta"></i>
+                                                    @if (m.Rumo == EvolucaoDoAluno.Rumo.Novo)
+                                                    {
+                                                        <text>avaliado pela primeira vez</text>
+                                                    }
+                                                    else if (m.Antes != null && m.Agora != null && m.Antes != m.Agora)
+                                                    {
+                                                        <text>era @m.Antes, agora é @m.Agora</text>
+                                                    }
+                                                    else if (m.AcertosAntes.HasValue && m.AcertosAgora.HasValue)
+                                                    {
+                                                        <text>acertos: @m.AcertosAntes → @m.AcertosAgora</text>
+                                                    }
+                                                </small>
+                                            }
+                                        </div>
+
+                                        @* A letra sozinha não diz nada pro aluno — vai com o
+                                           que ela significa, igual à legenda do professor. *@
+                                        @if (!string.IsNullOrEmpty(n.Execucao))
+                                        {
+                                            <span class="badge rounded-pill bg-secondary flex-shrink-0"
+                                                  title="@EscalaDeAvaliacao.DescricaoDaExecucao(n.Execucao)">
+                                                @n.Execucao · @EscalaDeAvaliacao.DescricaoDaExecucao(n.Execucao)
+                                            </span>
+                                        }
+                                        @if (n.Acertos.HasValue)
+                                        {
+                                            <span class="badge rounded-pill bg-light text-dark border flex-shrink-0">
+                                                @n.Acertos/10 · @EscalaDeAvaliacao.FaixaDeAcertos(n.Acertos)
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

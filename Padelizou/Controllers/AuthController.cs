@@ -295,6 +295,12 @@ namespace padelizou.Controllers
             ViewBag.Destaques = await _estatisticas.ObterDestaquesAsync(jogadorId);
             ViewBag.Evolucao = await _estatisticas.ObterEvolucaoJogadorAsync(jogadorId);
             ViewBag.Onboarding = await _estatisticas.ObterOnboardingAsync(jogadorId);
+
+            // O botão "Minha evolução" só existe pra quem tem ficha LIBERADA por um professor.
+            // Mostrar sempre mandaria quem nunca fez aula numa tela vazia — e quem tem aula
+            // mas cuja ficha o professor não liberou descobriria que ela existe.
+            ViewBag.TenhoAvaliacao = await _context.AvaliacoesDeAluno
+                .AnyAsync(a => a.AlunoId == jogadorId && a.VisivelParaAluno);
             ViewBag.HistoricoTorneios = await _context.Duplas
                 .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
                 .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)

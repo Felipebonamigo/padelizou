@@ -1,0 +1,120 @@
+@using Padelizou.Models
+@{
+    ViewData["Title"] = "Minha régua de avaliação";
+    var fundamentos = ViewBag.Fundamentos as List<FundamentoDoProfessor> ?? new();
+    var modulos = ViewBag.Modulos as List<string> ?? new();
+    string moduloAtual = ViewBag.ModuloAtual;
+    var porFamilia = fundamentos.GroupBy(f => f.Familia).ToList();
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-list-check"></i> Minha régua de avaliação
+            </h2>
+            <p class="text-muted small mb-0">Os fundamentos que você usa pra avaliar seus alunos.</p>
+        </div>
+        <a asp-action="Avaliacoes" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-clipboard-check"></i> Fichas dos alunos
+        </a>
+    </div>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger py-2 small">@TempData["Erro"]</div>
+    }
+
+    @* A lista começa igual pra todo professor e vira a DELE. Sem dizer isso, quem abre acha
+       que está mexendo numa tabela do sistema e não ousa apagar nada. *@
+    <div class="alert alert-light border small">
+        <i class="bi bi-info-circle"></i>
+        Esta lista é <strong>sua</strong>. Ela começou com a régua padrão do Padelizou e você pode
+        acrescentar, renomear e tirar o que não usa. <strong>Tirar não apaga nota antiga:</strong>
+        o fundamento some das fichas novas e continua nas que já existem.
+    </div>
+
+    @if (modulos.Count > 1)
+    {
+        <ul class="nav nav-pills mb-3 flex-wrap gap-1">
+            @foreach (var m in modulos)
+            {
+                <li class="nav-item">
+                    <a class="nav-link @(m == moduloAtual ? "active" : "")"
+                       asp-action="MinhaRegua" asp-route-modulo="@m">@m</a>
+                </li>
+            }
+        </ul>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            @if (fundamentos.Count == 0)
+            {
+                <p class="text-muted mb-0">Nenhum fundamento neste módulo ainda.</p>
+            }
+            @foreach (var familia in porFamilia)
+            {
+                @if (!string.IsNullOrEmpty(familia.Key))
+                {
+                    <h6 class="fw-bold text-uppercase text-muted mt-3" style="font-size:.72rem; letter-spacing:.04em;">
+                        @familia.Key
+                    </h6>
+                }
+                @foreach (var f in familia)
+                {
+                    <div class="d-flex align-items-center gap-2 py-2 border-top @(f.Ativo ? "" : "opacity-50")">
+                        <form asp-action="RenomearFundamento" method="post" class="d-flex align-items-center gap-2 flex-grow-1">
+                            <input type="hidden" name="id" value="@f.Id" />
+                            <input type="hidden" name="modulo" value="@moduloAtual" />
+                            <input type="text" name="nome" value="@f.Nome" maxlength="150"
+                                   class="form-control form-control-sm border-0 bg-transparent px-0"
+                                   style="color: var(--pdz-ink);" aria-label="Nome do fundamento" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill flex-shrink-0"
+                                    title="Salvar o novo nome">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </form>
+
+                        <form asp-action="AlternarFundamento" method="post" class="flex-shrink-0">
+                            <input type="hidden" name="id" value="@f.Id" />
+                            <input type="hidden" name="modulo" value="@moduloAtual" />
+                            <input type="hidden" name="ativar" value="@((!f.Ativo).ToString().ToLower())" />
+                            <button type="submit" class="btn btn-sm rounded-pill @(f.Ativo ? "btn-outline-danger" : "btn-outline-success")"
+                                    title="@(f.Ativo ? "Tirar da régua" : "Trazer de volta")">
+                                <i class="bi @(f.Ativo ? "bi-eye-slash" : "bi-arrow-counterclockwise")"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                <i class="bi bi-plus-circle"></i> Acrescentar fundamento
+            </h6>
+            <form asp-action="AcrescentarFundamento" method="post" class="row g-2">
+                <div class="col-md-3">
+                    <input type="text" name="modulo" class="form-control" value="@moduloAtual"
+                           maxlength="60" required placeholder="Módulo" aria-label="Módulo" />
+                    <div class="form-text">Escreva um nome novo pra criar outro módulo.</div>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="familia" class="form-control" maxlength="60"
+                           placeholder="Família (opcional)" aria-label="Família" />
+                    <div class="form-text">Ex.: Bandeja, Voleio. Em branco, entra na lista corrida.</div>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" name="nome" class="form-control" maxlength="150" required
+                           placeholder="Ex.: Bandeja (contenção centro)" aria-label="Nome do fundamento" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-padel rounded-pill fw-bold">Acrescentar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

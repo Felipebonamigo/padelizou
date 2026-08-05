@@ -1,0 +1,174 @@
+@model Padelizou.Models.AvaliacaoDeAluno
+@using Padelizou.Models
+@using Padelizou.Services
+@{
+    ViewData["Title"] = $"Ficha de {Model.Aluno.NomeNaTela}";
+    var fundamentos = ViewBag.Fundamentos as List<FundamentoDoProfessor> ?? new();
+    var notas = ViewBag.Notas as Dictionary<int, NotaDeFundamento> ?? new();
+    var porFamilia = fundamentos.GroupBy(f => f.Familia).ToList();
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">@Model.Aluno.NomeNaTela</h2>
+            <p class="text-muted small mb-0">@Model.Modulo · ficha de @Model.CriadoEm.ToString("dd/MM/yyyy")</p>
+        </div>
+        <a asp-action="Avaliacoes" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Fichas
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success py-2 small">@TempData["Sucesso"]</div>
+    }
+
+    @* O botão que decide se isso sai do caderno do professor. Fica no TOPO porque é a única
+       ação da tela com consequência pra outra pessoa. *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div class="flex-grow-1">
+                @if (Model.VisivelParaAluno)
+                {
+                    <span class="fw-bold text-success"><i class="bi bi-eye"></i> O aluno está vendo esta ficha</span>
+                    <div class="small text-muted">
+                        Liberada em @Model.LiberadaEm?.ToString("dd/MM/yyyy HH:mm").
+                        Sua anotação privada continua sem aparecer pra ele.
+                    </div>
+                }
+                else
+                {
+                    <span class="fw-bold"><i class="bi bi-eye-slash"></i> Só você vê esta ficha</span>
+                    <div class="small text-muted">Trabalhe à vontade — o aluno só vê quando você liberar.</div>
+                }
+            </div>
+            <form asp-action="AlternarVisibilidadeDaFicha" method="post" class="flex-shrink-0">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="liberar" value="@((!Model.VisivelParaAluno).ToString().ToLower())" />
+                <button type="submit" class="btn rounded-pill fw-bold @(Model.VisivelParaAluno ? "btn-outline-secondary" : "btn-padel")">
+                    @(Model.VisivelParaAluno ? "Esconder do aluno" : "Mostrar pro aluno")
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <form asp-action="SalvarAvaliacao" method="post">
+        <input type="hidden" name="id" value="@Model.Id" />
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                @* A legenda das duas réguas, do jeito que o professor escreveu na planilha
+                   dele. Sem ela, "C" não quer dizer nada — nem pra quem preenche nem pra
+                   quem lê depois. *@
+                <div class="row g-3 small mb-3">
+                    <div class="col-md-6">
+                        <strong class="d-block mb-1" style="color: var(--pdz-ink);">Execução</strong>
+                        @foreach (var letra in EscalaDeAvaliacao.Execucoes.Reverse())
+                        {
+                            <div><span class="badge bg-secondary">@letra</span> @EscalaDeAvaliacao.DescricaoDaExecucao(letra)</div>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <strong class="d-block mb-1" style="color: var(--pdz-ink);">Acertos (1 a 10)</strong>
+                        <div>8 a 10 · aplicável em jogo</div>
+                        <div>5 a 7 · bom</div>
+                        <div>3 a 5 · médio</div>
+                        <div>1 a 3 · baixo</div>
+                    </div>
+                </div>
+
+                <p class="small text-muted mb-3">
+                    Preencha só o que você trabalhou — deixar em branco não conta como nota.
+                </p>
+
+                @{ int i = 0; }
+                @foreach (var familia in porFamilia)
+                {
+                    @if (!string.IsNullOrEmpty(familia.Key))
+                    {
+                        <h6 class="fw-bold text-uppercase text-muted mt-3" style="font-size:.72rem; letter-spacing:.04em;">
+                            @familia.Key
+                        </h6>
+                    }
+                    @foreach (var f in familia)
+                    {
+                        var nota = notas.GetValueOrDefault(f.Id);
+                        <div class="row g-2 align-items-center py-2 border-top">
+                            <div class="col-12 col-md-6">
+                                <span style="color: var(--pdz-ink);">@f.Nome</span>
+                                @if (!f.Ativo)
+                                {
+                                    <span class="badge bg-light text-dark border ms-1" title="Você tirou este item da régua; ele fica aqui porque já tem nota.">fora da régua</span>
+                                }
+                                <input type="hidden" name="fundamentoIds" value="@f.Id" />
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <select name="execucoes" class="form-select form-select-sm" aria-label="Execução">
+                                    <option value="">Execução —</option>
+                                    @foreach (var letra in EscalaDeAvaliacao.Execucoes.Reverse())
+                                    {
+                                        <option value="@letra" selected="@(nota?.Execucao == letra)">
+                                            @letra · @EscalaDeAvaliacao.DescricaoDaExecucao(letra)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <select name="acertos" class="form-select form-select-sm" aria-label="Acertos">
+                                    <option value="">Acertos —</option>
+                                    @for (int n = 1; n <= 10; n++)
+                                    {
+                                        <option value="@n" selected="@(nota?.Acertos == n)">@n · @EscalaDeAvaliacao.FaixaDeAcertos(n)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        i++;
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <label class="form-label fw-bold" style="color: var(--pdz-ink);">
+                    <i class="bi bi-chat-left-text"></i> Recado pro aluno
+                </label>
+                <textarea name="recadoAoAluno" class="form-control mb-1" rows="3" maxlength="1000"
+                          placeholder="O que ele precisa ouvir: o que evoluiu, o que treinar até a próxima.">@Model.RecadoAoAluno</textarea>
+                <div class="form-text mb-3">Vai junto com as notas quando você liberar a ficha.</div>
+
+                @* Separado e com aviso forte: é o campo em que o professor escreve o que NÃO
+                   pode chegar no aluno, e ele precisa ter certeza disso na hora de digitar. *@
+                <label class="form-label fw-bold" style="color: var(--pdz-ink);">
+                    <i class="bi bi-lock-fill"></i> Anotação privada
+                </label>
+                <textarea name="anotacaoPrivada" class="form-control mb-1" rows="3" maxlength="1000"
+                          placeholder="Ex.: tem medo de bola alta, ir devagar.">@Model.AnotacaoPrivada</textarea>
+                <div class="form-text">
+                    <strong>O aluno nunca vê isto</strong> — nem com a ficha liberada.
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-padel btn-lg rounded-pill px-4 fw-bold">
+                <i class="bi bi-check-lg"></i> Salvar ficha
+            </button>
+        </div>
+    </form>
+
+    @* A consequência inteira no texto, não só "tem certeza?": a ficha leva as notas junto e,
+       se estiver liberada, some da tela do aluno sem aviso pra ele. *@
+    <form asp-action="ExcluirAvaliacao" method="post" class="mt-4"
+          data-confirmar="As notas vão junto e não têm volta.@(Model.VisivelParaAluno ? " O aluno está vendo esta ficha e ela vai sumir da tela dele." : "")"
+          data-confirmar-titulo="Excluir esta ficha?"
+          data-confirmar-ok="Excluir"
+          data-confirmar-tom="perigo">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+            <i class="bi bi-trash"></i> Excluir ficha
+        </button>
+    </form>
+</div>
