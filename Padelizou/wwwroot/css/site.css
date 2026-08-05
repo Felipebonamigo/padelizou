@@ -1810,3 +1810,92 @@ button, a, input, select { touch-action: manipulation; }
     background: var(--pdz-lime);
     border-color: var(--pdz-lime);
 }
+
+/* ── Jogo em linha, reorganizado ───────────────────────────────────────────
+   Duplas LADO A LADO com o "×" no meio (é como se lê um confronto em qualquer
+   lugar) e o palpitrômetro embaixo, ocupando a linha inteira e com nome — "50%"
+   solto ao lado do jogo não dizia a ninguém que aquilo era um voto. */
+.pdz-jogo-linha {
+    display: block;              /* as três faixas empilham dentro do cartão */
+    padding: .6rem .85rem;
+}
+
+.pdz-jogo-linha-topo {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+
+.pdz-jogo-linha-confronto {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+}
+
+.pdz-jogo-linha-time {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+    color: var(--pdz-ink);
+}
+
+/* A dupla da esquerda alinha pela direita: os dois nomes encostam no "×", que fica
+   no meio de verdade em vez de flutuar depois de um nome curto. */
+.pdz-jogo-linha-time-esq { justify-content: flex-end; }
+
+.pdz-jogo-linha-versus {
+    flex: 0 0 auto;
+    color: var(--pdz-muted);
+    font-size: .8rem;
+}
+
+.pdz-jogo-linha-onde {
+    margin-top: .15rem;
+    font-size: .72rem;
+    color: var(--pdz-muted);
+}
+
+/* ---- O bloco do palpitrômetro ---- */
+.pdz-palpite-bloco {
+    margin-top: .5rem;
+    padding-top: .45rem;
+    border-top: 1px dashed var(--pdz-border);
+}
+
+.pdz-palpite-rotulo {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .35rem;
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--pdz-muted);
+    margin-bottom: .3rem;
+}
+
+.pdz-palpite-ajuda {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.pdz-palpite-total { margin-left: auto; font-weight: 700; }
+
+/* Na linha inteira o palpitrômetro respira: a barra ocupa o espaço todo. */
+.pdz-palpite-bloco .pdz-palpite-linha { flex: 1 1 auto; gap: .5rem; }
+.pdz-palpite-bloco .pdz-palpite-barra { display: block; height: 8px; }
+.pdz-palpite-bloco .pdz-palpite-pct { font-size: .76rem; min-width: 2.6rem; }
+
+@media (max-width: 575.98px) {
+    /* No celular o confronto empilha: dois nomes lado a lado em 375px truncariam os
+       dois, e o nome de quem joga é a informação principal da linha. */
+    .pdz-jogo-linha-confronto { display: block; }
+    .pdz-jogo-linha-time-esq { justify-content: flex-start; }
+    .pdz-jogo-linha-versus { display: none; }
+    .pdz-jogo-linha-time { display: flex; }
+}
