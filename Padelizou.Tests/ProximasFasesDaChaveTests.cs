@@ -40,8 +40,8 @@ public class ProximasFasesDaChaveTests
         var final = Assert.Single(Montar(semis));
 
         Assert.Equal("Final", final.Fase);
-        Assert.Equal("Vencedor de Ana/Bruno × Carla/Diego", final.Lado1.Rotulo);
-        Assert.Equal("Vencedor de Edu/Fabi × Gabi/Helo", final.Lado2.Rotulo);
+        Assert.Equal("Vencedor Semifinal 1", final.Lado1.Rotulo);
+        Assert.Equal("Vencedor Semifinal 2", final.Lado2.Rotulo);
     }
 
     [Fact]
@@ -60,9 +60,9 @@ public class ProximasFasesDaChaveTests
         var jogos = Montar(quartas);
 
         Assert.Equal(new[] { "Semifinal", "Semifinal", "Final" }, jogos.Select(j => j.Fase));
-        Assert.Equal("Vencedor de A1/A2 × B1/B2", jogos[0].Lado1.Rotulo);
-        Assert.StartsWith("Um destes 4:", jogos[2].Lado1.Rotulo);
-        Assert.Equal(8, jogos[2].TotalDeCandidatos);
+        Assert.Equal("Vencedor Quartas de Final 1", jogos[0].Lado1.Rotulo);
+        Assert.Equal("Vencedor Semifinal 1", jogos[2].Lado1.Rotulo);
+        Assert.Equal("Vencedor Semifinal 2", jogos[2].Lado2.Rotulo);
     }
 
     [Fact]
@@ -81,10 +81,10 @@ public class ProximasFasesDaChaveTests
         var semis = Montar(quartas).Where(j => j.Fase == "Semifinal").ToList();
 
         // 1º jogo com o 4º, 2º com o 3º.
-        Assert.Equal("Vencedor de A1/A2 × B1/B2", semis[0].Lado1.Rotulo);
-        Assert.Equal("Vencedor de G1/G2 × H1/H2", semis[0].Lado2.Rotulo);
-        Assert.Equal("Vencedor de C1/C2 × D1/D2", semis[1].Lado1.Rotulo);
-        Assert.Equal("Vencedor de E1/E2 × F1/F2", semis[1].Lado2.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 1", semis[0].Lado1.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 4", semis[0].Lado2.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 2", semis[1].Lado1.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 3", semis[1].Lado2.Rotulo);
     }
 
     [Fact]
@@ -102,9 +102,9 @@ public class ProximasFasesDaChaveTests
         var proxima = jogos.Where(j => j.Fase == "Semifinal").ToList();
 
         Assert.Equal(2, proxima.Count);
-        Assert.Equal("Vencedor de A1/A2 × B1/B2", proxima[0].Lado1.Rotulo);
+        Assert.Equal("Vencedor Primeira Rodada 1", proxima[0].Lado1.Rotulo);
         Assert.Equal("Cabeça2", proxima[0].Lado2.Rotulo);
-        Assert.True(proxima[0].Lado2.JaDefinido);
+        // Bye tem NOME, não procedência: ele não veio de jogo nenhum.
     }
 
     [Fact]
@@ -223,6 +223,71 @@ public class ProximasFasesDaChaveTests
         var final = Assert.Single(Montar(semis));
 
         Assert.Null(final.Horario);
-        Assert.Equal("Vencedor de Ana/Bruno × Carla/Diego", final.Lado1.Rotulo);
+        Assert.Equal("Vencedor Semifinal 1", final.Lado1.Rotulo);
+    }
+
+    // ---- Categoria que AINDA está na fase de grupos ----
+    // Ela não tem jogo de mata-mata nenhum de onde partir, então a projeção começa nas
+    // COLOCAÇÕES. Sem isso, só a chave direta mostrava o caminho até a final na lista de
+    // jogos — ela já nasce com a primeira rodada criada.
+
+    [Fact]
+    public void Categoria_em_fase_de_grupos_projeta_o_mata_mata_desde_as_colocacoes()
+    {
+        var jogos = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" },
+            classificadosPorGrupo: 2,
+            horarioBase: new DateTime(2026, 8, 5, 20, 0, 0),
+            duracaoMinutos: 12, quadras: 5,
+            ultimoInicioDoDia: new TimeSpan(23, 0, 0),
+            aberturaDiasSeguintes: new TimeSpan(8, 0, 0),
+            categoria: "6ª Masculina");
+
+        // 4 grupos x 2 = 8 classificados: Quartas (4), Semifinal (2), Final (1).
+        Assert.Equal(new[] { "Quartas de Final", "Quartas de Final", "Quartas de Final",
+                             "Quartas de Final", "Semifinal", "Semifinal", "Final" },
+                     jogos.Select(j => j.Fase));
+
+        // A primeira rodada fala em COLOCAÇÃO; da segunda em diante, em número de jogo.
+        Assert.StartsWith("1º do Grupo", jogos[0].Lado1.Rotulo);
+        Assert.StartsWith("2º do Grupo", jogos[0].Lado2.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 1", jogos[4].Lado1.Rotulo);
+        Assert.Equal("Vencedor Quartas de Final 4", jogos[4].Lado2.Rotulo);
+        Assert.Equal("Vencedor Semifinal 1", jogos[^1].Lado1.Rotulo);
+
+        // Numeração reinicia a cada fase — é o que o rótulo cita.
+        Assert.Equal(new[] { 1, 2, 3, 4 }, jogos.Where(j => j.Fase == "Quartas de Final").Select(j => j.Numero));
+        Assert.Equal("Quartas de Final 3", jogos[2].FaseNumerada);
+        Assert.Equal("Final", jogos[^1].FaseNumerada);   // jogo único não numera
+
+        Assert.All(jogos, j => Assert.Equal("6ª Masculina", j.Categoria));
+        Assert.All(jogos, j => Assert.NotNull(j.Horario));
+    }
+
+    [Fact]
+    public void Rotulo_nao_lista_nomes_de_dupla_e_por_isso_nao_estoura_a_linha()
+    {
+        // O motivo da mudança: "Um destes 4: Bernardo Mendonça & Alexandre Medina, Geison
+        // Moyses & …" estourava a largura e era cortado justamente no fim.
+        var jogos = ProximasFasesDaChave.MontarDosGrupos(
+            new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2,
+            null, 12, 5, new TimeSpan(23, 0, 0), new TimeSpan(8, 0, 0));
+
+        Assert.All(jogos, j =>
+        {
+            Assert.DoesNotContain("Um destes", j.Lado1.Rotulo);
+            Assert.DoesNotContain("Um destes", j.Lado2.Rotulo);
+            Assert.True(j.Lado1.Rotulo.Length <= 30, $"rótulo comprido: {j.Lado1.Rotulo}");
+            Assert.True(j.Lado2.Rotulo.Length <= 30, $"rótulo comprido: {j.Lado2.Rotulo}");
+        });
+    }
+
+    [Fact]
+    public void Sem_grupo_sorteado_nao_ha_o_que_projetar()
+    {
+        var jogos = ProximasFasesDaChave.MontarDosGrupos(
+            Array.Empty<string>(), 2, null, 12, 5, new TimeSpan(23, 0, 0), new TimeSpan(8, 0, 0));
+
+        Assert.Empty(jogos);
     }
 }

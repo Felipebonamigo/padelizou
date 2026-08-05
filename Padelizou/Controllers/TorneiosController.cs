@@ -424,9 +424,41 @@ namespace Padelizou.Controllers
             if (torneio == null) return new();
 
             var deMataMata = partidas.Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)).ToList();
-            if (deMataMata.Count == 0) return new();
-
             var projetados = new List<ProximasFasesDaChave.JogoQueVem>();
+
+            // Categoria AINDA NA FASE DE GRUPOS: não há jogo de mata-mata nenhum de onde
+            // partir, então a projeção começa nas COLOCAÇÕES ("1º do Grupo A × 2º do Grupo
+            // C"). Sem isto, só a chave direta mostrava o caminho até a final — ela já nasce
+            // com a primeira rodada criada, e as categorias de grupo apareciam sem mata-mata.
+            var comMataMata = deMataMata.Select(p => p.CategoriaId).ToHashSet();
+            var aindaEmGrupos = await _context.Categorias
+                .Include(c => c.GruposTorneio)
+                .Where(c => c.TorneioId == torneioId && !c.ChaveDireta && !comMataMata.Contains(c.Id))
+                .ToListAsync();
+
+            // O mata-mata emenda no fim da fase de grupos — o mesmo lugar de onde o robô o
+            // agendaria quando os grupos fecharem.
+            var fimDosGrupos = partidas
+                .Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase) && p.HorarioPrevisto != null)
+                .Select(p => p.HorarioPrevisto!.Value)
+                .DefaultIfEmpty()
+                .Max();
+
+            foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
+            {
+                projetados.AddRange(ProximasFasesDaChave.MontarDosGrupos(
+                    categoria.GruposTorneio.Select(g => g.Nome).OrderBy(n => n).ToList(),
+                    Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
+                    torneio.SemHorarioPrevisto || fimDosGrupos == default ? null : fimDosGrupos,
+                    torneio.TempoPrevistoPartidaMinutos,
+                    torneio.QuantidadeQuadras,
+                    torneio.HoraFimDoDia,
+                    torneio.HoraInicioDiasSeguintes,
+                    categoria.Nome));
+            }
+
+            if (deMataMata.Count == 0)
+                return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
             // duplas que nunca vão se enfrentar.
@@ -547,6 +579,17 @@ namespace Padelizou.Controllers
                 : null;
             ViewBag.MeuId = meuId;
             ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
+
+            // O NÚMERO de cada jogo dentro da fase dele ("Quartas de Final 2"). Os jogos que
+            // ainda vão acontecer se descrevem citando esse número ("Vencedor Quartas de
+            // Final 2"), e sem ele na etiqueta do jogo REAL a referência apontaria pro nada.
+            //
+            // A ordem é a de Id — a mesma que o avanço de verdade usa pra parear vencedores.
+            ViewBag.NumeroNaFase = partidas
+                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+                .GroupBy(p => new { p.CategoriaId, p.Fase })
+                .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => (p.Id, Numero: i + 1)))
+                .ToDictionary(x => x.Id, x => x.Numero);
         }
     }
 }

@@ -33,7 +33,9 @@
             {
                 <span class="pdz-jl-etiqueta pdz-jl-categoria">@Model.Categoria</span>
             }
-            <span class="pdz-jl-etiqueta pdz-jl-fase">@Model.Fase</span>
+            @* Numerada: é assim que os outros jogos citam este ("Vencedor Quartas de Final 2"),
+               e é o que torna a referência rastreável na própria lista. *@
+            <span class="pdz-jl-etiqueta pdz-jl-fase">@Model.FaseNumerada</span>
             <span class="pdz-jl-etiqueta pdz-jl-porvir-selo">
                 <i class="bi bi-hourglass-split"></i> a definir
             </span>

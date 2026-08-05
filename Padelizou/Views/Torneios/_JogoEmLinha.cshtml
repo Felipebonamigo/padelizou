@@ -115,7 +115,19 @@
 
         <span class="pdz-jl-etiquetas">
             <span class="pdz-jl-etiqueta pdz-jl-categoria">@jogo.Categoria.Nome</span>
-            <span class="pdz-jl-etiqueta pdz-jl-fase">@jogo.Fase</span>
+            @* Fase NUMERADA no mata-mata ("Quartas de Final 2"): é assim que os jogos que
+               ainda vão acontecer citam este, e sem o número na etiqueta a referência
+               "Vencedor Quartas de Final 2" não teria onde ser encontrada. Jogo de grupo não
+               numera — o nome do grupo já identifica. *@
+            @{
+                var numeroNaFase = (ViewData["NumeroNaFase"] as Dictionary<int, int>)
+                                   ?? (ViewBag.NumeroNaFase as Dictionary<int, int>);
+                var faseNaTela = jogo.Fase != "Final"
+                                 && numeroNaFase != null && numeroNaFase.TryGetValue(jogo.Id, out var n)
+                    ? $"{jogo.Fase} {n}"
+                    : jogo.Fase;
+            }
+            <span class="pdz-jl-etiqueta pdz-jl-fase">@faseNaTela</span>
             @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
             {
                 <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra</span>
