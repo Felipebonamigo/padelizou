@@ -110,6 +110,14 @@ namespace padelizou.Controllers
             return View();
         }
 
+        // Pra onde o ASP.NET Core manda quem tomou Forbid() — está apontado em Program.cs
+        // (AccessDeniedPath) desde sempre, mas a ação nunca existiu: TODO acesso recusado no
+        // site inteiro caía num 404. "Página não encontrada" faz a pessoa achar que o link
+        // quebrou e insistir, quando o que houve foi falta de permissão.
+        [AllowAnonymous]
+        [HttpGet]
+        public IActionResult AcessoNegado() => View();
+
         // ── Esqueci minha senha ───────────────────────────────────────────────────────────
         [AllowAnonymous]
         [HttpGet]
