@@ -1,6 +1,6 @@
 namespace Padelizou.Services;
 
-// As fases que AINDA VÃO ACONTECER, com horário e com quem pode jogá-las.
+// As fases que AINDA VÃO ACONTECER, com hora, QUADRA e com quem pode jogá-las.
 //
 // O motor do mata-mata cria cada rodada só quando a anterior fecha (Dupla1Id/Dupla2Id são
 // obrigatórios — não existe partida "a definir" no banco). O efeito na tela era que a
@@ -14,15 +14,18 @@ namespace Padelizou.Services;
 // justamente no fim, onde estavam os últimos nomes. O número diz a mesma coisa em três
 // palavras e é rastreável: o jogo "Quartas de Final 1" está na mesma lista, logo acima.
 //
-// O horário não é chute: sai da duração de partida configurada no torneio e das regras de
-// grade que já valem pro resto (Services/GradeDeJogos). Atrasar na prática é normal e não
-// muda o slot — decisão do Felipe em 05/08/2026.
-//
-// ⚠️ Cada rodada abre uma rodada DEPOIS do fim da anterior (GradeDeJogos.AberturaDaProximaFase),
-// nunca colada nela: os dois finalistas saem da semifinal, então a final tem que deixar folga.
-//
 // O pareamento usa a MESMA regra do avanço de verdade (ChaveamentoMataMata.ParearVencedores):
 // primeiro cruza com último. Uma conta paralela diria um cruzamento que o sorteio não faz.
+//
+// ---- Por que ESTRUTURA e GRADE são duas coisas separadas aqui ----
+//
+// Cada categoria sabe sozinha QUEM joga contra quem (a cadeia de fases). Mas ONDE e QUANDO
+// é uma pergunta do TORNEIO INTEIRO: as quadras são as mesmas pra todo mundo. Enquanto cada
+// categoria calculava o próprio horário por conta própria, a tela do Interno mostrou OITO
+// jogos às 22:23 num torneio de CINCO quadras — e nenhum deles com quadra, porque não havia
+// como dizer qual. Por isso a cadeia sai sem hora (`Montar`, `MontarDosGrupos`) e uma
+// segunda passada (`Agendar`) põe todas as cadeias na mesma grade, junto com o que já está
+// marcado de verdade.
 public static class ProximasFasesDaChave
 {
     // O que a projeção precisa saber de uma partida já existente.
@@ -34,11 +37,23 @@ public static class ProximasFasesDaChave
 
     // A categoria vem junto porque a lista de jogos mistura todas: sem ela, duas semifinais
     // de categorias diferentes viram duas linhas idênticas.
-    public record JogoQueVem(string Categoria, string Fase, int Numero, DateTime? Horario, Lado Lado1, Lado Lado2)
+    public record JogoQueVem(string Categoria, string Fase, int Numero, DateTime? Horario,
+                             Lado Lado1, Lado Lado2, string? Quadra = null)
     {
         // "Quartas de Final 2" — o rótulo que a tela mostra e que os lados citam.
         // A FINAL não numera: é um jogo só, e "Final 1" faria pensar que existe uma Final 2.
         public string FaseNumerada => Fase == "Final" ? Fase : $"{Fase} {Numero}";
+    }
+
+    // ================= ESTRUTURA: quem joga com quem, ainda sem hora =================
+
+    public record RodadaQueVem(string Fase, IReadOnlyList<(Lado Lado1, Lado Lado2)> Confrontos);
+
+    // O caminho de UMA categoria até a final. `DepoisDe` é o último jogo que já tem hora e
+    // que alimenta a primeira rodada projetada — dele sai a folga de abertura.
+    public record CadeiaDeFases(string Categoria, DateTime? DepoisDe, IReadOnlyList<RodadaQueVem> Rodadas)
+    {
+        public static readonly CadeiaDeFases Vazia = new("", null, Array.Empty<RodadaQueVem>());
     }
 
     // ---- Entrada 1: a chave JÁ COMEÇOU (existe pelo menos uma fase de mata-mata) ----
@@ -46,19 +61,15 @@ public static class ProximasFasesDaChave
     // `byes` são as duplas que pularam a primeira rodada: elas entram na conta do pareamento
     // DEPOIS dos vencedores, igual ao avanço de verdade. Sem elas, o quadro projetado teria
     // menos gente que o real e os cruzamentos sairiam todos errados.
-    public static List<JogoQueVem> Montar(
+    public static CadeiaDeFases Montar(
         IReadOnlyList<PartidaDaChave> partidasDeMataMata,
         IReadOnlyList<string> byes,
-        int duracaoMinutos,
-        int quadras,
-        TimeSpan ultimoInicioDoDia,
-        TimeSpan aberturaDiasSeguintes,
         string categoria = "")
     {
-        if (partidasDeMataMata.Count == 0) return new List<JogoQueVem>();
+        if (partidasDeMataMata.Count == 0) return CadeiaDeFases.Vazia;
 
         var faseAtual = FaseMaisAdiantada(partidasDeMataMata);
-        if (faseAtual == null) return new List<JogoQueVem>();
+        if (faseAtual == null) return CadeiaDeFases.Vazia;
 
         var daFase = partidasDeMataMata
             .Where(p => p.Fase == faseAtual)
@@ -72,8 +83,7 @@ public static class ProximasFasesDaChave
             .Concat(byes.Select(b => new Lado(b)))
             .ToList();
 
-        return Encadear(lados, categoria, UltimoHorario(partidasDeMataMata),
-            duracaoMinutos, quadras, ultimoInicioDoDia, aberturaDiasSeguintes);
+        return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata), Encadear(lados));
     }
 
     // ---- Entrada 2: a chave AINDA NEM COMEÇOU (categoria na fase de grupos) ----
@@ -85,59 +95,37 @@ public static class ProximasFasesDaChave
     //
     // Os confrontos da primeira rodada saem do mesmo motor da aba de chaves
     // (Services/ChaveProjetada), que por sua vez usa o do sorteio de verdade.
-    public static List<JogoQueVem> MontarDosGrupos(
+    public static CadeiaDeFases MontarDosGrupos(
         IReadOnlyList<string> grupos,
         int classificadosPorGrupo,
-        DateTime? horarioBase,
-        int duracaoMinutos,
-        int quadras,
-        TimeSpan ultimoInicioDoDia,
-        TimeSpan aberturaDiasSeguintes,
+        DateTime? fimDosGrupos,
         string categoria = "")
     {
         var (fase, confrontos, byes) = ChaveProjetada.Montar(grupos, classificadosPorGrupo);
-        if (confrontos.Count == 0) return new List<JogoQueVem>();
+        if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
-        var jogos = new List<JogoQueVem>();
-        var proximos = new List<Lado>();
+        var primeira = new RodadaQueVem(fase, confrontos
+            .Select(c => (new Lado(c.Lado1.Rotulo), new Lado(c.Lado2.Rotulo)))
+            .ToList());
 
-        // O mata-mata abre uma rodada DEPOIS do fim da fase de grupos, não colado nela: quem
-        // joga o último jogo do grupo é candidato a classificar, e cairia direto na quadra.
-        var horarios = HorariosDaRodada(confrontos.Count,
-            AbrirRodada(horarioBase, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes),
-            quadras, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes);
+        var proximos = confrontos
+            .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}"))
+            // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do
+            // avanço de verdade — é o que faz cada vencedor cruzar com uma vaga que passou
+            // direto. Aqui o bye ainda não tem nome: é a colocação ("2º do Grupo C").
+            .Concat(byes.Select(b => new Lado(b.Rotulo)))
+            .ToList();
 
-        for (int i = 0; i < confrontos.Count; i++)
-        {
-            int numero = i + 1;
-            jogos.Add(new JogoQueVem(categoria, fase, numero, horarios[i],
-                new Lado(confrontos[i].Lado1.Rotulo), new Lado(confrontos[i].Lado2.Rotulo)));
-            proximos.Add(new Lado($"Vencedor {fase} {numero}"));
-        }
+        var rodadas = new List<RodadaQueVem> { primeira };
+        rodadas.AddRange(Encadear(proximos));
 
-        // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do avanço
-        // de verdade — é o que faz cada vencedor cruzar com uma vaga que passou direto. Aqui
-        // o bye ainda não tem nome: é a colocação ("2º do Grupo C").
-        proximos.AddRange(byes.Select(b => new Lado(b.Rotulo)));
-
-        jogos.AddRange(Encadear(proximos, categoria, horarios[^1],
-            duracaoMinutos, quadras, ultimoInicioDoDia, aberturaDiasSeguintes));
-
-        return jogos;
+        return new CadeiaDeFases(categoria, fimDosGrupos, rodadas);
     }
 
-    // ---- O encadeamento, rodada a rodada, até a final ----
-    //
-    // `ultimoDaFaseAnterior` é o horário do ÚLTIMO jogo da fase que alimenta esta — cada
-    // rodada se afasta dele por conta própria (ver AbrirRodada). A conta corrida de slots que
-    // existia aqui atravessava a fronteira das rodadas, e quando a rodada anterior não enchia
-    // as quadras a seguinte começava no MESMO horário dela: a Final saía junto com a Semifinal
-    // que a decide.
-    private static List<JogoQueVem> Encadear(
-        List<Lado> lados, string categoria, DateTime? ultimoDaFaseAnterior,
-        int duracaoMinutos, int quadras, TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes)
+    // O encadeamento, rodada a rodada, até a final.
+    private static List<RodadaQueVem> Encadear(List<Lado> lados)
     {
-        var jogos = new List<JogoQueVem>();
+        var rodadas = new List<RodadaQueVem>();
 
         // Trava de segurança: uma chave real nunca passa de meia dúzia de rodadas, e um dado
         // torto não pode virar laço infinito numa página que o jogador abre.
@@ -150,23 +138,123 @@ public static class ProximasFasesDaChave
             // uma fase que o torneio nunca vai criar.
             var fase = ChaveamentoMataMata.NomeFase(lados.Count);
             var confrontos = Parear(lados);
-            var proximos = new List<Lado>(confrontos.Count);
 
-            var horarios = HorariosDaRodada(confrontos.Count,
-                AbrirRodada(ultimoDaFaseAnterior, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes),
-                quadras, duracaoMinutos, ultimoInicioDoDia, aberturaDiasSeguintes);
+            rodadas.Add(new RodadaQueVem(fase, confrontos));
+            lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}")).ToList();
 
-            for (int i = 0; i < confrontos.Count; i++)
+            if (fase == "Final") break;
+        }
+
+        return rodadas;
+    }
+
+    // ================= GRADE: quando e em que quadra =================
+
+    // Uma vaga que já tem dono — os jogos REAIS que estão marcados. A projeção precisa deles
+    // pra não prometer uma quadra que já está ocupada. `Quadra` nula é o torneio que não
+    // cadastrou quadra: ela ocupa a vaga sem tomar um nome.
+    public record VagaOcupada(DateTime Horario, string? Quadra);
+
+    // `Quadras` são os nomes NA ORDEM; `Capacidade` é quantos jogos rodam ao mesmo tempo.
+    // Os dois existem porque podem discordar: um torneio de 5 quadras pode ter cadastrado só
+    // 3 nomes, e aí duas vagas de cada horário ficam sem nome — o que é a verdade, e melhor
+    // que inventar "Quadra 4".
+    public record ConfiguracaoDaGrade(
+        int DuracaoMinutos, int Capacidade, IReadOnlyList<string> Quadras,
+        TimeSpan UltimoInicioDoDia, TimeSpan AberturaDiasSeguintes);
+
+    // Põe TODAS as cadeias na mesma grade, disputando as mesmas quadras.
+    //
+    // A regra que manda é a folga entre fases (GradeDeJogos.AberturaDaProximaFase): uma
+    // rodada abre uma rodada inteira depois do fim da que a alimenta. Dentro disso, os jogos
+    // ocupam as quadras livres do horário; quando o horário lota, o resto cai no seguinte.
+    //
+    // ⚠️ Nada aqui sabe QUEM vai jogar (os lados são "Vencedor Quartas de Final 1"), então a
+    // grade não tem como evitar que a mesma pessoa apareça em duas categorias no mesmo
+    // horário. Quem garante isso é o encaixe de verdade (GradeDeJogos.Encaixar), na hora em
+    // que a rodada nasce com nome e sobrenome.
+    public static List<JogoQueVem> Agendar(
+        IReadOnlyList<CadeiaDeFases> cadeias,
+        ConfiguracaoDaGrade grade,
+        IReadOnlyList<VagaOcupada>? jaMarcados = null)
+    {
+        var vivas = cadeias.Where(c => c.Rodadas.Count > 0).ToList();
+        if (vivas.Count == 0) return new List<JogoQueVem>();
+
+        int capacidade = Math.Max(1, grade.Capacidade);
+        var ocupadas = new Dictionary<DateTime, HashSet<string>>();
+        var lotacao = new Dictionary<DateTime, int>();
+
+        foreach (var vaga in jaMarcados ?? Array.Empty<VagaOcupada>())
+        {
+            lotacao[vaga.Horario] = lotacao.GetValueOrDefault(vaga.Horario) + 1;
+            if (!string.IsNullOrEmpty(vaga.Quadra))
             {
-                int numero = i + 1;
-                jogos.Add(new JogoQueVem(categoria, fase, numero, horarios[i],
-                    confrontos[i].Lado1, confrontos[i].Lado2));
-                proximos.Add(new Lado($"Vencedor {fase} {numero}"));
+                if (!ocupadas.TryGetValue(vaga.Horario, out var nomes))
+                    ocupadas[vaga.Horario] = nomes = new HashSet<string>();
+                nomes.Add(vaga.Quadra!);
+            }
+        }
+
+        // Estado de cada cadeia: qual a próxima rodada e a partir de quando ela pode abrir.
+        var proxima = new int[vivas.Count];
+        var abertura = vivas.Select(c => AbrirRodada(c.DepoisDe, grade)).ToArray();
+
+        var jogos = new List<JogoQueVem>();
+
+        while (true)
+        {
+            // A cadeia que abre mais cedo entra primeiro — é o que faz as categorias
+            // dividirem as quadras do mesmo horário em vez de uma esperar a outra acabar.
+            int escolha = -1;
+            for (int i = 0; i < vivas.Count; i++)
+            {
+                if (proxima[i] >= vivas[i].Rodadas.Count) continue;
+                if (escolha < 0) { escolha = i; continue; }
+
+                // Sem horário (torneio por ordem de liberação) todas empatam: vale a ordem
+                // de entrada, e a lista sai agrupada por categoria.
+                if ((abertura[i] ?? DateTime.MaxValue) < (abertura[escolha] ?? DateTime.MaxValue))
+                    escolha = i;
             }
 
-            lados = proximos;
-            ultimoDaFaseAnterior = horarios[^1];
-            if (fase == "Final") break;
+            if (escolha < 0) break;
+
+            var cadeia = vivas[escolha];
+            var rodada = cadeia.Rodadas[proxima[escolha]];
+            var horario = abertura[escolha];
+
+            for (int i = 0; i < rodada.Confrontos.Count; i++)
+            {
+                string? quadra = null;
+
+                if (horario is DateTime h)
+                {
+                    // Horário lotado: o jogo escorrega pro seguinte. Sem esta parada, a
+                    // projeção anunciava 8 jogos no mesmo minuto num torneio de 5 quadras.
+                    while (lotacao.GetValueOrDefault(h) >= capacidade)
+                        h = GradeDeJogos.DepoisDe(h, grade.UltimoInicioDoDia,
+                                                  grade.AberturaDiasSeguintes, grade.DuracaoMinutos);
+
+                    var nomes = ocupadas.TryGetValue(h, out var usadas) ? usadas : null;
+                    quadra = grade.Quadras.FirstOrDefault(q => nomes == null || !nomes.Contains(q));
+
+                    lotacao[h] = lotacao.GetValueOrDefault(h) + 1;
+                    if (quadra != null)
+                    {
+                        if (nomes == null) ocupadas[h] = nomes = new HashSet<string>();
+                        nomes.Add(quadra);
+                    }
+
+                    horario = h;
+                }
+
+                jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, i + 1, horario,
+                    rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, quadra));
+            }
+
+            abertura[escolha] = AbrirRodada(horario, grade);
+            proxima[escolha]++;
         }
 
         return jogos;
@@ -175,34 +263,11 @@ public static class ProximasFasesDaChave
     // Quando a rodada abre: uma rodada de folga depois do fim da anterior. A regra mora em
     // GradeDeJogos.AberturaDaProximaFase, que é a mesma usada na grade de verdade — projeção
     // e grade dizendo horas diferentes seria pior que não projetar.
-    private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, int duracaoMinutos,
-        TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes) =>
+    private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, ConfiguracaoDaGrade grade) =>
         ultimoDaFaseAnterior is DateTime ultimo
-            ? GradeDeJogos.AberturaDaProximaFase(ultimo, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos)
+            ? GradeDeJogos.AberturaDaProximaFase(ultimo, grade.UltimoInicioDoDia,
+                                                 grade.AberturaDiasSeguintes, grade.DuracaoMinutos)
             : null;
-
-    // Os jogos de UMA rodada ao longo do relógio: as quadras rodam em paralelo, então a hora
-    // só anda quando a leva enche. Torneio por ordem de liberação não tem hora — e aí a lista
-    // é de nulos, que é a resposta honesta.
-    private static List<DateTime?> HorariosDaRodada(int quantidade, DateTime? abertura, int quadras,
-        int duracaoMinutos, TimeSpan ultimoInicioDoDia, TimeSpan aberturaDiasSeguintes)
-    {
-        var horarios = new List<DateTime?>(quantidade);
-        var horario = abertura;
-
-        for (int i = 0; i < quantidade; i++)
-        {
-            if (i > 0 && i % Math.Max(1, quadras) == 0 && horario != null)
-            {
-                horario = GradeDeJogos.DepoisDe(
-                    horario.Value, ultimoInicioDoDia, aberturaDiasSeguintes, duracaoMinutos);
-            }
-
-            horarios.Add(horario);
-        }
-
-        return horarios;
-    }
 
     // Primeiro cruza com último — a regra de ChaveamentoMataMata.ParearVencedores, aplicada
     // aqui sobre LADOS em vez de ids, porque aqui ainda não há vencedor nenhum.

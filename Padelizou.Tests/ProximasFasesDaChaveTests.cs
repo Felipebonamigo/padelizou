@@ -17,10 +17,24 @@ public class ProximasFasesDaChaveTests
     private static PartidaDaChave Jogo(int id, string fase, string d1, string d2, string hora) =>
         new(id, fase, d1, d2, DateTime.Parse($"2026-08-08 {hora}"));
 
+    // A ESTRUTURA (quem joga com quem) e a GRADE (quando e onde) são duas passadas: a cadeia
+    // é de uma categoria, a grade é do torneio inteiro, porque as quadras são as mesmas.
+    private static ConfiguracaoDaGrade Grade(int quadras = 2, int duracao = 30,
+        IReadOnlyList<string>? nomes = null) =>
+        new(duracao, quadras, nomes ?? Array.Empty<string>(), FimDoDia, AberturaSeguinte);
+
     private static List<JogoQueVem> Montar(IReadOnlyList<PartidaDaChave> partidas,
-        IReadOnlyList<string>? byes = null, int quadras = 2, int duracao = 30) =>
-        ProximasFasesDaChave.Montar(partidas, byes ?? Array.Empty<string>(),
-            duracao, quadras, FimDoDia, AberturaSeguinte);
+        IReadOnlyList<string>? byes = null, int quadras = 2, int duracao = 30,
+        IReadOnlyList<string>? nomesDeQuadra = null, IReadOnlyList<VagaOcupada>? ocupadas = null) =>
+        ProximasFasesDaChave.Agendar(
+            new[] { ProximasFasesDaChave.Montar(partidas, byes ?? Array.Empty<string>()) },
+            Grade(quadras, duracao, nomesDeQuadra), ocupadas);
+
+    private static List<JogoQueVem> DosGrupos(IReadOnlyList<string> grupos, int classificados,
+        DateTime? fimDosGrupos, int quadras = 5, int duracao = 12, string categoria = "") =>
+        ProximasFasesDaChave.Agendar(
+            new[] { ProximasFasesDaChave.MontarDosGrupos(grupos, classificados, fimDosGrupos, categoria) },
+            Grade(quadras, duracao));
 
     [Fact]
     public void Sem_mata_mata_nao_projeta_nada()
@@ -293,13 +307,10 @@ public class ProximasFasesDaChaveTests
     [Fact]
     public void Categoria_em_fase_de_grupos_projeta_o_mata_mata_desde_as_colocacoes()
     {
-        var jogos = ProximasFasesDaChave.MontarDosGrupos(
+        var jogos = DosGrupos(
             new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" },
-            classificadosPorGrupo: 2,
-            horarioBase: new DateTime(2026, 8, 5, 20, 0, 0),
-            duracaoMinutos: 12, quadras: 5,
-            ultimoInicioDoDia: new TimeSpan(23, 0, 0),
-            aberturaDiasSeguintes: new TimeSpan(8, 0, 0),
+            classificados: 2,
+            fimDosGrupos: new DateTime(2026, 8, 5, 20, 0, 0),
             categoria: "6ª Masculina");
 
         // 4 grupos x 2 = 8 classificados: Quartas (4), Semifinal (2), Final (1).
@@ -328,9 +339,7 @@ public class ProximasFasesDaChaveTests
     {
         // O motivo da mudança: "Um destes 4: Bernardo Mendonça & Alexandre Medina, Geison
         // Moyses & …" estourava a largura e era cortado justamente no fim.
-        var jogos = ProximasFasesDaChave.MontarDosGrupos(
-            new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2,
-            null, 12, 5, new TimeSpan(23, 0, 0), new TimeSpan(8, 0, 0));
+        var jogos = DosGrupos(new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2, null);
 
         Assert.All(jogos, j =>
         {
@@ -344,9 +353,154 @@ public class ProximasFasesDaChaveTests
     [Fact]
     public void Sem_grupo_sorteado_nao_ha_o_que_projetar()
     {
-        var jogos = ProximasFasesDaChave.MontarDosGrupos(
-            Array.Empty<string>(), 2, null, 12, 5, new TimeSpan(23, 0, 0), new TimeSpan(8, 0, 0));
+        var jogos = DosGrupos(Array.Empty<string>(), 2, null);
 
         Assert.Empty(jogos);
+    }
+
+    // ---- A QUADRA de cada jogo que ainda vem ----
+    // As quadras são do TORNEIO, não da categoria: só dá pra dizer em qual quadra um jogo
+    // projetado cai depois de pôr todas as categorias na mesma grade. Enquanto cada uma
+    // calculava sozinha, a tela do Interno mostrou OITO jogos às 22:23 num torneio de CINCO
+    // quadras — e nenhum com quadra, porque não havia como saber qual.
+
+    private static readonly string[] CincoQuadras =
+        { "Quadra A", "Quadra B", "Quadra C", "Quadra D", "Quadra E" };
+
+    [Fact]
+    public void Todo_jogo_projetado_sai_com_quadra()
+    {
+        var quartas = Enumerable.Range(1, 4)
+            .Select(i => Jogo(i, "Quartas de Final", $"A{i}", $"B{i}", "21:00")).ToList();
+
+        var jogos = Montar(quartas, quadras: 5, duracao: 11, nomesDeQuadra: CincoQuadras);
+
+        Assert.NotEmpty(jogos);
+        Assert.All(jogos, j => Assert.Contains(j.Quadra, CincoQuadras));
+    }
+
+    [Fact]
+    public void Nunca_promete_mais_jogos_do_que_quadras_no_mesmo_horario()
+    {
+        // O defeito do print: 8 jogos às 22:23 num torneio de 5 quadras.
+        var cadeias = new[] { "6ª Masculina", "6ª Feminina", "5ª Masculina", "Times", "Mata-Mata Geral" }
+            .Select(cat => ProximasFasesDaChave.MontarDosGrupos(
+                new[] { "Grupo A", "Grupo B", "Grupo C", "Grupo D" }, 2,
+                new DateTime(2026, 8, 5, 21, 39, 0), cat))
+            .ToList();
+
+        var jogos = ProximasFasesDaChave.Agendar(cadeias,
+            new ConfiguracaoDaGrade(11, 5, CincoQuadras, FimDoDia, AberturaSeguinte));
+
+        foreach (var noHorario in jogos.GroupBy(j => j.Horario))
+        {
+            Assert.True(noHorario.Count() <= 5,
+                $"{noHorario.Count()} jogos às {noHorario.Key:HH:mm} num torneio de 5 quadras");
+
+            // E cada um na SUA quadra: duas categorias no mesmo horário não podem receber o
+            // mesmo nome, senão duas duplas vão pro mesmo lugar.
+            Assert.Equal(noHorario.Count(), noHorario.Select(j => j.Quadra).Distinct().Count());
+        }
+    }
+
+    [Fact]
+    public void As_categorias_dividem_as_quadras_do_mesmo_horario()
+    {
+        // Duas categorias com 2 jogos cada, 5 quadras: os quatro cabem juntos. Serializar
+        // (uma esperar a outra) deixaria três quadras paradas e empurraria o torneio pra
+        // madrugada.
+        var cadeias = new[] { "6ª Masculina", "6ª Feminina" }
+            .Select(cat => ProximasFasesDaChave.Montar(
+                new[]
+                {
+                    Jogo(1, "Semifinal", "A1", "B1", "21:00"),
+                    Jogo(2, "Semifinal", "C1", "D1", "21:00"),
+                }, Array.Empty<string>(), cat))
+            .ToList();
+
+        var jogos = ProximasFasesDaChave.Agendar(cadeias,
+            new ConfiguracaoDaGrade(11, 5, CincoQuadras, FimDoDia, AberturaSeguinte));
+
+        var finais = jogos.Where(j => j.Fase == "Final").ToList();
+
+        Assert.Equal(2, finais.Count);
+        Assert.Single(finais.Select(f => f.Horario).Distinct());
+        Assert.Equal(2, finais.Select(f => f.Quadra).Distinct().Count());
+    }
+
+    [Fact]
+    public void Quadra_ja_ocupada_por_jogo_real_nao_e_prometida_de_novo()
+    {
+        // A projeção divide a grade com o que JÁ está marcado. Sem isso ela mandaria a
+        // semifinal pra Quadra A das 21:22, onde já existe um jogo de outra categoria.
+        var semis = new[]
+        {
+            Jogo(1, "Semifinal", "A1", "B1", "21:00"),
+            Jogo(2, "Semifinal", "C1", "D1", "21:00"),
+        };
+
+        var ocupadas = new[]
+        {
+            new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), "Quadra A"),
+            new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), "Quadra B"),
+        };
+
+        var final = Assert.Single(Montar(semis, quadras: 5, duracao: 11,
+            nomesDeQuadra: CincoQuadras, ocupadas: ocupadas));
+
+        // A final abre 21:22 (21:00 + 11 + 11) e as duas primeiras quadras estão tomadas.
+        Assert.Equal(DateTime.Parse("2026-08-08 21:22"), final.Horario);
+        Assert.Equal("Quadra C", final.Quadra);
+    }
+
+    [Fact]
+    public void Horario_lotado_por_jogos_reais_empurra_a_projecao_pro_seguinte()
+    {
+        var semis = new[]
+        {
+            Jogo(1, "Semifinal", "A1", "B1", "21:00"),
+            Jogo(2, "Semifinal", "C1", "D1", "21:00"),
+        };
+
+        // As duas quadras do horário de abertura já têm dono.
+        var ocupadas = CincoQuadras.Take(2)
+            .Select(q => new VagaOcupada(DateTime.Parse("2026-08-08 21:22"), q))
+            .ToList();
+
+        var final = Assert.Single(Montar(semis, quadras: 2, duracao: 11,
+            nomesDeQuadra: CincoQuadras.Take(2).ToList(), ocupadas: ocupadas));
+
+        Assert.Equal(DateTime.Parse("2026-08-08 21:33"), final.Horario);
+        Assert.Equal("Quadra A", final.Quadra);
+    }
+
+    [Fact]
+    public void Torneio_sem_quadra_cadastrada_projeta_sem_nome()
+    {
+        // Inventar "Quadra 1" onde o clube chama de "Central" seria pior que não dizer nada.
+        var jogos = Montar(new[]
+        {
+            Jogo(1, "Semifinal", "A1", "B1", "21:00"),
+            Jogo(2, "Semifinal", "C1", "D1", "21:00"),
+        });
+
+        Assert.All(jogos, j => Assert.Null(j.Quadra));
+    }
+
+    [Fact]
+    public void Sem_horario_previsto_nao_ha_quadra_pra_prometer()
+    {
+        // Por ordem de liberação a quadra é a que vagar — dizer qual seria inventar.
+        var jogos = Montar(new[]
+        {
+            new PartidaDaChave(1, "Semifinal", "Ana/Bruno", "Carla/Diego", null),
+            new PartidaDaChave(2, "Semifinal", "Edu/Fabi", "Gabi/Helo", null),
+        }, quadras: 5, nomesDeQuadra: CincoQuadras);
+
+        Assert.All(jogos, j =>
+        {
+            Assert.Null(j.Horario);
+            Assert.Null(j.Quadra);
+        });
     }
 }

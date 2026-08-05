@@ -451,6 +451,66 @@ public class GradeDeJogosTests
         }
     }
 
+    // ---- Emendar nas vagas livres do que JÁ está marcado ----
+    // Sem saber o que já tem hora, o encaixe começava do zero e achava o torneio inteiro
+    // vago: marcava a rodada nova na Quadra A das 22h onde já havia jogo. O remendo era
+    // empurrar toda rodada nova pro fim de TUDO — e aí, com 5 quadras e 5 categorias, cada
+    // semifinal esperava a semifinal alheia e quatro quadras ficavam paradas.
+
+    [Fact]
+    public void Rodada_nova_nao_repete_a_quadra_de_um_jogo_ja_marcado()
+    {
+        var quadras = new[] { "Quadra A", "Quadra B", "Quadra C" };
+        var doze = new DateTime(2026, 8, 15, 12, 0, 0);
+
+        var jaMarcado = JogoEntre(9, 10);
+        jaMarcado.HorarioPrevisto = doze;
+        jaMarcado.NomeQuadra = "Quadra A";
+
+        var jogos = new List<Partida> { JogoEntre(1, 2), JogoEntre(3, 4) };
+        var horarios = GradeDeJogos.Descontando(
+            GradeDeJogos.Horarios(doze, Ate22h, 3, 50, 12), new[] { doze });
+
+        GradeDeJogos.Encaixar(jogos, horarios, null, quadras, new[] { jaMarcado });
+
+        Assert.All(jogos, j => Assert.Equal(doze, j.HorarioPrevisto));
+        Assert.Equal(new[] { "Quadra B", "Quadra C" }, jogos.Select(j => j.NomeQuadra));
+    }
+
+    [Fact]
+    public void Quem_ja_esta_escalado_no_horario_nao_entra_de_novo_nele()
+    {
+        // A dupla 1 já joga às 12h por outra categoria. A rodada nova a empurra pro horário
+        // seguinte em vez de chamá-la pra duas quadras.
+        var doze = new DateTime(2026, 8, 15, 12, 0, 0);
+
+        var jaMarcado = JogoEntre(1, 9);
+        jaMarcado.HorarioPrevisto = doze;
+        jaMarcado.NomeQuadra = "Quadra A";
+
+        var jogos = new List<Partida> { JogoEntre(1, 2) };
+        var horarios = GradeDeJogos.Descontando(
+            GradeDeJogos.Horarios(doze, Ate22h, 3, 50, 12), new[] { doze });
+
+        GradeDeJogos.Encaixar(jogos, horarios, null, new[] { "Quadra A", "Quadra B", "Quadra C" },
+            new[] { jaMarcado });
+
+        Assert.Equal(doze.AddMinutes(50), jogos[0].HorarioPrevisto);
+    }
+
+    [Fact]
+    public void Vaga_que_ja_tem_dono_sai_da_lista_de_horarios()
+    {
+        var doze = new DateTime(2026, 8, 15, 12, 0, 0);
+        var horarios = GradeDeJogos.Horarios(doze, Ate22h, 3, 50, 6).ToList();
+
+        // Duas das três vagas das 12h já estão ocupadas.
+        var sobram = GradeDeJogos.Descontando(horarios, new[] { doze, doze });
+
+        Assert.Equal(1, sobram.Count(h => h == doze));
+        Assert.Equal(3, sobram.Count(h => h == doze.AddMinutes(50)));
+    }
+
     [Fact]
     public void Virou_o_dia_e_o_descanso_ja_aconteceu_a_noite_inteira()
     {

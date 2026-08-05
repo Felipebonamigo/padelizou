@@ -549,6 +549,26 @@ namespace Padelizou.Controllers
                 .Select(q => q.Nome)
                 .ToListAsync();
 
+        // As quadras que o torneio está DE FATO usando: as que já estão escritas nos jogos
+        // marcados. Só na falta delas vale o cadastro.
+        //
+        // ⚠️ Os dois podem discordar, e discordam num torneio real: no Interno Los Corneteiros
+        // os jogos dizem "Quadra A".."Quadra E" (nomes do dia do sorteio) e o cadastro passou
+        // a dizer "Quadra 1".."Quadra 5" — renomear depois do sorteio não reescreve os jogos.
+        // Nomear as fases que ainda vêm pelo cadastro poria DOIS nomes pra mesma quadra na
+        // mesma tela, e o jogador iria pra quadra errada.
+        private async Task<List<string>> QuadrasEmUsoAsync(int torneioId)
+        {
+            var nosJogos = await _context.Partidas
+                .Where(p => p.TorneioId == torneioId && p.NomeQuadra != null && p.NomeQuadra != "")
+                .Select(p => p.NomeQuadra!)
+                .Distinct()
+                .OrderBy(n => n)
+                .ToListAsync();
+
+            return nosJogos.Count > 0 ? nosJogos : await QuadrasDoTorneioAsync(torneioId);
+        }
+
         private async Task<Dictionary<int, int[]>> OcupantesPorDuplaAsync(int torneioId) =>
             OcupantesPorDupla(await _context.Duplas
                 .Where(d => d.Categoria.TorneioId == torneioId)
@@ -558,8 +578,14 @@ namespace Padelizou.Controllers
         // só existem depois que a fase de grupos acaba. Sem isso o jogador via "a definir" na
         // fase que mais importa, e a Mesa de Controle não tinha ordem nenhuma pra seguir.
         //
-        // A grade do mata-mata emenda no último jogo já marcado do torneio, respeitando as
-        // mesmas quadras e o mesmo expediente da fase de grupos.
+        // A rodada nova abre uma rodada depois do fim da fase que a alimenta — a da PRÓPRIA
+        // categoria — e ocupa as quadras que estiverem livres dali em diante.
+        //
+        // ⚠️ Antes o âncora era o último jogo marcado do TORNEIO INTEIRO, e isso enfileirava
+        // as categorias uma atrás da outra: com 5 quadras e 5 categorias, cada semifinal
+        // esperava a semifinal alheia acabar e quatro quadras ficavam paradas. Era o preço de
+        // o encaixe não saber o que já estava marcado — agora ele sabe (`jaMarcados`), então
+        // dá pra emendar em paralelo sem chamar ninguém pra duas quadras ao mesmo tempo.
         private async Task AgendarNaGradeAsync(List<Partida> jogos, int? torneioId)
         {
             if (jogos.Count == 0 || torneioId == null) return;
@@ -571,33 +597,49 @@ namespace Padelizou.Controllers
             // todo o resto, sem hora. Ver Torneio.SemHorarioPrevisto.
             if (torneio.SemHorarioPrevisto) return;
 
-            var ultimoMarcado = await _context.Partidas
+            var jaMarcados = await _context.Partidas
                 .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
-                .MaxAsync(p => p.HorarioPrevisto);
+                .ToListAsync();
 
-            // Uma rodada de folga depois de tudo que já está marcado — não o minuto em que o
-            // último jogo acaba. Quem joga a semifinal das 22h é quem disputa a final: colar
-            // uma fase na outra é chamar a mesma dupla de volta pra quadra sem descanso, e no
-            // limite (quando a fase anterior não enche as quadras) as duas caem na MESMA hora.
+            // A fase que alimenta esta é a da MESMA categoria: é dela que sai quem vai jogar,
+            // e é dela que a folga tem que partir. Uma rodada de folga, não o minuto em que o
+            // último jogo acaba — quem joga a semifinal das 22h é quem disputa a final, e
+            // colar uma fase na outra é chamar a mesma dupla de volta sem descanso.
             //
             // Vira o dia na abertura dos DIAS SEGUINTES: o mata-mata quase sempre cai no
             // domingo, que começa cedo — não às 18h da sexta em que o torneio abriu.
-            var inicio = ultimoMarcado == null
+            int categoriaId = jogos[0].CategoriaId;
+            var fimDaFaseAnterior = jaMarcados
+                .Where(p => p.CategoriaId == categoriaId)
+                .Select(p => p.HorarioPrevisto!.Value)
+                .DefaultIfEmpty()
+                .Max();
+
+            var inicio = fimDaFaseAnterior == default
                 ? torneio.AberturaDaGrade
-                : GradeDeJogos.AberturaDaProximaFase(ultimoMarcado.Value, torneio.HoraFimDoDia,
+                : GradeDeJogos.AberturaDaProximaFase(fimDaFaseAnterior, torneio.HoraFimDoDia,
                                         torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
 
-            var horarios = GradeDeJogos.Horarios(
-                inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                torneio.TempoPrevistoPartidaMinutos,
-                jogos.Count + GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras),
-                aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+            int folga = GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras);
+
+            // Vaga que já tem dono sai da lista, senão a grade ofereceria cinco quadras num
+            // horário em que três já estão jogando. Pede-se com sobra (`+ jaMarcados.Count`)
+            // justamente porque parte vai ser descontada.
+            var horarios = GradeDeJogos.Descontando(
+                    GradeDeJogos.Horarios(
+                        inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
+                        torneio.TempoPrevistoPartidaMinutos,
+                        jogos.Count + folga + jaMarcados.Count,
+                        aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes),
+                    jaMarcados.Select(p => p.HorarioPrevisto!.Value))
+                .Take(jogos.Count + folga)
+                .ToList();
 
             // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o
             // horário, mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale
             // pra quem chegou longe na categoria dele e na chave direta ao mesmo tempo.
             GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value),
-                await QuadrasDoTorneioAsync(torneioId.Value));
+                await QuadrasEmUsoAsync(torneioId.Value), jaMarcados);
         }
 
         // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).

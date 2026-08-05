@@ -36,6 +36,13 @@
             @* Numerada: é assim que os outros jogos citam este ("Vencedor Quartas de Final 2"),
                e é o que torna a referência rastreável na própria lista. *@
             <span class="pdz-jl-etiqueta pdz-jl-fase">@Model.FaseNumerada</span>
+            @* A QUADRA sai da mesma grade dos jogos marcados: as categorias disputam as
+               mesmas quadras, e por isso a projeção só consegue dizer "Quadra C" depois de
+               pôr todas elas juntas no relógio. Metade do que o jogador precisa é o lugar. *@
+            @if (!string.IsNullOrEmpty(Model.Quadra))
+            {
+                <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @Model.Quadra</span>
+            }
             <span class="pdz-jl-etiqueta pdz-jl-porvir-selo">
                 <i class="bi bi-hourglass-split"></i> a definir
             </span>

@@ -115,9 +115,15 @@ public static class GradeDeJogos
     // quadra — a grade já sabia ONDE, só não estava dizendo. Sem isso todo jogo nascia com
     // "Quadra a definir" mesmo num torneio com as cinco quadras cadastradas, e o jogador
     // tinha a hora sem ter o lugar (que é metade da informação de que ele precisa).
+    // `jaMarcados` são os jogos do torneio que JÁ têm hora — as fases anteriores, as outras
+    // categorias. Sem eles o encaixe começa do zero e acha que o torneio inteiro está vago:
+    // marca a semifinal na Quadra A das 22h onde já existe um jogo, e chama pra duas quadras
+    // quem estiver nos dois. Passando-os, uma rodada nova entra EMENDADA nas vagas livres em
+    // vez de esperar tudo acabar — que era o preço de não saber o que já estava marcado.
     public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
         IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null,
-        IReadOnlyList<string>? quadras = null)
+        IReadOnlyList<string>? quadras = null,
+        IReadOnlyList<Partida>? jaMarcados = null)
     {
         int[] Ocupantes(int duplaId) =>
             ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
@@ -126,7 +132,22 @@ public static class GradeDeJogos
 
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
-        var ocupadasNoHorario = new Dictionary<DateTime, int>();
+        var ocupadasNoHorario = new Dictionary<DateTime, HashSet<string>>();
+
+        foreach (var marcado in jaMarcados ?? Array.Empty<Partida>())
+        {
+            if (marcado.HorarioPrevisto is not DateTime quando) continue;
+
+            if (!ocupados.TryGetValue(quando, out var quemJa))
+                ocupados[quando] = quemJa = new HashSet<int>();
+            foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) quemJa.Add(pessoa);
+            foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) quemJa.Add(pessoa);
+
+            if (string.IsNullOrEmpty(marcado.NomeQuadra)) continue;
+            if (!ocupadasNoHorario.TryGetValue(quando, out var nomes))
+                ocupadasNoHorario[quando] = nomes = new HashSet<string>();
+            nomes.Add(marcado.NomeQuadra!);
+        }
 
         for (int i = 0; i < horarios.Count; i++)
         {
@@ -153,14 +174,22 @@ public static class GradeDeJogos
 
             jogo.HorarioPrevisto = horario;
 
-            // A quadra sai da POSIÇÃO dentro do horário: o primeiro jogo das 20h vai pra
-            // primeira quadra, o segundo pra segunda. Torneio sem quadra cadastrada segue
-            // sem nome — inventar "Quadra 1" onde o clube chama de "Central" seria pior.
+            // A quadra é a PRIMEIRA LIVRE naquele horário: o primeiro jogo das 20h vai pra
+            // primeira quadra, o segundo pra segunda. Livre, e não a posição na fila, porque
+            // o horário pode já ter jogo marcado de outra fase — aí a primeira quadra está
+            // ocupada e contar posição daria o mesmo nome duas vezes. Torneio sem quadra
+            // cadastrada segue sem nome: inventar "Quadra 1" onde o clube chama de "Central"
+            // seria pior.
             if (quadras is { Count: > 0 })
             {
-                int posicao = ocupadasNoHorario.GetValueOrDefault(horario);
-                if (posicao < quadras.Count) jogo.NomeQuadra = quadras[posicao];
-                ocupadasNoHorario[horario] = posicao + 1;
+                if (!ocupadasNoHorario.TryGetValue(horario, out var nomes))
+                    ocupadasNoHorario[horario] = nomes = new HashSet<string>();
+
+                if (quadras.FirstOrDefault(q => !nomes.Contains(q)) is { } livre)
+                {
+                    jogo.NomeQuadra = livre;
+                    nomes.Add(livre);
+                }
             }
 
             foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);
@@ -176,6 +205,30 @@ public static class GradeDeJogos
     // Três rodadas de folga é bastante — o conflito acontece no rabo da fila, com poucos
     // jogos restantes. Vaga que sobra não custa nada: ela simplesmente não é usada.
     public static int MargemDeHorarios(int quadras) => Math.Max(quadras, 1) * 3;
+
+    // Tira da lista de horários as vagas que JÁ TÊM DONO. Cada horário aparece uma vez por
+    // quadra; se duas delas já estão ocupadas às 22h, sobram as outras — e o encaixe para de
+    // oferecer quadra que não existe. Sem este desconto, `Horarios` diria "cinco vagas às
+    // 22h" num horário em que três já estão jogando.
+    public static List<DateTime> Descontando(IEnumerable<DateTime> horarios, IEnumerable<DateTime> jaTomados)
+    {
+        var tomados = new Dictionary<DateTime, int>();
+        foreach (var h in jaTomados) tomados[h] = tomados.GetValueOrDefault(h) + 1;
+
+        var sobram = new List<DateTime>();
+        foreach (var h in horarios)
+        {
+            if (tomados.TryGetValue(h, out var quantas) && quantas > 0)
+            {
+                tomados[h] = quantas - 1;
+                continue;
+            }
+
+            sobram.Add(h);
+        }
+
+        return sobram;
+    }
 
     // Quantas rodadas cabem num dia que abre às `abertura`.
     // null = dia sem hora pra acabar.

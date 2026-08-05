@@ -424,7 +424,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return new();
 
             var deMataMata = partidas.Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)).ToList();
-            var projetados = new List<ProximasFasesDaChave.JogoQueVem>();
+            var cadeias = new List<ProximasFasesDaChave.CadeiaDeFases>();
 
             // Categoria AINDA NA FASE DE GRUPOS: não há jogo de mata-mata nenhum de onde
             // partir, então a projeção começa nas COLOCAÇÕES ("1º do Grupo A × 2º do Grupo
@@ -446,19 +446,12 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
-                projetados.AddRange(ProximasFasesDaChave.MontarDosGrupos(
+                cadeias.Add(ProximasFasesDaChave.MontarDosGrupos(
                     categoria.GruposTorneio.Select(g => g.Nome).OrderBy(n => n).ToList(),
                     Math.Max(1, categoria.ClassificadosPorGrupo ?? 2),
                     torneio.SemHorarioPrevisto || fimDosGrupos == default ? null : fimDosGrupos,
-                    torneio.TempoPrevistoPartidaMinutos,
-                    torneio.QuantidadeQuadras,
-                    torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes,
                     categoria.Nome));
             }
-
-            if (deMataMata.Count == 0)
-                return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
             // duplas que nunca vão se enfrentar.
@@ -475,19 +468,37 @@ namespace Padelizou.Controllers
                     .Where(n => n != null)
                     .ToList()!;
 
-                projetados.AddRange(ProximasFasesDaChave.Montar(
+                cadeias.Add(ProximasFasesDaChave.Montar(
                     porCategoria.Select(p => new ProximasFasesDaChave.PartidaDaChave(
                         p.Id, p.Fase, p.Dupla1.NomeDeExibicao, p.Dupla2.NomeDeExibicao,
                         // Torneio "por ordem de liberação" não marca hora: sem horário a
                         // projeção ainda diz QUEM joga, que é metade do pedido.
                         torneio.SemHorarioPrevisto ? null : p.HorarioPrevisto)).ToList(),
                     byes!,
-                    torneio.TempoPrevistoPartidaMinutos,
-                    torneio.QuantidadeQuadras,
-                    torneio.HoraFimDoDia,
-                    torneio.HoraInicioDiasSeguintes,
                     porCategoria.First().Categoria.Nome));
             }
+
+            if (cadeias.Count == 0) return new();
+
+            // As quadras são do TORNEIO, não da categoria: só dá pra dizer em qual quadra um
+            // jogo projetado cai depois de pôr todas as categorias na mesma grade, junto com
+            // o que já está marcado de verdade. Sem isso a tela prometia oito jogos no mesmo
+            // minuto num torneio de cinco quadras — e nenhum deles com quadra, porque não
+            // havia como saber qual.
+            var ocupadas = partidas
+                .Where(p => p.HorarioPrevisto != null && !torneio.SemHorarioPrevisto)
+                .Select(p => new ProximasFasesDaChave.VagaOcupada(p.HorarioPrevisto!.Value, p.NomeQuadra))
+                .ToList();
+
+            var projetados = ProximasFasesDaChave.Agendar(
+                cadeias,
+                new ProximasFasesDaChave.ConfiguracaoDaGrade(
+                    torneio.TempoPrevistoPartidaMinutos,
+                    torneio.QuantidadeQuadras,
+                    await QuadrasEmUsoAsync(torneioId),
+                    torneio.HoraFimDoDia,
+                    torneio.HoraInicioDiasSeguintes),
+                ocupadas);
 
             return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
         }
