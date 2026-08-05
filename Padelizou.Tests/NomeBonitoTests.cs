@@ -120,4 +120,54 @@ public class NomeBonitoTests
 
         Assert.Equal("ST Led", dupla.NomeDeExibicao);
     }
+
+    // ---- Nome curto: primeiro e último ----
+    // Numa tabela de grupo ou numa vaga de chaveamento, nome de três palavras ocupa três
+    // alturas ou é cortado no meio — e o pedaço que sobra é o nome do meio, justamente o
+    // que menos identifica alguém.
+
+    [Theory]
+    [InlineData("Anderson Matteus Schwaab", "Anderson Schwaab")]
+    [InlineData("Frederico Siqueira de Paula Vargas", "Frederico Vargas")]
+    [InlineData("ALAN DA SILVEIRA MACHADO", "Alan Machado")]
+    [InlineData("Helcio Reisdorfer Correa de Barros", "Helcio Barros")]
+    [InlineData("charls gustavio polese", "Charls Polese")]
+    public void Nome_comprido_fica_com_o_primeiro_e_o_ultimo(string nome, string esperado)
+        => Assert.Equal(esperado, NomeBonito.Curto(nome));
+
+    [Theory]
+    [InlineData("Marcos Coelho", "Marcos Coelho")]
+    [InlineData("Neni", "Neni")]
+    public void Nome_de_uma_ou_duas_palavras_fica_como_esta(string nome, string esperado)
+        => Assert.Equal(esperado, NomeBonito.Curto(nome));
+
+    [Theory]
+    [InlineData("Otávio Wunsch Junior", "Otávio Wunsch")]
+    [InlineData("Paulo Cesar Filho", "Paulo Cesar")]
+    [InlineData("Joao Silva Neto", "Joao Silva")]
+    public void Sufixo_de_geracao_viaja_colado_no_sobrenome(string nome, string esperado)
+    {
+        // "Otávio Junior" não identifica ninguém — quem identifica é "Otávio Wunsch".
+        Assert.Equal(esperado, NomeBonito.Curto(nome));
+    }
+
+    [Fact]
+    public void Particula_solta_no_fim_nao_vira_sobrenome()
+    {
+        // Nome digitado torto ("Ana Paula de") não pode virar "Ana de".
+        Assert.Equal("Ana Paula", NomeBonito.Curto("Ana Paula de"));
+    }
+
+    [Fact]
+    public void Como_chamar_usa_o_nome_curto_e_o_apelido_ganha_dele()
+    {
+        var semApelido = new Jogador { Nome = "Anderson Matteus Schwaab", Cpf = "1" };
+        var comApelido = new Jogador { Nome = "Geovani Batista", Apelido = "Neni", Cpf = "2" };
+
+        Assert.Equal("Anderson Schwaab", semApelido.ComoChamar);
+        Assert.Equal("Neni", comApelido.ComoChamar);
+
+        // O nome COMPLETO segue existindo pra onde ele importa (perfil, financeiro).
+        Assert.Equal("Anderson Matteus Schwaab", semApelido.NomeNaTela);
+    }
 }

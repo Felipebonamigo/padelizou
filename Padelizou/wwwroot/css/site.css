@@ -1677,3 +1677,106 @@ button, a, input, select { touch-action: manipulation; }
     }
     .pdz-chave-vaga { font-size: .76rem; }
 }
+
+/* ── Aviso de AMBIENTE DE TESTE no portão do dev ───────────────────────────
+   Listrado de obra e no topo da tela, antes do formulário. Não é enfeite: depois do
+   portão o dev e o Padelizou de verdade são visualmente idênticos, e o erro que este
+   aviso evita é alguém inscrever gente, cobrar e marcar torneio num banco que é
+   apagado sem avisar. Ligado por Beta__AmbienteDeTeste (Services/BetaSettings). */
+.pdz-aviso-dev {
+    background: repeating-linear-gradient(
+        45deg,
+        #f5c518, #f5c518 18px,
+        #1b1b1b 18px, #1b1b1b 36px
+    );
+    padding: 6px;
+}
+
+.pdz-aviso-dev-caixa {
+    background: #1b1b1b;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    max-width: 46rem;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.pdz-aviso-dev-titulo {
+    font-size: clamp(1.15rem, 4.5vw, 1.9rem);
+    font-weight: 800;
+    letter-spacing: .03em;
+    color: #f5c518;
+    line-height: 1.15;
+    margin-bottom: .5rem;
+}
+
+.pdz-aviso-dev-texto {
+    font-size: clamp(.9rem, 2.6vw, 1.05rem);
+    line-height: 1.45;
+    color: #f1f1f1;
+}
+
+.pdz-aviso-dev-link {
+    display: inline-block;
+    margin-top: .9rem;
+    padding: .45rem 1.1rem;
+    border-radius: 999px;
+    background: #f5c518;
+    color: #1b1b1b;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.pdz-aviso-dev-link:hover { background: #ffd83d; color: #1b1b1b; }
+
+/* ── Mata-mata em fases empilhadas (substitui a árvore) ────────────────────
+   A árvore com linhas de ligação foi tentada e abandonada: num quadro de 32 ela tem
+   16 jogos de largura e não cabe legível em tela nenhuma. Aqui cada fase é uma seção
+   e os jogos fluem em grade — 3-4 por linha no desktop, 1-2 no celular, SEM rolagem
+   lateral. O caminho até a final é a procedência escrita em cada vaga ("Vencedor do
+   jogo 3"). Marcação em Views/Torneios/_ChaveDoMataMata.cshtml. */
+.pdz-mm {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.pdz-mm-titulo {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--pdz-ink);
+    border-bottom: 1px solid var(--pdz-border);
+    padding-bottom: .3rem;
+    margin-bottom: .55rem;
+}
+
+.pdz-mm-conta {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--pdz-muted);
+}
+
+/* auto-fill com mínimo confortável: o navegador decide quantos cabem por linha, e o
+   cartão nunca fica menor que o legível — no celular vira 1-2 colunas sozinho. */
+.pdz-mm-grade {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+    gap: .5rem;
+}
+
+.pdz-mm .pdz-chave-vaga { font-size: .78rem; }
+
+/* A final ganha destaque: é um jogo só, centralizado e um pouco maior. */
+.pdz-mm-fase:last-of-type .pdz-mm-grade {
+    grid-template-columns: minmax(13.5rem, 22rem);
+    justify-content: center;
+}
+
+.pdz-mm-fase:last-of-type .pdz-chave-vaga { font-size: .85rem; }

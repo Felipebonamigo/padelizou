@@ -34,9 +34,14 @@ public partial class Jogador
     public string NomeNaTela => Padelizou.Services.NomeBonito.Formatar(Nome);
 
     // Lista, placar, check-in, painel: o nome curto pelo qual reconhecem a pessoa.
+    //
+    // Sem apelido, é PRIMEIRO e ÚLTIMO nome — "Anderson Matteus Schwaab" vira "Anderson
+    // Schwaab". Antes caía no nome inteiro, e numa tabela de grupo ou numa vaga de
+    // chaveamento isso empurrava a linha pra três alturas ou era cortado no meio, sobrando
+    // justo o nome do meio, que é o que menos identifica alguém. Ver NomeBonito.Curto.
     [NotMapped]
     public string ComoChamar => string.IsNullOrWhiteSpace(Apelido)
-        ? NomeNaTela
+        ? Padelizou.Services.NomeBonito.Curto(Nome)
         : Padelizou.Services.NomeBonito.Formatar(Apelido);
 
     // Perfil e resultado de busca: o nome completo com o apelido ao lado, pra ligar

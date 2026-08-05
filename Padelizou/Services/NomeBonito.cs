@@ -18,6 +18,40 @@ public static class NomeBonito
         "van", "von", "der", "la", "le", "y",
     };
 
+    // Sufixos de geração: são do sobrenome, não sobrenome. "Otávio Wunsch Junior" encurtado
+    // pelo primeiro-e-último viraria "Otávio Junior", que não identifica ninguém — o que
+    // identifica é "Otávio Wunsch".
+    private static readonly HashSet<string> Sufixos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "junior", "júnior", "jr", "jr.", "filho", "neto", "sobrinho", "segundo", "terceiro",
+        "ii", "iii", "iv",
+    };
+
+    // O nome curto pra listas: PRIMEIRO e ÚLTIMO, sem os do meio.
+    //
+    // "Anderson Matteus Schwaab" vira "Anderson Schwaab"; "Frederico Siqueira de Paula
+    // Vargas" vira "Frederico Vargas". Numa tabela de grupo ou numa vaga de chaveamento o
+    // nome inteiro empurra a linha pra três alturas ou é cortado no meio — e o pedaço que
+    // sobra costuma ser o do meio, que é justamente o que menos identifica a pessoa.
+    //
+    // Não toca em quem tem dois nomes: "Marcos Coelho" continua "Marcos Coelho".
+    public static string Curto(string? nome)
+    {
+        var formatado = Formatar(nome);
+        if (string.IsNullOrEmpty(formatado)) return "";
+
+        var palavras = formatado.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (palavras.Length <= 2) return formatado;
+
+        // O sobrenome é a última palavra que não é partícula ("de", "dos") nem sufixo de
+        // geração — as duas coisas viajam coladas nele.
+        int ultimo = palavras.Length - 1;
+        while (ultimo > 0 && (Particulas.Contains(palavras[ultimo]) || Sufixos.Contains(palavras[ultimo])))
+            ultimo--;
+
+        return ultimo == 0 ? palavras[0] : $"{palavras[0]} {palavras[ultimo]}";
+    }
+
     public static string Formatar(string? nome)
     {
         if (string.IsNullOrWhiteSpace(nome)) return "";

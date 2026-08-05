@@ -12,11 +12,13 @@ public class ApelidoBuscaTests
     // ---------- Exibição ----------
 
     [Fact]
-    public void Sem_apelido_o_sistema_chama_pelo_nome()
+    public void Sem_apelido_o_sistema_chama_pelo_nome_curto()
     {
         var j = Novo("José Carlos da Silva", "1");
 
-        Assert.Equal("José Carlos da Silva", j.ComoChamar);
+        // Primeiro e último (05/08/2026): nome de três+ palavras estourava as listas densas.
+        Assert.Equal("José Silva", j.ComoChamar);
+        // O nome completo segue onde ele importa: perfil e busca.
         Assert.Equal("José Carlos da Silva", j.NomeComApelido);
     }
 

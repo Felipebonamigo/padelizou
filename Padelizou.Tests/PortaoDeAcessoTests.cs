@@ -22,7 +22,7 @@ public class PortaoDeAcessoTests
             Extras = { new CredencialDoPortao { Usuario = "bonamigo", Senha = "bonamigo" } },
         };
         var contexto = new ControllerContext { HttpContext = new DefaultHttpContext() };
-        var controller = new AcessoAntecipadoController(Options.Create(settings))
+        var controller = new AcessoAntecipadoController(Options.Create(settings), Options.Create(new BetaSettings()))
         {
             ControllerContext = contexto,
             // UrlHelper de verdade, não dublê: quem decide se o destino é de fora é o
@@ -117,5 +117,49 @@ public class PortaoDeAcessoTests
 
         var local = Assert.IsType<LocalRedirectResult>(resultado);
         Assert.Equal("/", local.Url);
+    }
+
+    // ---- O aviso de "isto é o ambiente de teste" ----
+    // Ele mora no portão porque, depois dele, o dev e o Padelizou de verdade são
+    // visualmente idênticos. O erro que evita é caro: inscrever gente, cobrar e marcar
+    // torneio num banco que é apagado sem aviso.
+
+    [Fact]
+    public void Producao_nao_mostra_aviso_de_ambiente_de_teste()
+    {
+        // O teste que importa dos dois. A flag nasce FALSA de propósito: quem se declara é
+        // a cópia, não o original — se fosse ao contrário, um ambiente novo sem a chave se
+        // passaria por produção. E carimbar "isto é teste" no site de verdade espantaria
+        // usuário real.
+        var controller = ControllerCom(new BetaSettings());
+
+        controller.Entrar(returnUrl: null);
+
+        Assert.False((bool)controller.ViewBag.AmbienteDeTeste);
+    }
+
+    [Fact]
+    public void Dev_anuncia_que_nao_e_o_padelizou_oficial()
+    {
+        var controller = ControllerCom(new BetaSettings { AmbienteDeTeste = true });
+
+        controller.Entrar(returnUrl: null);
+
+        Assert.True((bool)controller.ViewBag.AmbienteDeTeste);
+    }
+
+    private static AcessoAntecipadoController ControllerCom(BetaSettings beta)
+    {
+        var settings = new AcessoAntecipadoSettings
+        {
+            Habilitado = true,
+            Usuario = "Corneteiros",
+            Senha = "corneta",
+        };
+
+        return new AcessoAntecipadoController(Options.Create(settings), Options.Create(beta))
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
     }
 }

@@ -9,16 +9,22 @@ namespace padelizou.Controllers
     public class AcessoAntecipadoController : Controller
     {
         private readonly AcessoAntecipadoSettings _settings;
+        private readonly BetaSettings _beta;
 
-        public AcessoAntecipadoController(IOptions<AcessoAntecipadoSettings> options)
+        public AcessoAntecipadoController(IOptions<AcessoAntecipadoSettings> options, IOptions<BetaSettings> beta)
         {
             _settings = options.Value;
+            _beta = beta.Value;
         }
 
         [HttpGet]
         public IActionResult Entrar(string? returnUrl)
         {
             ViewBag.ReturnUrl = returnUrl;
+            // O aviso de "isto é o ambiente de teste" mora no portão: dentro do site as duas
+            // instalações são idênticas, e aqui é o último momento em que dá pra perceber
+            // que se errou de endereço.
+            ViewBag.AmbienteDeTeste = _beta.AmbienteDeTeste;
             return View();
         }
 

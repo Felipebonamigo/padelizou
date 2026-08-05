@@ -14,6 +14,33 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
+    @* Ambiente de TESTE: o aviso vem ANTES do formulário, ocupando a tela, porque a hora de
+       perceber que se errou de endereço é antes de entrar — depois do portão as duas
+       instalações são visualmente idênticas. O erro que ele evita é caro: inscrever gente de
+       verdade, cobrar de verdade e marcar torneio de verdade num banco que é apagado sem
+       aviso. Ligado por `Beta__AmbienteDeTeste=true` no systemd do dev. *@
+    @if (ViewBag.AmbienteDeTeste == true)
+    {
+        <div class="pdz-aviso-dev">
+            <div class="pdz-aviso-dev-caixa">
+                <div class="pdz-aviso-dev-titulo">
+                    <i class="bi bi-cone-striped"></i> AMBIENTE DE DESENVOLVIMENTO
+                </div>
+                <p class="pdz-aviso-dev-texto mb-2">
+                    <strong>Este NÃO é o Padelizou oficial.</strong>
+                </p>
+                <p class="pdz-aviso-dev-texto mb-0">
+                    É a cópia usada para testar coisas novas. Tudo aqui — conta, torneio,
+                    inscrição, pagamento — é <strong>de mentira</strong> e pode ser apagado a
+                    qualquer momento, sem aviso.
+                </p>
+                <a href="https://padelizou.com.br" class="pdz-aviso-dev-link">
+                    Ir para o Padelizou oficial <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    }
+
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-md-5">

@@ -18,10 +18,11 @@
     <img src="@(string.IsNullOrEmpty(Model.FotoPerfil) ? "/img/default-avatar.png" : Model.FotoPerfil)"
          class="rounded-circle flex-shrink-0" style="width: 36px; height: 36px; object-fit: cover;" />
     <span>
-        @* NomeNaTela, não Nome: cada um digita como quer, e na mesma lista conviviam
-           "ALAN DA SILVEIRA MACHADO" e "charls gustavio polese". O que está gravado
-           continua sendo o que a pessoa escreveu. *@
-        <span class="fw-bold d-block" style="line-height: 1.1;">@Model.NomeNaTela</span>
+        @* ComoChamar, não Nome: cada um digita como quer (na mesma lista conviviam "ALAN DA
+           SILVEIRA MACHADO" e "charls gustavio polese") e nome de três palavras ocupava três
+           alturas na tabela do grupo. Aqui vale o apelido, ou primeiro e último nome. O que
+           está gravado continua sendo o que a pessoa escreveu. *@
+        <span class="fw-bold d-block" style="line-height: 1.1;">@Model.ComoChamar</span>
         @if (Model.Time != null)
         {
             <small class="text-muted d-block" style="line-height: 1.1;">@Model.Time.Nome</small>

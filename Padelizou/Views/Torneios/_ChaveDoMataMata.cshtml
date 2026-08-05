@@ -1,19 +1,21 @@
 @model (List<Padelizou.Models.Partida> Jogos, List<Padelizou.Models.Dupla> Byes)
 @*
-    O chaveamento como ÁRVORE, de cima pra baixo: a primeira rodada no topo, cada fase numa
-    linha abaixo, ligadas por linhas que mostram de onde vem cada vaga — e a final embaixo,
-    com o troféu. Pedido do Felipe (05/08/2026), no lugar da lista por fase.
+    O mata-mata em FASES EMPILHADAS: cada fase é uma seção, de cima pra baixo, com os jogos
+    em cartões numa grade que se adapta à largura — 3-4 por linha no desktop, 1-2 no celular.
 
-    Duas coisas que o desenho precisa acertar e que não são óbvias:
+    A ÁRVORE com linhas de ligação foi tentada e abandonada de propósito (05/08/2026): num
+    quadro de 32 ela tem 16 jogos de largura, e não existe tela em que isso caiba legível —
+    no celular virava rolagem infinita com cartões de 90px. O caminho até a final quem conta
+    é a PROCEDÊNCIA escrita em cada vaga ("Vencedor do jogo 3"), com os jogos numerados: dá
+    pra seguir o próprio trajeto sem precisar de geometria nenhuma.
 
-    1. A ORDEM dos jogos numa linha não é a de criação. O mata-mata cruza o primeiro com o
-       último, então desenhar na ordem de criação colaria dois jogos que vão pra lados
-       opostos da chave — e as linhas ligariam quem não se encontra. Quem sabe a geometria
-       é Services/OrdemDoQuadro.
+    Vale pra TODO mata-mata — o pós-grupos e o que é só mata-mata usam este mesmo
+    componente, então os dois têm exatamente a mesma cara.
 
-    2. Quem pegou BYE ocupa uma vaga própria no topo, ao lado do jogo com quem vai cruzar.
-       Sem isso a árvore não fecha (a linha de baixo teria um pai só) e a dupla que descansou
-       simplesmente sumia do quadro — foi o defeito apontado: 24 duplas na chave, 16 visíveis.
+    Quem pegou BYE aparece NOMEADO dentro do jogo futuro em que vai entrar (o pareamento é o
+    do robô: vencedores na ordem dos jogos + byes do melhor pro pior, primeiro x último —
+    Services/AvancoDaChave + ParearVencedores). Sem isso a dupla que descansou sumia do
+    quadro: 24 na chave, 16 visíveis.
 *@
 @{
     var jogos = Model.Jogos ?? new List<Padelizou.Models.Partida>();
@@ -34,243 +36,181 @@
         return $"{n1} / {n2}";
     }
 
-    var linhas = new List<LinhaVM>();
+    // Cada fase vira uma lista de vagas: jogo real, ou jogo futuro com a procedência de
+    // cada lado. Numeração GLOBAL na ordem de criação — a mesma que o robô lê, então
+    // "Vencedor do jogo 3" aqui e na chave de verdade são o mesmo jogo.
+    var fases = new List<(string Nome, List<VagaVM> Vagas)>();
     int numero = 1;
 
     int primeira = Array.FindIndex(ordemDasFases, f => jogos.Any(j => j.Fase == f));
     if (primeira >= 0)
     {
-        // ---- Topo: os jogos da primeira fase + uma vaga por dupla que passou direto ----
-        var aberturas = new List<VagaVM>();
-        foreach (var jogo in jogos.Where(j => j.Fase == ordemDasFases[primeira]).OrderBy(j => j.Id))
-            aberturas.Add(new VagaVM { Numero = numero++, Jogo = jogo });
+        // Quem entra na fase seguinte, na ordem do pareamento do robô.
+        var entrantes = new List<LadoVM>();
 
-        int jogosDeAbertura = aberturas.Count;
-        foreach (var dupla in byes)
-            aberturas.Add(new VagaVM { Bye = dupla });
-
-        // ---- Fases seguintes: cada jogo cruza o k-ésimo com o k-ésimo do fim ----
-        // (é o ParearVencedores do robô). Guardo QUAIS vagas alimentam cada jogo pra
-        // conseguir remontar a ordem do topo depois — a árvore se desenha de baixo pra cima.
-        var atual = aberturas;
-        var porFase = new List<(string Fase, List<VagaVM> Vagas)>();
-
-        for (int i = primeira + 1; i < ordemDasFases.Length && atual.Count >= 2; i++)
+        for (int i = primeira; i < ordemDasFases.Length; i++)
         {
-            var fase = ordemDasFases[i];
-            var reais = jogos.Where(j => j.Fase == fase).OrderBy(j => j.Id).ToList();
+            var faseAtual = ordemDasFases[i];
+            var reais = jogos.Where(j => j.Fase == faseAtual).OrderBy(j => j.Id).ToList();
             var vagas = new List<VagaVM>();
 
-            for (int k = 0; k < atual.Count / 2; k++)
+            if (reais.Count > 0)
             {
-                vagas.Add(new VagaVM
+                foreach (var jogo in reais)
+                    vagas.Add(new VagaVM { Numero = numero++, Jogo = jogo });
+
+                entrantes = vagas.Select(v => LadoVM.VencedorDe(v.Numero)).ToList();
+                entrantes.AddRange(byes.Select(b => LadoVM.Bye(NomeDaDupla(b))));
+            }
+            else
+            {
+                int quantos = entrantes.Count / 2;
+                if (quantos == 0) break;
+
+                var proximos = new List<LadoVM>();
+                for (int k = 0; k < quantos; k++)
                 {
-                    Numero = numero++,
-                    Jogo = k < reais.Count ? reais[k] : null,
-                    Pai1 = atual[k],
-                    Pai2 = atual[atual.Count - 1 - k],
-                });
+                    var vaga = new VagaVM
+                    {
+                        Numero = numero++,
+                        Lado1 = entrantes[k],
+                        Lado2 = entrantes[entrantes.Count - 1 - k],
+                    };
+                    vagas.Add(vaga);
+                    proximos.Add(LadoVM.VencedorDe(vaga.Numero));
+                }
+                entrantes = proximos;
             }
 
-            porFase.Add((fase, vagas));
-            atual = vagas;
-            if (fase == "Final") break;
+            // Fase REAL fica com o nome dos próprios jogos — com bye ela tem MENOS jogos que
+            // o quadro promete, e batizá-la pela contagem rebaixaria uma Primeira Rodada de
+            // 2 jogos a "Semifinal". Fase FUTURA não tem jogos ainda: o nome sai do tamanho
+            // (vagas × 2 lados), senão uma chave curta termina com a final rotulada "Quartas".
+            fases.Add((reais.Count > 0
+                ? faseAtual
+                : Padelizou.Services.ChaveamentoMataMata.NomeFase(vagas.Count * 2), vagas));
+
+            if (vagas.Count == 1 && reais.Count > 0 && faseAtual == "Final") break;
+            if (entrantes.Count < 2) break;
         }
-
-        // ---- A ordem de desenho, de baixo pra cima ----
-        // A última linha manda; cada linha acima é a sequência dos PAIS da linha de baixo,
-        // e é isso que faz cada par de vizinhos desembocar no jogo logo abaixo deles.
-        if (porFase.Count > 0)
-        {
-            var ultima = porFase[^1];
-            var ordenadas = new List<(string Fase, List<VagaVM> Vagas)>
-            {
-                (ultima.Fase, Padelizou.Services.OrdemDoQuadro.Ordenar(ultima.Vagas))
-            };
-
-            for (int i = porFase.Count - 2; i >= 0; i--)
-            {
-                var abaixo = ordenadas[^1].Vagas;
-                ordenadas.Add((porFase[i].Fase,
-                    abaixo.SelectMany(v => new[] { v.Pai1!, v.Pai2! }).ToList()));
-            }
-
-            // ⚠️ O nome de cada fase sai do TAMANHO do quadro dela (2 jogos = 4 duplas =
-            // Semifinal), não da posição numa lista fixa. Percorrendo a lista, uma chave que
-            // começa na "Primeira Rodada" e tem só três fases terminaria rotulada "Quartas"
-            // — com a final chamada de outra coisa.
-            //
-            // Vale pra TODAS as linhas geradas aqui. A única que mantém o nome de origem é a
-            // do topo, que é a fase REAL dos jogos já sorteados — e ela ainda nem entrou na
-            // lista neste ponto.
-            for (int i = 0; i < ordenadas.Count; i++)
-            {
-                ordenadas[i] = (Padelizou.Services.ChaveamentoMataMata.NomeFase(ordenadas[i].Vagas.Count * 2),
-                                ordenadas[i].Vagas);
-            }
-
-            var topo = ordenadas[^1].Vagas.SelectMany(v => new[] { v.Pai1!, v.Pai2! }).ToList();
-            ordenadas.Add((ordemDasFases[primeira], topo));
-
-            ordenadas.Reverse();
-            linhas = ordenadas.Select(o => new LinhaVM { Fase = o.Fase, Vagas = o.Vagas }).ToList();
-        }
-        else
-        {
-            // Fase única (uma final direta, por exemplo): não há árvore, só a linha.
-            linhas.Add(new LinhaVM { Fase = ordemDasFases[primeira], Vagas = aberturas });
-        }
-
-        // O topo pode ter vagas de bye: elas não são jogos, e a numeração pula.
-        _ = jogosDeAbertura;
     }
 
-    var jogoFinal = linhas.Count > 0 && linhas[^1].Fase == "Final"
-        ? linhas[^1].Vagas.FirstOrDefault()?.Jogo : null;
+    var jogoFinal = fases.Count > 0 && fases[^1].Nome == "Final"
+        ? fases[^1].Vagas.FirstOrDefault()?.Jogo : null;
     var campea = jogoFinal is { Status: "Finalizada", VencedorId: not null }
         ? (jogoFinal.VencedorId == jogoFinal.Dupla1Id ? jogoFinal.Dupla1 : jogoFinal.Dupla2)
         : null;
-
-    int colunas = linhas.Count > 0 ? linhas[0].Vagas.Count : 0;
 }
 
 @functions {
-    public class VagaVM
+    public class LadoVM
     {
-        public int Numero { get; set; }                     // 0 = vaga de bye (não é jogo)
-        public Padelizou.Models.Partida? Jogo { get; set; }
-        public Padelizou.Models.Dupla? Bye { get; set; }
-        public VagaVM? Pai1 { get; set; }
-        public VagaVM? Pai2 { get; set; }
+        public string Rotulo { get; set; } = "";
+        public bool EhBye { get; set; }
+        public static LadoVM VencedorDe(int numero) => new() { Rotulo = $"Vencedor do jogo {numero}" };
+        public static LadoVM Bye(string nome) => new() { Rotulo = nome, EhBye = true };
     }
 
-    public class LinhaVM
+    public class VagaVM
     {
-        public string Fase { get; set; } = "";
-        public List<VagaVM> Vagas { get; set; } = new();
+        public int Numero { get; set; }
+        public Padelizou.Models.Partida? Jogo { get; set; }
+        public LadoVM? Lado1 { get; set; }
+        public LadoVM? Lado2 { get; set; }
     }
 }
 
-@if (linhas.Count == 0)
+@if (fases.Count == 0)
 {
     return;
 }
 
-<p class="text-muted small mb-3">
-    <i class="bi bi-arrows-move"></i> Deslize para o lado se a chave não couber na tela.
-</p>
+<div class="pdz-mm">
+    @foreach (var (nome, vagas) in fases)
+    {
+        <div class="pdz-mm-fase">
+            <div class="pdz-mm-titulo">
+                @nome
+                <span class="pdz-mm-conta">@vagas.Count @(vagas.Count == 1 ? "jogo" : "jogos")</span>
+            </div>
 
-<div class="pdz-arv-rolagem">
-    <div class="pdz-arv" style="--pdz-arv-colunas: @colunas;">
-        @for (int i = 0; i < linhas.Count; i++)
-        {
-            var linha = linhas[i];
-            int larguraDaVaga = colunas / Math.Max(1, linha.Vagas.Count);
-
-            <div class="pdz-arv-fase">@linha.Fase</div>
-            <div class="pdz-arv-linha">
-                @foreach (var vaga in linha.Vagas)
+            <div class="pdz-mm-grade">
+                @foreach (var vaga in vagas)
                 {
-                    <div class="pdz-arv-celula" style="grid-column: span @larguraDaVaga;">
-                        @if (i > 0)
-                        {
-                            @* A ligação com os dois pais logo acima: dois cotovelos que se
-                               encontram no meio e descem até esta vaga. *@
-                            <span class="pdz-arv-liga"><i></i></span>
-                        }
+                    var jogo = vaga.Jogo;
+                    if (jogo != null)
+                    {
+                        var venceu1 = jogo.VencedorId == jogo.Dupla1Id;
+                        var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
+                        var aoVivo = jogo.Status == "AoVivo";
 
-                        @if (vaga.Bye != null)
-                        {
-                            <div class="pdz-chave-vaga pdz-arv-bye">
-                                <div class="pdz-chave-quando">
-                                    <span class="pdz-chave-selobye">passou direto</span>
-                                </div>
-                                <span class="pdz-chave-lado pdz-chave-venceu">
-                                    <span class="pdz-chave-nome">@NomeDaDupla(vaga.Bye)</span>
-                                </span>
+                        <div class="pdz-chave-vaga @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
+                            <div class="pdz-chave-quando">
+                                <span class="pdz-chave-num">@vaga.Numero</span>
+                                @if (aoVivo)
+                                {
+                                    <span class="pdz-chave-aovivo">● AO VIVO</span>
+                                }
+                                else if (jogo.HorarioPrevisto is DateTime h)
+                                {
+                                    <span>@h.ToString("dd/MM HH:mm")</span>
+                                }
+                                else
+                                {
+                                    <span>por ordem</span>
+                                }
+                                @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
+                                {
+                                    <span class="pdz-chave-quadra">@jogo.NomeQuadra</span>
+                                }
                             </div>
-                        }
-                        else if (vaga.Jogo is { } jogo)
-                        {
-                            var venceu1 = jogo.VencedorId == jogo.Dupla1Id;
-                            var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
-                            var aoVivo = jogo.Status == "AoVivo";
-
-                            <div class="pdz-chave-vaga @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
-                                <div class="pdz-chave-quando">
-                                    <span class="pdz-chave-num">@vaga.Numero</span>
-                                    @if (aoVivo)
-                                    {
-                                        <span class="pdz-chave-aovivo">● AO VIVO</span>
-                                    }
-                                    else if (jogo.HorarioPrevisto is DateTime h)
-                                    {
-                                        <span>@h.ToString("dd/MM HH:mm")</span>
-                                    }
-                                    else
-                                    {
-                                        <span>por ordem</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(jogo.NomeQuadra))
-                                    {
-                                        <span class="pdz-chave-quadra">@jogo.NomeQuadra</span>
-                                    }
-                                </div>
-                                <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
-                                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
-                                    <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
-                                </span>
-                                <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
-                                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
-                                    <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
-                                </span>
+                            <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
+                                <span class="pdz-chave-games">@(jogo.GamesDupla1?.ToString() ?? "–")</span>
+                            </span>
+                            <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+                                <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
+                                <span class="pdz-chave-games">@(jogo.GamesDupla2?.ToString() ?? "–")</span>
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="pdz-chave-vaga pdz-chave-vaga-vazia">
+                            <div class="pdz-chave-quando">
+                                <span class="pdz-chave-num">@vaga.Numero</span>
+                                <span>a definir</span>
                             </div>
-                        }
-                        else
-                        {
-                            @* Jogo que ainda não existe: quem chega aqui vem dos dois de cima. *@
-                            <div class="pdz-chave-vaga pdz-chave-vaga-vazia">
-                                <div class="pdz-chave-quando">
-                                    <span class="pdz-chave-num">@vaga.Numero</span>
-                                    <span>a definir</span>
-                                </div>
-                                <span class="pdz-chave-lado text-muted">
-                                    <span class="pdz-chave-nome">@Procedencia(vaga.Pai1)</span>
+                            @foreach (var lado in new[] { vaga.Lado1, vaga.Lado2 })
+                            {
+                                <span class="pdz-chave-lado @(lado?.EhBye == true ? "" : "text-muted")">
+                                    <span class="pdz-chave-nome">@(lado?.Rotulo ?? "A definir")</span>
+                                    @if (lado?.EhBye == true)
+                                    {
+                                        <span class="pdz-chave-selobye" title="Passou direto — descansou a rodada anterior">bye</span>
+                                    }
                                 </span>
-                                <span class="pdz-chave-lado text-muted">
-                                    <span class="pdz-chave-nome">@Procedencia(vaga.Pai2)</span>
-                                </span>
-                            </div>
-                        }
-                    </div>
+                            }
+                        </div>
+                    }
                 }
             </div>
+        </div>
+    }
+
+    <div class="pdz-chave-trofeu">
+        @if (campea != null)
+        {
+            <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
+                 width="110" height="114" class="rounded-3" />
+            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
+            <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
+        }
+        else
+        {
+            <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #e0a800;"></i>
+            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
+            <div class="text-muted small">Aguardando...</div>
         }
     </div>
 </div>
-
-<div class="pdz-chave-trofeu mt-3">
-    @* O mascote só entra quando existe campeão de verdade. Chave em aberto continua com o
-       troféu: comemorar antes da final estraga o momento em que a comemoração vale. *@
-    @if (campea != null)
-    {
-        <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
-             width="110" height="114" class="rounded-3" />
-        <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-        <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
-    }
-    else
-    {
-        <i class="bi bi-trophy-fill" style="font-size: 3rem; color: #e0a800;"></i>
-        <div class="fw-bold mt-2" style="color: var(--pdz-ink);">Campeão</div>
-        <div class="text-muted small">Aguardando...</div>
-    }
-</div>
-
-@functions {
-    // De onde vem quem vai ocupar esta vaga. Bye tem nome; jogo tem número.
-    private static string Procedencia(VagaVM? pai) =>
-        pai == null ? "A definir"
-        : pai.Bye != null ? "Quem passou direto"
-        : $"Vencedor do jogo {pai.Numero}";
-}
