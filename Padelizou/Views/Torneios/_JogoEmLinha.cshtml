@@ -177,6 +177,34 @@
                         <i class="bi bi-geo-alt"></i>
                     </button>
                 }
+                @* DESFAZER o clique errado. De celular, no balcão, tocar no play do jogo de
+                   baixo ou finalizar a partida errada acontece — e não tinha volta. *@
+                @if (jogo.Status == "AoVivo")
+                {
+                    <form asp-controller="Partidas" asp-action="VoltarParaAgendado" asp-route-id="@jogo.Id" method="post"
+                          data-confirmar="O jogo volta pra lista de agendados, com a mesma hora e a mesma quadra. O placar em tela é zerado."
+                          data-confirmar-titulo="Tirar da quadra?"
+                          data-confirmar-ok="Voltar pra agendado">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                title="Voltar pra agendado" aria-label="Voltar pra agendado">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </form>
+                }
+                else if (Model.Finalizada)
+                {
+                    <form asp-controller="Partidas" asp-action="ReabrirPartida" asp-route-id="@jogo.Id" method="post"
+                          data-confirmar="O jogo volta pra AO VIVO e o resultado deixa de valer: o Padelímetro é desfeito e a fase seguinte, se tiver nascido deste resultado, é apagada e montada de novo quando você confirmar. Se a fase seguinte já começou, o sistema recusa."
+                          data-confirmar-titulo="Reabrir este jogo?"
+                          data-confirmar-ok="Reabrir">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                title="Reabrir (voltar pra ao vivo)" aria-label="Reabrir (voltar pra ao vivo)">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </form>
+                }
                 <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
                    class="btn btn-sm btn-outline-secondary"
                    title="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")"

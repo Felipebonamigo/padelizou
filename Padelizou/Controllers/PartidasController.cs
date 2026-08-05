@@ -201,6 +201,128 @@ namespace Padelizou.Controllers
                 : RedirectToAction("ControlePlacar", new { id });
         }
 
+        // DESFAZER o play: o jogo volta pra fila como se nunca tivesse sido chamado.
+        // De celular, no balcão, com fila esperando, tocar no play do jogo de baixo acontece —
+        // e até agora não tinha volta.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VoltarParaAgendado(int id)
+        {
+            var partida = await _context.Partidas.FindAsync(id);
+            if (partida == null) return NotFound();
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+
+            if (DesfazerDoJogo.MotivoParaNaoVoltarParaAgendado(partida) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+            }
+            else
+            {
+                DesfazerDoJogo.VoltarParaAgendado(partida);
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = $"O jogo {partida.Codigo} voltou pra agendado — hora e quadra continuam as mesmas.";
+            }
+
+            return partida.TorneioId.HasValue
+                ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
+                : RedirectToAction("ControlePlacar", new { id });
+        }
+
+        // REABRIR uma partida finalizada.
+        //
+        // ⚠️ Muito mais que trocar o status: finalizar carimba a fase do perdedor, move o
+        // Padelímetro dos 4 jogadores e MANDA O ROBÔ CRIAR A FASE SEGUINTE quando aquele era o
+        // último jogo da fase. Reabrir sem desfazer isso deixaria a categoria com uma
+        // semifinal montada a partir de um resultado apagado.
+        //
+        // A recusa vem de Services/DesfazerDoJogo: se algo que veio depois já saiu do papel,
+        // não se reabre — nesse ponto a correção virou decisão de quem organiza, e o caminho
+        // certo é corrigir o placar.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReabrirPartida(int id)
+        {
+            var partida = await _context.Partidas.FindAsync(id);
+            if (partida == null) return NotFound();
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+
+            var daCategoria = await _context.Partidas
+                .Where(p => p.CategoriaId == partida.CategoriaId)
+                .ToListAsync();
+
+            if (DesfazerDoJogo.MotivoParaNaoReabrir(partida, daCategoria) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return partida.TorneioId.HasValue
+                    ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
+                    : RedirectToAction("ControlePlacar", new { id });
+            }
+
+            // 1. A fase que este resultado gerou some — ela era consequência dele.
+            var geradosDepois = DesfazerDoJogo.GeradosDepois(partida, daCategoria);
+            if (geradosDepois.Count > 0) _context.Partidas.RemoveRange(geradosDepois);
+
+            // 2. O carimbo de eliminação do perdedor volta a ficar em aberto, e o campeão
+            //    deixa de ser campeão (ele volta a ser só finalista).
+            var perdedorId = partida.VencedorId == partida.Dupla1Id ? partida.Dupla2Id : partida.Dupla1Id;
+            var envolvidas = await _context.Duplas
+                .Where(d => d.Id == partida.Dupla1Id || d.Id == partida.Dupla2Id)
+                .ToListAsync();
+            foreach (var dupla in envolvidas)
+            {
+                if (dupla.Id == perdedorId && !FasesTorneio.EhFaseDeGrupos(partida.Fase)) dupla.UltimaFase = null;
+                if (dupla.Id == partida.VencedorId && dupla.UltimaFase == "Campeao") dupla.UltimaFase = "Final";
+            }
+
+            // 3. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
+            //    volta pro que era. Como o desfazer acontece minutos depois do erro, esta é a
+            //    última partida aplicada e a subtração é exata; se não for, o replay do admin
+            //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync).
+            var extrato = await _context.HistoricosDePadelimetro
+                .Where(h => h.PartidaId == partida.Id).ToListAsync();
+            if (extrato.Count > 0)
+            {
+                var porJogador = await _context.Jogadores
+                    .Where(j => extrato.Select(h => h.JogadorId).Contains(j.Id))
+                    .ToDictionaryAsync(j => j.Id);
+
+                foreach (var linha in extrato)
+                {
+                    if (!porJogador.TryGetValue(linha.JogadorId, out var jogador)) continue;
+                    jogador.Padelimetro = linha.NivelAntes;
+                    jogador.JogosDePadelimetro = Math.Max(0, jogador.JogosDePadelimetro - 1);
+                }
+
+                _context.HistoricosDePadelimetro.RemoveRange(extrato);
+            }
+
+            // 4. O torneio deixa de estar finalizado se era esta final que o encerrava.
+            if (partida.Fase == "Final" && partida.TorneioId is int torneioId)
+            {
+                var torneio = await _context.Torneios.FindAsync(torneioId);
+                if (torneio != null && torneio.Status == "Finalizado") torneio.Status = "Fase de Grupos";
+            }
+
+            // 5. E aí sim o jogo volta pra quadra.
+            partida.Status = "AoVivo";
+            partida.VencedorId = null;
+            partida.HorarioFimReal = null;
+            partida.HorarioInicioReal ??= DateTime.Now;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"O jogo {partida.Codigo} voltou pra AO VIVO. " +
+                (geradosDepois.Count > 0
+                    ? $"A fase seguinte ({geradosDepois.Count} jogo(s)) foi desfeita e nasce de novo quando este resultado for confirmado."
+                    : "O placar continua na tela pra você corrigir.");
+
+            return partida.TorneioId.HasValue
+                ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
+                : RedirectToAction("ControlePlacar", new { id });
+        }
+
         // POST: Partidas/ControlePlacar/5
         [HttpPost]
         [Authorize]
