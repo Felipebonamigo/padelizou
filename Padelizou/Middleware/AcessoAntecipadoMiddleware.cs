@@ -21,10 +21,17 @@ public class AcessoAntecipadoMiddleware
     // Só o caminho exato do webhook entra aqui — liberar "/Pagamentos" inteiro abriria as telas
     // de extrato e configuração de recebimento pra qualquer visitante. O webhook em si não fica
     // desprotegido: ele exige o token secreto do Asaas no header.
-    private static readonly string[] PrefixosLiberados =
+    //
+    // "/Auth/Login" e companhia entraram em 05/08/2026: quem JÁ TEM CONTA entra com o login
+    // dele, sem a senha compartilhada. A recuperação de senha vem junto de propósito — quem
+    // esqueceu a senha da própria conta é exatamente quem não tem como pedir a do portão.
+    // "/Auth/Cadastro" continua FORA: conta nova segue sendo por convite, que é o que o
+    // portão existe pra controlar.
+    public static readonly string[] PrefixosLiberados =
     {
         "/AcessoAntecipado", "/lib", "/css", "/js", "/image", "/uploads", "/favicon", "/Agenda/Feed",
-        "/manifest.json", "/sw.js", "/Pagamentos/Webhook", "/healthz"
+        "/manifest.json", "/sw.js", "/Pagamentos/Webhook", "/healthz",
+        "/Auth/Login", "/Auth/Logout", "/Auth/EsqueciSenha", "/Auth/RedefinirSenha"
     };
 
     private readonly RequestDelegate _next;
@@ -55,22 +62,28 @@ public class AcessoAntecipadoMiddleware
             return;
         }
 
-        if (!EstaLiberado(context, settings))
+        // O middleware de autenticação normal do ASP.NET Core ainda não rodou nesse ponto do
+        // pipeline (estamos antes do UseRouting) — por isso autenticamos manualmente aqui.
+        // Isso PRECISA vir antes da decisão de barrar: quem já está logado passa.
+        var resultado = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        if (resultado.Succeeded)
+        {
+            context.User = resultado.Principal!;
+        }
+
+        // Quem já tem conta no Padelizou não precisa da senha compartilhada: a conta DELE é o
+        // convite, e ele já passou pelo portão uma vez pra se cadastrar. Antes o portão vinha
+        // antes de tudo, então trocar de celular, limpar o navegador ou o cookie de 90 dias
+        // expirar trancava um usuário de verdade do lado de fora do próprio cadastro — e a
+        // saída era pedir de novo uma senha compartilhada que ele não tem por que guardar.
+        if (!resultado.Succeeded && !EstaLiberado(context, settings))
         {
             var returnUrl = context.Request.Path + context.Request.QueryString;
             context.Response.Redirect($"/AcessoAntecipado/Entrar?returnUrl={Uri.EscapeDataString(returnUrl)}");
             return;
         }
 
-        // A checagem de cookie/rota já rodou, mas o middleware de autenticação normal do
-        // ASP.NET Core ainda não rodou nesse ponto do pipeline (estamos antes do UseRouting) —
-        // por isso autenticamos manualmente aqui pra saber se o jogador já está logado.
-        var resultado = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        if (resultado.Succeeded)
-        {
-            context.User = resultado.Principal!;
-        }
-        else if (!string.IsNullOrWhiteSpace(settings.LoginAutomaticoCpf))
+        if (!resultado.Succeeded && !string.IsNullOrWhiteSpace(settings.LoginAutomaticoCpf))
         {
             // MODO DEMONSTRAÇÃO: quem passou pela senha do gate entra logado como esse jogador,
             // checado em toda request (não só no POST do form) pra que os menus de logado não
@@ -98,7 +111,9 @@ public class AcessoAntecipadoMiddleware
         await _next(context);
     }
 
-    private static bool EhCaminhoLiberado(PathString path)
+    // Público pra ser testável: a lista de quem o portão NÃO fecha é o tipo de coisa que se
+    // afrouxa sem querer (liberar "/Auth" inteiro abriria o cadastro junto com o login).
+    public static bool EhCaminhoLiberado(PathString path)
     {
         return PrefixosLiberados.Any(prefixo => path.StartsWithSegments(prefixo, StringComparison.OrdinalIgnoreCase));
     }

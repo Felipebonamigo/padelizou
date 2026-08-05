@@ -12,8 +12,13 @@ public class AcessoAntecipadoSettings
     public bool Habilitado { get; set; }
 
     // A credencial PRINCIPAL. Continua sozinha no seu lugar de sempre porque é dela que sai o
-    // hash do cookie (ver AcessoAntecipadoMiddleware.CalcularHash): trocá-la derruba todo mundo
-    // pra fora do portão de uma vez, que é justamente o que se quer quando a senha vaza.
+    // hash do cookie (ver AcessoAntecipadoMiddleware.CalcularHash): trocá-la derruba de uma vez
+    // todo mundo que entrou SÓ pelo portão, que é o que se quer quando a senha vaza.
+    //
+    // ⚠️ Desde 05/08/2026 isso não alcança mais quem tem CONTA: jogador cadastrado entra pelo
+    // próprio login e a troca da senha não o expulsa. Foi uma escolha — usuário de verdade não
+    // pode ficar trancado fora do próprio cadastro por causa de uma senha compartilhada que ele
+    // não tem por que guardar. Pra cortar o acesso de alguém com conta, é a conta que se mexe.
     public string Usuario { get; set; } = null!;
     public string Senha { get; set; } = null!;
 
