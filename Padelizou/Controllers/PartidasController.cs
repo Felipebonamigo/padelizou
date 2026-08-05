@@ -125,6 +125,41 @@ namespace Padelizou.Controllers
             return View(partida);
         }
 
+        // SUGESTÃO DE INÍCIO na tela: acabou o jogo da Quadra 3, a Quadra 3 já aparece com o
+        // próximo dela e um botão de começar.
+        //
+        // Numa noite de 5 quadras e jogo curto, "achar o próximo jogo daquela quadra" era uma
+        // busca visual numa lista de 80 linhas, a cada 11 minutos, cinco vezes. A quadra fica
+        // parada enquanto o organizador procura — e é justamente o tempo que não sobra.
+        //
+        // A regra de QUAL é o próximo é a mesma do push (Services/AvisosDoDiaDeJogo): a
+        // primeira agendada na mesma quadra. Uma segunda conta aqui e a tela sugeriria um jogo
+        // diferente do que o jogador recebeu no celular.
+        private async Task SugerirProximoDaQuadraAsync(Partida terminada)
+        {
+            if (terminada.TorneioId == null) return;
+
+            var agendadas = await _context.Partidas
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2!)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2!)
+                .Where(p => p.TorneioId == terminada.TorneioId && p.Status == "Agendada")
+                .ToListAsync();
+
+            var proxima = AvisosDoDiaDeJogo.ProximaNaQuadra(terminada, agendadas);
+            if (proxima == null) return;
+
+            TempData["ProximoJogoId"] = proxima.Id;
+            TempData["ProximoJogoOnde"] = string.IsNullOrWhiteSpace(proxima.NomeQuadra)
+                ? "A quadra vagou"
+                : $"A {proxima.NomeQuadra} vagou";
+            TempData["ProximoJogoQuem"] =
+                $"{proxima.Dupla1.NomeDeExibicao} × {proxima.Dupla2.NomeDeExibicao}";
+            TempData["ProximoJogoQuando"] =
+                $"{proxima.Categoria?.Nome ?? proxima.Fase} · previsto {proxima.HorarioPrevisto:HH:mm}";
+        }
+
         // Push de "seu jogo é o próximo", disparado pelo FIM do jogo anterior — não por
         // relógio. Torneio atrasa, e um aviso preso ao horário previsto chegaria com o
         // jogador ainda almoçando, ou depois de ele já ter jogado. Quem sabe de verdade que
@@ -448,7 +483,11 @@ namespace Padelizou.Controllers
 
                 // A quadra acabou de vagar: chama quem joga nela agora. Só na transição —
                 // ver `acabouDeTerminar` lá em cima.
-                if (acabouDeTerminar) await AvisarProximoDaQuadraAsync(partida);
+                if (acabouDeTerminar)
+                {
+                    await AvisarProximoDaQuadraAsync(partida);
+                    await SugerirProximoDaQuadraAsync(partida);
+                }
             }
 
             return RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });

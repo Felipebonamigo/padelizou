@@ -44,6 +44,29 @@
     var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
 }
 
+@* A QUADRA VAGOU: o próximo jogo dela já vem com o botão de começar.
+   Numa noite de 5 quadras e jogo curto, achar "o próximo daquela quadra" era uma busca
+   visual numa lista de 80 linhas, a cada 11 minutos, cinco vezes — e a quadra fica parada
+   justamente enquanto o organizador procura. Quem decide qual é o próximo é o mesmo motor
+   do push "seu jogo é o próximo" (Services/AvisosDoDiaDeJogo). *@
+@if (ehOrganizador && TempData["ProximoJogoId"] is int proximoJogoId)
+{
+    <div class="alert alert-success d-flex align-items-center gap-3 flex-wrap" role="alert">
+        <i class="bi bi-arrow-right-circle-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong class="d-block">@TempData["ProximoJogoOnde"] — próximo jogo</strong>
+            <span class="d-block">@TempData["ProximoJogoQuem"]</span>
+            <small class="opacity-75">@TempData["ProximoJogoQuando"]</small>
+        </div>
+        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-padel fw-bold">
+                <i class="bi bi-play-fill"></i> Começar agora
+            </button>
+        </form>
+    </div>
+}
+
 @if (TempData["Sucesso"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">

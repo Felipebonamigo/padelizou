@@ -15,12 +15,19 @@ public static class AvisosDoDiaDeJogo
     // Regra: a próxima agendada NA MESMA QUADRA. Quadra sem nome também casa com quadra sem
     // nome — torneio pequeno costuma não nomear quadra nenhuma, e sem isso o aviso
     // simplesmente nunca sairia pra eles.
-    public static Partida? ProximaAposTerminar(Partida terminada, IEnumerable<Partida> candidatas)
+    public static Partida? ProximaAposTerminar(Partida terminada, IEnumerable<Partida> candidatas) =>
+        ProximaNaQuadra(terminada, candidatas.Where(p => p.AvisoProximoEnviadoEm == null));
+
+    // A mesma regra SEM a trava de "avisa uma vez só" — porque a tela não é um aviso.
+    //
+    // Quando a quadra vaga, o organizador precisa da sugestão do próximo jogo dela pra chamar
+    // com um toque, e ele pode voltar nessa tela quantas vezes quiser. O push é que não pode
+    // repetir: o jogador receberia "seu jogo é o próximo" duas vezes e viria correndo à toa.
+    public static Partida? ProximaNaQuadra(Partida terminada, IEnumerable<Partida> candidatas)
     {
         return candidatas
             .Where(p => p.Id != terminada.Id)
             .Where(p => p.Status == "Agendada")
-            .Where(p => p.AvisoProximoEnviadoEm == null)   // uma vez só, por partida
             .Where(p => p.HorarioPrevisto != null)
             .Where(p => MesmaQuadra(p.NomeQuadra, terminada.NomeQuadra))
             .OrderBy(p => p.HorarioPrevisto)
