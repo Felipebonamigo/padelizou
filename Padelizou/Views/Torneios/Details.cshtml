@@ -2177,7 +2177,15 @@
 
             function gerarCamposQuadraEdicao() {
                 var container = document.getElementById('editCamposNomesQuadras');
-                var quantidade = Math.max(0, Math.min(26, parseInt(document.getElementById('editQuantidadeQuadras').value, 10) || 0));
+                var campoQuantidade = document.getElementById('editQuantidadeQuadras');
+
+                // Os dois só existem na aba de gestão, que é do organizador. A função é
+                // chamada no carregamento da página — sem esta saída, quem abre o torneio
+                // sem ser organizador leva um erro de JavaScript no console. Erro solto ali
+                // não quebra a tela, mas esconde os que quebram.
+                if (!container || !campoQuantidade) return;
+
+                var quantidade = Math.max(0, Math.min(26, parseInt(campoQuantidade.value, 10) || 0));
                 var nomesAtuais = JSON.parse(container.getAttribute('data-nomes-atuais') || '[]');
                 var valoresAtuais = Array.from(container.querySelectorAll('input')).map(function (i) { return i.value; });
                 var valores = valoresAtuais.length > 0 ? valoresAtuais : nomesAtuais;

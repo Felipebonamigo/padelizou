@@ -42,8 +42,13 @@ function atualizarPalpitrometro(container, data) {
         badge2.style.display = dupla1Lidera ? 'none' : 'block';
     }
 
-    container.querySelector('[data-bar="1"]').style.width = data.percentualDupla1 + '%';
-    container.querySelector('[data-bar="2"]').style.width = data.percentualDupla2 + '%';
+    // A barra só existe no cartão grande. Na LINHA das listas os dois números fazem o
+    // papel dela, e sem este null-check o voto quebrava a atualização no meio — o placar
+    // ia pro servidor e a tela não mexia, que é o pior dos dois mundos.
+    const barra1 = container.querySelector('[data-bar="1"]');
+    const barra2 = container.querySelector('[data-bar="2"]');
+    if (barra1) barra1.style.width = data.percentualDupla1 + '%';
+    if (barra2) barra2.style.width = data.percentualDupla2 + '%';
 
     // O ✓ na frente do nome só existe no cartão grande; na linha o campo é o próprio
     // número, e reescrever o texto dele apagaria a porcentagem.

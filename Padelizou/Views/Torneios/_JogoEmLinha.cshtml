@@ -124,6 +124,34 @@
     <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
          @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\"") : null)>
 
+        @if (mostraPalpitrometro)
+        {
+            @* O rótulo fica em cima da COLUNA de porcentagens, não numa linha própria
+               embaixo: ali ele nomeia os números que estão logo abaixo dele, e a linha
+               extra some. Antes era um rodapé com rótulo, barra e votos — três coisas
+               ocupando uma altura inteira pra dizer o que os dois números já dizem. *@
+            <div class="pdz-jl-palpite-topo">
+                <span class="pdz-palpite-rotulo">
+                    <i class="bi bi-graph-up"></i> PALPITRÔMETRO
+                    <span class="pdz-palpite-ajuda">
+                        @if (Model.Finalizada)
+                        {
+                            <text>· como a galera palpitou</text>
+                        }
+                        else if (podeVotar)
+                        {
+                            <text>· toque na % pra votar</text>
+                        }
+                        else if (!Model.MeuId.HasValue)
+                        {
+                            <a asp-controller="Auth" asp-action="Login">· entre pra palpitar</a>
+                        }
+                    </span>
+                    <span class="pdz-total-votos">· @(r?.TotalVotos ?? 0) voto(s)</span>
+                </span>
+            </div>
+        }
+
         <div class="pdz-jl-dupla @(venceu1 ? "pdz-jl-venceu" : venceu2 ? "pdz-jl-perdeu" : "")">
             <span class="pdz-jl-rostos">
                 @if (jogo.Dupla1.EhTime)
@@ -182,39 +210,5 @@
             }
         </div>
 
-        @if (mostraPalpitrometro)
-        {
-            <div class="pdz-jl-palpite">
-                <span class="pdz-palpite-rotulo">
-                    <i class="bi bi-graph-up"></i> PALPITRÔMETRO
-                    <span class="pdz-palpite-ajuda">
-                        @if (Model.Finalizada)
-                        {
-                            <text>— como a galera tinha palpitado</text>
-                        }
-                        else if (podeVotar)
-                        {
-                            <text>— toque na % pra votar</text>
-                        }
-                        else if (!Model.MeuId.HasValue)
-                        {
-                            @* Deslogado: o convite é o próprio palpitrômetro. *@
-                            <a asp-controller="Auth" asp-action="Login">— entre pra palpitar</a>
-                        }
-                        else
-                        {
-                            <text>— em quem a galera acha que ganha</text>
-                        }
-                    </span>
-                </span>
-
-                <div class="progress pdz-palpite-barra">
-                    <div class="progress-bar bg-success" data-bar="1" style="width: @pct1.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
-                    <div class="progress-bar bg-primary" data-bar="2" style="width: @pct2.ToString(System.Globalization.CultureInfo.InvariantCulture)%;"></div>
-                </div>
-
-                <span class="pdz-palpite-total pdz-total-votos">@(r?.TotalVotos ?? 0) voto(s)</span>
-            </div>
-        }
     </div>
 </div>

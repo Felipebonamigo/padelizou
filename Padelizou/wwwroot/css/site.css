@@ -2328,3 +2328,26 @@ button, a, input, select { touch-action: manipulation; }
     /* No celular o rótulo longo empurra a barra pra nada: fica só a palavra. */
     .pdz-palpite-ajuda { display: none; }
 }
+
+/* O rótulo do palpitrômetro EM CIMA da coluna de porcentagens — ali ele nomeia os
+   números que estão logo abaixo. Antes era um rodapé com rótulo + barra + votos:
+   uma altura inteira de linha pra dizer o que os dois números já dizem. */
+.pdz-jl-palpite-topo {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: .1rem;
+}
+
+.pdz-jl-palpite-topo .pdz-palpite-rotulo {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.pdz-jl-palpite-topo .pdz-total-votos {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
