@@ -413,6 +413,53 @@ namespace Padelizou.Controllers
             return View();
         }
 
+        // Semifinal e Final não existiam pra quem olhava a tela: o motor só cria a rodada
+        // quando a anterior fecha, então o jogador via a primeira rodada e mais nada — sem
+        // saber a que horas voltar nem contra quem pode jogar. A regra mora em
+        // Services/ProximasFasesDaChave; aqui só se junta o que ela precisa.
+        private async Task<List<ProximasFasesDaChave.JogoQueVem>> ProjetarProximasFasesAsync(
+            int torneioId, List<Partida> partidas)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return new();
+
+            var deMataMata = partidas.Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)).ToList();
+            if (deMataMata.Count == 0) return new();
+
+            var projetados = new List<ProximasFasesDaChave.JogoQueVem>();
+
+            // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
+            // duplas que nunca vão se enfrentar.
+            foreach (var porCategoria in deMataMata.GroupBy(p => p.CategoriaId))
+            {
+                var byeIds = await AvancoDaChave.ByesDaCategoriaAsync(_context, porCategoria.Key);
+                var nomePorDupla = porCategoria
+                    .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                    .DistinctBy(d => d.Id)
+                    .ToDictionary(d => d.Id, d => d.NomeDeExibicao);
+
+                var byes = byeIds
+                    .Select(id => nomePorDupla.TryGetValue(id, out var nome) ? nome : null)
+                    .Where(n => n != null)
+                    .ToList()!;
+
+                projetados.AddRange(ProximasFasesDaChave.Montar(
+                    porCategoria.Select(p => new ProximasFasesDaChave.PartidaDaChave(
+                        p.Id, p.Fase, p.Dupla1.NomeDeExibicao, p.Dupla2.NomeDeExibicao,
+                        // Torneio "por ordem de liberação" não marca hora: sem horário a
+                        // projeção ainda diz QUEM joga, que é metade do pedido.
+                        torneio.SemHorarioPrevisto ? null : p.HorarioPrevisto)).ToList(),
+                    byes!,
+                    torneio.TempoPrevistoPartidaMinutos,
+                    torneio.QuantidadeQuadras,
+                    torneio.HoraFimDoDia,
+                    torneio.HoraInicioDiasSeguintes,
+                    porCategoria.First().Categoria.Nome));
+            }
+
+            return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
+        }
+
         // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
         // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
         // pros dois lugares não divergirem.
@@ -454,6 +501,8 @@ namespace Padelizou.Controllers
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")
                 .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
             ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
+
+            ViewBag.JogosQueVem = await ProjetarProximasFasesAsync(torneioId, partidas);
 
             // Só times que de fato jogam ESTE torneio — a lista vinha com todos os times
             // do sistema, e a tela esconde o filtro quando ela é vazia.

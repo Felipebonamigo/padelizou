@@ -2119,6 +2119,22 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-jl-fim { border-left-color: var(--pdz-muted); }
 
+/* Jogo do mata-mata que ainda vai ser montado (Semifinal, Final): o HORÁRIO é firme — sai da
+   duração configurada no torneio, igual ao dos outros —, o que falta é saber QUEM joga.
+   Por isso a linha fica no mesmo desenho, e não apagada: tracejada e sem preenchimento diz
+   "esta vaga ainda não tem dono" sem sugerir que o jogo é incerto. */
+.pdz-jl-porvir {
+    border-style: dashed;
+    border-left-style: solid;
+    border-left-color: var(--pdz-muted);
+    background: transparent;
+}
+
+.pdz-jl-porvir-selo {
+    background: var(--pdz-surface-2, rgba(128, 128, 128, .15));
+    color: var(--pdz-muted);
+}
+
 /* Primeira linha: hora, etiquetas e ações. É onde o olho bate primeiro. */
 .pdz-jl-cabecalho {
     display: flex;

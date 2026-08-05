@@ -1,4 +1,5 @@
 @using Padelizou.ViewModels
+@using JogoQueVem = Padelizou.Services.ProximasFasesDaChave.JogoQueVem
 @model (string TargetAction, int TorneioId)
 @functions {
     // Converte os formatos comuns de link do YouTube (watch?v=, youtu.be/, /live/, /embed/) pro
@@ -26,6 +27,9 @@
     var aoVivoList = ViewBag.AoVivo as List<Partida> ?? new();
     var agendadasList = ViewBag.Agendadas as List<Partida> ?? new();
     var finalizadasList = ViewBag.Finalizadas as List<Partida> ?? new();
+    // As fases do mata-mata que ainda não existem no banco (Semifinal, Final): o motor só
+    // cria a rodada quando a anterior fecha, e sem isto elas não apareciam pra ninguém.
+    var jogosQueVem = ViewBag.JogosQueVem as List<JogoQueVem> ?? new();
     // Só existe no Americano — nos outros formatos a aba nem aparece.
     var classificacaoAmericano = ViewBag.ClassificacaoAmericano
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
@@ -121,7 +125,9 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link @(defaultAoVivo ? "" : "active")" id="agendadas-tab" data-bs-toggle="tab" data-bs-target="#agendadas" type="button" role="tab">
-            <i class="bi bi-calendar-event"></i> Agendadas (@agendadasList.Count)
+            @* Conta as duas coisas: pra quem olha, uma semifinal marcada pras 21h é um jogo
+               que vai acontecer, tenha ou não linha no banco. *@
+            <i class="bi bi-calendar-event"></i> Agendadas (@(agendadasList.Count + jogosQueVem.Count))
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -297,7 +303,7 @@
 
     <!-- SUB-ABA: AGENDADAS -->
     <div class="tab-pane fade @(defaultAoVivo ? "" : "show active")" id="agendadas" role="tabpanel">
-        @if (agendadasList.Count == 0)
+        @if (agendadasList.Count == 0 && jogosQueVem.Count == 0)
         {
             <p class="text-muted">Nenhum jogo agendado no momento.</p>
         }
@@ -305,10 +311,29 @@
         @* Lista, não parede de cartões: com 48 agendados o cartão grande ocupava meia tela
            cada um. O cartão cheio (placar gigante + palpitrômetro aberto) fica só no AO VIVO,
            que é onde a tela tem um assunto só. *@
+        @* As fases que ainda vão ser montadas entram AQUI, na ordem do horário, junto com os
+           jogos marcados — não num bloco à parte. O horário delas sai da duração configurada
+           no torneio, igual ao dos outros: é slot de grade, não palpite. O que está "a
+           definir" é QUEM joga, e é só isso que a linha diz. *@
+        @{
+            var linhasAgendadas = agendadasList
+                .Select(p => (Horario: p.HorarioPrevisto, Jogo: p, Porvir: (JogoQueVem?)null))
+                .Concat(jogosQueVem.Select(j => (Horario: j.Horario, Jogo: (Partida?)null, Porvir: (JogoQueVem?)j)))
+                .OrderBy(x => x.Horario ?? DateTime.MaxValue)
+                .ToList();
+        }
+
         <div class="pdz-jogos-lista">
-            @foreach (var jogo in agendadasList)
+            @foreach (var linha in linhasAgendadas)
             {
-                <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                if (linha.Jogo is Partida jogo)
+                {
+                    <partial name="_JogoEmLinha" model="(jogo, ehOrganizador, false, palpites.GetValueOrDefault(jogo.Id), meuId)" />
+                }
+                else if (linha.Porvir is JogoQueVem porvir)
+                {
+                    <partial name="_JogoQueVem" model="porvir" />
+                }
             }
         </div>
     </div>

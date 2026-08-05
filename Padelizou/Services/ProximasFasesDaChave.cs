@@ -35,7 +35,9 @@ public static class ProximasFasesDaChave
         };
     }
 
-    public record JogoQueVem(string Fase, DateTime? Horario, Lado Lado1, Lado Lado2)
+    // A categoria vem junto porque a lista de jogos mistura todas: sem ela, duas semifinais
+    // de categorias diferentes viram duas linhas idênticas.
+    public record JogoQueVem(string Categoria, string Fase, DateTime? Horario, Lado Lado1, Lado Lado2)
     {
         // Quantas duplas ainda disputam essa vaga — a tela usa pra decidir se cabe na linha.
         public int TotalDeCandidatos => Lado1.Candidatos.Count + Lado2.Candidatos.Count;
@@ -50,7 +52,8 @@ public static class ProximasFasesDaChave
         int duracaoMinutos,
         int quadras,
         TimeSpan ultimoInicioDoDia,
-        TimeSpan aberturaDiasSeguintes)
+        TimeSpan aberturaDiasSeguintes,
+        string categoria = "")
     {
         var vazio = new List<JogoQueVem>();
         if (partidasDeMataMata.Count == 0) return vazio;
@@ -101,7 +104,7 @@ public static class ProximasFasesDaChave
                 }
                 noSlot++;
 
-                jogos.Add(new JogoQueVem(fase, horario, lado1, lado2));
+                jogos.Add(new JogoQueVem(categoria, fase, horario, lado1, lado2));
             }
 
             // Quem vence aquele confronto é UMA das duplas dos dois lados: é isso que faz a

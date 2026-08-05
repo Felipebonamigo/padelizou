@@ -46,6 +46,11 @@ public static class ChaveamentoMataMata
         _ => null
     };
 
+    // Essa fase é de mata-mata? "Final" precisa de menção própria porque ProximaFase("Final")
+    // é null — o mesmo null de "Grupo A" e do Americano, que NÃO são mata-mata.
+    public static bool EhFaseDeMataMata(string? fase) =>
+        fase == "Final" || ProximaFase(fase) != null;
+
     // Quantos jogos uma fase COMPLETA tem (= vencedores esperados pra fase fechar).
     //
     // ⚠️ Só vale pra chave cheia. Numa chave direta com bye a primeira rodada tem MENOS

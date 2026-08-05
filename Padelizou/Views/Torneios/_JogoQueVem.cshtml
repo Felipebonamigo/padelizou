@@ -1,0 +1,51 @@
+@model Padelizou.Services.ProximasFasesDaChave.JogoQueVem
+@*
+    Um jogo do mata-mata que AINDA VAI SER MONTADO — Semifinal, Final — mostrado junto dos
+    agendados, na ordem do horário.
+
+    Antes ele simplesmente não existia na tela: o motor só cria a rodada quando a anterior
+    fecha, então quem olhava via a primeira rodada e mais nada. O jogador não sabia a que
+    horas voltar, e o organizador não tinha como avisar.
+
+    O horário NÃO é chute: sai da duração de partida configurada no torneio e das mesmas
+    regras de grade do resto (Services/GradeDeJogos). Atrasar na prática não muda o slot.
+
+    Sem palpitrômetro e sem botões de organizador de propósito: não há partida no banco pra
+    votar nem pra editar. Oferecer o botão daria um beco sem saída.
+*@
+<div class="pdz-jl pdz-jl-porvir">
+    <div class="pdz-jl-cabecalho">
+        <span class="pdz-jl-quando">
+            @if (Model.Horario is DateTime h)
+            {
+                <strong>@h.ToString("HH:mm")</strong>
+                <span>@h.ToString("dd/MM")</span>
+            }
+            else
+            {
+                @* Torneio por ordem de liberação: não há hora, e inventar uma seria mentir. *@
+                <strong>por ordem</strong>
+            }
+        </span>
+
+        <span class="pdz-jl-etiquetas">
+            @if (!string.IsNullOrEmpty(Model.Categoria))
+            {
+                <span class="pdz-jl-etiqueta pdz-jl-categoria">@Model.Categoria</span>
+            }
+            <span class="pdz-jl-etiqueta pdz-jl-fase">@Model.Fase</span>
+            <span class="pdz-jl-etiqueta pdz-jl-porvir-selo">
+                <i class="bi bi-hourglass-split"></i> a definir
+            </span>
+        </span>
+    </div>
+
+    <div class="pdz-jl-corpo">
+        <div class="pdz-jl-dupla">
+            <span class="pdz-jl-nome text-muted">@Model.Lado1.Rotulo</span>
+        </div>
+        <div class="pdz-jl-dupla">
+            <span class="pdz-jl-nome text-muted">@Model.Lado2.Rotulo</span>
+        </div>
+    </div>
+</div>
