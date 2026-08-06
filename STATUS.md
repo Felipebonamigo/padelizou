@@ -1,6 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **06/08/2026 (noite)** — 🤝 **Ranking RS no ar em prod e dev**, publicado **à mão** porque o GitHub Actions caiu (`major_outage`) e a esteira parou de gerar tag. Chave configurada em produção (existia só no dev) e integração provada com HTTP 200 na API deles. Ver a seção do dia; quando o Actions voltar, rodar o `deploy.sh` normal.
 > Última atualização: **06/08/2026** — 🧨 **o post-mortem do Interno: TRÊS defeitos de chaveamento, todos da mesma família — MAIS DE UMA CÓPIA DA MESMA REGRA.** (1) **Dois robôs, um por controller**: o organizador encerra jogo por dois caminhos (Mesa/card → `TorneiosController`; Controle de Placar em tela cheia → `PartidasController`) e cada um tinha a própria cópia do robô que cria a fase seguinte. Os confrontos batiam; o AGENDAMENTO não — a cópia do `PartidasController` marcava `HorarioPrevisto = DateTime.Now.AddHours(2)` pra TODOS os jogos da rodada, sem quadra e sem olhar quem já estava marcado. A rodada inteira nascia no mesmo minuto, "quadra a definir", num dia que nem era o do torneio, **dependendo só de por qual TELA o placar foi lançado**. Agora há motor único (`Services/RoboDoChaveamento`), e a guarda "os grupos acabaram?" saiu do CHAMADOR e foi pro robô — no chamador ela podia existir num caminho e faltar no outro. (2) **Empate triplo sem desempate**: o grupo A dos TIMES fechou com Target.it, Valandro e Argentus em 1 vitória e −2 de saldo; a régua parava no saldo, então o 2º colocado saía da ORDEM EM QUE AS DUPLAS CHEGAVAM na consulta — e cada chamador monta a consulta do seu jeito. **A mesma tabela respondia coisas diferentes conforme quem perguntasse.** Entrou games PRÓ e, por último, o Id (empate que sobrevive a games pró é sorteio de qualquer jeito, e um sorteio ESTÁVEL vale mais que um que muda entre duas telas). Confronto direto ficou de fora: naquele grupo ele é **circular**. (3) **Bye inventado num quadro cheio**: "classificou e não tem jogo de mata-mata" era tratado como bye; com a classificação instável, o 2º do grupo A recalculado no avanço era OUTRO time e virou um terceiro semifinalista — e como o pareamento cruza primeiro com último, **a final saiu entre o vencedor de uma semi e um time eliminado nos grupos, e o vencedor da outra semi sumiu do torneio**. A trava nova é aritmética: a primeira rodada tem `jogos × 2` lugares; se cabe todo mundo, ninguém descansou. ⚠️ **O dado do torneio 18 ainda espera decisão do Felipe**: a final gravada é CredHub × Valandro 0×0 com a Valandro campeã, mas quem venceu a outra semifinal foi o **ST Led** — e o jogo certo nunca aconteceu, então não dá pra corrigir isso no código. Junto na mesma leva: ⚡ **finalizar jogo devolve a tela na hora** (o "muito lento" era o aviso: SMTP + push por jogador DENTRO da requisição; virou fila com entregador de fundo, `Services/FilaDeAvisos` — e era isso que fazia o organizador tocar duas vezes e o jogo subir em duplicidade), 🔓 **o portão de acesso antecipado abre e fecha pelo painel admin** (systemd dá o padrão, o banco pode dizer o contrário e ganha; ⚠️ tabela e não variável em memória, senão o portão voltaria sozinho no primeiro deploy depois do lançamento — só admin RAIZ) e 👤 **"Meus jogos" inclusive os que ainda não existem** (segue a corrente das procedências da projeção; ⚠️ quem PERDEU não entrega nada, senão o eliminado veria a final como próximo jogo dele; ⚠️ a CATEGORIA faz parte da chave — toda categoria tem uma "Semifinal 1"). **1.751 testes.**
 >
 > Ainda em **06/08/2026**, respondendo *"se tivesse um torneio de novo, estaria pronto?"* — 🔁 **auditei e a resposta era NÃO: as duas telas que finalizam partida ainda divergiam em três pontos**, depois de eu já ter unificado o robô de chaveamento de manhã. (a) A **tela cheia não movia o Padelímetro** — o nível dos 4 jogadores não mudava e o extrato do perfil ficava sem a linha; só a Mesa aplicava, então **o ranking dependia de por qual tela cada placar foi lançado**. (b) A **Mesa não gerava a final do Americano** — encerrada a última rodada pela tela do dia de torneio, o Americano ficava parado esperando uma final que nenhum robô ia criar. (c) A **Mesa não disparava o "seu jogo é o próximo"**, que é o aviso mais importante do sistema e o único que vale WhatsApp. Tudo virou `Services/EncerramentoDaPartida`, chamado pelos dois lados; o robô do Americano foi junto pro motor único e a final dele passou a entrar na **grade** em vez de nascer com `DateTime.Now.AddHours(2)`. ⚠️ O top 4 do Americano ganhou **desempate por Id** pelo mesmo motivo da classificação de grupos: sem ordem TOTAL, quem entra na final dependia da ordem em que o dicionário devolveu. Junto: **"Começar agora" também volta pra página de onde veio** (o `ColocarNoAr` sempre mandava pra `/Torneios/Jogos`, e as abas mãe sumiam — mesma queixa que salvar placar e trocar quadra já tinham resolvido). Os testes novos rodam o **mesmo cenário pelas duas telas** (`[InlineData(Tela.Mesa)]` / `[InlineData(Tela.TelaCheia)]`) — é a única garantia que funciona neste projeto, porque **todo defeito grave veio de uma segunda cópia que ninguém exercitava**. **1.786 testes.**
@@ -95,6 +96,37 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 06/08/2026 (noite) — 🤝 Ranking RS no ar, publicado à mão com o GitHub fora
+
+O **GitHub Actions entrou em `major_outage`** e travou a esteira: os últimos commits ficaram
+sem tag porque o job "Build + testes" esperava runner por 15 min e era cancelado (os testes
+nunca falharam — quando o job rodou, passou). Como o `deploy.sh` só instala build do CI, o
+Ranking RS ficou 5 horas pronto e não publicado.
+
+Publicado **manualmente** com o mesmo cuidado da esteira automática:
+- pacote `dotnet publish -c Release` local, igual ao comando do CI (portável, sem RID);
+- `instalar-manual.sh` no VPS repete as etapas 3–6 do `deploy.sh` — dados persistentes por
+  symlink, troca de versão, `/healthz` e **rollback automático**; grava no `.historico`;
+- `pg_dump` de produção antes (48K, 64 tabelas), em `/opt/padelizou-shared/`;
+- dev primeiro, prod depois. As duas migrações aplicaram sozinhas no start, zero erro.
+
+⚠️ **O `publish` local vinha com os segredos junto:** existe um `Padelizou/publish/` antigo
+dentro do projeto (git-ignored, nunca vazou pro repo) e o `dotnet publish` o copiava como
+conteúdo — o pacote saía com **duas** cópias do `appsettings.json` real. O do CI não tem isso
+(checkout limpo). Removidos antes de subir; o pacote foi conferido arquivo a arquivo.
+
+**A chave do Ranking RS existia só no dev.** Produção não tinha drop-in nenhum, e sem chave a
+integração nasce desligada por design — publicar não bastaria. Copiada pro
+`/etc/systemd/system/padelizou.service.d/rankingrs.conf` (chmod 600), conferida no
+`/proc/<pid>/environ` do processo de prod.
+
+**Integração provada de verdade:** `POST /validar-categoria` a partir do VPS respondeu
+**HTTP 200** com resposta bem formada ("6ª Masculina · APROVADO · Sem registros"). O que ainda
+NÃO foi exercitado em produção é o caminho completo — um inscrito real sendo barrado e o
+organizador liberando; esse é o teste do primeiro torneio com a conferência ligada.
+
+Quando o Actions voltar, rodar o `deploy.sh` normal pra esteira reassumir o versionamento.
 
 ### 06/08/2026 — 🎨 Logo novo: as raquetes sem a palavra
 
