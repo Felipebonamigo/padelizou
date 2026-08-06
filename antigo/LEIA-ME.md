@@ -7,16 +7,42 @@ Os arquivos que o site realmente usa ficam em `Padelizou/wwwroot/image/`.
 
 | Arquivo | O que é |
 |---|---|
-| `logo-novo.jpeg` | **A arte original do logo que está no ar hoje.** Não é antigo — está aqui porque é o arquivo de origem (1254×1254, JPEG sobre fundo branco), não uma imagem pra servir. É dele que sai todo o conjunto de ícones. |
-| `logo-icon-anterior.png` | O logo anterior (quadrado verde com raquetes escuras), aposentado em 29/07/2026. |
+| `logo-novo2.jpeg` | **A arte original do logo que está no ar hoje** (1024×1024, JPEG). Raquetes verdes sobre fundo escuro, com a palavra "Padelizou" embaixo — **a palavra não entra em ícone nenhum**, é recortada fora. É deste arquivo que sai todo o conjunto. |
+| `logo-novo.jpeg` | A arte anterior (1254×1254, JPEG sobre fundo branco), aposentada em 06/08/2026. Mesmo desenho, com os furos das raquetes menos alinhados. |
+| `logo-icon-anterior.png` | O logo de antes desse (quadrado verde com raquetes escuras), aposentado em 29/07/2026. |
 | `logo-novo-padel.jpeg` | Uma versão de 22/07/2026 que nunca chegou a ser usada. |
+| `gerar-icones/` | A ferramenta que gera o conjunto inteiro a partir da arte original. |
 
 ## Pra regerar os ícones a partir da arte original
 
-O conjunto servido (`logo-icon.webp`, `favicon-32.png`, `apple-touch-icon.png`, `icon-512.png`)
-é derivado de `logo-novo.jpeg`. Cada um tem uma exigência diferente — transparência, opacidade
-obrigatória no iOS, área segura no Android — e o enquadramento pequeno é mais aproximado que o
-grande de propósito, porque as raquetes ocupam só 44% da largura do círculo.
+```bash
+dotnet run --project antigo/gerar-icones -- antigo/logo-novo2.jpeg Padelizou/wwwroot
+```
+
+O projeto está **fora do `Padelizou.slnx`** de propósito: é ferramenta de mesa, não entra no build
+nem no deploy. Ele reescreve os 7 arquivos servidos de uma vez.
+
+Como funciona: as raquetes são recortadas por **máscara de cor** (`G − média(R,B)`, rampa 15..55) e
+recompostas sobre um disco/placa escura sintetizada a partir do próprio fundo da arte. Recortar por
+cor é o que faz a palavra "Padelizou" sumir sem deixar rastro, e é por isso que o verde da máscara é
+`G − média(R,B)` e não `G − max(R,B)`: o verde da arte é amarelado (`#b5d33a`) e no segundo critério
+dá só ~30, o que deixaria o **miolo** da raquete meio transparente.
+
+A cor observada vai pro recorte **sem des-misturar do fundo**. Dividir pelo alfa na borda clareia o
+contorno e desenha um halo — e todo lugar que usa a versão transparente tem fundo escuro, onde
+franja escura some e halo claro apareceria.
+
+Cada arquivo tem uma exigência diferente:
+
+| Arquivo | Tamanho | Como é |
+|---|---|---|
+| `logo-raquetes.webp` | 400×326 | Só as raquetes, fundo transparente. Barra, rodapé e capa de torneio sem imagem — onde o fundo já é o azul do site. WebP porque carrega em **toda** página. |
+| `logo-icon.webp` | 256×256 | Logo completo em disco. Vai onde o fundo é claro: login, portão, relatório impresso. |
+| `favicon-32.png` | 64×64 | Enquadramento **mais aproximado** (raquetes em 86%): a 32px o enquadramento normal vira uma mancha verde. O nome diz 32 mas o arquivo tem 64 (é a versão 2x). |
+| `apple-touch-icon.png` | 180×180 | **Opaco**, placa cheia — o iOS pinta preto atrás de transparência e arredonda os cantos sozinho. |
+| `icon-192.png` | 192×192 | PWA. |
+| `icon-512.png` | 512×512 | Serve de `any` **e** de `maskable`: o Android recorta a maskable num círculo, então as raquetes ficam nos **60% centrais**. |
+| `../Padelizou/wwwroot/favicon.ico` | 16/32/48 | O navegador pede esse caminho sozinho, mesmo com o `<link>` apontando pro PNG. |
 
 ⚠️ **Ao trocar qualquer ícone, subir o `CACHE_NAME` em `Padelizou/wwwroot/sw.js`.** O Service
 Worker guarda esses arquivos pelo caminho, e sem virar a versão quem já instalou o app continua

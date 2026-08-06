@@ -96,6 +96,46 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
+### 06/08/2026 — 🎨 Logo novo: as raquetes sem a palavra
+
+O Felipe trocou a arte do logo. É o mesmo desenho, mas **os furos das raquetes estão alinhados**
+de verdade — e a arte vem com a palavra "Padelizou" embaixo, que **não entra em ícone nenhum**:
+o nome já está escrito ao lado do logo na barra, e a 38px uma palavra vira borrão.
+
+**Recorte por cor, não por retângulo.** Cortar a arte por altura deixaria o fundo escuro da
+palavra pendurado no ícone. As raquetes são recortadas por **máscara de cor** e recompostas
+sobre um disco/placa sintetizado do próprio fundo da arte — assim a palavra some sem rastro e o
+enquadramento de cada ícone é escolhido, não herdado.
+
+**A máscara mudou de critério, e isso foi o trabalho.** A versão anterior usava
+`G − max(R,B)`, que serviu pra arte antiga. O verde novo é **amarelado** (`#b5d33a`): nesse
+critério dá só ~30, e a rampa 10..50 deixava o **miolo** da raquete meio transparente —
+a raquete da direita saía lavada de amarelo. `G − média(R,B)` separa de verdade: verde ~90,
+fundo escuro ~−4, furos pretos ~0, branco 0. Rampa 15..55.
+
+**Cor da borda vai sem des-misturar do fundo.** A primeira tentativa dividia pelo alfa pra
+recuperar a cor pura na borda — matematicamente certo, e desenhava um **halo claro** em volta
+do desenho. Todo lugar que usa a versão transparente tem fundo escuro (barra, rodapé, capa,
+disco), onde franja escura some e halo claro apareceria. Cor observada, e pronto.
+
+**Os 7 arquivos foram regerados** — `logo-raquetes.webp` (400×326), `logo-icon.webp` (256),
+`favicon-32.png` (64), `apple-touch-icon.png` (180, opaco), `icon-192`, `icon-512` (maskable,
+raquetes nos 60% centrais) e o `favicon.ico` da raiz (16/32/48), que o navegador pede sozinho
+mesmo com o `<link>` apontando pro PNG.
+
+**Nenhum CSS mudou, e isso foi conferido, não presumido.** A proporção nova é 1,227 contra
+1,22 da anterior: nos mesmos **38px de largura** da barra o desenho fecha em **31px de altura**,
+exatamente como antes — a conta do estouro da navbar em 1280px continua valendo. Verificado no
+navegador: a barra serve o arquivo novo (400×326) renderizado em 38×31.
+
+⚠️ **`CACHE_NAME` do Service Worker foi de v4 pra v5.** Sem isso quem já instalou o app ficaria
+com o logo antigo pra sempre.
+
+**A ferramenta ficou no repo** (`antigo/gerar-icones/`, fora do `Padelizou.slnx` — CI e deploy
+buildam o `.slnx`, então ela não entra em pacote nenhum). Regerar o conjunto inteiro é uma linha,
+documentada em `antigo/LEIA-ME.md` junto do porquê de cada tamanho. Da última troca de logo não
+sobrou ferramenta, e por isso este trabalho começou do zero.
+
 ### 05/08/2026 (madrugada) — 🎨 A tela de jogos ficou legível
 
 Pedido do Felipe: *"não me parece muito intuitivo nem muito bonito"*. Varredura das quatro
