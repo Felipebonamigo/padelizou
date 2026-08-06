@@ -37,7 +37,13 @@ public static class ClassificacaoDeGrupos
                         int pro = ehDupla1 ? (jogo.GamesDupla1 ?? 0) : (jogo.GamesDupla2 ?? 0);
                         int contra = ehDupla1 ? (jogo.GamesDupla2 ?? 0) : (jogo.GamesDupla1 ?? 0);
                         saldo += pro - contra;
-                        if (pro > contra) vitorias++;
+
+                        // ⚠️ A vitória sai de Services/QuemVenceu, a MESMA função que grava o
+                        // VencedorId ao finalizar. Aqui existia a conta em separado (`pro >
+                        // contra`), e ela divergia da outra quando um lado estava sem placar:
+                        // a tabela dizia que a dupla A venceu e o registro do jogo dizia que
+                        // foi a B. No Interno de 05/08 isso classificou a dupla errada.
+                        if (QuemVenceu.Da(jogo) == dupla.Id) vitorias++;
                     }
 
                     return (dupla, vitorias, saldo);

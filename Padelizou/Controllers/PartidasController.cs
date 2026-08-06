@@ -387,6 +387,26 @@ namespace Padelizou.Controllers
             partida.NomeQuadra = nomeQuadra;
             partida.LinkTransmissao = linkTransmissao;
 
+            // ⚠️ SET VELHO NÃO DECIDE JOGO CORRIGIDO.
+            //
+            // Esta tela edita só GAMES — quem escreve sets é a Mesa de Controle
+            // (Services/PlacarDaMesa). E o vencedor sai dos sets primeiro (QuemVenceu), então
+            // corrigir "9x3" para "3x9" aqui trocava os games e deixava o set 1x0 antigo
+            // mandando: o placar dizia uma coisa e o vencedor continuava sendo o outro.
+            //
+            // Foi o que deixou a FINAL do Mata-Mata Geral com o campeão errado no Interno de
+            // 05/08/2026 (jogo 416: 6x4 com a vitória gravada pra quem fez 4).
+            //
+            // Quando o set contradiz o placar que acabou de ser salvo, ele está velho: sai de
+            // cena e os games decidem. Set coerente fica onde está — jogo de 2 sets lançado
+            // pela Mesa não é desfeito por uma passada aqui.
+            if (QuemVenceu.PorSets(partida) is { } porSets && QuemVenceu.PorGames(partida) is { } porGames
+                && porSets != porGames)
+            {
+                partida.SetsDupla1 = null;
+                partida.SetsDupla2 = null;
+            }
+
             // Quem saca só pode ser uma das duas duplas DESTE jogo. Vazio = não mostrar.
             // Sem essa checagem, um POST montado à mão apontaria a bolinha do saque pra uma
             // dupla de outra partida, e a tela mostraria um nome que não está em quadra.
@@ -426,9 +446,10 @@ namespace Padelizou.Controllers
                 partida.HorarioFimReal = DateTime.Now;
                 partida.SendoTransmitida = false;
 
-                // INTELIGÊNCIA ABSORVIDA: Define o Vencedor automaticamente pelo placar
-                // (Se houver Sets, você pode adicionar a lógica de Sets aqui também)
-                int vencedorId = (partida.GamesDupla1 > partida.GamesDupla2) ? partida.Dupla1Id : partida.Dupla2Id;
+                // Quem venceu sai de Services/QuemVenceu — a mesma função que a classificação
+                // de grupos usa. A conta que morava aqui comparava os campos NULÁVEIS direto
+                // e ignorava sets, então divergia das outras duas cópias da mesma pergunta.
+                int vencedorId = QuemVenceu.Da(partida) ?? partida.Dupla1Id;
                 partida.VencedorId = vencedorId;
 
                 int perdedorId = (vencedorId == partida.Dupla1Id) ? partida.Dupla2Id : partida.Dupla1Id;
@@ -439,6 +460,51 @@ namespace Padelizou.Controllers
                 {
                     var perdedor = await _context.Duplas.FindAsync(perdedorId);
                     if (perdedor != null) perdedor.UltimaFase = partida.Fase;
+                }
+            }
+            // ⚠️ CORRIGIR O PLACAR DE UM JOGO JÁ FINALIZADO.
+            //
+            // Este ramo não existia, e era a raiz do "atualizei o placar errado e ele não
+            // corrigiu o chaveamento". O vencedor só era calculado na TRANSIÇÃO pra
+            // finalizada; depois disso, mexer no placar trocava os games e deixava o
+            // `VencedorId` antigo de pé — e a fase seguinte, que nasceu daquele vencedor,
+            // seguia com a dupla errada. No Interno de 05/08 isso deixou dois jogos de grupo
+            // e a FINAL da chave geral com vencedor contradizendo o próprio placar.
+            else if (status == "Finalizada" && partida.Status == "Finalizada")
+            {
+                var novoVencedor = QuemVenceu.Da(partida);
+                if (novoVencedor != null && novoVencedor != partida.VencedorId)
+                {
+                    partida.VencedorId = novoVencedor;
+
+                    var perdedorId = novoVencedor == partida.Dupla1Id ? partida.Dupla2Id : partida.Dupla1Id;
+                    if (!FasesTorneio.EhFaseDeGrupos(partida.Fase))
+                    {
+                        var perdedor = await _context.Duplas.FindAsync(perdedorId);
+                        if (perdedor != null) perdedor.UltimaFase = partida.Fase;
+
+                        var novoDono = await _context.Duplas.FindAsync(novoVencedor);
+                        if (novoDono != null && novoDono.UltimaFase == partida.Fase) novoDono.UltimaFase = "Grupos";
+                    }
+
+                    // A fase seguinte saiu do vencedor que acabou de mudar: ela não vale mais.
+                    // Só dá pra refazer se ninguém entrou em quadra nela — senão apagaríamos
+                    // um jogo em andamento, e aí a correção vira um estrago maior que o erro.
+                    var daCategoria = await _context.Partidas
+                        .Where(p => p.CategoriaId == partida.CategoriaId).ToListAsync();
+                    var depois = DesfazerDoJogo.GeradosDepois(partida, daCategoria);
+
+                    if (depois.Count > 0 && depois.All(p => p.Status == "Agendada"))
+                    {
+                        _context.Partidas.RemoveRange(depois);
+                        TempData["Sucesso"] = "Placar corrigido: o vencedor mudou e a fase seguinte " +
+                                              "foi refeita com a dupla certa.";
+                    }
+                    else if (depois.Count > 0)
+                    {
+                        TempData["Erro"] = "Placar corrigido e vencedor acertado, MAS a fase seguinte já " +
+                                           "começou e não foi refeita — confira o chaveamento à mão.";
+                    }
                 }
             }
             else if (status == "Agendada")

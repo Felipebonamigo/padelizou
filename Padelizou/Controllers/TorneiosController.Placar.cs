@@ -174,14 +174,21 @@ namespace Padelizou.Controllers
                 return DepoisDeFinalizar(voltarPara, partida.TorneioId);
             }
 
+            // Sem placar não há vencedor. A conta antiga comparava os campos NULÁVEIS direto,
+            // e `4 > null` é false em C# — então um jogo 4 x (em branco) saía com a dupla 2
+            // vencedora, sem regra nenhuma por trás. Ver Services/QuemVenceu.
+            if (partida != null && QuemVenceu.MotivoParaNaoFinalizar(partida) is { } motivo)
+            {
+                TempData["Erro"] = $"Jogo {partida.Codigo}: {motivo}";
+                return DepoisDeFinalizar(voltarPara, partida.TorneioId);
+            }
+
             if (partida != null)
             {
                 partida.Status = "Finalizada";
                 partida.SendoTransmitida = false;
 
-                int vencedorId = (partida.SetsDupla1 > partida.SetsDupla2 ||
-                                 (partida.SetsDupla1 == partida.SetsDupla2 && partida.GamesDupla1 > partida.GamesDupla2))
-                                 ? partida.Dupla1Id : partida.Dupla2Id;
+                int vencedorId = QuemVenceu.Da(partida)!.Value;
 
                 partida.VencedorId = vencedorId;
                 int perdedorId = (vencedorId == partida.Dupla1Id) ? partida.Dupla2Id : partida.Dupla1Id;
