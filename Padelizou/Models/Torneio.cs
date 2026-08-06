@@ -146,13 +146,16 @@ public partial class Torneio
     // com o app antigo rodando). A regra agora é controlada por RestricaoCategoria.
     public bool BloquearCategoriaInferior { get; set; }
 
-    // Regra anti-sandbagging configurável pelo organizador. Define o "gatilho" a partir
-    // do qual um jogador comprova nível numa categoria e não pode se inscrever em
-    // categorias mais fracas. Valores:
-    //   "Livre"     -> sem restrição (qualquer um em qualquer categoria)
-    //   "SaiuChave" -> comprova ao passar da fase de grupos (Quartas+)
-    //   "Semifinal" -> comprova ao chegar à semifinal (Semi+)
-    //   "Final"     -> comprova ao chegar à final (Final ou Campeão)
+    // DORMENTE desde 06/08/2026 — decisão do Felipe: quem nivela é o Ranking RS
+    // (ValidarPeloRankingRs, logo abaixo), que enxerga o estado inteiro em vez de só quem já
+    // jogou aqui. A opção saiu das telas de criar/editar torneio e a migração
+    // 20260806190821_TravaDeCategoriaSoPeloRankingRs zerou as linhas existentes em "Livre".
+    //
+    // O motor NÃO foi apagado: DuplasController.MotivoBloqueioCategoriaAsync e os testes que o
+    // cobrem continuam de pé, e nada aqui deixou de funcionar — só ninguém mais liga. Voltar a
+    // oferecer é devolver o <select> nas duas views. Ver RANKING.md.
+    //
+    // Valores: "Livre" (sem restrição) | "SaiuChave" (Quartas+) | "Semifinal" | "Final".
     public string RestricaoCategoria { get; set; } = "Livre";
 
     // Valida as inscrições contra o Ranking RS (mundodoatleta.com.br)? Nasce DESLIGADO e é

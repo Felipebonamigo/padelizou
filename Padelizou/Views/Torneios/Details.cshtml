@@ -759,22 +759,17 @@
                 </script>
             }
 
-            @{
-                var restricao = string.IsNullOrEmpty(Model.RestricaoCategoria) ? "Livre" : Model.RestricaoCategoria;
-                var gatilhoTexto = restricao switch
-                {
-                    "SaiuChave" => "passou da fase de grupos (chegou ao mata-mata)",
-                    "Semifinal" => "chegou à semifinal",
-                    "Final" => "chegou à final",
-                    _ => ""
-                };
-            }
-            @if (restricao != "Livre")
+            @* O aviso e a chave de liberação seguem a validação do Ranking RS, que é a única
+               trava de nível em pé (a restrição por histórico daqui saiu em 06/08/2026 — ver
+               RANKING.md). A chave `ignorarBloqueio` é lida pelo DuplasController e vale pras
+               duas regras, então ela precisa continuar existindo enquanto QUALQUER uma travar:
+               sem isso o organizador perde o atalho de inscrever alguém na hora. *@
+            @if (Model.ValidarPeloRankingRs)
             {
                 <div class="alert alert-secondary mt-3 mb-0 small d-flex gap-2 align-items-start">
                     <i class="bi bi-shield-lock"></i>
                     <div>
-                        Este torneio <strong>restringe categoria inferior</strong>: quem já @gatilhoTexto numa categoria mais forte não pode se inscrever numa mais fraca.
+                        As inscrições deste torneio são <strong>conferidas no Ranking RS</strong>: quem já pontuou numa categoria mais forte não entra numa mais fraca sem o organizador liberar.
                     </div>
                 </div>
                 @if (ViewBag.PodeGerenciar == true)
@@ -782,7 +777,7 @@
                     <div class="form-check form-switch mt-2">
                         <input class="form-check-input" type="checkbox" name="ignorarBloqueio" value="true" id="ignorarBloqueio">
                         <label class="form-check-label" for="ignorarBloqueio">
-                            <i class="bi bi-unlock"></i> <strong>Organizador:</strong> liberar mesmo assim (ignorar o bloqueio)
+                            <i class="bi bi-unlock"></i> <strong>Organizador:</strong> inscrever sem conferir o ranking
                         </label>
                     </div>
                 }
@@ -1279,31 +1274,8 @@
                                 </div>
                             </div>
 
-                            <div class="mb-3 mt-2 border-top pt-3">
-                                <label class="form-label fw-bold" for="editRestricaoCat">
-                                    <i class="bi bi-shield-lock"></i> Restrição de categoria (anti-sandbagging)
-                                </label>
-                                @{
-                                    var restricaoAtual = string.IsNullOrEmpty(Model.RestricaoCategoria) ? "Livre" : Model.RestricaoCategoria;
-                                }
-                                <select class="form-select" name="restricaoCategoria" id="editRestricaoCat">
-                                    <option value="Livre" selected="@(restricaoAtual == "Livre")">Tudo liberado (sem restrição)</option>
-                                    <option value="SaiuChave" selected="@(restricaoAtual == "SaiuChave")">Passou da fase de grupos (mata-mata)</option>
-                                    <option value="Semifinal" selected="@(restricaoAtual == "Semifinal")">Chegou à semifinal</option>
-                                    <option value="Final" selected="@(restricaoAtual == "Final")">Chegou à final</option>
-                                </select>
-                                <div class="small text-muted mt-2">
-                                    Impede que um jogador se inscreva numa categoria <strong>mais fraca</strong> do que outra em que ele já provou nível.
-                                    O "gatilho" define o que conta como prova: só passar da fase de grupos, chegar à semifinal, ou chegar à final.
-                                    Ex.: com "chegou à final", quem foi vice/campeão da 4ª não entra na 5ª/6ª/7ª — só na 4ª ou acima (3ª, 2ª, Open).
-                                    Vale por jogador; quem nunca disputou torneio entra em qualquer categoria. Você pode liberar caso a caso na inscrição.
-                                </div>
-                            </div>
-
-                            @* Ranking RS: a mesma pergunta da restrição acima, só que feita pra
-                               FORA. A de cima olha o histórico dentro do Padelizou; esta olha o
-                               ranking gaúcho, onde a pessoa pode ter pontuado numa categoria
-                               mais forte sem nunca ter jogado um torneio nosso. *@
+                            @* Quem nivela é o Ranking RS. A restrição pelo histórico daqui
+                               (RestricaoCategoria) saiu da tela em 06/08/2026 — ver RANKING.md. *@
                             <div class="mb-3 mt-2 border-top pt-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="validarPeloRankingRs" value="true"

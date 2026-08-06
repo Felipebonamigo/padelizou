@@ -384,6 +384,8 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             // Pega as categorias que o organizador marcou e salva na tabela Categoria do Torneio
+            var semParNoRanking = new List<string>();
+            int comParNoRanking = 0;
             if (categoriasSelecionadas != null && categoriasSelecionadas.Length > 0)
             {
                 foreach (var catId in categoriasSelecionadas)
@@ -399,6 +401,21 @@ namespace Padelizou.Controllers
                             Codigo = catPadrao.Codigo,
                             LimiteDuplas = limite
                         };
+
+                        // O de-para com o Ranking RS só é preenchido para quem PEDIU a conferência.
+                        // O palpite é seguro aqui porque o nome vem do catálogo padrão, que sempre
+                        // escreve o sexo ("2ª Categoria Masculina") — e é justamente o sexo que o
+                        // Adivinhar exige pra casar (ver Services/CategoriaDoRankingRs).
+                        //
+                        // Aplicar o palpite calado seria errado, então ele NÃO é calado: a mensagem
+                        // de sucesso diz quantas entraram, quais ficaram de fora, e onde revisar.
+                        if (torneio.ValidarPeloRankingRs)
+                        {
+                            novaCategoria.RankingRsCategoriaId = CategoriaDoRankingRs.Adivinhar(catPadrao.Nome);
+                            if (novaCategoria.RankingRsCategoriaId == null) semParNoRanking.Add(catPadrao.Nome);
+                            else comParNoRanking++;
+                        }
+
                         _context.Categorias.Add(novaCategoria);
                     }
                 }
@@ -429,6 +446,23 @@ namespace Padelizou.Controllers
                 TempData[problema == null ? "Sucesso" : "Erro"] = problema
                     ?? "Torneio criado! Recebemos seu pedido de equipe para registrar os resultados "
                      + "e vamos confirmar a disponibilidade em breve.";
+            }
+
+            // Conferência pelo Ranking RS: diz o que foi decidido por palpite, pra não ser
+            // surpresa. Só entra quando o organizador marcou — e não sobrescreve a mensagem do
+            // pacote de registro de resultados, que é sobre dinheiro e vale mais.
+            if (torneio.ValidarPeloRankingRs && TempData["Sucesso"] == null && TempData["Erro"] == null)
+            {
+                var recado = $"Torneio criado! As inscrições vão ser conferidas no Ranking RS em "
+                           + $"{comParNoRanking} categoria(s).";
+
+                if (semParNoRanking.Count > 0)
+                {
+                    recado += $" Sem correspondência no ranking (não vão ser conferidas): "
+                            + $"{string.Join(", ", semParNoRanking)}.";
+                }
+
+                TempData["Sucesso"] = recado + " Dá pra revisar categoria por categoria em Editar torneio.";
             }
 
             // Avisa quem tem NotificarTorneiosAbertos marcado que um torneio novo abriu.

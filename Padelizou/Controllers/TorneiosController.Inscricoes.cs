@@ -92,6 +92,17 @@ namespace Padelizou.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // SEM TRAVA DE NÍVEL AQUI, E É DE PROPÓSITO (decisão do Felipe, 06/08/2026).
+            //
+            // A inscrição em dupla passa por duas regras de categoria — a do Ranking RS e a
+            // dormente RestricaoCategoria (ver Services/ValidacaoPeloRankingRs e RANKING.md).
+            // O Americano não passa por nenhuma: aqui o parceiro TROCA a cada rodada e todo
+            // mundo joga com todo mundo, então misturar nível é o objetivo do formato, não o
+            // defeito. Além disso o rodízio precisa de número fechado de gente pra fechar as
+            // rodadas, e barrar alguém no dia quebraria a montagem inteira.
+            //
+            // Ou seja: a ausência das checagens abaixo não é esquecimento. Não "conserte".
+
             // Uma categoria por jogador, quando o organizador desligou as múltiplas.
             var bloqueioCategorias = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
                 _context, torneio, new[] { jogador.Id });

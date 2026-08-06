@@ -118,4 +118,40 @@ public class CategoriaDoRankingRsTests
             Assert.Equal(item.Id, CategoriaDoRankingRs.Adivinhar(item.Nome));
         }
     }
+
+    // ── O catálogo padrão do Padelizou (o que o organizador marca ao criar o torneio) ──────
+    //
+    // Criar um torneio com "Conferir no Ranking RS" ligado aplica o palpite SOZINHO em cada
+    // categoria marcada (TorneiosController.Criacao). Isso só é honesto porque os nomes do
+    // catálogo padrão sempre escrevem o sexo — é exatamente essa suposição que os dois testes
+    // abaixo seguram. Os nomes espelham a lista do Program.cs.
+    [Theory]
+    [InlineData("Categoria Open Masculino", 100)]
+    [InlineData("Categoria Open Feminina", 101)]
+    [InlineData("2ª Categoria Masculina", 104)]
+    [InlineData("2ª Categoria Feminina", 105)]
+    [InlineData("3ª Categoria Masculina", 106)]
+    [InlineData("4ª Categoria Feminina", 109)]
+    [InlineData("5ª Categoria Masculina", 110)]
+    [InlineData("6ª Categoria Feminina", 113)]
+    [InlineData("Categoria Mista A", 114)]
+    [InlineData("Categoria Mista C", 116)]
+    public void Categoria_do_catalogo_padrao_casa_sozinha_ao_criar_o_torneio(string nome, int esperado)
+    {
+        Assert.Equal(esperado, CategoriaDoRankingRs.Adivinhar(nome));
+    }
+
+    // A 7ª, Iniciantes e a Mista D existem aqui e NÃO no Ranking RS. Ao criar o torneio elas
+    // ficam sem par de propósito — e a tela avisa quais foram, em vez de deixar o organizador
+    // achando que o torneio inteiro está sendo conferido.
+    [Theory]
+    [InlineData("7ª Categoria Masculina")]
+    [InlineData("7ª Categoria Feminina")]
+    [InlineData("Categoria Iniciantes Masculina")]
+    [InlineData("Categoria Iniciantes Feminina")]
+    [InlineData("Categoria Mista D")]
+    public void Categoria_do_catalogo_que_o_ranking_nao_tem_fica_sem_par(string nome)
+    {
+        Assert.Null(CategoriaDoRankingRs.Adivinhar(nome));
+    }
 }

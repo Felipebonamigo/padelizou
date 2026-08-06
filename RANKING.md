@@ -116,9 +116,54 @@ decreto), nós calibramos com dados reais: todo jogo de MISTA cruza as duas popu
 1. **Mostrar** (fase atual): número no perfil, variação por jogo, "faltam X pra
    subir". NADA trava. Roda 1–2 meses calibrando com torneios reais.
 2. **Avisar**: alerta na inscrição pro organizador ("este jogador está acima da faixa
-   da 5ª"). Ele decide. Substitui na prática o `RestricaoCategoria` manual.
+   da 5ª"). Ele decide.
 3. **Travar (opt-in)**: o torneio marca "nivelamento Padelizou" e a faixa + soma valem
    como trava, junto com a regra do bicampeão.
+
+## Quem trava a inscrição hoje (06/08/2026)
+
+**Só o Ranking RS.** Decisão do Felipe: quem nivela é o ranking gaúcho, que enxerga o
+estado inteiro — a nossa régua interna só conhece quem já jogou aqui, e no começo isso
+é pouca gente pra barrar alguém com credibilidade.
+
+| Medidor | Trava? |
+|---|---|
+| Pontos por categoria (trilha B) | Não — exibe |
+| Nível comprovado (`RestricaoCategoria`) | **Dormente** desde 06/08 |
+| **Ranking RS** (`ValidarPeloRankingRs`) | **Sim** — e o organizador dá a palavra final |
+| Padelímetro (PDZ) | Não — fase 1 |
+
+A trava do Ranking RS é MACIA de propósito: a recusa vira `BloqueioDoRanking` pendente e
+o organizador decide (Liberar/Manter); API fora do ar nunca vira recusa; e categoria sem
+de-para (`Categoria.RankingRsCategoriaId`) não é validada.
+
+**Onde se liga:** na criação do torneio (caixa "Conferir as inscrições no Ranking RS",
+nasce desmarcada) e depois em Editar torneio. Ao criar, o de-para de cada categoria é
+preenchido pelo palpite do nome (`CategoriaDoRankingRs.Adivinhar`) — seguro porque o
+catálogo padrão sempre escreve o sexo, que é o que o palpite exige. Não é calado: a
+mensagem de sucesso diz quantas serão conferidas e **nomeia as que ficaram de fora** (7ª,
+Iniciantes e Mista D não existem no Ranking RS). A revisão fina segue em Editar torneio.
+
+O `RestricaoCategoria` continua no código, testado e funcionando — só saiu das telas, e a
+migração `TravaDeCategoriaSoPeloRankingRs` zerou as linhas ligadas pra ninguém ficar
+barrado por uma regra sem tela onde ser desligada. Voltar a oferecer é devolver o
+`<select>` em `Views/Torneios/Create.cshtml` e `Details.cshtml`.
+
+**O que isso deixa descoberto, de propósito:** torneio fora do RS, categoria sem de-para
+e integração desligada ficam sem nivelamento nenhum. É o preço aceito enquanto o
+Padelímetro não chega na fase 3.
+
+### O Americano não tem trava, e é decisão (06/08/2026)
+
+`TorneiosController.InscreverIndividual` — a inscrição do formato Americano — não chama
+nenhuma das duas regras. **Não é esquecimento: o Felipe decidiu que segue assim.**
+
+Faz sentido pelo próprio formato: no Americano o parceiro TROCA a cada rodada e todo
+mundo joga com todo mundo, então misturar nível é o objetivo, não o defeito. A inscrição
+é individual, quase sempre resolvida no dia, e barrar alguém ali quebraria o rodízio —
+que precisa de número fechado de gente pra fechar as rodadas.
+
+Quem for mexer nesse método: a ausência das duas checagens é para ficar como está.
 
 ### Implementação
 
