@@ -44,6 +44,36 @@ public static class AvancoDaChave
         if (partidasDaFase.Any(p => p.Status != "Finalizada" || p.VencedorId == null))
             return new List<int>();
 
+        // 3. **Esta fase JÁ AVANÇOU?** Uma fase completa continua completa pra sempre, então
+        //    todo finalizar posterior a pergunta de novo — e a resposta muda. Os byes só
+        //    entram na conta enquanto o mata-mata tem UMA fase (ver ByesDaCategoriaAsync);
+        //    depois que a fase seguinte nasce eles somem, e os mesmos 16 viram 8.
+        //    `NomeFase(8)` é "Quartas de Final", que ainda não existe — e o robô monta uma
+        //    quartas com os vencedores da primeira rodada cruzados entre si, por cima das
+        //    oitavas que ainda estão em quadra.
+        //
+        //    Aconteceu no Interno de 05/08/2026: quartas de final montadas 1×8, 2×7, 3×6,
+        //    4×5 sobre os 8 vencedores da primeira rodada, com as oitavas ainda rolando.
+        //
+        //    Bastam dois jogos da mesma fase finalizados quase juntos: o primeiro cria a
+        //    fase seguinte, e o segundo faz esta conta já sem os byes. Reabrir e finalizar
+        //    de novo um jogo de uma fase já avançada cai no mesmo lugar.
+        //
+        //    A guarda de duplicidade dos chamadores não pega: ela pergunta se a fase que
+        //    ELA vai criar já existe, e "Quartas de Final" de fato não existia.
+        var fasesDaCategoria = await context.Partidas
+            .Where(p => p.CategoriaId == categoriaId)
+            .Select(p => p.Fase)
+            .Distinct()
+            .ToListAsync();
+
+        for (var seguinte = ChaveamentoMataMata.ProximaFase(faseConcluida);
+             seguinte != null;
+             seguinte = ChaveamentoMataMata.ProximaFase(seguinte))
+        {
+            if (fasesDaCategoria.Contains(seguinte)) return new List<int>();
+        }
+
         var avancam = partidasDaFase.Select(p => p.VencedorId!.Value).ToList();
         avancam.AddRange(await ByesDaCategoriaAsync(context, categoriaId));
         return avancam;

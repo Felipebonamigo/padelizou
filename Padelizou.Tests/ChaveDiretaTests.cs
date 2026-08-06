@@ -251,4 +251,89 @@ public class ChaveDiretaTests
         await ctx.SaveChangesAsync();
         return categoria;
     }
+
+    // ---- Fase que já avançou não avança de novo ----
+
+    // O bug do Interno de 05/08/2026: quartas de final montadas com os 8 vencedores da
+    // PRIMEIRA RODADA cruzados entre si (1×8, 2×7, 3×6, 4×5), com as oitavas ainda em quadra.
+    //
+    // Uma fase completa continua completa pra sempre, então todo finalizar posterior refaz
+    // esta pergunta — e a resposta MUDA sozinha: os byes só contam enquanto o mata-mata tem
+    // uma fase só, e depois que as oitavas nascem os mesmos 16 viram 8. NomeFase(8) é
+    // "Quartas de Final", que ainda não existia, então a guarda de duplicidade do chamador
+    // deixava passar.
+    [Fact]
+    public async Task Fase_ja_avancada_nao_avanca_de_novo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var categoria = await MontarChaveDiretaDe24Async(ctx);
+
+        foreach (var partida in ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToList())
+        {
+            partida.Status = "Finalizada";
+            partida.VencedorId = partida.Dupla1Id;
+        }
+        await ctx.SaveChangesAsync();
+
+        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        Assert.Equal(16, dezesseis.Count);
+
+        // As oitavas nascem e vão pra quadra — nenhuma terminou ainda.
+        foreach (var confronto in ChaveamentoMataMata.ParearVencedores(dezesseis))
+        {
+            ctx.Partidas.Add(new Partida
+            {
+                CategoriaId = categoria.Id,
+                Fase = "Oitavas de Final",
+                Status = "Agendada",
+                Dupla1Id = confronto.Dupla1Id,
+                Dupla2Id = confronto.Dupla2Id,
+                Codigo = Guid.NewGuid().ToString()[..6],
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        // Segundo jogo da primeira rodada finalizado quase junto com o primeiro — ou o
+        // organizador reabrindo e finalizando de novo. A pergunta se repete.
+        var denovo = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+
+        Assert.Empty(denovo);
+    }
+
+    // A guarda não pode travar o avanço legítimo: quando as oitavas de fato terminam, as
+    // quartas precisam nascer.
+    [Fact]
+    public async Task Guarda_nao_impede_o_avanco_da_fase_mais_recente()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var categoria = await MontarChaveDiretaDe24Async(ctx);
+
+        foreach (var partida in ctx.Partidas.Where(p => p.CategoriaId == categoria.Id).ToList())
+        {
+            partida.Status = "Finalizada";
+            partida.VencedorId = partida.Dupla1Id;
+        }
+        await ctx.SaveChangesAsync();
+
+        var dezesseis = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, ChaveamentoMataMata.PrimeiraRodada);
+        foreach (var confronto in ChaveamentoMataMata.ParearVencedores(dezesseis))
+        {
+            ctx.Partidas.Add(new Partida
+            {
+                CategoriaId = categoria.Id,
+                Fase = "Oitavas de Final",
+                Status = "Finalizada",
+                Dupla1Id = confronto.Dupla1Id,
+                Dupla2Id = confronto.Dupla2Id,
+                VencedorId = confronto.Dupla1Id,
+                Codigo = Guid.NewGuid().ToString()[..6],
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        var avancam = await AvancoDaChave.QuemAvancaAsync(ctx, categoria.Id, "Oitavas de Final");
+
+        Assert.Equal(8, avancam.Count);
+        Assert.Equal("Quartas de Final", ChaveamentoMataMata.NomeFase(avancam.Count));
+    }
 }
