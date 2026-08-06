@@ -13,17 +13,20 @@ namespace Padelizou.Controllers
         private readonly IPalpiteService _palpites;
         private readonly IPushNotificationService _pushService;
         private readonly ILogger<PartidasController> _logger;
+        private readonly EncerramentoDaPartida _encerramento;
 
         public PartidasController(
             DbPadelContext context,
             IPalpiteService palpites,
             IPushNotificationService pushService,
-            ILogger<PartidasController> logger)
+            ILogger<PartidasController> logger,
+            EncerramentoDaPartida encerramento)
         {
             _context = context;
             _palpites = palpites;
             _pushService = pushService;
             _logger = logger;
+            _encerramento = encerramento;
         }
 
         private int? ObterJogadorIdLogado()
@@ -160,48 +163,6 @@ namespace Padelizou.Controllers
                 $"{proxima.Categoria?.Nome ?? proxima.Fase} · previsto {proxima.HorarioPrevisto:HH:mm}";
         }
 
-        // Push de "seu jogo é o próximo", disparado pelo FIM do jogo anterior — não por
-        // relógio. Torneio atrasa, e um aviso preso ao horário previsto chegaria com o
-        // jogador ainda almoçando, ou depois de ele já ter jogado. Quem sabe de verdade que
-        // a quadra vagou é a partida que acabou de terminar nela.
-        private async Task AvisarProximoDaQuadraAsync(Partida terminada)
-        {
-            if (terminada.TorneioId == null) return;
-
-            try
-            {
-                var agendadas = await _context.Partidas
-                    .Include(p => p.Dupla1)
-                    .Include(p => p.Dupla2)
-                    .Where(p => p.TorneioId == terminada.TorneioId && p.Status == "Agendada")
-                    .ToListAsync();
-
-                var proxima = AvisosDoDiaDeJogo.ProximaAposTerminar(terminada, agendadas);
-                if (proxima == null) return;
-
-                var url = Url.Action("Jogos", "Torneios", new { id = terminada.TorneioId });
-
-                foreach (var jogadorId in AvisosDoDiaDeJogo.JogadoresDa(proxima))
-                {
-                    await _pushService.EnviarParaJogadorAsync(jogadorId,
-                        "Seu jogo é o próximo!",
-                        AvisosDoDiaDeJogo.CorpoDoProximo(proxima),
-                        // O aviso mais importante do sistema: a pessoa está no clube, o jogo é
-                        // agora, e ela não vai abrir e-mail. Se um só aviso valesse o WhatsApp,
-                        // seria este.
-                        url, AlcanceDoAviso.AppEWhatsApp);
-                }
-
-                proxima.AvisoProximoEnviadoEm = DateTime.Now;
-                await _context.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                // O placar já está salvo e o mata-mata já avançou. Push é acessório.
-                _logger.LogWarning(ex, "Falha ao avisar o próximo jogo da quadra depois da partida {PartidaId}.", terminada.Id);
-            }
-        }
-
         // POST: Partidas/ColocarNoAr/5
         //
         // Um clique pra começar a partida, direto da lista de Jogos. Existe porque no dia do
@@ -211,7 +172,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ColocarNoAr(int id)
+        public async Task<IActionResult> ColocarNoAr(int id, string? voltarPara = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
@@ -231,9 +192,17 @@ namespace Padelizou.Controllers
             }
 
             // Partida fora de torneio não tem lista de Jogos pra onde voltar.
-            return partida.TorneioId.HasValue
-                ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
-                : RedirectToAction("ControlePlacar", new { id });
+            //
+            // ⚠️ E quem veio da PÁGINA DO TORNEIO volta pra lá: mandar todo mundo pra
+            // /Torneios/Jogos fazia as abas mãe (Inscritos, Grupos, Chaves) sumirem debaixo
+            // do organizador — a mesma queixa que o salvar placar e o trocar quadra já
+            // resolveram. Lista fechada de destinos: campo de formulário nunca vira
+            // redirecionamento pra qualquer lugar.
+            if (!partida.TorneioId.HasValue) return RedirectToAction("ControlePlacar", new { id });
+
+            return voltarPara == "Details"
+                ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId.Value }, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value });
         }
 
         // DESFAZER o play: o jogo volta pra fila como se nunca tivesse sido chamado.
@@ -523,53 +492,24 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             // ====================================================================
-            // O GATILHO DA AUTOMAÇÃO MÁSTER
+            // O ENCERRAMENTO — O MESMO DA MESA DE CONTROLE
             // ====================================================================
             //
-            // ⚠️ O robô é o MESMO da Mesa de Controle (Services/RoboDoChaveamento), e isso é
-            // a correção, não um detalhe: até 06/08/2026 este controller tinha a própria
-            // cópia dele, que criava a rodada seguinte com `HorarioPrevisto = agora + 2h`
-            // pra TODOS os jogos, sem quadra e sem conferir quem já estava marcado. Ou seja,
-            // a chave do torneio saía diferente conforme a TELA usada pra encerrar o jogo.
-            var robo = new RoboDoChaveamento(_context);
-
+            // ⚠️ Padelímetro, robôs de chaveamento e avisos moram todos em
+            // Services/EncerramentoDaPartida. Até 06/08/2026 cada tela tinha a própria
+            // versão disto, e o que acontecia no fim de um jogo dependia de POR ONDE o
+            // placar tinha sido lançado: esta aqui, por exemplo, não movia o Padelímetro —
+            // o nível dos 4 jogadores não mudava e o extrato do perfil ficava sem a linha.
             if (status == "Finalizada" && partida.TorneioId.HasValue)
             {
-                if (FasesTorneio.EhFaseDeGrupos(partida.Fase))
-                {
-                    // Fim da Fase de Grupos -> Gera a primeira rodada do mata-mata
-                    await robo.MontarMataMataDosGruposAsync(partida.CategoriaId, partida.TorneioId.Value);
-                }
-                else if (ChaveamentoMataMata.ProximaFase(partida.Fase) != null) // Oitavas, Quartas ou Semifinal
-                {
-                    // Fim de um jogo de Mata-Mata -> Empurra o vencedor pra próxima fase
-                    await robo.AvancarFaseAsync(partida.CategoriaId, partida.TorneioId.Value, partida.Fase);
-                }
-                else if (partida.Fase.StartsWith("Americano"))
-                {
-                    // Fim de uma rodada do Torneio Americano -> se todas as rodadas da categoria
-                    // já acabaram, gera a final automática com os 4 melhores individualmente
-                    await VerificarEGerarFinalAmericano(partida.TorneioId.Value, partida.CategoriaId);
-                }
-                else if (partida.Fase == "Final")
-                {
-                    // Fim do Torneio -> Coroa os Campeões
-                    var campeao = await _context.Duplas.FindAsync(partida.VencedorId);
-                    if (campeao != null) campeao.UltimaFase = "Campeao";
+                await _encerramento.AplicarAsync(partida, acabouDeTerminar,
+                    new EncerramentoDaPartida.LinksDoAviso(
+                        Url.Action("Details", "Torneios", new { id = partida.TorneioId }),
+                        Url.Action("Jogos", "Torneios", new { id = partida.TorneioId })));
 
-                    var torneio = await _context.Torneios.FindAsync(partida.TorneioId);
-                    if (torneio != null) torneio.Status = "Finalizado";
-
-                    await _context.SaveChangesAsync();
-                }
-
-                // A quadra acabou de vagar: chama quem joga nela agora. Só na transição —
-                // ver `acabouDeTerminar` lá em cima.
-                if (acabouDeTerminar)
-                {
-                    await AvisarProximoDaQuadraAsync(partida);
-                    await SugerirProximoDaQuadraAsync(partida);
-                }
+                // O banner "a quadra vagou" é estado de TELA (TempData), não de domínio —
+                // por isso continua aqui e não no serviço.
+                if (acabouDeTerminar) await SugerirProximoDaQuadraAsync(partida);
             }
 
             // Volta pra tela de onde o organizador veio (a página do torneio tem as abas mãe;
@@ -580,57 +520,5 @@ namespace Padelizou.Controllers
                 : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });
         }
 
-        // --- ROBÔ 3: TORNEIO AMERICANO — gera a final automática assim que todas as rodadas acabam ---
-        private async Task VerificarEGerarFinalAmericano(int torneioId, int categoriaId)
-        {
-            bool temRodadaPendente = await _context.Partidas.AnyAsync(p =>
-                p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status != "Finalizada");
-            if (temRodadaPendente) return;
-
-            bool finalJaGerada = await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == "Final");
-            if (finalJaGerada) return;
-
-            var partidas = await _context.Partidas
-                .Include(p => p.Dupla1).Include(p => p.Dupla2)
-                .Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano"))
-                .ToListAsync();
-
-            if (partidas.Count == 0) return;
-
-            var pontos = new Dictionary<int, int>();
-            void Somar(int jogadorId, int games) => pontos[jogadorId] = pontos.GetValueOrDefault(jogadorId) + games;
-            foreach (var p in partidas)
-            {
-                // No americano as duplas são sorteadas pelo sistema, então Jogador2Id nunca
-                // é nulo aqui — mas a checagem evita quebrar se algum dado vier torto.
-                Somar(p.Dupla1.Jogador1Id, p.GamesDupla1 ?? 0);
-                if (p.Dupla1.Jogador2Id != null) Somar(p.Dupla1.Jogador2Id.Value, p.GamesDupla1 ?? 0);
-                Somar(p.Dupla2.Jogador1Id, p.GamesDupla2 ?? 0);
-                if (p.Dupla2.Jogador2Id != null) Somar(p.Dupla2.Jogador2Id.Value, p.GamesDupla2 ?? 0);
-            }
-
-            var top4 = pontos.OrderByDescending(kv => kv.Value).Take(4).Select(kv => kv.Key).ToList();
-            if (top4.Count < 4) return; // não tem jogadores suficientes pra formar a final
-
-            // Cruzamento: 1º colocado + 4º colocado x 2º colocado + 3º colocado
-            var duplaFinal1 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[0], Jogador2Id = top4[3] };
-            var duplaFinal2 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[1], Jogador2Id = top4[2] };
-            _context.Duplas.Add(duplaFinal1);
-            _context.Duplas.Add(duplaFinal2);
-            await _context.SaveChangesAsync();
-
-            _context.Partidas.Add(new Partida
-            {
-                TorneioId = torneioId,
-                CategoriaId = categoriaId,
-                Dupla1Id = duplaFinal1.Id,
-                Dupla2Id = duplaFinal2.Id,
-                Fase = "Final",
-                Status = "Agendada",
-                HorarioPrevisto = DateTime.Now.AddHours(2),
-                Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-            });
-            await _context.SaveChangesAsync();
-        }
     }
 }

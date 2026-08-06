@@ -23,13 +23,15 @@ namespace Padelizou.Controllers
         private readonly RegistroResultadosSettings _registro;
         private readonly ILogger<TorneiosController> _logger;
         private readonly IPadelimetroService _padelimetro;
+        private readonly EncerramentoDaPartida _encerramento;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
             IWebHostEnvironment env, IEmailService emailService, IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
-            ILogger<TorneiosController> logger, IPadelimetroService padelimetro)
+            ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
+            EncerramentoDaPartida encerramento)
         {
             _context = context;
             _estatisticas = estatisticas;
@@ -42,6 +44,7 @@ namespace Padelizou.Controllers
             _registro = registro.Value;
             _logger = logger;
             _padelimetro = padelimetro;
+            _encerramento = encerramento;
         }
 
         // Notifica quem tem NotificarSeguidosTorneio marcado e segue algum dos jogadores que

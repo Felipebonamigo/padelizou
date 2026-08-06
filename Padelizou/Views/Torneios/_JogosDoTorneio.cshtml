@@ -63,7 +63,7 @@
             <span class="d-block">@TempData["ProximoJogoQuem"]</span>
             <small class="opacity-75">@TempData["ProximoJogoQuando"]</small>
         </div>
-        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" method="post">
+        <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@proximoJogoId" asp-route-voltarPara="@Model.TargetAction" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-padel fw-bold">
                 <i class="bi bi-play-fill"></i> Começar agora

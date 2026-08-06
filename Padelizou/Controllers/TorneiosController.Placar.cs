@@ -203,130 +203,21 @@ namespace Padelizou.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // PADELÍMETRO: o placar acabou de virar oficial — move o nível dos 4
-                // jogadores (regras em RANKING.md; restrito/time/W.O. o serviço filtra).
-                // Falha aqui não pode travar a Mesa no meio do torneio: o replay do
-                // admin reconstrói qualquer jogo perdido.
-                try
-                {
-                    await _padelimetro.AplicarAsync(partida.Id);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Padelímetro falhou na partida {PartidaId}", partida.Id);
-                }
-
-                // GATILHOS DO ROBÔ (Usando _context.Partidas). A fase de grupos existe em duas
-                // grafias ("Fase de Grupos" nos seeds antigos, "Grupo A/B/..." no GerarChaves) —
-                // o gatilho precisa aceitar as duas, senão o mata-mata nunca é gerado.
-                if (FasesTorneio.EhFaseDeGrupos(partida.Fase))
-                {
-                    var jogosPendentes = await _context.Partidas
-                        .CountAsync(p => p.CategoriaId == partida.CategoriaId
-                                      && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
-                                      && p.Status != "Finalizada");
-                    if (jogosPendentes == 0) await ProcessarMataMataAutomatico(partida.CategoriaId, partida.TorneioId);
-                }
-                else if (ChaveamentoMataMata.ProximaFase(partida.Fase) != null) // Oitavas, Quartas ou Semifinal
-                {
-                    var jogosPendentesFase = await _context.Partidas
-                        .CountAsync(p => p.CategoriaId == partida.CategoriaId && p.Fase == partida.Fase && p.Status != "Finalizada");
-                    if (jogosPendentesFase == 0) await ProcessarAvancoMataMataAutomatico(partida.CategoriaId, partida.TorneioId, partida.Fase);
-                }
-                else if (partida.Fase == "Final")
-                {
-                    // Campeão!
-                    var campeao = await _context.Duplas.FindAsync(vencedorId);
-                    if (campeao != null) campeao.UltimaFase = "Campeao";
-
-                    var torneio = await _context.Torneios.FindAsync(partida.TorneioId);
-                    if (torneio != null) torneio.Status = "Finalizado";
-                    await _context.SaveChangesAsync();
-                }
-
-                await NotificarResultadoAsync(partida, vencedorId, perdedorId);
+                // ⚠️ DAQUI PRA FRENTE É O ENCERRAMENTO ÚNICO (Services/EncerramentoDaPartida):
+                // Padelímetro, robôs de chaveamento, aviso de resultado e chamada do próximo
+                // par da quadra. Esta tela tinha a própria versão disso, e faltavam nela a
+                // final do Americano e o "seu jogo é o próximo" — que é justamente o aviso
+                // que mais importa, disparado da tela que se usa no dia do torneio.
+                await _encerramento.AplicarAsync(partida, acabouDeTerminar: true, LinksDoAviso(partida.TorneioId));
             }
             return DepoisDeFinalizar(voltarPara, partida?.TorneioId);
         }
 
-        // Fim de jogo: avisa quem jogou e quem acompanha esses jogadores. É o momento em que
-        // o app tem algo a dizer — antes disso a pessoa precisava abrir a tela pra descobrir.
-        private async Task NotificarResultadoAsync(Partida partida, int vencedorId, int perdedorId)
-        {
-            try
-            {
-                var duplas = await _context.Duplas
-                    .Include(d => d.Jogador1).Include(d => d.Jogador2)
-                    .Where(d => d.Id == vencedorId || d.Id == perdedorId)
-                    .ToListAsync();
-
-                var vencedora = duplas.FirstOrDefault(d => d.Id == vencedorId);
-                var perdedora = duplas.FirstOrDefault(d => d.Id == perdedorId);
-                if (vencedora == null || perdedora == null) return;
-
-                var torneio = partida.TorneioId == null ? null : await _context.Torneios.FindAsync(partida.TorneioId.Value);
-                var url = Url.Action("Details", "Torneios", new { id = partida.TorneioId });
-
-                // Push é lido de relance: apelido identifica mais rápido que nome completo.
-                string Nomes(Dupla d) => $"{d.Jogador1?.ComoChamar} e {d.Jogador2?.ComoChamar}";
-                var placar = $"{partida.GamesDupla1}x{partida.GamesDupla2}";
-                var ondeFoi = torneio != null ? $" · {torneio.Nome}" : "";
-                bool ehFinal = partida.Fase == "Final";
-
-                // 1. Quem jogou recebe o próprio resultado.
-                // Dupla incompleta não chega a jogar, mas o filtro protege o push de nulo.
-                var idsVencedores = new[] { vencedora.Jogador1Id, vencedora.Jogador2Id }
-                    .Where(id => id != null).Select(id => id!.Value).ToArray();
-                var idsPerdedores = new[] { perdedora.Jogador1Id, perdedora.Jogador2Id }
-                    .Where(id => id != null).Select(id => id!.Value).ToArray();
-
-                foreach (var id in idsVencedores)
-                {
-                    await _pushService.EnviarParaJogadorAsync(id,
-                        ehFinal ? "🏆 Campeões!" : "Vitória!",
-                        ehFinal
-                            ? $"Vocês venceram a final{ondeFoi}!"
-                            : $"Vocês venceram {Nomes(perdedora)} ({placar}){ondeFoi}.",
-                        url);
-                }
-
-                foreach (var id in idsPerdedores)
-                {
-                    await _pushService.EnviarParaJogadorAsync(id,
-                        "Resultado do seu jogo",
-                        $"{Nomes(vencedora)} venceu ({placar}){ondeFoi}.",
-                        url);
-                }
-
-                // 2. Quem segue os jogadores fica sabendo — mas SÓ do mata-mata. Num dia de
-                //    torneio a fase de grupos tem dezenas de jogos; avisar seguidor a cada um
-                //    viraria spam e a pessoa desligaria a notificação de vez.
-                if (FasesTorneio.EhFaseDeGrupos(partida.Fase)) return;
-
-                var idsEmQuadra = idsVencedores.Concat(idsPerdedores).ToHashSet();
-                var seguidores = await _context.SeguidoresJogador
-                    .Include(s => s.Seguidor)
-                    .Where(s => idsEmQuadra.Contains(s.SeguidoId)
-                             && !idsEmQuadra.Contains(s.SeguidorId)
-                             && s.Seguidor.NotificarSeguidosTorneio)
-                    .Select(s => s.SeguidorId)
-                    .Distinct()
-                    .ToListAsync();
-
-                foreach (var seguidorId in seguidores)
-                {
-                    await _pushService.EnviarParaJogadorAsync(seguidorId,
-                        ehFinal ? "Saiu o campeão!" : "Resultado de quem você segue",
-                        $"{Nomes(vencedora)} venceu {Nomes(perdedora)} ({placar}){ondeFoi}.",
-                        url);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Push é acessório — o resultado já está gravado, não pode falhar por isso.
-                _logger.LogWarning(ex, "Falha ao notificar resultado da partida {PartidaId}.", partida.Id);
-            }
-        }
+        // Os endereços que o push do encerramento leva. Montar rota é trabalho do
+        // controller; o serviço não carrega IUrlHelper só pra isso.
+        private EncerramentoDaPartida.LinksDoAviso LinksDoAviso(int? torneioId) => new(
+            Url.Action("Details", "Torneios", new { id = torneioId }),
+            Url.Action("Jogos", "Torneios", new { id = torneioId }));
 
         // ===================== FINANCEIRO DO TORNEIO =====================
 

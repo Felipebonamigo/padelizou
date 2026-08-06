@@ -146,6 +146,79 @@ public class RoboDoChaveamento
     }
 
     // ===================================================================================
+    // ROBÔ 3: TORNEIO AMERICANO → a final, quando todas as rodadas acabam
+    // ===================================================================================
+    //
+    // ⚠️ Este robô morava SÓ no PartidasController, o que quer dizer que um Americano
+    // encerrado pela Mesa de Controle — a tela do dia de torneio — terminava as rodadas e
+    // ficava parado, esperando uma final que ninguém ia criar.
+    public async Task MontarFinalDoAmericanoAsync(int categoriaId, int? torneioId)
+    {
+        if (torneioId == null) return;
+
+        bool temRodadaPendente = await _context.Partidas.AnyAsync(p =>
+            p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status != "Finalizada");
+        if (temRodadaPendente) return;
+
+        bool finalJaGerada = await _context.Partidas.AnyAsync(p =>
+            p.CategoriaId == categoriaId && p.Fase == "Final");
+        if (finalJaGerada) return;
+
+        var partidas = await _context.Partidas
+            .Include(p => p.Dupla1).Include(p => p.Dupla2)
+            .Where(p => p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano"))
+            .ToListAsync();
+
+        if (partidas.Count == 0) return;
+
+        // No Americano o placar é individual: cada jogador leva os games da dupla dele.
+        var pontos = new Dictionary<int, int>();
+        void Somar(int jogadorId, int games) => pontos[jogadorId] = pontos.GetValueOrDefault(jogadorId) + games;
+        foreach (var p in partidas)
+        {
+            // As duplas do americano são sorteadas pelo sistema, então Jogador2Id nunca é
+            // nulo aqui — mas a checagem evita quebrar se algum dado vier torto.
+            Somar(p.Dupla1.Jogador1Id, p.GamesDupla1 ?? 0);
+            if (p.Dupla1.Jogador2Id != null) Somar(p.Dupla1.Jogador2Id.Value, p.GamesDupla1 ?? 0);
+            Somar(p.Dupla2.Jogador1Id, p.GamesDupla2 ?? 0);
+            if (p.Dupla2.Jogador2Id != null) Somar(p.Dupla2.Jogador2Id.Value, p.GamesDupla2 ?? 0);
+        }
+
+        // Desempate por Id no fim pelo mesmo motivo da classificação de grupos: sem ordem
+        // TOTAL, quem entra no top 4 passa a depender da ordem em que o dicionário devolveu.
+        var top4 = pontos
+            .OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key)
+            .Take(4).Select(kv => kv.Key).ToList();
+        if (top4.Count < 4) return; // não tem gente suficiente pra formar a final
+
+        // Cruzamento: 1º + 4º × 2º + 3º.
+        var duplaFinal1 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[0], Jogador2Id = top4[3] };
+        var duplaFinal2 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[1], Jogador2Id = top4[2] };
+        _context.Duplas.Add(duplaFinal1);
+        _context.Duplas.Add(duplaFinal2);
+        await _context.SaveChangesAsync();
+
+        var final = new Partida
+        {
+            TorneioId = torneioId,
+            CategoriaId = categoriaId,
+            Dupla1Id = duplaFinal1.Id,
+            Dupla2Id = duplaFinal2.Id,
+            Fase = "Final",
+            Status = "Agendada",
+            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+        };
+
+        // ⚠️ Entra na GRADE como qualquer outra fase. A versão antiga cravava
+        // `DateTime.Now.AddHours(2)`: a final do Americano nascia num horário inventado, sem
+        // quadra e podendo cair em cima de outro jogo.
+        await AgendarNaGradeAsync(new List<Partida> { final }, torneioId);
+
+        _context.Partidas.Add(final);
+        await _context.SaveChangesAsync();
+    }
+
+    // ===================================================================================
     // A GRADE
     // ===================================================================================
 

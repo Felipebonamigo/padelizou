@@ -155,7 +155,7 @@
                 {
                     @* Verde, não vermelho: play vermelho é o botão do YouTube (lê como
                        "assistir") e vermelho é a cor do destrutivo no resto do site. *@
-                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" method="post">
+                    <form asp-controller="Partidas" asp-action="ColocarNoAr" asp-route-id="@jogo.Id" asp-route-voltarPara="@ViewData["TargetAction"]" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-success" title="Começar o jogo" aria-label="Começar o jogo">
                             <i class="bi bi-play-fill"></i>

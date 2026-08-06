@@ -54,13 +54,25 @@ public static class TestInfra
     // PartidasController com os serviços de borda dublados. Fica aqui, e não repetido em
     // cada arquivo de teste, porque toda vez que o construtor ganha uma dependência os
     // testes quebram em vários lugares ao mesmo tempo — foi o que aconteceu ao injetar push.
-    public static PartidasController NovoPartidasController(DbPadelContext ctx, int? usuarioLogadoId)
+    // O encerramento de partida (Padelímetro, robôs de chaveamento, avisos) é o MESMO objeto
+    // pras duas telas — de verdade, não dublê: os testes que rodam o torneio inteiro só provam
+    // alguma coisa se o que roda aqui for o que roda em produção.
+    public static EncerramentoDaPartida NovoEncerramento(
+        DbPadelContext ctx, IPushNotificationService? push = null) =>
+        new(ctx, new PadelimetroService(ctx), push ?? Substitute.For<IPushNotificationService>(),
+            NullLogger<EncerramentoDaPartida>.Instance);
+
+    public static PartidasController NovoPartidasController(DbPadelContext ctx, int? usuarioLogadoId,
+        IPushNotificationService? push = null)
     {
+        push ??= Substitute.For<IPushNotificationService>();
+
         var controller = new PartidasController(
             ctx,
             Substitute.For<IPalpiteService>(),
-            Substitute.For<IPushNotificationService>(),
-            NullLogger<PartidasController>.Instance);
+            push,
+            NullLogger<PartidasController>.Instance,
+            NovoEncerramento(ctx, push));
 
         var user = usuarioLogadoId == null
             ? new ClaimsPrincipal(new ClaimsIdentity())
@@ -136,22 +148,25 @@ public static class TestInfra
     // `pagamentos` fica aberto porque a tela de criação agora PERGUNTA a ele se a conta de
     // recebimento está conectada — quem testa essa recusa precisa dizer a resposta.
     public static TorneiosController NovoTorneiosController(DbPadelContext ctx, int usuarioLogadoId,
-        IPagamentoInscricaoService? pagamentos = null)
+        IPagamentoInscricaoService? pagamentos = null, IPushNotificationService? push = null)
     {
+        push ??= Substitute.For<IPushNotificationService>();
+
         var controller = new TorneiosController(
             ctx,
             new EstatisticasService(ctx),
             Substitute.For<IPalpiteService>(),
             Substitute.For<IWebHostEnvironment>(),
             Substitute.For<IEmailService>(),
-            Substitute.For<IPushNotificationService>(),
+            push,
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
             Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()),
             NullLogger<TorneiosController>.Instance,
             // Padelímetro de verdade (não dublê): finalizar partida nos testes deve mover
             // o nível igual à produção — é justamente o que os testes querem ver.
-            new PadelimetroService(ctx));
+            new PadelimetroService(ctx),
+            NovoEncerramento(ctx, push));
 
         controller.ControllerContext = new ControllerContext
         {

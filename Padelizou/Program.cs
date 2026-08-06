@@ -62,6 +62,9 @@ builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
+// Ranking RS (mundodoatleta.com.br). Nasce DESLIGADO: sem chave configurada, nenhuma inscrição
+// é validada contra o ranking — ver Services/RankingRsSettings.
+builder.Services.Configure<RankingRsSettings>(builder.Configuration.GetSection("RankingRs"));
 // Nasce DESLIGADO: o bar do clube está em construção e, enquanto isso, só admin do Padelizou
 // enxerga (ver Services/BarSettings).
 builder.Services.Configure<BarSettings>(builder.Configuration.GetSection("Bar"));
@@ -142,10 +145,16 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Padelizou");
 });
+// A consulta ao Ranking RS acontece dentro do POST da inscrição. O timeout de verdade é o do
+// RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
+// "não consultado" e a inscrição segue.
+builder.Services.AddHttpClient<IRankingRsService, RankingRsService>();
 builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService>();
 // Registrado nas duas formas de propósito: a interface pra quem GERA aviso (o app inteiro),
 // e a classe concreta pro entregador de fundo, que precisa do EntregarAgoraAsync — o método
 // que faz a rede de verdade e não pode ser chamado de dentro de uma requisição.
+// O que acontece quando um jogo acaba — as DUAS telas que finalizam partida chamam este.
+builder.Services.AddScoped<EncerramentoDaPartida>();
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
