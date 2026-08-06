@@ -27,6 +27,16 @@ public partial class Categoria
     // atingido vai pra lista de espera (Dupla.EmListaDeEspera).
     public int? LimiteDuplas { get; set; }
 
+    // Qual categoria do Ranking RS esta aqui representa (100 a 116 — ver
+    // Services/CategoriaDoRankingRs). Null = esta categoria NÃO é validada contra o ranking,
+    // e esse é o padrão.
+    //
+    // Existe como campo, e não como palpite calculado na hora, porque o nome no Padelizou é
+    // texto livre: "6ª Categoria" não diz o sexo, e a API do ranking NÃO confere sexo — ela
+    // responderia APROVADO pra um homem numa categoria feminina. O palpite do de-para serve
+    // de sugestão na tela; quem confirma é o organizador.
+    public int? RankingRsCategoriaId { get; set; }
+
     // ---- Categoria de TIMES ----
     // Aqui quem disputa são times, não duplas: o organizador define a estrutura (quantos
     // times, quantos grupos, quantos classificam por grupo) e cadastra os times pelo nome —

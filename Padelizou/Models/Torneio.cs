@@ -155,6 +155,15 @@ public partial class Torneio
     //   "Final"     -> comprova ao chegar à final (Final ou Campeão)
     public string RestricaoCategoria { get; set; } = "Livre";
 
+    // Valida as inscrições contra o Ranking RS (mundodoatleta.com.br)? Nasce DESLIGADO e é
+    // escolha do organizador, torneio a torneio — o ranking é do Rio Grande do Sul, e um
+    // torneio de outro estado não tem por que ser julgado por ele.
+    //
+    // Diferente do RestricaoCategoria acima, que olha só o histórico DENTRO do Padelizou:
+    // aqui a pergunta vai pra fora, e a resposta chega por nome. As duas regras convivem —
+    // quem passa numa ainda pode ser barrado pela outra.
+    public bool ValidarPeloRankingRs { get; set; }
+
     // Vagas máximas somando TODAS as categorias do torneio. Null = sem limite.
     // Quem se inscrever depois de atingido vai pra lista de espera (Dupla/InscricaoAmericana.EmListaDeEspera).
     public int? LimiteDuplasTotal { get; set; }

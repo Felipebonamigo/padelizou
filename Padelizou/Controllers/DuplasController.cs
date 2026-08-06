@@ -14,17 +14,20 @@ namespace Padelizou.Controllers
         private readonly IEmailService _emailService;
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
+        private readonly ValidacaoPeloRankingRs _rankingRs;
         private readonly ILogger<DuplasController> _logger;
 
         public DuplasController(DbPadelContext context, IEstatisticasService estatisticas,
             IEmailService emailService, IPushNotificationService pushService,
-            IPagamentoInscricaoService pagamentos, ILogger<DuplasController> logger)
+            IPagamentoInscricaoService pagamentos, ValidacaoPeloRankingRs rankingRs,
+            ILogger<DuplasController> logger)
         {
             _context = context;
             _estatisticas = estatisticas;
             _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
+            _rankingRs = rankingRs;
             _logger = logger;
         }
 
@@ -215,6 +218,27 @@ namespace Padelizou.Controllers
                         TempData["Erro"] = erro;
                         return RedirectToAction("Details", "Torneios", new { id = torneioId });
                     }
+                }
+            }
+
+            // 2a. A MESMA pergunta, feita pro Ranking RS (mundodoatleta.com.br), quando o
+            //     organizador ligou a validação neste torneio. A regra acima olha só o
+            //     histórico dentro do Padelizou; esta olha o ranking gaúcho, onde a pessoa
+            //     pode ter pontuado numa categoria mais forte sem nunca ter jogado aqui.
+            //
+            //     ⚠️ Reprovar aqui NÃO é a palavra final: a recusa vira linha em
+            //     BloqueioDoRanking e o organizador decide depois se ela fica de pé. E ranking
+            //     fora do ar nunca vira recusa — ver Services/ValidacaoPeloRankingRs.
+            if (!(ignorarBloqueio && await UsuarioEhOrganizadorAsync(torneioId)))
+            {
+                var pessoas = new List<ValidacaoPeloRankingRs.Pessoa> { new(nome1, cpf1) };
+                if (!semParceiro) pessoas.Add(new(nome2!, cpf2));
+
+                var barrado = await _rankingRs.MotivoDeRecusaAsync(torneio, categoria, pessoas);
+                if (barrado != null)
+                {
+                    TempData["Erro"] = barrado;
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
                 }
             }
 
@@ -519,14 +543,22 @@ namespace Padelizou.Controllers
                 _context, torneio, new[] { candidato.Id }, ignorarCategoriaId: dupla.CategoriaId);
             if (bloqueio != null) return bloqueio;
 
-            // Anti-sandbagging: o parceiro precisa poder jogar nesta categoria.
+            // Anti-sandbagging pelo histórico DENTRO do Padelizou: o parceiro precisa poder
+            // jogar nesta categoria.
             if (!string.IsNullOrEmpty(torneio.RestricaoCategoria) && torneio.RestricaoCategoria != "Livre")
             {
-                return await MotivoBloqueioCategoriaAsync(
+                var bloqueioHistorico = await MotivoBloqueioCategoriaAsync(
                     dupla.Categoria.Nome, candidato, null, torneio.RestricaoCategoria);
+                if (bloqueioHistorico != null) return bloqueioHistorico;
             }
 
-            return null;
+            // ...e anti-sandbagging pelo RANKING RS, que é a outra metade da mesma pergunta e
+            // olha pra fora do Padelizou. As duas convivem: passar numa não isenta da outra.
+            // Trocar de parceiro é uma das DUAS portas que inscrevem gente numa categoria — a
+            // outra é o Create. Se esta checagem existisse só lá, bastava entrar sozinho e
+            // trocar o parceiro depois pra furar a regra inteira.
+            return await _rankingRs.MotivoDeRecusaAsync(torneio, dupla.Categoria,
+                new[] { new ValidacaoPeloRankingRs.Pessoa(candidato.Nome, candidato.Cpf) });
         }
 
         // ── Convite de parceiro ────────────────────────────────────────────────────────

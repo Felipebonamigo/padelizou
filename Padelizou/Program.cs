@@ -149,6 +149,9 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 // RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
 // "não consultado" e a inscrição segue.
 builder.Services.AddHttpClient<IRankingRsService, RankingRsService>();
+// A regra de inscrição que usa o ranking. Serviço (e não código no controller) porque DUAS
+// telas inscrevem gente — ver o comentário do arquivo.
+builder.Services.AddScoped<ValidacaoPeloRankingRs>();
 builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService>();
 // Registrado nas duas formas de propósito: a interface pra quem GERA aviso (o app inteiro),
 // e a classe concreta pro entregador de fundo, que precisa do EntregarAgoraAsync — o método

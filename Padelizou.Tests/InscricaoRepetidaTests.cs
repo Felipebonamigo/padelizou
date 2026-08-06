@@ -192,6 +192,9 @@ public class InscricaoRepetidaTests
             Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
+            // Ranking RS sem chave — ver AceitarConviteTests.
+            new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
+                NullLogger<ValidacaoPeloRankingRs>.Instance),
             NullLogger<DuplasController>.Instance);
 
         controller.ControllerContext = new ControllerContext

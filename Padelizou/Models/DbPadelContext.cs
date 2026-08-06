@@ -77,6 +77,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<Elogio> Elogios { get; set; }
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
+
+    // Inscrições que o Ranking RS reprovou e que esperam a decisão do organizador.
+    public DbSet<BloqueioDoRanking> BloqueiosDoRanking { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
     public DbSet<AnotacaoAula> AnotacoesAula { get; set; }
 
@@ -455,6 +458,35 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.PerfilId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<BloqueioDoRanking>(entity =>
+        {
+            // UMA linha por pessoa em cada categoria. Tentar de novo ATUALIZA a mesma linha em
+            // vez de somar outra — foi exatamente assim que a tabela de Elogios cresceu debaixo
+            // da consulta em produção, e aqui seria pior: a fila do organizador encheria de
+            // repetições da mesma pessoa e ele decidiria a mesma coisa cinco vezes.
+            entity.HasIndex(e => new { e.CategoriaId, e.Cpf }).IsUnique();
+
+            // Os dois em Cascade de propósito. O caminho Torneio → Categoria → Bloqueio já
+            // existe, então um Restrict no TorneioId travaria a exclusão do torneio; e o
+            // Postgres lida com caminho múltiplo de cascade sem reclamar (o conflito é coisa
+            // do SQL Server).
+            entity.HasOne(e => e.Torneio)
+                .WithMany()
+                .HasForeignKey(e => e.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Categoria)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Quem decidiu pode apagar a própria conta depois (LGPD, ver Services/ExclusaoDeConta).
+            // A decisão continua valendo — o que se perde é só o nome de quem a tomou.
+            entity.HasOne(e => e.DecididoPor)
+                .WithMany()
+                .HasForeignKey(e => e.DecididoPorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
         modelBuilder.Entity<Clube>(entity =>
         {

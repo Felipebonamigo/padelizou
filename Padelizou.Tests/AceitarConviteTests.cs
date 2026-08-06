@@ -25,6 +25,10 @@ public class AceitarConviteTests
             Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
+            // Ranking RS sem chave: `Configurado` nasce false no substituto, então a validação
+            // devolve null antes de tentar qualquer consulta. Estes testes são de outra regra.
+            new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
+                NullLogger<ValidacaoPeloRankingRs>.Instance),
             NullLogger<DuplasController>.Instance);
 
         controller.ControllerContext = new ControllerContext

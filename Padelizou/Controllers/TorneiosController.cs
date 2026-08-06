@@ -343,6 +343,18 @@ namespace Padelizou.Controllers
                 // esqueceu a Mista, ou que abriu mais uma quadra, resolvia isso criando outro
                 // torneio.
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+
+                // Quem o Ranking RS barrou. Vem SEMPRE que o organizador olha a tela, mesmo com
+                // a validação já desligada depois: as linhas antigas continuam valendo (é o que
+                // segura quem foi "Mantido"), e sumir com elas esconderia decisão tomada.
+                // Pendente primeiro — é o que pede ação dele.
+                ViewBag.BloqueiosDoRanking = await _context.BloqueiosDoRanking
+                    .Include(b => b.Categoria)
+                    .Include(b => b.DecididoPor)
+                    .Where(b => b.TorneioId == id)
+                    .OrderBy(b => b.Situacao == SituacaoDoBloqueio.Pendente ? 0 : 1)
+                    .ThenByDescending(b => b.CriadoEm)
+                    .ToListAsync();
             }
 
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.

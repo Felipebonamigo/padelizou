@@ -988,6 +988,100 @@
                 </div>
             </div>
 
+            @* BARRADOS PELO RANKING RS — a fila de decisão do organizador.
+               A recusa da inscrição não é a palavra final: ela vira linha e espera aqui.
+               Sem esta lista, o barrado teria que caçar o organizador no WhatsApp e o
+               organizador não saberia que alguém tentou entrar. *@
+            @{
+                var bloqueiosRanking = (ViewBag.BloqueiosDoRanking as List<Padelizou.Models.BloqueioDoRanking>) ?? new();
+                var pendentesRanking = bloqueiosRanking
+                    .Where(b => b.Situacao == Padelizou.Models.SituacaoDoBloqueio.Pendente).ToList();
+            }
+            @if (bloqueiosRanking.Count > 0)
+            {
+                <div class="card bg-light border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-muted text-uppercase mb-1">
+                            <i class="bi bi-graph-up-arrow"></i> Barrados pelo Ranking RS
+                            @if (pendentesRanking.Count > 0)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">@pendentesRanking.Count pra decidir</span>
+                            }
+                        </h6>
+                        <p class="small text-muted mb-3">
+                            O ranking apontou que estas pessoas já pontuaram numa categoria mais forte.
+                            <strong>Você decide.</strong> Lembre que o ranking casa <strong>por nome</strong> —
+                            homônimo ou nome escrito diferente pode barrar quem tem direito de jogar.
+                        </p>
+
+                        <ul class="list-group list-group-flush">
+                            @foreach (var b in bloqueiosRanking)
+                            {
+                                <li class="list-group-item bg-transparent px-0">
+                                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                                        <div class="flex-grow-1" style="min-width: 200px;">
+                                            <div class="fw-bold">
+                                                @Padelizou.Services.NomeBonito.Formatar(b.NomeConsultado)
+                                                <span class="badge bg-secondary fw-normal">@(b.Categoria?.Nome ?? "categoria removida")</span>
+                                            </div>
+                                            <div class="small text-muted">@b.Motivo</div>
+                                            @if (b.Situacao != Padelizou.Models.SituacaoDoBloqueio.Pendente)
+                                            {
+                                                <div class="small mt-1">
+                                                    @if (b.Situacao == Padelizou.Models.SituacaoDoBloqueio.Liberado)
+                                                    {
+                                                        <span class="badge bg-success">liberado por você</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-danger">recusa mantida</span>
+                                                    }
+                                                    @if (b.DecididoEm is DateTime quando)
+                                                    {
+                                                        <span class="text-muted">em @quando.ToString("dd/MM 'às' HH:mm")</span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+
+                                        @* Os dois botões aparecem SEMPRE, inclusive depois de decidido:
+                                           mudar de ideia é normal, e sem isso um clique errado viraria
+                                           beco sem saída — que é o defeito que esta tela existe pra evitar. *@
+                                        <div class="d-flex gap-1 flex-shrink-0">
+                                            @if (b.Situacao != Padelizou.Models.SituacaoDoBloqueio.Liberado)
+                                            {
+                                                <form asp-controller="Torneios" asp-action="LiberarBloqueioRanking" method="post"
+                                                      data-confirmar-titulo="Liberar a inscrição?"
+                                                      data-confirmar="@(Padelizou.Services.NomeBonito.Formatar(b.NomeConsultado)) vai poder se inscrever em @(b.Categoria?.Nome) mesmo com os pontos do ranking. Avise a pessoa: ela precisa fazer a inscrição de novo."
+                                                      data-confirmar-ok="Liberar">
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-success">
+                                                        <i class="bi bi-check-lg"></i> Liberar
+                                                    </button>
+                                                </form>
+                                            }
+                                            @if (b.Situacao != Padelizou.Models.SituacaoDoBloqueio.Mantido)
+                                            {
+                                                <form asp-controller="Torneios" asp-action="ManterBloqueioRanking" method="post"
+                                                      data-confirmar-titulo="Manter a recusa?"
+                                                      data-confirmar="@(Padelizou.Services.NomeBonito.Formatar(b.NomeConsultado)) continua sem conseguir se inscrever em @(b.Categoria?.Nome)."
+                                                      data-confirmar-ok="Manter recusa"
+                                                      data-confirmar-tom="perigo">
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-x-lg"></i> Manter
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+
             <!-- ORGANIZADORES DO TORNEIO -->
             <div class="card bg-light border-0 shadow-sm">
                 <div class="card-body">
@@ -1203,6 +1297,57 @@
                                     O "gatilho" define o que conta como prova: só passar da fase de grupos, chegar à semifinal, ou chegar à final.
                                     Ex.: com "chegou à final", quem foi vice/campeão da 4ª não entra na 5ª/6ª/7ª — só na 4ª ou acima (3ª, 2ª, Open).
                                     Vale por jogador; quem nunca disputou torneio entra em qualquer categoria. Você pode liberar caso a caso na inscrição.
+                                </div>
+                            </div>
+
+                            @* Ranking RS: a mesma pergunta da restrição acima, só que feita pra
+                               FORA. A de cima olha o histórico dentro do Padelizou; esta olha o
+                               ranking gaúcho, onde a pessoa pode ter pontuado numa categoria
+                               mais forte sem nunca ter jogado um torneio nosso. *@
+                            <div class="mb-3 mt-2 border-top pt-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="validarPeloRankingRs" value="true"
+                                           id="editRankingRs" @(Model.ValidarPeloRankingRs ? "checked" : "")>
+                                    <label class="form-check-label fw-bold" for="editRankingRs">
+                                        <i class="bi bi-graph-up-arrow"></i> Conferir as inscrições no Ranking RS
+                                    </label>
+                                </div>
+                                <div class="small text-muted mt-2">
+                                    Consulta o ranking gaúcho (mundodoatleta.com.br) na hora da inscrição e barra quem
+                                    já pontuou numa categoria <strong>mais forte</strong> do que a escolhida.
+                                    Quem for barrado aparece aqui embaixo em <strong>"Barrados pelo Ranking RS"</strong>,
+                                    e <strong>você decide</strong> se mantém ou libera.
+                                    Se o ranking estiver fora do ar, a inscrição passa normalmente — ninguém fica travado por isso.
+                                </div>
+
+                                @* O casamento é POR CATEGORIA e não dá pra adivinhar: "6ª Categoria"
+                                   não diz se é masculina ou feminina, e o ranking tem as duas. O
+                                   select já vem no palpite quando o nome deixa claro. *@
+                                <div class="mt-3 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                                    <div class="fw-bold small mb-2">Qual categoria do ranking cada uma é?</div>
+                                    @foreach (var cat in Model.Categorias.OrderBy(c => c.Nome))
+                                    {
+                                        var escolhido = cat.RankingRsCategoriaId
+                                            ?? Padelizou.Services.CategoriaDoRankingRs.Adivinhar(cat.Nome);
+                                        <div class="row g-2 align-items-center mb-2">
+                                            <div class="col-5 small text-truncate" title="@cat.Nome">@cat.Nome</div>
+                                            <div class="col-7">
+                                                <input type="hidden" name="rankingCategoriaId" value="@cat.Id" />
+                                                <select class="form-select form-select-sm" name="rankingRsId">
+                                                    <option value="0" selected="@(escolhido == null)">Não conferir esta</option>
+                                                    @foreach (var item in Padelizou.Services.CategoriaDoRankingRs.Catalogo)
+                                                    {
+                                                        <option value="@item.Id" selected="@(escolhido == item.Id)">@item.Nome</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                    }
+                                    <div class="small text-muted mt-2">
+                                        Categoria deixada em <strong>"Não conferir esta"</strong> não é validada.
+                                        O ranking <strong>não confere sexo</strong> — se você apontar a categoria errada,
+                                        ele responde que está tudo certo do mesmo jeito. Por isso a escolha é sua.
+                                    </div>
                                 </div>
                             </div>
 

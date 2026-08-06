@@ -58,6 +58,9 @@ public class OrganizadorJuntaInscricoesTests
             Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
+            // Ranking RS sem chave — ver AceitarConviteTests.
+            new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
+                NullLogger<ValidacaoPeloRankingRs>.Instance),
             NullLogger<DuplasController>.Instance)
         {
             ControllerContext = new ControllerContext

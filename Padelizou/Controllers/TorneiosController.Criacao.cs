@@ -696,7 +696,13 @@ namespace Padelizou.Controllers
             int? setsFaseGrupos = null, int? gamesFaseGrupos = null,
             int? setsFaseMataMata = null, int? gamesFaseMataMata = null,
             int? setsFaseFinal = null, int? gamesFaseFinal = null,
-            int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false)
+            int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
+            // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
+            // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
+            // (0 = "não validar esta"). Par de arrays, e não dicionário, porque é o que o
+            // binder do ASP.NET monta a partir de campos repetidos num formulário comum.
+            bool validarPeloRankingRs = false,
+            int[]? rankingCategoriaId = null, int[]? rankingRsId = null)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -771,6 +777,8 @@ namespace Padelizou.Controllers
             torneio.QuantidadeQuadras = quantidadeQuadras;
             torneio.PermiteImpedimentos = permiteImpedimentos;
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
+            torneio.ValidarPeloRankingRs = validarPeloRankingRs;
+            await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);
             torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
             torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;
             torneio.PermiteImpedimentoSabadoTarde = permiteImpedimentoSabadoTarde;
