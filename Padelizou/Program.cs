@@ -161,6 +161,9 @@ builder.Services.AddSingleton<FilaDeWhatsApp>();
 builder.Services.AddHostedService<EntregadorDeWhatsAppBackgroundService>();
 // Aviso sai por fora da requisição: finalizar jogo não pode esperar SMTP. Ver FilaDeAvisos.
 builder.Services.AddSingleton<FilaDeAvisos>();
+// O portão de acesso antecipado: padrão no systemd, chave de virada no banco. Singleton
+// porque o middleware lê isto em TODA requisição — ver Services/PortaoDeAcesso.
+builder.Services.AddSingleton<PortaoDeAcesso>();
 builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
@@ -209,6 +212,11 @@ using (var scope = app.Services.CreateScope())
     // Cria/atualiza o schema no startup — num banco novo (Postgres) cria tudo do zero aqui,
     // então o deploy não precisa mais rodar 'ef database update' à mão.
     db.Database.Migrate();
+
+    // O estado do portão de acesso antecipado, se o admin já tiver mexido nele pelo app.
+    // Precisa vir DEPOIS do Migrate (a tabela pode ter acabado de nascer) e ANTES da primeira
+    // requisição — o middleware do portão roda antes do roteamento e lê isto da memória.
+    await scope.ServiceProvider.GetRequiredService<PortaoDeAcesso>().CarregarAsync(db);
 
     var catalogoCategorias = new (string Nome, string Codigo, string Tipo)[]
     {

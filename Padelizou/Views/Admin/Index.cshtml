@@ -1,6 +1,15 @@
 @{
     ViewData["Title"] = "Painel Admin - Padelizou";
     var ehRaiz = (bool)ViewBag.EhRaiz;
+    var portaoLigado = (bool)ViewBag.PortaoLigado;
+    var portaoDecididoAqui = (bool)ViewBag.PortaoDecididoAqui;
+
+    // O texto da confirmação sai daqui, e não de um `@(...)` dentro do atributo onsubmit:
+    // condicional com aspas dentro de atributo é o tipo de linha que quebra na primeira
+    // mexida e só dá sinal no navegador.
+    var avisoDoPortao = portaoLigado
+        ? "Desligar o portão? O site fica ABERTO: qualquer pessoa entra e se cadastra sem senha."
+        : "Ligar o portão? Quem não tem conta volta a precisar da senha compartilhada.";
 }
 
 <div class="container mt-4 mb-5">
@@ -159,5 +168,67 @@
                 </div>
             </div>
         </div>
+        @if (ehRaiz)
+        {
+            @* O PORTÃO. Fica por último e ocupa a largura inteira de propósito: é o único
+               botão deste painel que muda quem consegue ENTRAR no site, e um card de meia
+               largura no meio da grade não carrega esse peso. O estado atual vem escrito em
+               letra grande porque a pergunta que se faz aqui é "está aberto ou fechado?",
+               não "onde clico". *@
+            <div class="col-12">
+                <div class="card shadow-sm border-0 h-100 @(portaoLigado ? "" : "border-warning border-2")">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            <i class="bi @(portaoLigado ? "bi-lock-fill" : "bi-unlock-fill")"></i>
+                            Portão de acesso antecipado
+                        </h5>
+
+                        @if (portaoLigado)
+                        {
+                            <p class="mb-1">
+                                <span class="badge text-bg-secondary">FECHADO</span>
+                                O site pede a senha compartilhada a quem <strong>não tem conta</strong>.
+                            </p>
+                            <p class="text-muted small mb-3">
+                                Quem já tem conta entra pelo próprio login — o portão não tranca usuário de
+                                verdade fora do próprio cadastro. Desligar abre o <strong>cadastro</strong>
+                                pra qualquer pessoa: é o botão do lançamento.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="mb-1">
+                                <span class="badge text-bg-success">ABERTO</span>
+                                Qualquer pessoa entra e se cadastra, sem senha nenhuma.
+                            </p>
+                            <p class="text-muted small mb-3">
+                                É o estado de site público. Ligar de volta volta a pedir a senha
+                                compartilhada a quem ainda não tem conta.
+                            </p>
+                        }
+
+                        <form asp-controller="Admin" asp-action="AlternarPortao" method="post"
+                              onsubmit="return confirm('@avisoDoPortao');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="habilitar" value="@((!portaoLigado).ToString().ToLowerInvariant())" />
+                            <button type="submit" class="btn btn-sm rounded-pill px-3 @(portaoLigado ? "btn-padel" : "btn-outline-secondary")">
+                                @(portaoLigado ? "Desligar o portão (abrir o site)" : "Ligar o portão de volta")
+                            </button>
+                        </form>
+
+                        @if (!portaoDecididoAqui)
+                        {
+                            @* Enquanto ninguém mexeu por aqui, quem manda é a configuração do
+                               servidor. Dizer isso evita a confusão de "eu não desliguei" numa
+                               tela que também é lida por quem não fez o deploy. *@
+                            <p class="text-muted small mb-0 mt-2">
+                                <i class="bi bi-info-circle"></i>
+                                Estado vindo da configuração do servidor — ninguém mexeu nisto pelo painel ainda.
+                            </p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>

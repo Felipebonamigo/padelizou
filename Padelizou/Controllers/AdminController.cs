@@ -53,12 +53,16 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(
+            [FromServices] PortaoDeAcesso portao,
+            [FromServices] Microsoft.Extensions.Options.IOptions<AcessoAntecipadoSettings> acessoAntecipado)
         {
             var admin = await ObterJogadorAdminAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             ViewBag.EhRaiz = admin.IsAdminRaiz;
+            ViewBag.PortaoLigado = portao.EstaHabilitado(acessoAntecipado.Value);
+            ViewBag.PortaoDecididoAqui = portao.DecididoPeloAdmin;
             return View();
         }
 
@@ -597,6 +601,35 @@ namespace padelizou.Controllers
             TempData["Sucesso"] = partidas == 0
                 ? "Nenhuma partida contável — ninguém ganhou Padelímetro ainda."
                 : $"Padelímetro recalculado: {partidas} partida(s) contada(s), {comNivel} jogador(es) com nível.";
+
+            return RedirectToAction("Index");
+        }
+
+        // O PORTÃO DE ACESSO ANTECIPADO, ligado e desligado daqui.
+        //
+        // Desligado, o site fica aberto: qualquer pessoa entra e se cadastra sem a senha
+        // compartilhada. É o botão do LANÇAMENTO — e ele existe porque a alternativa era ssh
+        // no servidor mais restart do serviço, o que não se faz do celular às 20h de um
+        // sábado. O estado fica no banco e sobrevive a deploy (ver Services/PortaoDeAcesso).
+        //
+        // ⚠️ Só o admin RAIZ. Desligar o portão é o ato mais público que este painel tem —
+        // abre o cadastro pro mundo inteiro —, e administrador nomeado entra pra ajudar na
+        // operação do dia a dia, não pra decidir a hora do lançamento.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarPortao([FromServices] PortaoDeAcesso portao, bool habilitar)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            await portao.DefinirAsync(_context, habilitar, admin.Id);
+
+            TempData["Sucesso"] = habilitar
+                ? "Portão LIGADO: o site volta a pedir a senha de acesso antecipado a quem não tem conta."
+                : "Portão DESLIGADO: o site está aberto — qualquer pessoa entra e se cadastra sem senha.";
+
+            _logger?.LogWarning("Portão de acesso antecipado {Estado} pelo admin {AdminId}.",
+                habilitar ? "LIGADO" : "DESLIGADO", admin.Id);
 
             return RedirectToAction("Index");
         }

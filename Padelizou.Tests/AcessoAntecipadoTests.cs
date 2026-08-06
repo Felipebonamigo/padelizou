@@ -135,7 +135,10 @@ public class AcessoAntecipadoTests
 
         var passou = false;
         var middleware = new AcessoAntecipadoMiddleware(_ => { passou = true; return Task.CompletedTask; });
-        await middleware.InvokeAsync(ctx, Options.Create(settings), TestInfra.NovoContexto());
+        // Portão "virgem": ninguém mexeu no botão do painel, então vale o que a configuração
+        // diz — que é o cenário de todos os testes deste arquivo. Ver Services/PortaoDeAcesso.
+        await middleware.InvokeAsync(ctx, Options.Create(settings), TestInfra.NovoContexto(),
+            new PortaoDeAcesso());
 
         return (passou, ctx.Response.Headers.Location.ToString() is { Length: > 0 } d ? d : null);
     }

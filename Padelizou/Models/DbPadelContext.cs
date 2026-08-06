@@ -86,6 +86,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<NotaDeFundamento> NotasDeFundamento { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
+    // Chave/valor que o admin muda de dentro do app e que sobrevive ao restart.
+    public DbSet<ConfiguracaoDoSistema> ConfiguracoesDoSistema { get; set; }
+
     // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
     public DbSet<HistoricoDePadelimetro> HistoricosDePadelimetro { get; set; }
 
@@ -329,6 +332,14 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ParaJogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<ConfiguracaoDoSistema>(entity =>
+        {
+            // A chave É a identidade da linha: duas linhas pra mesma chave fariam a leitura
+            // depender de qual vem primeiro, e o valor "certo" mudaria sem ninguém mexer.
+            entity.HasIndex(c => c.Chave).IsUnique();
+            entity.Property(c => c.Chave).HasMaxLength(80);
+            entity.Property(c => c.Valor).HasMaxLength(400);
         });
         modelBuilder.Entity<HistoricoDePadelimetro>(entity =>
         {

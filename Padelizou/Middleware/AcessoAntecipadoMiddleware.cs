@@ -41,7 +41,8 @@ public class AcessoAntecipadoMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, IOptions<AcessoAntecipadoSettings> options, DbPadelContext db)
+    public async Task InvokeAsync(HttpContext context, IOptions<AcessoAntecipadoSettings> options,
+        DbPadelContext db, PortaoDeAcesso portao)
     {
         // No subdomínio admin (admin.padelizou.com.br) esse gate nem entra em ação — nem a
         // senha compartilhada, nem o auto-login de demonstração como Felipe. Ele existe pra
@@ -56,7 +57,8 @@ public class AcessoAntecipadoMiddleware
 
         var settings = options.Value;
 
-        if (!settings.Habilitado || EhCaminhoLiberado(context.Request.Path))
+        // O botão do admin manda; na falta dele, o padrão do systemd (ver Services/PortaoDeAcesso).
+        if (!portao.EstaHabilitado(settings) || EhCaminhoLiberado(context.Request.Path))
         {
             await _next(context);
             return;
