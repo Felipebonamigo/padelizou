@@ -40,6 +40,16 @@ public record ResultadoDoRanking(
 
 public record AtletaParaValidar(string Nome, int CategoriaRsId, string? Referencia = null);
 
+// Onde a pessoa está no Ranking RS hoje. Vitrine — não trava nada.
+//
+// `Posicao` vem 0 pra quem foi PROMOVIDO: o ranking tira a pessoa da colocação da categoria
+// antiga mas mantém os pontos dela ali. Zero não é "primeiro lugar", é "sem colocação" — e
+// mostrar "0º" na cara do jogador seria pior do que não mostrar nada.
+public record PosicaoNoRanking(string Categoria, int Posicao, int Pontos, bool Promovido)
+{
+    public bool TemColocacao => Posicao > 0;
+}
+
 public interface IRankingRsService
 {
     bool Configurado { get; }
@@ -50,4 +60,8 @@ public interface IRankingRsService
     // sem disparar uma requisição por inscrito.
     Task<IReadOnlyList<ResultadoDoRanking>> ValidarLoteAsync(
         IReadOnlyList<AtletaParaValidar> atletas, CancellationToken ct = default);
+
+    // Em que categorias esta pessoa pontua, e em que posição. Lista vazia = não está no
+    // ranking, ou não deu pra perguntar — pro perfil dá no mesmo: não se mostra nada.
+    Task<IReadOnlyList<PosicaoNoRanking>> PosicoesAsync(string nome, CancellationToken ct = default);
 }

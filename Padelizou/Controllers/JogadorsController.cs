@@ -12,11 +12,14 @@ public class JogadoresController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly IEstatisticasService _estatisticas;
+    private readonly IRankingRsService _rankingRs;
 
-    public JogadoresController(DbPadelContext context, IEstatisticasService estatisticas)
+    public JogadoresController(DbPadelContext context, IEstatisticasService estatisticas,
+        IRankingRsService rankingRs)
     {
         _context = context;
         _estatisticas = estatisticas;
+        _rankingRs = rankingRs;
     }
 
     [HttpGet]
@@ -153,6 +156,15 @@ public class JogadoresController : Controller
             ViewBag.EstouSeguindo = await _context.SeguidoresJogador
                 .AnyAsync(s => s.SeguidorId == meuId.Value && s.SeguidoId == id);
         }
+
+        // Onde a pessoa está no Ranking RS. Vitrine, não trava nada: se o ranking não
+        // responder, ou o nome dela não estiver lá, a lista vem vazia e a seção nem aparece.
+        // A consulta fica guardada por horas — o perfil é das telas mais visitadas do site e a
+        // chave tem cota (ver RankingRsService.PosicoesAsync).
+        //
+        // Fica DEPOIS da saída do perfil privado de propósito: quem não pode ver o perfil não
+        // dispara consulta nenhuma com o nome de quem quer que seja.
+        ViewBag.PosicoesNoRanking = await _rankingRs.PosicoesAsync(jogador.Nome);
 
         return View((jogador, historicoDuplas));
     }

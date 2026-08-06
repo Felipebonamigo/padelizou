@@ -9,6 +9,7 @@
     var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
     var elogiosRecebidos = ViewBag.Elogios as List<ElogioResumoVM> ?? new();
     var catalogoElogios = ViewBag.CatalogoElogios as List<Padelizou.Services.TipoElogio> ?? new();
+    var posicoesRs = ViewBag.PosicoesNoRanking as IReadOnlyList<Padelizou.Services.PosicaoNoRanking>;
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
     bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
     int? meuId = ViewBag.MeuId;
@@ -75,6 +76,41 @@
                         <span class="small text-muted d-block mt-1">faltam @falta pra subir de faixa</span>
                     }
                 </p>
+            }
+
+            @* Ranking RS: onde a pessoa está no ranking gaúcho oficial. Vitrine — não trava
+               nada, e é um número que o Padelizou não calcula nem controla, então vem com o
+               nome da fonte colado. Sem pontuação (ou com o ranking fora do ar) a seção
+               simplesmente não existe: um "sem ranking" na cara de quem nunca jogou torneio
+               federado seria uma cobrança sem motivo. *@
+            @if (posicoesRs is { Count: > 0 })
+            {
+                <div class="mb-2">
+                    @foreach (var pos in posicoesRs)
+                    {
+                        <span class="badge rounded-pill me-1 mb-1"
+                              style="background:#1b3a5c;color:#a8d4ff;font-size:.85rem;"
+                              title="Posição no Ranking RS (mundodoatleta.com.br) — atualizado por eles, não pelo Padelizou.">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            @pos.Categoria ·
+                            @if (pos.TemColocacao)
+                            {
+                                @:@(pos.Posicao)º · @(pos.Pontos) pts
+                            }
+                            else
+                            {
+                                @* Posição 0 = promovido: o ranking tira a colocação mas mantém
+                                   os pontos. Mostrar "0º" seria pior do que não mostrar. *@
+                                @:@(pos.Pontos) pts
+                            }
+                        </span>
+                        @if (pos.Promovido)
+                        {
+                            <span class="badge rounded-pill bg-secondary mb-1" style="font-size:.75rem;">promovido</span>
+                        }
+                    }
+                    <span class="small text-muted d-block mt-1">Ranking RS</span>
+                </div>
             }
 
             @if (ViewBag.EstouSeguindo != null)

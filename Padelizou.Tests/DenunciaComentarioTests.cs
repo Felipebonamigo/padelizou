@@ -31,7 +31,7 @@ public class DenunciaComentarioTests
 
     private static JogadoresController Jogadores(DbPadelContext ctx, int usuarioLogadoId)
     {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx));
+        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext

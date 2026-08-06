@@ -30,6 +30,11 @@ public class ValidacaoPeloRankingRsTests
             return Task.FromResult<IReadOnlyList<ResultadoDoRanking>>(
                 atletas.Select(Responder).ToList());
         }
+
+        // A vitrine do perfil não tem nada a ver com a regra de inscrição — ver
+        // PosicaoNoRankingRsTests, que testa esta parte contra um servidor de mentira.
+        public Task<IReadOnlyList<PosicaoNoRanking>> PosicoesAsync(string nome, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<PosicaoNoRanking>>(Array.Empty<PosicaoNoRanking>());
     }
 
     private static ResultadoDoRanking Aprovar(AtletaParaValidar a) =>

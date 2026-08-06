@@ -148,6 +148,9 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 // A consulta ao Ranking RS acontece dentro do POST da inscrição. O timeout de verdade é o do
 // RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
 // "não consultado" e a inscrição segue.
+// A posição no ranking abre num PERFIL, das telas mais visitadas, e a chave tem cota — por
+// isso a resposta fica guardada por horas (ver RankingRsService.PosicoesAsync).
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IRankingRsService, RankingRsService>();
 // A regra de inscrição que usa o ranking. Serviço (e não código no controller) porque DUAS
 // telas inscrevem gente — ver o comentário do arquivo.

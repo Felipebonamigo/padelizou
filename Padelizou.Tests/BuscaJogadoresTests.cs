@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
 using padelizou.Models;   // namespace legado (minúsculo): CategoriaPadrao
 using Padelizou.Models;
 using Padelizou.Services;
@@ -14,7 +15,7 @@ public class BuscaJogadoresTests
         string? q = null, int? categoriaId = null, string? estado = null, string? cidade = null, int? clubeId = null,
         int pagina = 1)
     {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx));
+        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
         var result = (ViewResult)await controller.Buscar(q, categoriaId, estado, cidade, clubeId, pagina);
         return (BuscaJogadoresVM)result.Model!;
     }

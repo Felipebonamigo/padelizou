@@ -31,7 +31,7 @@ public class UmPorPessoaTests
 
     private static JogadoresController Como(DbPadelContext ctx, int jogadorId)
     {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx));
+        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext
