@@ -58,4 +58,19 @@
         e.preventDefault();
         passo(botao);
     });
+
+    // Tocar no campo já SELECIONA o número. Sem isto o cursor cai ao lado do "0" e a pessoa
+    // digita "04" — ou apaga primeiro e digita depois, dois toques pra marcar um game, de pé
+    // e com a quadra rolando. Vale pro clique e pro foco por teclado.
+    function selecionar(e) {
+        var campo = e.target;
+        if (!campo.classList || !campo.classList.contains("pdz-live-input")) return;
+
+        // `setTimeout` porque o clique posiciona o cursor DEPOIS do focus — selecionar antes
+        // disso não adianta, o próprio navegador desfaz.
+        window.setTimeout(function () { campo.select(); }, 0);
+    }
+
+    document.addEventListener("focusin", selecionar);
+    document.addEventListener("click", selecionar);
 })();

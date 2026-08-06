@@ -23,6 +23,10 @@
                 <div class="card-body">
                     <form asp-action="ControlePlacar" method="post">
                         <input type="hidden" name="id" value="@Model.Id" />
+                        @* Volta pra tela de onde a pessoa veio. Sem isto, salvar aqui sempre
+                           despejava o organizador em /Torneios/Jogos — e quem estava na
+                           página do torneio via as abas mãe sumirem. *@
+                        <input type="hidden" name="voltarPara" value="@(Context.Request.Query["voltarPara"])" />
 
                         <!-- Linha 1: Status e Quadra -->
                         <div class="row mb-4">

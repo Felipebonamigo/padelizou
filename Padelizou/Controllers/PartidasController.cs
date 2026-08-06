@@ -367,7 +367,10 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null)
+        // `voltarPara`: o organizador que veio da página do torneio volta pra ela. Sem isto,
+        // mudar quadra ou qualquer informação aqui o despejava em /Torneios/Jogos — as abas
+        // mãe (Inscritos, Grupos, Chaves) sumiam e ele achava que tinha perdido o caminho.
+        public async Task<IActionResult> ControlePlacar(int id, string status, int? gamesDupla1, int? gamesDupla2, string? nomeQuadra, string? linkTransmissao, bool aplicarLinkNaQuadra = false, int? duplaSacandoId = null, string? voltarPara = null)
         {
             var partida = await _context.Partidas.FindAsync(id);
             if (partida == null) return NotFound();
@@ -561,7 +564,12 @@ namespace Padelizou.Controllers
                 }
             }
 
-            return RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });
+            // Volta pra tela de onde o organizador veio (a página do torneio tem as abas mãe;
+            // /Torneios/Jogos é só a lista). Lista fechada de destinos: campo de formulário
+            // nunca pode virar redirecionamento pra qualquer lugar.
+            return voltarPara == "Details"
+                ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId }, fragment: "jogosDoTorneio")
+                : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });
         }
 
         // --- ROBÔ 1: GERA O INÍCIO DO MATA-MATA (Pós-Grupos) ---

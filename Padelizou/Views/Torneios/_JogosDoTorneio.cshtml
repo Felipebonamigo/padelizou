@@ -42,6 +42,11 @@
     var categoriaFiltroAtual = (ViewBag.CategoriaFiltroAtual as int[]) ?? Array.Empty<int>();
     // As quadras que o torneio usa — a lista do "mudar de quadra".
     var quadrasDoTorneio = ViewBag.QuadrasDoTorneio as List<string> ?? new List<string>();
+
+    // De qual tela esta lista está sendo mostrada. As partials filhas (_JogoEmLinha) leem
+    // daqui pra devolver o organizador pra ESTA página depois de uma ação — a página do
+    // torneio tem as abas mãe, e /Torneios/Jogos é só a lista.
+    ViewData["TargetAction"] = Model.TargetAction;
 }
 
 @* A QUADRA VAGOU: o próximo jogo dela já vem com o botão de começar.
@@ -372,7 +377,7 @@
                                             <i class="bi bi-flag-fill"></i> Finalizar
                                         </button>
                                     </form>
-                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
+                                    <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" asp-route-voltarPara="@Model.TargetAction"
                                        class="btn btn-outline-secondary fw-bold"
                                        title="Marcar placar, sets, saque e quadra" aria-label="Marcar placar">
                                         <i class="bi bi-pencil-fill"></i>

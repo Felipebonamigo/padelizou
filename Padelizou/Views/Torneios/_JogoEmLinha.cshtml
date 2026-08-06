@@ -211,7 +211,7 @@
                         </button>
                     </form>
                 }
-                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id"
+                <a asp-controller="Partidas" asp-action="ControlePlacar" asp-route-id="@jogo.Id" asp-route-voltarPara="@(ViewData["TargetAction"] as string)"
                    class="btn btn-sm btn-outline-secondary"
                    title="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")"
                    aria-label="@(Model.Finalizada ? "Corrigir placar" : "Marcar placar")">

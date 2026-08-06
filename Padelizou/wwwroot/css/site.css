@@ -664,7 +664,19 @@ a:hover { color: var(--pdz-lime-600); }
     text-decoration: none;
 }
 .pdz-live-cronometro { color: #fff; white-space: nowrap; }
-.pdz-live-linha { padding: .3rem 0; }
+
+/* `gap` porque o nome e o placar são irmãos num flex: sem ele o nome longo encosta no
+   número e, em alguns cards, na própria borda do quadro. `min-width: 0` deixa o bloco do
+   nome encolher — sem isso o flex respeita a largura do conteúdo e empurra o placar pra
+   fora, que é como o nome acabava colado no fim do card. */
+.pdz-live-linha {
+    padding: .3rem 0;
+    gap: .6rem;
+}
+.pdz-live-jogadores {
+    min-width: 0;
+    padding-right: .15rem;
+}
 .pdz-live-jogadores a,
 .pdz-live-jogadores a * { color: #fff !important; }
 .pdz-live-jogadores small { opacity: .7; }
