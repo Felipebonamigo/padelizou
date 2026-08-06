@@ -96,11 +96,33 @@
     var timesFiltro = ViewBag.Times as Microsoft.AspNetCore.Mvc.Rendering.SelectList;
     bool temFiltroDeTime = timesFiltro != null && timesFiltro.Any();
     bool temFiltroDeCategoria = categoriasDoTorneio.Count > 1;
+
+    // "Meus jogos" só aparece pra quem TEM jogo aqui: um botão que não faz nada é pior que
+    // botão nenhum, e o torcedor é a maioria de quem abre esta tela.
+    bool tenhoJogoAqui = ViewBag.TenhoJogoAqui == true;
+    bool soMeusJogos = ViewBag.SoMeusJogos == true;
 }
-@if (temFiltroDeTime || temFiltroDeCategoria)
+@if (temFiltroDeTime || temFiltroDeCategoria || tenhoJogoAqui)
 {
     <form asp-action="@Model.TargetAction" method="get" id="filtroJogos" class="d-flex align-items-center gap-2 flex-wrap mb-3">
         <input type="hidden" name="id" value="@Model.TorneioId" />
+        @* Escolher uma categoria não pode desligar o "meus jogos" sem ninguém pedir. *@
+        <input type="hidden" name="soMeusJogos" value="@soMeusJogos.ToString().ToLowerInvariant()" />
+
+        @if (tenhoJogoAqui)
+        {
+            @* Um link, não um checkbox: é liga/desliga, e um toque resolve. Os outros
+               filtros vão junto na URL pra não se perderem quando ele alterna. *@
+            <a asp-action="@Model.TargetAction"
+               asp-route-id="@Model.TorneioId"
+               asp-route-timeFiltroId="@(ViewBag.TimeAtual as int?)"
+               asp-route-soMeusJogos="@(soMeusJogos ? "false" : "true")"
+               class="btn @(soMeusJogos ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3">
+                <i class="bi @(soMeusJogos ? "bi-person-check-fill" : "bi-person")"></i>
+                Meus jogos
+            </a>
+        }
+
         @if (temFiltroDeTime)
         {
             <select name="timeFiltroId" class="form-select" asp-items="ViewBag.Times" style="width: auto;" onchange="this.form.submit()">

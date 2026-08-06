@@ -174,7 +174,7 @@ namespace Padelizou.Controllers
 
         // Exemplo de como deve ficar o seu método Details
         [HttpGet]
-        public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds)
+        public async Task<IActionResult> Details(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
         {
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias)
@@ -345,7 +345,7 @@ namespace Padelizou.Controllers
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.
             if (torneio.Status != "Inscrições Abertas")
             {
-                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds);
+                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
                 // Pontos por time neste torneio (só faz sentido depois que começa a valer resultado).
                 ViewBag.PontosTimes = await _estatisticas.ObterPontosTimesNoTorneioAsync(id);
 
@@ -402,12 +402,12 @@ namespace Padelizou.Controllers
 
             return View(torneio);
         }
-        public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds)
+        public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
-            await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds);
+            await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
             ViewBag.Torneio = torneio;
 
             return View();
@@ -510,10 +510,71 @@ namespace Padelizou.Controllers
             return projetados.OrderBy(j => j.Horario ?? DateTime.MaxValue).ToList();
         }
 
+        // O jogador está NESTA dupla? Usado pra saber se ele venceu ou perdeu um jogo já
+        // encerrado — perder é o que corta a corrente da projeção.
+        private static bool EstaNaDupla(Partida p, int duplaId, int jogadorId)
+        {
+            var dupla = p.Dupla1Id == duplaId ? p.Dupla1 : p.Dupla2Id == duplaId ? p.Dupla2 : null;
+            return dupla != null && (dupla.Jogador1Id == jogadorId || dupla.Jogador2Id == jogadorId);
+        }
+
+        // O jogador está em quadra neste jogo? Vale pras duas duplas e pros dois lugares da
+        // dupla. Categoria de TIMES fica de fora naturalmente: lá o Jogador1Id é o organizador
+        // do time, não quem joga.
+        private static bool EstouNesteJogo(Partida p, int jogadorId) =>
+            p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId ||
+            p.Dupla2.Jogador1Id == jogadorId || p.Dupla2.Jogador2Id == jogadorId;
+
+        // Os jogos que AINDA NÃO EXISTEM e que podem ser dele. A regra (seguir a corrente das
+        // procedências, parando em quem perdeu) mora em Services/MeusJogos; aqui só se traduz
+        // o dado do banco pro que ela pede.
+        private static List<ProximasFasesDaChave.JogoQueVem> RecortarProjecaoDoJogador(
+            List<ProximasFasesDaChave.JogoQueVem> projetados, List<Partida> todas, int jogadorId)
+        {
+            // A ORDEM DENTRO DA FASE precisa ser a mesma que a projeção usou pra numerar
+            // ("Vencedor Quartas de Final 1"), que é a mesma do avanço de verdade: por Id.
+            var reais = todas
+                .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+                .GroupBy(p => new { p.CategoriaId, p.Fase })
+                .SelectMany(g => g.OrderBy(p => p.Id).Select((p, i) => new MeusJogos.JogoReal(
+                    p.Categoria?.Nome ?? "", p.Fase, i + 1,
+                    EstouNesteJogo(p, jogadorId),
+                    p.Status == "Finalizada" && p.VencedorId != null && !EstaNaDupla(p, p.VencedorId.Value, jogadorId))))
+                .ToList();
+
+            // Quem folgou a primeira rodada aparece na projeção pelo NOME, não por
+            // procedência — é o único lado sem jogo de origem que pode ser dele.
+            var minhasDuplas = todas
+                .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                .Concat(todas.SelectMany(p => new[] { p.Dupla1, p.Dupla2 }))
+                .DistinctBy(d => d.Id)
+                .Where(d => d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+                .Select(d => d.NomeDeExibicao)
+                .ToHashSet();
+
+            // Categoria dele que ainda está na fase de grupos: a projeção fala em "1º do Grupo
+            // A" e ninguém sabe quem vai ser o 1º. Mostrar a chave inteira da categoria é o
+            // honesto — é o caminho que ele PODE percorrer.
+            var minhasCategorias = todas
+                .Where(p => EstouNesteJogo(p, jogadorId))
+                .Select(p => p.CategoriaId)
+                .ToHashSet();
+
+            var categoriasEmGrupos = todas
+                .Where(p => minhasCategorias.Contains(p.CategoriaId))
+                .GroupBy(p => p.CategoriaId)
+                .Where(g => !g.Any(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)))
+                .Select(g => g.First().Categoria?.Nome ?? "")
+                .Where(nome => nome != "")
+                .ToHashSet();
+
+            return MeusJogos.Filtrar(projetados, reais, minhasDuplas, categoriasEmGrupos);
+        }
+
         // Compartilhado entre Jogos() (página dedicada, usada como destino do "Editar Jogo")
         // e Details() (aba "Jogos" embutida na página do torneio) — mesma lógica de filtro/abas
         // pros dois lugares não divergirem.
-        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds)
+        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
         {
             var query = _context.Partidas
                 .Include(p => p.Categoria)
@@ -545,6 +606,17 @@ namespace Padelizou.Controllers
 
             var partidas = await query.ToListAsync();
 
+            // "MEUS JOGOS": a lista inteira de um torneio de 86 jogos não serve pra quem só
+            // quer saber a que horas ele joga. Precisa vir ANTES da projeção — os jogos que
+            // ainda não existem saem dos que existem, e a corrente parte dos jogos DELE.
+            var meuJogadorId = ObterJogadorIdLogado();
+            var todasAsPartidas = partidas;
+            ViewBag.TenhoJogoAqui = meuJogadorId != null && partidas.Any(p => EstouNesteJogo(p, meuJogadorId.Value));
+            ViewBag.SoMeusJogos = soMeusJogos && ViewBag.TenhoJogoAqui;
+
+            if (ViewBag.SoMeusJogos)
+                partidas = partidas.Where(p => EstouNesteJogo(p, meuJogadorId!.Value)).ToList();
+
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
             // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
             // de flutuar em ordem arbitrária no meio da lista.
@@ -552,7 +624,14 @@ namespace Padelizou.Controllers
                 .OrderByDescending(p => p.HorarioFimReal ?? p.HorarioPrevisto).ThenByDescending(p => p.Id).ToList();
             ViewBag.Agendadas = partidas.Where(p => p.Status == "Agendada").OrderBy(p => p.HorarioPrevisto).ToList();
 
-            ViewBag.JogosQueVem = await ProjetarProximasFasesAsync(torneioId, partidas);
+            // ⚠️ A projeção parte do torneio INTEIRO, não da lista filtrada: a chave de uma
+            // categoria só se desenha com todos os jogos dela na mão, e filtrar antes deixaria
+            // a projeção montando um quadro que não existe. O recorte vem depois.
+            var projetados = await ProjetarProximasFasesAsync(torneioId, todasAsPartidas);
+
+            ViewBag.JogosQueVem = ViewBag.SoMeusJogos
+                ? RecortarProjecaoDoJogador(projetados, todasAsPartidas, meuJogadorId!.Value)
+                : projetados;
 
             // Só times que de fato jogam ESTE torneio — a lista vinha com todos os times
             // do sistema, e a tela esconde o filtro quando ela é vazia.
