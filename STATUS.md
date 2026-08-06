@@ -136,6 +136,12 @@ buildam o `.slnx`, então ela não entra em pacote nenhum). Regerar o conjunto i
 documentada em `antigo/LEIA-ME.md` junto do porquê de cada tamanho. Da última troca de logo não
 sobrou ferramenta, e por isso este trabalho começou do zero.
 
+**Com um terceiro argumento ela grava também o logo em alta** (PNG sem perda, pra camiseta, banner,
+Instagram): redondo e quadrado em 1024, e as raquetes transparentes no tamanho **nativo** do
+recorte. Nesse único arquivo a borda é **erodida** — a arte tem um brilho claro no contorno que
+sobre o azul do site vira contorno discreto e sobre fundo **claro** vira halo de recorte mal feito,
+e ele é o único que pode cair em qualquer fundo.
+
 ### 05/08/2026 (madrugada) — 🎨 A tela de jogos ficou legível
 
 Pedido do Felipe: *"não me parece muito intuitivo nem muito bonito"*. Varredura das quatro

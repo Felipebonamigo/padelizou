@@ -6,6 +6,9 @@ using SkiaSharp;
 
 var origem = args.Length > 0 ? args[0] : @"C:\Users\Felip\source\repos\Padelizou\antigo\logo-novo2.jpeg";
 var destino = args.Length > 1 ? args[1] : @"C:\Users\Felip\source\repos\Padelizou\Padelizou\wwwroot";
+// 3o argumento (opcional): pasta pra gravar TAMBEM o logo em alta, PNG sem perda, pra uso fora
+// do site (camiseta, banner, Instagram, apresentacao). Nao e servido, nao entra no deploy.
+var alta = args.Length > 2 ? args[2] : null;
 
 using var arte = SKBitmap.Decode(origem);
 int L = arte.Width, A = arte.Height;
@@ -170,6 +173,37 @@ using (var bmp = Compor(512, 0.60, circulo: false, opaco: true))
     var caminhoIco = Path.Combine(destino, "favicon.ico");
     File.WriteAllBytes(caminhoIco, ms.ToArray());
     Console.WriteLine($"  {"favicon.ico",-24} 16/32/48    {ms.Length / 1024.0:0.0} KB");
+}
+
+// --- versoes em alta, so quando pedidas ---
+if (alta is not null)
+{
+    Console.WriteLine("alta (PNG sem perda):");
+
+    // Raquetes soltas no tamanho NATIVO do recorte: e todo o detalhe que a arte tem. Ampliar
+    // daqui pra cima nao inventa nitidez nenhuma, so aumenta o arquivo.
+    //
+    // Aqui a borda e ERODIDA (alfa remapeado 0,45..0,80), o que nao acontece nos arquivos do
+    // site: a arte tem um brilho claro no contorno das raquetes, que sobre o azul do site vira
+    // um contorno discreto e sobre fundo CLARO vira halo de recorte mal feito. Este arquivo e o
+    // unico que pode cair em qualquer fundo, entao a borda encolhe ~1px pra cortar o brilho.
+    using (var bmp = new SKBitmap(caixa.Width, caixa.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul))
+    {
+        for (int y = 0; y < caixa.Height; y++)
+            for (int x = 0; x < caixa.Width; x++)
+            {
+                var c = raquetes.GetPixel(x, y);
+                double a = Math.Clamp((c.Alpha / 255.0 - 0.45) / 0.35, 0, 1);
+                bmp.SetPixel(x, y, new SKColor(c.Red, c.Green, c.Blue, (byte)(a * 255)));
+            }
+        Gravar(bmp, Path.Combine(alta, "padelizou-raquetes.png"), SKEncodedImageFormat.Png, 100);
+    }
+
+    using (var bmp = Compor(1024, 0.70, circulo: true, opaco: false))
+        Gravar(bmp, Path.Combine(alta, "padelizou-logo-redondo.png"), SKEncodedImageFormat.Png, 100);
+
+    using (var bmp = Compor(1024, 0.62, circulo: false, opaco: true))
+        Gravar(bmp, Path.Combine(alta, "padelizou-logo-quadrado.png"), SKEncodedImageFormat.Png, 100);
 }
 
 Console.WriteLine("pronto.");

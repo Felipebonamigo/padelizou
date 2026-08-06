@@ -22,6 +22,21 @@ dotnet run --project antigo/gerar-icones -- antigo/logo-novo2.jpeg Padelizou/www
 O projeto está **fora do `Padelizou.slnx`** de propósito: é ferramenta de mesa, não entra no build
 nem no deploy. Ele reescreve os 7 arquivos servidos de uma vez.
 
+Com um **terceiro argumento** ele grava também o logo **em alta, PNG sem perda**, pra uso fora do
+site (camiseta, banner, Instagram, apresentação) — `padelizou-logo-redondo.png` e
+`padelizou-logo-quadrado.png` em 1024, e `padelizou-raquetes.png` com fundo transparente no
+tamanho **nativo** do recorte (655×534: ampliar daqui pra cima não inventa nitidez, só aumenta o
+arquivo). Essa pasta não é servida.
+
+```bash
+dotnet run --project antigo/gerar-icones -- antigo/logo-novo2.jpeg Padelizou/wwwroot ~/Desktop/logo-alta
+```
+
+⚠️ No PNG transparente em alta a borda é **erodida** (alfa remapeado 0,45..0,80), o que **não**
+acontece nos arquivos do site. A arte tem um brilho claro no contorno das raquetes: sobre o azul do
+site ele vira um contorno discreto, mas sobre fundo **claro** vira halo de recorte mal feito — e
+esse é o único arquivo que pode cair em qualquer fundo.
+
 Como funciona: as raquetes são recortadas por **máscara de cor** (`G − média(R,B)`, rampa 15..55) e
 recompostas sobre um disco/placa escura sintetizada a partir do próprio fundo da arte. Recortar por
 cor é o que faz a palavra "Padelizou" sumir sem deixar rastro, e é por isso que o verde da máscara é
