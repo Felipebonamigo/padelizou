@@ -525,17 +525,25 @@ namespace Padelizou.Controllers
             // ====================================================================
             // O GATILHO DA AUTOMAÇÃO MÁSTER
             // ====================================================================
+            //
+            // ⚠️ O robô é o MESMO da Mesa de Controle (Services/RoboDoChaveamento), e isso é
+            // a correção, não um detalhe: até 06/08/2026 este controller tinha a própria
+            // cópia dele, que criava a rodada seguinte com `HorarioPrevisto = agora + 2h`
+            // pra TODOS os jogos, sem quadra e sem conferir quem já estava marcado. Ou seja,
+            // a chave do torneio saía diferente conforme a TELA usada pra encerrar o jogo.
+            var robo = new RoboDoChaveamento(_context);
+
             if (status == "Finalizada" && partida.TorneioId.HasValue)
             {
                 if (FasesTorneio.EhFaseDeGrupos(partida.Fase))
                 {
-                    // Fim da Fase de Grupos -> Gera as Quartas/Semis
-                    await VerificarEGerarMataMataAutomatico(partida.TorneioId.Value, partida.CategoriaId);
+                    // Fim da Fase de Grupos -> Gera a primeira rodada do mata-mata
+                    await robo.MontarMataMataDosGruposAsync(partida.CategoriaId, partida.TorneioId.Value);
                 }
                 else if (ChaveamentoMataMata.ProximaFase(partida.Fase) != null) // Oitavas, Quartas ou Semifinal
                 {
                     // Fim de um jogo de Mata-Mata -> Empurra o vencedor pra próxima fase
-                    await ProcessarAvancoMataMataAutomatico(partida.CategoriaId, partida.TorneioId.Value, partida.Fase);
+                    await robo.AvancarFaseAsync(partida.CategoriaId, partida.TorneioId.Value, partida.Fase);
                 }
                 else if (partida.Fase.StartsWith("Americano"))
                 {
@@ -570,110 +578,6 @@ namespace Padelizou.Controllers
             return voltarPara == "Details"
                 ? RedirectToAction("Details", "Torneios", new { id = partida.TorneioId }, fragment: "jogosDoTorneio")
                 : RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId });
-        }
-
-        // --- ROBÔ 1: GERA O INÍCIO DO MATA-MATA (Pós-Grupos) ---
-        private async Task VerificarEGerarMataMataAutomatico(int torneioId, int categoriaId)
-        {
-            bool temJogoPendente = await _context.Partidas.AnyAsync(p =>
-                p.TorneioId == torneioId && p.CategoriaId == categoriaId
-                && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")) && p.Status != "Finalizada");
-
-            if (temJogoPendente) return;
-
-            bool mataMataJaGerado = await _context.Partidas.AnyAsync(p =>
-                p.TorneioId == torneioId && p.CategoriaId == categoriaId
-                && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")));
-
-            if (mataMataJaGerado) return;
-
-            var torneio = await _context.Torneios.FindAsync(torneioId);
-
-            // Torneio apagado enquanto os jogos rodavam: sem ele não há expediente nem tempo de
-            // partida pra montar horário, e insistir estoura DENTRO do salvamento do placar —
-            // a mesa de controle daria erro no meio do torneio por causa de outro torneio.
-            if (torneio == null) return;
-
-            var duplas = await _context.Duplas.Where(d => d.Categoria.TorneioId == torneioId && d.CategoriaId == categoriaId && d.Grupo != null).ToListAsync();
-            var partidasGrupos = await _context.Partidas.Where(p => p.TorneioId == torneioId && p.CategoriaId == categoriaId
-                && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))).ToListAsync();
-
-            var ultimoJogo = partidasGrupos.OrderByDescending(p => p.HorarioPrevisto).FirstOrDefault();
-            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
-
-            DateTime horarioAtual = DateTime.Now;
-            if (ultimoJogo != null && ultimoJogo.HorarioPrevisto.HasValue)
-            {
-                horarioAtual = ultimoJogo.HorarioPrevisto.Value.AddMinutes(tempoPartida);
-            }
-
-            // Motor único de chaveamento (mesmo do TorneiosController): TODO classificado
-            // avança, os melhores pegam bye, e a régua de classificação mora num lugar só
-            // (Services/ClassificacaoDeGrupos) — três cópias de um ranking elegeriam três
-            // campeões diferentes no primeiro desempate que divergisse.
-            var categoriaDoRobo = await _context.Categorias.FindAsync(categoriaId);
-            int classificamPorGrupo = Math.Max(1, categoriaDoRobo?.ClassificadosPorGrupo ?? 2);
-
-            var classificados = ClassificacaoDeGrupos.Calcular(duplas, partidasGrupos, classificamPorGrupo);
-
-            var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
-            if (confrontos.Count == 0) return;
-
-            var novasPartidas = new List<Partida>();
-            foreach (var confronto in confrontos)
-            {
-                novasPartidas.Add(new Partida
-                {
-                    TorneioId = torneioId,
-                    CategoriaId = categoriaId,
-                    Dupla1Id = confronto.Dupla1Id,
-                    Dupla2Id = confronto.Dupla2Id,
-                    Fase = nomeFase,
-                    Status = "Agendada",
-                    HorarioPrevisto = horarioAtual,
-                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                });
-                horarioAtual = horarioAtual.AddMinutes(tempoPartida);
-            }
-
-            _context.Partidas.AddRange(novasPartidas);
-            await _context.SaveChangesAsync();
-        }
-
-        // --- ROBÔ 2: GERA O AVANÇO DAS CHAVES (Oitavas -> Quartas -> Semis -> Final) ---
-        private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int torneioId, string faseConcluida)
-        {
-            // Fase que não encadeia (grupos, Americano, Final) para aqui.
-            if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
-
-            // Vencedores da fase + quem passou direto (bye), com a fase completa conferida
-            // lá dentro. A regra é a MESMA do robô da Mesa de Controle, de propósito: as
-            // duas telas finalizam partida e as duas precisam decidir igual, senão cada uma
-            // monta uma chave. Ver Services/AvancoDaChave.
-            var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
-            if (avancam.Count < 2) return;
-
-            // Quem manda no nome da próxima fase é quanta gente sobrou, não o encadeamento
-            // por nome: com bye, a primeira rodada entrega 16 e o que vem são Oitavas.
-            var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
-
-            if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
-
-            foreach (var confronto in ChaveamentoMataMata.ParearVencedores(avancam))
-            {
-                _context.Partidas.Add(new Partida
-                {
-                    TorneioId = torneioId,
-                    CategoriaId = categoriaId,
-                    Fase = proximaFase,
-                    Status = "Agendada",
-                    Dupla1Id = confronto.Dupla1Id,
-                    Dupla2Id = confronto.Dupla2Id,
-                    HorarioPrevisto = DateTime.Now.AddHours(2),
-                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                });
-            }
-            await _context.SaveChangesAsync();
         }
 
         // --- ROBÔ 3: TORNEIO AMERICANO — gera a final automática assim que todas as rodadas acabam ---

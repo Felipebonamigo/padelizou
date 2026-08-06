@@ -716,224 +716,39 @@ namespace Padelizou.Controllers
             };
         }
 
+        // ⚠️ DAQUI PRA BAIXO É TUDO ATALHO PRO MOTOR ÚNICO (Services/RoboDoChaveamento).
+        //
+        // O robô que monta a chave e a grade que lhe dá hora e quadra moram lá, e não aqui,
+        // porque a OUTRA tela que finaliza partida (PartidasController, o Controle de Placar
+        // em tela cheia) precisa exatamente das mesmas regras. Enquanto cada controller teve a
+        // sua cópia, o chaveamento do torneio dependia de POR ONDE o placar foi lançado.
+        private RoboDoChaveamento Robo => new(_context);
+
         // Quem de fato ocupa a quadra quando cada dupla joga: as DUAS pessoas dela.
-        //
-        // Sem isto a grade compara duplas, e a mesma pessoa inscrita na categoria dela E numa
-        // chave direta paralela seria marcada em duas quadras no mesmo horário — duas duplas
-        // de Ids diferentes, o mesmo sujeito.
-        //
-        // Time fica FORA do mapa de propósito (cai no Id da dupla, como sempre foi): lá o
-        // Jogador1Id é o organizador em todos os times, e comparar por pessoa faria todo time
-        // conflitar com todo time, empurrando a grade inteira pra frente.
         private static Dictionary<int, int[]> OcupantesPorDupla(IEnumerable<Dupla> duplas) =>
-            duplas
-                .Where(d => !d.EhTime && d.Jogador2Id != null)
-                .ToDictionary(d => d.Id, d => new[] { d.Jogador1Id, d.Jogador2Id!.Value });
+            RoboDoChaveamento.OcupantesPorDupla(duplas);
 
         private static Dictionary<int, int[]> OcupantesPorDupla(Torneio torneio) =>
-            OcupantesPorDupla(torneio.Categorias.SelectMany(c => c.Duplas));
+            RoboDoChaveamento.OcupantesPorDupla(torneio);
 
-        // Os nomes das quadras do torneio, na ordem — é o que transforma "a definir" em
-        // "Quadra C" na tela do jogador. Torneio que não cadastrou quadra devolve lista
-        // vazia, e a grade segue sem nomear (ver GradeDeJogos.Encaixar).
-        private async Task<List<string>> QuadrasDoTorneioAsync(int torneioId) =>
-            await _context.Quadras
-                .Where(q => q.TorneioId == torneioId)
-                .OrderBy(q => q.Nome)
-                .Select(q => q.Nome)
-                .ToListAsync();
+        // Os nomes das quadras do torneio, na ordem, e as que ele está DE FATO usando.
+        private Task<List<string>> QuadrasDoTorneioAsync(int torneioId) =>
+            Robo.QuadrasDoTorneioAsync(torneioId);
 
-        // As quadras que o torneio está DE FATO usando: as que já estão escritas nos jogos
-        // marcados, completadas pelo cadastro quando faltam nomes pra encher a grade.
-        // A regra e o porquê estão em Services/NomesDeQuadra.
-        private async Task<List<string>> QuadrasEmUsoAsync(int torneioId)
-        {
-            var nosJogos = await _context.Partidas
-                .Where(p => p.TorneioId == torneioId && p.NomeQuadra != null && p.NomeQuadra != "")
-                .Select(p => p.NomeQuadra!)
-                .Distinct()
-                .OrderBy(n => n)
-                .ToListAsync();
+        private Task<List<string>> QuadrasEmUsoAsync(int torneioId) =>
+            Robo.QuadrasEmUsoAsync(torneioId);
 
-            var quantidade = await _context.Torneios
-                .Where(t => t.Id == torneioId)
-                .Select(t => t.QuantidadeQuadras)
-                .FirstOrDefaultAsync();
+        // Hora e quadra da rodada nova (Services/RoboDoChaveamento.AgendarNaGradeAsync).
+        private Task AgendarNaGradeAsync(List<Partida> jogos, int? torneioId) =>
+            Robo.AgendarNaGradeAsync(jogos, torneioId);
 
-            return NomesDeQuadra.Disponiveis(nosJogos, await QuadrasDoTorneioAsync(torneioId), quantidade);
-        }
+        // ROBÔ DE PROGRESSÃO: Primeira Rodada → Oitavas → Quartas → Semifinal → Final.
+        private Task ProcessarAvancoMataMataAutomatico(int categoriaId, int? torneioId, string faseConcluida) =>
+            Robo.AvancarFaseAsync(categoriaId, torneioId, faseConcluida);
 
-        private async Task<Dictionary<int, int[]>> OcupantesPorDuplaAsync(int torneioId) =>
-            OcupantesPorDupla(await _context.Duplas
-                .Where(d => d.Categoria.TorneioId == torneioId)
-                .ToListAsync());
-
-        // TODO jogo do torneio nasce com horário previsto — inclusive os do mata-mata, que
-        // só existem depois que a fase de grupos acaba. Sem isso o jogador via "a definir" na
-        // fase que mais importa, e a Mesa de Controle não tinha ordem nenhuma pra seguir.
-        //
-        // A rodada nova abre uma rodada depois do fim da fase que a alimenta — a da PRÓPRIA
-        // categoria — e ocupa as quadras que estiverem livres dali em diante.
-        //
-        // ⚠️ Antes o âncora era o último jogo marcado do TORNEIO INTEIRO, e isso enfileirava
-        // as categorias uma atrás da outra: com 5 quadras e 5 categorias, cada semifinal
-        // esperava a semifinal alheia acabar e quatro quadras ficavam paradas. Era o preço de
-        // o encaixe não saber o que já estava marcado — agora ele sabe (`jaMarcados`), então
-        // dá pra emendar em paralelo sem chamar ninguém pra duas quadras ao mesmo tempo.
-        private async Task AgendarNaGradeAsync(List<Partida> jogos, int? torneioId)
-        {
-            if (jogos.Count == 0 || torneioId == null) return;
-
-            var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-            if (torneio == null) return;
-
-            // Torneio por ordem de liberação não tem grade: o mata-mata entra na fila como
-            // todo o resto, sem hora. Ver Torneio.SemHorarioPrevisto.
-            if (torneio.SemHorarioPrevisto) return;
-
-            var jaMarcados = await _context.Partidas
-                .Where(p => p.TorneioId == torneioId && p.HorarioPrevisto != null)
-                .ToListAsync();
-
-            // A fase que alimenta esta é a da MESMA categoria: é dela que sai quem vai jogar,
-            // e é dela que a folga tem que partir. Uma rodada de folga, não o minuto em que o
-            // último jogo acaba — quem joga a semifinal das 22h é quem disputa a final, e
-            // colar uma fase na outra é chamar a mesma dupla de volta sem descanso.
-            //
-            // Vira o dia na abertura dos DIAS SEGUINTES: o mata-mata quase sempre cai no
-            // domingo, que começa cedo — não às 18h da sexta em que o torneio abriu.
-            int categoriaId = jogos[0].CategoriaId;
-            var fimDaFaseAnterior = jaMarcados
-                .Where(p => p.CategoriaId == categoriaId)
-                .Select(p => p.HorarioPrevisto!.Value)
-                .DefaultIfEmpty()
-                .Max();
-
-            var inicio = fimDaFaseAnterior == default
-                ? torneio.AberturaDaGrade
-                : GradeDeJogos.AberturaDaProximaFase(fimDaFaseAnterior, torneio.HoraFimDoDia,
-                                        torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
-
-            int folga = GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras);
-
-            // Vaga que já tem dono sai da lista, senão a grade ofereceria cinco quadras num
-            // horário em que três já estão jogando. Pede-se com sobra (`+ jaMarcados.Count`)
-            // justamente porque parte vai ser descontada.
-            var horarios = GradeDeJogos.Descontando(
-                    GradeDeJogos.Horarios(
-                        inicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                        torneio.TempoPrevistoPartidaMinutos,
-                        jogos.Count + folga + jaMarcados.Count,
-                        aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes),
-                    jaMarcados.Select(p => p.HorarioPrevisto!.Value))
-                .Take(jogos.Count + folga)
-                .ToList();
-
-            // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o
-            // horário, mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale
-            // pra quem chegou longe na categoria dele e na chave direta ao mesmo tempo.
-            GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value),
-                await QuadrasEmUsoAsync(torneioId.Value), jaMarcados);
-        }
-
-        // ROBÔ DE PROGRESSÃO: Oitavas → Quartas → Semifinal → Final (motor único).
-        private async Task ProcessarAvancoMataMataAutomatico(int categoriaId, int? torneioId, string faseConcluida)
-        {
-            // Fase que não encadeia (grupos, Americano, Final) para aqui.
-            if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
-
-            // Vencedores da fase + quem passou direto (bye), com a fase completa conferida
-            // lá dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
-            var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
-            if (avancam.Count < 2) return;
-
-            // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24
-            // entrega 16 (8 vencedores + 8 byes), que são Oitavas — e não as Quartas que o
-            // encadeamento por NOME sugeriria. Quem manda é quanta gente sobrou.
-            var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
-
-            // Nunca gera a próxima fase em duplicidade (dois finalizamentos quase simultâneos).
-            if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
-
-            var novos = ChaveamentoMataMata.ParearVencedores(avancam)
-                // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
-                .Select(confronto => new Partida
-                {
-                    TorneioId = torneioId,
-                    CategoriaId = categoriaId,
-                    Fase = proximaFase,
-                    Status = "Agendada",
-                    Dupla1Id = confronto.Dupla1Id,
-                    Dupla2Id = confronto.Dupla2Id,
-                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                })
-                .ToList();
-
-            await AgendarNaGradeAsync(novos, torneioId);
-
-            _context.Partidas.AddRange(novos);
-            await _context.SaveChangesAsync();
-        }
-
-        // ROBÔ INVISÍVEL DE CRUZAMENTO DE CHAVES
-        private async Task ProcessarMataMataAutomatico(int categoriaId, int? torneioId)
-        {
-            var categoria = await _context.Categorias
-                .Include(c => c.GruposTorneio)
-                    .ThenInclude(g => g.Duplas)
-                .FirstOrDefaultAsync(c => c.Id == categoriaId);
-
-            if (categoria == null) return;
-
-            var partidasFinalizadas = await _context.Partidas
-                .Where(p => p.CategoriaId == categoriaId
-                         && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
-                         && p.Status == "Finalizada")
-                .ToListAsync();
-
-            // Evita gerar a chave duas vezes (ex: dois finalizamentos quase simultâneos).
-            bool mataMataJaGerado = await _context.Partidas.AnyAsync(p =>
-                p.CategoriaId == categoriaId && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")));
-            if (mataMataJaGerado) return;
-
-            var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
-
-            // Quantos passam de cada grupo: 2 é a regra de sempre; a categoria de TIMES
-            // usa o número que o organizador definiu ao criá-la.
-            int classificamPorGrupo = Math.Max(1, categoria.ClassificadosPorGrupo ?? 2);
-
-            // 1. O ranking final de cada grupo, pela régua única (Services/ClassificacaoDeGrupos)
-            //    — a mesma que o robô do Controle de Placar e a detecção de bye usam.
-            var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
-            var classificados = ClassificacaoDeGrupos.Calcular(
-                duplasDosGrupos, partidasFinalizadas, classificamPorGrupo);
-
-            // 2. Motor único de chaveamento: TODO classificado avança; o quadro cresce pra
-            //    caber todo mundo e os MELHORES pegam bye (pulam a primeira rodada). Os byes
-            //    não ganham partida aqui — é a ausência dela que o robô de avanço lê depois
-            //    (Services/AvancoDaChave) pra somá-los aos vencedores.
-            var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
-            if (confrontos.Count == 0) return;
-
-            var jogosDoMataMata = confrontos
-                .Select(confronto => new Partida
-                {
-                    TorneioId = torneioId,
-                    CategoriaId = categoriaId,
-                    Dupla1Id = confronto.Dupla1Id,
-                    Dupla2Id = confronto.Dupla2Id,
-                    Status = "Agendada", // Nasce agendada para ir para a Mesa de Controle!
-                    Fase = nomeFase,
-                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper() // NOT NULL no banco
-                })
-                .ToList();
-
-            // Nasce agendada E com hora: o mata-mata emenda no fim da fase de grupos.
-            await AgendarNaGradeAsync(jogosDoMataMata, torneioId);
-
-            _context.Partidas.AddRange(jogosDoMataMata);
-            await _context.SaveChangesAsync();
-        }
+        // ROBÔ INVISÍVEL DE CRUZAMENTO DE CHAVES: fim dos grupos → primeira rodada.
+        private Task ProcessarMataMataAutomatico(int categoriaId, int? torneioId) =>
+            Robo.MontarMataMataDosGruposAsync(categoriaId, torneioId);
 
       
 

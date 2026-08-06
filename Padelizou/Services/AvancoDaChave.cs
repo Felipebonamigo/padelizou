@@ -124,31 +124,57 @@ public static class AvancoDaChave
         // categoria com o mata-mata em andamento ressuscitaria gente a cada fase.
         if (partidasDeMataMata.Select(p => p.Fase).Distinct().Count() > 1) return new List<int>();
 
+        // ⚠️ E SÓ EXISTE BYE SE SOBROU VAGA NO QUADRO. Esta é a trava que faltava, e é
+        // aritmética, não palpite: a primeira rodada tem `jogos × 2` lugares. Se cabe todo
+        // mundo, ninguém descansou — quem não está lá não classificou, ponto.
+        //
+        // Foi assim que a categoria de TIMES do Interno de 05/08/2026 terminou com a final
+        // errada. Quatro times classificados, dois jogos de semifinal, quadro cheio: zero
+        // byes. Mas a classificação foi recalculada aqui com um empate que ainda não tinha
+        // desempate estável (ver ClassificacaoDeGrupos), devolveu um 2º colocado DIFERENTE do
+        // que jogou a semifinal — e esse time, que "classificou e não jogou", entrou como bye.
+        // Os que avançavam viraram três, o pareamento cruza primeiro com último, e a final
+        // saiu entre o vencedor de uma semi e um time que não tinha vencido nada. O vencedor
+        // da outra semifinal simplesmente sumiu do torneio.
+        //
+        // Com esta conta, mesmo que a classificação volte a divergir um dia, o estrago não
+        // passa daqui: quadro cheio nunca inventa um participante a mais.
+        // Quem estava no quadro, do melhor pro pior. A ORDEM importa no pareamento: o
+        // ParearVencedores cruza primeiro com último, então o melhor bye pega o pior vencedor.
+        List<int> noQuadro;
         if (categoria.ChaveDireta)
         {
             // O mesmo filtro do sorteio: dupla sem parceiro ou na lista de espera nunca
             // entrou na chave, e não pode entrar por esta porta.
-            return duplas
-                .Where(d => !ForaDoSorteio.FicaDeFora(d) && !jaJogaramMataMata.Contains(d.Id))
+            noQuadro = duplas
+                .Where(d => !ForaDoSorteio.FicaDeFora(d))
                 .OrderBy(d => d.Id)
                 .Select(d => d.Id)
                 .ToList();
         }
+        else
+        {
+            // Pós-grupos: recalcula a classificação com a MESMA régua da geração do mata-mata
+            // (Services/ClassificacaoDeGrupos). Os jogos de grupo estão todos finalizados — o
+            // mata-mata só nasce depois deles —, então a conta dá sempre o mesmo resultado.
+            var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
+            noQuadro = ClassificacaoDeGrupos.Calcular(
+                    duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2))
+                .OrderBy(c => c.Posicao)
+                .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
+                .Select(c => c.DuplaId)
+                .ToList();
+        }
 
-        // Pós-grupos: recalcula a classificação com a MESMA régua da geração do mata-mata
-        // (Services/ClassificacaoDeGrupos). Os jogos de grupo estão todos finalizados — o
-        // mata-mata só nasce depois deles —, então a conta dá sempre o mesmo resultado.
-        var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
-        var classificados = ClassificacaoDeGrupos.Calcular(
-            duplas, partidasDeGrupo, Math.Max(1, categoria.ClassificadosPorGrupo ?? 2));
+        int vagasNaPrimeiraRodada = partidasDeMataMata.Count * 2;
+        int quantosDescansaram = noQuadro.Count - vagasNaPrimeiraRodada;
+        if (quantosDescansaram <= 0) return new List<int>();
 
-        // Do melhor pro pior — a ordem em que os byes entram no pareamento importa: o
-        // ParearVencedores cruza primeiro x último, então o melhor bye pega o pior vencedor.
-        return classificados
-            .OrderBy(c => c.Posicao)
-            .ThenByDescending(c => c.Vitorias).ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo)
-            .Where(c => !jaJogaramMataMata.Contains(c.DuplaId))
-            .Select(c => c.DuplaId)
+        // `Take` no fim é a mesma trava vista de outro ângulo: ainda que a lista dos que "não
+        // jogaram" venha maior do que devia, saem daqui no máximo os que cabiam de folga.
+        return noQuadro
+            .Where(id => !jaJogaramMataMata.Contains(id))
+            .Take(quantosDescansaram)
             .ToList();
     }
 }
