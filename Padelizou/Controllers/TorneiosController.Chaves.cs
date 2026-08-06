@@ -744,13 +744,8 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
         // As quadras que o torneio está DE FATO usando: as que já estão escritas nos jogos
-        // marcados. Só na falta delas vale o cadastro.
-        //
-        // ⚠️ Os dois podem discordar, e discordam num torneio real: no Interno Los Corneteiros
-        // os jogos dizem "Quadra A".."Quadra E" (nomes do dia do sorteio) e o cadastro passou
-        // a dizer "Quadra 1".."Quadra 5" — renomear depois do sorteio não reescreve os jogos.
-        // Nomear as fases que ainda vêm pelo cadastro poria DOIS nomes pra mesma quadra na
-        // mesma tela, e o jogador iria pra quadra errada.
+        // marcados, completadas pelo cadastro quando faltam nomes pra encher a grade.
+        // A regra e o porquê estão em Services/NomesDeQuadra.
         private async Task<List<string>> QuadrasEmUsoAsync(int torneioId)
         {
             var nosJogos = await _context.Partidas
@@ -760,7 +755,12 @@ namespace Padelizou.Controllers
                 .OrderBy(n => n)
                 .ToListAsync();
 
-            return nosJogos.Count > 0 ? nosJogos : await QuadrasDoTorneioAsync(torneioId);
+            var quantidade = await _context.Torneios
+                .Where(t => t.Id == torneioId)
+                .Select(t => t.QuantidadeQuadras)
+                .FirstOrDefaultAsync();
+
+            return NomesDeQuadra.Disponiveis(nosJogos, await QuadrasDoTorneioAsync(torneioId), quantidade);
         }
 
         private async Task<Dictionary<int, int[]>> OcupantesPorDuplaAsync(int torneioId) =>
