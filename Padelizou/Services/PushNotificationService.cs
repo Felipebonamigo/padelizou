@@ -12,17 +12,19 @@ public class PushNotificationService : IPushNotificationService
     private readonly VapidDetails _vapidDetails;
     private readonly IWhatsAppService _whatsApp;
     private readonly FilaDeWhatsApp _fila;
+    private readonly FilaDeAvisos _filaDeAvisos;
     private readonly IEmailService _email;
     private readonly SiteSettings _site;
     private readonly ILogger<PushNotificationService> _logger;
 
     public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
-        IWhatsAppService whatsApp, FilaDeWhatsApp fila, IEmailService email,
+        IWhatsAppService whatsApp, FilaDeWhatsApp fila, FilaDeAvisos filaDeAvisos, IEmailService email,
         IOptions<SiteSettings> siteOptions, ILogger<PushNotificationService> logger)
     {
         _context = context;
         _whatsApp = whatsApp;
         _fila = fila;
+        _filaDeAvisos = filaDeAvisos;
         _email = email;
         _site = siteOptions.Value;
         _logger = logger;
@@ -30,8 +32,26 @@ public class PushNotificationService : IPushNotificationService
         _vapidDetails = new VapidDetails(settings.Subject, settings.PublicKey, settings.PrivateKey);
     }
 
-    public async Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null,
+    // ENFILEIRA, NÃO ENTREGA. A entrega sai logo atrás, no
+    // EntregadorDeAvisosBackgroundService — ver Services/FilaDeAvisos pro porquê.
+    //
+    // Em resumo: cada aviso abre uma conexão SMTP e uma chamada de push por aparelho, e isso
+    // rodava DENTRO da ação que gerou o aviso. Finalizar um jogo avisa 4 jogadores mais os
+    // seguidores deles, então o organizador ficava olhando o botão girar no meio da quadra —
+    // e tocava de novo, o que fazia o mesmo jogo subir duas vezes.
+    //
+    // ⚠️ É `Task.CompletedTask` de propósito: nada aqui espera rede. Se um dia esta função
+    // voltar a fazer I/O, o defeito volta junto.
+    public Task EnviarParaJogadorAsync(int jogadorId, string titulo, string corpo, string? url = null,
         AlcanceDoAviso alcance = AlcanceDoAviso.SoApp)
+    {
+        _filaDeAvisos.Enfileirar(new AvisoPendente(jogadorId, titulo, corpo, url, alcance));
+        return Task.CompletedTask;
+    }
+
+    // A entrega de verdade. Público porque quem chama é o serviço de fundo; ninguém mais
+    // deveria chamar isto direto — de dentro de uma requisição, use EnviarParaJogadorAsync.
+    public async Task EntregarAgoraAsync(AvisoPendente aviso)
     {
         // E-mail e push saem ANTES do return de quem não tem push, e de propósito: quem não
         // instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que os outros
@@ -41,11 +61,11 @@ public class PushNotificationService : IPushNotificationService
         // O WhatsApp é a exceção: só vai quando o aviso PEDIU (ver AlcanceDoAviso). Ele tem
         // um custo que os outros não têm — a Meta restringe o número — e por isso é o único
         // canal onde o silêncio é o padrão.
-        if (alcance == AlcanceDoAviso.AppEWhatsApp)
-            await EnviarWhatsAppAsync(jogadorId, titulo, corpo, url);
+        if (aviso.Alcance == AlcanceDoAviso.AppEWhatsApp)
+            await EnviarWhatsAppAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
 
-        await EnviarEmailAsync(jogadorId, titulo, corpo, url);
-        await EnviarPushAsync(jogadorId, titulo, corpo, url);
+        await EnviarEmailAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
+        await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
     }
 
     // Falha aqui não pode derrubar o aviso, mesmo motivo do WhatsApp: SMTP fora do ar não

@@ -74,7 +74,7 @@ public class AvisoPorWhatsAppTests
         using var ctx = ContextoComJogador(7);
         var fila = NovaFila();
 
-        await Servico(ctx, fila).EnviarParaJogadorAsync(7, "Você entrou numa dupla!", "Copa X", "/x");
+        await EnviarEEntregarAsync(ctx, fila, null, 7, "Você entrou numa dupla!", "Copa X", "/x");
 
         Assert.Equal(0, fila.Pendentes);
     }
@@ -86,7 +86,7 @@ public class AvisoPorWhatsAppTests
         using var ctx = ContextoComJogador(7);
         var fila = NovaFila();
 
-        await Servico(ctx, fila).EnviarParaJogadorAsync(7, "Jogo em 24h!", "Confirma presença.",
+        await EnviarEEntregarAsync(ctx, fila, null, 7, "Jogo em 24h!", "Confirma presença.",
             "/Agenda", AlcanceDoAviso.AppEWhatsApp);
 
         Assert.True(fila.TentarLer(out var mensagem));
@@ -101,7 +101,7 @@ public class AvisoPorWhatsAppTests
         using var ctx = ContextoComJogador(8, aceitaWhats: false);
         var fila = NovaFila();
 
-        await Servico(ctx, fila).EnviarParaJogadorAsync(8, "Jogo em 24h!", "Confirma presença.",
+        await EnviarEEntregarAsync(ctx, fila, null, 8, "Jogo em 24h!", "Confirma presença.",
             "/Agenda", AlcanceDoAviso.AppEWhatsApp);
 
         Assert.Equal(0, fila.Pendentes);
@@ -116,7 +116,7 @@ public class AvisoPorWhatsAppTests
         var fila = NovaFila();
         var whats = Substitute.For<IWhatsAppService>();
 
-        await Servico(ctx, fila, whats).EnviarParaJogadorAsync(9, "Jogo em 24h!", "Confirma.",
+        await EnviarEEntregarAsync(ctx, fila, whats, 9, "Jogo em 24h!", "Confirma.",
             "/Agenda", AlcanceDoAviso.AppEWhatsApp);
 
         Assert.Equal(1, fila.Pendentes);
@@ -155,8 +155,25 @@ public class AvisoPorWhatsAppTests
 
     private static FilaDeWhatsApp NovaFila() => new(NullLogger<FilaDeWhatsApp>.Instance);
 
+    // Gerar aviso e ENTREGAR aviso viraram dois passos (Services/FilaDeAvisos): a ação do
+    // jogador só enfileira, e quem faz SMTP e push é o serviço de fundo. Os testes deste
+    // arquivo falam do canal de WhatsApp, que fica DEPOIS dessa fila — então aqui eles dão
+    // os dois passos, que é o que acontece em produção meio segundo depois do clique.
+    private static async Task EnviarEEntregarAsync(DbPadelContext ctx, FilaDeWhatsApp fila,
+        IWhatsAppService? whats, int jogadorId, string titulo, string corpo, string? url = null,
+        AlcanceDoAviso alcance = AlcanceDoAviso.SoApp)
+    {
+        var avisos = new FilaDeAvisos(NullLogger<FilaDeAvisos>.Instance);
+        var servico = Servico(ctx, fila, whats, avisos);
+
+        await servico.EnviarParaJogadorAsync(jogadorId, titulo, corpo, url, alcance);
+
+        while (avisos.TentarLer(out var aviso))
+            await servico.EntregarAgoraAsync(aviso!);
+    }
+
     private static PushNotificationService Servico(DbPadelContext ctx, FilaDeWhatsApp fila,
-        IWhatsAppService? whats = null) =>
+        IWhatsAppService? whats = null, FilaDeAvisos? avisos = null) =>
         new(ctx,
             Options.Create(new VapidSettings
             {
@@ -166,6 +183,7 @@ public class AvisoPorWhatsAppTests
             }),
             whats ?? Substitute.For<IWhatsAppService>(),
             fila,
+            avisos ?? new FilaDeAvisos(NullLogger<FilaDeAvisos>.Instance),
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
             NullLogger<PushNotificationService>.Instance);

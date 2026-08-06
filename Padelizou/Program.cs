@@ -143,7 +143,11 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Padelizou");
 });
 builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService>();
-builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+// Registrado nas duas formas de propósito: a interface pra quem GERA aviso (o app inteiro),
+// e a classe concreta pro entregador de fundo, que precisa do EntregarAgoraAsync — o método
+// que faz a rede de verdade e não pode ser chamado de dentro de uma requisição.
+builder.Services.AddScoped<PushNotificationService>();
+builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
 // Quem pode abrir o bar e as contas do clube. Uma regra só pros dois módulos.
@@ -155,6 +159,9 @@ builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 builder.Services.AddSingleton<FilaDeWhatsApp>();
 builder.Services.AddHostedService<EntregadorDeWhatsAppBackgroundService>();
+// Aviso sai por fora da requisição: finalizar jogo não pode esperar SMTP. Ver FilaDeAvisos.
+builder.Services.AddSingleton<FilaDeAvisos>();
+builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 
