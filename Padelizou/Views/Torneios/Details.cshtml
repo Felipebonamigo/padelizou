@@ -2354,11 +2354,13 @@
                             {
                                 @* Chaveamento completo, de cima pra baixo, com as duplas de
                                    BYE nomeadas na fase em que entram — sem isso elas somem
-                                   do quadro. Ver Views/Torneios/_ChaveDoMataMata. *@
+                                   do quadro. O jogador logado vai junto pro quadro pintar o
+                                   caminho dele. Ver Views/Torneios/_ChaveDoMataMata. *@
                                 var byesDict = ViewBag.ByesPorCategoria as Dictionary<int, List<Padelizou.Models.Dupla>>;
                                 var byesDaCategoria = (byesDict != null && byesDict.ContainsKey(categoria.Id))
                                     ? byesDict[categoria.Id] : new List<Padelizou.Models.Dupla>();
-                                <partial name="_ChaveDoMataMata" model="(jogosMata, byesDaCategoria)" />
+                                int? meuJogadorIdNoQuadro = ViewBag.MeuJogadorId as int?;
+                                <partial name="_ChaveDoMataMata" model="(jogosMata, byesDaCategoria, meuJogadorIdNoQuadro)" />
                             }
                         </div>
                         </div> @* fim do d-flex flex-column que ordena chave/grupos *@

@@ -1565,6 +1565,15 @@ button, a, input, select { touch-action: manipulation; }
     background: transparent;
 }
 
+/* O caminho do jogador logado, pintado no quadro: os jogos dele e as vagas que ainda
+   podem ser dele — a corrente é a MESMA do filtro "Meus jogos" da aba Jogos
+   (Services/MeusJogos, chamada por Services/QuadroDoMataMata). Fica ANTES do AO VIVO
+   de propósito: quando o jogo dele está em quadra, o anel vermelho vence o verde. */
+.pdz-chave-vaga-minha {
+    border-color: var(--padel-green);
+    box-shadow: 0 0 0 2px rgba(163, 216, 39, .28);
+}
+
 .pdz-chave-vaga-aovivo {
     border-color: #d9534f;
     box-shadow: 0 0 0 2px rgba(217, 83, 79, .18);
@@ -1648,6 +1657,20 @@ button, a, input, select { touch-action: manipulation; }
     border-radius: 999px;
     color: var(--pdz-navy-fixed);
     background: var(--pdz-lime);
+}
+
+/* "Seu jogo" / "pode ser seu" — o selo do caminho pintado. Invertido do selo de bye
+   (que é marinho no verde) pros dois não parecerem a mesma coisa lado a lado. */
+.pdz-chave-selomeu {
+    font-size: .55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: .02rem .35rem;
+    border-radius: 999px;
+    color: var(--pdz-lime);
+    background: var(--pdz-navy-fixed);
+    white-space: nowrap;
 }
 
 .pdz-chave-trofeu {
