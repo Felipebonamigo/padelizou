@@ -18,16 +18,15 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> Create()
         {
-            // Criar torneio é liberado organizador por organizador (ver
-            // Services/PermissaoDeOrganizador). A recusa vem na PORTA e não depois do
-            // formulário preenchido: descobrir que não podia depois de escolher categorias,
-            // horários e preço seria o pior jeito possível de dizer não.
+            // A tela abre pra todo mundo, porque o AMERICANO é livre — qualquer pessoa
+            // cadastrada cria o rodízio dela. O que depende de liberação é o torneio Oficial,
+            // e a tela esconde esse formato de quem ainda não tem o perfil.
+            //
+            // Esconder na tela, e não recusar na porta: mandar embora quem só queria criar um
+            // Americano seria fechar a porta de entrada do app na cara de quem chegou.
             var quemPede = await _context.Jogadores.FindAsync(ObterJogadorIdLogado() ?? 0);
-            if (!PermissaoDeOrganizador.PodeCriarTorneio(quemPede))
-            {
-                TempData["Erro"] = PermissaoDeOrganizador.ComoPedirOPerfil;
-                return RedirectToAction(nameof(Index));
-            }
+            ViewBag.PodeCriarOficial = PermissaoDeOrganizador.PodeCriarOficial(quemPede);
+            ViewBag.ComoPedirOPerfil = PermissaoDeOrganizador.ComoPedirOPerfil;
 
             // Busca as categorias do banco para montar os Checkboxes na tela. Só as ATIVAS:
             // categoria desligada continua valendo onde já foi usada, mas não é oferecida.
@@ -200,10 +199,13 @@ namespace Padelizou.Controllers
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            // A mesma trava do GET, agora no servidor: a tela some do menu e recusa na porta,
-            // mas POST montado à mão não passa por tela nenhuma — e é justamente quem quer
-            // lotar o sistema de torneio que não usa o formulário.
-            if (!PermissaoDeOrganizador.PodeCriarTorneio(await _context.Jogadores.FindAsync(criadorId)))
+            // A mesma trava do GET, agora no servidor. A tela esconde o formato Oficial de quem
+            // não pode, mas POST montado à mão não passa por tela nenhuma — e é justamente
+            // quem quer lotar o sistema que não usa o formulário.
+            //
+            // ⚠️ A pergunta leva o FORMATO junto: o Americano é livre, o Oficial não.
+            if (!PermissaoDeOrganizador.PodeCriarTorneio(
+                    await _context.Jogadores.FindAsync(criadorId), torneio.Formato))
             {
                 TempData["Erro"] = PermissaoDeOrganizador.ComoPedirOPerfil;
                 return RedirectToAction(nameof(Index));

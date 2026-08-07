@@ -54,13 +54,31 @@
                 <div class="row mb-3">
                     <div class="col-12">
                         <label class="form-label fw-bold small">Formato do Torneio</label>
+                        @* O AMERICANO é livre: qualquer pessoa cadastrada cria o rodízio dela.
+                           O Oficial (duplas fixas, com chave) é liberado organizador por
+                           organizador — ele publica chave, cobra inscrição e vale ranking, e
+                           ali a credibilidade de quem organiza importa.
+
+                           Quem não tem o perfil vê a opção DESABILITADA em vez de não vê-la:
+                           esconder faria a pessoa achar que o Padelizou não faz torneio de
+                           chave. Desabilitada com o motivo do lado, ela sabe que existe e sabe
+                           como pedir. *@
                         <div class="d-flex gap-3 flex-wrap">
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="Formato" id="formatoPadrao" value="Padrao" checked>
-                                <label class="form-check-label" for="formatoPadrao">Torneio Padrão (duplas fixas)</label>
+                                <input class="form-check-input" type="radio" name="Formato" id="formatoPadrao" value="Padrao"
+                                       checked="@(ViewBag.PodeCriarOficial == true)"
+                                       disabled="@(ViewBag.PodeCriarOficial != true)">
+                                <label class="form-check-label @(ViewBag.PodeCriarOficial != true ? "text-muted" : "")" for="formatoPadrao">
+                                    Torneio Oficial (duplas fixas)
+                                    @if (ViewBag.PodeCriarOficial != true)
+                                    {
+                                        <i class="bi bi-lock-fill small"></i>
+                                    }
+                                </label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="Formato" id="formatoAmericano" value="Americano">
+                                <input class="form-check-input" type="radio" name="Formato" id="formatoAmericano" value="Americano"
+                                       checked="@(ViewBag.PodeCriarOficial != true)">
                                 <label class="form-check-label" for="formatoAmericano">Torneio Americano (parceiros rotativos)</label>
                             </div>
                             <div class="form-check">
@@ -68,8 +86,15 @@
                                 <label class="form-check-label" for="formatoAmericanoDuplas">Americano de Duplas (duplas fixas, todos contra todos)</label>
                             </div>
                         </div>
+                        @if (ViewBag.PodeCriarOficial != true)
+                        {
+                            <div class="alert alert-secondary small mt-2 mb-0 d-flex gap-2 align-items-start">
+                                <i class="bi bi-lock-fill"></i>
+                                <div>@ViewBag.ComoPedirOPerfil</div>
+                            </div>
+                        }
                         @* O que cada formato significa, trocando junto com o radio (script no fim). *@
-                        <small class="text-muted d-block mt-1" id="dicaFormatoPadrao">No Padrão, as duplas se inscrevem fechadas e o torneio é fase de grupos + mata-mata.</small>
+                        <small class="text-muted d-block mt-1" id="dicaFormatoPadrao">No Oficial, as duplas se inscrevem fechadas e o torneio é fase de grupos + mata-mata.</small>
                         <small class="text-muted d-block mt-1" id="dicaFormatoAmericano" style="display: none;">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
                         <small class="text-muted d-block mt-1" id="dicaFormatoAmericanoDuplas" style="display: none;">No Americano de Duplas, a dupla se inscreve fechada e enfrenta todas as outras — vence a dupla que somar mais games.</small>
 

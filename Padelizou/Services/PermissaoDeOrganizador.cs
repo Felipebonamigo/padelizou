@@ -21,18 +21,42 @@ namespace Padelizou.Services;
 // nada a ele e resolve inteiro o problema do Felipe.
 public static class PermissaoDeOrganizador
 {
-    // O admin do Padelizou cria torneio em qualquer situação — é ele quem socorre organizador
-    // travado no dia do jogo, e depender do próprio perfil que ele mesmo distribui seria um
-    // nó que só se desata pelo banco.
-    public static bool PodeCriarTorneio(Jogador? jogador) =>
-        jogador != null && (jogador.IsOrganizadorTorneio || jogador.IsAdminRaiz || jogador.IsAdminGeral);
+    // ⚠️ O AMERICANO É LIVRE: qualquer pessoa cadastrada cria (decisão do Felipe, 07/08/2026).
+    //
+    // Ele é o rodízio de sábado — gente conhecida, parceiro trocando a cada rodada, criado na
+    // sexta à noite. Exigir liberação pra isso poria o Felipe no meio do combinado de um grupo
+    // de amigos, e mataria justamente a porta de entrada do app.
+    //
+    // E é seguro exatamente porque a APROVAÇÃO existe: criar não avisa mais ninguém (o "novo
+    // torneio aberto" saiu da criação), então um Americano inventado não alcança a base. Ele
+    // fica no link de quem criou até alguém aprovar. Sem a trava da vitrine, esta liberdade
+    // seria imprudente; com ela, é só conveniência.
+    public static bool PodeCriarTorneio(Jogador? jogador, string? formato)
+    {
+        if (jogador == null) return false;
+        if (FormatoDoTorneio.EhAmericano(formato)) return true;
+
+        // O torneio Oficial é o que publica chave, cobra inscrição e vale ranking — nele a
+        // credibilidade do organizador importa, e por isso a porta é estreita.
+        //
+        // O admin do Padelizou passa em qualquer caso: é ele quem socorre organizador travado
+        // no dia do jogo, e depender do perfil que ele mesmo distribui seria um nó que só se
+        // desata pelo banco.
+        return jogador.IsOrganizadorTorneio || jogador.IsAdminRaiz || jogador.IsAdminGeral;
+    }
+
+    // A tela de criação abre pra todo mundo (por causa do Americano), mas o formato Oficial
+    // só é oferecido a quem pode. É esta pergunta que a tela faz.
+    public static bool PodeCriarOficial(Jogador? jogador) =>
+        PodeCriarTorneio(jogador, FormatoDoTorneio.Padrao);
 
     // A frase que aparece pra quem ainda não tem o perfil. Diz o que fazer, não só o que
     // faltou — recusa sem caminho de saída é o jeito mais rápido de perder um cliente novo.
+    // E aponta a saída que existe HOJE: o Americano, que não depende de liberação nenhuma.
     public const string ComoPedirOPerfil =
-        "Criar torneio no Padelizou é liberado organizador por organizador. "
-        + "Fale com a gente pelo WhatsApp que a liberação é rápida — e depois disso você cria "
-        + "quantos torneios quiser.";
+        "O torneio Oficial (duplas fixas, com chave) é liberado organizador por organizador. "
+        + "Fale com a gente pelo WhatsApp que a liberação é rápida. "
+        + "Enquanto isso, o Americano você já pode criar agora mesmo.";
 
     // Torneio aparece na listagem pública, na Home e no aviso? Só depois de aprovado.
     //
