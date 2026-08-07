@@ -268,11 +268,19 @@ namespace Padelizou.Controllers
                 return await Recusar("Escolha pelo menos uma categoria — é nela que os jogadores se inscrevem.");
             }
 
+            // O formato vem de um radio, mas POST montado à mão pode mandar qualquer texto —
+            // e um formato desconhecido criaria um torneio meio-Padrão que nenhuma tela sabe
+            // sortear nem encerrar.
+            if (torneio.Formato is not ("Padrao" or "Americano" or "AmericanoDuplas"))
+            {
+                return await Recusar("Escolha o formato do torneio.");
+            }
+
             // Categoria de times: a estrutura precisa fechar um quadro de mata-mata ANTES de
             // criar qualquer coisa — recusar depois deixaria o torneio no ar pela metade.
             if (categoriaDeTimes)
             {
-                if (torneio.Formato == "Americano")
+                if (torneio.Formato != "Padrao")
                 {
                     return await Recusar("Categoria de times só existe no formato padrão (grupos + mata-mata).");
                 }
@@ -469,33 +477,22 @@ namespace Padelizou.Controllers
             }
 
             // Avisa quem tem NotificarTorneiosAbertos marcado que um torneio novo abriu.
-            var elegiveis = await _context.Jogadores.Where(j => j.NotificarTorneiosAbertos).ToListAsync();
+            //
+            // ⚠️ Só ENFILEIRA (e-mail e push saem pela FilaDeAvisos, no serviço de fundo).
+            // Até 07/08/2026 havia aqui um laço de SMTP por jogador, DENTRO da requisição:
+            // com 71 elegíveis o organizador ficou minutos olhando "Publicando o torneio…" —
+            // e cada um deles ainda recebia o e-mail EM DOBRO, porque a fila já manda e-mail
+            // pra quem tem NotificarEmail. Foi essa dobra que ajudou a estourar a cota diária
+            // do Gmail na véspera do lançamento.
+            var elegiveis = await _context.Jogadores
+                .Where(j => j.NotificarTorneiosAbertos)
+                .Select(j => j.Id)
+                .ToListAsync();
             var urlTorneio = Url.Action("Details", "Torneios", new { id = torneio.Id });
 
-            foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
+            foreach (var jogadorId in elegiveis)
             {
-                try
-                {
-                    await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
-                        "Novo torneio aberto - Padelizou",
-                        $"<p>Olá {jogador.Nome},</p><p>Um novo torneio acabou de abrir: <strong>{torneio.Nome}</strong>.</p>");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar e-mail de torneio aberto {TorneioId} para jogador {JogadorId}", torneio.Id, jogador.Id);
-                }
-            }
-
-            foreach (var jogador in elegiveis)
-            {
-                try
-                {
-                    await _pushService.EnviarParaJogadorAsync(jogador.Id, "Novo torneio aberto", torneio.Nome, urlTorneio);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar push de torneio aberto {TorneioId} para jogador {JogadorId}", torneio.Id, jogador.Id);
-                }
+                await _pushService.EnviarParaJogadorAsync(jogadorId, "Novo torneio aberto", torneio.Nome, urlTorneio);
             }
 
             return RedirectToAction("Details", new { id = torneio.Id });

@@ -16,7 +16,9 @@ namespace Padelizou.Controllers
         private readonly IEstatisticasService _estatisticas;
         private readonly IPalpiteService _palpites;
         private readonly IWebHostEnvironment _env;
-        private readonly IEmailService _emailService;
+        // Sem IEmailService de propósito: e-mail daqui sai pela FilaDeAvisos, junto do push
+        // (EnviarParaJogadorAsync enfileira os dois canais). SMTP dentro da requisição foi o
+        // "Publicando o torneio…" de minutos de 07/08/2026 — não voltar.
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
         private readonly TaxasExibicao _taxas;
@@ -27,7 +29,7 @@ namespace Padelizou.Controllers
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
-            IWebHostEnvironment env, IEmailService emailService, IPushNotificationService pushService,
+            IWebHostEnvironment env, IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
@@ -37,7 +39,6 @@ namespace Padelizou.Controllers
             _estatisticas = estatisticas;
             _palpites = palpites;
             _env = env;
-            _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
             _taxas = taxas.Value;
@@ -67,6 +68,9 @@ namespace Padelizou.Controllers
 
             var url = Url.Action("Details", "Torneios", new { id = torneioId });
 
+            // Só ENFILEIRA: a FilaDeAvisos entrega e-mail e push por fora da requisição. O
+            // e-mail inline que morava aqui saía em dobro (a fila já cobre o canal) e segurava
+            // a tela de quem estava se inscrevendo.
             foreach (var grupo in seguidores.GroupBy(s => s.SeguidorId))
             {
                 var seguidor = grupo.First().Seguidor;
@@ -74,27 +78,7 @@ namespace Padelizou.Controllers
                 var titulo = "Alguém que você segue se inscreveu num torneio";
                 var corpo = $"{string.Join(" e ", nomesQueSigo)} se inscreveu em {torneio.Nome}.";
 
-                if (seguidor.NotificarEmail && !string.IsNullOrWhiteSpace(seguidor.Email))
-                {
-                    try
-                    {
-                        await _emailService.EnviarAsync(seguidor.Email!, seguidor.Nome, titulo,
-                            $"<p>{corpo}</p>");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Falha ao enviar e-mail de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
-                    }
-                }
-
-                try
-                {
-                    await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar push de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
-                }
+                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
             }
         }
 
@@ -247,7 +231,9 @@ namespace Padelizou.Controllers
 
             // "Cabe?" — enquanto as chaves não foram sorteadas ainda dá pra mudar quadras,
             // duração ou horário. Depois, remarcar significa avisar todo mundo de novo.
-            if (torneio.Status == "Chaves em Sorteio" && torneio.Formato != "Americano")
+            // A previsão monta grupos + mata-mata, então só vale no formato padrão — os dois
+            // Americanos têm a própria conta de rodadas.
+            if (torneio.Status == "Chaves em Sorteio" && torneio.Formato == "Padrao")
             {
                 ViewBag.PrevisaoGrade = MontarPrevisaoDaGrade(torneio);
             }
@@ -710,6 +696,18 @@ namespace Padelizou.Controllers
                     c => TabelaDoAmericano.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
 
                 // O botão "montar o desempate" é só do organizador; o jogador vê o aviso.
+                ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
+            }
+            else if (torneioDaTela?.Formato == "AmericanoDuplas")
+            {
+                // No Americano de DUPLAS a conta é por dupla — a dupla é fixa, então quem
+                // soma games é ela (Services/TabelaDoAmericanoDeDuplas).
+                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
+
+                ViewBag.ClassificacaoAmericanoDuplas = categoriasDoTorneio.ToDictionary(
+                    c => c.Nome,
+                    c => TabelaDoAmericanoDeDuplas.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }
 

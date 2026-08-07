@@ -11,20 +11,21 @@ namespace Padelizou.Controllers
     {
         private readonly DbPadelContext _context;
         private readonly IEstatisticasService _estatisticas;
-        private readonly IEmailService _emailService;
+        // Sem IEmailService de propósito: e-mail daqui sai pela FilaDeAvisos, junto do push
+        // (EnviarParaJogadorAsync enfileira os dois canais). O SMTP inline foi o que deixou a
+        // inscrição lenta a ponto de gente clicar três vezes no evento de teste.
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
         private readonly ValidacaoPeloRankingRs _rankingRs;
         private readonly ILogger<DuplasController> _logger;
 
         public DuplasController(DbPadelContext context, IEstatisticasService estatisticas,
-            IEmailService emailService, IPushNotificationService pushService,
+            IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, ValidacaoPeloRankingRs rankingRs,
             ILogger<DuplasController> logger)
         {
             _context = context;
             _estatisticas = estatisticas;
-            _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
             _rankingRs = rankingRs;
@@ -51,6 +52,9 @@ namespace Padelizou.Controllers
 
             var url = Url.Action("Details", "Torneios", new { id = torneioId });
 
+            // Só ENFILEIRA: a FilaDeAvisos entrega e-mail e push por fora da requisição. O
+            // e-mail inline que morava aqui saía em dobro (a fila já cobre o canal) e foi um
+            // dos motivos de a inscrição demorar a ponto de gente clicar três vezes.
             foreach (var grupo in seguidores.GroupBy(s => s.SeguidorId))
             {
                 var seguidor = grupo.First().Seguidor;
@@ -58,26 +62,7 @@ namespace Padelizou.Controllers
                 var titulo = "Alguém que você segue se inscreveu num torneio";
                 var corpo = $"{string.Join(" e ", nomesQueSigo)} se inscreveu em {torneio.Nome}.";
 
-                if (seguidor.NotificarEmail && !string.IsNullOrWhiteSpace(seguidor.Email))
-                {
-                    try
-                    {
-                        await _emailService.EnviarAsync(seguidor.Email!, seguidor.Nome, titulo, $"<p>{corpo}</p>");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Falha ao enviar e-mail de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
-                    }
-                }
-
-                try
-                {
-                    await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar push de seguidor pro torneio {TorneioId}, jogador {JogadorId}", torneioId, seguidor.Id);
-                }
+                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
             }
         }
 

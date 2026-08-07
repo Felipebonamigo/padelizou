@@ -12,13 +12,17 @@ namespace padelizou.Controllers
     public class AvisosController : Controller
     {
         private readonly DbPadelContext _context;
-        private readonly IEmailService _emailService;
+        // Pela FilaDeAvisos, não por SMTP direto: publicar um aviso mandava um e-mail POR
+        // ELEGÍVEL dentro da requisição — a mesma lentidão do "Publicando o torneio…" de
+        // 07/08/2026. A fila cobre e-mail (respeitando NotificarEmail) e ainda alcança o
+        // push de quem instalou o app, que aqui ficava sem aviso nenhum.
+        private readonly IPushNotificationService _pushService;
         private readonly ILogger<AvisosController> _logger;
 
-        public AvisosController(DbPadelContext context, IEmailService emailService, ILogger<AvisosController> logger)
+        public AvisosController(DbPadelContext context, IPushNotificationService pushService, ILogger<AvisosController> logger)
         {
             _context = context;
-            _emailService = emailService;
+            _pushService = pushService;
             _logger = logger;
         }
 
@@ -69,23 +73,17 @@ namespace padelizou.Controllers
 
             var elegiveis = await ObterJogadoresElegiveisAsync(avisoCompleto);
 
-            foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
+            // Só ENFILEIRA — a fila decide o canal de cada um (e-mail pra quem tem
+            // NotificarEmail, push pra quem instalou o app) e entrega por fora da requisição.
+            var corpo = $"{avisoCompleto.Criador.ComoChamar} procura jogadores para "
+                      + $"{avisoCompleto.CategoriaPadrao.Nome} em {avisoCompleto.Clube.Nome}, "
+                      + $"dia {avisoCompleto.DataHora:dd/MM 'às' HH:mm}."
+                      + (string.IsNullOrWhiteSpace(avisoCompleto.Observacoes) ? "" : $" {avisoCompleto.Observacoes}");
+
+            var urlAvisos = Url.Action("Index", "Avisos");
+            foreach (var jogador in elegiveis)
             {
-                try
-                {
-                    await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
-                        "Novo jogo disponível - Padelizou",
-                        $@"<p>Olá {jogador.Nome},</p>
-                           <p><strong>{avisoCompleto.Criador.Nome}</strong> está procurando jogadores para
-                           <strong>{avisoCompleto.CategoriaPadrao.Nome}</strong> em
-                           <strong>{avisoCompleto.Clube.Nome}</strong> no dia
-                           <strong>{avisoCompleto.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>
-                           {(string.IsNullOrWhiteSpace(avisoCompleto.Observacoes) ? "" : $"<p>{avisoCompleto.Observacoes}</p>")}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar e-mail de aviso de jogo {AvisoId} para jogador {JogadorId}", avisoCompleto.Id, jogador.Id);
-                }
+                await _pushService.EnviarParaJogadorAsync(jogador.Id, "Novo jogo disponível", corpo, urlAvisos);
             }
 
             return RedirectToAction("AvisoPublicado", new { id = aviso.Id });

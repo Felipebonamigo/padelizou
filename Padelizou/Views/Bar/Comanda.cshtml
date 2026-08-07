@@ -233,7 +233,9 @@
                                     <label class="form-label small fw-bold mb-1">Desconto</label>
                                     <div class="input-group">
                                         <span class="input-group-text">R$</span>
-                                        <input type="number" name="desconto" step="0.01" min="0" value="0"
+                                        @* Vazio em vez de "0" — em branco é sem desconto, e o 0
+                                           escrito no campo vira 50 quando se digita 5 em cima. *@
+                                        <input type="number" name="desconto" step="0.01" min="0" placeholder="0,00"
                                                class="form-control pdz-dinheiro" />
                                     </div>
                                 </div>

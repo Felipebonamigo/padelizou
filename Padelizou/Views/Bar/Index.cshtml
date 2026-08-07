@@ -80,7 +80,9 @@
                         <label class="form-label small fw-bold mb-1">Troco de abertura</label>
                         <div class="input-group" style="width: 180px;">
                             <span class="input-group-text">R$</span>
-                            <input type="number" name="valorAbertura" step="0.01" min="0" value="0"
+                            @* Vazio em vez de "0": em branco o servidor já entende zero, e um 0
+                               escrito no campo vira 100 quando alguém digita 10 em cima. *@
+                            <input type="number" name="valorAbertura" step="0.01" min="0" placeholder="0,00"
                                    class="form-control pdz-dinheiro" />
                         </div>
                     </div>

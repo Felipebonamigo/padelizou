@@ -514,7 +514,7 @@
         }
         else if (Model.Formato == "Americano")
         {
-            <form asp-controller="Torneios" asp-action="InscreverIndividual" method="post">
+            <form asp-controller="Torneios" asp-action="InscreverIndividual" method="post" class="pdz-form-inscricao">
                 <input type="hidden" name="torneioId" value="@Model.Id" />
 
                 <div class="mb-4">
@@ -560,7 +560,7 @@
         }
         else
         {
-        <form asp-controller="Duplas" asp-action="Create" method="post">
+        <form asp-controller="Duplas" asp-action="Create" method="post" class="pdz-form-inscricao">
             <input type="hidden" name="torneioId" value="@Model.Id" />
 
             <div class="mb-4">
@@ -932,6 +932,34 @@
                                        value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
                                 <button type="submit" class="btn btn-primary fw-bold shadow-sm">
                                     <i class="bi bi-shuffle"></i> Sortear Rodadas do Americano
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    else if (Model.Status == "Chaves em Sorteio" && Model.Formato == "AmericanoDuplas")
+                    {
+                        <div class="alert alert-info border-info">
+                            <strong>Inscrições Encerradas!</strong> Agora você pode sortear as rodadas — as duplas
+                            são fixas e cada uma enfrenta todas as outras. Vence a que somar mais games.
+                        </div>
+
+                        @* Os números saem da MESMA régua do sorteio (Services/RodadasAmericanoDeDuplas
+                           e ForaDoSorteio): o que a tela promete é o que o botão faz. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes))
+                        {
+                            var prontasDaCategoria = cat.Duplas.Count(d => !Padelizou.Services.ForaDoSorteio.FicaDeFora(d));
+                            <div class="small mb-1 @(Padelizou.Services.RodadasAmericanoDeDuplas.Aceita(prontasDaCategoria) ? "text-muted" : "text-danger")">
+                                <strong>@cat.Nome:</strong> @Padelizou.Services.RodadasAmericanoDeDuplas.ComoFica(prontasDaCategoria)
+                            </div>
+                        }
+
+                        <form asp-controller="Torneios" asp-action="GerarRodadasAmericanoDuplas" method="post" class="mt-2">
+                            <input type="hidden" name="torneioId" value="@Model.Id" />
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <input type="datetime-local" name="dataHoraInicio" class="form-control form-control-sm" style="width: auto;"
+                                       value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
+                                <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+                                    <i class="bi bi-shuffle"></i> Sortear Rodadas
                                 </button>
                             </div>
                         </form>
@@ -1769,7 +1797,7 @@
                             Lá dá pra cadastrar os times e mudar times/grupos/classificados enquanto as chaves não saem.
                         </div>
                     }
-                    else if (Model.Formato == "Americano")
+                    else if (Model.Formato != "Padrao")
                     {
                         <p class="small text-muted mb-0">Categoria de times só existe no formato padrão (grupos + mata-mata).</p>
                     }
@@ -2623,6 +2651,29 @@
                     consultar();
                 });
             }
+        });
+    })();
+
+    // ── Um clique é um clique ───────────────────────────────────────────────────────────
+    //
+    // ⚠️ Relato do evento de teste (07/08/2026): "cliquei pra me inscrever, não aconteceu
+    // nada, cliquei 3 vezes — e a mesma dupla entrou 3 vezes". A causa da demora era o
+    // servidor (aviso por SMTP dentro da requisição, já corrigido), mas o efeito só existiu
+    // porque o botão ficava do mesmo jeito depois de tocado: sem retorno nenhum, tocar de
+    // novo é o que qualquer pessoa faz.
+    //
+    // O `submit` só dispara DEPOIS da validação do navegador, então campo obrigatório em
+    // branco não deixa o botão travado. E travar aqui não substitui a guarda do servidor —
+    // ela é que segura o POST repetido de aba velha ou conexão que caiu no meio.
+    (function () {
+        document.querySelectorAll('form.pdz-form-inscricao').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var botao = form.querySelector('button[type="submit"]');
+                if (!botao) return;
+
+                botao.disabled = true;
+                botao.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Inscrevendo…';
+            });
         });
     })();
 

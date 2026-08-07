@@ -157,7 +157,6 @@ public static class TestInfra
             new EstatisticasService(ctx),
             Substitute.For<IPalpiteService>(),
             Substitute.For<IWebHostEnvironment>(),
-            Substitute.For<IEmailService>(),
             push,
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),

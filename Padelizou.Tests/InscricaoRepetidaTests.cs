@@ -189,7 +189,6 @@ public class InscricaoRepetidaTests
         var controller = new DuplasController(
             ctx,
             new EstatisticasService(ctx),
-            Substitute.For<IEmailService>(),
             Substitute.For<IPushNotificationService>(),
             Substitute.For<IPagamentoInscricaoService>(),
             // Ranking RS sem chave — ver AceitarConviteTests.
