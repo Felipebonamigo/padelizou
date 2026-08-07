@@ -259,7 +259,38 @@
                         <input type="date" asp-for="DataInicio" class="form-control bg-light" required />
 
                     </div>
-                    <div class="col-md-4">
+                    @* A PERGUNTA QUE DESPOLUI A TELA. Metade dos campos daqui só existe pra
+                       montar grade de horário — e a maioria dos torneios (o rodízio de sábado,
+                       o interno do clube) roda chamando o jogo conforme a quadra vaga. Perguntar
+                       antes tira quatro campos da frente de quem não vai usá-los.
+
+                       Nasce em "não" de propósito: horário inventado que ninguém cumpre é pior
+                       que horário nenhum, porque o jogador confia nele e vai embora de casa na
+                       hora errada. Quem quer grade responde "sim" e os campos aparecem. *@
+                    <div class="col-12">
+                        <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                            <label class="form-label fw-bold small mb-2" style="color: var(--pdz-ink);">
+                                <i class="bi bi-clock me-1"></i> Você quer marcar dia e horário de cada jogo?
+                            </label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="SemHorarioPrevisto"
+                                       value="true" id="pdzPorOrdem" checked />
+                                <label class="form-check-label" for="pdzPorOrdem">
+                                    <strong>Não</strong> — os jogos saem numa <strong>ordem</strong>, e eu chamo
+                                    conforme a quadra vaga.
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="SemHorarioPrevisto"
+                                       value="false" id="pdzComHorario" />
+                                <label class="form-check-label" for="pdzComHorario">
+                                    <strong>Sim</strong> — quero uma grade com dia e hora de cada jogo.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 pdz-so-com-horario">
                         <label class="form-label fw-bold small">Precisa terminar até <span class="fw-normal">(opcional)</span></label>
                         <input type="date" asp-for="DataFim" class="form-control bg-light" />
                         <small class="text-muted d-block mt-1">Até quando você tem a quadra. Serve pro sistema avisar se os jogos não couberem.</small>
@@ -284,7 +315,7 @@
                         <input type="number" name="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
                         <small class="text-muted d-block mt-1">Quantos jogos rodam ao mesmo tempo na grade.</small>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-4 pdz-so-com-horario">
                         <label class="form-label fw-bold small">Duração de cada jogo</label>
                         <div class="input-group">
                             <input type="number" asp-for="TempoPrevistoPartidaMinutos" min="10" max="180" class="form-control bg-light" required />
@@ -293,7 +324,7 @@
                     </div>
                     @* Duas aberturas porque o torneio de fim de semana tem duas: sexta à
                        noite (todo mundo trabalha de dia) e sábado/domingo cedo. *@
-                    <div class="col-md-8">
+                    <div class="col-md-8 pdz-so-com-horario">
                         <label class="form-label fw-bold small">Horários dos jogos</label>
                         <div class="row g-2">
                             <div class="col-6 col-md-4">
@@ -328,7 +359,7 @@
                     @* "Cabe?" é a pergunta que nenhum campo responde sozinho: depende do número
                        de jogos, que depende de quantas duplas entram. Na criação ninguém sabe
                        ainda, então o organizador estima e o sistema mostra onde isso termina. *@
-                    <div class="col-12">
+                    <div class="col-12 pdz-so-com-horario">
                         <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
                             <label class="form-label fw-bold small mb-2" style="color: var(--pdz-ink);">
                                 <i class="bi bi-calendar-check me-1"></i> Vai caber?
@@ -1129,6 +1160,39 @@
         if (texto) texto.addEventListener('input', pdzClubeEscrito);
         // Também na abertura: voltar pra tela (ou uma recusa) pode trazer o campo já escrito.
         pdzClubeEscrito();
+    });
+
+    // Torneio por ORDEM esconde tudo que só serve pra montar grade de horário: até quando tem
+    // a quadra, duração do jogo, as três horas do dia e o "vai caber?".
+    //
+    // O `required` sai junto, e isso não é detalhe: campo obrigatório ESCONDIDO faz o navegador
+    // recusar o envio do formulário inteiro sem mostrar erro nenhum — a pessoa clica em Criar e
+    // não acontece nada. O campo continua HABILITADO (só o required cai), pra que os valores
+    // padrão sigam indo no POST: o torneio pode virar "com horário" depois, na tela de gestão,
+    // e aí encontra 18h/08h/23h50 no lugar de meia-noite.
+    function pdzHorariosDosJogos() {
+        var porOrdem = document.getElementById('pdzPorOrdem');
+        if (!porOrdem) return;
+        var esconder = porOrdem.checked;
+
+        document.querySelectorAll('.pdz-so-com-horario').forEach(function (bloco) {
+            bloco.classList.toggle('d-none', esconder);
+            bloco.querySelectorAll('input, select').forEach(function (campo) {
+                if (esconder) {
+                    if (campo.required) { campo.dataset.pdzEraObrigatorio = '1'; campo.required = false; }
+                } else if (campo.dataset.pdzEraObrigatorio === '1') {
+                    campo.required = true;
+                }
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        ['pdzPorOrdem', 'pdzComHorario'].forEach(function (id) {
+            var opcao = document.getElementById(id);
+            if (opcao) opcao.addEventListener('change', pdzHorariosDosJogos);
+        });
+        pdzHorariosDosJogos();
     });
 
     // As opções do Americano aparecem nos DOIS sabores (individual e de duplas), cada um com

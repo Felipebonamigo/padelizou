@@ -27,6 +27,46 @@ public class SemHorarioPrevistoTests
         Assert.Equal("Fase de Grupos", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_escolha_e_feita_na_CRIACAO_e_chega_no_torneio(bool porOrdem)
+    {
+        // A chave existia só na tela de gestão, DEPOIS do torneio criado — então a criação
+        // pedia hora de início, hora de fim e duração de jogo pra todo mundo, inclusive pra
+        // quem ia chamar o jogo conforme a quadra vaga. Agora ela é a pergunta que decide se
+        // aqueles campos aparecem, e é na criação que ela precisa chegar inteira.
+        using var ctx = TestInfra.NovoContexto();
+        ctx.Jogadores.Add(new Jogador
+        {
+            Id = 1, Nome = "Organizador", Cpf = "1", IsOrganizadorTorneio = true,
+        });
+        ctx.Clubes.Add(new Clube { Id = 1, Nome = "Clube Teste" });
+        ctx.CategoriasPadrao.Add(new CategoriaPadrao
+        {
+            Id = 3, Nome = "3ª Categoria Masculina", Codigo = "3CatM", Tipo = "Masculina",
+        });
+        await ctx.SaveChangesAsync();
+
+        var novo = new Torneio
+        {
+            Nome = "Interno do clube",
+            ClubeId = 1,
+            Status = "Inscrições Abertas",
+            SetsFaseGrupos = 1,
+            GamesFaseGrupos = 6,
+            RestricaoCategoria = "Livre",
+            FormaPagamento = "Externo",
+            SemHorarioPrevisto = porOrdem,
+        };
+
+        await TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 1)
+            .Create(novo, new[] { 3 }, null, null, null, null);
+
+        var criado = Assert.Single(ctx.Torneios);
+        Assert.Equal(porOrdem, criado.SemHorarioPrevisto);
+    }
+
     [Fact]
     public async Task Desligada_a_chave_a_grade_continua_marcando_hora_como_sempre()
     {
