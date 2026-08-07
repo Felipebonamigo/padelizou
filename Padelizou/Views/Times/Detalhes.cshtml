@@ -89,7 +89,7 @@
                         <li class="list-group-item bg-transparent px-0 d-flex align-items-center gap-2 flex-wrap">
                             <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@a.Jogador.Id"
                                class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
-                                @a.Jogador.Nome
+                                @a.Jogador.ComoChamar
                             </a>
                             @if (!string.IsNullOrWhiteSpace(a.ConcedidoPor))
                             {
@@ -98,7 +98,7 @@
                             @if (Model.PossoGerenciar)
                             {
                                 <form asp-action="RemoverAdministrador" method="post" class="ms-auto"
-                                      onsubmit="return confirm('Tirar @a.Jogador.Nome da administração do time? Ele continua no time.');">
+                                      onsubmit="return confirm('Tirar @a.Jogador.ComoChamar da administração do time? Ele continua no time.');">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="timeId" value="@Model.Time.Id" />
                                     <input type="hidden" name="jogadorId" value="@a.Jogador.Id" />
@@ -165,7 +165,7 @@
                     }
                     <div class="flex-grow-1 overflow-hidden">
                         <strong class="d-block text-truncate" style="color: var(--pdz-ink);">
-                            @m.Jogador.Nome
+                            @m.Jogador.ComoChamar
                             @if (m.EhAdministrador)
                             {
                                 <span class="badge rounded-pill ms-1" style="background:#fff6df;color:#8a6d00;">

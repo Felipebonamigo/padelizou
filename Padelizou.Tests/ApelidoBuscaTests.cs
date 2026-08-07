@@ -23,11 +23,13 @@ public class ApelidoBuscaTests
     }
 
     [Fact]
-    public void Com_apelido_a_lista_usa_o_apelido_e_o_perfil_mostra_os_dois()
+    public void Com_apelido_a_lista_mostra_nome_curto_E_apelido()
     {
         var j = Novo("José Carlos da Silva", "1", "Zeca");
 
-        Assert.Equal("Zeca", j.ComoChamar);
+        // Até 06/08/2026 a lista mostrava só "Zeca". Trocou porque apelido não identifica
+        // ninguém fora da turma — numa chave, "Zeca" pode ser três pessoas.
+        Assert.Equal("José Silva (Zeca)", j.ComoChamar);
         Assert.Equal("José Carlos da Silva (Zeca)", j.NomeComApelido);
     }
 

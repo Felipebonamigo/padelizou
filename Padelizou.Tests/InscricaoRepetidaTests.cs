@@ -30,9 +30,9 @@ public class InscricaoRepetidaTests
 
         // CPFs com dígito verificador de verdade: estes passam pelo controller, e o
         // controller agora recusa CPF inventado (ver Services/Documentos.CpfEhValido).
-        var a = new Jogador { Nome = "Otávio", Cpf = "11144477735" };
-        var b = new Jogador { Nome = "Geovani", Cpf = "22255588846" };
-        var c = new Jogador { Nome = "Diego", Cpf = "33366699957" };
+        var a = new Jogador { Nome = "Otávio Wunsch", Cpf = "11144477735" };
+        var b = new Jogador { Nome = "Geovani Batista", Cpf = "22255588846" };
+        var c = new Jogador { Nome = "Diego Martins", Cpf = "33366699957" };
         ctx.Jogadores.AddRange(a, b, c);
         await ctx.SaveChangesAsync();
 
@@ -74,7 +74,7 @@ public class InscricaoRepetidaTests
         Assert.Null(InscricaoRepetida.MotivoParaRecusar(achados));
         var juntaveis = InscricaoRepetida.QuePodemSerJuntadas(achados);
         Assert.Single(juntaveis);
-        Assert.Equal("Otávio", juntaveis[0].NomeJogador);
+        Assert.Equal("Otávio Wunsch", juntaveis[0].NomeJogador);
     }
 
     [Fact]

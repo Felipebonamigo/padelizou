@@ -25,9 +25,11 @@
     // 27/07, e nesta view a mesma desatenção estava repetida em três lugares.
     static string NomesDaDupla(Jogador jogador1, Jogador? jogador2)
     {
+        // ComoChamar, não Nome: é a regra única de exibição — primeiro nome + último
+        // sobrenome (apelido). Ver Services/NomeBonito.
         static string Link(Jogador j) =>
             $"<a href=\"/Jogadores/Perfil/{j.Id}\" class=\"text-decoration-none fw-semibold\" " +
-            $"style=\"color: var(--pdz-ink);\">{System.Net.WebUtility.HtmlEncode(j.Nome)}</a>";
+            $"style=\"color: var(--pdz-ink);\">{System.Net.WebUtility.HtmlEncode(j.ComoChamar)}</a>";
 
         return jogador2 == null
             ? Link(jogador1) + " <span class=\"text-muted small\">(sem parceiro)</span>"
@@ -188,7 +190,7 @@
                         {
                             <tr>
                                 <td class="text-center fw-bold">@Html.Raw(PosBadge(posTor))</td>
-                                <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a></td>
                                 <td class="text-center text-muted">@l.Jogos</td>
                                 <td class="text-center">@(l.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {l.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
                                 <td class="text-center fw-bold text-success">@l.Vitorias</td>
@@ -265,7 +267,7 @@
                                 {
                                     <tr>
                                         <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                        <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                        <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a></td>
                                         <td class="text-center">@(l.Titulos > 0 ? Html.Raw($"<span class='text-warning fw-bold'><i class='bi bi-trophy-fill'></i> {l.Titulos}</span>") : Html.Raw("<span class='text-muted'>—</span>"))</td>
                                         <td class="text-center fw-bold text-success d-none d-sm-table-cell">@l.Vitorias</td>
                                         <td class="text-center text-muted d-none d-sm-table-cell">@l.Torneios</td>
@@ -312,7 +314,7 @@
                             <tr>
                                 <td class="text-center fw-bold">@Html.Raw(PosBadge(posPdz))</td>
                                 <td>
-                                    <a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a>
+                                    <a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a>
                                     @if (l.EmCalibracao)
                                     {
                                         <span class="badge bg-secondary ms-1" title="Primeiros 10 jogos: o número anda mais rápido até se encontrar (@l.Jogos de 10).">em calibração</span>
@@ -367,7 +369,7 @@
                                     {
                                         <tr>
                                             <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                            <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.Nome</a></td>
+                                            <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a></td>
                                             <td class="text-center"><span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @l.Titulos</span></td>
                                             <td class="text-center text-muted">@l.Finais</td>
                                         </tr>
@@ -399,7 +401,7 @@
                         {
                             <tr>
                                 <td class="text-center fw-bold">@Html.Raw(PosBadge(posG))</td>
-                                <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.ComoChamar</a></td>
                                 <td class="text-center fw-bold text-success">@j.Vitorias</td>
                                 <td class="text-center text-muted">@j.Jogos</td>
                                 <td class="text-end pe-3">@(j.Jogos > 0 ? $"{(100.0 * j.Vitorias / j.Jogos):0}%" : "—")</td>
@@ -429,7 +431,7 @@
                                     {
                                         <tr>
                                             <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                            <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                            <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.ComoChamar</a></td>
                                             <td class="text-center fw-bold text-success">@j.Vitorias</td>
                                             <td class="text-center text-muted">@j.Jogos</td>
                                         </tr>
@@ -528,7 +530,7 @@
                                 {
                                     <tr>
                                         <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                        <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.Nome</a></td>
+                                        <td><a asp-action="Perfil" asp-route-id="@j.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.Jogador.ComoChamar</a></td>
                                         <td class="text-center"><span class="badge bg-danger-subtle text-danger fw-bold">@j.Sequencia <i class="bi bi-fire"></i></span></td>
                                         <td class="text-end pe-3 small text-muted">@Periodo(j.De, j.Ate)</td>
                                     </tr>

@@ -33,7 +33,7 @@
                                 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model[i].Jogador.Id" class="text-decoration-none text-dark d-flex align-items-center gap-2">
                                     <img src="@(string.IsNullOrEmpty(Model[i].Jogador.FotoPerfil) ? "/img/default-avatar.png" : Model[i].Jogador.FotoPerfil)"
                                          class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
-                                    @Model[i].Jogador.Nome
+                                    @Model[i].Jogador.ComoChamar
                                 </a>
                             </td>
                             <td class="text-end fw-bold">@Model[i].TotalGames</td>

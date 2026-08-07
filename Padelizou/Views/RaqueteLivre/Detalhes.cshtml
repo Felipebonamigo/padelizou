@@ -100,7 +100,7 @@
                         <ul class="list-group list-group-flush mb-3">
                             @foreach (var i in confirmados)
                             {
-                                <li class="list-group-item px-0">@i.Jogador.Nome</li>
+                                <li class="list-group-item px-0">@i.Jogador.ComoChamar</li>
                             }
                         </ul>
                     }
@@ -115,7 +115,7 @@
                         <ul class="list-group list-group-flush">
                             @foreach (var i in listaDeEspera)
                             {
-                                <li class="list-group-item px-0 text-muted">@i.Jogador.Nome</li>
+                                <li class="list-group-item px-0 text-muted">@i.Jogador.ComoChamar</li>
                             }
                         </ul>
                     }

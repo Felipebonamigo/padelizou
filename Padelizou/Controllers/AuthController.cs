@@ -427,8 +427,7 @@ namespace padelizou.Controllers
                 {
                     jogador.Nome = nome;
                     jogador.NomeAlteradoEm = agora;
-                    avisos.Add(TrocaDeNome.AvisoDepoisDeTrocar("Nome",
-                        agora.AddMonths(TrocaDeNome.MesesParaTrocarNome)));
+                    avisos.Add(TrocaDeNome.AvisoDepoisDeTrocarNome());
                 }
                 else
                 {

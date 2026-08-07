@@ -52,6 +52,29 @@ public static class NomeBonito
         return ultimo == 0 ? palavras[0] : $"{palavras[0]} {palavras[ultimo]}";
     }
 
+    // O nome como as telas mostram: **curto + apelido entre parênteses**.
+    //
+    // "José Carlos da Silva" com apelido "Zeca" → "José Silva (Zeca)".
+    //
+    // Até 06/08/2026 quem tinha apelido aparecia SÓ pelo apelido. Mudou porque apelido não
+    // identifica ninguém fora da turma: "Zeca" pode ser três pessoas no mesmo torneio, e quem
+    // lê a chave de fora não sabe de quem se trata. O apelido continua ali porque no padel
+    // muita gente é conhecida só por ele — mas agora acompanhando o nome, não no lugar dele.
+    public static string ComApelido(string? nome, string? apelido)
+    {
+        var curto = Curto(nome);
+        var alcunha = Formatar(apelido);
+
+        if (alcunha.Length == 0) return curto;
+        if (curto.Length == 0) return alcunha;
+
+        // Apelido igual ao nome curto não vira "José Silva (José Silva)". Acontece com quem
+        // preenche o apelido repetindo o nome pra "garantir".
+        if (string.Equals(alcunha, curto, StringComparison.CurrentCultureIgnoreCase)) return curto;
+
+        return $"{curto} ({alcunha})";
+    }
+
     public static string Formatar(string? nome)
     {
         if (string.IsNullOrWhiteSpace(nome)) return "";

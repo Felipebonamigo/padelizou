@@ -43,16 +43,17 @@ public partial class Jogador
     [NotMapped]
     public string NomeNaTela => Padelizou.Services.NomeBonito.Formatar(Nome);
 
-    // Lista, placar, check-in, painel: o nome curto pelo qual reconhecem a pessoa.
+    // Lista, placar, check-in, chave, painel: **primeiro nome + último sobrenome (apelido)**.
     //
-    // Sem apelido, é PRIMEIRO e ÚLTIMO nome — "Anderson Matteus Schwaab" vira "Anderson
-    // Schwaab". Antes caía no nome inteiro, e numa tabela de grupo ou numa vaga de
-    // chaveamento isso empurrava a linha pra três alturas ou era cortado no meio, sobrando
-    // justo o nome do meio, que é o que menos identifica alguém. Ver NomeBonito.Curto.
+    // "Anderson Matteus Schwaab" vira "Anderson Schwaab"; com apelido "Deco", vira
+    // "Anderson Schwaab (Deco)". O nome inteiro numa tabela de grupo empurra a linha pra três
+    // alturas ou é cortado no meio, sobrando justo o nome do meio — que é o que menos
+    // identifica alguém. Ver NomeBonito.ComApelido.
+    //
+    // Até 06/08/2026 quem tinha apelido aparecia SÓ pelo apelido, e isso escondia a pessoa:
+    // "Zeca" pode ser três num mesmo torneio.
     [NotMapped]
-    public string ComoChamar => string.IsNullOrWhiteSpace(Apelido)
-        ? Padelizou.Services.NomeBonito.Curto(Nome)
-        : Padelizou.Services.NomeBonito.Formatar(Apelido);
+    public string ComoChamar => Padelizou.Services.NomeBonito.ComApelido(Nome, Apelido);
 
     // Perfil e resultado de busca: o nome completo com o apelido ao lado, pra ligar
     // "quem eu procurei" com "quem eu conheço".

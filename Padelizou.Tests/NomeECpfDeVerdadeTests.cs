@@ -19,15 +19,37 @@ public class NomeECpfDeVerdadeTests
     [InlineData(null)]
     public void Isso_nao_e_nome_de_gente(string? nome) => Assert.False(NomeDePessoa.Parece(nome));
 
+    // ── Sobrenome virou obrigatório em 06/08/2026 ─────────────────────────────────────────
+    //
+    // O Ranking RS casa atleta **por nome inteiro** — testado contra a API deles: nome que não
+    // bate volta "APROVADO, sem registros" e a inscrição passa. Quem se cadastra como "Zeca"
+    // nunca é encontrado, e a trava anti-sandbagging falha EM SILÊNCIO. "Jonatas" e "Ana"
+    // eram aceitos até esse dia; agora não são, e é de propósito.
     [Theory]
     [InlineData("Jonatas")]
     [InlineData("Ana")]
+    [InlineData("Zeca")]
+    [InlineData("Arthur")]
+    [InlineData("Zeca .")]                // ponto solto não vira sobrenome
+    public void Primeiro_nome_sozinho_NAO_basta(string nome)
+    {
+        Assert.False(NomeDePessoa.Parece(nome));
+
+        // E a recusa explica o porquê + onde pôr o apelido: sem isso a pessoa enfia o
+        // apelido no campo do nome só pra passar, que é exatamente o que se quer evitar.
+        var problema = NomeDePessoa.Problema(nome, "O nome");
+        Assert.Contains("sobrenome", problema!);
+        Assert.Contains("Apelido", problema);
+    }
+
+    [Theory]
     [InlineData("João da Silva")]
     [InlineData("Otávio Wunsch Junior")]
     [InlineData("Maria D'Ávila")]
-    [InlineData("Jean-Pierre")]
+    [InlineData("Jean-Pierre Souza")]
     [InlineData("Bo Li")]                 // nome curto de verdade existe
     [InlineData("J. Silva")]              // abreviado também
+    [InlineData("Ana P")]                 // sobrenome de uma letra existe e não é problema nosso
     public void Isso_e_nome_de_gente(string nome) => Assert.True(NomeDePessoa.Parece(nome));
 
     [Fact]

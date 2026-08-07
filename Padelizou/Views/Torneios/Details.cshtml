@@ -1088,7 +1088,7 @@
                             <li class="list-group-item bg-transparent d-flex align-items-center gap-2 px-0">
                                 <img src="@(string.IsNullOrEmpty(org.Jogador.FotoPerfil) ? "/img/default-avatar.png" : org.Jogador.FotoPerfil)"
                                      class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
-                                <span class="fw-bold">@org.Jogador.Nome</span>
+                                <span class="fw-bold">@org.Jogador.ComoChamar</span>
                                 <span class="badge bg-secondary ms-2">@org.NivelAcesso</span>
                             </li>
                         }
@@ -1790,14 +1790,14 @@
                                                 }
                                                 else
                                                 {
-                                                    <span class="fw-semibold">@dupla.Jogador1.NomeNaTela</span>
+                                                    <span class="fw-semibold">@dupla.Jogador1.ComoChamar</span>
                                                     @* A barra só existe quando há dois nomes pra separar.
                                                        Solta no fim ("Jeferson Vier/") ela parecia dado
                                                        cortado pela metade. *@
                                                     @if (dupla.Jogador2 != null)
                                                     {
                                                         <span class="text-muted">/</span>
-                                                        <span class="fw-semibold">@dupla.Jogador2.NomeNaTela</span>
+                                                        <span class="fw-semibold">@dupla.Jogador2.ComoChamar</span>
                                                     }
                                                     else
                                                     {

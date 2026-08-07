@@ -94,7 +94,7 @@ public class NomeBonitoTests
     {
         var jogador = new Jogador { Nome = "LUCAS ALMEIDA", Cpf = "11144477735", Apelido = "FOKA" };
 
-        Assert.Equal("Foka", jogador.ComoChamar);
+        Assert.Equal("Lucas Almeida (Foka)", jogador.ComoChamar);
         Assert.Equal("Lucas Almeida (Foka)", jogador.NomeComApelido);
     }
 
@@ -159,15 +159,54 @@ public class NomeBonitoTests
     }
 
     [Fact]
-    public void Como_chamar_usa_o_nome_curto_e_o_apelido_ganha_dele()
+    public void Como_chamar_usa_o_nome_curto_e_o_apelido_vem_JUNTO()
     {
         var semApelido = new Jogador { Nome = "Anderson Matteus Schwaab", Cpf = "1" };
         var comApelido = new Jogador { Nome = "Geovani Batista", Apelido = "Neni", Cpf = "2" };
 
         Assert.Equal("Anderson Schwaab", semApelido.ComoChamar);
-        Assert.Equal("Neni", comApelido.ComoChamar);
 
-        // O nome COMPLETO segue existindo pra onde ele importa (perfil, financeiro).
+        // Até 06/08/2026 isto devolvia só "Neni". O apelido escondia a pessoa: numa chave,
+        // "Neni" pode ser três gente e quem vê de fora não sabe de quem se trata.
+        Assert.Equal("Geovani Batista (Neni)", comApelido.ComoChamar);
+
+        // O nome COMPLETO segue existindo pra onde ele importa (perfil, financeiro) — e é ele
+        // que vai pro Ranking RS, onde o casamento é por nome inteiro.
         Assert.Equal("Anderson Matteus Schwaab", semApelido.NomeNaTela);
+    }
+
+    // ── Nome curto + apelido: a regra que vale em TODAS as telas ──────────────────────────
+
+    [Theory]
+    [InlineData("José Carlos da Silva", "Zeca", "José Silva (Zeca)")]
+    [InlineData("Anderson Matteus Schwaab", "Deco", "Anderson Schwaab (Deco)")]
+    [InlineData("Marcos Coelho", null, "Marcos Coelho")]
+    [InlineData("Marcos Coelho", "", "Marcos Coelho")]
+    [InlineData("Marcos Coelho", "   ", "Marcos Coelho")]
+    // O sufixo de geração viaja colado no sobrenome: "Otávio Junior" não identifica ninguém.
+    [InlineData("Otávio Wunsch Junior", "Tavinho", "Otávio Wunsch (Tavinho)")]
+    // Partícula não é sobrenome.
+    [InlineData("Frederico Siqueira de Paula Vargas", null, "Frederico Vargas")]
+    // Caixa torta no apelido também se arruma.
+    [InlineData("charls gustavio polese", "CHARLINHO", "Charls Polese (Charlinho)")]
+    public void Nome_curto_com_apelido_entre_parenteses(string nome, string? apelido, string esperado)
+    {
+        Assert.Equal(esperado, NomeBonito.ComApelido(nome, apelido));
+    }
+
+    [Fact]
+    public void Apelido_igual_ao_nome_curto_nao_vira_repeticao()
+    {
+        // Acontece com quem preenche o apelido repetindo o nome "pra garantir" — e
+        // "Marcos Coelho (Marcos Coelho)" é o tipo de coisa que faz a tela parecer quebrada.
+        Assert.Equal("Marcos Coelho", NomeBonito.ComApelido("Marcos Coelho", "marcos coelho"));
+    }
+
+    [Fact]
+    public void Nome_de_uma_palavra_so_nao_quebra()
+    {
+        // Cadastro antigo, de antes de o sobrenome virar obrigatório. Ainda tem que aparecer.
+        Assert.Equal("Arthur", NomeBonito.ComApelido("Arthur", null));
+        Assert.Equal("Arthur (Tutu)", NomeBonito.ComApelido("Arthur", "Tutu"));
     }
 }

@@ -117,7 +117,7 @@
                                 <li class="list-group-item px-0">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                                         <span>
-                                            @c.Jogador.Nome
+                                            @c.Jogador.ComoChamar
                                             @if (!string.IsNullOrEmpty(c.Lado))
                                             {
                                                 <span class="badge bg-light text-dark border">@c.Lado</span>
@@ -164,7 +164,7 @@
                             @foreach (var c in pendentes)
                             {
                                 <li class="list-group-item px-0">
-                                    @c.Jogador.Nome
+                                    @c.Jogador.ComoChamar
                                     @if (c.Avulso)
                                     {
                                         <span class="badge bg-info-subtle text-dark">convidado</span>
@@ -190,7 +190,7 @@
                         <ul class="list-group list-group-flush">
                             @foreach (var c in naoVao)
                             {
-                                <li class="list-group-item px-0 text-muted">@c.Jogador.Nome</li>
+                                <li class="list-group-item px-0 text-muted">@c.Jogador.ComoChamar</li>
                             }
                         </ul>
                     }
@@ -214,7 +214,7 @@
                             @foreach (var item in rankingSemana.Take(5))
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    @item.Jogador.Nome
+                                    @item.Jogador.ComoChamar
                                     <span class="badge bg-primary rounded-pill">@item.Pontos pts</span>
                                 </li>
                             }
@@ -238,7 +238,7 @@
                             @foreach (var item in ranking.Where(r => r.PontuacaoInterna > 0).Take(5))
                             {
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    @item.Jogador.Nome
+                                    @item.Jogador.ComoChamar
                                     <span class="badge bg-primary rounded-pill">@item.PontuacaoInterna pts</span>
                                 </li>
                             }

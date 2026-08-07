@@ -702,7 +702,7 @@
                                         <td class="fw-bold">@(i + 1)º</td>
                                         <td>
                                             @if (i == 0 && !l.Empatado) { <span>🏅 </span> }
-                                            @l.Jogador.Nome
+                                            @l.Jogador.ComoChamar
                                             @if (l.Empatado)
                                             {
                                                 <span class="badge bg-warning text-dark ms-1">empatado</span>

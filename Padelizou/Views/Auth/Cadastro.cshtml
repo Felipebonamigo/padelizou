@@ -27,6 +27,12 @@
                             <div class="col-md-7">
                                 <label class="form-label fw-bold text-muted small">Nome Completo</label>
                                 <input type="text" name="nome" class="form-control bg-light" maxlength="100" required placeholder="Ex: José Carlos da Silva" value="@(ViewBag.FormNome as string)" />
+                                @* O porquê fica na tela: sem ele, "precisa de sobrenome" parece
+                                   implicância e a pessoa enfia o apelido aqui pra passar. *@
+                                <small class="text-muted">
+                                    Nome e sobrenome, como no documento — é assim que os rankings e os torneios
+                                    te encontram. Tem apelido? Ele tem campo próprio logo abaixo.
+                                </small>
                             </div>
                             <div class="col-md-5 mt-3 mt-md-0">
                                 <label class="form-label fw-bold text-muted small">CPF (Apenas números)</label>
