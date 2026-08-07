@@ -87,7 +87,10 @@ public partial class Torneio
     public string? ImagemCapa { get; set; }
     public int QuantidadeQuadras { get; set; }
     public string Status { get; set; } = "Inscrições Abertas";
-    public string Formato { get; set; } = "Padrao"; // "Padrao" ou "Americano"
+    // "Padrao" (duplas fixas, grupos + mata-mata), "Americano" (inscrição individual,
+    // parceiro troca a cada rodada) ou "AmericanoDuplas" (duplas fixas, todos contra todos,
+    // vence quem somar mais games).
+    public string Formato { get; set; } = "Padrao";
     public bool FormatoUnico { get; set; }
     public int SetsFaseGrupos { get; set; }
     public int GamesFaseGrupos { get; set; }
@@ -127,8 +130,10 @@ public partial class Torneio
     public TimeSpan HoraFimDoDia { get; set; } = new(23, 50, 0);
 
     // Americano: se der empate em games na liderança, jogam uma partida final pra decidir.
-    // Os empatados escolhem um parceiro cada e sai um jogo só. Fica desligado por padrão —
-    // tem torneio que resolve empate no critério, sem quadra extra.
+    // No individual, os empatados escolhem um parceiro cada e sai um jogo só (montado pelo
+    // organizador); no Americano de Duplas as duas duplas empatadas jogam entre si, e o robô
+    // cria o jogo sozinho. Fica desligado por padrão — tem torneio que resolve empate no
+    // critério, sem quadra extra.
     public bool DesempateAmericano { get; set; }
 
     // Até quando o organizador tem a quadra. Opcional: sem isso o sistema ainda diz quando

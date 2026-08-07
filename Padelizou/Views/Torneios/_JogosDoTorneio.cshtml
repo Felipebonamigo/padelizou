@@ -30,9 +30,12 @@
     // As fases do mata-mata que ainda não existem no banco (Semifinal, Final): o motor só
     // cria a rodada quando a anterior fecha, e sem isto elas não apareciam pra ninguém.
     var jogosQueVem = ViewBag.JogosQueVem as List<JogoQueVem> ?? new();
-    // Só existe no Americano — nos outros formatos a aba nem aparece.
+    // Só existe no Americano — nos outros formatos a aba nem aparece. O individual conta por
+    // JOGADOR; o de duplas conta por DUPLA (a dupla lá é fixa).
     var classificacaoAmericano = ViewBag.ClassificacaoAmericano
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
+    var classificacaoAmericanoDuplas = ViewBag.ClassificacaoAmericanoDuplas
+        as Dictionary<string, List<Padelizou.Services.TabelaDoAmericanoDeDuplas.Linha>>;
     bool desempatePrevisto = ViewBag.DesempateAmericano == true;
     bool ehOrganizador = ViewBag.EhOrganizador == true;
     bool defaultAoVivo = aoVivoList.Count > 0;
@@ -189,7 +192,7 @@
     </li>
     @* No Americano a classificação é o placar do torneio. Vivia numa página separada, sem
        botão de voltar — aba aqui é onde o pessoal já está olhando. *@
-    @if (classificacaoAmericano != null)
+    @if (classificacaoAmericano != null || classificacaoAmericanoDuplas != null)
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="classificacao-tab" data-bs-toggle="tab" data-bs-target="#classificacao" type="button" role="tab">
@@ -734,6 +737,87 @@
                             else if (desempatePrevisto)
                             {
                                 <span>O organizador vai montar a partida final entre os empatados.</span>
+                            }
+                            else
+                            {
+                                <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </div>
+    }
+
+    @* SUB-ABA: CLASSIFICAÇÃO (Americano de DUPLAS — a conta é por dupla, que aqui é fixa) *@
+    @if (classificacaoAmericanoDuplas != null)
+    {
+        <div class="tab-pane fade" id="classificacao" role="tabpanel">
+            <p class="text-muted small">
+                No Americano de Duplas vence a dupla que somar mais <strong>games</strong> ao longo
+                do torneio — a dupla é fixa, então a conta é dela.
+            </p>
+
+            @foreach (var (categoria, linhas) in classificacaoAmericanoDuplas)
+            {
+                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@categoria</h6>
+
+                @if (linhas.Count == 0)
+                {
+                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th style="width: 3rem;">#</th>
+                                    <th>Dupla</th>
+                                    <th class="text-center">Jogos</th>
+                                    <th class="text-end">Games</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < linhas.Count; i++)
+                                {
+                                    var l = linhas[i];
+                                    <tr class="@(l.Empatada ? "table-warning" : "")">
+                                        <td class="fw-bold">@(i + 1)º</td>
+                                        <td>
+                                            @if (i == 0 && !l.Empatada) { <span>🏅 </span> }
+                                            @l.Dupla.NomeDeExibicao
+                                            @if (l.Empatada)
+                                            {
+                                                <span class="badge bg-warning text-dark ms-1">empatada</span>
+                                            }
+                                        </td>
+                                        <td class="text-center text-muted">@l.Jogos</td>
+                                        <td class="text-end fw-bold">@l.TotalGames</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (linhas.Any(l => l.Empatada))
+                    {
+                        <div class="alert alert-warning small">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Empate na liderança.</strong>
+                            @if (desempatePrevisto && linhas.Count(l => l.Empatada) == 2)
+                            {
+                                <span>
+                                    As duas duplas empatadas jogam uma partida final — ela entra na
+                                    grade sozinha assim que a última rodada terminar.
+                                </span>
+                            }
+                            else if (desempatePrevisto)
+                            {
+                                <span>
+                                    Mais de duas duplas empatadas — uma partida só não decide, então o
+                                    critério fica com o organizador.
+                                </span>
                             }
                             else
                             {

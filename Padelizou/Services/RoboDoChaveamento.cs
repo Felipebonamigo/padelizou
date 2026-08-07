@@ -195,6 +195,15 @@ public class RoboDoChaveamento
         var torneio = await _context.Torneios.FindAsync(torneioId.Value);
         var categoria = await _context.Categorias.FindAsync(categoriaId);
 
+        // AMERICANO DE DUPLAS: a dupla é fixa, então quem se coroa (ou desempata) é a DUPLA.
+        // O caminho individual abaixo não serve — a classificação dele é por pessoa, e o
+        // carimbo dele é numa linha solo.
+        if (torneio?.Formato == "AmericanoDuplas")
+        {
+            await FecharAmericanoDeDuplasAsync(categoriaId, torneio, partidas);
+            return;
+        }
+
         // Torneio dividido em grupos e o GRUPO FINAL ainda não existe? Então acabou foi a fase
         // de grupos: monta o grupo final com os primeiros de cada, e o título se decide lá.
         //
@@ -308,6 +317,59 @@ public class RoboDoChaveamento
         await AgendarNaGradeAsync(novas, torneioId);
 
         _context.Partidas.AddRange(novas);
+        await _context.SaveChangesAsync();
+    }
+
+    // Fim do AMERICANO DE DUPLAS: vence a dupla que somou mais games. Só há partida extra se
+    // DUAS empatarem na liderança num torneio que previu desempate — e aqui o robô cria essa
+    // partida sozinho, porque as duas duplas já existem (no individual quem monta é o
+    // organizador: cada empatado ainda precisa escolher um parceiro).
+    private async Task FecharAmericanoDeDuplasAsync(int categoriaId, Torneio torneio, List<Partida> partidas)
+    {
+        var classificacao = TabelaDoAmericanoDeDuplas.Montar(partidas.Where(p => p.Status == "Finalizada"));
+        if (classificacao.Count == 0) return;
+
+        var empatadas = TabelaDoAmericanoDeDuplas.EmpatadasNaLideranca(classificacao);
+
+        // Líder isolada é o caso normal. O carimbo vai na dupla DE VERDADE — o título é dos
+        // dois, igual ao campeão do mata-mata (e diferente do individual, que coroa uma linha
+        // sem parceiro).
+        if (empatadas.Count < 2)
+        {
+            classificacao[0].Dupla.UltimaFase = "Campeao";
+            torneio.Status = "Finalizado";
+            await _context.SaveChangesAsync();
+            return;
+        }
+
+        // Se o empate PODE virar partida quem diz é a régua que já existia
+        // (TabelaDoAmericano.ProblemaParaDesempatar) — `rodadasPendentes: 0` porque este
+        // ponto só é alcançado com tudo jogado.
+        var problema = TabelaDoAmericano.ProblemaParaDesempatar(
+            torneio.DesempateAmericano, rodadasPendentes: 0, quantosEmpatados: empatadas.Count);
+
+        // Empate de 3+ ou desempate não previsto: o sistema não inventa critério nem campeão.
+        // As rodadas acabaram, então o torneio encerra — o título fica com o organizador.
+        if (problema != null)
+        {
+            torneio.Status = "Finalizado";
+            await _context.SaveChangesAsync();
+            return;
+        }
+
+        var desempate = new Partida
+        {
+            TorneioId = torneio.Id,
+            CategoriaId = categoriaId,
+            Dupla1Id = empatadas[0].Id,
+            Dupla2Id = empatadas[1].Id,
+            Fase = TabelaDoAmericano.FaseDesempate,
+            Status = "Agendada",
+            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper(),
+        };
+
+        await AgendarNaGradeAsync(new List<Partida> { desempate }, torneio.Id);
+        _context.Partidas.Add(desempate);
         await _context.SaveChangesAsync();
     }
 

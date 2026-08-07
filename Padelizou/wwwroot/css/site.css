@@ -768,10 +768,22 @@ a:hover { color: var(--pdz-lime-600); }
 }
 textarea.form-control { border-radius: 14px; }
 
-.form-check-input { border: 1.5px solid rgba(28, 39, 66, .3); cursor: pointer; }
+.form-check-input { border: 1.5px solid rgba(28, 39, 66, .45); cursor: pointer; }
 .form-check-input:checked {
     background-color: var(--pdz-navy);
     border-color: var(--pdz-navy);
+}
+/* No tema escuro o radio/checkbox sumia: borda azul-marinho quase transparente sobre fundo
+   escuro, e MARCADO ficava navy sobre navy — na tela de criar torneio nem dava pra ver qual
+   formato estava escolhido. Mesma receita já usada na Mesa (.pdz-alvo-horario), valendo
+   pra todo formulário. */
+:root[data-bs-theme="dark"] .form-check-input {
+    border-color: rgba(255, 255, 255, .55);
+    background-color: rgba(255, 255, 255, .08);
+}
+:root[data-bs-theme="dark"] .form-check-input:checked {
+    background-color: var(--pdz-lime-600);
+    border-color: var(--pdz-lime-600);
 }
 .form-check-input:focus {
     border-color: var(--pdz-lime);

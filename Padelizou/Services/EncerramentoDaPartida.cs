@@ -121,19 +121,28 @@ public class EncerramentoDaPartida
     // (ver RoboDoChaveamento.CoroarNoAmericanoAsync).
     private async Task CoroarDesempateDoAmericanoAsync(int vencedorId, int torneioId)
     {
+        var torneio = await _context.Torneios.FindAsync(torneioId);
         var duplaVencedora = await _context.Duplas.FindAsync(vencedorId);
         if (duplaVencedora != null)
         {
-            _context.Duplas.Add(new Dupla
+            // No AMERICANO DE DUPLAS quem disputa o desempate é a própria dupla inscrita —
+            // o título é dos dois, e o carimbo vai nela mesma.
+            if (torneio?.Formato == "AmericanoDuplas")
             {
-                CategoriaId = duplaVencedora.CategoriaId,
-                Jogador1Id = duplaVencedora.Jogador1Id,
-                Jogador2Id = null,
-                UltimaFase = "Campeao",
-            });
+                duplaVencedora.UltimaFase = "Campeao";
+            }
+            else
+            {
+                _context.Duplas.Add(new Dupla
+                {
+                    CategoriaId = duplaVencedora.CategoriaId,
+                    Jogador1Id = duplaVencedora.Jogador1Id,
+                    Jogador2Id = null,
+                    UltimaFase = "Campeao",
+                });
+            }
         }
 
-        var torneio = await _context.Torneios.FindAsync(torneioId);
         if (torneio != null) torneio.Status = "Finalizado";
 
         await _context.SaveChangesAsync();

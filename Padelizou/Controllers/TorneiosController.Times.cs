@@ -53,7 +53,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
             if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            if (torneio.Formato == "Americano")
+            if (torneio.Formato != "Padrao")
             {
                 TempData["Erro"] = "Categoria de times só existe no formato padrão (grupos + mata-mata).";
                 return RedirectToAction("Details", new { id = torneioId });

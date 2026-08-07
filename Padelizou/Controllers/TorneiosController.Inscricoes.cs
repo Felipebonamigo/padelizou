@@ -78,6 +78,15 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // A inscrição individual é SÓ do Americano individual. No Padrão e no Americano
+            // de Duplas a inscrição é em dupla — a tela nem mostra este formulário, e um POST
+            // montado à mão criaria uma inscrição que nenhum sorteio lê.
+            if (torneio.Formato != "Americano")
+            {
+                TempData["Erro"] = "Neste torneio a inscrição é em dupla.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
             if (torneio.Restrito && !string.Equals(chaveAcesso?.Trim(), torneio.ChaveAcesso, StringComparison.OrdinalIgnoreCase))
             {
                 TempData["Erro"] = "Chave de acesso inválida. Confira com o organizador do torneio.";

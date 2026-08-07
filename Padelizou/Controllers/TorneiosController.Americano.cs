@@ -158,6 +158,105 @@ namespace Padelizou.Controllers
             return RedirectToAction("Jogos", new { id = torneioId });
         }
 
+        // AMERICANO DE DUPLAS: a dupla é fixa (a mesma da inscrição, como no formato padrão)
+        // e cada uma enfrenta cada uma das outras. O sorteio vive em
+        // Services/RodadasAmericanoDeDuplas; aqui é buscar as duplas prontas, criar as
+        // partidas e pôr na grade.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GerarRodadasAmericanoDuplas(int torneioId, DateTime dataHoraInicio)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == torneioId);
+            if (torneio == null || torneio.Formato != "AmericanoDuplas") return NotFound();
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // Mesma trava do GerarChaves: aqui o sorteio das rodadas É a chave.
+            if (await TaxaExternoImpedeChavesAsync(torneio))
+            {
+                TempData["Erro"] = "As rodadas são liberadas depois do pagamento da taxa do Padelizou.";
+                return RedirectToAction("TaxaPlataforma", new { id = torneioId });
+            }
+
+            int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            var jogos = new List<Partida>();
+
+            foreach (var categoria in torneio.Categorias.Where(c => !c.DeTimes))
+            {
+                // Mesma régua do sorteio padrão (Services/ForaDoSorteio): só entra dupla
+                // fechada e fora da lista de espera.
+                var prontas = categoria.Duplas
+                    .Where(d => !ForaDoSorteio.FicaDeFora(d))
+                    .Select(d => d.Id)
+                    .ToList();
+                if (prontas.Count == 0) continue;
+
+                if (!RodadasAmericanoDeDuplas.Aceita(prontas.Count))
+                {
+                    TempData["Erro"] = $"{categoria.Nome}: {RodadasAmericanoDeDuplas.ComoFica(prontas.Count)}";
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
+
+                // Grupo único sempre: a divisão em grupos é coisa do Americano individual —
+                // aqui qualquer quantidade de duplas fecha, e são os defaults que o robô do
+                // fim do torneio lê.
+                categoria.GruposAmericano = 1;
+                categoria.PassamPorGrupo = 0;
+
+                var rodadas = RodadasAmericanoDeDuplas.Montar(prontas);
+                for (int rodada = 1; rodada <= rodadas.Count; rodada++)
+                {
+                    foreach (var confronto in rodadas[rodada - 1])
+                    {
+                        jogos.Add(new Partida
+                        {
+                            TorneioId = torneioId,
+                            CategoriaId = categoria.Id,
+                            Dupla1Id = confronto.DuplaA,
+                            Dupla2Id = confronto.DuplaB,
+                            Fase = FaseDoAmericano.RodadaUnica(rodada),
+                            Status = "Agendada",
+                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                        });
+                    }
+                }
+            }
+
+            if (jogos.Count == 0)
+            {
+                TempData["Erro"] = "Nenhuma categoria tem duplas completas suficientes pra sortear.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            // Torneio por ordem de liberação: os jogos ficam sem hora e a Mesa chama conforme
+            // a quadra vaga — horário inventado que ninguém cumpre é pior que nenhum.
+            if (!torneio.SemHorarioPrevisto)
+            {
+                // Aqui dá pra usar o encaixe DE VERDADE, com detector de conflito por PESSOA:
+                // as duplas existem antes dos jogos (no Americano individual elas nascem por
+                // jogo, e lá o encaixe posicional é o possível). A mesma pessoa nunca é
+                // chamada pra duas quadras no mesmo horário, mesmo inscrita em duas categorias.
+                int folga = GradeDeJogos.MargemDeHorarios(torneio.QuantidadeQuadras);
+                var horarios = GradeDeJogos.Horarios(
+                    dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
+                    tempoPartida, jogos.Count + folga,
+                    aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+
+                GradeDeJogos.Encaixar(jogos, horarios,
+                    RoboDoChaveamento.OcupantesPorDupla(torneio),
+                    await QuadrasDoTorneioAsync(torneio.Id));
+            }
+
+            _context.Partidas.AddRange(jogos);
+            torneio.Status = "Fase de Grupos"; // o mesmo status de "torneio em andamento"
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Rodadas geradas! {jogos.Count} partidas agendadas.";
+            return RedirectToAction("Jogos", new { id = torneioId });
+        }
+
         // Americano: partida final entre os dois empatados na liderança. Cada um escolhe um
         // parceiro entre os outros inscritos, e sai um jogo só — quem vencer é o campeão.
         [HttpGet]

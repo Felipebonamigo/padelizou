@@ -54,7 +54,7 @@
                 <div class="row mb-3">
                     <div class="col-12">
                         <label class="form-label fw-bold small">Formato do Torneio</label>
-                        <div class="d-flex gap-3">
+                        <div class="d-flex gap-3 flex-wrap">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="Formato" id="formatoPadrao" value="Padrao" checked>
                                 <label class="form-check-label" for="formatoPadrao">Torneio Padrão (duplas fixas)</label>
@@ -63,10 +63,17 @@
                                 <input class="form-check-input" type="radio" name="Formato" id="formatoAmericano" value="Americano">
                                 <label class="form-check-label" for="formatoAmericano">Torneio Americano (parceiros rotativos)</label>
                             </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Formato" id="formatoAmericanoDuplas" value="AmericanoDuplas">
+                                <label class="form-check-label" for="formatoAmericanoDuplas">Americano de Duplas (duplas fixas, todos contra todos)</label>
+                            </div>
                         </div>
-                        <small class="text-muted d-block mt-1">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
+                        @* O que cada formato significa, trocando junto com o radio (script no fim). *@
+                        <small class="text-muted d-block mt-1" id="dicaFormatoPadrao">No Padrão, as duplas se inscrevem fechadas e o torneio é fase de grupos + mata-mata.</small>
+                        <small class="text-muted d-block mt-1" id="dicaFormatoAmericano" style="display: none;">No Americano, cada jogador se inscreve individualmente e joga com um parceiro diferente a cada rodada.</small>
+                        <small class="text-muted d-block mt-1" id="dicaFormatoAmericanoDuplas" style="display: none;">No Americano de Duplas, a dupla se inscreve fechada e enfrenta todas as outras — vence a dupla que somar mais games.</small>
 
-                        @* Só faz sentido no Americano — no formato de duplas o mata-mata já
+                        @* Só faz sentido nos dois Americanos — no formato padrão o mata-mata já
                            resolve quem é campeão. *@
                         <div id="opcoesAmericano" class="mt-3 p-3 rounded" style="display: none; background-color: var(--pdz-surface-alt);">
                             <div class="form-check">
@@ -75,8 +82,12 @@
                                     Se der empate em games na liderança, jogar uma partida final
                                 </label>
                             </div>
-                            <small class="text-muted d-block mt-1">
+                            <small class="text-muted d-block mt-1" id="dicaDesempateIndividual">
                                 Cada empatado escolhe um parceiro e sai um jogo só, pra decidir o título.
+                                Desligado, o critério do empate fica com você.
+                            </small>
+                            <small class="text-muted d-block mt-1" id="dicaDesempateDuplas" style="display: none;">
+                                As duas duplas empatadas jogam uma partida final, criada sozinha pelo sistema.
                                 Desligado, o critério do empate fica com você.
                             </small>
 
@@ -85,28 +96,51 @@
                                um sem repetir parceiro e todos joguem a mesma quantidade — e isso
                                só é possível em certos números. Descobrir na hora do sorteio, com
                                a galera na quadra, é tarde demais. *@
-                            <hr class="my-3" />
-                            <div class="fw-bold small mb-1" style="color: var(--pdz-ink);">
-                                <i class="bi bi-people-fill"></i> Quantos inscritos fecham o Americano
-                            </div>
-                            <div class="small text-muted">
-                                No Americano cada um joga com <strong>cada um</strong> sem repetir parceiro, e
-                                todos jogam a mesma quantidade de jogos. Isso só fecha nestes números:
-                                <div class="mt-2 mb-2">
-                                    @foreach (var n in Enumerable.Range(4, 29).Where(Padelizou.Services.DivisaoDoAmericano.Aceita))
-                                    {
-                                        <span class="badge bg-secondary me-1 mb-1">@n</span>
-                                    }
-                                    <span class="text-muted">…</span>
+                            <div id="soAmericanoIndividual">
+                                <hr class="my-3" />
+                                <div class="fw-bold small mb-1" style="color: var(--pdz-ink);">
+                                    <i class="bi bi-people-fill"></i> Quantos inscritos fecham o Americano
                                 </div>
-                                <strong>6, 7, 11, 14, 19, 22 e 23 não fecham</strong> — com 6 pessoas seriam 15
-                                duplas a formar e cada jogo forma 2, o que daria 7,5 jogos. Não existe meio jogo.
-                                <div class="mt-2">
-                                    A partir de 8, dá pra <strong>dividir em grupos</strong> na hora do sorteio —
-                                    10 vira 2 grupos de 5, 15 vira 3 grupos de 5. Os primeiros de cada grupo
-                                    disputam um <strong>grupo final</strong>, que decide o campeão. Você escolhe a
-                                    divisão depois, quando souber quantos vieram, e o sistema mostra quanto tempo
-                                    de quadra cada opção leva.
+                                <div class="small text-muted">
+                                    No Americano cada um joga com <strong>cada um</strong> sem repetir parceiro, e
+                                    todos jogam a mesma quantidade de jogos. Isso só fecha nestes números:
+                                    <div class="mt-2 mb-2">
+                                        @foreach (var n in Enumerable.Range(4, 29).Where(Padelizou.Services.DivisaoDoAmericano.Aceita))
+                                        {
+                                            <span class="badge bg-secondary me-1 mb-1">@n</span>
+                                        }
+                                        <span class="text-muted">…</span>
+                                    </div>
+                                    <strong>6, 7, 11, 14, 19, 22 e 23 não fecham</strong> — com 6 pessoas seriam 15
+                                    duplas a formar e cada jogo forma 2, o que daria 7,5 jogos. Não existe meio jogo.
+                                    <div class="mt-2">
+                                        A partir de 8, dá pra <strong>dividir em grupos</strong> na hora do sorteio —
+                                        10 vira 2 grupos de 5, 15 vira 3 grupos de 5. Os primeiros de cada grupo
+                                        disputam um <strong>grupo final</strong>, que decide o campeão. Você escolhe a
+                                        divisão depois, quando souber quantos vieram, e o sistema mostra quanto tempo
+                                        de quadra cada opção leva.
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* No Americano de DUPLAS a conta é a de um todos-contra-todos comum:
+                               qualquer quantidade fecha, então aqui a única aritmética que o
+                               organizador precisa conhecer é a do relógio. *@
+                            <div id="soAmericanoDuplas" style="display: none;">
+                                <hr class="my-3" />
+                                <div class="fw-bold small mb-1" style="color: var(--pdz-ink);">
+                                    <i class="bi bi-people-fill"></i> Como fecha o Americano de Duplas
+                                </div>
+                                <div class="small text-muted">
+                                    <strong>Qualquer quantidade de duplas fecha</strong> (a partir de 2): cada dupla
+                                    enfrenta todas as outras uma vez, e vence a que somar mais games. Com número
+                                    ímpar, uma dupla descansa por rodada — e o descanso reveza sozinho.
+                                    <div class="mt-2">
+                                        A conta do relógio: <strong>N duplas são N−1 rodadas</strong> (N rodadas se
+                                        for ímpar) e N×(N−1)÷2 jogos — 8 duplas, por exemplo, são 7 rodadas e 28
+                                        jogos. O sistema mostra os números certos na hora do sorteio, quando souber
+                                        quantas vieram.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -172,7 +206,11 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Qtd. de Quadras Disponíveis</label>
-                        <input type="number" asp-for="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
+                        @* `name` na mão, sem asp-for: o modelo traz 0 e o asp-for escreveria
+                           esse 0 no campo. Campo com 0 dentro é armadilha — quem digita "1"
+                           em cima acaba com 10 ou 01 e publica o torneio com a grade errada.
+                           Vazio + `required` pede o número em vez de sugerir um errado. *@
+                        <input type="number" name="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
                         <small class="text-muted d-block mt-1">Quantos jogos rodam ao mesmo tempo na grade.</small>
                     </div>
                     <div class="col-md-4">
@@ -563,7 +601,10 @@
                                 </label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text">R$</span>
-                                    <input type="number" asp-for="TaxaPorImpedimento" id="taxaImpedimento"
+                                    @* Vazio, não "0": o placeholder já diz que em branco é de
+                                       graça, e um 0 escrito no campo vira 10 ou 05 quando a
+                                       pessoa digita em cima dele. *@
+                                    <input type="number" name="TaxaPorImpedimento" id="taxaImpedimento"
                                            step="0.01" min="0" class="form-control pdz-dinheiro" placeholder="0,00" />
                                 </div>
                                 <small class="text-muted d-block mt-1">
@@ -1011,17 +1052,33 @@
         pdzClubeEscrito();
     });
 
-    // As opções do Americano só aparecem quando o formato é Americano — e a categoria de
-    // times só existe no formato padrão (o Americano não tem grupos nem mata-mata de times).
+    // As opções do Americano aparecem nos DOIS sabores (individual e de duplas), cada um com
+    // os próprios textos — e a categoria de times só existe no formato padrão (os Americanos
+    // não têm grupos nem mata-mata de times).
     function pdzOpcoesAmericano() {
-        var bloco = document.getElementById('opcoesAmericano');
-        var americano = document.getElementById('formatoAmericano');
-        if (bloco && americano) bloco.style.display = americano.checked ? 'block' : 'none';
+        var individual = document.getElementById('formatoAmericano');
+        var deDuplas = document.getElementById('formatoAmericanoDuplas');
+        if (!individual || !deDuplas) return;
+        var algumAmericano = individual.checked || deDuplas.checked;
+
+        function mostrar(id, quando) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = quando ? 'block' : 'none';
+        }
+
+        mostrar('opcoesAmericano', algumAmericano);
+        mostrar('soAmericanoIndividual', individual.checked);
+        mostrar('soAmericanoDuplas', deDuplas.checked);
+        mostrar('dicaDesempateIndividual', !deDuplas.checked);
+        mostrar('dicaDesempateDuplas', deDuplas.checked);
+        mostrar('dicaFormatoPadrao', !algumAmericano);
+        mostrar('dicaFormatoAmericano', individual.checked);
+        mostrar('dicaFormatoAmericanoDuplas', deDuplas.checked);
 
         var cardTimes = document.getElementById('cardCategoriaTimes');
-        if (cardTimes && americano) {
-            cardTimes.style.display = americano.checked ? 'none' : 'block';
-            if (americano.checked) {
+        if (cardTimes) {
+            cardTimes.style.display = algumAmericano ? 'none' : 'block';
+            if (algumAmericano) {
                 var chk = document.getElementById('chkCategoriaTimes');
                 if (chk) { chk.checked = false; }
                 var config = document.getElementById('configCategoriaTimes');
