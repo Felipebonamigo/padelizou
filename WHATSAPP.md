@@ -3,6 +3,36 @@
 > Escrito em 30/07/2026, quando o canal saiu da Z-API paga pra uma **Evolution API rodando no
 > nosso próprio VPS**. Custo mensal: **R$ 0**. Custo de um erro: um chip pré-pago.
 
+## 🔴 Estado em 07/08/2026 — leia antes de mexer
+
+O canal ficou **desligado de 04/08 17:49 a 07/08** (o `Evolution__BaseUrl` foi esvaziado no
+systemd depois de a Meta restringir o número por spam). **Religado a pedido do Felipe** —
+`Environment=Evolution__BaseUrl=http://127.0.0.1:8081`, backup do arquivo desligado em
+`/root/whatsapp.conf.bak-20260807`.
+
+⚠️ **O chip continua despareado** (`state: close`): enquanto isso, **nada sai**. Falta só o
+passo do QR, abaixo.
+
+⚠️ **Desligado não acende alarme.** O vigia faz `if (estado == Desligado) return` — ele foi
+feito pra pegar canal que CAIU, e não distingue "desligado no dev" de "desligado em produção
+por engano". Foi assim que três dias passaram sem ninguém notar. Agora o **painel `/Admin`
+mostra o estado sempre**, num medidor discreto; se um dia os avisos sumirem, **confira o
+`Evolution__BaseUrl` no systemd antes do log** — canal desligado não deixa rastro (o
+`EvolutionApiService` loga em `Debug`, de propósito).
+
+### O que o código faz sozinho pra não repetir 04/08
+
+| Freio | Onde | Vale quanto |
+|---|---|---|
+| **Consentimento** | Botão do admin raiz no `/Admin` | Tira do canal quem nunca pediu (era 54 de 55 contas antigas) e convida de volta por push e e-mail |
+| **Ritmo** | `RitmoDoWhatsApp` | 7–16s sorteados entre mensagens — mata a rajada |
+| **Teto** | `TetoDoWhatsApp` | 60/hora (janela deslizante) e 300/dia |
+| **Aquecimento** | `VolumeDoWhatsApp` | 30/dia na primeira semana **depois de conectar**; sem data gravada, vale o teto baixo |
+| **Saída** | `AvisoPorWhatsApp.Montar` | Toda mensagem diz como parar de receber |
+
+O que o teto barra é **descartado, não adiado** — e contado, no medidor do painel. Adiar
+devolveria o excedente em rajada assim que a janela abrisse.
+
 ## O que já está pronto
 
 - Container `evolution-api` (v2.3.7) + `evolution-db` rodando em `/opt/evolution`, com
@@ -10,7 +40,9 @@
 - Escuta **só em `127.0.0.1:8081`**. Não há porta aberta pra internet: quem fala com ela é o
   app, que roda na mesma máquina.
 - Instância `padelizou` criada, status `close` (esperando o chip).
-- Produção já sabe o endereço e a chave (drop-in `whatsapp.conf` no systemd).
+- Produção já sabe o endereço e a chave (drop-in `whatsapp.conf` no systemd). ⚠️ **Conferir de
+  verdade**, não confiar nesta linha: foi ela que ficou desatualizada por três dias em 04–07/08.
+  `systemctl cat padelizou | grep Evolution__BaseUrl` — vazio quer dizer **canal desligado**.
 - Todo aviso do sistema já tenta o WhatsApp — ver `Services/PushNotificationService.cs`.
 
 ## O único passo que falta: o chip
