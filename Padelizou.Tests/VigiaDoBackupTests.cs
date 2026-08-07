@@ -106,4 +106,49 @@ public class VigiaDoBackupTests
     {
         Assert.Contains("nenhuma cópia", VigiaDoBackup.DescreverAtraso(null, Agora));
     }
+
+    // ---- O painel diz o estado sem depender de entrega nenhuma ----
+    //
+    // O aviso sai uma vez por semana e por um canal que pode estar fora do ar — em 07/08/2026 a
+    // cota diária do Gmail estourou justamente no dia. Alerta que não chega é igual a não ter
+    // alerta, então o estado também mora numa tela que é só abrir.
+
+    [Fact]
+    public void O_painel_mostra_vermelho_quando_o_backup_atrasou()
+    {
+        var vm = new Padelizou.ViewModels.MetricasAdminVM
+        {
+            VigiaDeBackupLigado = true,
+            UltimoBackupFora = DateTime.Now.AddDays(-3),
+        };
+
+        Assert.True(vm.BackupAtrasado);
+        Assert.Contains("3 dias", vm.BackupComoTexto);
+    }
+
+    [Fact]
+    public void Backup_de_hoje_nao_pinta_o_painel_de_vermelho()
+    {
+        var vm = new Padelizou.ViewModels.MetricasAdminVM
+        {
+            VigiaDeBackupLigado = true,
+            UltimoBackupFora = DateTime.Now.AddHours(-6),
+        };
+
+        Assert.False(vm.BackupAtrasado);
+    }
+
+    [Fact]
+    public void Ambiente_sem_backup_nao_acusa_atraso()
+    {
+        // O dev não faz backup e não precisa fazer. Sem esta guarda o painel dele viveria
+        // vermelho, e um alarme que está sempre aceso deixa de ser alarme.
+        var vm = new Padelizou.ViewModels.MetricasAdminVM
+        {
+            VigiaDeBackupLigado = false,
+            UltimoBackupFora = null,
+        };
+
+        Assert.False(vm.BackupAtrasado);
+    }
 }

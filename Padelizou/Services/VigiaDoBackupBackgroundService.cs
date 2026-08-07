@@ -3,11 +3,16 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// Manda e-mail pros administradores quando o backup fora do servidor para de acontecer.
+// Avisa os administradores quando o backup fora do servidor para de acontecer.
 //
-// Por que dentro do app e não num script de shell: o e-mail já funciona aqui, testado, com a
-// senha do SMTP num lugar só. Um script separado precisaria de uma segunda cópia dessa senha —
-// mais um arquivo pra vazar, pra desatualizar e pra esquecer.
+// Por que dentro do app e não num script de shell: o aviso já funciona aqui, testado, com as
+// credenciais num lugar só. Um script separado precisaria de uma segunda cópia delas — mais um
+// arquivo pra vazar, pra desatualizar e pra esquecer.
+//
+// ⚠️ O aviso vai pela FILA (push + e-mail), e não por SMTP direto: em 07/08/2026 a cota diária
+// do Gmail estourou, e um alerta que depende de um único canal fora do ar é igual a não ter
+// alerta. Pelo mesmo motivo o estado também aparece SEMPRE no painel de métricas — lá ele não
+// depende de entrega nenhuma, é só abrir a tela.
 //
 // O aviso sai UMA vez por semana, não todo dia: um alerta que se repete vira ruído e a pessoa
 // aprende a ignorar. `AlertaSistema` guarda o que já foi avisado, mesmo que o app reinicie.
@@ -71,7 +76,7 @@ public class VigiaDoBackupBackgroundService : BackgroundService
 
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
-            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+            var avisos = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
             // Não repete o aviso antes de uma semana.
             var avisoRecente = await context.AlertasSistema
@@ -81,25 +86,25 @@ public class VigiaDoBackupBackgroundService : BackgroundService
 
             if (avisoRecente != null && agora - avisoRecente.EnviadoEm < IntervaloEntreAvisos) return;
 
+            // Sem exigir e-mail cadastrado: a fila resolve o canal de cada um, e quem só tem o
+            // app instalado recebe por push. Filtrar por e-mail aqui deixaria de fora justamente
+            // quem seria alcançado quando o SMTP é o que está fora do ar.
             var admins = await context.Jogadores
-                .Where(j => j.IsAdminRaiz && j.Email != null)
+                .Where(j => j.IsAdminRaiz && j.ExcluidoEm == null)
+                .Select(j => j.Id)
                 .ToListAsync(stoppingToken);
 
-            var corpo = $@"
-                <p>A cópia do backup pro Google Drive <strong>parou de acontecer</strong>:
-                {VigiaDoBackup.DescreverAtraso(ultimo, agora)}.</p>
-                <p>O backup local no servidor provavelmente continua rodando — o que falhou é a
-                cópia <strong>fora</strong> dele, que é justamente a que serve se o servidor morrer.</p>
-                <p>Causas comuns, em ordem: a autorização do Google expirou (a tela de consentimento
-                em modo Teste derruba o acesso a cada 7 dias), o disco encheu, ou a pasta perdeu
-                permissão de escrita.</p>
-                <p>Pra ver o motivo:<br/>
-                <code>ssh root@179.197.233.184 ""tail -30 /var/log/padelizou-backup-drive.log""</code></p>";
+            var corpo = $"A cópia do backup pro Google Drive parou de acontecer: "
+                      + $"{VigiaDoBackup.DescreverAtraso(ultimo, agora)}. "
+                      + "O backup DENTRO do servidor provavelmente continua rodando — o que falhou "
+                      + "é a cópia FORA dele, que é a que serve se o servidor morrer. "
+                      + "A causa mais comum é a autorização do Google ter expirado. "
+                      + "Conserto: rclone config reconnect padelizou-drive:";
 
-            foreach (var admin in admins)
+            foreach (var adminId in admins)
             {
-                await email.EnviarAsync(admin.Email!, admin.Nome,
-                    "Padelizou: o backup fora do servidor parou", corpo);
+                await avisos.EnviarParaJogadorAsync(adminId,
+                    "O backup fora do servidor parou", corpo, "/Admin/Metricas");
             }
 
             context.AlertasSistema.Add(new AlertaSistema { Tipo = TipoDoAlerta, Ano = agora.Year });

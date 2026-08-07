@@ -29,6 +29,23 @@ public class MetricasAdminVM
     public decimal TetoMei { get; set; }
     public int PercentualMei => TetoMei > 0 ? (int)Math.Round(ComissaoAno / TetoMei * 100) : 0;
 
+    // ---- Backup fora do servidor ----
+    // Quando a última cópia pro Drive terminou. Nulo = nunca houve (ou o carimbo sumiu).
+    //
+    // Fica no painel, SEMPRE visível, porque o aviso por e-mail sozinho não bastou: ele sai
+    // uma vez por semana e depende de um canal que pode estar fora do ar — em 07/08/2026 a
+    // cota diária do Gmail estourou, e um alerta que não chega é igual a não ter alerta.
+    // Aqui o estado está sempre à mão de quem abre o painel, sem depender de entrega nenhuma.
+    public DateTime? UltimoBackupFora { get; set; }
+
+    // Nulo quando este ambiente não faz backup (dev não tem, e não precisa ter).
+    public bool VigiaDeBackupLigado { get; set; }
+
+    public bool BackupAtrasado =>
+        VigiaDeBackupLigado && VigiaDoBackup.PrecisaAvisar(UltimoBackupFora, DateTime.Now);
+
+    public string BackupComoTexto => VigiaDoBackup.DescreverAtraso(UltimoBackupFora, DateTime.Now);
+
     // Como a série está fatiada: "dia", "semana" ou "mes" (ver Services/FaixasDeMetricas).
     // Semana é o padrão — foi o único agrupamento que existiu até 03/08/2026.
     public string Agrupamento { get; set; } = FaixasDeMetricas.Semana;

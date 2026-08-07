@@ -7,6 +7,36 @@
     var corMei = pct >= 90 ? "danger" : pct >= 70 ? "warning" : "success";
 }
 
+@* BACKUP FORA DO SERVIDOR — primeiro item da página, antes de qualquer métrica.
+   O aviso por e-mail sai uma vez por semana e depende de um canal que pode estar fora do ar
+   (em 07/08/2026 a cota do Gmail estourou). Aqui o estado não depende de entrega nenhuma:
+   quem abre o painel vê. *@
+@if (Model.VigiaDeBackupLigado)
+{
+    <div class="container mt-4">
+        <div class="alert @(Model.BackupAtrasado ? "alert-danger" : "alert-success") d-flex gap-3 align-items-start shadow-sm mb-0">
+            <i class="bi @(Model.BackupAtrasado ? "bi-shield-exclamation" : "bi-shield-check") fs-3"></i>
+            <div>
+                <strong>Backup fora do servidor:</strong> @Model.BackupComoTexto.
+                @if (Model.UltimoBackupFora != null)
+                {
+                    <span class="text-muted">(@Model.UltimoBackupFora.Value.ToString("dd/MM/yyyy 'às' HH:mm"))</span>
+                }
+                @if (Model.BackupAtrasado)
+                {
+                    <div class="small mt-2">
+                        O backup <strong>dentro</strong> do servidor provavelmente continua rodando — o que
+                        parou é a cópia <strong>fora</strong> dele, que é justamente a que serve se o VPS morrer.
+                        A causa mais comum é a autorização do Google ter expirado. O conserto é interativo
+                        (pede login no navegador):
+                        <code class="d-block mt-1">rclone config reconnect padelizou-drive:</code>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 <div class="container mt-4 mb-5">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>

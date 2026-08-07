@@ -463,6 +463,16 @@ namespace padelizou.Controllers
                 TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
             };
 
+            // Estado do backup fora do servidor, lido do mesmo carimbo que o vigia usa. Vem
+            // pro painel pra não depender só do e-mail semanal — que em 07/08/2026 esbarrou na
+            // cota do Gmail e não chegou. Ambiente sem backup (dev) não mostra nada.
+            var carimboDoBackup = _configuration["Backup:ArquivoDeUltimoSucesso"];
+            vm.VigiaDeBackupLigado = !string.IsNullOrWhiteSpace(carimboDoBackup);
+            if (vm.VigiaDeBackupLigado)
+            {
+                vm.UltimoBackupFora = VigiaDoBackup.LerUltimoSucesso(carimboDoBackup!);
+            }
+
             // A série — poucas linhas por fatia, agrupar em memória é suficiente.
             var cadastros = await _context.Jogadores
                 .Where(j => j.CriadoEm >= inicioSerie)
