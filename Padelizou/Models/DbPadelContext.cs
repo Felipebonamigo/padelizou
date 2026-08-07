@@ -95,6 +95,10 @@ public partial class DbPadelContext : DbContext
     // Chave/valor que o admin muda de dentro do app e que sobrevive ao restart.
     public DbSet<ConfiguracaoDoSistema> ConfiguracoesDoSistema { get; set; }
 
+    // Despesas do Padelizou lançadas à mão pelo admin raiz (fatura do gateway, VPS...).
+    // Tabela própria de propósito — ver o comentário do modelo.
+    public DbSet<DespesaRegistrada> DespesasRegistradas { get; set; }
+
     // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
     public DbSet<HistoricoDePadelimetro> HistoricosDePadelimetro { get; set; }
 

@@ -684,7 +684,9 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> PixDireto()
         {
-            var admin = await ObterJogadorAdminAsync();
+            // Raiz, como tudo que é dinheiro DO PADELIZOU: dar baixa exige olhar o extrato
+            // do banco, e o extrato é do dono.
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             var dados = await ChavePixDoPadelizou.LerAsync(_context);
@@ -741,7 +743,7 @@ namespace padelizou.Controllers
         public async Task<IActionResult> ConfirmarPix(int id,
             [FromServices] IPagamentoInscricaoService pagamentos)
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return Forbid();
 
             var pagamento = await _context.Pagamentos.FindAsync(id);
@@ -770,7 +772,7 @@ namespace padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RecusarPix(int id)
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return Forbid();
 
             var pagamento = await _context.Pagamentos.FindAsync(id);
@@ -787,6 +789,196 @@ namespace padelizou.Controllers
             _logger?.LogInformation("Pix direto {Id} recusado pelo admin {AdminId}.", pagamento.Id, admin.Id);
             TempData["Sucesso"] = $"Cobrança #{pagamento.Id} cancelada.";
             return RedirectToAction("PixDireto");
+        }
+
+        // ── O caixa do Padelizou ──────────────────────────────────────────────────────────
+        // Recebido por fora × pelo gateway × o que saiu — e os dois formulários de lançar à
+        // mão (pagamento por fora e despesa). Regras em Services/FinanceiroDoPadelizou.
+        // ⚠️ Só o admin RAIZ: este é o caixa do dono, não uma tela de operação.
+
+        [HttpGet]
+        public async Task<IActionResult> Financeiro(string? periodo)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var agora = DateTime.Now;
+            var periodoEscolhido = (periodo ?? "").Trim().ToLower() switch
+            {
+                "mes" => "mes", "ano" => "ano", _ => "sempre"
+            };
+            DateTime? de = periodoEscolhido switch
+            {
+                "mes" => new DateTime(agora.Year, agora.Month, 1),
+                "ano" => new DateTime(agora.Year, 1, 1),
+                _ => null,
+            };
+
+            // O corte é pela data em que o dinheiro ENTROU (ConfirmadoEm) — pendente não é
+            // caixa. Nas despesas, pela data informada no lançamento.
+            var confirmados = await _context.Pagamentos
+                .Where(p => p.Status == "Confirmado" && (de == null || p.ConfirmadoEm >= de))
+                .ToListAsync();
+            var despesas = await _context.DespesasRegistradas
+                .Where(d => de == null || d.Data >= de)
+                .OrderByDescending(d => d.Data)
+                .ToListAsync();
+
+            ViewBag.Periodo = periodoEscolhido;
+            ViewBag.Resumo = FinanceiroDoPadelizou.Somar(confirmados, despesas);
+            ViewBag.Despesas = despesas;
+
+            // As últimas entradas, mais recentes primeiro, pro admin conferir o que somou.
+            var entradas = confirmados.OrderByDescending(p => p.ConfirmadoEm ?? p.CriadoEm).Take(50).ToList();
+            ViewBag.Entradas = entradas;
+            var jogadorIds = entradas.Select(p => p.JogadorId).Distinct().ToList();
+            ViewBag.Pagadores = await _context.Jogadores
+                .Where(j => jogadorIds.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            // Pro formulário da taxa: os torneios "por fora" com taxa ainda em aberto.
+            ViewBag.TorneiosComTaxaAberta = await _context.Torneios
+                .Where(t => t.FormaPagamento == "Externo" && t.TaxaExternoPagaEm == null)
+                .OrderByDescending(t => t.DataInicio)
+                .Select(t => new { t.Id, t.Nome, t.Codigo })
+                .ToListAsync();
+
+            return View();
+        }
+
+        // Dinheiro que entrou POR FORA de tudo (Pix combinado no WhatsApp, dinheiro na mão):
+        // o registro cria o Pagamento já confirmado e EFETIVA — estende a assinatura ou
+        // libera as chaves, com as mesmas notificações do caminho normal.
+        // ⚠️ Não tem desfazer automático: o efetivar dispara coisas que não voltam sozinhas.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarPagamento(string? tipo, string? pagador,
+            int? torneioId, decimal valor, DateTime? data,
+            [FromServices] IPagamentoInscricaoService pagamentos)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var problema = FinanceiroDoPadelizou.ProblemaParaRegistrar(tipo, valor);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("Financeiro");
+            }
+
+            Jogador? quemPagou;
+            object dados;
+            int? torneioDoPagamento = null;
+            string descricaoDoSucesso;
+
+            if (tipo == RegrasDoPix.TipoAssinatura)
+            {
+                var chave = (pagador ?? "").Trim();
+                var soDigitos = new string(chave.Where(char.IsDigit).ToArray());
+                // Mesma consulta da entrada: login e e-mail vivem no mesmo espaço de nomes,
+                // então procurar num só campo acharia metade das pessoas.
+                quemPagou = await _context.Jogadores.FirstOrDefaultAsync(j =>
+                    j.Login == chave || j.Email == chave || (soDigitos != "" && j.Cpf == soDigitos));
+
+                problema = FinanceiroDoPadelizou.ProblemaComOPagador(tipo, quemPagou);
+                if (problema != null)
+                {
+                    TempData["Erro"] = problema;
+                    return RedirectToAction("Financeiro");
+                }
+
+                dados = new DadosAssinaturaProfessor(quemPagou!.Id);
+                descricaoDoSucesso = $"mensalidade de {quemPagou.Nome}";
+            }
+            else
+            {
+                var torneio = torneioId == null ? null : await _context.Torneios.FindAsync(torneioId.Value);
+                problema = FinanceiroDoPadelizou.ProblemaComOTorneio(torneio);
+                if (problema != null)
+                {
+                    TempData["Erro"] = problema;
+                    return RedirectToAction("Financeiro");
+                }
+
+                // Quem "paga" no registro é quem recebeu a cobrança de verdade: o criador do
+                // torneio — é no extrato DELE que este recibo aparece.
+                quemPagou = await pagamentos.ObterRecebedorTorneioAsync(torneio!.Id) ?? admin;
+                dados = new DadosTaxaExterno(torneio.Id);
+                torneioDoPagamento = torneio.Id;
+                descricaoDoSucesso = $"taxa de {torneio.Nome}";
+            }
+
+            var pagamento = new Pagamento
+            {
+                Tipo = tipo!,
+                TorneioId = torneioDoPagamento,
+                JogadorId = quemPagou!.Id,
+                RecebedorId = null,
+                Valor = valor,
+                ValorRepasse = 0m,
+                Comissao = valor,
+                MetodoPagamento = FinanceiroDoPadelizou.MetodoManual,
+                DadosInscricao = System.Text.Json.JsonSerializer.Serialize(dados),
+                Status = "Confirmado",
+                // Data de trás vale: o registro costuma vir depois do dinheiro.
+                ConfirmadoEm = data ?? DateTime.Now,
+                ConfirmadoPorJogadorId = admin.Id,
+            };
+            _context.Pagamentos.Add(pagamento);
+            await _context.SaveChangesAsync();
+
+            await pagamentos.EfetivarAsync(pagamento);
+
+            _logger?.LogInformation("Pagamento manual {Id} ({Tipo}, {Valor}) registrado pelo admin {AdminId}.",
+                pagamento.Id, pagamento.Tipo, valor, admin.Id);
+            TempData["Sucesso"] = $"Registrado: {valor:C} — {descricaoDoSucesso}.";
+            return RedirectToAction("Financeiro");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarDespesa(string? descricao, decimal valor, DateTime? data)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var problema = FinanceiroDoPadelizou.ProblemaComADespesa(descricao, valor);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("Financeiro");
+            }
+
+            _context.DespesasRegistradas.Add(new DespesaRegistrada
+            {
+                Descricao = descricao!.Trim(),
+                Valor = valor,
+                Data = data ?? DateTime.Now,
+                RegistradoPorJogadorId = admin.Id,
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Despesa de {valor:C} lançada.";
+            return RedirectToAction("Financeiro");
+        }
+
+        // Despesa é só uma linha de caderneta — apagar não desfaz nada além dela mesma, por
+        // isso aqui PODE, ao contrário do pagamento registrado.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApagarDespesa(int id)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var despesa = await _context.DespesasRegistradas.FindAsync(id);
+            if (despesa == null) return NotFound();
+
+            _context.DespesasRegistradas.Remove(despesa);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Despesa \"{despesa.Descricao}\" apagada.";
+            return RedirectToAction("Financeiro");
         }
     }
 }

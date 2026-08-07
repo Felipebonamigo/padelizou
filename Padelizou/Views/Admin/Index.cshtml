@@ -121,16 +121,31 @@
                 </a>
             </div>
         }
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="PixDireto" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-qr-code"></i> Pix direto</h5>
-                        <p class="text-muted small mb-0">Mensalidades e taxas na nossa conta, sem gateway — a chave e a fila de conferência do extrato.</p>
+        @if (ehRaiz)
+        {
+            @* Os dois cards de dinheiro do dono ficam juntos, e só o raiz os vê — dar baixa
+               e fechar o caixa exigem o extrato do banco, que é dele. *@
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="PixDireto" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-qr-code"></i> Pix direto</h5>
+                            <p class="text-muted small mb-0">Mensalidades e taxas na nossa conta, sem gateway — a chave e a fila de conferência do extrato.</p>
+                        </div>
                     </div>
-                </div>
-            </a>
-        </div>
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="Financeiro" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-wallet2"></i> Financeiro do Padelizou</h5>
+                            <p class="text-muted small mb-0">O caixa: por fora × pelo gateway × despesas — e o registro do que foi pago por fora.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
         <div class="col-md-6">
             <a asp-controller="Admin" asp-action="NotificacaoTeste" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100">

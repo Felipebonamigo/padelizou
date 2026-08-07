@@ -1,0 +1,277 @@
+@using Padelizou.Services
+@using RegrasDoPix = Padelizou.Services.PixDireto
+@{
+    ViewData["Title"] = "Financeiro do Padelizou - Padelizou";
+
+    var resumo = (FinanceiroDoPadelizou.Resumo)ViewBag.Resumo;
+    var despesas = (List<Padelizou.Models.DespesaRegistrada>)ViewBag.Despesas;
+    var entradas = (List<Padelizou.Models.Pagamento>)ViewBag.Entradas;
+    var pagadores = (Dictionary<int, string>)ViewBag.Pagadores;
+    string periodo = ViewBag.Periodo;
+    var torneiosAbertos = (IEnumerable<dynamic>)ViewBag.TorneiosComTaxaAberta;
+
+    string UrlPeriodo(string p) => "/Admin/Financeiro" + (p == "sempre" ? "" : "?periodo=" + p);
+
+    Func<Padelizou.Models.Pagamento, string> rotuloMetodo = p => p.MetodoPagamento switch
+    {
+        RegrasDoPix.Metodo => "Pix direto",
+        FinanceiroDoPadelizou.MetodoManual => "Registrado à mão",
+        _ => "Gateway",
+    };
+
+    Func<string, string> rotuloTipo = tipo => tipo switch
+    {
+        RegrasDoPix.TipoAssinatura => "Mensalidade",
+        RegrasDoPix.TipoTaxaTorneio => "Taxa de torneio",
+        "Aula" => "Aula (comissão)",
+        "Jogo" or "JogoVarios" => "Quadra (comissão)",
+        _ => "Torneio (comissão)",
+    };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Financeiro do Padelizou</h2>
+            <p class="text-muted mb-0">O caixa: o que entrou por fora, o que entrou pelo gateway e o que saiu.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="PixDireto" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-qr-code"></i> Fila do Pix
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Painel
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <span class="text-muted small fw-semibold"><i class="bi bi-calendar3"></i> Período:</span>
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="@UrlPeriodo("mes")" class="btn @(periodo == "mes" ? "btn-primary" : "btn-outline-secondary")">Este mês</a>
+            <a href="@UrlPeriodo("ano")" class="btn @(periodo == "ano" ? "btn-primary" : "btn-outline-secondary")">Este ano</a>
+            <a href="@UrlPeriodo("sempre")" class="btn @(periodo == "sempre" ? "btn-primary" : "btn-outline-secondary")">Sempre</a>
+        </div>
+    </div>
+
+    @* ── Os quatro números ───────────────────────────────────────────────────────────── *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-qr-code text-success"></i> Recebido por fora</div>
+                    <div class="fs-4 fw-bold text-success">@resumo.RecebidoPorFora.ToString("C")</div>
+                    <div class="small text-muted">@resumo.QtdPorFora lançamento@(resumo.QtdPorFora == 1 ? "" : "s") — Pix direto e registro manual</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-credit-card text-primary"></i> Recebido pelo gateway</div>
+                    <div class="fs-4 fw-bold" style="color: var(--pdz-ink);">@resumo.RecebidoPeloGateway.ToString("C")</div>
+                    <div class="small text-muted">@resumo.QtdPeloGateway pagamento@(resumo.QtdPeloGateway == 1 ? "" : "s") — comissão bruta dos splits</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-arrow-up-right text-danger"></i> Pago (despesas)</div>
+                    <div class="fs-4 fw-bold text-danger">@resumo.Despesas.ToString("C")</div>
+                    <div class="small text-muted">@resumo.QtdDespesas lançamento@(resumo.QtdDespesas == 1 ? "" : "s") — fatura do gateway etc.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 @(resumo.Liquido < 0 ? "border-danger border-2" : "")">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-wallet2"></i> Líquido</div>
+                    <div class="fs-4 fw-bold @(resumo.Liquido < 0 ? "text-danger" : "text-success")">@resumo.Liquido.ToString("C")</div>
+                    <div class="small text-muted">recebido menos despesas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* A taxa do gateway não é calculada aqui de propósito: o custo exato de cada transação
+       não existe no nosso banco. O número certo está no extrato deles — lança como despesa. *@
+    <div class="alert alert-light border small mb-4">
+        <i class="bi bi-info-circle"></i>
+        O "recebido pelo gateway" é <strong>bruto</strong> — a taxa que o meio de pagamento desconta não
+        está no nosso banco. Pra fechar o mês de verdade, copie a fatura deles do extrato e lance como despesa aqui embaixo.
+    </div>
+
+    <div class="row g-3 mb-4">
+        @* ── Registrar pagamento por fora ────────────────────────────────────────────── *@
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1"><i class="bi bi-journal-plus"></i> Registrar pagamento por fora</h5>
+                    <p class="text-muted small mb-3">
+                        Alguém te pagou direto — Pix combinado, dinheiro na mão. Registrar aqui
+                        <strong>vale de verdade</strong>: mensalidade estende a assinatura, taxa libera as
+                        chaves, e a pessoa é avisada. <strong>Não tem desfazer</strong> — confira antes.
+                    </p>
+
+                    <form asp-action="RegistrarPagamento" method="post" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <div class="col-12">
+                            <label class="form-label small fw-bold" for="reg-tipo">O que foi pago</label>
+                            <select name="tipo" id="reg-tipo" class="form-select" required>
+                                <option value="@RegrasDoPix.TipoAssinatura">Mensalidade de professor</option>
+                                <option value="@RegrasDoPix.TipoTaxaTorneio">Taxa de torneio "por fora"</option>
+                            </select>
+                        </div>
+                        <div class="col-12" id="campo-pagador">
+                            <label class="form-label small fw-bold" for="reg-pagador">Quem pagou (login, e-mail ou CPF)</label>
+                            <input type="text" name="pagador" id="reg-pagador" class="form-control"
+                                   placeholder="Ex.: joao@email.com" />
+                        </div>
+                        <div class="col-12 d-none" id="campo-torneio">
+                            <label class="form-label small fw-bold" for="reg-torneio">Torneio</label>
+                            <select name="torneioId" id="reg-torneio" class="form-select">
+                                @if (!torneiosAbertos.Any())
+                                {
+                                    <option value="">Nenhum torneio com taxa em aberto</option>
+                                }
+                                @foreach (var t in torneiosAbertos)
+                                {
+                                    <option value="@t.Id">@t.Nome (@t.Codigo)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold" for="reg-valor">Valor recebido</label>
+                            <input type="number" name="valor" id="reg-valor" step="0.01" min="0.01"
+                                   class="form-control pdz-dinheiro" placeholder="49,90" required />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold" for="reg-data">Quando entrou</label>
+                            <input type="date" name="data" id="reg-data" class="form-control"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold mt-1">Registrar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @* ── Lançar despesa ──────────────────────────────────────────────────────────── *@
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1"><i class="bi bi-receipt-cutoff"></i> Lançar despesa</h5>
+                    <p class="text-muted small mb-3">
+                        O que o Padelizou pagou: a fatura do meio de pagamento, servidor, domínio.
+                        É só caderneta — dá pra apagar se errar.
+                    </p>
+
+                    <form asp-action="RegistrarDespesa" method="post" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <div class="col-12">
+                            <label class="form-label small fw-bold" for="desp-descricao">Descrição</label>
+                            <input type="text" name="descricao" id="desp-descricao" class="form-control"
+                                   placeholder="Ex.: fatura do gateway — julho" maxlength="120" required />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold" for="desp-valor">Valor pago</label>
+                            <input type="number" name="valor" id="desp-valor" step="0.01" min="0.01"
+                                   class="form-control pdz-dinheiro" placeholder="12,34" required />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold" for="desp-data">Quando saiu</label>
+                            <input type="date" name="data" id="desp-data" class="form-control"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-outline-danger rounded-pill px-4 fw-bold mt-1">Lançar despesa</button>
+                        </div>
+                    </form>
+
+                    @if (despesas.Any())
+                    {
+                        <hr />
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <tbody>
+                                    @foreach (var d in despesas.Take(10))
+                                    {
+                                        <tr>
+                                            <td class="small text-muted">@d.Data.ToString("dd/MM/yy")</td>
+                                            <td class="small">@d.Descricao</td>
+                                            <td class="text-end fw-semibold text-danger">@d.Valor.ToString("C")</td>
+                                            <td class="text-end">
+                                                <form asp-action="ApagarDespesa" method="post" class="d-inline"
+                                                      onsubmit="return confirm('Apagar a despesa \'@d.Descricao\'?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@d.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-2"
+                                                            title="Apagar"><i class="bi bi-trash"></i></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── As entradas do período ──────────────────────────────────────────────────────── *@
+    <h5 class="fw-bold mb-2"><i class="bi bi-list-check"></i> Entradas do período</h5>
+    @if (!entradas.Any())
+    {
+        <p class="text-muted small">Nada entrou no período escolhido.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-muted small">
+                        <th>Quando</th>
+                        <th>O quê</th>
+                        <th>De quem</th>
+                        <th>Como</th>
+                        <th class="text-end">Nossa parte</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in entradas)
+                    {
+                        <tr>
+                            <td class="small">@((p.ConfirmadoEm ?? p.CriadoEm).ToString("dd/MM/yy HH:mm"))</td>
+                            <td class="small">@rotuloTipo(p.Tipo)</td>
+                            <td class="small">@(pagadores.TryGetValue(p.JogadorId, out var nome) ? nome : "—")</td>
+                            <td>
+                                <span class="badge @(p.MetodoPagamento == "Gateway" ? "bg-secondary" : "bg-success")">
+                                    @rotuloMetodo(p)
+                                </span>
+                            </td>
+                            <td class="text-end fw-semibold">@p.Comissao.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/admin-financeiro.js"></script>
+}
