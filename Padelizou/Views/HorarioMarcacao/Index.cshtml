@@ -292,7 +292,9 @@
                                                 <option value="@op" selected="@(op == h.DuracaoMinutos)">@HorarioDoClube.Rotulo(op)</option>
                                             }
                                         </select>
-                                        <input type="number" name="preco" value="@(h.Preco?.ToString("0.00"))"
+                                        @* `ToString("0.00")` seguia a cultura pt-BR e escrevia "80,00" — inválido
+                                           num type=number, e o navegador mostra vazio. Ver DinheiroNoCampo. *@
+                                        <input type="number" name="preco" value="@Padelizou.Services.DinheiroNoCampo.Valor(h.Preco)"
                                                class="form-control form-control-sm" style="width: 6rem;"
                                                min="0" step="0.01" placeholder="Grátis" />
                                         <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar</button>

@@ -98,6 +98,31 @@ public class DinheiroModelBinder : IModelBinder
     }
 }
 
+// A OUTRA METADE DA MESMA REGRA: como o sistema ESCREVE um valor em dinheiro num campo.
+//
+// O binder acima resolve a entrada; isto resolve a saída, e mora colado nele de propósito —
+// são os dois lados de "dinheiro atravessa <input type=number>", e separados um seria
+// corrigido sem o outro.
+//
+// ⚠️ `value="150,00"` num <input type="number"> é valor INVÁLIDO, e o navegador não reclama:
+// ele simplesmente mostra o campo VAZIO. Com a cultura pt-BR do app, `@Model.PrecoInscricao`
+// escreve exatamente isso — foi assim que o preço da inscrição sumia toda vez que o
+// organizador abria "Editar Dados do Torneio" (07/08/2026). O `asp-for` da tela de criação
+// nunca sofreu porque o ASP.NET Core já escreve invariante nele; o `value="@..."` na mão, não.
+//
+// O que o usuário vê continua em pt-BR: o próprio navegador mostra "150,00" a partir de
+// "150.00" quando o aparelho está em português. O ponto aqui é só o que vai no HTML.
+public static class DinheiroNoCampo
+{
+    public static string Valor(decimal quanto) =>
+        quanto.ToString(CultureInfo.InvariantCulture);
+
+    // Vazio é vazio: campo opcional em branco não pode virar "0" na tela, senão o organizador
+    // "confirma" um preço que ele nunca digitou.
+    public static string Valor(decimal? quanto) =>
+        quanto?.ToString(CultureInfo.InvariantCulture) ?? "";
+}
+
 // Entra na frente do binder padrão só pra decimal/decimal?; todo o resto segue igual.
 public class DinheiroModelBinderProvider : IModelBinderProvider
 {
