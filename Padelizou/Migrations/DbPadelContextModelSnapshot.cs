@@ -22,39 +22,6 @@ namespace Padelizou.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Padelizou.Models.AcertoRankingRs", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AcertadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int?>("DespesaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PessoasCobradas")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RegistradoPorJogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TorneioId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Valor")
-                        .HasColumnType("numeric");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TorneioId");
-
-                    b.ToTable("AcertoRankingRs");
-                });
-
             modelBuilder.Entity("Padelizou.Models.AlertaSistema", b =>
                 {
                     b.Property<int>("Id")
@@ -75,7 +42,7 @@ namespace Padelizou.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AlertaSistema");
+                    b.ToTable("AlertaSistema", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AnotacaoAula", b =>
@@ -105,7 +72,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("AutorId");
 
-                    b.ToTable("AnotacaoAula");
+                    b.ToTable("AnotacaoAula", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvaliacaoDeAluno", b =>
@@ -150,7 +117,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId", "AlunoId", "CriadoEm");
 
-                    b.ToTable("AvaliacaoDeAluno");
+                    b.ToTable("AvaliacaoDeAluno", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvaliacaoProfessor", b =>
@@ -186,7 +153,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("AlunoId", "ProfessorId")
                         .IsUnique();
 
-                    b.ToTable("AvaliacaoProfessor");
+                    b.ToTable("AvaliacaoProfessor", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoJogo", b =>
@@ -227,7 +194,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CriadorId");
 
-                    b.ToTable("AvisoJogo");
+                    b.ToTable("AvisoJogo", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoParceiro", b =>
@@ -266,7 +233,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CriadorId");
 
-                    b.ToTable("AvisoParceiro");
+                    b.ToTable("AvisoParceiro", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoRaqueteLivre", b =>
@@ -312,7 +279,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CriadorId");
 
-                    b.ToTable("AvisoRaqueteLivre");
+                    b.ToTable("AvisoRaqueteLivre", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.BloqueioDoRanking", b =>
@@ -369,7 +336,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("CategoriaId", "Cpf")
                         .IsUnique();
 
-                    b.ToTable("BloqueioDoRanking");
+                    b.ToTable("BloqueioDoRanking", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.CaixaDoDia", b =>
@@ -412,7 +379,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("ClubeId", "Dia")
                         .IsUnique();
 
-                    b.ToTable("CaixaDoDia");
+                    b.ToTable("CaixaDoDia", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.CandidaturaParceiro", b =>
@@ -442,7 +409,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CandidatoId");
 
-                    b.ToTable("CandidaturaParceiro");
+                    b.ToTable("CandidaturaParceiro", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Categoria", b =>
@@ -500,7 +467,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("TorneioId");
 
-                    b.ToTable("Categoria");
+                    b.ToTable("Categoria", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Cidade", b =>
@@ -520,7 +487,7 @@ namespace Padelizou.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Cidades");
+                    b.ToTable("Cidades", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Clube", b =>
@@ -570,7 +537,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("DonoId");
 
-                    b.ToTable("Clubes");
+                    b.ToTable("Clubes", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ClubeAdministrador", b =>
@@ -588,7 +555,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("ClubeAdministrador");
+                    b.ToTable("ClubeAdministrador", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Comanda", b =>
@@ -660,7 +627,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("ClubeId", "DiaReferencia", "Numero")
                         .IsUnique();
 
-                    b.ToTable("Comanda");
+                    b.ToTable("Comanda", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ComentarioPerfil", b =>
@@ -697,7 +664,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("AutorId", "PerfilId")
                         .IsUnique();
 
-                    b.ToTable("ComentariosPerfil");
+                    b.ToTable("ComentariosPerfil", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ConfiguracaoDoSistema", b =>
@@ -729,7 +696,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("Chave")
                         .IsUnique();
 
-                    b.ToTable("ConfiguracaoDoSistema");
+                    b.ToTable("ConfiguracaoDoSistema", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ConfirmacaoSessao", b =>
@@ -760,7 +727,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("ConfirmacaoSessao");
+                    b.ToTable("ConfirmacaoSessao", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.DespesaRegistrada", b =>
@@ -789,7 +756,7 @@ namespace Padelizou.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DespesaRegistrada");
+                    b.ToTable("DespesaRegistrada", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Dupla", b =>
@@ -904,7 +871,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("DeJogadorId", "ParaJogadorId")
                         .IsUnique();
 
-                    b.ToTable("Elogios");
+                    b.ToTable("Elogios", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ErroDoSistema", b =>
@@ -954,7 +921,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("Tipo", "Caminho", "AvisoEnviado", "QuandoEm");
 
-                    b.ToTable("ErroDoSistema");
+                    b.ToTable("ErroDoSistema", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.FeedbackSite", b =>
@@ -991,7 +958,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("FeedbacksSite");
+                    b.ToTable("FeedbacksSite", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.FundamentoDoProfessor", b =>
@@ -1027,7 +994,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId", "Modulo", "Ordem");
 
-                    b.ToTable("FundamentoDoProfessor");
+                    b.ToTable("FundamentoDoProfessor", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.HistoricoDePadelimetro", b =>
@@ -1063,7 +1030,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId", "CriadoEm");
 
-                    b.ToTable("HistoricoDePadelimetro");
+                    b.ToTable("HistoricoDePadelimetro", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.HorarioDisponivel", b =>
@@ -1101,7 +1068,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("HorarioDisponivel");
+                    b.ToTable("HorarioDisponivel", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.HorarioMarcacaoDisponivel", b =>
@@ -1142,7 +1109,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("QuadraClubeId");
 
-                    b.ToTable("HorarioMarcacaoDisponivel");
+                    b.ToTable("HorarioMarcacaoDisponivel", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.InscricaoAmericana", b =>
@@ -1180,7 +1147,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("InscricaoAmericana");
+                    b.ToTable("InscricaoAmericana", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.InscricaoRaqueteLivre", b =>
@@ -1201,7 +1168,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("InscricaoRaqueteLivre");
+                    b.ToTable("InscricaoRaqueteLivre", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ItemComanda", b =>
@@ -1249,7 +1216,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProdutoBarId");
 
-                    b.ToTable("ItemComanda");
+                    b.ToTable("ItemComanda", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Jogador", b =>
@@ -1470,7 +1437,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CategoriaPadraoId");
 
-                    b.ToTable("JogadorCategoria");
+                    b.ToTable("JogadorCategoria", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.JogadorCidade", b =>
@@ -1485,7 +1452,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CidadeId");
 
-                    b.ToTable("JogadorCidade");
+                    b.ToTable("JogadorCidade", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.JogadorClube", b =>
@@ -1500,7 +1467,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId");
 
-                    b.ToTable("JogadorClube");
+                    b.ToTable("JogadorClube", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.JogadorDiaHorario", b =>
@@ -1516,7 +1483,7 @@ namespace Padelizou.Migrations
 
                     b.HasKey("JogadorId", "DiaSemana", "Periodo");
 
-                    b.ToTable("JogadorDiaHorario");
+                    b.ToTable("JogadorDiaHorario", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.JogoSemanal", b =>
@@ -1571,7 +1538,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("RegistradoPorId");
 
-                    b.ToTable("JogoSemanal");
+                    b.ToTable("JogoSemanal", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.LancamentoFinanceiro", b =>
@@ -1627,7 +1594,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId", "QuitadoEm", "Vencimento");
 
-                    b.ToTable("LancamentoFinanceiro");
+                    b.ToTable("LancamentoFinanceiro", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.LocalAula", b =>
@@ -1671,7 +1638,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("LocalAula");
+                    b.ToTable("LocalAula", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.MarcacaoJogo", b =>
@@ -1742,7 +1709,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("QuadraClubeId");
 
-                    b.ToTable("MarcacaoJogo");
+                    b.ToTable("MarcacaoJogo", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.MensalidadeGrupo", b =>
@@ -1769,7 +1736,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("MensalidadeGrupo");
+                    b.ToTable("MensalidadeGrupo", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.MovimentoEstoque", b =>
@@ -1811,7 +1778,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProdutoBarId", "CriadoEm");
 
-                    b.ToTable("MovimentoEstoque");
+                    b.ToTable("MovimentoEstoque", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.NotaDeFundamento", b =>
@@ -1841,7 +1808,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("AvaliacaoDeAlunoId", "FundamentoDoProfessorId")
                         .IsUnique();
 
-                    b.ToTable("NotaDeFundamento");
+                    b.ToTable("NotaDeFundamento", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.PacoteDeAulas", b =>
@@ -1869,7 +1836,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("LocalAulaId");
 
-                    b.ToTable("PacoteDeAulas");
+                    b.ToTable("PacoteDeAulas", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Pagamento", b =>
@@ -1949,7 +1916,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("Pagamento");
+                    b.ToTable("Pagamento", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.PalpitePartida", b =>
@@ -1981,7 +1948,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("PartidaId", "JogadorId")
                         .IsUnique();
 
-                    b.ToTable("PalpitePartida");
+                    b.ToTable("PalpitePartida", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Partida", b =>
@@ -2080,7 +2047,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("Dupla2Id");
 
-                    b.ToTable("Partida");
+                    b.ToTable("Partida", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.PrecoDeAluno", b =>
@@ -2118,7 +2085,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("PrecoDeAluno");
+                    b.ToTable("PrecoDeAluno", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProdutoBar", b =>
@@ -2164,7 +2131,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId", "Ativo");
 
-                    b.ToTable("ProdutoBar");
+                    b.ToTable("ProdutoBar", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.ProfessorCidade", b =>
@@ -2179,7 +2146,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CidadeId");
 
-                    b.ToTable("ProfessorCidade");
+                    b.ToTable("ProfessorCidade", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.PushSubscriptionJogador", b =>
@@ -2215,7 +2182,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("PushSubscriptionJogador");
+                    b.ToTable("PushSubscriptionJogador", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Quadra", b =>
@@ -2237,7 +2204,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("TorneioId");
 
-                    b.ToTable("Quadra");
+                    b.ToTable("Quadra", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.QuadraClube", b =>
@@ -2262,7 +2229,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId");
 
-                    b.ToTable("QuadraClube");
+                    b.ToTable("QuadraClube", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.SeguidorJogador", b =>
@@ -2280,7 +2247,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("SeguidoId");
 
-                    b.ToTable("SeguidorJogador");
+                    b.ToTable("SeguidorJogador", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.SessaoGrupo", b =>
@@ -2305,7 +2272,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("GrupoId", "DataHora")
                         .IsUnique();
 
-                    b.ToTable("SessaoGrupo");
+                    b.ToTable("SessaoGrupo", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.SolicitacaoRegistroResultados", b =>
@@ -2370,7 +2337,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("TorneioId");
 
-                    b.ToTable("SolicitacoesRegistroResultados");
+                    b.ToTable("SolicitacoesRegistroResultados", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Time", b =>
@@ -2395,7 +2362,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId");
 
-                    b.ToTable("Times");
+                    b.ToTable("Times", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.TimeAdministrador", b =>
@@ -2416,7 +2383,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("TimeAdministradores");
+                    b.ToTable("TimeAdministradores", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.Torneio", b =>
@@ -2627,7 +2594,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("TorneioOrganizador");
+                    b.ToTable("TorneioOrganizador", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.Aula", b =>
@@ -2710,7 +2677,7 @@ namespace Padelizou.Migrations
                     b.HasIndex("TokenConfirmacao")
                         .IsUnique();
 
-                    b.ToTable("Aula");
+                    b.ToTable("Aula", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.CategoriaPadrao", b =>
@@ -2738,7 +2705,7 @@ namespace Padelizou.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CategoriaPadrao");
+                    b.ToTable("CategoriaPadrao", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.GrupoPrivado", b =>
@@ -2794,7 +2761,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ClubeId");
 
-                    b.ToTable("GrupoPrivado");
+                    b.ToTable("GrupoPrivado", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.GrupoTorneio", b =>
@@ -2816,7 +2783,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("CategoriaId");
 
-                    b.ToTable("GrupoTorneio");
+                    b.ToTable("GrupoTorneio", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.InscricaoJogoAula", b =>
@@ -2837,7 +2804,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("JogadorId");
 
-                    b.ToTable("InscricaoJogoAula");
+                    b.ToTable("InscricaoJogoAula", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.JogadorGrupo", b =>
@@ -2855,7 +2822,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("GrupoId");
 
-                    b.ToTable("JogadorGrupo");
+                    b.ToTable("JogadorGrupo", (string)null);
                 });
 
             modelBuilder.Entity("padelizou.Models.JogoAula", b =>
@@ -2907,18 +2874,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("JogoAula");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.AcertoRankingRs", b =>
-                {
-                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
-                        .WithMany()
-                        .HasForeignKey("TorneioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Torneio");
+                    b.ToTable("JogoAula", (string)null);
                 });
 
             modelBuilder.Entity("Padelizou.Models.AnotacaoAula", b =>
