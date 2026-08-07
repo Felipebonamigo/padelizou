@@ -136,6 +136,18 @@ public partial class Torneio
     // critério, sem quadra extra.
     public bool DesempateAmericano { get; set; }
 
+    // Este Americano vale ponto no Ranking Americano? Nasce DESLIGADO e é contratado pelo
+    // organizador na criação: R$ 5 por pessoa inscrita (ver Services/PontosDoAmericano).
+    //
+    // O Americano NÃO pontua no ranking oficial em hipótese nenhuma — isso é formato, não
+    // escolha (ver EstatisticasService.ContaNoRanking). O que se contrata aqui é a entrada no
+    // ranking PRÓPRIO dele, que é outra tabela e outra tela.
+    //
+    // Por que pago: ponto de graça é ponto que se fabrica. Quatro amigos, placares inventados,
+    // ranking novo toda semana. O preço por pessoa faz a conta não fechar pra quem quer
+    // fabricar e não pesar pra quem faz o rodízio de verdade.
+    public bool PontuaNoRankingAmericano { get; set; }
+
     // Até quando o organizador tem a quadra. Opcional: sem isso o sistema ainda diz quando
     // o torneio termina, só não tem contra o que comparar pra avisar que não cabe.
     public DateTime? DataFim { get; set; }

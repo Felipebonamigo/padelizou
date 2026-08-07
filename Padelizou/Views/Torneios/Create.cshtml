@@ -76,6 +76,33 @@
                         @* Só faz sentido nos dois Americanos — no formato padrão o mata-mata já
                            resolve quem é campeão. *@
                         <div id="opcoesAmericano" class="mt-3 p-3 rounded" style="display: none; background-color: var(--pdz-surface-alt);">
+
+                            @* RANKING AMERICANO — o preço aparece ANTES de publicar, e não depois.
+                               O Americano tem ranking próprio, separado do oficial: rodízio com
+                               parceiro rodando não é a mesma coisa que torneio de chave, e somar
+                               os dois estragaria os dois. Valer ponto é contratado, porque ponto
+                               de graça é ponto que se fabrica — quatro amigos, placares
+                               inventados, ranking novo toda semana. *@
+                            <div class="p-3 mb-3 rounded" style="background-color: var(--pdz-surface); border: 1px solid var(--pdz-border);">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" asp-for="PontuaNoRankingAmericano"
+                                           id="pontuaRankingAmericano" onchange="pdzCustoRanking()" />
+                                    <label class="form-check-label fw-bold" for="pontuaRankingAmericano">
+                                        <i class="bi bi-trophy"></i> Quero que este Americano valha ponto no Ranking Americano
+                                    </label>
+                                </div>
+                                <div class="small text-muted mt-2">
+                                    <strong>R$ @Padelizou.Services.PontosDoAmericano.PrecoPorPessoa.ToString("0.00") por pessoa inscrita.</strong>
+                                    Quem terminar na frente leva ponto, e o valor cresce com o tamanho:
+                                    ganhar um Americano de 16 vale o dobro de ganhar um de 8.
+                                    <div class="mt-2">
+                                        O Americano <strong>não pontua no ranking oficial</strong> em nenhum caso — lá é
+                                        torneio de chave. Este é o ranking dele, separado.
+                                    </div>
+                                    <div class="mt-2 fw-bold" id="pdzCustoRanking" style="color: var(--pdz-ink); display: none;"></div>
+                                </div>
+                            </div>
+
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" asp-for="DesempateAmericano" id="desempateAmericano" />
                                 <label class="form-check-label fw-bold" for="desempateAmericano">
@@ -1092,6 +1119,31 @@
             r.addEventListener('change', pdzOpcoesAmericano);
         });
         pdzOpcoesAmericano();
+    });
+
+    // Quanto vai custar pro Americano valer ponto. O organizador ainda não sabe quantos vêm,
+    // então a conta sai do número que ele mesmo espera — e some enquanto ele não marca a
+    // caixa, pra não parecer cobrança de quem não pediu nada.
+    function pdzCustoRanking() {
+        var marcado = document.getElementById('pontuaRankingAmericano');
+        var alvo = document.getElementById('pdzCustoRanking');
+        if (!marcado || !alvo) return;
+
+        if (!marcado.checked) { alvo.style.display = 'none'; return; }
+
+        var esperados = parseInt((document.getElementById('pdzDuplasEsperadas') || {}).value, 10);
+        alvo.style.display = 'block';
+        alvo.innerHTML = esperados > 0
+            ? 'Com <strong>' + esperados + '</strong> inscritos, dá <strong>R$ ' +
+              (esperados * 5).toFixed(2).replace('.', ',') + '</strong>. ' +
+              'A conta final é pelo número real de inscritos.'
+            : 'O valor final sai do número real de inscritos, no fim das inscrições.';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var esperados = document.getElementById('pdzDuplasEsperadas');
+        if (esperados) esperados.addEventListener('input', pdzCustoRanking);
+        pdzCustoRanking();
     });
 
     // Mesma regra do GradeDeJogos: o limite é a hora em que o último jogo COMEÇA, e ele só

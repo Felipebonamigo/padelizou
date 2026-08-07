@@ -271,9 +271,18 @@ namespace Padelizou.Controllers
             // O formato vem de um radio, mas POST montado à mão pode mandar qualquer texto —
             // e um formato desconhecido criaria um torneio meio-Padrão que nenhuma tela sabe
             // sortear nem encerrar.
-            if (torneio.Formato is not ("Padrao" or "Americano" or "AmericanoDuplas"))
+            if (!FormatoDoTorneio.Existe(torneio.Formato))
             {
                 return await Recusar("Escolha o formato do torneio.");
+            }
+
+            // "Vale ponto no Ranking Americano" só existe no Americano — a caixa nem aparece no
+            // formato Padrão. Vindo marcada num Padrão (aba antiga, POST à mão), some em vez de
+            // recusar: é campo que não se aplica, não erro do organizador. E deixar gravado
+            // criaria um torneio de chave cobrando por um ranking em que ele nunca entra.
+            if (!FormatoDoTorneio.EhAmericano(torneio.Formato))
+            {
+                torneio.PontuaNoRankingAmericano = false;
             }
 
             // Categoria de times: a estrutura precisa fechar um quadro de mata-mata ANTES de
