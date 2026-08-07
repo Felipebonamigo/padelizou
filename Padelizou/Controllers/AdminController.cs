@@ -13,7 +13,10 @@ namespace padelizou.Controllers
     // Painel do administrador: hoje só gerencia donos de clube e a lista de administradores do
     // sistema — fundação pra futuras telas administrativas reaproveitarem o mesmo gate.
     [Authorize]
-    public class AdminController : Controller
+    // `partial`: o acerto do Ranking Americano mora em AdminController.RankingAmericano.cs.
+    // Mesmo caminho já usado no TorneiosController — o arquivo cresce por assunto, não por
+    // acumulação.
+    public partial class AdminController : Controller
     {
         private readonly DbPadelContext _context;
         private readonly IPushNotificationService _pushNotificationService;

@@ -202,6 +202,25 @@ public class RankingHubVM
     // Aba Padelímetro: jogadores ordenados pelo nível (a unidade exibida é PDZ). Regras
     // em RANKING.md; a lista respeita o mesmo filtro regional do resto do hub.
     public List<PadelimetroLinhaVM> Padelimetro { get; set; } = new();
+
+    // Aba Ranking Americano (Trilha C do RANKING.md): separada do ranking oficial porque
+    // rodízio e torneio de chave não se somam. Só entra Americano contratado, pago e com o
+    // piso de 8 pessoas — a regra inteira mora em Services/RankingAmericanoService.
+    public List<RankingAmericanoLinhaVM> Americano { get; set; } = new();
+}
+
+// Uma linha da aba Ranking Americano.
+public class RankingAmericanoLinhaVM
+{
+    public Jogador Jogador { get; set; } = null!;
+    public int Pontos { get; set; }
+    public int Americanos { get; set; }   // quantos contaram (não quantos jogou)
+    public int Vitorias { get; set; }     // 1º lugar
+    public int Podios { get; set; }       // 1º, 2º ou 3º
+
+    // O último que contou, pra linha dizer de onde veio o ponto mais recente.
+    public DateTime? UltimoEm { get; set; }
+    public string? UltimoNome { get; set; }
 }
 
 // Uma linha da aba Padelímetro do ranking.

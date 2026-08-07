@@ -208,6 +208,7 @@
     <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3 mt-2" role="tablist" style="white-space: nowrap;">
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill" data-bs-target="#tab-pontos" type="button"><i class="bi bi-list-ol"></i> Por categoria</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-padelimetro" type="button"><i class="bi bi-speedometer2"></i> Padelímetro</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-americano" type="button"><i class="bi bi-arrow-repeat"></i> Americano</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-trofeus" type="button"><i class="bi bi-trophy-fill"></i> Troféus</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vjog" type="button"><i class="bi bi-person-check-fill"></i> Vitórias (jogadores)</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vdup" type="button"><i class="bi bi-people-fill"></i> Vitórias (duplas)</button></li>
@@ -335,6 +336,70 @@
                                 <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pdz <span class="text-muted small fw-normal">PDZ</span></td>
                             </tr>
                             posPdz++;
+                        }
+                    </tbody>
+                </table></div></div>
+            }
+        </div>
+
+        @* ============================ 1c. RANKING AMERICANO ============================
+           Ranking PRÓPRIO, e a tela precisa dizer isso na primeira linha: quem chega aqui
+           vindo do ranking oficial vai perguntar por que os números não batem. *@
+        <div class="tab-pane fade" id="tab-americano" role="tabpanel">
+            <p class="text-muted small mb-2">
+                Ranking <strong>só de Americano</strong> — separado do oficial, que é de torneio de chave.
+                Pontua por <strong>colocação</strong>, e vale mais quanto mais gente em quadra:
+                ganhar um Americano de 16 vale o dobro de ganhar um de 8.
+                Só entram os Americanos que o organizador inscreveu no ranking, a partir de
+                @Padelizou.Services.PontosDoAmericano.MinimoParaPontuar participantes.
+            </p>
+            @if (!Model.Americano.Any())
+            {
+                <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+                    <i class="bi bi-arrow-repeat display-6 text-muted"></i>
+                    <p class="text-muted mb-1">Nenhum Americano pontuou ainda.</p>
+                    <p class="text-muted small mb-0">
+                        O organizador escolhe se o Americano dele entra aqui, na hora de criar.
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                    @* No celular sobram posição, nome e pontos — o resto some. *@
+                    <thead><tr>
+                        <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
+                        <th class="text-center d-none d-sm-table-cell">Americanos</th>
+                        <th class="text-center d-none d-sm-table-cell">Vitórias</th>
+                        <th class="text-end">Pontos</th>
+                    </tr></thead>
+                    <tbody>
+                        @{ var posAmericano = 1; }
+                        @foreach (var l in Model.Americano)
+                        {
+                            <tr>
+                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posAmericano))</td>
+                                <td>
+                                    <a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a>
+                                    @if (l.UltimoNome != null)
+                                    {
+                                        <div class="small text-muted">último: @l.UltimoNome</div>
+                                    }
+                                </td>
+                                <td class="text-center text-muted d-none d-sm-table-cell">@l.Americanos</td>
+                                <td class="text-center d-none d-sm-table-cell">
+                                    @if (l.Vitorias > 0)
+                                    {
+                                        <span class="fw-bold" style="color: var(--pdz-ink);">@l.Vitorias</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
+                            </tr>
+                            posAmericano++;
                         }
                     </tbody>
                 </table></div></div>

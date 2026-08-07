@@ -501,7 +501,8 @@ public class JogadoresController : Controller
     }
     [HttpGet]
     public async Task<IActionResult> Ranking(int? clubeId, int? torneioId, string[]? cidade, string? estado, string? periodo,
-        [FromServices] IPadelimetroService padelimetro)
+        [FromServices] IPadelimetroService padelimetro,
+        [FromServices] IRankingAmericanoService rankingAmericano)
     {
         // 1. RANKING POR CLUBE
         if (clubeId.HasValue)
@@ -531,9 +532,12 @@ public class JogadoresController : Controller
         hub.EstadosDisponiveis = estados;
         hub.CidadesDisponiveis = cidades;
 
-        // Aba Padelímetro (RANKING.md): a lista respeita o mesmo filtro regional do hub.
-        hub.Padelimetro = await padelimetro.ListarRankingAsync(
-            await _estatisticas.ObterJogadoresDoLocalAsync(cidade, estado));
+        // Abas Padelímetro e Ranking Americano (RANKING.md): as duas respeitam o mesmo filtro
+        // regional do hub. O Americano é ranking PRÓPRIO — não soma com o oficial, e por isso
+        // vem de um serviço separado em vez de virar mais uma consulta do EstatisticasService.
+        var doLocal = await _estatisticas.ObterJogadoresDoLocalAsync(cidade, estado);
+        hub.Padelimetro = await padelimetro.ListarRankingAsync(doLocal);
+        hub.Americano = await rankingAmericano.ListarAsync(doLocal);
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
         if (torneioId.HasValue)

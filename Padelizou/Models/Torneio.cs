@@ -148,6 +148,16 @@ public partial class Torneio
     // fabricar e não pesar pra quem faz o rodízio de verdade.
     public bool PontuaNoRankingAmericano { get; set; }
 
+    // Quando o acerto dos R$ 5 por pessoa foi confirmado. Nulo = contratado mas ainda não pago.
+    //
+    // ⚠️ O ponto só entra no ranking depois disto. Contratar é intenção; o que vale é o
+    // dinheiro ter entrado — senão bastaria marcar a caixinha pra pontuar de graça, que é
+    // exatamente o buraco que o preço existe pra fechar.
+    //
+    // Confirmação MANUAL pelo extrato, no painel admin — mesmo caminho da taxa do "por fora" e
+    // do acerto com o Ranking RS. Aqui não passa gateway: é acerto direto com o organizador.
+    public DateTime? RankingAmericanoPagoEm { get; set; }
+
     // Até quando o organizador tem a quadra. Opcional: sem isso o sistema ainda diz quando
     // o torneio termina, só não tem contra o que comparar pra avisar que não cabe.
     public DateTime? DataFim { get; set; }

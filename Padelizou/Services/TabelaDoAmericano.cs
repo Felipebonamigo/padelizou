@@ -9,6 +9,24 @@ public static class TabelaDoAmericano
 {
     public record Linha(Jogador Jogador, int TotalGames, int Jogos, bool Empatado);
 
+    // As partidas que DECIDEM o torneio: o grupo final quando ele existe, senão a fase de
+    // grupos. Somar o torneio inteiro juntaria gente de grupos diferentes, que nunca se
+    // enfrentou — e a liderança sairia de uma soma que não aconteceu.
+    //
+    // Mora aqui, e não no controller, porque agora tem DOIS leitores: a tela do desempate e o
+    // Ranking Americano. Era a cópia certa de fazer antes de existir a segunda.
+    public static List<Partida> QueDecidem(IEnumerable<Partida> partidasDoAmericano)
+    {
+        var todas = partidasDoAmericano.ToList();
+        bool temGrupoFinal = todas.Any(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase));
+
+        return todas
+            .Where(p => temGrupoFinal
+                ? FaseDoAmericano.EhDoGrupoFinal(p.Fase)
+                : FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
+            .ToList();
+    }
+
     public static List<Linha> Montar(IEnumerable<Partida> partidasFinalizadas)
     {
         var soma = new Dictionary<int, (Jogador Jogador, int Games, int Jogos)>();

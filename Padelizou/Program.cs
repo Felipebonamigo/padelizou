@@ -134,6 +134,10 @@ builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
 builder.Services.AddScoped<IPalpiteService, PalpiteService>();
 builder.Services.AddScoped<IPadelimetroService, PadelimetroService>();
+// Ranking Americano (Trilha C do RANKING.md): serviço próprio, e não mais uma consulta do
+// EstatisticasService — os dois rankings não se somam, e misturá-los no mesmo serviço seria
+// convidar alguém a somar um dia.
+builder.Services.AddScoped<IRankingAmericanoService, RankingAmericanoService>();
 builder.Services.AddScoped<ISessaoGrupoService, SessaoGrupoService>();
 // Timeout curto: o envio acontece DENTRO da ação do jogador. Um provedor pendurado não pode
 // segurar a resposta da tela — melhor perder a mensagem do que travar quem clicou.

@@ -1,0 +1,129 @@
+@{
+    ViewData["Title"] = "Acerto do Ranking Americano - Padelizou";
+    var linhas = ViewBag.Linhas as List<padelizou.Controllers.AdminController.LinhaDoAcertoAmericano> ?? new();
+    var preco = (decimal)(ViewBag.PrecoPorPessoa ?? 5m);
+    var minimo = (int)(ViewBag.MinimoParaPontuar ?? 8);
+
+    var pendentes = linhas.Where(l => l.PagoEm == null && l.AlcancaOPiso).ToList();
+    var aReceber = pendentes.Sum(l => l.Valor);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Acerto do Ranking Americano</h2>
+            <p class="text-muted mb-0">
+                R$ @preco.ToString("0.00") por pessoa inscrita, cobrado do organizador que pediu
+                pro Americano dele valer ponto.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* O total pendente primeiro: é a pergunta que traz alguém a esta tela. *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <div class="small text-muted">A receber</div>
+                <div class="h4 fw-bold mb-0" style="color: var(--pdz-ink);">@aReceber.ToString("C")</div>
+            </div>
+            <div class="text-end small text-muted">
+                @pendentes.Count Americano(s) esperando acerto<br />
+                de @linhas.Count que pediram pra pontuar
+            </div>
+        </div>
+    </div>
+
+    @if (linhas.Count == 0)
+    {
+        <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+            <i class="bi bi-arrow-repeat display-6 text-muted"></i>
+            <p class="text-muted mb-1">Nenhum Americano pediu pra valer ponto ainda.</p>
+            <p class="text-muted small mb-0">A escolha é do organizador, na hora de criar o Americano.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr>
+                <th>Americano</th>
+                <th class="text-center d-none d-md-table-cell">Quando</th>
+                <th class="text-center">Pessoas</th>
+                <th class="text-end">Valor</th>
+                <th class="text-end" style="width: 190px;">Acerto</th>
+            </tr></thead>
+            <tbody>
+            @foreach (var l in linhas)
+            {
+                <tr>
+                    <td>
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@l.TorneioId"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Nome</a>
+                        <div class="small text-muted">@l.Status</div>
+                    </td>
+                    <td class="text-center d-none d-md-table-cell text-muted small">
+                        @(l.DataInicio?.ToString("dd/MM/yyyy") ?? "—")
+                    </td>
+                    <td class="text-center">
+                        @l.Pessoas
+                        @if (!l.AlcancaOPiso)
+                        {
+                            <div class="small text-warning">abaixo de @minimo</div>
+                        }
+                        else if (l.InscricoesAbertas)
+                        {
+                            <div class="small text-muted">ainda abrindo</div>
+                        }
+                    </td>
+                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">
+                        @l.Valor.ToString("C")
+                    </td>
+                    <td class="text-end">
+                        @if (!l.AlcancaOPiso)
+                        {
+                            @* Não pontuou, não paga: cobrar por um ponto que não existe seria
+                               vender o que não foi entregue. *@
+                            <span class="badge bg-secondary">não pontua</span>
+                        }
+                        else if (l.PagoEm != null)
+                        {
+                            <div class="small text-success fw-bold mb-1">
+                                <i class="bi bi-check-circle-fill"></i> pago em @l.PagoEm.Value.ToString("dd/MM/yyyy")
+                            </div>
+                            <form asp-controller="Admin" asp-action="DesfazerAcertoAmericano" method="post" class="d-inline">
+                                <input type="hidden" name="id" value="@l.TorneioId" />
+                                <button type="submit" class="btn btn-sm btn-link text-muted p-0">desfazer</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-controller="Admin" asp-action="MarcarAcertoAmericanoPago" method="post" class="d-inline">
+                                <input type="hidden" name="id" value="@l.TorneioId" />
+                                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3"
+                                        @(l.InscricoesAbertas ? "onclick=\"return confirm('As inscrições ainda estão abertas — o número de pessoas pode mudar. Marcar como pago mesmo assim?')\"" : "")>
+                                    Marcar como pago
+                                </button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table></div></div>
+
+        <div class="small text-muted mt-3">
+            O ponto só entra no Ranking Americano depois de <strong>pago</strong> e com o torneio
+            <strong>finalizado</strong>. Contratar é intenção — o que vale é o dinheiro ter entrado,
+            senão bastaria marcar a caixinha pra pontuar de graça.
+        </div>
+    }
+</div>

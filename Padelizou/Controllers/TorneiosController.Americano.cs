@@ -360,15 +360,9 @@ namespace Padelizou.Controllers
                          && p.Fase.StartsWith("Americano"))
                 .ToListAsync();
 
-            // ⚠️ Quem decide o título é o GRUPO FINAL quando ele existe. Somar o torneio
-            // inteiro juntaria gente de grupos diferentes, que nunca se enfrentou — e o
-            // desempate nasceria de uma liderança que não existe.
-            bool temGrupoFinal = doAmericano.Any(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase));
-            var queDecidem = doAmericano
-                .Where(p => temGrupoFinal
-                    ? FaseDoAmericano.EhDoGrupoFinal(p.Fase)
-                    : FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
-                .ToList();
+            // ⚠️ Quem decide o título é o GRUPO FINAL quando ele existe (a regra mora em
+            // TabelaDoAmericano.QueDecidem, porque o Ranking Americano faz a mesma pergunta).
+            var queDecidem = TabelaDoAmericano.QueDecidem(doAmericano);
 
             var classificacao = TabelaDoAmericano.Montar(queDecidem.Where(p => p.Status == "Finalizada"));
 
