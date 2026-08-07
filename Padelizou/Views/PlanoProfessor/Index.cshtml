@@ -7,6 +7,7 @@
     var situacao = (PlanoDoProfessor.Situacao)ViewBag.Situacao;
     DateTime? fimDoTeste = ViewBag.FimDoTeste;
     var cobrancaPendente = ViewBag.CobrancaPendente as Padelizou.Models.Pagamento;
+    var pixPendente = ViewBag.PixPendente as Padelizou.Models.Pagamento;
 
     int diasRestantes = fimDoTeste.HasValue
         ? Math.Max(0, (int)Math.Ceiling((fimDoTeste.Value - DateTime.Now).TotalDays)) : 0;
@@ -141,6 +142,18 @@
                                         <input type="hidden" name="plano" value="@PlanoDoProfessor.Assinante" />
                                         <button type="submit" class="btn btn-padel w-100 rounded-pill fw-bold">Quero ser Assinante</button>
                                     </form>
+                                }
+                                else if (pixPendente != null)
+                                {
+                                    @* O Pix aberto vem antes da fatura de gateway: se os dois
+                                       existem, pagar os dois cobraria a mensalidade em dobro. *@
+                                    <a asp-controller="Pagamentos" asp-action="Pix" asp-route-id="@pixPendente.Id"
+                                       class="btn btn-padel w-100 rounded-pill fw-bold">
+                                        <i class="bi bi-qr-code"></i>
+                                        @(pixPendente.Status == PixDireto.AguardandoConfirmacao
+                                            ? "Pix enviado — acompanhar"
+                                            : "Pagar a mensalidade com Pix")
+                                    </a>
                                 }
                                 else if (cobrancaPendente != null)
                                 {

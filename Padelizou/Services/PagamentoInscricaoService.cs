@@ -67,6 +67,13 @@ public interface IPagamentoInscricaoService
     // Mensalidade do professor assinante — também fica inteira com o Padelizou.
     Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor);
 
+    // As mesmas duas cobranças acima, mas por Pix DIRETO na conta do Padelizou, sem gateway
+    // (ver Services/PixDireto). Devolvem o Pagamento — a URL é a nossa tela do QR, não uma
+    // fatura de terceiro. Null = já existe cobrança de gateway pendente, ou o Pix não está
+    // configurado no painel.
+    Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor);
+    Task<Pagamento?> IniciarPixDiretoTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
+
     // Quem recebe a quadra é o dono do clube. Null = clube sem dono definido, então não há
     // pra quem repassar e a marcação segue gratuita.
     Task<Jogador?> ObterDonoDoClubeAsync(int clubeId);
@@ -315,6 +322,63 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         await _context.SaveChangesAsync();
 
         return cobranca.InvoiceUrl;
+    }
+
+    // ── Pix direto, sem gateway ───────────────────────────────────────────────────────────
+    // Só mensalidade e taxa do externo (100% receita nossa — ver Services/PixDireto). Não há
+    // cliente Asaas, não há fatura: o Pagamento nasce com o método "PixDireto" e a tela do QR
+    // é nossa. A confirmação vem do admin, não de webhook.
+
+    public Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor) =>
+        IniciarPixDiretoAsync(
+            PixDireto.TipoAssinatura, professor,
+            _plano.MensalidadeAssinante,
+            new DadosAssinaturaProfessor(professor.Id),
+            torneioId: null);
+
+    public Task<Pagamento?> IniciarPixDiretoTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor) =>
+        IniciarPixDiretoAsync(
+            PixDireto.TipoTaxaTorneio, organizador,
+            valor,
+            new DadosTaxaExterno(torneio.Id),
+            torneioId: torneio.Id);
+
+    private async Task<Pagamento?> IniciarPixDiretoAsync(
+        string tipo, Jogador pagador, decimal valor, object dados, int? torneioId)
+    {
+        if (valor <= 0) return null;
+
+        // Sem chave configurada não existe pra onde apontar o QR — quem chama cai no gateway.
+        if (await ChavePixDoPadelizou.LerAsync(_context) == null) return null;
+
+        // Dois cliques, uma cobrança — mesma regra do gateway. A pendente reaproveitada pode
+        // estar em qualquer um dos dois estados abertos do Pix.
+        var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == tipo && p.JogadorId == pagador.Id
+            && (torneioId == null || p.TorneioId == torneioId)
+            && p.MetodoPagamento == PixDireto.Metodo
+            && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
+        if (pendente != null) return pendente;
+
+        var pagamento = new Pagamento
+        {
+            Tipo = tipo,
+            TorneioId = torneioId,
+            JogadorId = pagador.Id,
+            RecebedorId = null,          // o valor inteiro é do Padelizou — não há repasse
+            Valor = valor,
+            ValorRepasse = 0m,
+            Comissao = valor,
+            MetodoPagamento = PixDireto.Metodo,
+            DadosInscricao = JsonSerializer.Serialize(dados),
+            // Sem ExpiraEm, como nas versões de gateway destes tipos: nenhuma vaga está sendo
+            // segurada, a cobrança espera o quanto precisar.
+            Status = "Pendente"
+        };
+        _context.Pagamentos.Add(pagamento);
+        await _context.SaveChangesAsync();
+
+        return pagamento;
     }
 
     public Task<string?> IniciarCobrancaQuadraAsync(Clube clube, Jogador dono, Jogador pagador,

@@ -32,6 +32,80 @@ public class PagamentosController : Controller
 
     private int ObterJogadorIdLogado() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    // ── Pix direto: a tela de quem paga ───────────────────────────────────────────────────
+    // A "fatura" do Pix direto é nossa, não do gateway: o QR, o copia e cola e o botão de
+    // "já fiz o Pix". Regras e textos em Services/PixDireto.
+
+    [HttpGet]
+    public async Task<IActionResult> Pix(int id)
+    {
+        var pagamento = await _context.Pagamentos.FindAsync(id);
+
+        bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+        var problema = PixDireto.ProblemaParaVer(pagamento, ObterJogadorIdLogado(), ehAdmin);
+        if (problema != null) return NotFound();
+
+        var dados = await ChavePixDoPadelizou.LerAsync(_context);
+        if (dados == null)
+        {
+            // A cobrança nasceu com a chave configurada; se sumiu no meio do caminho, o
+            // pagador não tem o que fazer — o problema é nosso e o texto diz isso.
+            TempData["Erro"] = "O recebimento por Pix está indisponível agora. Fale com a gente.";
+            return RedirectToAction("Meus");
+        }
+
+        ViewBag.CopiaECola = PixCopiaECola.Montar(
+            dados.Chave, dados.Nome, dados.Cidade, pagamento!.Valor, PixDireto.TxId(pagamento.Id));
+        ViewBag.Situacao = PixDireto.Situacao(pagamento);
+        return View(pagamento);
+    }
+
+    // O PNG do QR, desenhado na hora a partir do MESMO copia e cola da tela. Rota própria em
+    // vez de data-URI pra página não carregar uma string gigante — e o navegador pode cachear.
+    [HttpGet]
+    public async Task<IActionResult> PixQr(int id)
+    {
+        var pagamento = await _context.Pagamentos.FindAsync(id);
+
+        bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+        if (PixDireto.ProblemaParaVer(pagamento, ObterJogadorIdLogado(), ehAdmin) != null) return NotFound();
+
+        var dados = await ChavePixDoPadelizou.LerAsync(_context);
+        if (dados == null) return NotFound();
+
+        var payload = PixCopiaECola.Montar(
+            dados.Chave, dados.Nome, dados.Cidade, pagamento!.Valor, PixDireto.TxId(pagamento.Id));
+
+        using var gerador = new QRCoder.QRCodeGenerator();
+        // ECC M é o padrão dos QR de Pix: aguenta tela riscada sem inflar o código.
+        using var qr = gerador.CreateQrCode(payload, QRCoder.QRCodeGenerator.ECCLevel.M);
+        var png = new QRCoder.PngByteQRCode(qr).GetGraphic(pixelsPerModule: 10);
+
+        return File(png, "image/png");
+    }
+
+    // "Já fiz o Pix": muda o status pra fila de conferência do admin. Não confirma nada —
+    // quem confirma é quem olha o extrato do banco.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeclararPix(int id)
+    {
+        var pagamento = await _context.Pagamentos.FindAsync(id);
+
+        var problema = PixDireto.ProblemaParaDeclarar(pagamento, ObterJogadorIdLogado());
+        if (problema != null)
+        {
+            TempData["Erro"] = problema;
+            return RedirectToAction("Pix", new { id });
+        }
+
+        pagamento!.Status = PixDireto.AguardandoConfirmacao;
+        await _context.SaveChangesAsync();
+
+        TempData["Sucesso"] = "Aviso recebido! Assim que o Pix aparecer no extrato, a gente confirma por aqui.";
+        return RedirectToAction("Pix", new { id });
+    }
+
     // Tela onde quem organiza torneio ou dá aula liga o recebimento pelo app, informa a wallet
     // do Asaas e escolhe quem paga a comissão.
     [HttpGet]

@@ -1,0 +1,177 @@
+@model List<Padelizou.Models.Pagamento>
+@using RegrasDoPix = Padelizou.Services.PixDireto
+@{
+    ViewData["Title"] = "Pix direto - Padelizou";
+
+    string? chave = ViewBag.Chave;
+    string? nome = ViewBag.Nome;
+    string? cidade = ViewBag.Cidade;
+    bool configurado = chave != null;
+
+    var torneios = (Dictionary<int, string>)ViewBag.Torneios;
+
+    var declarados = Model.Where(p => p.Status == RegrasDoPix.AguardandoConfirmacao).ToList();
+    var esquecidos = Model.Where(p => p.Status == "Pendente").ToList();
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Pix direto</h2>
+            <p class="text-muted mb-0">Mensalidades e taxas caindo direto na conta, sem gateway.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-arrow-left"></i> Voltar ao painel
+        </a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* ── A chave ─────────────────────────────────────────────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-1"><i class="bi bi-key"></i> Chave que recebe</h5>
+            @if (!configurado)
+            {
+                <div class="alert alert-warning mb-3">
+                    <strong>O Pix direto está desligado.</strong> Sem chave configurada, mensalidade e
+                    taxa do externo continuam saindo pelo meio de pagamento, com a taxa dele.
+                    Preencher aqui é o que liga o recebimento direto.
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small mb-3">
+                    Todo Pix novo sai pra esta chave. Cobrança já gerada não muda — o código
+                    carrega a chave de quando nasceu.
+                </p>
+            }
+
+            <form asp-action="ConfigurarPix" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold" for="pix-chave">Chave Pix (a do CNPJ)</label>
+                    <input type="text" name="chave" id="pix-chave" class="form-control" value="@chave"
+                           placeholder="CNPJ, e-mail ou chave aleatória" maxlength="77" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold" for="pix-nome">Nome do recebedor</label>
+                    <input type="text" name="nome" id="pix-nome" class="form-control" value="@nome"
+                           placeholder="Como aparece no app do pagador" maxlength="60" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold" for="pix-cidade">Cidade</label>
+                    <input type="text" name="cidade" id="pix-cidade" class="form-control" value="@cidade"
+                           placeholder="Ex.: Porto Alegre" maxlength="40" required />
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 fw-bold mt-1">
+                        @(configurado ? "Atualizar" : "Ligar o Pix direto")
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* ── A fila ──────────────────────────────────────────────────────────────────────── *@
+    <h5 class="fw-bold mb-2"><i class="bi bi-inbox"></i> Pra conferir no extrato (@declarados.Count)</h5>
+    @if (declarados.Count == 0)
+    {
+        <p class="text-muted small">Ninguém avisou pagamento ainda. Quando alguém clicar em
+        "já fiz o Pix", a cobrança aparece aqui.</p>
+    }
+    else
+    {
+        <p class="text-muted small">
+            Cada linha é alguém dizendo que pagou. Ache o valor no extrato do banco — o
+            identificador <span class="font-monospace">PDZ…</span> aparece na descrição em
+            boa parte dos bancos — e dê baixa. <strong>Confirmar libera o que a pessoa
+            comprou</strong>, então confira antes.
+        </p>
+        @foreach (var p in declarados)
+        {
+            <div class="card border-0 shadow-sm mb-2">
+                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="fw-bold">@p.Valor.ToString("C")</span>
+                        <span class="font-monospace small text-muted ms-1">@RegrasDoPix.TxId(p.Id)</span><br />
+                        <span class="small">
+                            @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Mensalidade" : "Taxa de torneio")
+                            — @p.Jogador.Nome
+                            @if (p.TorneioId != null && torneios.TryGetValue(p.TorneioId.Value, out var nomeTorneio))
+                            {
+                                <text>· @nomeTorneio</text>
+                            }
+                        </span><br />
+                        <span class="small text-muted">Gerada em @p.CriadoEm.ToString("dd/MM 'às' HH:mm")</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form asp-action="ConfirmarPix" method="post"
+                              onsubmit="return confirm('O Pix de @p.Valor.ToString("C") apareceu no extrato? Confirmar dá baixa e libera na hora.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                                <i class="bi bi-check2"></i> Caiu no extrato
+                            </button>
+                        </form>
+                        <form asp-action="RecusarPix" method="post"
+                              onsubmit="return confirm('Cancelar esta cobrança? Use quando o Pix NÃO apareceu no extrato.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                Não caiu
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (esquecidos.Count > 0)
+    {
+        <h6 class="fw-bold mt-4 mb-2 text-muted">Geradas e nunca declaradas (@esquecidos.Count)</h6>
+        <p class="text-muted small">
+            QR gerado, mas ninguém clicou em "já fiz o Pix". O dinheiro pode ter caído mesmo
+            assim — se achar o valor no extrato, dá baixa por aqui igual.
+        </p>
+        @foreach (var p in esquecidos)
+        {
+            <div class="card border-0 mb-2" style="opacity: .75;">
+                <div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="small">
+                        <span class="fw-bold">@p.Valor.ToString("C")</span>
+                        <span class="font-monospace text-muted ms-1">@RegrasDoPix.TxId(p.Id)</span>
+                        — @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Mensalidade" : "Taxa de torneio"),
+                        @p.Jogador.Nome, @p.CriadoEm.ToString("dd/MM")
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form asp-action="ConfirmarPix" method="post"
+                              onsubmit="return confirm('O Pix de @p.Valor.ToString("C") apareceu no extrato? Confirmar dá baixa e libera na hora.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                Caiu no extrato
+                            </button>
+                        </form>
+                        <form asp-action="RecusarPix" method="post"
+                              onsubmit="return confirm('Cancelar esta cobrança?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@p.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                Cancelar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

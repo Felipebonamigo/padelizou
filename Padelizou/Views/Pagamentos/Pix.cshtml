@@ -1,0 +1,112 @@
+@model Padelizou.Models.Pagamento
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Pagar com Pix - Padelizou";
+
+    string copiaECola = ViewBag.CopiaECola;
+    string situacao = ViewBag.Situacao;
+
+    bool aguardando = Model.Status == PixDireto.AguardandoConfirmacao;
+    bool confirmado = Model.Status == "Confirmado";
+    bool aberto = Model.Status == "Pendente";
+
+    var descricao = Model.Tipo == PixDireto.TipoAssinatura
+        ? "Mensalidade do plano Assinante"
+        : "Taxa do Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+
+            <div class="mb-4">
+                <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Pagar com Pix</h2>
+                <div class="text-muted">@descricao — @Model.Valor.ToString("C")</div>
+            </div>
+
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Erro"]</div>
+            }
+
+            @if (confirmado)
+            {
+                <div class="alert alert-success d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill fs-4"></i>
+                    <div><strong>Pagamento confirmado!</strong> Tudo certo por aqui.</div>
+                </div>
+            }
+            else if (aguardando)
+            {
+                <div class="alert alert-info d-flex align-items-center gap-2">
+                    <i class="bi bi-hourglass-split fs-4"></i>
+                    <div>
+                        <strong>@situacao</strong><br />
+                        <span class="small">A confirmação é manual e costuma sair no mesmo dia.
+                        Você recebe um aviso assim que ela acontecer.</span>
+                    </div>
+                </div>
+            }
+
+            @if (!confirmado)
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body p-4 text-center">
+                        @* O QR e o copia e cola são o MESMO código — a rota PixQr desenha a
+                           string que está no botão abaixo. Quem está no celular não tem como
+                           apontar a câmera pra própria tela, daí o copia e cola vir junto. *@
+                        <img src="@Url.Action("PixQr", new { id = Model.Id })" alt="QR Code do Pix"
+                             class="img-fluid rounded" style="max-width: 260px;" />
+
+                        <div class="small text-muted mt-2 mb-3">
+                            Abra o app do seu banco, escolha <strong>pagar com Pix</strong> e aponte pro código —
+                            ou copie e cole:
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace small" readonly
+                                   value="@copiaECola" id="pix-copia-e-cola" />
+                            <button type="button" class="btn btn-outline-secondary" id="botao-copiar"
+                                    aria-label="Copiar o código Pix">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3 small text-muted">
+                            <span>Valor</span>
+                            <strong>@Model.Valor.ToString("C")</strong>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span>Identificador</span>
+                            <span class="font-monospace">@PixDireto.TxId(Model.Id)</span>
+                        </div>
+                    </div>
+                </div>
+
+                @if (aberto)
+                {
+                    @* O passo que substitui o webhook: sem este aviso, o pagamento só seria
+                       notado quando alguém varresse o extrato. Ver Services/PixDireto. *@
+                    <form asp-action="DeclararPix" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill fw-bold">
+                            <i class="bi bi-check2-circle"></i> Já fiz o Pix
+                        </button>
+                    </form>
+                    <div class="small text-muted text-center mt-2">
+                        Depois de pagar, clique aqui — a gente confere no extrato e confirma.
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/pix-copiar.js"></script>
+}

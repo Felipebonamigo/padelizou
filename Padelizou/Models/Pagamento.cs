@@ -49,11 +49,24 @@ public class Pagamento
     public string? AsaasCustomerId { get; set; }
     public string? InvoiceUrl { get; set; }
 
-    // "Pendente" | "Confirmado" | "Cancelado" | "Estornado"
+    // "Pendente" | "Confirmado" | "Cancelado" | "Estornado" | "AguardandoConfirmacao"
+    //
+    // O último só existe no Pix direto: o pagador disse que pagou e o admin ainda não conferiu
+    // o extrato. É pendente pra todos os efeitos — só não é "esquecido" (ver Services/PixDireto).
     public string Status { get; set; } = "Pendente";
+
+    // "Gateway" (o padrão de sempre) | "PixDireto".
+    //
+    // Só vale "PixDireto" no que é 100% receita do Padelizou — mensalidade e taxa do externo.
+    // Quem tem repasse a fazer PRECISA do split do gateway; a trava está em PixDireto.AceitaPix.
+    public string MetodoPagamento { get; set; } = "Gateway";
 
     public DateTime CriadoEm { get; set; } = DateTime.Now;
     public DateTime? ConfirmadoEm { get; set; }
+
+    // Quem deu baixa no Pix direto. No gateway ninguém dá — quem confirma é o webhook — então
+    // fica nulo lá. Aqui é uma PESSOA decidindo que o dinheiro entrou, e isso precisa de nome.
+    public int? ConfirmadoPorJogadorId { get; set; }
 
     // Depois disso a cobrança perde a validade e a vaga segurada é liberada.
     public DateTime? ExpiraEm { get; set; }

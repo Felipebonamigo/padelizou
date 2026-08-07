@@ -5,6 +5,8 @@ using Padelizou.Models;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 using System.Security.Claims;
+// A ação PixDireto() abaixo esconde a classe de regras de mesmo nome — o alias desfaz o empate.
+using RegrasDoPix = Padelizou.Services.PixDireto;
 
 namespace padelizou.Controllers
 {
@@ -672,6 +674,119 @@ namespace padelizou.Controllers
                 habilitar ? "LIGADO" : "DESLIGADO", admin.Id);
 
             return RedirectToAction("Index");
+        }
+
+        // ── Pix direto: configuração da chave + fila de conferência ───────────────────────
+        // O dinheiro da mensalidade e da taxa do externo caindo direto na conta do Padelizou,
+        // sem gateway. O QR não avisa quando é pago, então a confirmação é MANUAL: o admin
+        // olha o extrato do banco e dá baixa aqui (ver Services/PixDireto).
+
+        [HttpGet]
+        public async Task<IActionResult> PixDireto()
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var dados = await ChavePixDoPadelizou.LerAsync(_context);
+            ViewBag.Chave = dados?.Chave;
+            ViewBag.Nome = dados?.Nome;
+            ViewBag.Cidade = dados?.Cidade;
+
+            // A fila inteira de cobranças Pix abertas — quem declarou primeiro no topo, e as
+            // que ninguém declarou por último (o Pix pode ter caído sem clique nenhum).
+            var fila = await _context.Pagamentos
+                .Include(p => p.Jogador)
+                .Where(p => p.MetodoPagamento == RegrasDoPix.Metodo
+                    && (p.Status == "Pendente" || p.Status == RegrasDoPix.AguardandoConfirmacao))
+                .OrderBy(p => p.Status == "Pendente" ? 1 : 0)
+                .ThenBy(p => p.CriadoEm)
+                .ToListAsync();
+
+            // Nome dos torneios da taxa do externo, numa consulta só.
+            var torneioIds = fila.Where(p => p.TorneioId != null).Select(p => p.TorneioId!.Value).Distinct().ToList();
+            ViewBag.Torneios = await _context.Torneios
+                .Where(t => torneioIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Nome);
+
+            return View(fila);
+        }
+
+        // ⚠️ Só o admin RAIZ, como o portão: a chave decide PRA ONDE VAI O DINHEIRO. Um admin
+        // nomeado que pudesse trocá-la poderia apontar todo Pix pra conta dele.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfigurarPix(string? chave, string? nome, string? cidade)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var problema = ChavePixDoPadelizou.Problema(chave, nome, cidade);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("PixDireto");
+            }
+
+            await ChavePixDoPadelizou.GravarAsync(_context, chave!, nome!, cidade!, admin.Id);
+
+            _logger?.LogWarning("Chave Pix do recebimento direto alterada pelo admin {AdminId}.", admin.Id);
+            TempData["Sucesso"] = "Chave Pix gravada. As próximas cobranças por Pix já saem pra ela.";
+            return RedirectToAction("PixDireto");
+        }
+
+        // A baixa: o admin conferiu que o Pix caiu no extrato. É o webhook humano — daqui em
+        // diante o fluxo é o mesmo do gateway (EfetivarAsync), inclusive as notificações.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmarPix(int id,
+            [FromServices] IPagamentoInscricaoService pagamentos)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return Forbid();
+
+            var pagamento = await _context.Pagamentos.FindAsync(id);
+            var problema = RegrasDoPix.ProblemaParaConfirmar(pagamento);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("PixDireto");
+            }
+
+            pagamento!.Status = "Confirmado";
+            pagamento.ConfirmadoEm = DateTime.Now;
+            pagamento.ConfirmadoPorJogadorId = admin.Id;
+            await _context.SaveChangesAsync();
+
+            await pagamentos.EfetivarAsync(pagamento);
+
+            _logger?.LogInformation("Pix direto {Id} confirmado pelo admin {AdminId}.", pagamento.Id, admin.Id);
+            TempData["Sucesso"] = $"Pagamento #{pagamento.Id} confirmado — {pagamento.Valor:C} registrado.";
+            return RedirectToAction("PixDireto");
+        }
+
+        // O Pix não apareceu no extrato: a cobrança sai da fila sem virar dinheiro. Quem pagou
+        // de verdade e foi recusado por engano gera outra cobrança e avisa de novo.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecusarPix(int id)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return Forbid();
+
+            var pagamento = await _context.Pagamentos.FindAsync(id);
+            var problema = RegrasDoPix.ProblemaParaRecusar(pagamento);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("PixDireto");
+            }
+
+            pagamento!.Status = "Cancelado";
+            await _context.SaveChangesAsync();
+
+            _logger?.LogInformation("Pix direto {Id} recusado pelo admin {AdminId}.", pagamento.Id, admin.Id);
+            TempData["Sucesso"] = $"Cobrança #{pagamento.Id} cancelada.";
+            return RedirectToAction("PixDireto");
         }
     }
 }

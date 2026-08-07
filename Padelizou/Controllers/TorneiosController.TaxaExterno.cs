@@ -62,6 +62,12 @@ namespace Padelizou.Controllers
             ViewBag.CobrancaPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
                 p.Tipo == "TaxaTorneio" && p.TorneioId == id && p.Status == "Pendente" && p.InvoiceUrl != null);
 
+            // A cobrança Pix aberta, se houver — o botão vira "ver o Pix" em vez de gerar outra.
+            ViewBag.PixPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+                p.Tipo == PixDireto.TipoTaxaTorneio && p.TorneioId == id
+                && p.MetodoPagamento == PixDireto.Metodo
+                && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
+
             return View(torneio);
         }
 
@@ -99,6 +105,11 @@ namespace Padelizou.Controllers
 
             var organizador = await _context.Jogadores.FindAsync(meuId);
             if (organizador == null) return NotFound();
+
+            // Pix direto primeiro: os 5% caem inteiros na conta do Padelizou, sem gateway no
+            // meio. O caminho da fatura só fica pra quando a chave Pix não está configurada.
+            var pix = await _pagamentos.IniciarPixDiretoTaxaExternoAsync(torneio, organizador, valor);
+            if (pix != null) return RedirectToAction("Pix", "Pagamentos", new { id = pix.Id });
 
             var url = await _pagamentos.IniciarCobrancaTaxaExternoAsync(torneio, organizador, valor);
             if (url == null)

@@ -56,6 +56,12 @@ public class PlanoProfessorController : Controller
             p.Tipo == "AssinaturaProfessor" && p.JogadorId == eu.Id
             && p.Status == "Pendente" && p.InvoiceUrl != null);
 
+        // A cobrança Pix aberta, se houver — o botão vira "ver o Pix" em vez de gerar outra.
+        ViewBag.PixPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == PixDireto.TipoAssinatura && p.JogadorId == eu.Id
+            && p.MetodoPagamento == PixDireto.Metodo
+            && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
+
         return View(eu);
     }
 
@@ -87,6 +93,11 @@ public class PlanoProfessorController : Controller
             TempData["Erro"] = "Escolha o plano Assinante primeiro.";
             return RedirectToAction("Index");
         }
+
+        // Pix direto primeiro: cai na nossa conta sem taxa de gateway. Só quando a chave não
+        // está configurada é que a mensalidade vai pro caminho antigo, com fatura do gateway.
+        var pix = await _pagamentos.IniciarPixDiretoAssinaturaAsync(eu);
+        if (pix != null) return RedirectToAction("Pix", "Pagamentos", new { id = pix.Id });
 
         var url = await _pagamentos.IniciarCobrancaAssinaturaAsync(eu);
         if (url == null)

@@ -9,6 +9,7 @@
     decimal valor = ViewBag.Valor ?? 0m;
     bool ehAdmin = ViewBag.EhAdmin ?? false;
     var cobrancaPendente = ViewBag.CobrancaPendente as Padelizou.Models.Pagamento;
+    var pixPendente = ViewBag.PixPendente as Padelizou.Models.Pagamento;
 
     bool liberadas = TaxaDoTorneioExterno.ChavesLiberadas(Model);
     bool inscricoesAbertas = Model.Status == "Inscrições Abertas";
@@ -103,6 +104,22 @@
                         encerre as inscrições na página do torneio e volte aqui pra pagar o valor final.
                     </div>
                 }
+                else if (pixPendente != null)
+                {
+                    @* Pix direto já gerado: o caminho é a NOSSA tela do QR, não uma fatura. *@
+                    <div class="alert alert-info">
+                        <i class="bi bi-hourglass-split"></i>
+                        <strong>Já existe um Pix aguardando</strong>
+                        (@pixPendente.Valor.ToString("C"), gerado em @pixPendente.CriadoEm.ToString("dd/MM 'às' HH:mm")).
+                        @(pixPendente.Status == PixDireto.AguardandoConfirmacao
+                            ? "Você avisou que pagou — estamos conferindo o extrato."
+                            : "Pague pelo QR e avise por lá — as chaves liberam na conferência.")
+                    </div>
+                    <a asp-controller="Pagamentos" asp-action="Pix" asp-route-id="@pixPendente.Id"
+                       class="btn btn-padel btn-lg w-100 rounded-pill fw-bold">
+                        <i class="bi bi-qr-code"></i> Ver o Pix de @pixPendente.Valor.ToString("C")
+                    </a>
+                }
                 else if (cobrancaPendente != null)
                 {
                     <div class="alert alert-info">
@@ -126,8 +143,10 @@
                             <i class="bi bi-credit-card"></i> Pagar @valor.ToString("C") agora
                         </button>
                     </form>
+                    @* Neutro de propósito: quem decide se sai um QR nosso ou uma fatura do
+                       gateway é o servidor, no clique — a tela não sabe qual dos dois vem. *@
                     <div class="small text-muted text-center mt-2">
-                        Pix, boleto ou cartão — as chaves liberam sozinhas assim que o pagamento confirmar.
+                        As chaves liberam assim que o pagamento for confirmado.
                     </div>
                 }
 
