@@ -27,6 +27,8 @@ namespace Padelizou.Controllers
             var quemPede = await _context.Jogadores.FindAsync(ObterJogadorIdLogado() ?? 0);
             ViewBag.PodeCriarOficial = PermissaoDeOrganizador.PodeCriarOficial(quemPede);
             ViewBag.ComoPedirOPerfil = PermissaoDeOrganizador.ComoPedirOPerfil;
+            // Pra tela saber se mostra o botão de pedir ou o "seu pedido está na fila".
+            ViewBag.EstadoDoPedido = PermissaoDeOrganizador.EstadoDe(quemPede);
 
             // Busca as categorias do banco para montar os Checkboxes na tela. Só as ATIVAS:
             // categoria desligada continua valendo onde já foi usada, mas não é oferecida.
@@ -939,5 +941,75 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id });
         }
 
+        // PEDIR A LIBERAÇÃO DO TORNEIO OFICIAL.
+        //
+        // Até aqui a recusa mandava a pessoa "falar com a gente pelo WhatsApp". Funciona, e
+        // vaza gente: quem decidiu criar um torneio às 23h de um domingo não abre conversa com
+        // desconhecido — fecha o app. Um toque transforma a recusa numa fila, e a fila é o que
+        // o admin consegue resolver em dois minutos no dia seguinte.
+        //
+        // ⚠️ Não mexe em permissão nenhuma: só registra que a pessoa quer. Quem libera é o
+        // admin raiz, na tela dele (AdminController.Organizadores).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SolicitarPerfilDeOrganizador(string? motivo, string? voltarPara = null)
+        {
+            var jogador = await _context.Jogadores.FindAsync(ObterJogadorIdLogado() ?? 0);
+            if (jogador == null) return Forbid();
+
+            if (PermissaoDeOrganizador.MotivoParaNaoPedir(jogador) is { } recusa)
+            {
+                TempData["Erro"] = recusa;
+                return VoltarDoPedido(voltarPara);
+            }
+
+            jogador.SolicitouOrganizadorEm = DateTime.Now;
+            // Corta em vez de recusar: o motivo é OPCIONAL e ninguém pode perder o pedido
+            // porque escreveu demais — a coluna aceita 500 e o excedente não faz falta.
+            var texto = motivo?.Trim();
+            jogador.MotivoDoPedidoDeOrganizador = string.IsNullOrEmpty(texto)
+                ? null
+                : texto.Length > 500 ? texto[..500] : texto;
+
+            // Pedido novo limpa a recusa antiga: um "não" de meses atrás não pode fazer o
+            // pedido de hoje nascer marcado como já negado na tela do admin.
+            jogador.PedidoDeOrganizadorRecusadoEm = null;
+            await _context.SaveChangesAsync();
+
+            // O admin precisa saber que tem gente esperando — senão a fila só é descoberta
+            // quando alguém lembra de abrir a tela. Enfileira e segue: a entrega sai por fora
+            // da requisição (Services/FilaDeAvisos).
+            try
+            {
+                var admins = await _context.Jogadores
+                    .Where(j => j.IsAdminRaiz && j.ExcluidoEm == null)
+                    .Select(j => j.Id)
+                    .ToListAsync();
+
+                foreach (var adminId in admins)
+                {
+                    await _pushService.EnviarParaJogadorAsync(adminId,
+                        "Alguém quer criar torneios",
+                        $"{NomeBonito.Formatar(jogador.Nome)} pediu liberação pro torneio Oficial.",
+                        Url.Action("Organizadores", "Admin"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar os admins do pedido de organizador de {JogadorId}.", jogador.Id);
+            }
+
+            TempData["Sucesso"] = TextoDoPedidoDeOrganizador
+                .Frase(PermissaoDeOrganizador.EstadoDoPedido.Esperando);
+            return VoltarDoPedido(voltarPara);
+        }
+
+        // Lista fechada de destinos: `voltarPara` vem do formulário, e campo de formulário
+        // nunca vira redirecionamento pra qualquer lugar.
+        private IActionResult VoltarDoPedido(string? voltarPara) =>
+            voltarPara == "Create"
+                ? RedirectToAction(nameof(Create))
+                : RedirectToAction(nameof(Index));
     }
 }

@@ -22,6 +22,17 @@ namespace padelizou.Controllers
         {
             if (await ObterJogadorAdminRaizAsync() == null) return RedirectToAction("Perfil", "Auth");
 
+            // A FILA vem primeiro na tela porque é a única parte que exige ação: a lista de
+            // quem já tem o perfil é consulta, e consulta não pode empurrar decisão pra baixo.
+            //
+            // ⚠️ `!IsOrganizadorTorneio` no filtro: se o admin liberar a pessoa por outro
+            // caminho (a busca aqui embaixo), o pedido dela some da fila sozinho em vez de
+            // ficar pedindo uma decisão que já foi tomada.
+            ViewBag.Pedidos = await _context.Jogadores
+                .Where(j => j.SolicitouOrganizadorEm != null && !j.IsOrganizadorTorneio && j.ExcluidoEm == null)
+                .OrderBy(j => j.SolicitouOrganizadorEm)
+                .ToListAsync();
+
             ViewBag.ComPerfil = await _context.Jogadores
                 .Where(j => j.IsOrganizadorTorneio && j.ExcluidoEm == null)
                 .OrderBy(j => j.Nome)
@@ -47,6 +58,12 @@ namespace padelizou.Controllers
             if (jogador == null) return NotFound();
 
             jogador.IsOrganizadorTorneio = true;
+
+            // O pedido sai da fila junto com a liberação — deixá-lo lá faria o admin decidir
+            // duas vezes a mesma coisa. A recusa antiga também some: ela não descreve mais
+            // ninguém depois que a pessoa foi liberada.
+            jogador.SolicitouOrganizadorEm = null;
+            jogador.PedidoDeOrganizadorRecusadoEm = null;
             await _context.SaveChangesAsync();
 
             // Avisa a pessoa: ela pediu e está esperando. Descobrir sozinha, tentando de novo
@@ -84,6 +101,31 @@ namespace padelizou.Controllers
             // jogadores por algo que eles não fizeram. O que ela perde é abrir torneio novo.
             TempData["Sucesso"] = $"{NomeBonito.Formatar(jogador.Nome)} não cria mais torneios. "
                 + "Os torneios que já existem continuam de pé, e ela segue organizando os dela.";
+            return RedirectToAction(nameof(Organizadores));
+        }
+
+        // RECUSAR o pedido. Existe pra fila ANDAR: sem isso, o pedido que o admin decidiu não
+        // atender fica na tela pra sempre, e uma fila que só cresce deixa de ser lida.
+        //
+        // ⚠️ Recusar NÃO é castigo nem porta fechada: a pessoa continua criando Americano, e
+        // pode pedir de novo (o pedido novo limpa esta recusa). Por isso ela não recebe aviso
+        // de "negado" — um push assim é um tapa que não resolve nada. Ela vê na tela, com o
+        // convite pra pedir de novo contando mais.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecusarPedidoDeOrganizador(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            jogador.SolicitouOrganizadorEm = null;
+            jogador.PedidoDeOrganizadorRecusadoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Pedido de {NomeBonito.Formatar(jogador.Nome)} saiu da fila. "
+                + "Ela continua criando Americano, e pode pedir de novo.";
             return RedirectToAction(nameof(Organizadores));
         }
 

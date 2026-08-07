@@ -168,6 +168,26 @@ public partial class Jogador
     // precisar deste perfil. Aqui é só o direito de ABRIR um torneio novo.
     public bool IsOrganizadorTorneio { get; set; }
 
+    // ── O PEDIDO DESSE PERFIL, FEITO DENTRO DO APP ──────────────────────────────────────
+    //
+    // Antes a recusa dizia "fale com a gente pelo WhatsApp". Funciona, e vaza gente: quem
+    // topou criar um torneio às 23h de um domingo não vai abrir conversa com desconhecido —
+    // fecha o app e não volta. O pedido de um toque transforma a recusa em fila, e a fila é
+    // exatamente o que o Felipe quer ver.
+    //
+    // Sem tabela nova de propósito: é UM pedido por pessoa, sem histórico que alguém vá ler.
+    // Uma tabela aqui seria estrutura a mais pra guardar no máximo duas datas.
+    public DateTime? SolicitouOrganizadorEm { get; set; }
+
+    // Por que quer — opcional, e o que faz a diferença na hora de decidir: "sou professor no
+    // Batata Padel e faço interno todo mês" resolve o pedido em cinco segundos.
+    public string? MotivoDoPedidoDeOrganizador { get; set; }
+
+    // ⚠️ Recusa é DATA, não booleano: o admin precisa distinguir "nunca pediu" de "pedi e me
+    // disseram não". E a pessoa recusada pode pedir de novo (o pedido novo limpa esta data) —
+    // um "não" de hoje não é sentença perpétua; o clube dela pode crescer no mês que vem.
+    public DateTime? PedidoDeOrganizadorRecusadoEm { get; set; }
+
     // Preferências de notificação por tipo de aviso (independentes do canal NotificarEmail/
     // NotificarWhatsApp, que definem COMO recebe; estas definem O QUE recebe).
     public bool NotificarTorneiosAbertos { get; set; } = true;

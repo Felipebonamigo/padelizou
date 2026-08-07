@@ -4,6 +4,7 @@
     var comPerfil = ViewBag.ComPerfil as List<Jogador> ?? new();
     var achados = ViewBag.Achados as List<Jogador> ?? new();
     var busca = ViewBag.Busca as string;
+    var pedidos = ViewBag.Pedidos as List<Jogador> ?? new();
 }
 
 <div class="container mt-4 mb-5">
@@ -11,8 +12,8 @@
         <div>
             <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Quem pode criar torneio</h2>
             <p class="text-muted mb-0">
-                Criar torneio é liberado pessoa a pessoa. Quem não tem o perfil vê um recado
-                pedindo pra falar com a gente.
+                Criar torneio Oficial é liberado pessoa a pessoa. Quem ainda não tem o perfil
+                vê um botão pra <strong>pedir a liberação</strong> — os pedidos caem aqui.
             </p>
         </div>
         <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
@@ -32,6 +33,68 @@
         perde um jogador de vez.
         <strong>O admin do Padelizou cria torneio de qualquer jeito</strong>, sem precisar deste perfil.
     </div>
+
+    @* A FILA VEM ANTES DA BUSCA porque é a única parte desta tela que exige decisão. Lista de
+       quem já tem o perfil é consulta, e consulta não pode empurrar decisão pra baixo da
+       dobra — fila que não se vê é fila que não anda. *@
+    @if (pedidos.Count > 0)
+    {
+        <div class="card shadow-sm border-0 mb-4 border-start border-4" style="border-color: var(--padel-green) !important;">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">
+                    <i class="bi bi-hand-index-thumb"></i>
+                    Pedidos esperando
+                    <span class="badge bg-success ms-1">@pedidos.Count</span>
+                </h6>
+
+                @foreach (var pedido in pedidos)
+                {
+                    <div class="d-flex flex-wrap align-items-start gap-2 py-3 border-top">
+                        <div class="flex-grow-1" style="min-width: 16rem;">
+                            <div class="fw-bold" style="color: var(--pdz-ink);">
+                                @Padelizou.Services.NomeBonito.Formatar(pedido.Nome)
+                            </div>
+                            <div class="small text-muted">
+                                Pediu em @pedido.SolicitouOrganizadorEm?.ToString("dd/MM 'às' HH:mm")
+                                @if (pedido.PedidoDeOrganizadorRecusadoEm != null)
+                                {
+                                    <span class="badge bg-secondary ms-1">já pediu antes</span>
+                                }
+                            </div>
+                            @* O motivo é o que resolve o pedido em cinco segundos — por isso ele
+                               fica em destaque, e não escondido num "ver detalhes". *@
+                            <div class="small mt-1 fst-italic" style="color: var(--pdz-ink);">
+                                “@(string.IsNullOrWhiteSpace(pedido.MotivoDoPedidoDeOrganizador)
+                                    ? Padelizou.Services.PermissaoDeOrganizador.SemMotivoEscrito
+                                    : pedido.MotivoDoPedidoDeOrganizador)”
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 ms-auto">
+                            <form asp-controller="Admin" asp-action="DarPerfilDeOrganizador" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="jogadorId" value="@pedido.Id" />
+                                <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                                    <i class="bi bi-check-lg"></i> Liberar
+                                </button>
+                            </form>
+                            @* Recusar não fecha porta: a pessoa segue criando Americano e pode
+                               pedir de novo. O botão existe pra FILA ANDAR — pedido que não se
+                               resolve fica pedindo decisão pra sempre. *@
+                            <form asp-controller="Admin" asp-action="RecusarPedidoDeOrganizador" method="post"
+                                  onsubmit="return confirm('Tirar este pedido da fila? A pessoa continua criando Americano e pode pedir de novo.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="jogadorId" value="@pedido.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                    Agora não
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">

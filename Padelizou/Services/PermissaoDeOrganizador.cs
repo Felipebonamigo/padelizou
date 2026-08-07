@@ -55,8 +55,47 @@ public static class PermissaoDeOrganizador
     // E aponta a saída que existe HOJE: o Americano, que não depende de liberação nenhuma.
     public const string ComoPedirOPerfil =
         "O torneio Oficial (duplas fixas, com chave) é liberado organizador por organizador. "
-        + "Fale com a gente pelo WhatsApp que a liberação é rápida. "
+        + "Peça a liberação por aqui mesmo — a gente responde rápido. "
         + "Enquanto isso, o Americano você já pode criar agora mesmo.";
+
+    // ── O PEDIDO ───────────────────────────────────────────────────────────────────────
+    //
+    // Três estados, e a tela precisa dos três porque cada um pede uma frase diferente:
+    // quem nunca pediu vê um botão, quem está esperando vê "seu pedido está na fila" (e NÃO
+    // um botão que ele apertaria de novo achando que não foi), e quem foi recusado vê que
+    // pode tentar de novo.
+    public enum EstadoDoPedido { PodeCriar, NuncaPediu, Esperando, Recusado }
+
+    public static EstadoDoPedido EstadoDe(Jogador? jogador)
+    {
+        if (jogador == null) return EstadoDoPedido.NuncaPediu;
+        if (PodeCriarOficial(jogador)) return EstadoDoPedido.PodeCriar;
+        if (jogador.SolicitouOrganizadorEm != null) return EstadoDoPedido.Esperando;
+        return jogador.PedidoDeOrganizadorRecusadoEm != null
+            ? EstadoDoPedido.Recusado
+            : EstadoDoPedido.NuncaPediu;
+    }
+
+    // Null = pode pedir. Texto = por que não, na língua de quem lê.
+    //
+    // ⚠️ Quem JÁ PODE criar não pode pedir: sem esta trava, o admin veria na fila um pedido
+    // de alguém que já tem o perfil — e gastaria o tempo dele pra descobrir que não havia
+    // nada a fazer.
+    public static string? MotivoParaNaoPedir(Jogador? jogador)
+    {
+        if (jogador == null) return "Entre na sua conta pra pedir a liberação.";
+
+        return EstadoDe(jogador) switch
+        {
+            EstadoDoPedido.PodeCriar => "Você já pode criar torneio Oficial.",
+            EstadoDoPedido.Esperando => "Seu pedido já está na fila — a gente avisa assim que olhar.",
+            _ => null,
+        };
+    }
+
+    // O que o admin lê na fila. Pedido sem motivo escrito é comum (o campo é opcional) e não
+    // pode virar uma linha vazia: a frase padrão diz isso com todas as letras.
+    public const string SemMotivoEscrito = "Não escreveu o motivo.";
 
     // Torneio aparece na listagem pública, na Home e no aviso? Só depois de aprovado.
     //
@@ -65,4 +104,23 @@ public static class PermissaoDeOrganizador
     // da vitrine torneio que já estava anunciado e com gente inscrita.
     public static bool ApareceNaVitrine(Torneio torneio) =>
         torneio.AprovadoEm != null && !torneio.Oculto;
+}
+
+// Separado da regra de propósito: isto aqui é TEXTO DE TELA, e muda por razão diferente da
+// permissão. Misturar os dois faz mexer na regra pra ajustar uma vírgula.
+public static class TextoDoPedidoDeOrganizador
+{
+    public static string Frase(PermissaoDeOrganizador.EstadoDoPedido estado) => estado switch
+    {
+        PermissaoDeOrganizador.EstadoDoPedido.PodeCriar =>
+            "Você pode criar torneio Oficial.",
+        PermissaoDeOrganizador.EstadoDoPedido.Esperando =>
+            "Pedido enviado! Assim que a gente liberar, você recebe um aviso — e o Americano "
+            + "você já pode criar agora, sem esperar nada.",
+        PermissaoDeOrganizador.EstadoDoPedido.Recusado =>
+            "Seu pedido anterior não foi liberado. Dá pra pedir de novo contando um pouco mais "
+            + "sobre os torneios que você organiza.",
+        _ =>
+            "Quer criar torneio Oficial (duplas fixas, com chave e ranking)? Peça a liberação.",
+    };
 }

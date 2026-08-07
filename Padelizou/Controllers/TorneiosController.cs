@@ -180,6 +180,14 @@ namespace Padelizou.Controllers
             // o torneio ainda está de pé.
             ViewBag.Cancelados = DoMaisRecente(torneios.Where(t => CancelamentoDoTorneio.EstaCancelado(t.Status)));
 
+            // O convite pra pedir a liberação do torneio Oficial mora AQUI, e não só na tela
+            // de criação: esta é a página que a pessoa abre pra ver torneio dos outros, e é
+            // olhando ela que dá vontade de fazer o próprio. Na criação o convite chega tarde
+            // — ela já entrou querendo criar.
+            var euMesmo = jogadorId.HasValue ? await _context.Jogadores.FindAsync(jogadorId.Value) : null;
+            ViewBag.EstadoDoPedido = PermissaoDeOrganizador.EstadoDe(euMesmo);
+            ViewBag.EstouLogado = euMesmo != null;
+
             return View();
         }
 
