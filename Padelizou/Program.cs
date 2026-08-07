@@ -165,6 +165,8 @@ builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
+// Tira do WhatsApp quem nunca pediu pra estar lá — a causa raiz da restrição de 04/08.
+builder.Services.AddScoped<DesfazerOptInHerdado>();
 // Todo 500 vira registro em ErroDoSistema + aviso pros admins (com janela de silêncio).
 // O IExceptionHandler roda dentro do UseExceptionHandler, antes da página amiga.
 builder.Services.AddScoped<RegistroDeErros>();
@@ -177,6 +179,9 @@ builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 builder.Services.AddSingleton<FilaDeWhatsApp>();
+// Quanto já saiu pelo canal, e o teto que ele respeita. Singleton porque a contagem é do
+// PROCESSO — ver Services/VolumeDoWhatsApp pro que o espaçamento da fila não resolve.
+builder.Services.AddSingleton<VolumeDoWhatsApp>();
 builder.Services.AddHostedService<EntregadorDeWhatsAppBackgroundService>();
 // Aviso sai por fora da requisição: finalizar jogo não pode esperar SMTP. Ver FilaDeAvisos.
 builder.Services.AddSingleton<FilaDeAvisos>();
@@ -236,6 +241,11 @@ using (var scope = app.Services.CreateScope())
     // Precisa vir DEPOIS do Migrate (a tabela pode ter acabado de nascer) e ANTES da primeira
     // requisição — o middleware do portão roda antes do roteamento e lê isto da memória.
     await scope.ServiceProvider.GetRequiredService<PortaoDeAcesso>().CarregarAsync(db);
+
+    // Desde quando o número do WhatsApp esquenta. A contagem da hora e do dia é em memória e
+    // zera no restart de propósito; ESTA data não pode zerar, senão o aquecimento recomeça a
+    // cada deploy e o canal nunca sai do teto baixo. Ver Services/VolumeDoWhatsApp.
+    await scope.ServiceProvider.GetRequiredService<VolumeDoWhatsApp>().CarregarAsync(db);
 
     // As duas "Iniciantes" nascem DESLIGADAS (Ativa: false): saíram do catálogo que as telas
     // oferecem. Não são apagadas porque torneio, preferência de jogador e aviso guardam o Id

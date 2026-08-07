@@ -13,7 +13,8 @@ public class ContatoSuporteTests
         var link = WhatsAppLinkHelper.GerarLink(new SuporteSettings().WhatsApp, "Olá!");
 
         // 55 (Brasil) + 51 (DDD) + o número. Sem parênteses, traço ou espaço — o wa.me recusa.
-        Assert.StartsWith("https://wa.me/5551992395650?text=", link);
+        // 07/08/2026: era o 99239-5650 ("Bonamigo Systems"), virou o pessoal do Felipe.
+        Assert.StartsWith("https://wa.me/5551994854884?text=", link);
     }
 
     [Theory]
@@ -44,7 +45,7 @@ public class ContatoSuporteTests
     [Fact]
     public void Numero_aparece_formatado_pra_quem_le_na_tela()
     {
-        Assert.Equal("(51) 99239-5650", new SuporteSettings().WhatsAppFormatado);
+        Assert.Equal("(51) 99485-4884", new SuporteSettings().WhatsAppFormatado);
         Assert.Equal("(51) 3333-4444", WhatsAppLinkHelper.Formatar("5133334444"));
     }
 

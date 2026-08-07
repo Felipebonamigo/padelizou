@@ -35,7 +35,24 @@ public static class AvisoPorWhatsApp
         var link = LinkAbsoluto(url, urlDoSite);
         if (link != null) texto += $"\n\n{link}";
 
+        var saida = Saida(urlDoSite);
+        if (saida != null) texto += $"\n\n{saida}";
+
         return texto;
+    }
+
+    // O caminho de saída, em toda mensagem. Não é gentileza: **denúncia é o gatilho mais forte
+    // que a Meta tem**, e quem não acha como sair denuncia. Custa três linhas e tira o motivo.
+    //
+    // ⚠️ O link vem PRIMEIRO porque é o único que funciona sozinho — desmarcar nas preferências
+    // é imediato e não depende de ninguém. O "responda SAIR" vem atrás e é **manual**: não há
+    // webhook de entrada, então quem lê a resposta é o Felipe, no celular do chip. Prometer os
+    // dois e cumprir só um seria pior que não prometer.
+    private static string? Saida(string urlDoSite)
+    {
+        if (string.IsNullOrWhiteSpace(urlDoSite)) return null;
+
+        return $"_Pra não receber mais: {urlDoSite.TrimEnd('/')}/Auth/Preferencias — ou responda SAIR._";
     }
 
     // A notificação carrega caminho relativo ("/Agenda") porque o navegador resolve sozinho.

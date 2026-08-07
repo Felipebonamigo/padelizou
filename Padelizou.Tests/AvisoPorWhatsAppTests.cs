@@ -32,7 +32,38 @@ public class AvisoPorWhatsAppTests
     {
         var texto = AvisoPorWhatsApp.Montar("Jogo em 24h!", "Confirma presença dia 02/08.", "/Agenda", Site);
 
-        Assert.Equal("*Jogo em 24h!*\nConfirma presença dia 02/08.\n\nhttps://padelizou.com.br/Agenda", texto);
+        Assert.Equal("*Jogo em 24h!*\nConfirma presença dia 02/08.\n\nhttps://padelizou.com.br/Agenda"
+                   + "\n\n_Pra não receber mais: https://padelizou.com.br/Auth/Preferencias — ou responda SAIR._",
+                   texto);
+    }
+
+    // A SAÍDA VAI EM TODA MENSAGEM (07/08/2026, junto com o religamento do canal).
+    // Denúncia é o gatilho mais forte que a Meta tem, e quem não acha como sair denuncia.
+    [Fact]
+    public void Toda_mensagem_diz_como_parar_de_receber()
+    {
+        var textos = new[]
+        {
+            AvisoPorWhatsApp.Montar("Jogo em 24h!", "Confirma presença.", "/Agenda", Site),
+            AvisoPorWhatsApp.Montar("Oi", "Tudo bem", null, Site),
+            AvisoPorWhatsApp.Montar("Torneio", "Copa", "https://outro.com.br/x", Site),
+        };
+
+        // O link das preferências vem antes do "responda SAIR" de propósito: ele é o único
+        // que funciona sozinho — responder SAIR depende de alguém ler o celular do chip.
+        Assert.All(textos, t => Assert.EndsWith(
+            "_Pra não receber mais: https://padelizou.com.br/Auth/Preferencias — ou responda SAIR._", t));
+    }
+
+    [Fact]
+    public void Sem_endereco_do_site_a_mensagem_nao_promete_saida_quebrada()
+    {
+        // "Pra não receber mais: /Auth/Preferencias" chegaria como texto solto, e uma saída
+        // que não abre é pior que nenhuma — a pessoa tenta, não consegue, e denuncia.
+        var texto = AvisoPorWhatsApp.Montar("Oi", "Tudo bem", "/Agenda", "");
+
+        Assert.DoesNotContain("Preferencias", texto);
+        Assert.DoesNotContain("SAIR", texto);
     }
 
     [Fact]
@@ -52,8 +83,8 @@ public class AvisoPorWhatsAppTests
     {
         // Aviso sem caminho de volta obriga a pessoa a procurar o site — é esse atrito que
         // faz o aviso morrer na tela de bloqueio.
-        Assert.EndsWith("\n\nhttps://padelizou.com.br", AvisoPorWhatsApp.Montar("Oi", "Tudo bem", null, Site));
-        Assert.EndsWith("\n\nhttps://padelizou.com.br", AvisoPorWhatsApp.Montar("Oi", "Tudo bem", "/", Site));
+        Assert.Contains("\n\nhttps://padelizou.com.br\n\n_Pra não receber", AvisoPorWhatsApp.Montar("Oi", "Tudo bem", null, Site));
+        Assert.Contains("\n\nhttps://padelizou.com.br\n\n_Pra não receber", AvisoPorWhatsApp.Montar("Oi", "Tudo bem", "/", Site));
     }
 
     [Fact]

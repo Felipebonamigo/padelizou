@@ -67,6 +67,17 @@ public class VigiaDoWhatsAppBackgroundService : BackgroundService
 
             if (estado == EstadoDoCanal.Desligado) return;   // dev/localhost: não é falha
 
+            // O relógio do aquecimento começa quando o canal CONECTA de verdade, não quando
+            // alguém mexe no systemd: entre religar a configuração e alguém ler o QR podem
+            // passar dias, e nesses dias o número não enviou nada — não esquentou nada.
+            // Grava uma vez só (ver VolumeDoWhatsApp.MarcarConectadoAsync).
+            if (estado == EstadoDoCanal.Conectado)
+            {
+                var volume = scope.ServiceProvider.GetRequiredService<VolumeDoWhatsApp>();
+                var contexto = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
+                await volume.MarcarConectadoAsync(contexto, DateTime.Now);
+            }
+
             var tentouReligar = false;
 
             if (VigiaDoWhatsApp.Decidir(estado, tentouReligar) == AcaoDoVigia.TentarReligar)

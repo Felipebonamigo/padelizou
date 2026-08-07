@@ -8,14 +8,16 @@ namespace Padelizou.Services;
 public class EntregadorDeWhatsAppBackgroundService : BackgroundService
 {
     private readonly FilaDeWhatsApp _fila;
+    private readonly VolumeDoWhatsApp _volume;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EntregadorDeWhatsAppBackgroundService> _logger;
     private readonly Random _sorteio = new();
 
-    public EntregadorDeWhatsAppBackgroundService(FilaDeWhatsApp fila, IServiceScopeFactory scopeFactory,
-        ILogger<EntregadorDeWhatsAppBackgroundService> logger)
+    public EntregadorDeWhatsAppBackgroundService(FilaDeWhatsApp fila, VolumeDoWhatsApp volume,
+        IServiceScopeFactory scopeFactory, ILogger<EntregadorDeWhatsAppBackgroundService> logger)
     {
         _fila = fila;
+        _volume = volume;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -26,6 +28,12 @@ public class EntregadorDeWhatsAppBackgroundService : BackgroundService
         {
             await foreach (var mensagem in _fila.LerTodasAsync(stoppingToken))
             {
+                // O TETO vem antes da entrega, e barrar DESCARTA (não adia). Adiar encheria a
+                // fila de aviso velho — "seu jogo é o próximo" entregue duas horas depois é
+                // pior que não entregue —, e o excedente voltaria em rajada assim que a janela
+                // abrisse, que é exatamente o que o teto existe pra impedir. Ver VolumeDoWhatsApp.
+                if (!_volume.RegistrarSePuder(DateTime.Now)) continue;
+
                 await EntregarAsync(mensagem, stoppingToken);
 
                 // O respiro vem DEPOIS de entregar, não antes: a primeira mensagem de uma

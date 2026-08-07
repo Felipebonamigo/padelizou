@@ -1,3 +1,7 @@
+@* Singleton do DI: a contagem é do PROCESSO, não da requisição. Injetado aqui em vez de vir
+   pelo ViewBag porque o painel é a única tela que lê isto. *@
+@inject Padelizou.Services.VolumeDoWhatsApp Volume
+
 @{
     ViewData["Title"] = "Painel Admin - Padelizou";
     var ehRaiz = (bool)ViewBag.EhRaiz;
@@ -44,6 +48,70 @@
                     <text>Conferido às @checadoEm.Value.ToString("HH:mm").</text>
                 }
             </p>
+        </div>
+    }
+
+    @* O MEDIDOR DO CANAL. Discreto e SEMPRE visível, ao contrário do alarme acima — são coisas
+       diferentes: alarme vermelho é pra problema, isto aqui é dado.
+
+       ⚠️ Ele existe por duas cegueiras que custaram caro. (1) O canal ficou DESLIGADO em
+       produção de 04/08 a 07/08 e ninguém notou: o vigia trata `Desligado` como "dev, tudo
+       certo" e não alerta, e o painel não mostrava nada. Prod e dev rodam os dois como
+       `Production`, então não dá pra separar por ambiente — o jeito honesto é mostrar o estado
+       sempre e deixar quem lê decidir se aquele "desligado" é o esperado. (2) Nunca soubemos
+       QUANTO sai: nem nós nem a Evolution guardam a saída, e foi às cegas que o número queimou. *@
+    @{
+        var agoraWhats = DateTime.Now;
+        var naHora = Volume.NaUltimaHora(agoraWhats);
+        var noDia = Volume.NoDia(agoraWhats);
+        var tetoDoDia = Volume.TetoDoDia(agoraWhats);
+    }
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2 px-3">
+            <div class="d-flex flex-wrap align-items-center gap-2 small">
+                <span class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-whatsapp"></i> Canal</span>
+                <span class="text-muted">@Padelizou.Services.DiagnosticoDoCanal.Frase(estadoWhats)</span>
+
+                <span class="ms-auto text-muted">
+                    <strong>@naHora</strong>/@Padelizou.Services.TetoDoWhatsApp.PorHora na hora
+                    · <strong>@noDia</strong>/@tetoDoDia hoje
+                </span>
+
+                @if (Volume.AindaAquecendo(agoraWhats))
+                {
+                    <span class="badge rounded-pill text-bg-warning">aquecendo</span>
+                }
+                @if (Volume.BloqueadasPeloTeto > 0)
+                {
+                    <span class="badge rounded-pill text-bg-danger"
+                          title="Mensagens que o teto barrou desde que o app subiu. Elas NÃO são reenviadas.">
+                        @Volume.BloqueadasPeloTeto barrada(s) pelo teto
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* O ACERTO DE CONSENTIMENTO. Só aparece enquanto houver gente no canal por herança —
+       feito o acerto, some sozinho. Admin RAIZ: mexe na preferência de dezenas de pessoas
+       e manda mensagem pra todas. Ver Services/ConsentimentoDoWhatsApp. *@
+    @if (ehRaiz && (int)ViewBag.NoWhatsAppSemTerPedido > 0)
+    {
+        <div class="alert alert-warning border-0 shadow-sm">
+            <h5 class="fw-bold mb-1"><i class="bi bi-person-check"></i> @ViewBag.NoWhatsAppSemTerPedido pessoa(s) no WhatsApp sem terem pedido</h5>
+            <p class="small mb-2">
+                São contas anteriores a 04/08/2026, quando a caixinha ainda nascia marcada.
+                <strong>É esta a régua que a Meta usa</strong> — mandar pra quem não pediu —, e foi
+                por isso que o número foi restringido. Desmarcar tira o risco pela raiz; quem quiser
+                o canal volta num toque, e das contas novas <strong>3 em cada 4 pedem</strong>.
+            </p>
+            <form asp-controller="Admin" asp-action="DesfazerOptInDoWhatsApp" method="post"
+                  data-confirmar="Desmarcar o WhatsApp de @ViewBag.NoWhatsAppSemTerPedido pessoa(s) e convidar cada uma a voltar, pelo app e por e-mail?">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-bold">
+                    Desmarcar e convidar de volta
+                </button>
+            </form>
         </div>
     }
 

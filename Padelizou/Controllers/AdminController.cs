@@ -70,6 +70,12 @@ namespace padelizou.Controllers
             ViewBag.EhRaiz = admin.IsAdminRaiz;
             ViewBag.PortaoLigado = portao.EstaHabilitado(acessoAntecipado.Value);
             ViewBag.PortaoDecididoAqui = portao.DecididoPeloAdmin;
+
+            // Quantos estão no WhatsApp sem nunca terem pedido. O card só aparece enquanto
+            // houver alguém — feito o acerto, ele some sozinho e não vira enfeite permanente.
+            ViewBag.NoWhatsAppSemTerPedido = await ConsentimentoDoWhatsApp
+                .NoCanalSemTerPedido(_context).CountAsync();
+
             return View();
         }
 
@@ -518,6 +524,28 @@ namespace padelizou.Controllers
             TempData["Sucesso"] = quantidade > 0
                 ? $"Notificação de teste enviada pra {quantidade} jogador(es) com o app instalado."
                 : "Ninguém tem o app instalado com notificações ativas ainda.";
+            return RedirectToAction("Index");
+        }
+
+        // Tira do WhatsApp quem nunca pediu pra estar lá, e convida essa gente a voltar pelos
+        // canais que não correm risco (push e e-mail). Ver Services/ConsentimentoDoWhatsApp
+        // pro porquê disto ser a causa raiz da restrição, e não mais um ajuste de volume.
+        //
+        // Admin RAIZ: mexe na preferência de dezenas de pessoas de uma vez e manda mensagem
+        // pra todas elas — não é botão de admin nomeado.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DesfazerOptInDoWhatsApp([FromServices] DesfazerOptInHerdado acao)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var r = await acao.RodarAsync();
+
+            TempData["Sucesso"] = r.Desmarcados == 0
+                ? "Ninguém está no WhatsApp sem ter pedido — não havia o que desfazer."
+                : $"{r.Desmarcados} pessoa(s) saíram do WhatsApp e foram convidadas a voltar "
+                  + "pelo app e por e-mail. Quem quiser marca de novo nas preferências.";
+
             return RedirectToAction("Index");
         }
 
