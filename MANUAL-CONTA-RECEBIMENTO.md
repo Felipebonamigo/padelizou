@@ -7,38 +7,41 @@ Dois arquivos falam de dinheiro do organizador. Este é o **texto pronto pra man
 
 ## Qual caminho oferecer pra quem
 
+> 🔒 **Decisão de 07/08/2026 (véspera do lançamento): a instrução padrão é criar a conta POR
+> FORA, no site do Asaas, e colar o código.** Conta que a pessoa abre sozinha é dela — não é
+> subconta nossa e **não gasta o teto de 10 subcontas/60 dias** do Período de Avaliação. Se o
+> lançamento trouxer 11 organizadores de uma vez, o caminho de dentro do app travaria o 11º;
+> o de fora não trava ninguém.
+
 | Situação | Caminho | Onde |
 |---|---|---|
-| Organizador novo, sem conta Asaas | **Criar minha conta agora** | Botão na própria tela |
-| Já tem conta Asaas | **Colar o código** | Segundo bloco da mesma tela |
-| Criação automática recusada | **Colar o código** | A tela já oferece sozinha |
+| Organizador novo, sem conta Asaas | **Criar a conta no site do Asaas** e colar o código | Roteiro abaixo |
+| Já tem conta Asaas | **Colar o código** | Perfil → Meus Pagamentos |
+| Caso especial (a decidir um a um) | Criar de dentro do app | Botão na tela — **é a exceção, não a regra** |
 
-⚠️ **O caminho automático tem teto de 10 organizadores nos primeiros 60 dias** (Período de
-Avaliação do Asaas, contado a partir da PRIMEIRA subconta criada). Do 11º em diante a criação
-falha e a tela cai sozinha no manual — mas é bom saber antes, não na hora.
+⚠️ **O botão de dentro do app continua existindo e funcionando** — só não é mais o que a
+gente instrui. Reservar as 10 vagas do Período de Avaliação pra quem realmente precisar de
+mão na roda (organizador sem paciência pra cadastro, parceiro estratégico).
 
 **Não vale criar uma subconta "só pra começar a contagem"**: os 60 dias correm a partir dela,
-e o prazo vencendo já bloqueia por si só. A primeira deve ser de um organizador de verdade,
-pra que a análise do Asaas comece com cenário real.
+e o prazo vencendo já bloqueia por si só.
 
 ---
 
-## Texto pronto pra mandar (WhatsApp)
+## Texto pronto pra mandar (WhatsApp) — caminho padrão
 
-> Oi! Pra você receber as inscrições do seu torneio direto na sua conta, é rapidinho:
+> Oi! Pra você receber as inscrições do seu torneio direto na sua conta, são dois passos:
 >
-> **1.** Entra no Padelizou → seu **Perfil** → **Meus Pagamentos** → **Receber pelo app**
+> **1.** Cria sua conta (grátis) em **asaas.com** — é o meio de pagamento que o Padelizou
+> usa. Pode ser CPF mesmo, não precisa de CNPJ. Eles vão pedir um documento (RG e selfie) —
+> é exigência do Banco Central pra qualquer um que recebe dinheiro.
 >
-> **2.** Liga a chavinha "Quero receber pelo app"
->
-> **3.** Clica em **"Criar minha conta de recebimento"** e preenche: data de nascimento, CEP,
-> rua, número, bairro e quanto você fatura por mês (pode ser por alto).
+> **2.** Dentro do Asaas: **Configurações → Integrações** → copia o **Wallet ID** (um código
+> comprido com traços). Aí no Padelizou: **Perfil → Meus Pagamentos** → liga a chavinha
+> "Quero receber pelo app" → cola o código → **Salvar**.
 >
 > Pronto. O dinheiro das inscrições cai **direto na sua conta**, não passa pelo Padelizou.
->
-> Você vai receber um e-mail pedindo documento (RG e uma selfie). Isso é exigência do Banco
-> Central pra qualquer um que recebe dinheiro — **manda quando puder**, não precisa ser
-> agora. Você já pode abrir o torneio e receber inscrição hoje mesmo.
+> Esse código só diz pra onde mandar o seu dinheiro — ele **não dá acesso** à sua conta.
 >
 > Quem paga por Pix, o dinheiro cai na hora. Cartão demora mais (o prazo do cartão é 32 dias,
 > não é coisa nossa — é como funciona no Brasil inteiro).
