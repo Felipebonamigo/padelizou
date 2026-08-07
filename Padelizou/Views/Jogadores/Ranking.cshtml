@@ -353,57 +353,41 @@
                 Só entram os Americanos que o organizador inscreveu no ranking, a partir de
                 @Padelizou.Services.PontosDoAmericano.MinimoParaPontuar participantes.
             </p>
-            @if (!Model.Americano.Any())
-            {
-                <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
-                    <i class="bi bi-arrow-repeat display-6 text-muted"></i>
-                    <p class="text-muted mb-1">Nenhum Americano pontuou ainda.</p>
-                    <p class="text-muted small mb-0">
-                        O organizador escolhe se o Americano dele entra aqui, na hora de criar.
+            @* ⚠️ DOIS rankings, não um. No Americano individual o parceiro troca a cada rodada
+               e o que sobra é o seu jogo; no de duplas a dupla é fixa, e metade do resultado é
+               do parceiro que você escolheu. Numa lista só, os dois números pareceriam a mesma
+               medida — e o de duplas premiaria quem escolheu bem, não quem jogou melhor. *@
+            <ul class="nav nav-pills nav-sm mb-3" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#sub-am-individual" type="button">
+                        <i class="bi bi-person me-1"></i> Individual
+                        <span class="badge bg-light text-dark ms-1">@Model.AmericanoIndividual.Count</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sub-am-duplas" type="button">
+                        <i class="bi bi-people me-1"></i> Em duplas
+                        <span class="badge bg-light text-dark ms-1">@Model.AmericanoDuplas.Count</span>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="sub-am-individual" role="tabpanel">
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-person"></i> Parceiro trocando a cada rodada — o resultado é
+                        <strong>seu</strong>.
                     </p>
+                    <partial name="_TabelaRankingAmericano" model="Model.AmericanoIndividual" />
                 </div>
-            }
-            else
-            {
-                <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-                    @* No celular sobram posição, nome e pontos — o resto some. *@
-                    <thead><tr>
-                        <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
-                        <th class="text-center d-none d-sm-table-cell">Americanos</th>
-                        <th class="text-center d-none d-sm-table-cell">Vitórias</th>
-                        <th class="text-end">Pontos</th>
-                    </tr></thead>
-                    <tbody>
-                        @{ var posAmericano = 1; }
-                        @foreach (var l in Model.Americano)
-                        {
-                            <tr>
-                                <td class="text-center fw-bold">@Html.Raw(PosBadge(posAmericano))</td>
-                                <td>
-                                    <a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a>
-                                    @if (l.UltimoNome != null)
-                                    {
-                                        <div class="small text-muted">último: @l.UltimoNome</div>
-                                    }
-                                </td>
-                                <td class="text-center text-muted d-none d-sm-table-cell">@l.Americanos</td>
-                                <td class="text-center d-none d-sm-table-cell">
-                                    @if (l.Vitorias > 0)
-                                    {
-                                        <span class="fw-bold" style="color: var(--pdz-ink);">@l.Vitorias</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">—</span>
-                                    }
-                                </td>
-                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
-                            </tr>
-                            posAmericano++;
-                        }
-                    </tbody>
-                </table></div></div>
-            }
+                <div class="tab-pane fade" id="sub-am-duplas" role="tabpanel">
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-people"></i> Dupla fixa do começo ao fim — a colocação é
+                        <strong>da dupla</strong>, e os dois levam os mesmos pontos.
+                    </p>
+                    <partial name="_TabelaRankingAmericano" model="Model.AmericanoDuplas" />
+                </div>
+            </div>
         </div>
 
         @* ============================ 2. TROFÉUS POR CATEGORIA ============================ *@

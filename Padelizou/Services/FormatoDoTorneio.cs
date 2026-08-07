@@ -23,6 +23,12 @@ public static class FormatoDoTorneio
     public static bool EhAmericano(string? formato) =>
         formato is Americano or AmericanoDeDuplas;
 
+    // Dentro da família, os dois se separam de novo na hora de CONTAR: no individual o
+    // resultado é da pessoa, no de duplas é do par. Tabela, ranking e contagem de inscritos
+    // mudam por causa disso.
+    public static bool EhAmericanoDeDuplas(string? formato) =>
+        formato == AmericanoDeDuplas;
+
     public static bool Existe(string? formato) =>
         formato is Padrao or Americano or AmericanoDeDuplas;
 }

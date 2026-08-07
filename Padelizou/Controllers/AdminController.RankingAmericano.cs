@@ -27,15 +27,15 @@ namespace padelizou.Controllers
 
             var ids = torneios.Select(t => t.Id).ToList();
 
-            // Inscritos que valem: lista de espera não jogou, e o preço não a cobra. Conta em
-            // consulta separada porque Categoria não tem navegação pras inscrições do
-            // Americano — e forçar uma aqui só pra esta tela sujaria o modelo.
-            var pessoasPorTorneio = (await _context.InscricoesAmericanas
-                    .Where(i => ids.Contains(i.Categoria.TorneioId) && !i.EmListaDeEspera)
-                    .GroupBy(i => i.Categoria.TorneioId)
-                    .Select(g => new { TorneioId = g.Key, Quantos = g.Count() })
-                    .ToListAsync())
-                .ToDictionary(x => x.TorneioId, x => x.Quantos);
+            // A contagem mora em PessoasDoAmericano porque o RANKING faz a mesma pergunta pra
+            // decidir o peso do ponto — e contagens separadas divergiriam um dia, cobrando por
+            // um tamanho e pontuando por outro.
+            //
+            // ⚠️ Aqui ela contava só `InscricoesAmericanas`, que é onde o Americano INDIVIDUAL
+            // grava. O de duplas grava em `Dupla` (herdou o caminho do Padrão), então ele
+            // aparecia nesta tela com 0 pessoas e R$ 0,00 — "não pontua e não se cobra", sem
+            // erro nenhum na tela.
+            var pessoasPorTorneio = await PessoasDoAmericano.PorTorneioAsync(_context, ids);
 
             var linhas = torneios.Select(t =>
             {

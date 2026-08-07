@@ -544,7 +544,9 @@ public class JogadoresController : Controller
         // vem de um serviço separado em vez de virar mais uma consulta do EstatisticasService.
         var doLocal = await _estatisticas.ObterJogadoresDoLocalAsync(cidade, estado);
         hub.Padelimetro = await padelimetro.ListarRankingAsync(doLocal);
-        hub.Americano = await rankingAmericano.ListarAsync(doLocal);
+        var americano = await rankingAmericano.ListarAsync(doLocal);
+        hub.AmericanoIndividual = americano.Individual;
+        hub.AmericanoDuplas = americano.Duplas;
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
         if (torneioId.HasValue)

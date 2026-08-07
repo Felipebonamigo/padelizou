@@ -31,10 +31,16 @@ public class SeletorDoRankingTests
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };
 
+        // O dublê precisa devolver o VM vazio, e não o `null` que o NSubstitute dá de graça:
+        // a tela lê as DUAS listas do Americano (individual e duplas) e nenhuma pode faltar.
+        var americano = Substitute.For<IRankingAmericanoService>();
+        americano.ListarAsync(Arg.Any<HashSet<int>?>())
+            .Returns(new RankingAmericanoVM(new(), new()));
+
         var view = Assert.IsType<ViewResult>(await controller.Ranking(
             clubeId: null, torneioId: null, cidade: null, estado: null, periodo: null,
             padelimetro: new PadelimetroService(ctx),
-            rankingAmericano: Substitute.For<IRankingAmericanoService>()));
+            rankingAmericano: americano));
 
         return (List<Torneio>)view.ViewData["TorneiosList"]!;
     }

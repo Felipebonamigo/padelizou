@@ -11,6 +11,12 @@ namespace Padelizou.Tests;
 // as quatro maneiras de alguém entrar no ranking sem ter direito.
 public class RankingAmericanoTests
 {
+    // A lista do formato INDIVIDUAL, que é o que estes testes montam. O ranking devolve os
+    // dois formatos separados — o de duplas tem os testes dele em RankingAmericanoDeDuplasTests.
+    private static async Task<List<Padelizou.ViewModels.RankingAmericanoLinhaVM>> IndividualAsync(
+        DbPadelContext ctx, HashSet<int>? filtro = null) =>
+        (await new RankingAmericanoService(ctx).ListarAsync(filtro)).Individual;
+
     // Monta um Americano fechado: N inscritos, N/2 partidas de uma rodada só, todas
     // finalizadas, com o primeiro jogador somando mais games que os outros.
     private static async Task<Torneio> MontarAmericanoAsync(
@@ -94,7 +100,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true);
 
-        var ranking = await new RankingAmericanoService(ctx).ListarAsync();
+        var ranking = await IndividualAsync(ctx);
 
         Assert.NotEmpty(ranking);
         // 8 pessoas = peso 1, então o líder leva a tabela crua.
@@ -110,7 +116,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: false, pagou: true);
 
-        Assert.Empty(await new RankingAmericanoService(ctx).ListarAsync());
+        Assert.Empty(await IndividualAsync(ctx));
     }
 
     [Fact]
@@ -121,7 +127,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: false);
 
-        Assert.Empty(await new RankingAmericanoService(ctx).ListarAsync());
+        Assert.Empty(await IndividualAsync(ctx));
     }
 
     [Fact]
@@ -130,7 +136,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 4, contratou: true, pagou: true);
 
-        Assert.Empty(await new RankingAmericanoService(ctx).ListarAsync());
+        Assert.Empty(await IndividualAsync(ctx));
     }
 
     [Fact]
@@ -141,7 +147,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true, status: "Fase de Grupos");
 
-        Assert.Empty(await new RankingAmericanoService(ctx).ListarAsync());
+        Assert.Empty(await IndividualAsync(ctx));
     }
 
     [Fact]
@@ -152,7 +158,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 16, contratou: true, pagou: true);
 
-        var ranking = await new RankingAmericanoService(ctx).ListarAsync();
+        var ranking = await IndividualAsync(ctx);
 
         Assert.Equal(200, ranking[0].Pontos);
     }
@@ -163,7 +169,7 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true);
 
-        var ranking = await new RankingAmericanoService(ctx).ListarAsync();
+        var ranking = await IndividualAsync(ctx);
         var lider = ranking[0].Jogador.Id;
         var pontosDeUm = ranking[0].Pontos;
 
@@ -171,7 +177,7 @@ public class RankingAmericanoTests
         // pessoa e os pontos se somam.
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true);
 
-        var depois = await new RankingAmericanoService(ctx).ListarAsync();
+        var depois = await IndividualAsync(ctx);
         var mesmo = depois.First(l => l.Jogador.Id == lider);
 
         Assert.Equal(pontosDeUm * 2, mesmo.Pontos);
@@ -184,9 +190,8 @@ public class RankingAmericanoTests
         using var ctx = TestInfra.NovoContexto();
         await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true);
 
-        var todos = await new RankingAmericanoService(ctx).ListarAsync();
-        var soUm = await new RankingAmericanoService(ctx).ListarAsync(
-            new HashSet<int> { todos[0].Jogador.Id });
+        var todos = await IndividualAsync(ctx);
+        var soUm = await IndividualAsync(ctx, new HashSet<int> { todos[0].Jogador.Id });
 
         Assert.Single(soUm);
         Assert.Equal(todos[0].Jogador.Id, soUm[0].Jogador.Id);

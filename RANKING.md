@@ -228,6 +228,37 @@ estraga os dois — o oficial deixa de medir torneio, e o Americano fica sem lug
 - Acima de 16 pessoas o Americano não é criado sozinho — a tela manda falar com o
   Felipe (por enquanto, decisão de 07/08/2026).
 
+### Duas listas dentro da Trilha C: individual × em duplas (07/08/2026)
+
+Decisão do Felipe: a aba do Ranking Americano tem **subdivisão por formato**, e não uma
+lista só com uma coluna a mais.
+
+- **Individual**: o parceiro troca a cada rodada, então o que sobra no fim é o seu jogo.
+- **Em duplas**: a dupla é fixa do começo ao fim, e **metade do mérito é do parceiro que
+  você escolheu**. Numa lista só, os dois números pareceriam a mesma medida, e o de
+  duplas premiaria quem escolheu bem, não quem jogou melhor. É a mesma razão pela qual
+  o Americano já não soma com o oficial.
+
+⚠️ **A colocação do Americano de Duplas é da DUPLA, e os dois levam os mesmos pontos** —
+como o título do mata-mata. Isso exigiu a tabela certa (`TabelaDoAmericanoDeDuplas`, por
+par) no lugar da individual: os dois parceiros jogam exatamente as mesmas partidas, então
+a tabela por PESSOA lhes dá somas idênticas, empata os dois e desempata pelo Id — a dupla
+campeã saía com um jogador em 1º (100) e o outro em 2º (60), pelo mesmo resultado.
+
+⚠️ **Contar pessoas depende do formato** (`Services/PessoasDoAmericano`, um lugar só, lido
+pelo ranking E pelo acerto de R$ 5 do admin). O individual grava uma linha por PESSOA em
+`InscricaoAmericana`; o de duplas grava uma linha por PAR em `Dupla`, porque herdou o
+caminho de inscrição do Padrão. Duas armadilhas nisso:
+
+1. Contar só `InscricaoAmericana` devolvia **zero** pro Americano de Duplas — abaixo do
+   piso, ou seja "não pontua e não se cobra", sem erro nenhum aparecer.
+2. **Somar as duas tabelas é pior ainda**: no Americano individual a tabela `Dupla` também
+   tem linhas — uma por PARCERIA DE RODADA —, e a mesma pessoa seria contada uma vez por
+   rodada jogada. O peso do ponto explodiria em silêncio.
+
+O piso de 8 é por PESSOA nos dois formatos: senão bastaria jogar em duplas pra driblar a
+regra que existe justamente contra resultado combinado.
+
 Status: a exclusão do oficial está no ar. A trilha própria (tabela de pontos, tela e
 cobrança dos R$ 5) ainda não — é o próximo passo.
 

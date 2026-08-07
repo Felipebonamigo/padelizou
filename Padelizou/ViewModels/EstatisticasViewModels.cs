@@ -206,7 +206,11 @@ public class RankingHubVM
     // Aba Ranking Americano (Trilha C do RANKING.md): separada do ranking oficial porque
     // rodízio e torneio de chave não se somam. Só entra Americano contratado, pago e com o
     // piso de 8 pessoas — a regra inteira mora em Services/RankingAmericanoService.
-    public List<RankingAmericanoLinhaVM> Americano { get; set; } = new();
+    // ⚠️ DUAS listas, e não uma com uma coluna "formato": no individual o parceiro troca a cada
+    // rodada e o resultado é seu; no de duplas metade do mérito é do parceiro que você escolheu.
+    // Numa lista só, os dois números pareceriam a mesma medida.
+    public List<RankingAmericanoLinhaVM> AmericanoIndividual { get; set; } = new();
+    public List<RankingAmericanoLinhaVM> AmericanoDuplas { get; set; } = new();
 }
 
 // Uma linha da aba Ranking Americano.

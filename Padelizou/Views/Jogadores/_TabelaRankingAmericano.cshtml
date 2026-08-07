@@ -1,0 +1,70 @@
+@model List<Padelizou.ViewModels.RankingAmericanoLinhaVM>
+
+@* A tabela do Ranking Americano, usada pelos DOIS formatos (individual e de duplas). É uma
+   partial e não duas cópias: as colunas e o selo de posição são os mesmos, e duas cópias
+   divergiriam na primeira vez que alguém mexesse numa delas. O que muda entre os formatos —
+   o que a colocação significa — é dito ANTES da tabela, na aba. *@
+
+@functions {
+    // Selo de posição (1º/2º/3º com medalha, restante em cinza). Igual ao das outras abas.
+    static string PosBadge(int pos) => pos switch
+    {
+        1 => "<span class=\"badge bg-warning text-dark\">1º</span>",
+        2 => "<span class=\"badge bg-secondary\">2º</span>",
+        3 => "<span class=\"badge\" style=\"background:#cd7f32;color:#fff;\">3º</span>",
+        _ => $"<span class=\"text-muted\">{pos}º</span>"
+    };
+}
+
+@if (!Model.Any())
+{
+    <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+        <i class="bi bi-arrow-repeat display-6 text-muted"></i>
+        <p class="text-muted mb-1">Nenhum Americano deste tipo pontuou ainda.</p>
+        <p class="text-muted small mb-0">
+            O organizador escolhe se o Americano dele entra aqui, na hora de criar.
+        </p>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        @* No celular sobram posição, nome e pontos — o resto some. *@
+        <thead><tr>
+            <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
+            <th class="text-center d-none d-sm-table-cell">Americanos</th>
+            <th class="text-center d-none d-sm-table-cell">Vitórias</th>
+            <th class="text-end">Pontos</th>
+        </tr></thead>
+        <tbody>
+            @{ var pos = 1; }
+            @foreach (var l in Model)
+            {
+                <tr>
+                    <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                    <td>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@l.Jogador.Id"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a>
+                        @if (l.UltimoNome != null)
+                        {
+                            <div class="small text-muted">último: @l.UltimoNome</div>
+                        }
+                    </td>
+                    <td class="text-center text-muted d-none d-sm-table-cell">@l.Americanos</td>
+                    <td class="text-center d-none d-sm-table-cell">
+                        @if (l.Vitorias > 0)
+                        {
+                            <span class="fw-bold" style="color: var(--pdz-ink);">@l.Vitorias</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
+                </tr>
+                pos++;
+            }
+        </tbody>
+    </table></div></div>
+}

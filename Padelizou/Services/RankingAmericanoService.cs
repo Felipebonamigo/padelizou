@@ -13,9 +13,17 @@ namespace Padelizou.Services;
 // de 8 pessoas e (4) terminou. As quatro condições moram aqui, num lugar só — espalhadas pela
 // consulta e pela tela, uma delas ficaria de fora um dia e o ranking passaria a contar o que
 // não devia, calado.
+// ⚠️ São DOIS rankings, e não um com uma coluna a mais. No individual o parceiro troca a cada
+// rodada, então o resultado é seu; no de duplas ele é da dupla fixa, e a metade do mérito é do
+// parceiro que você escolheu. Misturar os dois numa lista só compara coisas que não se comparam
+// — a mesma razão pela qual o Americano já não soma com o ranking oficial.
+public record RankingAmericanoVM(
+    List<RankingAmericanoLinhaVM> Individual,
+    List<RankingAmericanoLinhaVM> Duplas);
+
 public interface IRankingAmericanoService
 {
-    Task<List<RankingAmericanoLinhaVM>> ListarAsync(HashSet<int>? jogadoresFiltro = null);
+    Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null);
 }
 
 public class RankingAmericanoService : IRankingAmericanoService
@@ -24,31 +32,32 @@ public class RankingAmericanoService : IRankingAmericanoService
 
     public RankingAmericanoService(DbPadelContext context) => _context = context;
 
-    public async Task<List<RankingAmericanoLinhaVM>> ListarAsync(HashSet<int>? jogadoresFiltro = null)
+    public async Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null)
     {
         // Terminado, contratado e pago. `Status == "Finalizado"` e não "tem partida acabada":
         // a colocação de um Americano só existe quando o último jogo saiu — antes disso a
         // liderança ainda muda, e ponto que aparece e some é pior que ponto que demora.
-        var torneios = await _context.Torneios
-            .Where(t => t.PontuaNoRankingAmericano
-                     && t.RankingAmericanoPagoEm != null
-                     && t.Status == "Finalizado")
-            .Select(t => new { t.Id, t.Nome, t.DataInicio })
-            .ToListAsync();
+        var torneios = (await _context.Torneios
+                .Where(t => t.PontuaNoRankingAmericano
+                         && t.RankingAmericanoPagoEm != null
+                         && t.Status == "Finalizado")
+                .Select(t => new { t.Id, t.Nome, t.DataInicio, t.Formato })
+                .ToListAsync())
+            // Cinto de segurança: a caixinha "pontua no Ranking Americano" só aparece nos
+            // formatos de Americano, mas ela é uma coluna — um POST montado à mão a marcaria
+            // num torneio de chave, e aí ele pontuaria nos DOIS rankings.
+            .Where(t => FormatoDoTorneio.EhAmericano(t.Formato))
+            .ToList();
 
-        if (torneios.Count == 0) return new List<RankingAmericanoLinhaVM>();
+        var vazio = new RankingAmericanoVM(new(), new());
+        if (torneios.Count == 0) return vazio;
 
         var ids = torneios.Select(t => t.Id).ToList();
 
-        // Quantas pessoas cada categoria teve. Lista de espera fica de fora: quem esperou não
-        // jogou, e o preço também não a cobra.
-        var inscritosPorCategoria = await _context.InscricoesAmericanas
-            .Where(i => ids.Contains(i.Categoria.TorneioId) && !i.EmListaDeEspera)
-            .GroupBy(i => i.CategoriaId)
-            .Select(g => new { CategoriaId = g.Key, Quantos = g.Count() })
-            .ToListAsync();
-
-        var quantosNaCategoria = inscritosPorCategoria.ToDictionary(x => x.CategoriaId, x => x.Quantos);
+        // A contagem de pessoas mora em PessoasDoAmericano porque o acerto de R$ 5 do admin faz
+        // a MESMA pergunta — e porque ela precisa saber que o formato de duplas guarda a
+        // inscrição em outra tabela.
+        var quantosNaCategoria = await PessoasDoAmericano.PorCategoriaAsync(_context, ids);
 
         var partidas = await _context.Partidas
             .Include(p => p.Dupla1).ThenInclude(d => d!.Jogador1)
@@ -61,11 +70,18 @@ public class RankingAmericanoService : IRankingAmericanoService
                      && p.Fase != null && p.Fase.StartsWith("Americano"))
             .ToListAsync();
 
-        var acumulado = new Dictionary<int, RankingAmericanoLinhaVM>();
+        // Um acumulado POR FORMATO: o mesmo jogador pode aparecer nos dois, com pontos
+        // independentes, e é isso que a tela mostra em abas separadas.
+        var acumuladoIndividual = new Dictionary<int, RankingAmericanoLinhaVM>();
+        var acumuladoDuplas = new Dictionary<int, RankingAmericanoLinhaVM>();
 
         foreach (var porCategoria in partidas.GroupBy(p => p.CategoriaId))
         {
             int pessoas = quantosNaCategoria.TryGetValue(porCategoria.Key, out var q) ? q : 0;
+
+            var doTorneioDaCategoria = torneios.First(t => t.Id == porCategoria.First().TorneioId);
+            bool ehDeDuplas = FormatoDoTorneio.EhAmericanoDeDuplas(doTorneioDaCategoria.Formato);
+            var acumulado = ehDeDuplas ? acumuladoDuplas : acumuladoIndividual;
 
             // O piso vive em PontosDoAmericano — repetir o número 8 aqui seria a segunda cópia
             // da mesma regra, e uma delas mudaria sozinha um dia.
@@ -74,8 +90,39 @@ public class RankingAmericanoService : IRankingAmericanoService
             var finalizadas = TabelaDoAmericano.QueDecidem(porCategoria)
                 .Where(p => p.Status == "Finalizada");
 
-            var classificacao = TabelaDoAmericano.Montar(finalizadas);
-            if (classificacao.Count == 0) continue;
+            // ⚠️ CADA FORMATO TEM A SUA TABELA, e usar a errada não dá erro — dá ponto errado,
+            // calado. No Americano de Duplas os dois parceiros jogam exatamente as mesmas
+            // partidas, então a tabela POR PESSOA lhes dá somas idênticas, empata os dois e
+            // desempata pelo Id: a dupla campeã saía com um jogador em 1º (100 pontos) e o
+            // outro em 2º (60), pelo MESMO resultado.
+            var colocacaoDe = new Dictionary<int, int>();
+            int quantosClassificados;
+
+            if (ehDeDuplas)
+            {
+                var tabela = TabelaDoAmericanoDeDuplas.Montar(finalizadas);
+                if (tabela.Count == 0) continue;
+
+                quantosClassificados = tabela.Count;
+                for (int i = 0; i < tabela.Count; i++)
+                {
+                    // A colocação é da DUPLA, e os dois a recebem inteira — como no mata-mata,
+                    // onde o título é dos dois.
+                    colocacaoDe[tabela[i].Dupla.Jogador1Id] = i + 1;
+                    if (tabela[i].Dupla.Jogador2Id is int parceiro) colocacaoDe[parceiro] = i + 1;
+                }
+            }
+            else
+            {
+                var tabela = TabelaDoAmericano.Montar(finalizadas);
+                if (tabela.Count == 0) continue;
+
+                quantosClassificados = tabela.Count;
+                for (int i = 0; i < tabela.Count; i++)
+                {
+                    colocacaoDe[tabela[i].Jogador.Id] = i + 1;
+                }
+            }
 
             // Quem NÃO está na tabela que decide (não passou da fase de grupos) leva a
             // participação. Do 5º pra trás o ponto é chato, então não é preciso inventar uma
@@ -88,13 +135,7 @@ public class RankingAmericanoService : IRankingAmericanoService
                 .DistinctBy(j => j.Id)
                 .ToList();
 
-            var colocacaoDe = new Dictionary<int, int>();
-            for (int i = 0; i < classificacao.Count; i++)
-            {
-                colocacaoDe[classificacao[i].Jogador.Id] = i + 1;
-            }
-
-            var doTorneio = torneios.First(t => t.Id == porCategoria.First().TorneioId);
+            var doTorneio = doTorneioDaCategoria;
 
             foreach (var jogador in jogaramTudo)
             {
@@ -104,7 +145,7 @@ public class RankingAmericanoService : IRankingAmericanoService
                 // mas um número que se lê ("participou") é o que a tela vai mostrar depois.
                 int colocacao = colocacaoDe.TryGetValue(jogador.Id, out var c)
                     ? c
-                    : classificacao.Count + 1;
+                    : quantosClassificados + 1;
 
                 int pontos = PontosDoAmericano.Pontos(colocacao, pessoas);
                 if (pontos == 0) continue;
@@ -131,11 +172,14 @@ public class RankingAmericanoService : IRankingAmericanoService
 
         // Ordem TOTAL, pelo mesmo motivo da tabela do Americano: sem o desempate final por Id,
         // dois jogadores com a mesma pontuação trocariam de lugar entre duas visitas à página.
-        return acumulado.Values
-            .OrderByDescending(l => l.Pontos)
-            .ThenByDescending(l => l.Vitorias)
-            .ThenByDescending(l => l.Podios)
-            .ThenBy(l => l.Jogador.Id)
-            .ToList();
+        static List<RankingAmericanoLinhaVM> Ordenar(Dictionary<int, RankingAmericanoLinhaVM> acumulado) =>
+            acumulado.Values
+                .OrderByDescending(l => l.Pontos)
+                .ThenByDescending(l => l.Vitorias)
+                .ThenByDescending(l => l.Podios)
+                .ThenBy(l => l.Jogador.Id)
+                .ToList();
+
+        return new RankingAmericanoVM(Ordenar(acumuladoIndividual), Ordenar(acumuladoDuplas));
     }
 }
