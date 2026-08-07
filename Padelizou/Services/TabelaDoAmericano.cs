@@ -34,7 +34,18 @@ public static class TabelaDoAmericano
             Somar(p.Dupla2?.Jogador2, p.GamesDupla2 ?? 0);
         }
 
-        var ordenada = soma.Values.OrderByDescending(v => v.Games).ToList();
+        // ⚠️ A ordem tem que ser TOTAL. Só `OrderByDescending(Games)` deixa quem empata na
+        // ordem em que o dicionário foi preenchido — que é a ordem em que as partidas
+        // voltaram da consulta, e cada chamador monta a consulta do seu jeito. A mesma tabela
+        // respondia colocações diferentes conforme quem perguntasse.
+        //
+        // O Id é sorteio, mas é um sorteio ESTÁVEL: a tela e o robô que monta o desempate
+        // (RoboDoChaveamento) passam a enxergar a mesma 4ª colocação. O robô já tinha essa
+        // trava; aqui faltava — a correção tinha sido feita numa cópia da régua e não na outra.
+        var ordenada = soma.Values
+            .OrderByDescending(v => v.Games)
+            .ThenBy(v => v.Jogador.Id)
+            .ToList();
 
         // Quem está empatado na LIDERANÇA fica marcado: é dali que sai a decisão de jogar
         // uma final de desempate.

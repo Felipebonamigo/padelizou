@@ -146,12 +146,21 @@ public class RoboDoChaveamento
     }
 
     // ===================================================================================
-    // ROBÔ 3: TORNEIO AMERICANO → a final, quando todas as rodadas acabam
+    // ROBÔ 3: TORNEIO AMERICANO → o desfecho, quando todas as rodadas acabam
     // ===================================================================================
     //
     // ⚠️ Este robô morava SÓ no PartidasController, o que quer dizer que um Americano
     // encerrado pela Mesa de Controle — a tela do dia de torneio — terminava as rodadas e
     // ficava parado, esperando uma final que ninguém ia criar.
+    //
+    // ⚠️ ATÉ 06/08/2026 ELE MONTAVA UMA FINAL SEMPRE, cruzando os 4 primeiros (1º+4º × 2º+3º),
+    // mesmo sem empate nenhum e mesmo com a opção de desempate desligada. Isso dava ao torneio
+    // DOIS campeões diferentes: a tela de Classificação (que soma só as rodadas) coroava o
+    // líder em games, e a conquista do perfil coroava quem vencesse a tal Final. No ensaio de
+    // 8 jogadores, a líder com 56 games ficou sem título e o 2º colocado levou.
+    //
+    // A regra agora é a do formato: vence quem fez mais games, e só há partida extra se DOIS
+    // OU MAIS empatarem na liderança (ver Services/FimDoAmericano).
     public async Task MontarFinalDoAmericanoAsync(int categoriaId, int? torneioId)
     {
         if (torneioId == null) return;
@@ -160,61 +169,74 @@ public class RoboDoChaveamento
             p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status != "Finalizada");
         if (temRodadaPendente) return;
 
-        bool finalJaGerada = await _context.Partidas.AnyAsync(p =>
-            p.CategoriaId == categoriaId && p.Fase == "Final");
-        if (finalJaGerada) return;
+        // Desfecho já resolvido? Vale tanto a Final antiga (torneios criados antes desta
+        // correção, que podem tê-la agendada) quanto o desempate novo.
+        bool jaTemDesfecho = await _context.Partidas.AnyAsync(p =>
+            p.CategoriaId == categoriaId
+            && (p.Fase == "Final" || p.Fase == TabelaDoAmericano.FaseDesempate));
+        if (jaTemDesfecho) return;
+
+        // Campeão já carimbado: sem isto, reabrir e refinalizar a última rodada carimbaria
+        // outro (ver DesfazerDoJogo — reabrir apaga as fases posteriores, não este carimbo).
+        bool jaTemCampeao = await _context.Duplas.AnyAsync(d =>
+            d.CategoriaId == categoriaId && d.UltimaFase == "Campeao");
+        if (jaTemCampeao) return;
 
         var partidas = await _context.Partidas
-            .Include(p => p.Dupla1).Include(p => p.Dupla2)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
             .Where(p => p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano"))
             .ToListAsync();
 
         if (partidas.Count == 0) return;
 
-        // No Americano o placar é individual: cada jogador leva os games da dupla dele.
-        var pontos = new Dictionary<int, int>();
-        void Somar(int jogadorId, int games) => pontos[jogadorId] = pontos.GetValueOrDefault(jogadorId) + games;
-        foreach (var p in partidas)
+        var torneio = await _context.Torneios.FindAsync(torneioId.Value);
+        var classificacao = TabelaDoAmericano.Montar(partidas.Where(p => p.Status == "Finalizada"));
+        var decisao = FimDoAmericano.Decidir(classificacao, torneio?.DesempateAmericano ?? false);
+
+        if (decisao.Tipo == FimDoAmericano.Desfecho.CampeaoDireto && decisao.Campeao != null)
         {
-            // As duplas do americano são sorteadas pelo sistema, então Jogador2Id nunca é
-            // nulo aqui — mas a checagem evita quebrar se algum dado vier torto.
-            Somar(p.Dupla1.Jogador1Id, p.GamesDupla1 ?? 0);
-            if (p.Dupla1.Jogador2Id != null) Somar(p.Dupla1.Jogador2Id.Value, p.GamesDupla1 ?? 0);
-            Somar(p.Dupla2.Jogador1Id, p.GamesDupla2 ?? 0);
-            if (p.Dupla2.Jogador2Id != null) Somar(p.Dupla2.Jogador2Id.Value, p.GamesDupla2 ?? 0);
+            await CoroarNoAmericanoAsync(categoriaId, decisao.Campeao.Id, torneio);
+            return;
         }
 
-        // Desempate por Id no fim pelo mesmo motivo da classificação de grupos: sem ordem
-        // TOTAL, quem entra no top 4 passa a depender da ordem em que o dicionário devolveu.
-        var top4 = pontos
-            .OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key)
-            .Take(4).Select(kv => kv.Key).ToList();
-        if (top4.Count < 4) return; // não tem gente suficiente pra formar a final
-
-        // Cruzamento: 1º + 4º × 2º + 3º.
-        var duplaFinal1 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[0], Jogador2Id = top4[3] };
-        var duplaFinal2 = new Dupla { CategoriaId = categoriaId, Jogador1Id = top4[1], Jogador2Id = top4[2] };
-        _context.Duplas.Add(duplaFinal1);
-        _context.Duplas.Add(duplaFinal2);
-        await _context.SaveChangesAsync();
-
-        var final = new Partida
+        // Empate que uma partida não resolve (3+), ou torneio que não previu desempate: o
+        // sistema NÃO inventa critério nem inventa campeão. As rodadas acabaram, então o
+        // torneio encerra — o título fica com o organizador.
+        if (decisao.Tipo == FimDoAmericano.Desfecho.OrganizadorDecide)
         {
-            TorneioId = torneioId,
+            if (torneio != null) torneio.Status = "Finalizado";
+            await _context.SaveChangesAsync();
+            return;
+        }
+
+        // Sobrou o empate de DOIS num torneio que previu desempate. Quem monta a partida é o
+        // organizador, na tela dele (TorneiosController.DesempateAmericano): ele precisa
+        // escolher o parceiro de cada empatado, e isso o robô não tem como adivinhar.
+        return;
+    }
+
+    // No Americano o campeão é UMA PESSOA, não uma dupla — o parceiro muda a cada rodada.
+    //
+    // O carimbo continua sendo `Dupla.UltimaFase = "Campeao"`, que é o que o perfil e as
+    // estatísticas já leem, mas numa linha SEM parceiro: carimbar uma das duplas de rodada
+    // daria o título também a quem calhou de jogar junto naquele jogo. `EstatisticasService`
+    // percorre `{ Jogador1, Jogador2 }` pulando nulo, então uma linha solo coroa exatamente
+    // uma pessoa. A tela de Inscritos do Americano lê `InscricaoAmericana` e não Duplas, então
+    // esta linha não aparece como inscrição fantasma.
+    private async Task CoroarNoAmericanoAsync(int categoriaId, int jogadorId, Torneio? torneio)
+    {
+        _context.Duplas.Add(new Dupla
+        {
             CategoriaId = categoriaId,
-            Dupla1Id = duplaFinal1.Id,
-            Dupla2Id = duplaFinal2.Id,
-            Fase = "Final",
-            Status = "Agendada",
-            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-        };
+            Jogador1Id = jogadorId,
+            Jogador2Id = null,
+            UltimaFase = "Campeao",
+        });
 
-        // ⚠️ Entra na GRADE como qualquer outra fase. A versão antiga cravava
-        // `DateTime.Now.AddHours(2)`: a final do Americano nascia num horário inventado, sem
-        // quadra e podendo cair em cima de outro jogo.
-        await AgendarNaGradeAsync(new List<Partida> { final }, torneioId);
-
-        _context.Partidas.Add(final);
+        if (torneio != null) torneio.Status = "Finalizado";
         await _context.SaveChangesAsync();
     }
 

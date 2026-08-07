@@ -87,6 +87,10 @@ public class EncerramentoDaPartida
             {
                 await CoroarCampeaoAsync(partida, vencedorId, torneioId);
             }
+            else if (partida.Fase == TabelaDoAmericano.FaseDesempate)
+            {
+                await CoroarDesempateDoAmericanoAsync(vencedorId, torneioId);
+            }
         }
 
         // 3. AVISOS. Nesta ordem: primeiro o resultado (pra quem jogou), depois a chamada do
@@ -100,6 +104,34 @@ public class EncerramentoDaPartida
     {
         var campeao = await _context.Duplas.FindAsync(vencedorId);
         if (campeao != null) campeao.UltimaFase = "Campeao";
+
+        var torneio = await _context.Torneios.FindAsync(torneioId);
+        if (torneio != null) torneio.Status = "Finalizado";
+
+        await _context.SaveChangesAsync();
+    }
+
+    // Desempate do Americano: os dois empatados escolheram um parceiro cada e jogaram pelo
+    // título. Quem disputa o título é o EMPATADO — o parceiro entrou pra fechar a quadra.
+    //
+    // ⚠️ Por isso não dá pra carimbar a dupla vencedora inteira, como se faz no mata-mata:
+    // isso daria o título também a quem foi convidado. `TorneiosController.CriarDesempateAmericano`
+    // sempre põe o empatado em `Jogador1Id` e o parceiro em `Jogador2Id` — é dessa posição que
+    // sai o campeão. O carimbo vai numa linha SEM parceiro, igual ao campeão sem desempate
+    // (ver RoboDoChaveamento.CoroarNoAmericanoAsync).
+    private async Task CoroarDesempateDoAmericanoAsync(int vencedorId, int torneioId)
+    {
+        var duplaVencedora = await _context.Duplas.FindAsync(vencedorId);
+        if (duplaVencedora != null)
+        {
+            _context.Duplas.Add(new Dupla
+            {
+                CategoriaId = duplaVencedora.CategoriaId,
+                Jogador1Id = duplaVencedora.Jogador1Id,
+                Jogador2Id = null,
+                UltimaFase = "Campeao",
+            });
+        }
 
         var torneio = await _context.Torneios.FindAsync(torneioId);
         if (torneio != null) torneio.Status = "Finalizado";

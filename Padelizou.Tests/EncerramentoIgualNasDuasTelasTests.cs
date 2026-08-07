@@ -63,12 +63,26 @@ public class EncerramentoIgualNasDuasTelasTests
         Assert.Equal(4, ctx.Jogadores.Count(j => j.Padelimetro != null));
     }
 
-    // ---- 2. FINAL DO AMERICANO ----
-
+    // ---- 2. O DESFECHO DO AMERICANO ----
+    //
+    // ⚠️ Este teste já exigiu o CONTRÁRIO: que o robô montasse uma "Final" cruzando os 4
+    // melhores. Isso saiu em 06/08/2026, quando rodar o formato inteiro no navegador mostrou
+    // que aquela final dava ao torneio DOIS campeões — a tabela coroava o líder em games e a
+    // conquista do perfil coroava quem vencesse a final (a líder com 56 games ficou sem
+    // título; o 2º colocado, com 53, levou).
+    //
+    // A regra (Felipe): vence quem fez mais games, e só há partida extra se DOIS OU MAIS
+    // empatarem na liderança. A intenção do teste continua a mesma — o desfecho não pode
+    // depender de por qual tela o placar foi lançado.
+    //
+    // Cenário: 4 jogadores, um jogo só de 6x2. Os dois vencedores terminam empatados em 6
+    // games — é empate na liderança, e este torneio não previu desempate (MontarTorneio
+    // deixa a opção desligada). Então: ninguém é coroado pelo sistema, nenhuma partida nova
+    // nasce, e o título fica com o organizador.
     [Theory]
     [InlineData(Tela.Mesa)]
     [InlineData(Tela.TelaCheia)]
-    public async Task A_final_do_americano_nasce_pelas_duas_telas(Tela tela)
+    public async Task O_americano_nao_inventa_final_pelas_duas_telas(Tela tela)
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Em Andamento");
@@ -76,10 +90,73 @@ public class EncerramentoIgualNasDuasTelasTests
 
         await FinalizarAsync(ctx, tela, rodada, org, Substitute.For<IPushNotificationService>());
 
-        // Acabaram as rodadas → o robô cruza os 4 melhores (1º+4º × 2º+3º) e marca a final.
-        var final = await ctx.Partidas.SingleOrDefaultAsync(p => p.CategoriaId == categoria.Id && p.Fase == "Final");
-        Assert.NotNull(final);
-        Assert.False(string.IsNullOrEmpty(final!.Codigo));   // NOT NULL no banco
+        // O defeito: uma "Final" que ninguém pediu.
+        Assert.Null(await ctx.Partidas.SingleOrDefaultAsync(
+            p => p.CategoriaId == categoria.Id && p.Fase == "Final"));
+
+        // E nada de coroar alguém no meio de um empate.
+        Assert.False(await ctx.Duplas.AnyAsync(
+            d => d.CategoriaId == categoria.Id && d.UltimaFase == "Campeao"));
+
+        // As rodadas acabaram: o torneio encerra do mesmo jeito pelas duas telas.
+        Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
+    }
+
+    // O caminho NORMAL do Americano: alguém fez mais games que todo mundo e leva o título sem
+    // jogar mais nada. Dois jogos com os parceiros trocados, como manda o formato — é o que
+    // desempata os quatro e produz um líder isolado.
+    //
+    // ⚠️ O campeão do Americano é UMA PESSOA. O carimbo vai numa linha SEM parceiro: coroar a
+    // dupla de uma rodada daria o título também a quem calhou de jogar junto naquele jogo.
+    [Theory]
+    [InlineData(Tela.Mesa)]
+    [InlineData(Tela.TelaCheia)]
+    public async Task Lider_em_games_e_coroado_pelas_duas_telas(Tela tela)
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Em Andamento");
+
+        // Materializa antes de achatar: o provedor do EF não traduz a projeção pra array.
+        var jogadores = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id)
+            .OrderBy(d => d.Id)
+            .ToList()
+            .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id!.Value })
+            .ToList();
+        var (a, b, c, d4) = (jogadores[0], jogadores[1], jogadores[2], jogadores[3]);
+
+        // Rodada 1: (a,b) 6 x 2 (c,d)   → a e b com 6; c e d com 2.
+        var r1 = JogoEntreAsDuasDuplas(ctx, torneio, categoria, "Americano 1");
+
+        // Rodada 2: (a,c) 6 x 2 (b,d)   → a fecha com 12, b com 8, c com 8, d com 4.
+        var dupla1R2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = a, Jogador2Id = c };
+        var dupla2R2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = b, Jogador2Id = d4 };
+        ctx.Duplas.AddRange(dupla1R2, dupla2R2);
+        await ctx.SaveChangesAsync();
+        var r2 = new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = categoria.Id,
+            Dupla1Id = dupla1R2.Id, Dupla2Id = dupla2R2.Id,
+            Fase = "Americano 2", Status = "Agendada", Codigo = "AM2TST",
+        };
+        ctx.Partidas.Add(r2);
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        await FinalizarAsync(ctx, tela, r1, org, push);
+        await FinalizarAsync(ctx, tela, r2, org, push);
+
+        // Líder isolado: 12 games contra 8, 8 e 4. Nenhuma partida extra.
+        Assert.Null(await ctx.Partidas.SingleOrDefaultAsync(
+            p => p.CategoriaId == categoria.Id && p.Fase == "Final"));
+
+        var carimbo = await ctx.Duplas.SingleOrDefaultAsync(
+            x => x.CategoriaId == categoria.Id && x.UltimaFase == "Campeao");
+        Assert.NotNull(carimbo);
+        Assert.Equal(a, carimbo!.Jogador1Id);
+        // SEM parceiro: senão o título vaza pra quem jogou junto na última rodada.
+        Assert.Null(carimbo.Jogador2Id);
+
+        Assert.Equal("Finalizado", (await ctx.Torneios.FindAsync(torneio.Id))!.Status);
     }
 
     // ---- 3. "SEU JOGO É O PRÓXIMO" ----
