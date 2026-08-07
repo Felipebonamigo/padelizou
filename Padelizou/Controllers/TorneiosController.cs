@@ -347,7 +347,7 @@ namespace Padelizou.Controllers
             // Preço por pessoa: quem vê a tela quer saber quanto sai do bolso dele.
             var exibicao = torneio.CobraPeloSite
                 ? _pagamentos.CalcularExibicao(torneio.PrecoInscricao, "Torneio", recebedorTorneio,
-                    torneio.ModoComissao, _taxas.PercentualDoTorneio(torneio.FormaPagamento))
+                    torneio.ModoComissao, CobrancaDoTorneio.PercentualExibicao(torneio, _taxas))
                 : null;
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;

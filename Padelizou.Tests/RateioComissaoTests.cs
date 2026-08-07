@@ -58,6 +58,19 @@ public class RateioComissaoTests
     }
 
     [Fact]
+    public void Percentual_zero_explicito_e_isencao_de_verdade_o_piso_nao_reaparece()
+    {
+        // Diferente do caso acima: aqui o percentual não está ausente, foi ZERADO de
+        // propósito (CobrancaDoTorneio.IsentoDeTaxa, pro Americano livre sem ranking). O
+        // piso de R$ 4 existe pra cobrança pequena não sumir — não pra reaparecer escondido
+        // atrás de uma isenção combinada.
+        var r = NovoServico().CalcularRateio(100m, "Torneio", "Somada", percentual: 0m);
+        Assert.Equal(0m, r.Comissao);
+        Assert.Equal(100m, r.ValorTotal);
+        Assert.Equal(100m, r.ValorRepasse);
+    }
+
+    [Fact]
     public void Piso_e_por_tipo_de_operacao_e_nao_transforma_3_por_cento_em_ficcao()
     {
         // O bug que o piso único de R$ 4 causaria: 3% de uma aula de R$ 100 são R$ 3 — com

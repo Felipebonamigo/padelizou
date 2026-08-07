@@ -1,3 +1,4 @@
+using Padelizou.Models;
 using Padelizou.Services;
 
 namespace Padelizou.Tests;
@@ -94,6 +95,55 @@ public class CobrancaDoTorneioTests
         var c = CobrancaDoTorneio.Montar("Externo", null, Taxas);
 
         Assert.Equal(5m, c.Percentual);
+    }
+
+    // O AMERICANO é livre (Felipe, 07/08/2026): quem não compra o Ranking Americano não
+    // paga taxa nenhuma do Padelizou, em nenhuma forma de recebimento. O Oficial e o
+    // Americano que compra ranking seguem pagando normal.
+    [Theory]
+    [InlineData("Americano")]
+    [InlineData("AmericanoDuplas")]
+    public void Americano_sem_ranking_e_isento_de_taxa_em_qualquer_forma(string formato)
+    {
+        foreach (var forma in new[] { "Externo", "OnlinePix", "OnlineTodas" })
+        {
+            var torneio = new Torneio
+            {
+                Nome = "x", Codigo = "x", Formato = formato, FormaPagamento = forma,
+                PontuaNoRankingAmericano = false,
+            };
+            Assert.True(CobrancaDoTorneio.IsentoDeTaxa(torneio));
+            Assert.Equal(0m, CobrancaDoTorneio.Montar(torneio, null, Taxas).Percentual);
+            Assert.Equal(0m, CobrancaDoTorneio.PercentualExibicao(torneio, Taxas));
+        }
+    }
+
+    [Theory]
+    [InlineData("Americano")]
+    [InlineData("AmericanoDuplas")]
+    public void Americano_que_compra_ranking_paga_a_taxa_normal(string formato)
+    {
+        var torneio = new Torneio
+        {
+            Nome = "x", Codigo = "x", Formato = formato, FormaPagamento = "OnlinePix",
+            PontuaNoRankingAmericano = true,
+        };
+        Assert.False(CobrancaDoTorneio.IsentoDeTaxa(torneio));
+        Assert.Equal(10m, CobrancaDoTorneio.Montar(torneio, null, Taxas).Percentual);
+    }
+
+    [Fact]
+    public void Oficial_nunca_e_isento_mesmo_sem_a_flag_de_ranking()
+    {
+        // PontuaNoRankingAmericano não existe pro Oficial — a flag pode vir falsa à toa,
+        // e isso não pode virar isenção de taxa por acidente.
+        var torneio = new Torneio
+        {
+            Nome = "x", Codigo = "x", Formato = "Padrao", FormaPagamento = "Externo",
+            PontuaNoRankingAmericano = false,
+        };
+        Assert.False(CobrancaDoTorneio.IsentoDeTaxa(torneio));
+        Assert.Equal(5m, CobrancaDoTorneio.Montar(torneio, null, Taxas).Percentual);
     }
 
     [Fact]

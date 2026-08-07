@@ -177,7 +177,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null)
     {
-        var cobranca = CobrancaDoTorneio.Montar(torneio.FormaPagamento, formaEscolhida, _taxas);
+        var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
         return CriarCobrancaAsync(
             recebedor, pagador,

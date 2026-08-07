@@ -1,3 +1,5 @@
+using Padelizou.Models;
+
 namespace Padelizou.Services;
 
 // Como a inscrição de um torneio é cobrada: qual forma a cobrança trava no meio de pagamento
@@ -25,8 +27,28 @@ public static class CobrancaDoTorneio
 
     public sealed record Cobranca(string BillingType, decimal Percentual);
 
+    // O AMERICANO é livre (Felipe, 07/08/2026): quem não compra o Ranking Americano não
+    // paga taxa nenhuma do Padelizou, em NENHUMA forma de recebimento — Externo, Pix ou
+    // Todas as formas. A única cobrança que existe pra ele é a do próprio Ranking Americano
+    // (PontosDoAmericano), se ele quiser. O Oficial e o Americano que compra ranking seguem
+    // pagando a taxa normal de sempre.
+    public static bool IsentoDeTaxa(Torneio torneio) =>
+        FormatoDoTorneio.EhAmericano(torneio.Formato) && !torneio.PontuaNoRankingAmericano;
+
     // Só faz sentido perguntar quando o organizador abriu mais de uma forma.
     public static bool JogadorEscolheAForma(string formaDoTorneio) => formaDoTorneio == "OnlineTodas";
+
+    // Mesma forma de pagamento, mesmo BillingType — só a taxa some pro Americano isento.
+    public static Cobranca Montar(Torneio torneio, string? escolhaDoJogador, TaxasExibicao taxas)
+    {
+        var cobranca = Montar(torneio.FormaPagamento, escolhaDoJogador, taxas);
+        return IsentoDeTaxa(torneio) ? cobranca with { Percentual = 0m } : cobranca;
+    }
+
+    // O percentual que a tela mostra ANTES de o jogador escolher a forma (Details, criação).
+    // Espelha Montar: mesma isenção, sem precisar de uma Cobranca inteira pra uma prévia.
+    public static decimal PercentualExibicao(Torneio torneio, TaxasExibicao taxas) =>
+        IsentoDeTaxa(torneio) ? 0m : taxas.PercentualDoTorneio(torneio.FormaPagamento);
 
     public static Cobranca Montar(string formaDoTorneio, string? escolhaDoJogador, TaxasExibicao taxas)
     {

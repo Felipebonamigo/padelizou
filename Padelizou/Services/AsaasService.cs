@@ -29,9 +29,16 @@ public class AsaasService : IAsaasService
     public RateioComissao CalcularRateio(decimal preco, string tipoOperacao, string? modoComissao = null,
         decimal? percentual = null)
     {
-        var comissao = Math.Max(
-            Math.Round(preco * (percentual ?? PercentualDe(tipoOperacao)) / 100m, 2),
-            MinimaDe(tipoOperacao));
+        // Um percentual explicitamente ZERO é isenção de verdade (ex.: CobrancaDoTorneio —
+        // o Americano livre sem Ranking Americano), não "percentual baixo demais". O piso
+        // mínimo existe pra cobrança pequena não virar centavo de menos que o custo do Pix;
+        // reaplicá-lo aqui cobraria R$ 4 escondido de quem deveria pagar R$ 0. Só o percentual
+        // AUSENTE (null, "não escolhi taxa nenhuma") cai na tabela padrão + piso.
+        var comissao = percentual == 0m
+            ? 0m
+            : Math.Max(
+                Math.Round(preco * (percentual ?? PercentualDe(tipoOperacao)) / 100m, 2),
+                MinimaDe(tipoOperacao));
 
         var modo = string.IsNullOrWhiteSpace(modoComissao) ? _settings.ModoComissaoPadrao : modoComissao;
 

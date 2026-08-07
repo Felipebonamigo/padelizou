@@ -29,6 +29,14 @@
         SuporteOpcoes.Value.WhatsApp,
         $"Olá! Sou {(string.IsNullOrWhiteSpace(quemFala) ? "organizador" : quemFala)} e vou criar um torneio no Padelizou "
         + $"na forma \"por fora\" ({taxas.ComissaoPercentualExterno.ToString("0.#")}%). Queria combinar a taxa com vocês.");
+
+    // Os três formatos não esgotam o que dá pra jogar (liga, ranking por temporada, formato
+    // meio-a-meio...). Em vez de fingir que só existe isso, o quarto "botão" é pedir pro
+    // Padelizou montar o jeito certo pra aquele torneio.
+    var linkFormatoPersonalizado = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+        SuporteOpcoes.Value.WhatsApp,
+        $"Olá! Sou {(string.IsNullOrWhiteSpace(quemFala) ? "organizador" : quemFala)} e queria montar um torneio no Padelizou "
+        + "que não é Oficial, nem Americano, nem Americano de Duplas. Podem me ajudar a montar o formato certo?");
 }
 
 <div class="container mt-4 mb-5">
@@ -85,6 +93,13 @@
                                 <input class="form-check-input" type="radio" name="Formato" id="formatoAmericanoDuplas" value="AmericanoDuplas">
                                 <label class="form-check-label" for="formatoAmericanoDuplas">Americano de Duplas (duplas fixas, todos contra todos)</label>
                             </div>
+                            @* Quarta opção, mas não é radio: não dá pra "selecionar" um formato
+                               que o sistema ainda não sabe montar sozinho. É uma porta pro
+                               WhatsApp, não um quarto valor de Formato. *@
+                            <a href="@linkFormatoPersonalizado" target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-secondary rounded-pill align-self-start">
+                                <i class="bi bi-whatsapp"></i> Não é nenhum desses? Fale conosco que montamos seu tipo de torneio
+                            </a>
                         </div>
                         @if (ViewBag.PodeCriarOficial != true)
                         {
@@ -111,7 +126,7 @@
                             <div class="p-3 mb-3 rounded" style="background-color: var(--pdz-surface); border: 1px solid var(--pdz-border);">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" asp-for="PontuaNoRankingAmericano"
-                                           id="pontuaRankingAmericano" onchange="pdzCustoRanking()" />
+                                           id="pontuaRankingAmericano" onchange="pdzCustoRanking(); pdzAtualizarSimulacao();" />
                                     <label class="form-check-label fw-bold" for="pontuaRankingAmericano">
                                         <i class="bi bi-trophy"></i> Quero que este Americano valha ponto no Ranking Americano
                                     </label>
@@ -319,7 +334,7 @@
                                 <i class="bi bi-calendar-check me-1"></i> Vai caber?
                             </label>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="small text-muted">Você espera quantas duplas?</span>
+                                <span class="small text-muted" id="pdzRotuloEspera">Você espera quantas duplas?</span>
                                 <input type="number" id="pdzDuplasEsperadas" min="2" max="256" value="50"
                                        class="form-control form-control-sm" style="width: 90px;" />
                                 <span class="small text-muted">(só pra simular — não é limite)</span>
@@ -617,7 +632,7 @@
                         </div>
                     </div>
                 }
-                <div class="row mb-4">
+                <div class="row mb-4" id="blocoCheckIn">
                     <div class="col-md-12">
                         <div class="form-check form-switch mb-2">
                             @* Nasce desmarcado (o modelo já vem assim): quem faz torneio grande
@@ -629,6 +644,14 @@
                                 Ajuda em torneio grande; num interno pequeno costuma sobrar.
                             </div>
                         </div>
+                    </div>
+                </div>
+                @* Impedimento é uma DUPLA marcando o horário em que não pode jogar, antes
+                   mesmo de o sorteio existir. No Americano (os dois sabores) não há dupla
+                   fixa nesse sentido — no individual o parceiro muda a cada rodada, e a
+                   ideia de bloquear um turno inteiro não se aplica a como o torneio roda. *@
+                <div class="row mb-4" id="blocoImpedimentos">
+                    <div class="col-md-12">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentos" id="impSwitch" onchange="toggleImpedimentos()" style="transform: scale(1.3); margin-right: 10px;">
                             <label class="form-check-label fw-bold text-muted" for="impSwitch">Permitir Impedimentos de Horário?</label>
@@ -730,7 +753,7 @@
                    06/08/2026: quem nivela é o Ranking RS, que enxerga o estado inteiro em vez de
                    só quem já jogou no Padelizou. O motor continua no código e testado — voltar a
                    oferecer é devolver um <select> aqui. Ver RANKING.md. *@
-                <div class="row mb-4">
+                <div class="row mb-4" id="blocoRankingRs">
                     <div class="col-md-12">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" asp-for="ValidarPeloRankingRs" id="createRankingRs">
@@ -1141,6 +1164,22 @@
                 if (config) { config.style.display = 'none'; }
             }
         }
+
+        // Check-in, Impedimentos e Ranking RS são conceitos do torneio de chave (Oficial):
+        // impedimento é dupla travando um turno antes do sorteio existir, e o Ranking RS
+        // nivela categoria por categoria fechada. Nenhum dos dois casa com o Americano —
+        // desmarcados também, pra não submeter uma flag ligada que a tela escondeu.
+        mostrar('blocoCheckIn', !algumAmericano);
+        mostrar('blocoImpedimentos', !algumAmericano);
+        mostrar('blocoRankingRs', !algumAmericano);
+        if (algumAmericano) {
+            ['checkInSwitch', 'impSwitch', 'createRankingRs'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.checked = false;
+            });
+            var turnos = document.getElementById('turnosImpedimento');
+            if (turnos) turnos.style.display = 'none';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -1246,8 +1285,16 @@
     }
 
     // ── "Vai caber?" ────────────────────────────────────────────────────────────────────
-    // Espelha PrevisaoDoTorneio e GradeDeJogos. Se as duas contas divergirem, a tela mente.
+    // Espelha PrevisaoDoTorneio (Oficial), DivisaoDoAmericano (Americano individual) e
+    // RodadasAmericanoDeDuplas (Americano de Duplas). Se estas contas divergirem dos
+    // Services, a tela mente pro organizador.
 
+    function pdzFormatoAtual() {
+        var marcado = document.querySelector('input[name="Formato"]:checked');
+        return marcado ? marcado.value : 'Padrao';
+    }
+
+    // ---- Oficial: duplas fixas, grupos de 3 + mata-mata ------------------------------
     function pdzFaseDeGrupos(duplas) {
         if (duplas < 2) return { grupos: 0, jogos: 0 };
         if (duplas < 3) return { grupos: 1, jogos: 1 };
@@ -1263,6 +1310,63 @@
         var quadro = 1;
         while (quadro * 2 <= grupos * 2) quadro *= 2;
         return quadro - 1;
+    }
+
+    // ---- Americano de Duplas: todos contra todos comum, qualquer quantidade fecha ----
+    function pdzDuplasAmericanoRodadas(duplas) {
+        return duplas < 2 ? 0 : (duplas % 2 === 0 ? duplas - 1 : duplas);
+    }
+    function pdzDuplasAmericanoPartidas(duplas) {
+        return duplas < 2 ? 0 : duplas * (duplas - 1) / 2;
+    }
+
+    // ---- Americano individual: cada um com cada um, só fecha em certos números -------
+    function pdzTamanhoFecha(tamanho) { return tamanho >= 4 && tamanho % 4 <= 1; }
+    function pdzRodadasDoGrupo(tamanho) { return tamanho % 4 === 0 ? tamanho - 1 : tamanho; }
+    function pdzPartidasDoGrupo(tamanho) { return tamanho * (tamanho - 1) / 4; }
+
+    function pdzQuantosPassam(grupos, porGrupo) {
+        for (var passam = 2; passam < porGrupo; passam++) {
+            if (pdzTamanhoFecha(grupos * passam)) return passam;
+        }
+        return null;
+    }
+
+    // A que MAIS MISTURA (menos grupos) primeiro — mesma ordem de DivisaoDoAmericano.Possiveis.
+    function pdzDivisoesPossiveis(pessoas) {
+        var achadas = [];
+        if (pessoas < 4) return achadas;
+        for (var grupos = 1; grupos <= Math.floor(pessoas / 4); grupos++) {
+            if (pessoas % grupos !== 0) continue;
+            var porGrupo = pessoas / grupos;
+            if (!pdzTamanhoFecha(porGrupo)) continue;
+            if (grupos === 1) { achadas.push({ grupos: 1, porGrupo: porGrupo, passam: 0 }); continue; }
+            var passam = pdzQuantosPassam(grupos, porGrupo);
+            if (passam !== null) achadas.push({ grupos: grupos, porGrupo: porGrupo, passam: passam });
+        }
+        return achadas;
+    }
+
+    function pdzAmericanoAceita(pessoas) { return pdzDivisoesPossiveis(pessoas).length > 0; }
+
+    function pdzMaisProximosQueFecham(pessoas) {
+        var abaixo = null, acima = null, n;
+        for (n = pessoas - 1; n >= 4; n--) { if (pdzAmericanoAceita(n)) { abaixo = n; break; } }
+        for (n = pessoas + 1; n <= pessoas + 12; n++) { if (pdzAmericanoAceita(n)) { acima = n; break; } }
+        return { abaixo: abaixo, acima: acima };
+    }
+
+    // Totais (rodadas e partidas) da divisão que mais mistura — a primeira da lista.
+    function pdzDivisaoTotais(pessoas) {
+        var opcoes = pdzDivisoesPossiveis(pessoas);
+        if (!opcoes.length) return null;
+        var d = opcoes[0];
+        var temFinal = d.grupos > 1;
+        var tamanhoFinal = temFinal ? d.grupos * d.passam : 0;
+        var rodadas = pdzRodadasDoGrupo(d.porGrupo) + (temFinal ? pdzRodadasDoGrupo(tamanhoFinal) : 0);
+        var partidas = d.grupos * pdzPartidasDoGrupo(d.porGrupo) + (temFinal ? pdzPartidasDoGrupo(tamanhoFinal) : 0);
+        return { grupos: d.grupos, porGrupo: d.porGrupo, temFinal: temFinal,
+                 tamanhoFinal: tamanhoFinal, rodadas: rodadas, partidas: partidas };
     }
 
     // Mesma marcha do GradeDeJogos: N quadras em paralelo, vira o dia ao passar do teto.
@@ -1298,11 +1402,28 @@
         return dias[d.getDay()] + ' ' + dd + '/' + mm + ' às ' + hh + ':' + mi;
     }
 
+    // Rótulo e mínimo do campo mudam com o formato: no Americano individual não existe
+    // "dupla" na inscrição, é gente sorteada a cada rodada — por isso a pergunta certa é
+    // "quantas pessoas", com o piso de 4 que DivisaoDoAmericano exige.
+    function pdzRotuloEspera() {
+        var rotulo = document.getElementById('pdzRotuloEspera');
+        var input = document.getElementById('pdzDuplasEsperadas');
+        if (!rotulo || !input) return;
+        if (pdzFormatoAtual() === 'Americano') {
+            rotulo.textContent = 'Você espera quantas pessoas?';
+            input.min = '4';
+        } else {
+            rotulo.textContent = 'Você espera quantas duplas?';
+            input.min = '2';
+        }
+    }
+
     function pdzPrevisao() {
         var alvo = document.getElementById('pdzPrevisao');
         if (!alvo) return;
 
-        var duplas = parseInt((document.getElementById('pdzDuplasEsperadas') || {}).value, 10) || 0;
+        var formato = pdzFormatoAtual();
+        var numero = parseInt((document.getElementById('pdzDuplasEsperadas') || {}).value, 10) || 0;
         var duracao = parseInt((document.getElementById('TempoPrevistoPartidaMinutos') || {}).value, 10) || 0;
         var quadras = Math.max(1, parseInt((document.getElementById('quantidadeQuadras') || {}).value, 10) || 1);
         var abre = pdzEmMinutos((document.getElementById('HoraInicioDoDia') || {}).value);
@@ -1311,14 +1432,46 @@
         var dataInicio = (document.getElementById('DataInicio') || {}).value;
         var dataFim = (document.getElementById('DataFim') || {}).value;
 
-        if (!duplas || duplas < 2 || !duracao || abre === null || seguintes === null || teto === null || !dataInicio) {
+        var minimo = formato === 'Americano' ? 4 : 2;
+        if (!numero || numero < minimo || !duracao || abre === null || seguintes === null || teto === null || !dataInicio) {
             alvo.innerHTML = '<span class="text-muted">Preencha a data de início, os horários e a duração pra ver a conta.</span>';
             return;
         }
 
-        var g = pdzFaseDeGrupos(duplas);
-        var jogosMata = pdzMataMata(g.grupos);
-        var total = g.jogos + jogosMata;
+        var total, resumo;
+
+        if (formato === 'Americano') {
+            // Cada um com cada um só fecha em certos números — mesma régua de
+            // DivisaoDoAmericano.Aceita. Sem isso, a conta de jogos não existe.
+            if (!pdzAmericanoAceita(numero)) {
+                var prox = pdzMaisProximosQueFecham(numero);
+                var saidas = [];
+                if (prox.acima !== null) saidas.push('chame mais ' + (prox.acima - numero) + ' e feche em ' + prox.acima);
+                if (prox.abaixo !== null) saidas.push('jogue com ' + prox.abaixo);
+                alvo.innerHTML = '<div class="alert alert-warning mt-0 mb-0 py-2 px-3">'
+                    + '<i class="bi bi-exclamation-triangle-fill"></i> Com ' + numero + ' pessoas não dá pra todo mundo jogar '
+                    + 'a mesma quantidade de jogos sem repetir parceiro'
+                    + (saidas.length ? ' — ' + saidas.join(', ou ') + '.' : '.') + '</div>';
+                return;
+            }
+            var d = pdzDivisaoTotais(numero);
+            total = d.partidas;
+            resumo = '<strong>' + numero + ' pessoas</strong> = '
+                + (d.temFinal
+                    ? d.grupos + ' grupos de ' + d.porGrupo + ' + grupo final de ' + d.tamanhoFinal
+                    : '1 grupo de ' + d.porGrupo)
+                + ', ' + d.rodadas + ' rodadas, <strong>' + total + ' jogos</strong>.';
+        } else if (formato === 'AmericanoDuplas') {
+            total = pdzDuplasAmericanoPartidas(numero);
+            resumo = '<strong>' + numero + ' duplas</strong> = todos contra todos, '
+                + pdzDuplasAmericanoRodadas(numero) + ' rodadas, <strong>' + total + ' jogos</strong>.';
+        } else {
+            var g = pdzFaseDeGrupos(numero);
+            var jogosMata = pdzMataMata(g.grupos);
+            total = g.jogos + jogosMata;
+            resumo = '<strong>' + numero + ' duplas</strong> = ' + g.grupos + ' grupos, '
+                + g.jogos + ' jogos de grupo + ' + jogosMata + ' de mata-mata = <strong>' + total + ' jogos</strong>.';
+        }
 
         var partes = dataInicio.split('-');
         var inicio = new Date(+partes[0], +partes[1] - 1, +partes[2], 0, abre, 0);
@@ -1327,8 +1480,7 @@
         var dias = Math.round((new Date(ultimo.getFullYear(), ultimo.getMonth(), ultimo.getDate())
                              - new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate())) / 86400000) + 1;
 
-        var texto = '<strong>' + duplas + ' duplas</strong> = ' + g.grupos + ' grupos, '
-            + g.jogos + ' jogos de grupo + ' + jogosMata + ' de mata-mata = <strong>' + total + ' jogos</strong>.'
+        var texto = resumo
             + '<br>Começa ' + pdzDataHora(inicio) + ' e o último jogo termina <strong>' + pdzDataHora(fimReal) + '</strong>'
             + ' — ' + dias + (dias > 1 ? ' dias de quadra.' : ' dia de quadra.');
 
@@ -1358,6 +1510,13 @@
                     el.addEventListener(evt, function () { pdzUltimoJogo(); pdzPrevisao(); });
                 });
             });
+        document.querySelectorAll('[name="Formato"]').forEach(function (r) {
+            r.addEventListener('change', function () {
+                pdzRotuloEspera(); pdzUltimoJogo(); pdzPrevisao();
+                if (typeof pdzAtualizarSimulacao === 'function') pdzAtualizarSimulacao();
+            });
+        });
+        pdzRotuloEspera();
         pdzUltimoJogo();
         pdzPrevisao();
     });
@@ -1380,7 +1539,7 @@
         return 'R$ ' + v.toFixed(2).replace('.', ',');
     }
 
-    function pdzAtualizarConta(paga, comissao, recebe, externo, pct) {
+    function pdzAtualizarConta(paga, comissao, recebe, externo, pct, isento) {
         var def = function (id, txt) {
             var e = document.getElementById(id);
             if (e) e.textContent = txt;
@@ -1389,11 +1548,15 @@
         def('pdzComissaoValor', comissao > 0 ? '− ' + pdzMoeda(comissao) : '—');
         def('pdzVoceRecebe', recebe > 0 ? pdzMoeda(recebe) : '—');
 
-        // Por fora ele recebe tudo na hora e paga a taxa depois — "você recebe" mentiria.
-        def('pdzComissaoRotulo', externo
-            ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
-            : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
-        def('pdzRecebeRotulo', externo ? '= Fica com você, por jogador' : '= Você recebe, por jogador');
+        // Isento não tem piso nenhum pra citar — "mín. R$ 4" junto de "0%" mentiria que o
+        // piso ainda vale. Por fora ele recebe tudo na hora e paga a taxa depois — "você
+        // recebe" também mentiria nesse caso.
+        def('pdzComissaoRotulo', isento
+            ? '− Taxa do Padelizou (Americano livre, sem Ranking Americano: R$ 0,00)'
+            : externo
+                ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
+                : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
+        def('pdzRecebeRotulo', externo && !isento ? '= Fica com você, por jogador' : '= Você recebe, por jogador');
     }
 
     function pdzAtualizarSimulacao() {
@@ -1410,27 +1573,42 @@
         var blocoPix = document.getElementById('pdzBlocoPix');
         if (blocoPix) blocoPix.style.display = externo ? 'block' : 'none';
 
+        // O Americano que não compra o Ranking Americano não paga taxa nenhuma do
+        // Padelizou, em nenhuma forma — espelha CobrancaDoTorneio.IsentoDeTaxa no servidor.
+        // Só o Oficial e o Americano que marcou "valer ponto" seguem pagando a taxa normal.
+        var pontuaRanking = document.getElementById('pontuaRankingAmericano');
+        var isentoAmericano = pdzFormatoAtual() !== 'Padrao' && !(pontuaRanking && pontuaRanking.checked);
+
         if (preco <= 0) {
             caixa.textContent = 'Informe o valor da inscrição pra ver a conta.';
-            pdzAtualizarConta(0, 0, 0, false, 0);
+            pdzAtualizarConta(0, 0, 0, false, 0, isentoAmericano);
             return;
         }
 
         // O jogador paga exatamente o valor anunciado; a taxa sai de dentro dele.
-        var pct = pdzTaxaPorForma[forma];
-        var taxa = externo
-            ? preco * pct / 100
-            : Math.max(preco * pct / 100, pdzComissaoMin);
+        var pct = isentoAmericano ? 0 : pdzTaxaPorForma[forma];
+
+        // Isenção de verdade zera a taxa; o piso mínimo (R$ 4) só existe pra cobrança
+        // pequena não sumir, não pode reaparecer escondido atrás da isenção do Americano
+        // (mesma régua de AsaasService.CalcularRateio: percentual 0 explícito ignora o piso).
+        var taxa = isentoAmericano ? 0
+            : externo
+                ? preco * pct / 100
+                : Math.max(preco * pct / 100, pdzComissaoMin);
         var recebe = preco - taxa;
 
-        pdzAtualizarConta(preco, taxa, recebe, externo, pct);
+        pdzAtualizarConta(preco, taxa, recebe, externo, pct, isentoAmericano);
 
-        // Uma dupla são duas pessoas: quem se inscreve paga as duas de uma vez.
+        // No Americano individual a inscrição é por PESSOA, não por dupla (mesma régua de
+        // Torneio.PessoasPorInscricao) — "uma dupla paga" não existe nesse formato.
+        var individual = pdzFormatoAtual() === 'Americano';
+        var pessoas = individual ? 1 : 2;
+        var quem = individual ? 'Uma pessoa' : 'Uma dupla';
         caixa.innerHTML = externo
-            ? 'Uma dupla te paga <strong>' + pdzMoeda(preco * 2) + '</strong> direto, e você deve ' +
-              pdzMoeda(taxa * 2) + ' ao Padelizou depois.'
-            : 'Uma dupla paga <strong>' + pdzMoeda(preco * 2) + '</strong> e entram ' +
-              pdzMoeda(recebe * 2) + ' pra você.';
+            ? quem + ' te paga <strong>' + pdzMoeda(preco * pessoas) + '</strong> direto, e você deve ' +
+              pdzMoeda(taxa * pessoas) + ' ao Padelizou depois.'
+            : quem + ' paga <strong>' + pdzMoeda(preco * pessoas) + '</strong> e entram ' +
+              pdzMoeda(recebe * pessoas) + ' pra você.';
     }
 
     document.addEventListener('DOMContentLoaded', pdzAtualizarSimulacao);

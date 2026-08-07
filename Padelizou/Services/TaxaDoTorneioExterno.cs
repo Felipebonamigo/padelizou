@@ -11,10 +11,13 @@ namespace Padelizou.Services;
 // condição está escrita na própria opção desde a criação do torneio — aqui ela vira trava.
 public static class TaxaDoTorneioExterno
 {
-    // A trava só existe onde há taxa a cobrar: torneio gratuito não deve nada, e as formas
-    // online cobram a comissão dentro de cada inscrição, muito antes das chaves.
+    // A trava só existe onde há taxa a cobrar: torneio gratuito não deve nada, as formas
+    // online cobram a comissão dentro de cada inscrição (muito antes das chaves), e o
+    // Americano que não compra o Ranking Americano é isento de taxa em qualquer forma —
+    // ver CobrancaDoTorneio.IsentoDeTaxa.
     public static bool SeAplica(Torneio torneio) =>
-        torneio.FormaPagamento == "Externo" && torneio.PrecoInscricao > 0;
+        torneio.FormaPagamento == "Externo" && torneio.PrecoInscricao > 0
+        && !CobrancaDoTorneio.IsentoDeTaxa(torneio);
 
     public static bool ChavesLiberadas(Torneio torneio) =>
         !SeAplica(torneio)
