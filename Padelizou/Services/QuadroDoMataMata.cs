@@ -19,9 +19,19 @@ public static class QuadroDoMataMata
     // Um lado de vaga futura: ou aponta pro jogo de onde vem o vencedor (`VemDoJogo`,
     // na numeração DESTE quadro), ou é a dupla que folgou a primeira rodada — que entra
     // NOMEADA no jogo futuro, senão ela some do desenho (24 na chave, 16 visíveis).
-    public record Lado(int? VemDoJogo, Dupla? DuplaDeBye)
+    // `JaVenceu` é o jogo de procedência que JÁ TERMINOU: a vaga passa a mostrar o nome de
+    // quem ganhou em vez de "quem ganhar o jogo 12", sem esperar o resto da rodada. Quem
+    // venceu quer saber na hora que passou e contra quem — e a informação já está na tela,
+    // dois cartões acima. A PARTIDA da fase seguinte continua nascendo só quando a rodada
+    // fecha (Services/AvancoDaChave): meia chave viraria jogo sem adversário, e o
+    // agendamento precisa da rodada inteira pra distribuir hora e quadra.
+    public record Lado(int? VemDoJogo, Dupla? DuplaDeBye, Dupla? JaVenceu = null)
     {
         public bool EhBye => DuplaDeBye != null;
+
+        // O lado já tem dono — por ter folgado ou por ter vencido. Quem tem nome não fica
+        // apagado no desenho: é informação firme, não promessa.
+        public Dupla? ComNome => DuplaDeBye ?? JaVenceu;
     }
 
     // Uma vaga do quadro: jogo REAL (Jogo != null) ou vaga futura (Lado1/Lado2).
@@ -44,6 +54,9 @@ public static class QuadroDoMataMata
         var fases = new List<Fase>();
         int primeira = Array.FindIndex(ordemDasFases, f => jogos.Any(j => j.Fase == f));
         if (primeira < 0) return fases;
+
+        static Dupla? VencedoraDe(Partida p) => p.VencedorId == null ? null
+            : p.VencedorId == p.Dupla1Id ? p.Dupla1 : p.Dupla2;
 
         bool MinhaDupla(Dupla? d) => meuJogadorId != null && d != null &&
             (d.Jogador1Id == meuJogadorId || d.Jogador2Id == meuJogadorId);
@@ -96,7 +109,9 @@ public static class QuadroDoMataMata
                     numero++;
                 }
 
-                entrantes = vagas.Select(v => new Lado(v.Numero, null)).ToList();
+                entrantes = vagas
+                    .Select(v => new Lado(v.Numero, null, VencedoraDe(v.Jogo!)))
+                    .ToList();
                 // Os byes "somem sozinhos" quando a fase seguinte vira real (a dupla
                 // passa a ter jogo), então repetir o AddRange a cada fase real é inócuo.
                 entrantes.AddRange(byes.Select(b => new Lado(null, b)));

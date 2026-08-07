@@ -34,7 +34,7 @@
     string RotuloDoLado(Padelizou.Services.QuadroDoMataMata.Lado? lado)
     {
         if (lado == null) return "A definir";
-        if (lado.EhBye) return NomeDaDupla(lado.DuplaDeBye);
+        if (lado.ComNome is { } dona) return NomeDaDupla(dona);
         return $"Quem ganhar o jogo {lado.VemDoJogo}";
     }
 
@@ -158,14 +158,20 @@
                             </div>
                             @foreach (var lado in new[] { vaga.Lado1, vaga.Lado2 })
                             {
-                                <span class="pdz-chave-lado @(lado?.EhBye == true ? "" : "text-muted")">
+                                @* O selo conta POR QUE aquele nome já está numa fase que ainda
+                                   não aconteceu — a pergunta é a mesma nos dois casos, muda só
+                                   a resposta. "Bye" é jargão de tabela de torneio: quem não é
+                                   do meio não faz ideia do que significa, e era a única palavra
+                                   da tela que precisava ser explicada. *@
+                                <span class="pdz-chave-lado @(lado?.ComNome != null ? "" : "text-muted")">
                                     <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
                                     @if (lado?.EhBye == true)
                                     {
-                                        @* "bye" é jargão de tabela de torneio: quem não é do
-                                           meio não faz ideia do que significa, e era a única
-                                           palavra da tela que precisava ser explicada. *@
                                         <span class="pdz-chave-selobye">folgou a 1ª rodada</span>
+                                    }
+                                    else if (lado?.JaVenceu != null)
+                                    {
+                                        <span class="pdz-chave-selovem">venceu o jogo @lado.VemDoJogo</span>
                                     }
                                 </span>
                             }

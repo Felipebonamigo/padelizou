@@ -171,4 +171,48 @@ public class QuadroDoMataMataTests
         Assert.Equal([true, false], fases[1].Vagas.Select(v => v.EhMinha));
         Assert.True(fases[2].Vagas.Single().EhMinha);
     }
+
+    // ── Quem já venceu aparece na fase seguinte antes da rodada fechar ───────────────
+
+    // Sem isto, quem ganhou a quarta às 22h só se via na semifinal quando a última quadra
+    // da fase terminasse — meia hora depois, com o nome dele já visível dois cartões acima.
+    [Fact]
+    public void Vaga_futura_mostra_o_nome_de_quem_ja_venceu_o_jogo_que_a_alimenta()
+    {
+        var jogos = QuartasDeOito();
+        var vencedora = jogos[0].Dupla1!;
+        jogos[0].Status = "Finalizada";
+        jogos[0].VencedorId = vencedora.Id;
+
+        var fases = QuadroDoMataMata.Montar(jogos, [], meuJogadorId: null);
+
+        var semi = fases[1].Vagas[0];              // alimentada pelos jogos 1 e 4
+        Assert.Equal(vencedora.Id, semi.Lado1!.JaVenceu?.Id);
+        Assert.Equal(1, semi.Lado1!.VemDoJogo);    // a procedência continua, pro selo
+        Assert.Null(semi.Lado2!.JaVenceu);         // o jogo 4 ainda não terminou
+    }
+
+    // A final é alimentada por vagas FUTURAS, não por jogos reais: ninguém tem nome ali
+    // enquanto as semifinais não existirem como partida.
+    [Fact]
+    public void Vaga_alimentada_por_vaga_futura_continua_sem_nome()
+    {
+        var jogos = QuartasDeOito();
+        foreach (var j in jogos)
+        {
+            j.Status = "Finalizada";
+            j.VencedorId = j.Dupla1Id;
+        }
+
+        var fases = QuadroDoMataMata.Montar(jogos, [], meuJogadorId: null);
+
+        Assert.All(fases[1].Vagas, v =>
+        {
+            Assert.NotNull(v.Lado1!.JaVenceu);
+            Assert.NotNull(v.Lado2!.JaVenceu);
+        });
+        var final = fases[2].Vagas[0];
+        Assert.Null(final.Lado1!.JaVenceu);
+        Assert.Null(final.Lado2!.JaVenceu);
+    }
 }
