@@ -929,6 +929,25 @@
                                 <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
                             </div>
                         }
+
+                        @* Casal fica na coluna da mista, e não numa quarta: são as duas
+                           categorias de dupla com um de cada, e uma coluna só pra um item
+                           quebraria a grade de três. *@
+                        @if (catalogo.Any(c => c.Tipo == "Casal"))
+                        {
+                            <h6 class="fw-bold mb-2 mt-4 text-warning"><i class="bi bi-heart-fill"></i> Casal</h6>
+                            <p class="small text-muted mb-2">Casais de verdade jogando juntos — sem nível.</p>
+                            @foreach (var cat in catalogo.Where(c => c.Tipo == "Casal"))
+                            {
+                                <div class="form-check mb-2 d-flex align-items-center gap-2">
+                                    <div class="flex-grow-1">
+                                        <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
+                                        <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                    </div>
+                                    <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
 

@@ -148,7 +148,7 @@ public class PadelimetroService : IPadelimetroService
         var escadaFeminina = new Dictionary<int, bool>();
         foreach (var i in inscricoes.OrderByDescending(i => i.Data)) // mais recente primeiro; a primeira vista vence
         {
-            if (FaixasDePadelimetro.EhMista(i.Categoria)) continue;
+            if (FaixasDePadelimetro.ForaDaEscada(i.Categoria)) continue;
             bool feminina = FaixasDePadelimetro.EhFeminina(i.Categoria);
             foreach (var id in new[] { i.Jogador1Id, i.Jogador2Id ?? -1 })
                 if (id > 0 && ids.Contains(id) && !escadaFeminina.ContainsKey(id))

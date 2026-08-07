@@ -82,7 +82,7 @@ public class JogadoresController : Controller
         {
             var categoriaRecente = historicoDuplas
                 .Select(d => d.Categoria.Nome)
-                .FirstOrDefault(n => !FaixasDePadelimetro.EhMista(n));
+                .FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
             bool reguaFeminina = FaixasDePadelimetro.EhFeminina(categoriaRecente);
 
             ViewBag.PadelimetroFaixa = FaixasDePadelimetro.DoNivel(nivelPadelimetro, reguaFeminina);

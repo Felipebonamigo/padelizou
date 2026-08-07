@@ -55,6 +55,12 @@
                                         <option value="@cat.Id">@cat.Nome</option>
                                     }
                                 </optgroup>
+                                <optgroup label="Casal">
+                                    @foreach (var cat in catalogoCategorias.Where(c => c.Tipo == "Casal"))
+                                    {
+                                        <option value="@cat.Id">@cat.Nome</option>
+                                    }
+                                                                </optgroup>
                             </select>
                         </div>
 

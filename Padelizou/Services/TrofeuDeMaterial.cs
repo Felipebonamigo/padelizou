@@ -48,7 +48,9 @@ public static class TrofeuDeMaterial
         if (n.Contains("5ª")) return Ferro;
         if (n.Contains("6ª")) return Madeira;
         if (n.Contains("7ª") || n.Contains("Iniciantes")) return Plastico;
-        if (n.Contains("Mista") || n.Contains("Misto")) return Vidro;
+        // Casal e mista dividem o vidro pelo mesmo motivo: são OUTRO jogo, não um degrau
+        // da escada — o troféu não tem por que dizer "mais forte" nem "mais fraco".
+        if (n.Contains("Mista") || n.Contains("Misto") || n.Contains("Casal") || n.Contains("Casais")) return Vidro;
         return Geral;
     }
 
