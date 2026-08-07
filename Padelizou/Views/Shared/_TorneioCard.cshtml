@@ -29,6 +29,12 @@
         }
 
         <div class="card-body">
+            @* Sem o selo, o cancelado fica idêntico a um torneio de pé na lista de quem
+               organiza — e é justamente ele que não pode ser confundido. *@
+            @if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
+            {
+                <span class="badge bg-danger mb-2">Cancelado</span>
+            }
             <h5 class="card-title fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h5>
             <p class="card-text small mb-1 fw-semibold" style="color: var(--pdz-ink);">
                 <i class="bi bi-calendar-event"></i> @quando

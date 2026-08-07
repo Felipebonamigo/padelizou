@@ -521,9 +521,16 @@ public class JogadoresController : Controller
         // 2. RANKING CONSOLIDADO (padrão): tudo calculado a partir de resultados de
         //    torneio. Substitui o antigo "ranking global" baseado em PontuacaoGlobal
         //    (campo manual que nada de torneio atualizava).
-        ViewBag.TorneiosList = await _context.Torneios
-            .OrderByDescending(t => t.DataInicio)
-            .ToListAsync();
+        // O seletor "ver ranking de um torneio" é PÚBLICO, então ele obedece a mesma régua da
+        // vitrine: torneio que ainda espera aprovação, oculto ou cancelado não pode aparecer
+        // aqui. Sem esse filtro a lista mostrava TUDO que existe no banco — foi assim que um
+        // torneio de teste cancelado apareceu na tela pra qualquer visitante.
+        ViewBag.TorneiosList = (await _context.Torneios
+                .OrderByDescending(t => t.DataInicio)
+                .ToListAsync())
+            .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t)
+                        && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .ToList();
 
         var hub = await _estatisticas.ObterRankingHubAsync(cidade, estado, periodo);
 

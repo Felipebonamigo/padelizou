@@ -3,6 +3,9 @@
     var abertos = ViewBag.Abertos as List<Padelizou.Models.Torneio> ?? new();
     var emAndamento = ViewBag.EmAndamento as List<Padelizou.Models.Torneio> ?? new();
     var finalizados = ViewBag.Finalizados as List<Padelizou.Models.Torneio> ?? new();
+    // O controller só põe torneio cancelado aqui pra quem organiza (e pro admin) — pra todo o
+    // resto a lista chega vazia, e aí a seção inteira não existe.
+    var cancelados = ViewBag.Cancelados as List<Padelizou.Models.Torneio> ?? new();
 }
 
 <div class="container px-0 mt-4 mb-5">
@@ -46,6 +49,23 @@
             <div class="col-12 text-center text-muted"><p>Nenhum torneio em andamento no momento.</p></div>
         }
     </div>
+
+    @* CANCELADOS: seção só de quem organiza. É aqui que ele reencontra o torneio pra resolver
+       as devoluções — some da lista pública, mas não pode sumir DELE. Aparece aberta, e não
+       recolhida como Finalizados, porque cancelamento costuma ter dinheiro pendente. *@
+    @if (cancelados.Any())
+    {
+        <h5 class="pdz-section-title mb-1">Cancelados</h5>
+        <p class="text-muted small mb-3">
+            <i class="bi bi-eye-slash"></i> Só você vê estes aqui — eles saíram da lista pública.
+        </p>
+        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao">
+            @foreach (var torneio in cancelados)
+            {
+                <partial name="_TorneioCard" model="torneio" />
+            }
+        </div>
+    }
 
     <h5 class="pdz-section-title mb-3">
         <button class="btn btn-sm btn-outline-secondary rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#secaoFinalizados">
