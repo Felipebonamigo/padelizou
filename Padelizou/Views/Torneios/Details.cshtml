@@ -42,6 +42,30 @@
         : "Os jogos ganham horário na hora.";
 }
 
+@* Cancelado é a primeira coisa que a página diz, antes de qualquer aba: quem chegou pelo link
+   do grupo do WhatsApp precisa saber que o torneio não vai acontecer sem ter que interpretar
+   um selo pequeno no meio da tela. *@
+@if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
+{
+    <div class="alert alert-danger d-flex gap-3 align-items-start shadow-sm">
+        <i class="bi bi-x-octagon-fill fs-3"></i>
+        <div>
+            <h5 class="fw-bold mb-1">Este torneio foi cancelado</h5>
+            @if (!string.IsNullOrWhiteSpace(Model.MotivoCancelamento))
+            {
+                <p class="mb-1">@Model.MotivoCancelamento</p>
+            }
+            @if (Model.CanceladoEm != null)
+            {
+                <small class="d-block">Cancelado em @Model.CanceladoEm.Value.ToString("dd/MM/yyyy 'às' HH:mm").</small>
+            }
+            <small class="d-block mt-1">
+                Se você pagou a inscrição, a devolução é combinada direto com o organizador.
+            </small>
+        </div>
+    </div>
+}
+
 <!-- Cabeçalho do Torneio -->
 <div class="mb-4">
     <h2 class="fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h2>
@@ -830,7 +854,65 @@
                     }
                     <hr />
 
-                    @if (Model.Status == "Inscrições Abertas")
+                    @if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
+                    {
+                        @* Cancelado não tem próximo passo — o painel para aqui, e o que sobra é
+                           a devolução do dinheiro (bloco logo abaixo). *@
+                        <div class="alert alert-secondary mb-0">
+                            <i class="bi bi-x-octagon"></i>
+                            Torneio cancelado. Ele sai da listagem pública e continua aqui, na sua lista,
+                            pra você resolver as devoluções.
+                        </div>
+
+                        var devolver = ViewBag.PagosParaDevolver as List<DevolucaoPendenteVM> ?? new List<DevolucaoPendenteVM>();
+                        <div class="card border-0 shadow-sm mt-3">
+                            <div class="card-body">
+                                <h6 class="fw-bold text-uppercase text-muted mb-3">
+                                    <i class="bi bi-cash-coin"></i> Devoluções a fazer
+                                </h6>
+                                @if (devolver.Count == 0)
+                                {
+                                    <p class="small text-muted mb-0">
+                                        Ninguém tinha pagado a inscrição — não há o que devolver.
+                                    </p>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-2">
+                                            <thead>
+                                                <tr class="small text-muted">
+                                                    <th>Quem</th><th>Categoria</th><th>Contato</th><th class="text-end">Valor</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var d in devolver.OrderByDescending(x => x.Valor))
+                                                {
+                                                    <tr>
+                                                        <td class="fw-semibold">@Padelizou.Services.NomeBonito.Formatar(d.Quem)</td>
+                                                        <td class="small text-muted">@d.Categoria</td>
+                                                        <td class="small">@(string.IsNullOrWhiteSpace(d.Contato) ? "—" : d.Contato)</td>
+                                                        <td class="text-end fw-bold">@d.Valor.ToString("C")</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                            <tfoot>
+                                                <tr class="border-top">
+                                                    <td colspan="3" class="fw-bold text-end">Total</td>
+                                                    <td class="text-end fw-bold">@devolver.Sum(x => x.Valor).ToString("C")</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    <small class="text-muted">
+                                        O Padelizou não devolve sozinho — a lista está aqui pra você acertar
+                                        com cada um. Marque a inscrição como não paga depois de devolver.
+                                    </small>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Status == "Inscrições Abertas")
                     {
                         <div class="alert alert-warning border-warning">
                             <strong>Atenção:</strong> Ao encerrar as inscrições, o formulário será bloqueado para o público e você poderá gerar as chaves e os grupos.
@@ -1063,6 +1145,53 @@
                     }
                 </div>
             </div>
+
+            @* CANCELAR O TORNEIO — o botão que faltava.
+               Fica no fim do painel, separado e discreto, porque é o único daqui que desmancha
+               o torneio inteiro. Não aparece pra torneio já cancelado (não há o que cancelar)
+               nem pra finalizado (ele aconteceu — ver Services/CancelamentoDoTorneio). *@
+            @if (!Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status) && Model.Status != "Finalizado")
+            {
+                @* Sem `@{ }` aqui: dentro do corpo de um @if já se está em código, e o `@{`
+                   é erro de compilação (RZ1010). *@
+                var quantosInscritos = Model.Categorias.Sum(c => c.Duplas.Count);
+                var avisoDeCancelar = quantosInscritos > 0
+                    ? $"{quantosInscritos} inscrito(s) recebem o aviso na hora, inclusive por WhatsApp."
+                    : "Ninguém está inscrito ainda.";
+
+                <div class="card border-danger-subtle shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-danger text-uppercase mb-2">
+                            <i class="bi bi-x-octagon"></i> Cancelar torneio
+                        </h6>
+                        <p class="small text-muted mb-3">
+                            O torneio não vai acontecer: choveu, o clube perdeu a quadra, não deu gente.
+                            Todo mundo que está inscrito é avisado, o torneio sai da listagem e
+                            <strong>quem pagou aparece aqui numa lista</strong>, pra você devolver.
+                            O Padelizou não devolve o dinheiro sozinho.
+                        </p>
+                        <form asp-controller="Torneios" asp-action="CancelarTorneio" method="post"
+                              data-confirmar-titulo="Cancelar o torneio?"
+                              data-confirmar="O torneio some da listagem e todo mundo é avisado de que ele não vai acontecer."
+                              data-confirmar-ok="Cancelar o torneio"
+                              data-confirmar-tom="perigo"
+                              data-confirmar-detalhe="@avisoDeCancelar">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1" for="motivoCancelamento">
+                                    Por quê? <span class="fw-normal text-muted">(vai no aviso e fica na página)</span>
+                                </label>
+                                <input type="text" name="motivo" id="motivoCancelamento" maxlength="200"
+                                       class="form-control form-control-sm"
+                                       placeholder="Ex: chuva, sem quadra disponível, inscrições insuficientes" />
+                            </div>
+                            <button type="submit" class="btn btn-outline-danger fw-bold">
+                                <i class="bi bi-x-octagon"></i> Cancelar torneio
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
 
             @* BARRADOS PELO RANKING RS — a fila de decisão do organizador.
                A recusa da inscrição não é a palavra final: ela vira linha e espera aqui.

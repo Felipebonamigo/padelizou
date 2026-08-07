@@ -152,9 +152,22 @@ namespace Padelizou.Controllers
             bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
             torneios = torneios.Where(t => !t.Oculto || souAdmin || meusTorneioIds.Contains(t.Id)).ToList();
 
+            // Cancelado some da lista pela MESMA porta do oculto: quem organiza continua vendo
+            // (é dele o torneio, e é lá que ele vê quem tem que ser reembolsado), o resto não.
+            torneios = torneios
+                .Where(t => !CancelamentoDoTorneio.EstaCancelado(t.Status)
+                            || souAdmin || meusTorneioIds.Contains(t.Id))
+                .ToList();
+
             ViewBag.Abertos = torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
-            ViewBag.EmAndamento = torneios.Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado").ToList();
+            ViewBag.EmAndamento = torneios
+                .Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado"
+                            && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+                .ToList();
             ViewBag.Finalizados = torneios.Where(t => t.Status == "Finalizado").ToList();
+            // Bloco próprio: cancelado no meio de "em andamento" faria o organizador achar que
+            // o torneio ainda está de pé.
+            ViewBag.Cancelados = torneios.Where(t => CancelamentoDoTorneio.EstaCancelado(t.Status)).ToList();
 
             return View();
         }
@@ -364,6 +377,42 @@ namespace Padelizou.Controllers
                     .OrderBy(b => b.Situacao == SituacaoDoBloqueio.Pendente ? 0 : 1)
                     .ThenByDescending(b => b.CriadoEm)
                     .ToListAsync();
+
+                // Torneio cancelado: QUEM PAGOU e quanto. O sistema não estorna sozinho
+                // (decisão do Felipe) — então ele precisa entregar a lista pronta, senão
+                // devolver o dinheiro vira garimpo na mão de quem acabou de cancelar um
+                // torneio, que já é o pior dia do organizador.
+                if (CancelamentoDoTorneio.EstaCancelado(torneio.Status))
+                {
+                    ViewBag.PagosParaDevolver = await _context.Duplas
+                        .Where(d => d.Categoria.TorneioId == id && d.Pago && d.NomeTime == null)
+                        .Select(d => new DevolucaoPendenteVM
+                        {
+                            Quem = d.Jogador2Id == null
+                                ? d.Jogador1.Nome
+                                : d.Jogador1.Nome + " e " + d.Jogador2!.Nome,
+                            Categoria = d.Categoria.Nome,
+                            Contato = d.Jogador1.Celular,
+                            // Dupla paga pelos DOIS: o preço do torneio é por pessoa.
+                            Valor = torneio.PrecoInscricao * (d.Jogador2Id == null ? 1 : 2),
+                            PagoEm = d.PagoEm,
+                        })
+                        .ToListAsync();
+
+                    var americanosPagos = await _context.InscricoesAmericanas
+                        .Where(i => i.Categoria.TorneioId == id && i.Pago)
+                        .Select(i => new DevolucaoPendenteVM
+                        {
+                            Quem = i.Jogador.Nome,
+                            Categoria = i.Categoria.Nome,
+                            Contato = i.Jogador.Celular,
+                            Valor = torneio.PrecoInscricao,
+                            PagoEm = i.PagoEm,
+                        })
+                        .ToListAsync();
+
+                    ((List<DevolucaoPendenteVM>)ViewBag.PagosParaDevolver).AddRange(americanosPagos);
+                }
             }
 
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.

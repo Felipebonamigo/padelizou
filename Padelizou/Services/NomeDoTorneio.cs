@@ -20,7 +20,11 @@ public static class NomeDoTorneio
     // Por isso a regra olha o status, e não a existência do nome pra sempre.
     public const string StatusQueLibera = "Finalizado";
 
-    public static bool AindaEstaDePe(string? status) => status != StatusQueLibera;
+    // Cancelado libera igual: o caso mais comum de cancelar é justamente pra REMARCAR — choveu
+    // no sábado, o torneio volta no outro. Se o nome continuasse preso, o organizador teria que
+    // inventar "Amigos do Eder 2" pra remarcar o mesmo torneio.
+    public static bool AindaEstaDePe(string? status) =>
+        status != StatusQueLibera && !CancelamentoDoTorneio.EstaCancelado(status);
 
     // Devolve o nome do torneio que impede, ou null quando pode criar.
     public static string? JaExisteEntre(

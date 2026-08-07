@@ -233,4 +233,12 @@ public partial class Torneio
     // botão some e a rota recusa junto — sem isso o link antigo (ou o histórico do navegador)
     // continuaria abrindo uma tela que o organizador decidiu não usar.
     public bool UsaCheckIn { get; set; }
+
+    // ---- Cancelamento (Services/CancelamentoDoTorneio) ----
+    // O torneio não vai acontecer. Vive no Status ("Cancelado"), e estes dois campos guardam
+    // o PORQUÊ e o QUANDO — sem eles o organizador cancela hoje e daqui a duas semanas não
+    // lembra se aquele torneio caiu por chuva ou por falta de gente, e o inscrito que abre a
+    // página vê um "Cancelado" seco.
+    public string? MotivoCancelamento { get; set; }
+    public DateTime? CanceladoEm { get; set; }
 }

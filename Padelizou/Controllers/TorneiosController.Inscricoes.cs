@@ -379,6 +379,15 @@ namespace Padelizou.Controllers
 
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            // Torneio cancelado não volta a andar por aqui. A tela já não mostra o botão, mas
+            // aba velha e POST feito à mão ressuscitariam o torneio em "Chaves em Sorteio" —
+            // com os inscritos já avisados de que ele não vai acontecer.
+            if (CancelamentoDoTorneio.EstaCancelado(torneio.Status))
+            {
+                TempData["Erro"] = "Este torneio está cancelado.";
+                return RedirectToAction("Details", new { id });
+            }
+
             torneio.Status = "Chaves em Sorteio";
             await _context.SaveChangesAsync();
 
@@ -399,6 +408,78 @@ namespace Padelizou.Controllers
             }
 
             return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // ---- Cancelar o torneio ----
+        //
+        // Choveu, o clube perdeu a quadra, não deu gente. Sem este botão o organizador só
+        // tinha saídas erradas: deixar o torneio pendurado em "Inscrições Abertas" pra sempre,
+        // ou marcá-lo como finalizado — o que faria o sistema procurar campeão onde não houve
+        // um jogo sequer. As regras moram em Services/CancelamentoDoTorneio.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelarTorneio(int id, string? motivo = null)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (CancelamentoDoTorneio.MotivoParaNaoCancelar(torneio.Status) is { } recusa)
+            {
+                TempData["Erro"] = recusa;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Quem avisar é lido ANTES de mudar o status: depois o torneio some das listagens,
+            // e a consulta dos inscritos passaria a depender de uma tela que já não os mostra.
+            var inscritos = await InscritosDoTorneioAsync(id);
+
+            torneio.Status = CancelamentoDoTorneio.Status;
+            torneio.MotivoCancelamento = string.IsNullOrWhiteSpace(motivo) ? null : motivo.Trim();
+            torneio.CanceladoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            // Cancelamento é o aviso mais caro de não chegar: a pessoa sai de casa e vai pra
+            // quadra. Por isso vale WhatsApp, como a promoção da lista de espera.
+            await AvisarAsync(inscritos, "Torneio cancelado",
+                CancelamentoDoTorneio.RecadoParaInscritos(torneio.Nome, torneio.MotivoCancelamento),
+                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+
+            TempData["Sucesso"] = $"Torneio cancelado. {inscritos.Count} inscrito(s) avisado(s). "
+                + "Ele sai da listagem, mas continua na sua lista de torneios — e quem pagou "
+                + "aparece na aba de gestão, pra você devolver.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // Todo mundo que está dentro do torneio, dos dois formatos: dupla (Padrão) e inscrição
+        // individual (Americano). Distinct porque a mesma pessoa pode estar em mais de uma
+        // categoria — e receber o mesmo aviso duas vezes é o tipo de detalhe que faz a pessoa
+        // desligar as notificações.
+        private async Task<List<int>> InscritosDoTorneioAsync(int torneioId)
+        {
+            // ⚠️ Traz os PARES e achata depois: `SelectMany` montando array não tem tradução
+            // pra SQL, e o erro só aparece rodando (o compilador aceita numa boa).
+            var paresDeDuplas = await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
+                .Select(d => new { d.Jogador1Id, d.Jogador2Id })
+                .ToListAsync();
+
+            var deDuplas = paresDeDuplas
+                .SelectMany(p => new int?[] { p.Jogador1Id, p.Jogador2Id })
+                .ToList();
+
+            var deAmericano = await _context.InscricoesAmericanas
+                .Where(i => i.Categoria.TorneioId == torneioId)
+                .Select(i => (int?)i.JogadorId)
+                .ToListAsync();
+
+            return deDuplas.Concat(deAmericano)
+                .Where(i => i != null)
+                .Select(i => i!.Value)
+                .Distinct()
+                .ToList();
         }
 
         // ---- A taxa dos 5% do torneio "por fora" (Services/TaxaDoTorneioExterno) ----

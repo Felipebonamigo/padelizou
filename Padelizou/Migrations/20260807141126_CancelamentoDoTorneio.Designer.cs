@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260807141126_CancelamentoDoTorneio")]
+    partial class CancelamentoDoTorneio
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,39 +24,6 @@ namespace Padelizou.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Padelizou.Models.AcertoRankingRs", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AcertadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int?>("DespesaId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PessoasCobradas")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RegistradoPorJogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TorneioId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Valor")
-                        .HasColumnType("numeric");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TorneioId");
-
-                    b.ToTable("AcertoRankingRs");
-                });
 
             modelBuilder.Entity("Padelizou.Models.AlertaSistema", b =>
                 {
@@ -2908,17 +2878,6 @@ namespace Padelizou.Migrations
                     b.HasIndex("ProfessorId");
 
                     b.ToTable("JogoAula");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.AcertoRankingRs", b =>
-                {
-                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
-                        .WithMany()
-                        .HasForeignKey("TorneioId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Torneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.AnotacaoAula", b =>

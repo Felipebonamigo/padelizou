@@ -23,8 +23,10 @@ namespace Padelizou.Controllers
         {
             // Torneio oculto não aparece na home (mesma regra da listagem de Torneios —
             // antes a home ignorava o Oculto e vazava torneio restrito na vitrine).
+            // Cancelado também não: a vitrine é pra quem pode se inscrever.
             var ativos = await _context.Torneios
-                .Where(t => !t.Oculto && t.Status != "Finalizado")
+                .Where(t => !t.Oculto && t.Status != "Finalizado"
+                            && t.Status != CancelamentoDoTorneio.Status)
                 .OrderBy(t => t.DataInicio)
                 .ToListAsync();
 
@@ -162,9 +164,13 @@ namespace Padelizou.Controllers
             vm.Compromissos = compromissos.OrderBy(c => c.Data).Take(3).ToList();
 
             // Torneios em que estou dentro (dupla ou americano) e que ainda não terminaram.
+            // Cancelado sai daqui junto com o finalizado — não é compromisso. Quem estava
+            // inscrito não fica sabendo por sumiço: o cancelamento avisa um a um, e por
+            // WhatsApp (ver TorneiosController.CancelarTorneio).
             var meusTorneios = await _context.Duplas
                 .Where(d => (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
-                         && d.Categoria.Torneio.Status != "Finalizado")
+                         && d.Categoria.Torneio.Status != "Finalizado"
+                         && d.Categoria.Torneio.Status != CancelamentoDoTorneio.Status)
                 .Select(d => new MeuTorneioVM
                 {
                     Torneio = d.Categoria.Torneio,
@@ -174,7 +180,8 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             meusTorneios.AddRange(await _context.InscricoesAmericanas
-                .Where(i => i.JogadorId == jogadorId && i.Categoria.Torneio.Status != "Finalizado")
+                .Where(i => i.JogadorId == jogadorId && i.Categoria.Torneio.Status != "Finalizado"
+                            && i.Categoria.Torneio.Status != CancelamentoDoTorneio.Status)
                 .Select(i => new MeuTorneioVM
                 {
                     Torneio = i.Categoria.Torneio,
