@@ -456,7 +456,7 @@
                                onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagPix">
                             <span class="fw-bold">Pelo site, só Pix</span>
-                            <span class="badge bg-success ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%</span>
+                            <span class="badge bg-success ms-1 pdz-selo-taxa">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
                                 O jogador paga por Pix na hora de se inscrever e a vaga já nasce confirmada.
                                 <strong>O dinheiro cai na sua conta na hora.</strong> É a opção mais barata —
@@ -470,7 +470,7 @@
                                id="pagTodas" disabled="@(!recebimentoConectado)" onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagTodas">
                             <span class="fw-bold">Pelo site, todas as formas</span>
-                            <span class="badge bg-secondary ms-1">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")% a @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
+                            <span class="badge bg-secondary ms-1 pdz-selo-taxa">taxa @taxas.ComissaoPercentualSomentePix.ToString("0.#")% a @taxas.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
                                 Pix, boleto, débito e cartão de crédito — inclusive parcelado. Facilita pra quem
                                 não tem o valor à vista, mas o cartão demora a cair.
@@ -498,7 +498,7 @@
                                id="pagExterno" onchange="pdzAtualizarSimulacao()" />
                         <label class="form-check-label w-100" for="pagExterno">
                             <span class="fw-bold">Por fora</span>
-                            <span class="badge bg-success ms-1">taxa @taxas.ComissaoPercentualExterno.ToString("0.#")%</span>
+                            <span class="badge bg-success ms-1 pdz-selo-taxa">taxa @taxas.ComissaoPercentualExterno.ToString("0.#")%</span>
                             <div class="small text-muted mt-1">
                                 Você combina Pix ou dinheiro direto com o jogador. O Padelizou
                                 <strong>não toca no dinheiro</strong>: cuida só da organização — chaves, jogos,
@@ -512,7 +512,7 @@
                                dinheiro não passa por aqui, então a taxa depende de o organizador
                                pagar — e quem só descobre a condição na hora de gerar as chaves
                                sente que mudou a regra no meio do jogo. *@
-                            <div class="alert alert-warning border-0 small mt-2 mb-0 py-2">
+                            <div class="alert alert-warning border-0 small mt-2 mb-0 py-2" id="pdzCondicaoExterno">
                                 <strong><i class="bi bi-key-fill"></i> Condição desta forma:</strong>
                                 as <strong>chaves são liberadas mediante o pagamento da taxa</strong> —
                                 ou mediante negociação combinada com o Padelizou (prazo, parcelamento
@@ -1621,6 +1621,26 @@
                 ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
                 : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
         def('pdzRecebeRotulo', externo && !isento ? '= Fica com você, por jogador' : '= Você recebe, por jogador');
+
+        // ⚠️ OS SELOS DAS TRÊS FORMAS TAMBÉM PRECISAM SABER DA ISENÇÃO.
+        //
+        // A conta aqui embaixo já dizia "R$ 0,00" pro Americano sem Ranking, mas os selos
+        // ("taxa 10%", "taxa 5%") eram texto fixo — a mesma tela afirmava duas coisas
+        // contrárias, e a que o olho pega primeiro é o selo, que fica colado no nome da opção.
+        //
+        // Pior que feio: no "Por fora" havia ainda o aviso de que **as chaves só saem depois
+        // de pagar a taxa**. Pro Americano isento essa trava NÃO existe
+        // (TaxaDoTorneioExterno.SeAplica já o dispensa), então o texto prometia um bloqueio
+        // que nunca vai acontecer — e assusta na hora de escolher como receber.
+        document.querySelectorAll('.pdz-selo-taxa').forEach(function (selo) {
+            if (selo.dataset.original === undefined) selo.dataset.original = selo.textContent;
+            selo.textContent = isento ? 'sem taxa' : selo.dataset.original;
+            selo.classList.toggle('bg-success', isento || selo.dataset.original.indexOf(' a ') < 0);
+            selo.classList.toggle('bg-secondary', !isento && selo.dataset.original.indexOf(' a ') >= 0);
+        });
+
+        var condicao = document.getElementById('pdzCondicaoExterno');
+        if (condicao) condicao.style.display = isento ? 'none' : '';
     }
 
     function pdzAtualizarSimulacao() {
