@@ -1,0 +1,87 @@
+@model List<Padelizou.Models.ErroDoSistema>
+@{
+    ViewData["Title"] = "Erros de produção - Admin";
+    var nomes = ViewBag.NomesDosJogadores as Dictionary<int, string> ?? new();
+    var ultimas24h = (int)ViewBag.Ultimas24h;
+}
+
+<div class="container mt-4 mb-5">
+    <a asp-controller="Admin" asp-action="Index" class="small text-decoration-none">&larr; Painel Admin</a>
+
+    <div class="mb-4 mt-2">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Erros de produção</h2>
+        <p class="text-muted mb-0">
+            Todo erro não tratado cai aqui na hora. O aviso por push e e-mail sai no primeiro
+            de cada tipo; as repetições ficam só nesta lista, e o mesmo erro só reavisa
+            depois de @((int)Padelizou.Services.VigiaDeErros.JanelaDeSilencio.TotalHours) horas.
+        </p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@ultimas24h</div>
+                    <div class="small text-muted">nas últimas 24h</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold" style="color: var(--pdz-ink);">@Model.Count</div>
+                    <div class="small text-muted">no registro (últimos 100)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form asp-controller="Admin" asp-action="TestarVigiaDeErros" method="post" class="mb-4"
+          data-confirmar="Isto estoura um erro DE VERDADE: você vai cair na tela de erro, e um aviso sai pros administradores. É o teste do alarme. Pode ir?">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-clipboard-pulse"></i> Testar o vigia
+        </button>
+        <span class="small text-muted ms-2">Dispara um erro de mentira pra provar que o alarme está ligado.</span>
+    </form>
+
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle"></i> Nenhum erro registrado. É assim que a gente gosta.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-2">
+            @foreach (var erro in Model)
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2">
+                        <div class="d-flex flex-wrap align-items-baseline gap-2">
+                            <span class="badge text-bg-danger">@erro.Tipo</span>
+                            <code class="small">@erro.Metodo @erro.Caminho</code>
+                            <span class="small text-muted ms-auto text-nowrap">
+                                @erro.QuandoEm.ToString("dd/MM HH:mm")
+                                @if (erro.AvisoEnviado)
+                                {
+                                    <i class="bi bi-bell-fill" title="Este gerou aviso pros admins"></i>
+                                }
+                            </span>
+                        </div>
+                        <div class="small mt-1">@erro.Mensagem</div>
+                        @if (erro.JogadorId is int jogadorId)
+                        {
+                            <div class="small text-muted">
+                                Logado: @(nomes.TryGetValue(jogadorId, out var nome) ? nome : $"jogador #{jogadorId} (conta apagada)")
+                            </div>
+                        }
+                        <details class="mt-1">
+                            <summary class="small text-muted" style="cursor: pointer;">Detalhe completo</summary>
+                            <pre class="small mt-2 mb-0 p-2 rounded" style="background: var(--pdz-superficie, #f6f7f9); white-space: pre-wrap; word-break: break-word;">@erro.Detalhe</pre>
+                        </details>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

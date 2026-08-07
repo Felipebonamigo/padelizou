@@ -97,6 +97,52 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
+### 06/08/2026 (fim da noite) — 🚨 Erro em produção deixou de ser invisível
+
+Até hoje, um erro 500 mostrava a tela amiga e **acabava ali**: o rastro só existia no
+`journalctl` do VPS, e ninguém ia lá sem motivo. Na prática o sistema só avisava de erro
+quando um usuário reclamava — e com o lançamento público em 08/08 isso significa descobrir
+problema pelo WhatsApp, no meio de um torneio.
+
+**Agora todo erro não tratado vira três coisas:** uma linha em `ErroDoSistema`, um **push +
+e-mail** pros administradores raiz, e uma tela em `/Admin/Erros` com o detalhe completo (tipo,
+caminho, quem estava logado, stack trace) — sem precisar de `ssh`.
+
+**A infraestrutura de avisar já existia**, o que faltava era ligar o erro nela: o aviso sai
+pelo `EnviarParaJogadorAsync`, que só **enfileira** (push e e-mail saem no entregador de
+fundo). Isso importa mais aqui do que em qualquer outro lugar — o código roda dentro de uma
+requisição que **já falhou**, e segurá-la esperando SMTP só pioraria a queda.
+
+**Janela de silêncio de 6h, pela mesma razão do vigia do backup:** alerta que se repete vira
+ruído, e ruído ensina a ignorar. O **primeiro** estouro de cada `(tipo, caminho)` avisa na
+hora; as repetições ficam só no registro — que é onde se vê "está acontecendo direto". Erro
+que continua vivo 6h depois **reavisa**, porque aí é erro que ninguém corrigiu. Retenção de
+90 dias, com a limpeza pegando carona no aviso.
+
+🔴 **Defeito achado na verificação em tela, não na revisão do código.** O `UseExceptionHandler`
+reescreve o caminho da requisição pra `/Home/Error` **antes** de chamar o handler — então a
+primeira versão gravava o destino no lugar da origem. Onze erros foram registrados apontando
+todos pro mesmo lugar, ou seja, o registro guardava **a única informação que não serve pra
+nada**: ele existe justamente pra dizer ONDE quebrou. O caminho de verdade mora no
+`IExceptionHandlerPathFeature`. Dois testes prendem os dois lados (com e sem a feature).
+
+**Botão "Testar o vigia"** no `/Admin/Erros`, mesmo espírito do teste de aviso que já existia:
+estoura um erro de verdade e percorre o caminho inteiro. Alarme que só se manifesta no dia do
+desastre é alarme que ninguém sabe se está ligado — e no que não se testa, não se confia.
+
+**Cabeçalhos de segurança que faltavam ao lado do HSTS**: `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: SAMEORIGIN` e `Referrer-Policy: strict-origin-when-cross-origin`. Site
+público novo é exatamente quando começam os scans automáticos. Conferidos em tela, chegando
+inclusive em arquivo estático.
+
+⚠️ **Pra testar comportamento que só existe em Produção**, o `Development` não serve: lá o
+`UseExceptionHandler` nem entra no pipeline, e o `/Admin` não exige o subdomínio. O jeito é
+rodar o **binário Release** e falar com ele por `curl -H "Host: admin.padelizou.com.br"`
+(entrada `padelizou-release` no `.claude/launch.json`, porta 5039 — o `dotnet run` normal não
+serve porque a outra sessão trava o binário Debug). Verificado assim de ponta a ponta: erro
+disparado, linha gravada com o caminho certo, aviso marcado, duas repetições caladas pela
+janela, tela listando os três. **1.866 testes.**
+
 ### 06/08/2026 (noite) — 🤝 Ranking RS no ar, publicado à mão com o GitHub fora
 
 O **GitHub Actions entrou em `major_outage`** e travou a esteira: os últimos commits ficaram

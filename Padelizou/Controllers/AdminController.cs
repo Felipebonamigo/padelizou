@@ -248,6 +248,46 @@ namespace padelizou.Controllers
             return RedirectToAction("Administradores");
         }
 
+        // Os erros não tratados de produção — o que o CapturaDeErro registrou. O aviso por
+        // push/e-mail diz QUE quebrou; esta tela diz ONDE e POR QUÊ, sem precisar de ssh.
+        [HttpGet]
+        public async Task<IActionResult> Erros()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            var erros = await _context.ErrosDoSistema
+                .OrderByDescending(e => e.QuandoEm)
+                .Take(100)
+                .ToListAsync();
+
+            // Nome de quem estava logado quando estourou. Consulta separada (não navegação)
+            // porque ErroDoSistema não tem FK de propósito — ver o comentário no modelo.
+            var ids = erros.Where(e => e.JogadorId != null).Select(e => e.JogadorId!.Value).Distinct().ToList();
+            ViewBag.NomesDosJogadores = await _context.Jogadores
+                .Where(j => ids.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            ViewBag.Ultimas24h = erros.Count(e => e.QuandoEm >= DateTime.Now.AddHours(-24));
+
+            return View(erros);
+        }
+
+        // Estoura de propósito, pra provar que o vigia funciona. Mesma razão do teste de aviso
+        // que já existe aqui do lado: alarme que só se manifesta no dia do desastre é alarme
+        // que ninguém sabe se está ligado — e no que não se testa, não se confia.
+        //
+        // O caminho é o de verdade, inteiro: estoura sem tratamento, o CapturaDeErro registra,
+        // o admin recebe push e e-mail, e a pessoa vê a mesma tela amiga que um usuário veria.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TestarVigiaDeErros()
+        {
+            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+
+            throw new InvalidOperationException(
+                "Erro de teste disparado do painel admin — se você está lendo isto no registro, o vigia está funcionando.");
+        }
+
         // O que os jogadores acharam do site. Chega tudo invisível; publicar é decisão de
         // admin, uma a uma, depois de ler.
         [HttpGet]

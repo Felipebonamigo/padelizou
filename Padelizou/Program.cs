@@ -165,6 +165,10 @@ builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
+// Todo 500 vira registro em ErroDoSistema + aviso pros admins (com janela de silêncio).
+// O IExceptionHandler roda dentro do UseExceptionHandler, antes da página amiga.
+builder.Services.AddScoped<RegistroDeErros>();
+builder.Services.AddExceptionHandler<CapturaDeErro>();
 // Quem pode abrir o bar e as contas do clube. Uma regra só pros dois módulos.
 builder.Services.AddScoped<ModuloDoBar>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
@@ -320,6 +324,19 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+// Cabeçalhos de segurança que faltavam ao lado do HSTS. Os três são inofensivos pro app:
+// nosniff só proíbe o navegador de "adivinhar" tipo de arquivo, SAMEORIGIN impede que outro
+// site embrulhe o Padelizou num iframe pra roubar cliques (o iframe do YouTube na transmissão
+// é o contrário — nós embrulhando o YouTube — e não passa por aqui), e a Referrer-Policy
+// corta o caminho completo da URL quando alguém sai daqui pra outro site.
+app.Use(async (contexto, proximo) =>
+{
+    contexto.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    contexto.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+    contexto.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    await proximo();
+});
 
 // Endereço inexistente caía na tela do próprio navegador ("HTTP ERROR 404"), sem menu e sem
 // caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.

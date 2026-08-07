@@ -89,6 +89,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<NotaDeFundamento> NotasDeFundamento { get; set; }
     public DbSet<AlertaSistema> AlertasSistema { get; set; }
 
+    // Erros não tratados de produção — o que o /Admin/Erros lista. Ver Services/RegistroDeErros.
+    public DbSet<ErroDoSistema> ErrosDoSistema { get; set; }
+
     // Chave/valor que o admin muda de dentro do app e que sobrevive ao restart.
     public DbSet<ConfiguracaoDoSistema> ConfiguracoesDoSistema { get; set; }
 
@@ -343,6 +346,14 @@ public partial class DbPadelContext : DbContext
             entity.HasIndex(c => c.Chave).IsUnique();
             entity.Property(c => c.Chave).HasMaxLength(80);
             entity.Property(c => c.Valor).HasMaxLength(400);
+        });
+        modelBuilder.Entity<ErroDoSistema>(entity =>
+        {
+            // A janela de silêncio pergunta "quando foi o último AVISO deste erro?" — e essa
+            // consulta roda dentro do tratamento de um erro, onde lentidão dobraria o estrago.
+            entity.HasIndex(e => new { e.Tipo, e.Caminho, e.AvisoEnviado, e.QuandoEm });
+            // A listagem do admin e a limpeza dos antigos varrem por data.
+            entity.HasIndex(e => e.QuandoEm);
         });
         modelBuilder.Entity<HistoricoDePadelimetro>(entity =>
         {
