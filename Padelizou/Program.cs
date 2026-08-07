@@ -325,18 +325,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Cabeçalhos de segurança que faltavam ao lado do HSTS. Os três são inofensivos pro app:
-// nosniff só proíbe o navegador de "adivinhar" tipo de arquivo, SAMEORIGIN impede que outro
-// site embrulhe o Padelizou num iframe pra roubar cliques (o iframe do YouTube na transmissão
-// é o contrário — nós embrulhando o YouTube — e não passa por aqui), e a Referrer-Policy
-// corta o caminho completo da URL quando alguém sai daqui pra outro site.
-app.Use(async (contexto, proximo) =>
-{
-    contexto.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    contexto.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
-    contexto.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    await proximo();
-});
+// ⚠️ Cabeçalhos de segurança (nosniff, X-Frame-Options, Referrer-Policy) NÃO moram aqui:
+// quem os põe é o **Caddy**, desde 30/07/2026, nos blocos de padelizou.com.br (que cobre www
+// e admin) e de dev.padelizou.com.br — ou seja, em todo domínio nosso e em toda resposta,
+// inclusive as que o app nunca vê.
+//
+// Foram acrescentados aqui em 06/08 por engano — a varredura procurou só no C# e não olhou a
+// configuração do proxy. O resultado apareceu em produção: cada cabeçalho chegando DUAS vezes,
+// e a RFC 7034 diz que servidor não deve mandar mais de um X-Frame-Options (navegador pode
+// ignorar quando os valores divergem). Duplicar não protegia mais; protegia menos.
 
 // Endereço inexistente caía na tela do próprio navegador ("HTTP ERROR 404"), sem menu e sem
 // caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.

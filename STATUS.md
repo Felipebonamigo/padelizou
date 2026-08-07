@@ -131,10 +131,15 @@ nada**: ele existe justamente pra dizer ONDE quebrou. O caminho de verdade mora 
 estoura um erro de verdade e percorre o caminho inteiro. Alarme que só se manifesta no dia do
 desastre é alarme que ninguém sabe se está ligado — e no que não se testa, não se confia.
 
-**Cabeçalhos de segurança que faltavam ao lado do HSTS**: `X-Content-Type-Options: nosniff`,
-`X-Frame-Options: SAMEORIGIN` e `Referrer-Policy: strict-origin-when-cross-origin`. Site
-público novo é exatamente quando começam os scans automáticos. Conferidos em tela, chegando
-inclusive em arquivo estático.
+🔴 **E um erro MEU, achado em produção:** acrescentei ao app os cabeçalhos `nosniff`,
+`X-Frame-Options` e `Referrer-Policy` "que faltavam" — mas eles **já existiam no Caddy desde
+30/07**, nos blocos que cobrem `padelizou.com.br` (com www e admin) e `dev.padelizou.com.br`.
+A varredura procurou só no C# e não olhou a configuração do proxy. Em produção cada cabeçalho
+passou a chegar **duas vezes**, e a RFC 7034 diz que servidor não deve mandar mais de um
+`X-Frame-Options` — duplicar não protegia mais, protegia menos. Removidos do app no
+build seguinte, com o porquê escrito no `Program.cs` pra ninguém "consertar" de novo.
+**Lição pro próximo diagnóstico: cabeçalho, TLS, cache e redirecionamento moram no Caddy, e o
+Caddyfile não está no repositório** — grep no código não enxerga essa camada.
 
 ⚠️ **Pra testar comportamento que só existe em Produção**, o `Development` não serve: lá o
 `UseExceptionHandler` nem entra no pipeline, e o `/Admin` não exige o subdomínio. O jeito é
