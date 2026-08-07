@@ -1,7 +1,17 @@
 # Publicar o Padelizou pelo GitHub (dá pra fazer do celular)
 
-Os três scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`) moram em
-`/opt/padelizou-deploy/` no VPS e continuam funcionando do jeito de sempre, por SSH.
+Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite.sh`) moram
+no VPS e continuam funcionando do jeito de sempre, por SSH.
+
+| Arquivo aqui | Onde fica no servidor | Quando roda |
+|---|---|---|
+| `deploy.sh` · `rollback.sh` | `/opt/padelizou-deploy/` | sob demanda |
+| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 — cópia local |
+| `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 — cópia FORA do servidor |
+
+⚠️ O nome no servidor ainda é `backup-drive.sh` por motivo histórico: desde 07/08/2026 ele
+manda pro **Backblaze B2** (principal, chave que não expira) **e** pro Google Drive (reserva).
+O cron aponta pro nome antigo — renomear exigiria mexer no cron pra ganhar só estética.
 
 O que mudou: o workflow `.github/workflows/deploy.yml` chama esses mesmos scripts
 por você. Assim dá pra publicar do celular — app do GitHub → **Actions** → **Deploy**
