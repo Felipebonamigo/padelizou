@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Padelizou — Apresentação</title>
+<style>
+    /* ====== Identidade (as mesmas cores do app) ====== */
+    :root {
+        --verde: #A3D827;
+        --navy: #1C2742;
+        --navy-900: #141d33;
+        --navy-600: #33456e;
+        --ink: #1b2540;
+        --cinza: #f4f6fb;
+        --cinza-borda: #e3e8f2;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+        font-family: "Segoe UI", -apple-system, Arial, sans-serif;
+        background: #d8dde8; color: var(--ink);
+        font-size: 10.5pt; line-height: 1.5;
+    }
+
+    /* ====== Página A4 ====== */
+    .pagina {
+        width: 210mm; min-height: 296mm; margin: 8mm auto;
+        background: #fff; position: relative;
+        padding: 16mm 16mm 20mm 16mm;
+        box-shadow: 0 4px 24px rgba(20,29,51,.25);
+        page-break-after: always; overflow: hidden;
+    }
+    @media print {
+        body { background: #fff; }
+        .pagina { margin: 0; box-shadow: none; width: 210mm; height: 296mm; }
+    }
+    @page { size: A4; margin: 0; }
+
+    .rodape {
+        position: absolute; bottom: 8mm; left: 16mm; right: 16mm;
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 8pt; color: #8a93a8; border-top: 1px solid var(--cinza-borda);
+        padding-top: 3mm;
+    }
+    .rodape b { color: var(--navy); }
+
+    /* ====== Tipografia ====== */
+    h1 { font-size: 26pt; line-height: 1.15; color: var(--navy); }
+    h2 { font-size: 17pt; color: var(--navy); margin-bottom: 4mm; }
+    h3 { font-size: 12pt; color: var(--navy); margin-bottom: 2mm; }
+    p  { margin-bottom: 3mm; }
+    .eyebrow {
+        display: inline-block; font-size: 8.5pt; font-weight: 700;
+        letter-spacing: 2.5px; text-transform: uppercase; color: #7c8aa8;
+        margin-bottom: 2mm;
+    }
+    .eyebrow::before {
+        content: ""; display: inline-block; width: 22px; height: 4px;
+        background: var(--verde); border-radius: 2px; margin-right: 8px;
+        vertical-align: middle;
+    }
+    .destaque { color: var(--navy); font-weight: 700; }
+    .verde-txt { color: #6f9a0d; font-weight: 700; }
+
+    /* ====== Componentes ====== */
+    .chip {
+        display: inline-block; background: var(--navy); color: #fff;
+        border-radius: 999px; padding: 1.2mm 4mm; font-size: 8.5pt;
+        font-weight: 600; margin: 0 1mm 2mm 0;
+    }
+    .chip.verde { background: var(--verde); color: var(--navy-900); }
+    .chip.claro { background: #eef3e2; color: #55750a; }
+
+    .caixa {
+        background: var(--cinza); border: 1px solid var(--cinza-borda);
+        border-radius: 12px; padding: 5mm; margin-bottom: 4mm;
+    }
+    .caixa.navy {
+        background: linear-gradient(120deg, var(--navy-900), var(--navy) 60%, #24325a);
+        color: #dfe6f5; border: none;
+    }
+    .caixa.navy h3, .caixa.navy .titulo { color: #fff; }
+    .caixa.navy .verde-txt { color: var(--verde); }
+    .caixa.borda-verde { border-left: 5px solid var(--verde); }
+
+    ul.lista { list-style: none; margin-bottom: 3mm; }
+    ul.lista li {
+        padding-left: 7mm; position: relative; margin-bottom: 2.2mm;
+    }
+    ul.lista li::before {
+        content: "✓"; position: absolute; left: 0; top: -0.4mm;
+        width: 5mm; height: 5mm; border-radius: 50%;
+        background: var(--verde); color: var(--navy-900);
+        font-size: 8pt; font-weight: 800; text-align: center; line-height: 5mm;
+    }
+    ul.lista li b { color: var(--navy); }
+    ul.lista.compacta li { margin-bottom: 1.2mm; font-size: 9.3pt; }
+
+    .duas-colunas { display: flex; gap: 8mm; align-items: flex-start; }
+    .col { flex: 1; min-width: 0; }
+
+    .grade-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+    .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+
+    .cartao {
+        border: 1px solid var(--cinza-borda); border-radius: 12px;
+        padding: 4mm; background: #fff;
+    }
+    .cartao .titulo { font-weight: 700; color: var(--navy); font-size: 10.5pt; margin-bottom: 1.5mm; }
+    .cartao .icone { font-size: 15pt; margin-bottom: 1mm; }
+    .cartao p { font-size: 9pt; margin-bottom: 0; color: #4a5470; }
+
+    .num-grande { font-size: 21pt; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .num-legenda { font-size: 8.5pt; color: #7c8aa8; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ====== Mockup de celular ====== */
+    .celular {
+        width: 58mm; background: #0d1424; border-radius: 9mm;
+        padding: 2.6mm; box-shadow: 0 6px 20px rgba(13,20,36,.35);
+        flex-shrink: 0;
+    }
+    .celular .tela {
+        background: #f2f5fa; border-radius: 6.6mm; overflow: hidden;
+        min-height: 108mm; position: relative; font-size: 6.6pt; line-height: 1.35;
+    }
+    .celular .notch {
+        width: 18mm; height: 2.4mm; background: #0d1424;
+        border-radius: 0 0 3mm 3mm; margin: 0 auto;
+        position: relative; z-index: 5;
+    }
+    .app-topo {
+        background: linear-gradient(120deg, var(--navy-900), var(--navy) 70%);
+        color: #fff; padding: 4mm 3.5mm 3mm; margin-top: -2.4mm;
+    }
+    .app-topo .marca { font-weight: 800; font-size: 8pt; letter-spacing: .5px; }
+    .app-topo .marca span { color: var(--verde); }
+    .app-corpo { padding: 2.6mm 3mm 3mm; }
+    .app-card {
+        background: #fff; border-radius: 2.6mm; padding: 2.4mm 2.8mm;
+        margin-bottom: 2.2mm; box-shadow: 0 1px 4px rgba(27,37,64,.10);
+        border: 1px solid #e8ecf4;
+    }
+    .app-card.navy { background: var(--navy); color: #e8edf9; border: none; }
+    .app-card.navy .mini-titulo { color: var(--verde); }
+    .mini-titulo {
+        font-size: 5.6pt; text-transform: uppercase; letter-spacing: 1px;
+        color: #8a93a8; font-weight: 700; margin-bottom: .8mm;
+    }
+    .app-btn {
+        display: inline-block; background: var(--verde); color: var(--navy-900);
+        font-weight: 700; border-radius: 999px; padding: 1mm 3mm; font-size: 6.2pt;
+    }
+    .app-btn.ghost { background: transparent; border: 1px solid #b9c2d8; color: #4a5470; }
+    .selo {
+        display: inline-block; border-radius: 1.4mm; font-size: 5.2pt; font-weight: 800;
+        padding: .4mm 1.6mm; letter-spacing: .5px;
+    }
+    .selo.seu { background: var(--verde); color: var(--navy-900); }
+    .selo.vivo { background: #d92c3f; color: #fff; }
+    .selo.navy { background: var(--navy); color: #fff; }
+    .placar { font-weight: 800; color: var(--navy); }
+    .linha-jogo {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1mm 0; border-bottom: 1px dashed #e0e5f0; gap: 1.5mm;
+    }
+    .linha-jogo:last-child { border-bottom: none; }
+    .avatar {
+        width: 8mm; height: 8mm; border-radius: 50%;
+        background: linear-gradient(135deg, var(--navy-600), var(--navy));
+        color: #fff; font-weight: 800; font-size: 7pt;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .trofeu-fila { display: flex; gap: 1.2mm; flex-wrap: wrap; margin-top: 1mm; }
+    .trofeu {
+        width: 7.4mm; height: 7.4mm; border-radius: 1.8mm;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 5.8pt; color: #fff; font-weight: 700;
+        box-shadow: inset 0 -2mm rgba(0,0,0,.14);
+    }
+    .legenda-mock {
+        font-size: 8pt; color: #7c8aa8; text-align: center; margin-top: 2mm;
+        max-width: 58mm;
+    }
+
+    /* barra de nível PDZ */
+    .pdz-barra { background: #e3e8f2; border-radius: 999px; height: 2.2mm; overflow: hidden; margin: 1mm 0 .6mm; }
+    .pdz-barra i { display: block; height: 100%; background: linear-gradient(90deg, #86b81f, var(--verde)); }
+
+    /* tabela de planos */
+    table.tab { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    table.tab th {
+        background: var(--navy); color: #fff; text-align: left;
+        padding: 2.6mm 3mm; font-size: 9pt;
+    }
+    table.tab th:first-child { border-radius: 2mm 0 0 0; }
+    table.tab th:last-child { border-radius: 0 2mm 0 0; }
+    table.tab td { padding: 2.4mm 3mm; border-bottom: 1px solid var(--cinza-borda); vertical-align: top; }
+    table.tab tr:nth-child(even) td { background: #f8fafd; }
+
+    /* capa */
+    .capa {
+        background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy) 55%, #24325a 100%);
+        color: #dfe6f5; display: flex; flex-direction: column;
+        padding: 18mm 16mm 14mm;
+    }
+    .capa h1 { color: #fff; font-size: 30pt; }
+    .capa .marca-grande { font-size: 34pt; font-weight: 800; color: #fff; letter-spacing: 1px; }
+    .capa .marca-grande span { color: var(--verde); }
+    .risco { width: 30mm; height: 5px; background: var(--verde); border-radius: 3px; margin: 6mm 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ PÁGINA 1 — CAPA ═══════════════════════ -->
+<div class="pagina capa">
+    <div style="font-size:9pt; letter-spacing:3px; text-transform:uppercase; color:#93a2c4;">
+        Apresentação da plataforma
+    </div>
+    <div class="marca-grande" style="margin-top:4mm;">PADELI<span>ZOU</span></div>
+    <div class="risco"></div>
+    <h1>O padel do seu clube inteiro,<br>na palma da mão.</h1>
+    <p style="font-size:12.5pt; margin-top:4mm; max-width:120mm; color:#c3cde4;">
+        Torneios, ranking, aulas, jogos e gestão do clube — <b style="color:#fff;">tudo pelo
+        celular</b>, do primeiro cadastro ao troféu no perfil. Sem planilha, sem papel,
+        sem grupo de WhatsApp virando bagunça.
+    </p>
+
+    <div style="margin-top:8mm;">
+        <span class="chip verde">Torneios</span>
+        <span class="chip" style="background:#33456e;">Ranking</span>
+        <span class="chip" style="background:#33456e;">Aulas</span>
+        <span class="chip" style="background:#33456e;">Jogos</span>
+        <span class="chip" style="background:#33456e;">Clube</span>
+    </div>
+
+    <div style="display:flex; gap:10mm; margin-top:10mm; align-items:flex-start;">
+        <div class="celular">
+            <div class="tela">
+                <div class="notch"></div>
+                <div class="app-topo">
+                    <div class="marca">PADELI<span>ZOU</span></div>
+                    <div style="font-size:7.4pt; font-weight:700; margin-top:1.6mm;">Olá, Felipe! 👋</div>
+                    <div style="font-size:5.8pt; color:#aeb9d4;">sábado, 8 de agosto</div>
+                </div>
+                <div class="app-corpo">
+                    <div class="app-card navy">
+                        <div class="mini-titulo">⏰ Seu próximo jogo</div>
+                        <div style="font-weight:800; font-size:7.4pt;">hoje às 14:00 · Quadra 2</div>
+                        <div style="font-size:6pt; color:#aeb9d4;">contra <b style="color:#fff;">Bruno Alves (Bruninho)</b> e <b style="color:#fff;">Diego Martins</b></div>
+                        <div style="font-size:5.6pt; color:#8fa0c4;">Semifinal · 3ª Categoria · Copa Padelizou</div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">🏆 Torneios abertos</div>
+                        <div style="font-weight:700; font-size:6.8pt; color:var(--navy);">Aberto de Primavera</div>
+                        <div style="font-size:5.8pt; color:#6a7590;">Inscrições até 20/08 · 4 categorias</div>
+                        <div style="margin-top:1.2mm;"><span class="app-btn">Inscrever minha dupla</span></div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">📈 Seu ranking</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-weight:800; font-size:7.4pt; color:var(--navy);">910 pts</div>
+                                <div style="font-size:5.6pt; color:#6a7590;">3º na 3ª Categoria</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:800; font-size:7.4pt; color:#6f9a0d;">712 PDZ</div>
+                                <div style="font-size:5.6pt; color:#6a7590;">Padelímetro</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">🎾 Buscar jogo</div>
+                        <div style="font-size:6pt; color:#4a5470;">4 avisos perto de você hoje</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="flex:1; padding-top:6mm;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6mm;">
+                <div>
+                    <div class="num-grande" style="color:#fff;">100%</div>
+                    <div class="num-legenda" style="color:#93a2c4;">pelo celular — do início ao fim</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">0</div>
+                    <div class="num-legenda" style="color:#93a2c4;">downloads na loja — abre no navegador e instala como app</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">3</div>
+                    <div class="num-legenda" style="color:#93a2c4;">formatos de torneio prontos</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">Pix</div>
+                    <div class="num-legenda" style="color:#93a2c4;">inscrição paga no app, direto pro organizador</div>
+                </div>
+            </div>
+            <div style="margin-top:10mm; background:rgba(163,216,39,.12); border:1px solid rgba(163,216,39,.4); border-radius:12px; padding:5mm;">
+                <div style="color:var(--verde); font-weight:800; font-size:11pt;">padelizou.com.br</div>
+                <div style="font-size:9pt; color:#c3cde4;">Funciona em qualquer celular — Android e iPhone.</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top:auto; display:flex; justify-content:space-between; font-size:8.5pt; color:#93a2c4; border-top:1px solid rgba(255,255,255,.15); padding-top:4mm;">
+        <span><b style="color:#fff;">Padelizou</b> · plataforma completa de padel</span>
+        <span>agosto de 2026</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 2 — O QUE É / PELO CELULAR ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">A plataforma</span>
+    <h2>Um lugar só para tudo que acontece no padel</h2>
+    <p>
+        O Padelizou reúne, num único sistema, o que hoje vive espalhado entre planilhas, papel,
+        grupos de WhatsApp e a memória de alguém: <span class="destaque">o torneio, o ranking, a aula,
+        o jogo entre amigos e a gestão do clube</span>. Cada pessoa entra com o próprio celular e vê
+        exatamente o que interessa a ela — o jogador vê seus jogos e seu ranking; o organizador, seu
+        torneio e seu dinheiro; o professor, sua agenda; o clube, suas quadras.
+    </p>
+
+    <div class="grade-3" style="margin: 5mm 0;">
+        <div class="cartao">
+            <div class="icone">🎾</div>
+            <div class="titulo">Para o jogador</div>
+            <p>Conta grátis. Se inscreve em torneios, paga por Pix, acompanha a chave ao vivo, sobe no ranking e monta um perfil com troféus de verdade.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🏆</div>
+            <div class="titulo">Para o organizador</div>
+            <p>Cria o torneio no celular, o sistema sorteia chaves e monta a grade sozinho, e a inscrição paga cai direto na conta dele.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🏟️</div>
+            <div class="titulo">Para professor e clube</div>
+            <p>Agenda de aulas com cobrança pelo app, caderno de evolução do aluno, painel do clube com ocupação de quadras e financeiro.</p>
+        </div>
+    </div>
+
+    <div class="caixa navy" style="margin-top:6mm;">
+        <h3 style="font-size:13pt;">📱 Tudo pelo celular — e instala como aplicativo</h3>
+        <p style="margin-bottom:3mm;">
+            O Padelizou abre em <b style="color:#fff;">qualquer navegador</b> e se instala na tela
+            inicial como um app de verdade, <b style="color:#fff;">sem passar pela loja de
+            aplicativos</b> — nada de baixar, atualizar ou ocupar memória. E por não depender de
+            loja, <span class="verde-txt">toda melhoria chega para todo mundo no mesmo instante</span>.
+        </p>
+        <div class="grade-2">
+            <div style="background:rgba(255,255,255,.07); border-radius:8px; padding:3.5mm;">
+                <b style="color:#fff;">No iPhone:</b><br>
+                <span style="font-size:9pt;">Safari → botão Compartilhar → <i>“Adicionar à Tela de Início”</i>. O próprio site mostra o passo a passo na primeira visita.</span>
+            </div>
+            <div style="background:rgba(255,255,255,.07); border-radius:8px; padding:3.5mm;">
+                <b style="color:#fff;">No Android:</b><br>
+                <span style="font-size:9pt;">Chrome → <i>“Instalar aplicativo”</i>, em um toque. O ícone do Padelizou fica na tela inicial.</span>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="margin-top:5mm;">🔔 O sistema avisa — a pessoa não precisa ficar olhando</h3>
+    <ul class="lista">
+        <li><b>Notificação no celular (push):</b> “as chaves saíram”, “seu jogo é o próximo”, “abriu vaga na lista de espera” — direto na tela bloqueada.</li>
+        <li><b>WhatsApp:</b> os avisos mais importantes também chegam por WhatsApp, para quem escolher receber por lá.</li>
+        <li><b>E-mail:</b> confirmações e lembretes, como o lembrete de 24 horas antes do torneio.</li>
+        <li><b>Cada pessoa escolhe seus canais</b> nas preferências do perfil — e pode sair quando quiser.</li>
+    </ul>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>2</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 3 — JOGADOR: PERFIL E RANKING ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o jogador</span>
+    <h2>Um perfil que conta a história de quem joga</h2>
+
+    <div class="duas-colunas">
+        <div class="col">
+            <p>
+                No Padelizou, o jogador não é uma linha numa planilha: cada torneio disputado vira
+                <span class="destaque">história registrada no perfil</span> — e é o perfil que ele
+                mostra pros amigos.
+            </p>
+            <ul class="lista">
+                <li><b>Prateleira de troféus:</b> cada título vira um troféu na estante — e o material do troféu acompanha a categoria: <b>Diamante</b> no Open, <b>Ouro, Prata e Bronze</b> nas primeiras, até Ferro, Madeira e Plástico. Ganhar na categoria de cima <i>aparece</i>.</li>
+                <li><b>Conquistas desbloqueáveis:</b> Campeão, Bicampeão, Tricampeão… o perfil vai acumulando medalhas conforme a carreira avança.</li>
+                <li><b>Gráfico de evolução:</b> os pontos dos últimos 12 meses desenhados mês a mês.</li>
+                <li><b>Elogios de quem jogou junto:</b> os parceiros marcam características — <i>Smash Bom, Bom Voleio, Garra</i> — e escrevem comentários no perfil.</li>
+                <li><b>Confronto direto:</b> o histórico contra qualquer outro jogador — quem ganhou mais, os placares, os torneios.</li>
+                <li><b>Times:</b> o jogador entra no time do clube ou da turma, com bandeira e página própria.</li>
+            </ul>
+
+            <div class="caixa borda-verde">
+                <h3>Dois rankings, duas perguntas diferentes</h3>
+                <p style="font-size:9.5pt; margin-bottom:2mm;">
+                    <b>🏅 Ranking por categoria</b> — pontos por colocação em cada torneio.
+                    Responde: <i>“quem está ganhando?”</i>. É a régua da temporada, por categoria,
+                    com pódio e posição.
+                </p>
+                <p style="font-size:9.5pt; margin-bottom:0;">
+                    <b>📈 Padelímetro (PDZ)</b> — um nível de <b>0 a 1000</b> que sobe e desce a
+                    cada jogo, olhando contra quem foi e o placar. Responde: <i>“qual o meu
+                    nível hoje?”</i>. Ganhar de quem tem PDZ maior vale mais; a dupla tem a média
+                    dos dois. Ninguém fica “preso” numa categoria para sempre — o número mostra
+                    a evolução real.
+                </p>
+            </div>
+        </div>
+
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo" style="text-align:center; padding-bottom:4mm;">
+                        <div class="avatar" style="width:11mm; height:11mm; font-size:9pt; margin:1mm auto; background:linear-gradient(135deg,#86b81f,var(--verde)); color:var(--navy-900);">FB</div>
+                        <div style="font-weight:800; font-size:8pt;">Felipe Bonamigo</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Porto Alegre · 3ª Categoria</div>
+                        <div style="margin-top:1.6mm;">
+                            <span class="selo seu" style="font-size:5.6pt;">9× CAMPEÃO</span>
+                            <span class="selo" style="background:#33456e; color:#fff; font-size:5.6pt;">910 pts</span>
+                        </div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card">
+                            <div class="mini-titulo">Padelímetro</div>
+                            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                                <b style="font-size:8.6pt; color:#6f9a0d;">712 PDZ</b>
+                                <span style="font-size:5.4pt; color:#8a93a8;">faltam 38 pra faixa da 2ª</span>
+                            </div>
+                            <div class="pdz-barra"><i style="width:71%;"></i></div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">🏆 Prateleira de troféus</div>
+                            <div class="trofeu-fila">
+                                <span class="trofeu" style="background:linear-gradient(135deg,#7fd4f0,#3aa8d8);">💎</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#f5c93c,#d99d13);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#cfd6e2,#9aa6ba);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#d9995c,#a96a33);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#8d99a8,#5c6673);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#b98a5a,#8a5f34);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#e8eef6,#c3cddc); color:#5c6673;">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#bfe3f2,#8fc7e2);">🏆</span>
+                                <span class="trofeu" style="background:linear-gradient(135deg,#a3d827,#7ba414);">🏆</span>
+                            </div>
+                            <div style="font-size:5.4pt; color:#8a93a8; margin-top:1mm;">do Diamante ao troféu de cada categoria</div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">💬 Elogios dos parceiros</div>
+                            <span class="selo" style="background:#eef3e2; color:#55750a;">Smash Bom ×7</span>
+                            <span class="selo" style="background:#eef3e2; color:#55750a;">Bom Voleio ×5</span>
+                            <span class="selo" style="background:#eef3e2; color:#55750a;">Garra ×4</span>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">📈 Evolução — 12 meses</div>
+                            <div style="display:flex; align-items:flex-end; gap:1mm; height:9mm;">
+                                <i style="flex:1;background:#dbe4f0;height:22%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#dbe4f0;height:30%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#c5d76e;height:38%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#c5d76e;height:45%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#b3cf46;height:52%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#b3cf46;height:60%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#a3d827;height:74%;border-radius:1px;"></i>
+                                <i style="flex:1;background:#a3d827;height:100%;border-radius:1px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">O perfil do jogador: troféus, nível PDZ, elogios e evolução.</div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>3</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 4 — JOGADOR: O TORNEIO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o jogador</span>
+    <h2>Do “bora jogar?” ao troféu — sem sair do celular</h2>
+
+    <div class="duas-colunas">
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Copa Padelizou</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Chaves · 3ª Categoria</div>
+                        <div style="margin-top:1mm;"><span class="selo seu">SEU JOGO</span> <span class="selo" style="background:rgba(255,255,255,.15); color:#fff;">PODE SER SEU</span></div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card" style="border:1.5px solid var(--verde);">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="mini-titulo">Quartas · Jogo 2</span><span class="selo seu">SEU JOGO</span>
+                            </div>
+                            <div class="linha-jogo"><span>Felipe / Rafael</span><span class="placar">6 · 3</span></div>
+                            <div class="linha-jogo"><span style="color:#8a93a8;">Caio / Pedro</span><span class="placar" style="color:#8a93a8;">3 · 6</span></div>
+                        </div>
+                        <div class="app-card" style="border:1.5px solid #d92c3f;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="mini-titulo">Semifinal · Quadra 2</span><span class="selo vivo">● AO VIVO</span>
+                            </div>
+                            <div class="linha-jogo"><span><b>Felipe / Rafael</b></span><span class="placar">4</span></div>
+                            <div class="linha-jogo"><span>Bruno / Diego</span><span class="placar">4</span></div>
+                        </div>
+                        <div class="app-card" style="border:1.5px dashed #b9c2d8; background:#f8fafd;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="mini-titulo">Final · 16:30</span><span class="selo" style="background:#e6f2c8; color:#55750a;">PODE SER SEU</span>
+                            </div>
+                            <div class="linha-jogo"><span style="color:#8a93a8;">vencedor da semi 1</span></div>
+                            <div class="linha-jogo"><span style="color:#8a93a8;">vencedor da semi 2</span></div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">🔮 Palpitrômetro</div>
+                            <div style="font-size:6pt; color:#4a5470;">72% da torcida aposta em <b>Felipe / Rafael</b></div>
+                            <div class="pdz-barra"><i style="width:72%;"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">A chave “pinta o caminho”: seus jogos e as vagas que ainda podem ser suas.</div>
+        </div>
+
+        <div class="col">
+            <h3>1 · Inscrever é um minuto</h3>
+            <ul class="lista compacta">
+                <li>Escolhe o torneio, a categoria e <b>chama o parceiro</b> — o convite chega pra ele confirmar.</li>
+                <li><b>Parceiro sem conta?</b> Entra pelo CPF na hora; quando ele se cadastrar, o histórico já está lá esperando.</li>
+                <li><b>Paga pelo app</b> — Pix (cai na hora), boleto ou cartão, inclusive parcelado — com comprovante.</li>
+                <li><b>Lotou?</b> Lista de espera automática: desistiu alguém, o próximo é promovido e avisado sozinho.</li>
+                <li>Pode jogar <b>mais de uma categoria</b> no mesmo torneio, se o organizador liberar.</li>
+            </ul>
+
+            <h3>2 · No dia, o app conduz</h3>
+            <ul class="lista compacta">
+                <li><b>“Seu jogo é o próximo”</b> — o aviso chega no celular; ninguém fica grudado no telão.</li>
+                <li>A chave mostra <b>“SEU JOGO”</b> e <b>“PODE SER SEU”</b> — o jogador enxerga o próprio caminho até a final.</li>
+                <li><b>Placar ao vivo</b>, jogo a jogo, com link por quadra pra quem ficou em casa torcer.</li>
+                <li><b>Check-in</b> pelo celular ao chegar (quando o organizador ativa).</li>
+                <li><b>Palpitrômetro:</b> a torcida dá palpite em quem ganha — e o torneio vira evento.</li>
+            </ul>
+
+            <h3>3 · Depois, fica pra sempre</h3>
+            <ul class="lista compacta">
+                <li>Campeão ganha o <b>troféu na prateleira</b> e a conquista no perfil.</li>
+                <li>Os pontos entram no <b>ranking da categoria</b>; o <b>PDZ</b> se ajusta jogo a jogo.</li>
+                <li>Todo placar fica no <b>histórico</b> — e alimenta o confronto direto contra cada adversário.</li>
+            </ul>
+
+            <div class="caixa borda-verde" style="margin-top:3mm;">
+                <b>🎾 Fora do torneio, o app também acha jogo:</b>
+                <ul class="lista compacta" style="margin-top:2mm; margin-bottom:0;">
+                    <li><b>Buscar Jogo:</b> publica “procuro jogo sábado de manhã” e a região vê.</li>
+                    <li><b>Raquete Livre:</b> rodízio avulso — valor fixo, cada um entra por si, sem precisar fechar dupla.</li>
+                    <li><b>Grupo da turma:</b> o joguinho de terça registrado, com tabela entre amigos.</li>
+                    <li><b>Reserva de quadra e aula</b> nos clubes e professores que usam o Padelizou.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>4</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 5 — ORGANIZADOR: CRIAR ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o organizador</span>
+    <h2>Criar um torneio profissional leva minutos</h2>
+    <p>
+        O organizador monta tudo pelo celular, numa tela só — e o que ele configura, o sistema
+        cumpre sozinho no dia.
+    </p>
+
+    <div class="grade-3" style="margin-bottom:5mm;">
+        <div class="cartao" style="border-top:4px solid var(--navy);">
+            <div class="titulo">🏆 Torneio Oficial</div>
+            <p>Fase de grupos + mata-mata, o formato de campeonato. Publica chave, cobra inscrição e vale ranking. Grupos de 3 ou 4, melhores segundos, oitavas em diante — o motor monta qualquer tamanho.</p>
+        </div>
+        <div class="cartao" style="border-top:4px solid var(--verde);">
+            <div class="titulo">🔄 Americano</div>
+            <p>O rodízio clássico: parceiro troca a cada rodada, todo mundo joga com todo mundo, vence quem somar mais games. Perfeito pro sábado — qualquer pessoa cadastrada cria o seu em segundos.</p>
+        </div>
+        <div class="cartao" style="border-top:4px solid var(--navy-600);">
+            <div class="titulo">👥 Americano de Duplas</div>
+            <p>Dupla fixa, todos contra todos. A dupla campeã é a dupla de verdade — título dos dois. Funciona com qualquer número de duplas, a partir de 2.</p>
+        </div>
+    </div>
+
+    <div class="duas-colunas">
+        <div class="col">
+            <h3>Tudo que se configura na criação</h3>
+            <ul class="lista compacta">
+                <li><b>Categorias:</b> masculinas, femininas, mistas, 45+… e até <b>categoria de times</b>, com os clubes se enfrentando.</li>
+                <li><b>Capa do torneio</b> — a arte do evento aparece na vitrine e no link compartilhado.</li>
+                <li><b>Limite de vagas</b> por categoria e/ou no torneio inteiro, com lista de espera automática.</li>
+                <li><b>Torneio restrito:</b> uma chave de acesso de 6 caracteres — só entra quem recebeu o código.</li>
+                <li><b>Impedimentos de horário:</b> o inscrito marca “não posso sexta à noite” e o sorteio respeita.</li>
+                <li><b>Formato do jogo por fase:</b> sets e games diferentes pra grupos, mata-mata e final.</li>
+                <li><b>Quadras e horários:</b> quantas quadras, que horas começa, tempo previsto por partida.</li>
+                <li><b>Regras de inscrição:</b> pagamento obrigatório ou não, múltiplas categorias, check-in no dia.</li>
+                <li><b>Proteção de categoria:</b> bloquear categoria inferior e, se quiser, <b>validar cada inscrição pelo Ranking RS</b> — quem pontua em categoria acima é barrado na hora, e o organizador decide os casos duvidosos com um toque.</li>
+            </ul>
+
+            <div class="caixa borda-verde">
+                <b>🧠 O sistema faz o trabalho pesado:</b> sorteia os grupos, monta o mata-mata,
+                distribui os jogos nas quadras e nos horários <b>sem conflito</b> — ninguém joga
+                duas partidas ao mesmo tempo, e os impedimentos são respeitados. Empatou no
+                Americano? O robô cria a rodada de desempate sozinho.
+            </div>
+        </div>
+
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Criar torneio</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Passo 1 de 2</div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card">
+                            <div class="mini-titulo">Nome</div>
+                            <div style="font-weight:700; color:var(--navy); font-size:7pt;">Aberto de Primavera 2026</div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Formato</div>
+                            <div style="font-size:6.4pt;">
+                                <div style="padding:1mm; border:1.4px solid var(--verde); border-radius:1.6mm; margin-bottom:1mm; background:#f7fbec;"><b>● Torneio Oficial</b> — grupos + mata-mata</div>
+                                <div style="padding:1mm; border:1px solid #dbe1ee; border-radius:1.6mm; color:#8a93a8; margin-bottom:1mm;">○ Americano (rodízio)</div>
+                                <div style="padding:1mm; border:1px solid #dbe1ee; border-radius:1.6mm; color:#8a93a8;">○ Americano de Duplas</div>
+                            </div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Categorias</div>
+                            <span class="selo navy">3ª Masc.</span> <span class="selo navy">4ª Masc.</span>
+                            <span class="selo navy">5ª Masc.</span> <span class="selo navy">Mista B</span>
+                            <span class="selo" style="background:#eef1f7; color:#8a93a8;">+ adicionar</span>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Inscrição</div>
+                            <div style="font-size:6.4pt; color:#4a5470;">R$ 120 por pessoa · <b>Pix pelo app</b><br>Limite: 16 duplas por categoria<br>Lista de espera: <b style="color:#6f9a0d;">ativa</b></div>
+                        </div>
+                        <div style="text-align:center; margin-top:2mm;"><span class="app-btn">Criar torneio →</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">A criação inteira cabe no celular — formato, categorias, vagas e cobrança.</div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>5</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 6 — ORGANIZADOR: O DIA ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o organizador</span>
+    <h2>No dia do torneio, a Mesa de Controle comanda</h2>
+
+    <div class="duas-colunas">
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Mesa de Controle</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Copa Padelizou · 4 quadras</div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card" style="border-left:3px solid #d92c3f;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="mini-titulo">Quadra 1</span><span class="selo vivo">● EM JOGO</span>
+                            </div>
+                            <div class="linha-jogo"><span>Felipe / Rafael</span><span class="placar">5</span></div>
+                            <div class="linha-jogo"><span>Bruno / Diego</span><span class="placar">4</span></div>
+                            <div style="margin-top:1mm;"><span class="app-btn">Lançar placar</span></div>
+                        </div>
+                        <div class="app-card" style="border-left:3px solid var(--verde);">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="mini-titulo">Quadra 2</span><span class="selo" style="background:#e6f2c8; color:#55750a;">PRÓXIMO</span>
+                            </div>
+                            <div class="linha-jogo"><span>Lucas / Caio</span><span style="color:#8a93a8; font-size:5.8pt;">chamados 🔔</span></div>
+                            <div class="linha-jogo"><span>André / Paulo</span><span style="color:#8a93a8; font-size:5.8pt;">avisados</span></div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Fila de jogos</div>
+                            <div class="linha-jogo"><span style="font-size:6pt;">Semi 2 · 3ª Cat.</span><span style="font-size:6pt; color:#8a93a8;">15:40</span></div>
+                            <div class="linha-jogo"><span style="font-size:6pt;">Final · Mista B</span><span style="font-size:6pt; color:#8a93a8;">16:30</span></div>
+                        </div>
+                        <div class="app-card navy" style="text-align:center;">
+                            <div style="font-size:6.2pt;">📺 <b>Modo telão:</b> chaves e placares na TV do clube, atualizando sozinhos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">A Mesa de Controle: placar em dois toques e o torneio andando sozinho.</div>
+        </div>
+
+        <div class="col">
+            <h3>O dia inteiro em uma tela</h3>
+            <ul class="lista compacta">
+                <li><b>Placar em dois toques:</b> lançou o resultado, a chave avança, o ranking conta e os próximos jogadores são avisados — tudo em cadeia, sozinho.</li>
+                <li><b>Visão por quadra:</b> o que está em jogo, o que vem depois, o que atrasou.</li>
+                <li><b>“Seu jogo é o próximo”</b> sai automático pra quem joga — acabou o megafone.</li>
+                <li><b>Telão do clube:</b> uma tela cheia própria pra TV, com chaves e placares ao vivo.</li>
+                <li><b>Link ao vivo por quadra</b> pra divulgar nas redes — a torcida acompanha de casa.</li>
+                <li><b>Check-in:</b> quem chegou aparece na hora; some a prancheta da entrada.</li>
+                <li><b>Imprevistos resolvidos:</b> trocar horário de jogo, realocar dupla, inscrever alguém na mão, e até <b>cancelar o torneio</b> — com todos os inscritos avisados automaticamente.</li>
+            </ul>
+
+            <h3 style="margin-top:4mm;">Divulgação que trabalha sozinha</h3>
+            <ul class="lista compacta">
+                <li><b>Aviso pra base inteira:</b> torneio aprovado na vitrine dispara push, WhatsApp e e-mail pra quem pediu “me avise de torneio novo”.</li>
+                <li><b>Link compartilhável</b> com a capa do evento — cola no grupo do clube e as inscrições começam no mesmo minuto.</li>
+                <li><b>Vitrine com curadoria:</b> todo torneio passa por aprovação antes de aparecer na listagem pública — a vitrine não vira terra de ninguém, e isso protege o seu evento também.</li>
+            </ul>
+
+            <div class="caixa borda-verde" style="margin-top:3mm;">
+                <b>📊 Depois do torneio:</b> relatório completo, classificação final, campeões
+                carimbados no perfil de cada um — e o próximo torneio já nasce com a base de
+                inscritos aquecida.
+            </div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>6</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 7 — ORGANIZADOR: DINHEIRO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o organizador</span>
+    <h2>O dinheiro da inscrição, sem dor de cabeça</h2>
+
+    <div class="duas-colunas">
+        <div class="col">
+            <p>
+                Cobrar inscrição é onde os torneios mais perdem tempo — conferir comprovante no
+                WhatsApp, correr atrás de quem não pagou, anotar em caderno. No Padelizou,
+                <span class="destaque">a cobrança faz parte da inscrição</span>:
+            </p>
+            <ul class="lista">
+                <li><b>O jogador paga na hora de se inscrever</b> — Pix, boleto ou cartão (inclusive parcelado). Sem pagar, dá pra configurar que a vaga nem trava.</li>
+                <li><b>O dinheiro cai direto na conta do organizador.</b> Ele abre a própria conta de recebimento <b>de dentro do app</b>, em minutos — CPF ou CNPJ.</li>
+                <li><b>Painel financeiro em tempo real:</b> quem pagou, quem falta, total arrecadado, a receber — por categoria e por período.</li>
+                <li><b>Comprovante pro jogador, relatório e planilha (CSV)</b> pro organizador prestar contas ao clube ou ao patrocinador.</li>
+                <li><b>Regras automáticas:</b> “só confirma inscrição com pagamento” e “excluir quem não pagar até a data” — o sistema cobra por você.</li>
+            </ul>
+
+            <div class="caixa borda-verde">
+                <b>Prefere receber por fora?</b> Também pode: o organizador cobra como sempre
+                cobrou (Pix direto, dinheiro na mesa) e usa o Padelizou só pela organização —
+                pagando apenas a taxa de utilização da plataforma.
+            </div>
+
+            <div class="caixa navy">
+                <h3 style="font-size:11pt;">Taxa do Padelizou por torneio — simples e na tela</h3>
+                <div class="grade-3" style="margin-top:3mm;">
+                    <div style="background:rgba(255,255,255,.08); border-radius:8px; padding:3mm; text-align:center;">
+                        <div style="font-size:16pt; font-weight:800; color:var(--verde);">5%</div>
+                        <div style="font-size:8pt;">recebendo <b style="color:#fff;">por fora</b><br>(o dinheiro não passa pelo app)</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.08); border-radius:8px; padding:3mm; text-align:center;">
+                        <div style="font-size:16pt; font-weight:800; color:var(--verde);">10%</div>
+                        <div style="font-size:8pt;">cobrança pelo app<br><b style="color:#fff;">só Pix</b> — cai na hora</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,.08); border-radius:8px; padding:3mm; text-align:center;">
+                        <div style="font-size:16pt; font-weight:800; color:var(--verde);">15%</div>
+                        <div style="font-size:8pt;">cobrança pelo app<br><b style="color:#fff;">todas as formas</b>, com parcelamento</div>
+                    </div>
+                </div>
+                <p style="font-size:8.5pt; margin-top:3mm; margin-bottom:0; color:#aeb9d4;">
+                    Quem escolhe é o organizador, na criação — e a taxa aparece escrita antes de
+                    qualquer cobrança. Sem surpresa, sem letra miúda.
+                </p>
+            </div>
+        </div>
+
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Financeiro</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Aberto de Primavera 2026</div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card navy">
+                            <div class="mini-titulo">Arrecadado</div>
+                            <div style="font-size:10pt; font-weight:800;">R$ 3.840,00</div>
+                            <div style="font-size:5.8pt; color:#aeb9d4;">32 inscrições pagas · 4 a receber</div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Por categoria</div>
+                            <div class="linha-jogo"><span>3ª Masculina</span><span class="placar">R$ 1.440</span></div>
+                            <div class="linha-jogo"><span>4ª Masculina</span><span class="placar">R$ 1.200</span></div>
+                            <div class="linha-jogo"><span>Mista B</span><span class="placar">R$ 1.200</span></div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Últimos pagamentos</div>
+                            <div class="linha-jogo"><span style="font-size:6pt;">Bruno Alves · Pix</span><span style="font-size:6pt; color:#6f9a0d;">✓ pago</span></div>
+                            <div class="linha-jogo"><span style="font-size:6pt;">Ana Souza · cartão 3×</span><span style="font-size:6pt; color:#6f9a0d;">✓ pago</span></div>
+                            <div class="linha-jogo"><span style="font-size:6pt;">Caio Prado</span><span style="font-size:6pt; color:#c78a00;">aguardando</span></div>
+                        </div>
+                        <div style="display:flex; gap:1.6mm;">
+                            <span class="app-btn ghost">Exportar CSV</span>
+                            <span class="app-btn">Relatório</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">O caixa do torneio em tempo real — quem pagou, quanto entrou, o que falta.</div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>7</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 8 — PROFESSOR ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o professor</span>
+    <h2>A agenda cheia, o caderno em dia, o pagamento em conta</h2>
+
+    <div class="duas-colunas">
+        <div class="col">
+            <h3>A agenda que se marca sozinha</h3>
+            <ul class="lista compacta">
+                <li><b>O aluno pede a aula pelo app:</b> vê os horários livres do professor e solicita — o professor só confirma.</li>
+                <li><b>Aula avulsa ou recorrente:</b> a de toda terça às 19h se repete sozinha na agenda.</li>
+                <li><b>Pacotes de aulas</b> com controle automático de saldo — o sistema desconta a cada aula dada.</li>
+                <li><b>Horários, locais e cidades:</b> o professor define onde e quando atende; quem procura aula na cidade encontra o perfil dele.</li>
+                <li><b>Integração com o Google Agenda</b> — a aula marcada aparece no calendário do celular.</li>
+                <li><b>Regra de 24 horas:</b> cancelamento em cima da hora tem regra clara, definida pelo professor.</li>
+            </ul>
+
+            <h3 style="margin-top:4mm;">O caderno do aluno, versão digital</h3>
+            <ul class="lista compacta">
+                <li><b>Anotações por aluno</b> a cada aula — o que treinou, o que evoluir.</li>
+                <li><b>Régua de evolução e avaliações:</b> o aluno acompanha o próprio progresso em “Minha Evolução” — e isso segura aluno.</li>
+                <li><b>Histórico completo:</b> presenças, aulas dadas, o que foi pago.</li>
+            </ul>
+
+            <h3 style="margin-top:4mm;">Financeiro sem constrangimento</h3>
+            <ul class="lista compacta">
+                <li><b>A cobrança sai pelo app</b> — Pix ou cartão — e cai direto na conta do professor.</li>
+                <li><b>Painel financeiro:</b> quanto entrou no mês, por aluno, e o que está em aberto.</li>
+                <li><b>Acabou o “depois te pago”:</b> quem cobra é o sistema, não o professor.</li>
+            </ul>
+
+            <div class="caixa borda-verde">
+                <b>Plano do professor:</b> 15 dias de teste com todas as condições. Depois,
+                <b>R$ 49,90/mês</b> com taxa de só <b>3% por aula no Pix</b> (6% no cartão) —
+                ou sem mensalidade nenhuma, pagando 10% por aula. O professor escolhe o que
+                compensa pro volume dele.
+            </div>
+        </div>
+
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Minha agenda</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">terça, 11 de agosto</div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card" style="border-left:3px solid var(--verde);">
+                            <div class="linha-jogo">
+                                <div><b style="font-size:6.8pt; color:var(--navy);">07:00 · Ana Souza</b><br><span style="font-size:5.6pt; color:#8a93a8;">recorrente · pacote 8/10</span></div>
+                                <span class="selo" style="background:#e6f2c8; color:#55750a;">PAGA</span>
+                            </div>
+                        </div>
+                        <div class="app-card" style="border-left:3px solid var(--verde);">
+                            <div class="linha-jogo">
+                                <div><b style="font-size:6.8pt; color:var(--navy);">08:00 · João Pedro</b><br><span style="font-size:5.6pt; color:#8a93a8;">avulsa · Quadra 3</span></div>
+                                <span class="selo" style="background:#e6f2c8; color:#55750a;">PAGA</span>
+                            </div>
+                        </div>
+                        <div class="app-card" style="border-left:3px solid #c78a00;">
+                            <div class="linha-jogo">
+                                <div><b style="font-size:6.8pt; color:var(--navy);">19:00 · Marcos Lima</b><br><span style="font-size:5.6pt; color:#8a93a8;">solicitação nova</span></div>
+                                <span class="app-btn" style="font-size:5.6pt;">Confirmar</span>
+                            </div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">📓 Caderno · Ana Souza</div>
+                            <div style="font-size:6pt; color:#4a5470; font-style:italic;">“Voleio evoluiu muito. Próxima aula: saída de parede e bandeja.”</div>
+                        </div>
+                        <div class="app-card navy">
+                            <div class="mini-titulo">Agosto</div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <div><b style="font-size:8.6pt;">R$ 2.310</b><br><span style="font-size:5.6pt; color:#aeb9d4;">recebido</span></div>
+                                <div style="text-align:right;"><b style="font-size:8.6pt; color:var(--verde);">42</b><br><span style="font-size:5.6pt; color:#aeb9d4;">aulas dadas</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">O dia do professor: agenda, caderno do aluno e o mês fechando — numa tela.</div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>8</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 9 — CLUBE ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para o clube</span>
+    <h2>O clube enxerga as quadras — e os torneios lotam elas</h2>
+
+    <div class="duas-colunas">
+        <div class="col">
+            <ul class="lista">
+                <li><b>Painel do clube:</b> a operação do dia numa tela — quadras, horários, o que está acontecendo agora.</li>
+                <li><b>Ocupação de quadras:</b> o mapa de horários mostra o que está vago e o que está tomado — e horário vago é dinheiro parado.</li>
+                <li><b>Reserva pelo app:</b> o jogador marca a quadra pelo celular, nos horários que o clube liberar.</li>
+                <li><b>Financeiro do clube:</b> o que entrou por reservas, aulas e torneios, por período.</li>
+                <li><b>Torneios da casa:</b> cada torneio no clube usa toda a estrutura das páginas anteriores — chaves automáticas, cobrança por Pix, telão, ao vivo. O clube aparece na página do evento pra toda a base.</li>
+                <li><b>Times do clube:</b> bandeira, página própria e vários administradores — o clube vira comunidade, não só quadra.</li>
+            </ul>
+
+            <div class="caixa borda-verde">
+                <b>💡 O ciclo que interessa ao clube:</b> torneio traz gente nova → gente nova
+                conhece o professor e vira aluno → aluno reserva quadra toda semana → e o ranking
+                e o perfil dão motivo pra voltar. O Padelizou fecha esse ciclo <b>dentro do
+                clube</b>, com a marca do clube.
+            </div>
+
+            <h3 style="margin-top:4mm;">Divulgação embutida</h3>
+            <ul class="lista compacta">
+                <li>Todo torneio aprovado é anunciado pra base de jogadores da plataforma — push, WhatsApp e e-mail.</li>
+                <li>O link do torneio, com a capa do evento, circula nos grupos e traz inscrição de fora do clube.</li>
+                <li>O placar ao vivo por quadra é conteúdo pronto pras redes sociais do clube.</li>
+            </ul>
+        </div>
+
+        <div>
+            <div class="celular">
+                <div class="tela">
+                    <div class="notch"></div>
+                    <div class="app-topo">
+                        <div class="marca">Painel do clube</div>
+                        <div style="font-size:5.8pt; color:#aeb9d4;">Ocupação de hoje</div>
+                    </div>
+                    <div class="app-corpo">
+                        <div class="app-card">
+                            <div class="mini-titulo">Quadras · agora</div>
+                            <div class="linha-jogo"><span>Quadra 1</span><span class="selo vivo">torneio</span></div>
+                            <div class="linha-jogo"><span>Quadra 2</span><span class="selo navy">aula</span></div>
+                            <div class="linha-jogo"><span>Quadra 3</span><span class="selo" style="background:#e6f2c8; color:#55750a;">reservada</span></div>
+                            <div class="linha-jogo"><span>Quadra 4</span><span class="selo" style="background:#eef1f7; color:#8a93a8;">livre 16h</span></div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Mapa do dia</div>
+                            <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:.8mm;">
+                                <i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#33456e; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#e3e8f2; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i>
+                                <i style="height:3.4mm; background:#33456e; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#e3e8f2; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#33456e; border-radius:1px;"></i>
+                                <i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#e3e8f2; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i><i style="height:3.4mm; background:#33456e; border-radius:1px;"></i><i style="height:3.4mm; background:#a3d827; border-radius:1px;"></i>
+                            </div>
+                            <div style="font-size:5.4pt; color:#8a93a8; margin-top:1mm;">verde: ocupado · azul: aula · cinza: livre</div>
+                        </div>
+                        <div class="app-card navy">
+                            <div class="mini-titulo">Próximo evento</div>
+                            <div style="font-weight:800; font-size:7pt;">Aberto de Primavera</div>
+                            <div style="font-size:5.8pt; color:#aeb9d4;">64 inscritos · 4 categorias · sáb-dom</div>
+                        </div>
+                        <div class="app-card">
+                            <div class="mini-titulo">Financeiro · agosto</div>
+                            <div style="font-weight:800; font-size:8.6pt; color:var(--navy);">R$ 8.420,00</div>
+                            <div style="font-size:5.6pt; color:#8a93a8;">reservas + aulas + torneios</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="legenda-mock">O painel do clube: quadras, mapa de ocupação e o mês em números.</div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>9</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 10 — LISTA COMPLETA ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">O mapa completo</span>
+    <h2>Tudo que dá pra fazer — numa lista só</h2>
+
+    <div class="grade-2">
+        <div class="caixa" style="margin-bottom:0;">
+            <h3>🎾 Jogador</h3>
+            <ul class="lista compacta" style="margin-bottom:0;">
+                <li>Conta grátis, direto no celular</li>
+                <li>Inscrição em torneio com convite ao parceiro</li>
+                <li>Parceiro sem conta entra pelo CPF</li>
+                <li>Pagamento por Pix, boleto ou cartão no app</li>
+                <li>Lista de espera com promoção automática</li>
+                <li>Chaves, grupos e classificação ao vivo</li>
+                <li>“Seu jogo é o próximo” no celular</li>
+                <li>Chave com “SEU JOGO” e “PODE SER SEU”</li>
+                <li>Check-in pelo app no dia</li>
+                <li>Palpitrômetro (palpites da torcida)</li>
+                <li>Ranking por categoria + Padelímetro (PDZ)</li>
+                <li>Prateleira de troféus por material</li>
+                <li>Conquistas, elogios e comentários no perfil</li>
+                <li>Gráfico de evolução de 12 meses</li>
+                <li>Confronto direto contra qualquer jogador</li>
+                <li>Buscar jogo por aviso na região</li>
+                <li>Raquete Livre (rodízio avulso)</li>
+                <li>Grupo da turma com registro de jogos</li>
+                <li>Times com bandeira e página própria</li>
+                <li>Reserva de quadra e pedido de aula</li>
+                <li>Histórico de pagamentos com comprovante</li>
+            </ul>
+        </div>
+        <div class="caixa" style="margin-bottom:0;">
+            <h3>🏆 Organizador</h3>
+            <ul class="lista compacta" style="margin-bottom:3mm;">
+                <li>3 formatos: Oficial, Americano e Americano de Duplas</li>
+                <li>Categorias masc., fem., mistas e de times</li>
+                <li>Capa do evento e link compartilhável</li>
+                <li>Limite de vagas + lista de espera</li>
+                <li>Torneio restrito por chave de acesso</li>
+                <li>Impedimentos de horário respeitados no sorteio</li>
+                <li>Sets e games configuráveis por fase</li>
+                <li>Sorteio de grupos e mata-mata automáticos</li>
+                <li>Grade de jogos sem conflito de quadra/pessoa</li>
+                <li>Mesa de Controle + modo telão pra TV</li>
+                <li>Placar ao vivo com link por quadra</li>
+                <li>Cobrança no app caindo direto na sua conta</li>
+                <li>Painel financeiro, relatório e CSV</li>
+                <li>Validação de categoria pelo Ranking RS</li>
+                <li>Aviso automático pra base a cada torneio</li>
+                <li>Cancelamento com aviso a todos os inscritos</li>
+            </ul>
+            <h3>👨‍🏫 Professor &nbsp;·&nbsp; 🏟️ Clube</h3>
+            <ul class="lista compacta" style="margin-bottom:0;">
+                <li>Agenda com solicitação de aula pelo aluno</li>
+                <li>Aula avulsa, recorrente e pacotes com saldo</li>
+                <li>Caderno do aluno + régua de evolução</li>
+                <li>Cobrança das aulas pelo app</li>
+                <li>Google Agenda integrado</li>
+                <li>Painel do clube com ocupação de quadras</li>
+                <li>Reserva de quadra pelo jogador</li>
+                <li>Financeiro por período</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>10</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 11 — CONFIANÇA ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Por trás da tela</span>
+    <h2>Feito pra não falhar no sábado de manhã</h2>
+    <p>
+        Torneio é evento ao vivo: se o sistema cair, tem 60 pessoas na quadra olhando pro
+        organizador. Por isso o Padelizou é construído com o rigor de sistema de missão crítica:
+    </p>
+
+    <div class="grade-2" style="margin: 5mm 0;">
+        <div class="cartao">
+            <div class="icone">🧪</div>
+            <div class="titulo">Mais de 2.400 testes automáticos</div>
+            <p>Cada regra do sistema — do sorteio da chave ao centavo da taxa — é verificada por uma bateria de testes que roda antes de qualquer atualização entrar no ar. Se um teste falha, a atualização não sobe.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">💾</div>
+            <div class="titulo">Backup diário criptografado</div>
+            <p>Os dados são copiados várias vezes por dia, com uma cópia criptografada guardada fora do servidor. Monitoramento avisa na hora se algo sai do padrão.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🔒</div>
+            <div class="titulo">Privacidade e LGPD</div>
+            <p>Cada pessoa controla seus dados e pode excluir a própria conta pelo app. CPF e contato nunca são expostos publicamente — o perfil mostra só o que o jogador quer mostrar.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🛡️</div>
+            <div class="titulo">Curadoria da vitrine</div>
+            <p>Organizadores de torneio oficial são habilitados individualmente, e todo torneio passa por aprovação antes de aparecer na listagem pública. Nada de evento fantasma na vitrine.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">⚡</div>
+            <div class="titulo">Sempre atualizado</div>
+            <p>Melhorias entram no ar continuamente, sem depender de loja de aplicativos e sem o usuário precisar atualizar nada. O que você vê hoje já é melhor amanhã.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">💬</div>
+            <div class="titulo">Suporte de gente</div>
+            <p>Falou, respondeu: suporte direto por WhatsApp com quem constrói o sistema — e o botão “Reportar problema” dentro do próprio app.</p>
+        </div>
+    </div>
+
+    <div class="caixa navy">
+        <h3 style="font-size:12pt;">🤝 Integração com o Ranking RS</h3>
+        <p style="margin-bottom:0;">
+            O Padelizou é integrado ao <b style="color:#fff;">Ranking RS</b>: na inscrição, o
+            sistema consulta a pontuação oficial do atleta e <span class="verde-txt">barra na hora
+            quem pontua em categoria acima</span> — o famoso “forte jogando na categoria de baixo”.
+            O organizador liga a validação com uma caixinha na criação e decide os casos duvidosos
+            com um toque. É o fim da discussão de categoria na mesa de inscrição.
+        </p>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>11</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 12 — PLANOS E CONTATO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Planos e taxas</span>
+    <h2>Preço simples, escrito na tela</h2>
+
+    <table class="tab" style="margin-bottom:6mm;">
+        <tr><th style="width:28%;">Quem</th><th style="width:34%;">Quanto</th><th>Como funciona</th></tr>
+        <tr>
+            <td><b>Jogador</b></td>
+            <td><b class="verde-txt">Grátis, sempre</b></td>
+            <td>Conta, perfil, ranking, troféus, busca de jogo — sem custo. O jogador só paga a inscrição do torneio ou a aula que consumir.</td>
+        </tr>
+        <tr>
+            <td><b>Organizador de torneio</b></td>
+            <td><b>5%</b> por fora · <b>10%</b> Pix pelo app · <b>15%</b> todas as formas</td>
+            <td>Sem mensalidade: paga só quando o torneio acontece, sobre a inscrição. A taxa aparece na criação, antes de qualquer cobrança.</td>
+        </tr>
+        <tr>
+            <td><b>Professor</b></td>
+            <td><b>R$ 49,90/mês</b> + 3% (Pix) ou 6% (cartão) por aula</td>
+            <td>15 dias de teste com tudo liberado. Sem assinatura, a taxa é 10% por aula — o professor escolhe o que compensa.</td>
+        </tr>
+        <tr>
+            <td><b>Americano valendo ranking</b></td>
+            <td><b>R$ 5</b> por pessoa inscrita</td>
+            <td>Opcional: o rodízio pode pontuar no ranking próprio do Americano. A partir de 8 inscritos; abaixo disso não vale ponto — e não custa nada.</td>
+        </tr>
+    </table>
+
+    <div class="caixa borda-verde">
+        <b>Sem pegadinha:</b> não existe taxa escondida — a única taxa é a do Padelizou, mostrada
+        antes de qualquer cobrança. E os valores acima são a tabela cheia:
+        <b>condições para clubes e parcerias são conversadas caso a caso.</b>
+    </div>
+
+    <div class="caixa navy" style="margin-top:8mm; text-align:center; padding:10mm;">
+        <div style="font-size:9pt; letter-spacing:3px; text-transform:uppercase; color:#93a2c4;">Comece hoje</div>
+        <div style="font-size:22pt; font-weight:800; color:#fff; margin:3mm 0;">PADELI<span style="color:var(--verde);">ZOU</span></div>
+        <p style="max-width:120mm; margin: 0 auto 5mm;">
+            Abra <b style="color:#fff;">padelizou.com.br</b> no celular, crie a conta grátis
+            e instale como aplicativo. O primeiro torneio, a primeira aula ou o primeiro
+            rodízio podem estar no ar <b style="color:#fff;">hoje</b>.
+        </p>
+        <div style="display:inline-block; background:var(--verde); color:var(--navy-900); font-weight:800; border-radius:999px; padding:3mm 10mm; font-size:12pt;">
+            padelizou.com.br
+        </div>
+        <div style="margin-top:5mm; font-size:9.5pt; color:#c3cde4;">
+            💬 WhatsApp: <b style="color:#fff;">(51) 99485-4884</b> — fale direto com a gente
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · padelizou.com.br</span><span>12</span>
+    </div>
+</div>
+
+</body>
+</html>

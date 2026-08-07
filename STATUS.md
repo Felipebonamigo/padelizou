@@ -1655,6 +1655,14 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 📎 Documentos de apoio
+Gerado em 07/08/2026, no repo:
+- **Apresentação de vendas completa** — `APRESENTACAO.html` (fonte) + `Padelizou-Apresentacao.pdf`
+  (12 páginas A4). O sistema inteiro por papel — jogador, organizador, professor, clube —
+  com mockups de celular desenhados em CSS e a mensagem central "tudo pelo celular, instala
+  sem loja". Taxas conferidas no código do dia: torneio 5%/10%/15%, professor R$ 49,90+3%/6%
+  (15 dias de teste, avulso 10%), Americano valendo ponto R$ 5/pessoa (piso 8). Sem citar o
+  gateway, sem bar (atrás de flag). Regerar o PDF: Edge headless `--print-to-pdf` sobre o HTML.
+
 Gerados em 25/07/2026, salvos também em PDF na Área de Trabalho:
 - **Análise do sistema** — diagnóstico completo por área
 - **Plano de evolução** — as 6 fases detalhadas com justificativa
