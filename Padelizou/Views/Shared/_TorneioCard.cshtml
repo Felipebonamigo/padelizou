@@ -2,6 +2,15 @@
 @{
     var aberto = Model.Status == "Inscrições Abertas";
     var textoBotao = aberto ? "Ver Torneio e Inscrever-se" : (Model.Status == "Finalizado" ? "Ver Resultado" : "Ver Torneio");
+
+    // QUANDO é a primeira pergunta de quem bate o olho num torneio — antes do preço e até
+    // do lugar. Torneio de mais de um dia mostra o intervalo: só o primeiro dia esconderia
+    // metade do evento de quem está decidindo se consegue ir.
+    var quando = Model.DataInicio == null
+        ? "Data a definir"
+        : (Model.DataFim != null && Model.DataFim.Value.Date > Model.DataInicio.Value.Date
+            ? $"{Model.DataInicio.Value:dd/MM} a {Model.DataFim.Value:dd/MM/yyyy}"
+            : Model.DataInicio.Value.ToString("dd/MM/yyyy"));
 }
 <div class="col" data-torneio-nome="@Model.Nome.ToLower()">
     <div class="card h-100 shadow-sm border-0 overflow-hidden">
@@ -21,6 +30,9 @@
 
         <div class="card-body">
             <h5 class="card-title fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h5>
+            <p class="card-text small mb-1 fw-semibold" style="color: var(--pdz-ink);">
+                <i class="bi bi-calendar-event"></i> @quando
+            </p>
             <p class="card-text text-muted small mb-1">
                 <i class="bi bi-geo-alt-fill"></i> Local: @(string.IsNullOrEmpty(Model.LocalTorneio) ? "A definir" : Model.LocalTorneio)
             </p>

@@ -138,7 +138,7 @@ namespace Padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var torneios = await _context.Torneios.OrderByDescending(t => t.DataInicio).ToListAsync();
+            var torneios = await _context.Torneios.ToListAsync();
 
             // Torneio OCULTO e torneio AINDA NÃO APROVADO somem da listagem pública — os dois
             // continuam visíveis aqui pra quem organiza (pra não "perder" o próprio torneio de
@@ -162,15 +162,23 @@ namespace Padelizou.Controllers
                             || souAdmin || meusTorneioIds.Contains(t.Id))
                 .ToList();
 
-            ViewBag.Abertos = torneios.Where(t => t.Status == "Inscrições Abertas").ToList();
-            ViewBag.EmAndamento = torneios
+            // A ORDEM É POR DATA, e ela troca de sentido conforme a seção: o que ainda vai
+            // acontecer se lê do mais próximo pro mais distante ("é esse fim de semana?"), e o
+            // que já passou se lê do mais recente pro mais antigo. Torneio SEM data marcada cai
+            // pro fim dos dois — no decrescente que existia antes, o nulo encabeçava a lista.
+            static List<Torneio> DoMaisProximo(IEnumerable<Torneio> lista) =>
+                lista.OrderBy(t => t.DataInicio == null).ThenBy(t => t.DataInicio).ToList();
+            static List<Torneio> DoMaisRecente(IEnumerable<Torneio> lista) =>
+                lista.OrderBy(t => t.DataInicio == null).ThenByDescending(t => t.DataInicio).ToList();
+
+            ViewBag.Abertos = DoMaisProximo(torneios.Where(t => t.Status == "Inscrições Abertas"));
+            ViewBag.EmAndamento = DoMaisProximo(torneios
                 .Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado"
-                            && !CancelamentoDoTorneio.EstaCancelado(t.Status))
-                .ToList();
-            ViewBag.Finalizados = torneios.Where(t => t.Status == "Finalizado").ToList();
+                            && !CancelamentoDoTorneio.EstaCancelado(t.Status)));
+            ViewBag.Finalizados = DoMaisRecente(torneios.Where(t => t.Status == "Finalizado"));
             // Bloco próprio: cancelado no meio de "em andamento" faria o organizador achar que
             // o torneio ainda está de pé.
-            ViewBag.Cancelados = torneios.Where(t => CancelamentoDoTorneio.EstaCancelado(t.Status)).ToList();
+            ViewBag.Cancelados = DoMaisRecente(torneios.Where(t => CancelamentoDoTorneio.EstaCancelado(t.Status)));
 
             return View();
         }
