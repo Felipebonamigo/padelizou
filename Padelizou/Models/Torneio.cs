@@ -222,9 +222,10 @@ public partial class Torneio
     // Usar a lista de chamada no dia? Nem todo torneio quer: num interno de 8 duplas o
     // organizador conhece todo mundo de vista, e a tela vira mais um botão pra ignorar.
     //
-    // Nasce LIGADO porque é o comportamento que já existia — desligar é uma escolha, não uma
-    // pegadinha pra quem já tinha torneio no ar. Desligado, o botão some e a rota recusa: sem
-    // isso o link antigo (ou o histórico do navegador) continuaria abrindo uma tela que o
-    // organizador decidiu não usar.
-    public bool UsaCheckIn { get; set; } = true;
+    // Nasce DESLIGADO: é o caso comum, e ligado por padrão o organizador ganhava uma tela que
+    // não pediu — pior, uma tela que os inscritos veem e cobram. Quem já tinha torneio no ar
+    // não perde nada: a migração CheckInOpcional gravou `true` em todos eles. Desligado, o
+    // botão some e a rota recusa junto — sem isso o link antigo (ou o histórico do navegador)
+    // continuaria abrindo uma tela que o organizador decidiu não usar.
+    public bool UsaCheckIn { get; set; }
 }

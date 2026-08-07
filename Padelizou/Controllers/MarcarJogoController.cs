@@ -243,7 +243,7 @@ namespace padelizou.Controllers
             if (marcacao == null) return NotFound();
 
             ViewBag.Marcacao = marcacao;
-            ViewBag.Categorias = await _context.CategoriasPadrao.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.Categorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Nome).ToListAsync();
             ViewBag.Cidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CategoriaId = categoriaId;
             ViewBag.CidadeId = cidadeId;

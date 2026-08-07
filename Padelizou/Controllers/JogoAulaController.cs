@@ -111,7 +111,7 @@ namespace padelizou.Controllers
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
             ViewBag.MeusLocais = await _context.LocaisAula.Where(l => l.ProfessorId == professorId && l.Ativo).ToListAsync();
-            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
 
             // Diferente do torneio, aqui NÃO se bloqueia: combinar o pagamento na quadra é o
             // jeito normal de dar aula, não um erro. O que faltava era dizer qual dos dois vai

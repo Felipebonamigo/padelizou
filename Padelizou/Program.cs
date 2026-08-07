@@ -237,36 +237,41 @@ using (var scope = app.Services.CreateScope())
     // requisição — o middleware do portão roda antes do roteamento e lê isto da memória.
     await scope.ServiceProvider.GetRequiredService<PortaoDeAcesso>().CarregarAsync(db);
 
-    var catalogoCategorias = new (string Nome, string Codigo, string Tipo)[]
+    // As duas "Iniciantes" nascem DESLIGADAS (Ativa: false): saíram do catálogo que as telas
+    // oferecem. Não são apagadas porque torneio, preferência de jogador e aviso guardam o Id
+    // delas — e ligar de volta é um UPDATE de uma linha, sem deploy.
+    var catalogoCategorias = new (string Nome, string Codigo, string Tipo, bool Ativa)[]
     {
-        ("Categoria Open Masculino", "1CatM", "Masculina"),
-        ("2ª Categoria Masculina", "2CM", "Masculina"),
-        ("3ª Categoria Masculina", "3CatM", "Masculina"),
-        ("4ª Categoria Masculina", "4CatM", "Masculina"),
-        ("5ª Categoria Masculina", "5CatM", "Masculina"),
-        ("6ª Categoria Masculina", "6CatM", "Masculina"),
-        ("7ª Categoria Masculina", "7CatM", "Masculina"),
-        ("Categoria Iniciantes Masculina", "ICatM", "Masculina"),
-        ("Categoria Open Feminina", "1CatF", "Feminina"),
-        ("2ª Categoria Feminina", "2CatF", "Feminina"),
-        ("3ª Categoria Feminina", "3CatF", "Feminina"),
-        ("4ª Categoria Feminina", "4CatF", "Feminina"),
-        ("5ª Categoria Feminina", "5CatF", "Feminina"),
-        ("6ª Categoria Feminina", "6CatF", "Feminina"),
-        ("7ª Categoria Feminina", "7CatF", "Feminina"),
-        ("Categoria Iniciantes Feminina", "ICatF", "Feminina"),
-        ("Categoria Mista A", "MISTA-A", "Mista"),
-        ("Categoria Mista B", "MISTA-B", "Mista"),
-        ("Categoria Mista C", "MISTA-C", "Mista"),
-        ("Categoria Mista D", "MISTA-D", "Mista"),
+        ("Categoria Open Masculino", "1CatM", "Masculina", true),
+        ("2ª Categoria Masculina", "2CM", "Masculina", true),
+        ("3ª Categoria Masculina", "3CatM", "Masculina", true),
+        ("4ª Categoria Masculina", "4CatM", "Masculina", true),
+        ("5ª Categoria Masculina", "5CatM", "Masculina", true),
+        ("6ª Categoria Masculina", "6CatM", "Masculina", true),
+        ("7ª Categoria Masculina", "7CatM", "Masculina", true),
+        ("Categoria Iniciantes Masculina", "ICatM", "Masculina", false),
+        ("Categoria Open Feminina", "1CatF", "Feminina", true),
+        ("2ª Categoria Feminina", "2CatF", "Feminina", true),
+        ("3ª Categoria Feminina", "3CatF", "Feminina", true),
+        ("4ª Categoria Feminina", "4CatF", "Feminina", true),
+        ("5ª Categoria Feminina", "5CatF", "Feminina", true),
+        ("6ª Categoria Feminina", "6CatF", "Feminina", true),
+        ("7ª Categoria Feminina", "7CatF", "Feminina", true),
+        ("Categoria Iniciantes Feminina", "ICatF", "Feminina", false),
+        ("Categoria Mista A", "MISTA-A", "Mista", true),
+        ("Categoria Mista B", "MISTA-B", "Mista", true),
+        ("Categoria Mista C", "MISTA-C", "Mista", true),
+        ("Categoria Mista D", "MISTA-D", "Mista", true),
     };
 
     var nomesExistentes = db.CategoriasPadrao.Select(c => c.Nome).ToHashSet();
-    foreach (var (nome, codigo, tipo) in catalogoCategorias)
+    foreach (var (nome, codigo, tipo, ativa) in catalogoCategorias)
     {
+        // Só CRIA o que falta. Quem já existe não é reescrito de propósito: se alguém ligar
+        // uma categoria pelo banco, o start seguinte não pode desligá-la de novo.
         if (!nomesExistentes.Contains(nome))
         {
-            db.CategoriasPadrao.Add(new CategoriaPadrao { Nome = nome, Codigo = codigo, Tipo = tipo });
+            db.CategoriasPadrao.Add(new CategoriaPadrao { Nome = nome, Codigo = codigo, Tipo = tipo, Ativa = ativa });
         }
     }
     db.SaveChanges();

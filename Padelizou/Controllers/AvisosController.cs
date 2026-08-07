@@ -39,7 +39,7 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Criar()
         {
-            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             return View();
         }

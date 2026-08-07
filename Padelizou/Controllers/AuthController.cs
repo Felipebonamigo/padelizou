@@ -703,7 +703,7 @@ namespace padelizou.Controllers
 
         private async Task PopularCatalogosAsync()
         {
-            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
@@ -898,7 +898,7 @@ namespace padelizou.Controllers
 
             if (jogador == null) return NotFound();
 
-            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
 

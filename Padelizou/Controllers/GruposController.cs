@@ -408,7 +408,7 @@ namespace padelizou.Controllers
             if (grupo == null || grupo.AdministradorId != userId) return RedirectToAction("Index");
 
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
 
             return View(grupo);
         }

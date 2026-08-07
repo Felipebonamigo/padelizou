@@ -377,7 +377,7 @@ public class JogadoresController : Controller
         var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(vm.Estado);
         vm.Estados = estados;
         vm.Cidades = cidades;
-        vm.Categorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+        vm.Categorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
         vm.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
         // Sem filtro nenhum a busca lista TODO MUNDO (pedido do Felipe, 29/07/2026): quem

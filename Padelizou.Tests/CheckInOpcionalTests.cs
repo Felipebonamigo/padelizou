@@ -20,11 +20,12 @@ public class CheckInOpcionalTests
     }
 
     [Fact]
-    public async Task Torneio_novo_nasce_com_check_in_ligado()
+    public void Torneio_novo_nasce_com_check_in_desligado()
     {
-        // Preserva o que já existia: desligar é escolha, não pegadinha pra quem já tinha
-        // torneio no ar.
-        Assert.True(new Torneio { Nome = "X", Codigo = "X1" }.UsaCheckIn);
+        // Ligar é escolha de quem faz torneio grande. Nascer ligado dava ao organizador uma
+        // tela que ele não pediu — e que os inscritos veem e cobram. Os torneios que já
+        // estavam no ar continuam com o check-in: a migração gravou `true` neles.
+        Assert.False(new Torneio { Nome = "X", Codigo = "X1" }.UsaCheckIn);
     }
 
     [Fact]

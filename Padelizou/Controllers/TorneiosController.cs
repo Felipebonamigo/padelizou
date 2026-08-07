@@ -365,7 +365,7 @@ namespace Padelizou.Controllers
                 // Pra poder ACRESCENTAR categoria depois de publicado: o organizador que
                 // esqueceu a Mista, ou que abriu mais uma quadra, resolvia isso criando outro
                 // torneio.
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
 
                 // Quem o Ranking RS barrou. Vem SEMPRE que o organizador olha a tela, mesmo com
                 // a validação já desligada depois: as linhas antigas continuam valendo (é o que

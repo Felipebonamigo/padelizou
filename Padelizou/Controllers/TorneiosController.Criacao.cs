@@ -18,8 +18,9 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> Create()
         {
-            // Busca todas as categorias do banco para montar os Checkboxes na tela
-            var catalogo = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+            // Busca as categorias do banco para montar os Checkboxes na tela. Só as ATIVAS:
+            // categoria desligada continua valendo onde já foi usada, mas não é oferecida.
+            var catalogo = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoCategorias = catalogo;
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
@@ -194,7 +195,7 @@ namespace Padelizou.Controllers
             async Task<IActionResult> Recusar(string motivo)
             {
                 ViewBag.Erro = motivo;
-                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.OrderBy(c => c.Id).ToListAsync();
+                ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 // Sem isto, cada recusa apagava as categorias marcadas e o organizador
                 // remarcava tudo de novo — oito cliques pra corrigir um campo de texto.
@@ -390,8 +391,10 @@ namespace Padelizou.Controllers
             {
                 foreach (var catId in categoriasSelecionadas)
                 {
+                    // Desligada entra na mesma vala do id que não existe: a tela não oferece,
+                    // e o POST feito à mão não devolve a categoria pro ar por um atalho.
                     var catPadrao = await _context.CategoriasPadrao.FindAsync(catId);
-                    if (catPadrao != null)
+                    if (catPadrao is { Ativa: true })
                     {
                         int? limite = limiteCategoria != null && limiteCategoria.TryGetValue(catId, out var l) && l is > 0 ? l : null;
                         var novaCategoria = new Categoria
@@ -598,8 +601,10 @@ namespace Padelizou.Controllers
         {
             if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
+            // `Ativa: false` é categoria tirada de circulação — vale onde já está, mas não
+            // entra em torneio novo, nem por aqui.
             var catPadrao = await _context.CategoriasPadrao.FindAsync(categoriaPadraoId);
-            if (catPadrao == null)
+            if (catPadrao is not { Ativa: true })
             {
                 TempData["Erro"] = "Categoria inválida.";
                 return RedirectToAction("Details", new { id = torneioId });

@@ -57,6 +57,10 @@ public class GestaoTorneioClubeTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Inscrições Abertas");
+        // Torneio nasce SEM check-in; quem quer a lista de chamada liga. Ligar aqui é a
+        // pré-condição deste teste, senão ele passaria a medir a recusa, não a marcação.
+        torneio.UsaCheckIn = true;
+        await ctx.SaveChangesAsync();
         var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
 
         var controller = TestInfra.NovoTorneiosController(ctx, organizador.Id);
@@ -73,6 +77,10 @@ public class GestaoTorneioClubeTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Inscrições Abertas");
+        // Com o check-in ligado, a recusa só pode ser por quem está pedindo — que é o que
+        // este teste afirma. Desligado, ele passaria mesmo se a checagem de dono sumisse.
+        torneio.UsaCheckIn = true;
+        await ctx.SaveChangesAsync();
         var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
 
         var intruso = new Jogador { Nome = "Intruso", Cpf = "77777777777" };
