@@ -3,48 +3,92 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// O TETO DO CANAL (07/08/2026, junto com o religamento depois da restrição da Meta).
+// O TETO DO CANAL.
 //
-// O conserto de 04/08 matou a RAJADA (7–16s entre mensagens) e deixou o VOLUME livre: 11,5s
-// de média são ~313 mensagens/hora ininterruptas, e o WHATSAPP.md já chama ~500/h de zona de
-// risco. Estes testes são a régua do que passa e do que é barrado.
+// O conserto de 04/08 matou a RAJADA (7–16s entre mensagens) e deixou o VOLUME livre. Estes
+// testes são a régua do que passa e do que é barrado.
+//
+// ⚠️ Os números foram REFEITOS em 07/08/2026, e o motivo importa mais que eles: a primeira
+// versão (60/hora, 300/dia) veio de prática genérica de anti-spam e não da conta do produto.
+// Um torneio de 100 participantes manda ~450 mensagens no dia — e o aviso de "chaves saíram"
+// sozinho são 100 de uma vez, o que estourava o teto da hora logo na primeira ação do dia.
+// O teto não existe pra apertar o uso normal; existe pra um laço infinito não torrar o número
+// numa madrugada.
 public class VolumeDoWhatsAppTests
 {
     private static readonly DateTime Meio = new(2026, 8, 10, 14, 0, 0);
 
     private static VolumeDoWhatsApp Novo() => new(NullLogger<VolumeDoWhatsApp>.Instance);
 
-    // Número veterano: fora do aquecimento, com o teto do dia no alto. Quem quer testar a
-    // janela da HORA precisa disto — senão o teto do dia (30, aquecendo) barra antes e o
-    // teste mede a regra errada.
-    private static VolumeDoWhatsApp EmRegime()
+    // ⚠️ O TESTE QUE GUARDA A CONTA DO PRODUTO. Se alguém baixar os tetos sem refazer a conta,
+    // é aqui que quebra — e o número do torneio está escrito junto pra não virar chute de novo.
+    [Fact]
+    public void Um_dia_de_torneio_de_100_participantes_cabe_inteiro()
     {
+        // 100 do "chaves saíram" (1 por jogador) + ~350 do "seu jogo é o próximo"
+        // (4 por partida × ~88 partidas) + 100 do lembrete de 24h.
+        const int diaDeTorneioCheio = 100 + 350 + 100;
+
         var volume = Novo();
-        using var ctx = TestInfra.NovoContexto();
-        volume.MarcarConectadoAsync(ctx, Meio.AddDays(-30)).GetAwaiter().GetResult();
-        return volume;
+
+        var passaram = 0;
+        for (var i = 0; i < diaDeTorneioCheio; i++)
+        {
+            // Espalhadas pelas 10 horas de um sábado de torneio.
+            if (volume.RegistrarSePuder(Meio.Date.AddHours(8).AddSeconds(i * 65))) passaram++;
+        }
+
+        Assert.Equal(diaDeTorneioCheio, passaram);
+        Assert.Equal(0, volume.BloqueadasPeloTeto);
     }
 
-    // ⚠️ O TESTE QUE JUSTIFICA A CLASSE. Sem teto, o espaçamento sozinho deixa passar um
-    // volume que já queimou o número uma vez.
+    // ⚠️ E O QUE O TETO REALMENTE EXISTE PRA PEGAR: aviso saindo em laço. Ninguém manda 2.000
+    // mensagens legítimas num dia com 72 contas cadastradas.
     [Fact]
-    public void O_teto_da_hora_barra_o_que_o_espacamento_deixaria_passar()
+    public void Um_laco_infinito_e_barrado_antes_de_torrar_o_numero()
     {
-        var volume = EmRegime();
+        var volume = Novo();
+
+        var passaram = Enumerable.Range(0, 2000)
+            .Count(i => volume.RegistrarSePuder(Meio.Date.AddSeconds(i * 10)));
+
+        Assert.Equal(TetoDoWhatsApp.PorDia, passaram);
+        Assert.True(volume.BloqueadasPeloTeto > 0);
+    }
+
+    [Fact]
+    public void O_pico_da_hora_tem_teto_proprio()
+    {
+        var volume = Novo();
 
         var passaram = Enumerable.Range(0, TetoDoWhatsApp.PorHora + 20)
-            .Count(i => volume.RegistrarSePuder(Meio.AddSeconds(i * 11)));
+            .Count(i => volume.RegistrarSePuder(Meio.AddSeconds(i * 2)));
 
         Assert.Equal(TetoDoWhatsApp.PorHora, passaram);
         Assert.Equal(20, volume.BloqueadasPeloTeto);
     }
 
+    // As 100 mensagens de "chaves saíram" viram uma rajada só — é o pico real do sistema, e
+    // precisa caber com folga no teto da hora.
+    [Fact]
+    public void As_chaves_de_um_torneio_de_100_saem_de_uma_vez_sem_barrar()
+    {
+        var volume = Novo();
+
+        var passaram = Enumerable.Range(0, 100)
+            .Count(i => volume.RegistrarSePuder(Meio.AddSeconds(i * 11)));
+
+        Assert.Equal(100, passaram);
+        Assert.Equal(0, volume.BloqueadasPeloTeto);
+    }
+
     [Fact]
     public void Passada_a_hora_a_janela_anda_e_o_canal_volta_a_enviar()
     {
-        // Janela DESLIZANTE, não balde que vira na hora cheia: com balde, 60 mensagens às
-        // 13h59 e mais 60 às 14h01 passariam — 120 em dois minutos, que é a rajada de volta.
-        var volume = EmRegime();
+        // Janela DESLIZANTE, não balde que vira na hora cheia: com balde, o teto inteiro às
+        // 13h59 e mais um tanto às 14h01 passariam — o dobro em dois minutos, que é a rajada
+        // de volta.
+        var volume = Novo();
 
         for (var i = 0; i < TetoDoWhatsApp.PorHora; i++) volume.RegistrarSePuder(Meio);
 
@@ -53,103 +97,22 @@ public class VolumeDoWhatsAppTests
     }
 
     [Fact]
-    public void O_teto_do_dia_segura_o_gotejar_que_a_hora_nao_pega()
-    {
-        // 60/h respeitado por 24h seguidas dariam 1.440 mensagens num dia — cada hora
-        // "comportada", o dia inteiro absurdo.
-        var volume = EmRegime();
-
-        var passaram = 0;
-        for (var i = 0; i < 400; i++)
-        {
-            // Uma a cada 2 minutos, começando à meia-noite: nunca estoura a hora.
-            if (volume.RegistrarSePuder(Meio.Date.AddMinutes(i * 2))) passaram++;
-        }
-
-        Assert.Equal(TetoDoWhatsApp.PorDiaEmRegime, passaram);
-    }
-
-    [Fact]
     public void O_dia_vira_a_meia_noite_e_o_teto_recomeca()
     {
-        var volume = EmRegime();
+        var volume = Novo();
 
-        for (var i = 0; i < TetoDoWhatsApp.PorDiaEmRegime; i++)
-            volume.RegistrarSePuder(Meio.Date.AddMinutes(i * 2));
+        for (var i = 0; i < TetoDoWhatsApp.PorDia; i++)
+            volume.RegistrarSePuder(Meio.Date.AddSeconds(i * 30));
 
         Assert.False(volume.RegistrarSePuder(Meio.Date.AddHours(23)));
         Assert.True(volume.RegistrarSePuder(Meio.Date.AddDays(1).AddHours(9)));
-    }
-
-    // ⚠️ A REGRA DO LADO SEGURO. "Não sei desde quando este número envia" e "este número é
-    // veterano" não podem dar no mesmo resultado: o custo de esperar uma semana é zero perto
-    // do custo de perder o número.
-    [Fact]
-    public void Sem_saber_desde_quando_o_numero_envia_o_teto_e_o_BAIXO()
-    {
-        Assert.Equal(TetoDoWhatsApp.PorDiaAquecendo, TetoDoWhatsApp.PorDia(Meio, null));
-        Assert.True(TetoDoWhatsApp.AindaAquecendo(Meio, null));
-    }
-
-    [Theory]
-    [InlineData(0, TetoDoWhatsApp.PorDiaAquecendo)]     // acabou de conectar
-    [InlineData(6, TetoDoWhatsApp.PorDiaAquecendo)]     // véspera de terminar
-    [InlineData(7, TetoDoWhatsApp.PorDiaEmRegime)]      // uma semana: regime
-    [InlineData(60, TetoDoWhatsApp.PorDiaEmRegime)]
-    public void O_aquecimento_dura_uma_semana_e_ai_o_teto_sobe(int diasDesdeQueConectou, int esperado)
-    {
-        var comecou = Meio.AddDays(-diasDesdeQueConectou);
-
-        Assert.Equal(esperado, TetoDoWhatsApp.PorDia(Meio, comecou));
-    }
-
-    [Fact]
-    public async Task O_relogio_do_aquecimento_comeca_uma_vez_so()
-    {
-        // O vigia chama isto de 5 em 5 minutos enquanto o canal está conectado. Reescrevendo a
-        // data a cada checagem, o fim do aquecimento seria empurrado pra sempre e o número
-        // nunca sairia do teto de 30/dia.
-        using var ctx = TestInfra.NovoContexto();
-        var volume = Novo();
-
-        await volume.MarcarConectadoAsync(ctx, Meio);
-        await volume.MarcarConectadoAsync(ctx, Meio.AddDays(3));
-
-        Assert.Equal(Meio, volume.AquecimentoComecouEm);
-        Assert.Single(ctx.ConfiguracoesDoSistema.Where(c => c.Chave == VolumeDoWhatsApp.ChaveDoAquecimento));
-    }
-
-    [Fact]
-    public async Task A_data_do_aquecimento_sobrevive_ao_restart()
-    {
-        // Em memória, cada deploy reiniciaria o aquecimento — e deploy acontece toda semana.
-        using var ctx = TestInfra.NovoContexto();
-        await Novo().MarcarConectadoAsync(ctx, Meio);
-
-        var depoisDoRestart = Novo();
-        await depoisDoRestart.CarregarAsync(ctx);
-
-        Assert.Equal(Meio, depoisDoRestart.AquecimentoComecouEm);
-        Assert.False(depoisDoRestart.AindaAquecendo(Meio.AddDays(8)));
-    }
-
-    [Fact]
-    public void Enquanto_aquece_o_teto_do_dia_e_de_trinta()
-    {
-        var volume = Novo();   // nunca conectou: aquecendo
-
-        var passaram = Enumerable.Range(0, 50)
-            .Count(i => volume.RegistrarSePuder(Meio.Date.AddMinutes(i * 5)));
-
-        Assert.Equal(TetoDoWhatsApp.PorDiaAquecendo, passaram);
-        Assert.Equal(20, volume.BloqueadasPeloTeto);
     }
 
     [Fact]
     public void O_que_foi_barrado_e_contado_nunca_sumido_calado()
     {
         // O erro de 03/08 não foi o canal cair — foi ~200 avisos falharem sem ninguém saber.
-        var volume = EmRegime();
+        var volume = Novo();
 
         for (var i = 0; i < TetoDoWhatsApp.PorHora + 5; i++) volume.RegistrarSePuder(Meio);
 
@@ -157,5 +120,37 @@ public class VolumeDoWhatsAppTests
         Assert.Equal(Meio, volume.UltimaBloqueada);
         Assert.Equal(TetoDoWhatsApp.PorHora, volume.NaUltimaHora(Meio));
         Assert.Equal(TetoDoWhatsApp.PorHora, volume.NoDia(Meio));
+    }
+
+    // ⚠️ O AVISO VEM ANTES DA PERDA. Descobrir pelo contador de barradas é descobrir depois de
+    // a mensagem já ter sido descartada — e num dia de torneio o que se perde é o
+    // "seu jogo é o próximo".
+    [Fact]
+    public void Aos_80_por_cento_o_Felipe_e_avisado_antes_de_perder_mensagem()
+    {
+        var volume = Novo();
+
+        var quaseNoTeto = TetoDoWhatsApp.PorHora * TetoDoWhatsApp.PorcentoParaAvisar / 100;
+
+        for (var i = 0; i < quaseNoTeto - 1; i++) volume.RegistrarSePuder(Meio);
+        Assert.False(volume.PertoDoTeto(Meio));
+
+        volume.RegistrarSePuder(Meio);
+        Assert.True(volume.PertoDoTeto(Meio));
+
+        // E nada foi perdido até aqui: o alerta é aviso, não lápide.
+        Assert.Equal(0, volume.BloqueadasPeloTeto);
+    }
+
+    [Fact]
+    public void O_teto_do_dia_tambem_dispara_o_aviso_sozinho()
+    {
+        // Um gotejar constante nunca estoura a hora e ainda assim chega no teto do dia.
+        var volume = Novo();
+
+        var quaseNoTeto = TetoDoWhatsApp.PorDia * TetoDoWhatsApp.PorcentoParaAvisar / 100;
+        for (var i = 0; i < quaseNoTeto; i++) volume.RegistrarSePuder(Meio.Date.AddSeconds(i * 60));
+
+        Assert.True(volume.PertoDoTeto(Meio.Date.AddSeconds(quaseNoTeto * 60)));
     }
 }

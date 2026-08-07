@@ -18,6 +18,10 @@ public class VigiaDoWhatsAppBackgroundService : BackgroundService
 {
     private const string TipoDoAlerta = "WhatsAppFora";
 
+    // Alerta separado do de canal fora, e por isso tipo próprio: são problemas opostos (o canal
+    // está de pé, mandando DEMAIS) e cada um tem a sua janela de silêncio.
+    private const string TipoDoAlertaDeTeto = "WhatsAppPertoDoTeto";
+
     // O que a última checagem viu. `Desligado` é o começo honesto: antes da primeira passada
     // não sabemos nada, e no dev nunca vamos saber outra coisa.
     public static EstadoDoCanal UltimoEstado { get; private set; } = EstadoDoCanal.Desligado;
@@ -67,16 +71,12 @@ public class VigiaDoWhatsAppBackgroundService : BackgroundService
 
             if (estado == EstadoDoCanal.Desligado) return;   // dev/localhost: não é falha
 
-            // O relógio do aquecimento começa quando o canal CONECTA de verdade, não quando
-            // alguém mexe no systemd: entre religar a configuração e alguém ler o QR podem
-            // passar dias, e nesses dias o número não enviou nada — não esquentou nada.
-            // Grava uma vez só (ver VolumeDoWhatsApp.MarcarConectadoAsync).
+            // Perto do teto o Felipe é avisado ANTES de perder aviso. Sem isto ele só
+            // descobriria pelo contador de barradas do painel — ou seja, depois de a mensagem
+            // já ter sido descartada. Vale só com o canal de pé: canal fora já tem alarme
+            // próprio, e dois e-mails sobre o mesmo sábado ruim viram ruído.
             if (estado == EstadoDoCanal.Conectado)
-            {
-                var volume = scope.ServiceProvider.GetRequiredService<VolumeDoWhatsApp>();
-                var contexto = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
-                await volume.MarcarConectadoAsync(contexto, DateTime.Now);
-            }
+                await AvisarSePertoDoTetoAsync(scope, stoppingToken);
 
             var tentouReligar = false;
 
@@ -112,6 +112,53 @@ public class VigiaDoWhatsAppBackgroundService : BackgroundService
             // Falhar aqui não pode derrubar o host — na próxima passada tenta de novo.
             _logger.LogError(ex, "Falha ao vigiar o canal de WhatsApp.");
         }
+    }
+
+    // O canal está de pé e mandando perto do limite. Não é falha — é aviso de que o próximo
+    // torneio do mesmo dia pode começar a perder mensagem.
+    private async Task AvisarSePertoDoTetoAsync(IServiceScope scope, CancellationToken stoppingToken)
+    {
+        var volume = scope.ServiceProvider.GetRequiredService<VolumeDoWhatsApp>();
+        var agora = DateTime.Now;
+
+        if (!volume.PertoDoTeto(agora)) return;
+
+        var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
+
+        var avisoRecente = await context.AlertasSistema
+            .Where(a => a.Tipo == TipoDoAlertaDeTeto)
+            .OrderByDescending(a => a.EnviadoEm)
+            .FirstOrDefaultAsync(stoppingToken);
+
+        if (avisoRecente != null && agora - avisoRecente.EnviadoEm < VigiaDoWhatsApp.IntervaloEntreAvisos)
+            return;
+
+        var naHora = volume.NaUltimaHora(agora);
+        var noDia = volume.NoDia(agora);
+
+        var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        var admins = await context.Jogadores
+            .Where(j => j.IsAdminRaiz && j.Email != null)
+            .ToListAsync(stoppingToken);
+
+        var corpo = $@"
+            <p>O WhatsApp do Padelizou está perto do teto: <strong>{naHora} de {TetoDoWhatsApp.PorHora}
+            na última hora</strong> e <strong>{noDia} de {TetoDoWhatsApp.PorDia} hoje</strong>.</p>
+            <p>Nada foi perdido ainda. Passando do teto, a mensagem é <strong>descartada e não
+            reenviada</strong> — e num dia de torneio o que se perde é justamente o
+            ""seu jogo é o próximo"".</p>
+            <p>Se hoje é dia de torneio grande e isso era esperado, ignore. Se não era, vale olhar
+            o log: volume assim sem torneio no ar costuma ser aviso saindo em laço.</p>";
+
+        foreach (var admin in admins)
+            await email.EnviarAsync(admin.Email!, admin.Nome, "Padelizou: o WhatsApp está perto do teto", corpo);
+
+        context.AlertasSistema.Add(new AlertaSistema { Tipo = TipoDoAlertaDeTeto, Ano = agora.Year });
+        await context.SaveChangesAsync(stoppingToken);
+
+        _logger.LogWarning("WhatsApp perto do teto ({NaHora}/{TetoHora} na hora, {NoDia}/{TetoDia} "
+            + "no dia) — avisei {Qtd} admin(s).",
+            naHora, TetoDoWhatsApp.PorHora, noDia, TetoDoWhatsApp.PorDia, admins.Count);
     }
 
     private async Task AvisarAdministradoresAsync(IServiceScope scope, EstadoDoCanal estado,

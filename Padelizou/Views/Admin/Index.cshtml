@@ -64,7 +64,6 @@
         var agoraWhats = DateTime.Now;
         var naHora = Volume.NaUltimaHora(agoraWhats);
         var noDia = Volume.NoDia(agoraWhats);
-        var tetoDoDia = Volume.TetoDoDia(agoraWhats);
     }
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-2 px-3">
@@ -74,12 +73,15 @@
 
                 <span class="ms-auto text-muted">
                     <strong>@naHora</strong>/@Padelizou.Services.TetoDoWhatsApp.PorHora na hora
-                    · <strong>@noDia</strong>/@tetoDoDia hoje
+                    · <strong>@noDia</strong>/@Padelizou.Services.TetoDoWhatsApp.PorDia hoje
                 </span>
 
-                @if (Volume.AindaAquecendo(agoraWhats))
+                @if (Volume.PertoDoTeto(agoraWhats))
                 {
-                    <span class="badge rounded-pill text-bg-warning">aquecendo</span>
+                    <span class="badge rounded-pill text-bg-warning"
+                          title="Passando do teto, a mensagem é descartada e não reenviada.">
+                        perto do teto
+                    </span>
                 }
                 @if (Volume.BloqueadasPeloTeto > 0)
                 {

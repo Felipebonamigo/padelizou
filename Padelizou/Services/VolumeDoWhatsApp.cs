@@ -1,114 +1,68 @@
-using Microsoft.EntityFrameworkCore;
-using Padelizou.Models;
-
 namespace Padelizou.Services;
 
-// QUANTO pode sair pelo canal de WhatsApp. Puro e testável, porque é ele que decide se o
-// número sobrevive ao próximo sábado de torneio.
+// QUANTO pode sair pelo canal de WhatsApp.
 //
 // ⚠️ Não confundir com `RitmoDoWhatsApp`, que é outra coisa: ele espaça uma mensagem da outra
-// (7–16s) e mata a RAJADA. Espaçamento não limita TOTAL — 11,5s de média são ~313 mensagens
-// por hora ininterruptas, e o `WHATSAPP.md` já chama ~500/h de zona de risco. Foi essa fresta
-// que sobrou do conserto de 04/08/2026: a rajada morreu, o volume não.
+// (7–16s) e mata a RAJADA. Espaçamento não limita TOTAL, e foi essa fresta que sobrou do
+// conserto de 04/08/2026 — a rajada morreu, o volume não.
+//
+// ⚠️ OS NÚMEROS SAEM DA PLANILHA DO PRODUTO, NÃO DE PRÁTICA GENÉRICA DE ANTI-SPAM. A primeira
+// versão disto (60/hora, 300/dia) foi dimensionada só pelo risco de ban e **estava errada**: um
+// torneio de 100 participantes manda ~450 mensagens no dia, e só o aviso de "chaves saíram" são
+// 100 de uma vez — o teto de 60/hora cortava 40 avisos logo na primeira ação do dia, e o mais
+// importante deles ("seu jogo é o próximo") ia junto.
+//
+// A conta, medida no código que dispara (`AlcanceDoAviso.AppEWhatsApp`), pra 100 participantes:
+//
+//   chaves saíram ....... 1 por JOGADOR ............................. 100 (de uma vez)
+//   seu jogo é o próximo  4 por partida × ~88 partidas ............... ~350
+//   lembrete de 24h ..... 1 por jogador com jogo ..................... 100 (na véspera)
+//
+// Daí 250/hora (o `WHATSAPP.md` põe a zona de risco em ~500/h, então isto é metade dela, com
+// folga sobre o pico real de ~150) e 1.200/dia (quase 3× um torneio cheio). O teto não existe
+// pra apertar o uso normal: existe pra um laço infinito não torrar o número numa madrugada.
 public static class TetoDoWhatsApp
 {
-    // Por hora, sempre. É o freio contra o pico: uma noite de inscrições ou um torneio
-    // publicando chaves gera dezenas de avisos legítimos em minutos, e legítimo ou não, é o
-    // pico que a Meta enxerga.
-    public const int PorHora = 60;
+    public const int PorHora = 250;
+    public const int PorDia = 1200;
 
-    // Por dia, depois que o número está estabelecido.
-    public const int PorDiaEmRegime = 300;
+    // ⚠️ NÃO EXISTE AQUECIMENTO, e é decisão consciente (Felipe, 07/08/2026). A versão anterior
+    // segurava o canal em 30/dia por uma semana depois de reconectar — o que faz sentido pra
+    // número NOVO e não pro nosso, que só levou uma restrição e tem histórico de uso real. Com
+    // um torneio marcado, a rampa custaria avisos de verdade pra ganhar reputação que o número
+    // já tem.
+    //
+    // Se um dia o chip for trocado por um número realmente novo, a rampa volta a valer a pena —
+    // o código dela está no histórico (commit `3d4dc8d`), não precisa ser reinventado.
 
-    // Por dia, enquanto o número é novo — ou está voltando de uma restrição, que é o mesmo
-    // problema: reputação zerada. Voltar direto no volume de antes é o caminho mais curto pra
-    // segunda restrição, e a segunda costuma ser mais dura que a primeira.
-    public const int PorDiaAquecendo = 30;
+    // A partir de quanto o Felipe é avisado de que está perto do limite. Descobrir pelo contador
+    // de barradas é descobrir DEPOIS de já ter perdido aviso.
+    public const int PorcentoParaAvisar = 80;
 
-    public static readonly TimeSpan DuracaoDoAquecimento = TimeSpan.FromDays(7);
-
-    // ⚠️ Sem data de início, o teto é o BAIXO, não o alto. "Não sei desde quando este número
-    // envia" e "este número é veterano" não podem dar no mesmo resultado — no primeiro caso o
-    // barato é esperar uma semana, e o caro é perder o número.
-    public static int PorDia(DateTime agora, DateTime? aquecimentoComecouEm)
-    {
-        if (aquecimentoComecouEm == null) return PorDiaAquecendo;
-
-        return agora - aquecimentoComecouEm.Value >= DuracaoDoAquecimento
-            ? PorDiaEmRegime
-            : PorDiaAquecendo;
-    }
-
-    public static bool AindaAquecendo(DateTime agora, DateTime? aquecimentoComecouEm) =>
-        PorDia(agora, aquecimentoComecouEm) == PorDiaAquecendo;
+    public static bool PertoDoTeto(int naUltimaHora, int noDia) =>
+        naUltimaHora >= PorHora * PorcentoParaAvisar / 100
+        || noDia >= PorDia * PorcentoParaAvisar / 100;
 }
 
-// A contagem do que saiu, e a memória de quando o número começou a esquentar.
+// A contagem do que saiu.
 //
-// Singleton, em memória, e isso é uma escolha com consequência: **um restart zera a contagem
-// da hora e do dia**. Aceito de propósito — persistir cada envio numa tabela por causa de um
-// teto seria caro pro que entrega, e restart não acontece no meio de uma rajada (deploy é
-// gesto deliberado). O que NÃO pode ser esquecido é o começo do aquecimento, e esse mora no
-// banco (`ConfiguracaoDoSistema`), igual ao portão.
+// Singleton, em memória, e isso é uma escolha com consequência: **um restart zera a contagem**.
+// Aceito de propósito — persistir cada envio numa tabela por causa de um teto seria caro pro
+// que entrega, e restart é gesto deliberado (deploy), não coisa que acontece no meio de uma
+// rajada.
 public class VolumeDoWhatsApp
 {
-    public const string ChaveDoAquecimento = "WhatsApp.AquecimentoComecouEm";
-
     private readonly object _tranca = new();
     private readonly Queue<DateTime> _saidas = new();
     private readonly ILogger<VolumeDoWhatsApp> _logger;
 
     public VolumeDoWhatsApp(ILogger<VolumeDoWhatsApp> logger) => _logger = logger;
 
-    // Quando este número começou a enviar. Null = nunca conectou desde que passamos a marcar,
-    // e aí vale o teto de aquecimento.
-    public DateTime? AquecimentoComecouEm { get; private set; }
-
-    // Quantas foram barradas pelo teto desde que o app subiu. Nunca é zero calado: cada
-    // barrada escreve no log, e o painel mostra o total.
+    // Quantas foram barradas pelo teto desde que o app subiu. Nunca é zero calado: cada barrada
+    // escreve no log, o painel mostra o total, e o vigia avisa ANTES, aos 80%.
     public int BloqueadasPeloTeto { get; private set; }
 
     public DateTime? UltimaBloqueada { get; private set; }
-
-    public async Task CarregarAsync(DbPadelContext context)
-    {
-        var linha = await context.ConfiguracoesDoSistema
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Chave == ChaveDoAquecimento);
-
-        if (linha != null && DateTime.TryParse(linha.Valor, out var quando))
-            AquecimentoComecouEm = quando;
-    }
-
-    // Chamado pelo vigia toda vez que o canal aparece conectado. Grava só na PRIMEIRA —
-    // reescrever a cada checagem empurraria o fim do aquecimento pra sempre, e o número
-    // nunca sairia do teto baixo.
-    public async Task MarcarConectadoAsync(DbPadelContext context, DateTime agora)
-    {
-        if (AquecimentoComecouEm != null) return;
-
-        var linha = await context.ConfiguracoesDoSistema
-            .FirstOrDefaultAsync(c => c.Chave == ChaveDoAquecimento);
-
-        if (linha == null)
-        {
-            linha = new ConfiguracaoDoSistema { Chave = ChaveDoAquecimento };
-            context.ConfiguracoesDoSistema.Add(linha);
-        }
-
-        linha.Valor = agora.ToString("o");
-        linha.AtualizadoEm = agora;
-
-        await context.SaveChangesAsync();
-
-        // Só depois de gravar, mesmo motivo do portão: memória adiantada em relação ao banco
-        // faz o aquecimento recomeçar sozinho no próximo restart.
-        AquecimentoComecouEm = agora;
-
-        _logger.LogWarning("Canal de WhatsApp conectado — aquecimento começa agora, teto de "
-            + "{Teto} mensagens/dia por {Dias} dias.",
-            TetoDoWhatsApp.PorDiaAquecendo, TetoDoWhatsApp.DuracaoDoAquecimento.TotalDays);
-    }
 
     // A pergunta do entregador, logo antes de mandar. Registra a saída no mesmo passo em que
     // autoriza: separar as duas coisas abriria janela pra duas mensagens passarem pelo mesmo
@@ -121,19 +75,18 @@ public class VolumeDoWhatsApp
 
             var naHora = ContarDesde(agora.AddHours(-1));
             var noDia = ContarDoDia(agora);
-            var tetoDoDia = TetoDoWhatsApp.PorDia(agora, AquecimentoComecouEm);
 
-            if (naHora >= TetoDoWhatsApp.PorHora || noDia >= tetoDoDia)
+            if (naHora >= TetoDoWhatsApp.PorHora || noDia >= TetoDoWhatsApp.PorDia)
             {
                 BloqueadasPeloTeto++;
                 UltimaBloqueada = agora;
 
                 // Warning e não Debug: mensagem barrada é aviso que NÃO chegou em ninguém, e
-                // isso precisa doer no log. Silêncio aqui seria repetir o erro de 03/08, em
-                // que ~200 avisos falharam sem ninguém saber.
+                // isso precisa doer no log. Silêncio aqui repetiria o erro de 03/08, em que
+                // ~200 avisos falharam sem ninguém saber.
                 _logger.LogWarning("Teto do WhatsApp atingido ({NaHora}/{TetoHora} na hora, "
                     + "{NoDia}/{TetoDia} no dia) — mensagem descartada. Total barrado: {Total}.",
-                    naHora, TetoDoWhatsApp.PorHora, noDia, tetoDoDia, BloqueadasPeloTeto);
+                    naHora, TetoDoWhatsApp.PorHora, noDia, TetoDoWhatsApp.PorDia, BloqueadasPeloTeto);
 
                 return false;
             }
@@ -153,9 +106,8 @@ public class VolumeDoWhatsApp
         lock (_tranca) { Esquecer(agora); return ContarDoDia(agora); }
     }
 
-    public int TetoDoDia(DateTime agora) => TetoDoWhatsApp.PorDia(agora, AquecimentoComecouEm);
-
-    public bool AindaAquecendo(DateTime agora) => TetoDoWhatsApp.AindaAquecendo(agora, AquecimentoComecouEm);
+    public bool PertoDoTeto(DateTime agora) =>
+        TetoDoWhatsApp.PertoDoTeto(NaUltimaHora(agora), NoDia(agora));
 
     // A fila só cresce enquanto interessa: o que é de antes de ontem não conta em nenhuma das
     // duas janelas e só ocuparia memória.
@@ -167,8 +119,8 @@ public class VolumeDoWhatsApp
 
     private int ContarDesde(DateTime inicio) => _saidas.Count(q => q >= inicio);
 
-    // O dia é o CIVIL (de meia-noite a meia-noite no fuso de Brasília), não as últimas 24h:
-    // é assim que a pessoa do outro lado percebe o volume, e é assim que se conta "o número
-    // mandou 300 mensagens hoje".
+    // O dia é o CIVIL (de meia-noite a meia-noite no fuso de Brasília), não as últimas 24h: é
+    // assim que a pessoa do outro lado percebe o volume, e é assim que se lê "o número mandou
+    // 300 mensagens hoje".
     private int ContarDoDia(DateTime agora) => _saidas.Count(q => q.Date == agora.Date);
 }

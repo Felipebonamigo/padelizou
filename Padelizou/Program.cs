@@ -242,11 +242,6 @@ using (var scope = app.Services.CreateScope())
     // requisição — o middleware do portão roda antes do roteamento e lê isto da memória.
     await scope.ServiceProvider.GetRequiredService<PortaoDeAcesso>().CarregarAsync(db);
 
-    // Desde quando o número do WhatsApp esquenta. A contagem da hora e do dia é em memória e
-    // zera no restart de propósito; ESTA data não pode zerar, senão o aquecimento recomeça a
-    // cada deploy e o canal nunca sai do teto baixo. Ver Services/VolumeDoWhatsApp.
-    await scope.ServiceProvider.GetRequiredService<VolumeDoWhatsApp>().CarregarAsync(db);
-
     // As duas "Iniciantes" nascem DESLIGADAS (Ativa: false): saíram do catálogo que as telas
     // oferecem. Não são apagadas porque torneio, preferência de jogador e aviso guardam o Id
     // delas — e ligar de volta é um UPDATE de uma linha, sem deploy.
