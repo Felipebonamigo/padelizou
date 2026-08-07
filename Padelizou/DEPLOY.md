@@ -95,7 +95,7 @@ GoogleCalendar__ClientId       = (mesmo valor já usado localmente)
 GoogleCalendar__ClientSecret   = (mesmo valor já usado localmente)
 GoogleCalendar__RedirectUri    = https://padelizou.com.br/GoogleAuth/Callback
 
-AcessoAntecipado__Habilitado   = true
+AcessoAntecipado__Habilitado   = false
 AcessoAntecipado__Usuario      = padelizou
 AcessoAntecipado__Senha        = TROCAR_ANTES_DE_PUBLICAR
 

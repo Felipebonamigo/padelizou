@@ -26,7 +26,11 @@ Environment="EmailSettings__RemetenteNome=Padelizou"
 Environment="GoogleCalendar__ClientId=SEU_CLIENT_ID_AQUI"
 Environment="GoogleCalendar__ClientSecret=SEU_CLIENT_SECRET_AQUI"
 Environment="GoogleCalendar__RedirectUri=https://padelizou.com.br/GoogleAuth/Callback"
-Environment="AcessoAntecipado__Habilitado=true"
+# Portão do beta DESLIGADO desde o lançamento público (07/08/2026): o site é aberto, qualquer
+# pessoa entra e se cadastra. As credenciais ficam aqui só pra poder religar de emergência —
+# e pra isso o caminho normal é o botão do admin raiz (/Admin), que vence este padrão e
+# sobrevive a deploy. Ver Services/PortaoDeAcesso.
+Environment="AcessoAntecipado__Habilitado=false"
 Environment="AcessoAntecipado__Usuario=padelizou"
 Environment="AcessoAntecipado__Senha=bona"
 
