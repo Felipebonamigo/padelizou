@@ -1,8 +1,14 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.ViewModels;
+using System.Security.Claims;
 
 namespace Padelizou.Tests;
 
@@ -183,5 +189,79 @@ public class TesteDeNotificacaoTests
     {
         Assert.Equal("enviado para 1 aparelho.", TextoDoTeste.Frase(ResultadoDoCanal.Enviado, aparelhos: 1));
         Assert.Equal("enviado para 3 aparelhos.", TextoDoTeste.Frase(ResultadoDoCanal.Enviado, aparelhos: 3));
+    }
+
+    // ⚠️ O DEFEITO DE 07/08/2026: "mandei push pra mim e não funcionou".
+    //
+    // A tela tem dois tempos, e as caixinhas de canal só existem no segundo. No primeiro
+    // (Procurar) o navegador não manda `porPush` nenhum, e o `false` do parâmetro era lido
+    // como "o admin desmarcou" — a tela de envio nascia com os DOIS canais apagados, contra o
+    // padrão do VM, e o primeiro clique em Enviar caía em "escolha pelo menos um canal".
+    // O padrão `= true` do VM era código morto: no GET o passo 2 nem é renderizado.
+    [Fact]
+    public async Task Ao_achar_a_pessoa_os_dois_canais_ja_vem_marcados()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var admin = new Jogador { Nome = "Felipe", Cpf = "99900000001", Login = "felipe", IsAdminRaiz = true };
+        ctx.Jogadores.Add(admin);
+        await ctx.SaveChangesAsync();
+
+        var vm = await ProcurarAsync(ctx, admin.Id, "felipe");
+
+        Assert.Equal(admin.Id, vm.Selecionado?.Id);
+        Assert.True(vm.PorPush);
+        Assert.True(vm.PorWhatsApp);
+    }
+
+    // A outra metade da mesma regra: no passo de ENVIAR, desmarcar tem que valer. Sem isto o
+    // conserto acima viraria "manda sempre nos dois", e o teste dirigido perderia justamente
+    // o que ele tem de dirigido.
+    [Fact]
+    public async Task No_envio_o_canal_desmarcado_continua_desmarcado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var admin = new Jogador { Nome = "Felipe", Cpf = "99900000001", Login = "felipe", IsAdminRaiz = true };
+        ctx.Jogadores.Add(admin);
+        await ctx.SaveChangesAsync();
+
+        var push = Substitute.For<IPushNotificationService>();
+        push.EnviarTesteAsync(default, default, default, default!, default!, default)
+            .ReturnsForAnyArgs(new ResultadoTesteNotificacao { Push = ResultadoDoCanal.Enviado, Aparelhos = 1 });
+
+        var resposta = await Controlador(ctx, admin.Id, push).NotificacaoTeste(
+            "felipe", porPush: true, porWhatsApp: false, mensagem: null,
+            jogadorId: admin.Id, acao: "enviar");
+
+        var vm = Assert.IsType<TesteDeNotificacaoVM>(Assert.IsType<ViewResult>(resposta).Model);
+        Assert.True(vm.PorPush);
+        Assert.False(vm.PorWhatsApp);
+        await push.Received(1).EnviarTesteAsync(admin.Id, true, false, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
+    }
+
+    // O passo 1 da tela: digitar o login e clicar em Procurar. Nenhuma caixinha de canal
+    // existe nesse formulário — é por isso que o POST chega sem elas.
+    private static async Task<TesteDeNotificacaoVM> ProcurarAsync(DbPadelContext ctx, int adminId, string identificador)
+    {
+        var resposta = await Controlador(ctx, adminId, Substitute.For<IPushNotificationService>())
+            .NotificacaoTeste(identificador);
+
+        return Assert.IsType<TesteDeNotificacaoVM>(Assert.IsType<ViewResult>(resposta).Model);
+    }
+
+    private static AdminController Controlador(DbPadelContext ctx, int usuarioLogadoId, IPushNotificationService push)
+    {
+        var controller = new AdminController(
+            ctx, push, new ConfigurationBuilder().Build(),
+            Options.Create(new RegistroResultadosSettings()));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        return controller;
     }
 }

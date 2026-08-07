@@ -532,11 +532,19 @@ namespace padelizou.Controllers
         {
             if (await ObterJogadorAdminAsync() == null) return Forbid();
 
+            // Os canais só existem como caixinha no PASSO 2 — o formulário de procurar não tem
+            // nenhuma. Lendo `porPush`/`porWhatsApp` sempre do POST, o passo 1 confundia "não
+            // veio no formulário" com "o admin desmarcou": a tela de envio nascia com os dois
+            // canais APAGADOS (contra o padrão do VM), e o primeiro clique em Enviar batia em
+            // "escolha pelo menos um canal" — parecia que o teste tinha falhado.
+            // No passo de envio vale o que ele marcou, inclusive desmarcar.
+            var noPassoDeEnvio = acao == "enviar";
+
             var vm = new TesteDeNotificacaoVM
             {
                 Identificador = identificador,
-                PorPush = porPush,
-                PorWhatsApp = porWhatsApp,
+                PorPush = noPassoDeEnvio ? porPush : true,
+                PorWhatsApp = noPassoDeEnvio ? porWhatsApp : true,
                 Mensagem = mensagem,
             };
 
