@@ -79,6 +79,36 @@
                                 Cada empatado escolhe um parceiro e sai um jogo só, pra decidir o título.
                                 Desligado, o critério do empate fica com você.
                             </small>
+
+                            @* QUANTAS PESSOAS FECHAM. O organizador precisa saber disto ANTES de
+                               abrir inscrição: a regra do Americano é que cada um jogue com cada
+                               um sem repetir parceiro e todos joguem a mesma quantidade — e isso
+                               só é possível em certos números. Descobrir na hora do sorteio, com
+                               a galera na quadra, é tarde demais. *@
+                            <hr class="my-3" />
+                            <div class="fw-bold small mb-1" style="color: var(--pdz-ink);">
+                                <i class="bi bi-people-fill"></i> Quantos inscritos fecham o Americano
+                            </div>
+                            <div class="small text-muted">
+                                No Americano cada um joga com <strong>cada um</strong> sem repetir parceiro, e
+                                todos jogam a mesma quantidade de jogos. Isso só fecha nestes números:
+                                <div class="mt-2 mb-2">
+                                    @foreach (var n in Enumerable.Range(4, 29).Where(Padelizou.Services.DivisaoDoAmericano.Aceita))
+                                    {
+                                        <span class="badge bg-secondary me-1 mb-1">@n</span>
+                                    }
+                                    <span class="text-muted">…</span>
+                                </div>
+                                <strong>6, 7, 11, 14, 19, 22 e 23 não fecham</strong> — com 6 pessoas seriam 15
+                                duplas a formar e cada jogo forma 2, o que daria 7,5 jogos. Não existe meio jogo.
+                                <div class="mt-2">
+                                    A partir de 8, dá pra <strong>dividir em grupos</strong> na hora do sorteio —
+                                    10 vira 2 grupos de 5, 15 vira 3 grupos de 5. Os primeiros de cada grupo
+                                    disputam um <strong>grupo final</strong>, que decide o campeão. Você escolhe a
+                                    divisão depois, quando souber quantos vieram, e o sistema mostra quanto tempo
+                                    de quadra cada opção leva.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

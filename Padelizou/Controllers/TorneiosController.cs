@@ -264,10 +264,33 @@ namespace Padelizou.Controllers
 
             if (torneio.Formato == "Americano")
             {
-                ViewBag.InscricoesAmericanas = await _context.InscricoesAmericanas
+                var inscricoesAmericanas = await _context.InscricoesAmericanas
                     .Include(i => i.Jogador)
                     .Where(i => i.Categoria.TorneioId == id)
                     .ToListAsync();
+                ViewBag.InscricoesAmericanas = inscricoesAmericanas;
+
+                // As divisões em grupos que o organizador pode escolher no sorteio. Calculadas
+                // aqui e não na view: a view não decide regra, e o Razor não deixa declarar
+                // variável no meio de um bloco de código sem virar erro de compilação.
+                //
+                // Só faz sentido com UMA categoria — que é o caso normal do Americano. Com
+                // várias, cada uma teria a sua divisão e a pergunta não caberia numa opção só;
+                // aí o sorteio escolhe a que mais mistura em cada.
+                var categoriasComGente = inscricoesAmericanas
+                    .Where(i => !i.EmListaDeEspera)
+                    .GroupBy(i => i.CategoriaId)
+                    .ToList();
+
+                if (categoriasComGente.Count == 1)
+                {
+                    int quantos = categoriasComGente[0].Count();
+                    ViewBag.InscritosDoAmericano = quantos;
+                    ViewBag.DivisoesDoAmericano = DivisaoDoAmericano.Possiveis(quantos);
+                    ViewBag.PorQueNaoFechaOAmericano = DivisaoDoAmericano.Aceita(quantos)
+                        ? null
+                        : DivisaoDoAmericano.PorQueNaoFecha(quantos);
+                }
             }
 
             // Só quem está em TorneioOrganizadores deste torneio pode ver/usar a aba "Gerenciar Torneio"

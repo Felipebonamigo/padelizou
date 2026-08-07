@@ -874,13 +874,66 @@
                         <div class="alert alert-info border-info">
                             <strong>Inscrições Encerradas!</strong> Agora você pode sortear as rodadas — os parceiros vão trocar a cada rodada.
                         </div>
-                        <form asp-controller="Torneios" asp-action="GerarRodadasAmericano" method="post" class="d-flex align-items-center gap-2 flex-wrap">
+
+                        @* A DIVISÃO EM GRUPOS é escolhida AQUI, e não na criação do torneio:
+                           é agora que se sabe quantos vieram. As opções e as contas vêm do
+                           controller, de Services/DivisaoDoAmericano — a mesma régua que o
+                           sorteio obedece. *@
+                        @if (ViewBag.PorQueNaoFechaOAmericano is string naoFecha)
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle-fill"></i> @naoFecha
+                                <div class="small mt-2">
+                                    A regra do Americano é que <strong>cada um jogue com cada um sem repetir
+                                    parceiro, e todos joguem a mesma quantidade de jogos</strong> — e isso só
+                                    é possível em certos números.
+                                </div>
+                            </div>
+                        }
+
+                        <form asp-controller="Torneios" asp-action="GerarRodadasAmericano" method="post">
                             <input type="hidden" name="torneioId" value="@Model.Id" />
-                            <input type="datetime-local" name="dataHoraInicio" class="form-control form-control-sm" style="width: auto;"
-                                   value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
-                            <button type="submit" class="btn btn-primary fw-bold shadow-sm">
-                                <i class="bi bi-shuffle"></i> Sortear Rodadas do Americano
-                            </button>
+
+                            @if (ViewBag.DivisoesDoAmericano is IReadOnlyList<Padelizou.Services.DivisaoDoAmericano.Divisao> divisoes && divisoes.Count > 1)
+                            {
+                                <div class="mb-3 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                                    <div class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                                        Como dividir os @ViewBag.InscritosDoAmericano inscritos?
+                                    </div>
+                                    @foreach (var d in divisoes)
+                                    {
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="gruposEscolhidos"
+                                                   value="@d.Grupos" id="divisao@(d.Grupos)"
+                                                   checked="@(d.Grupos == divisoes[0].Grupos)">
+                                            <label class="form-check-label small" for="divisao@(d.Grupos)">
+                                                @Padelizou.Services.DivisaoDoAmericano.ComoFica(d)
+                                                <span class="text-muted">
+                                                    Total: @d.RodadasTotais rodadas, @d.PartidasTotais jogos.
+                                                </span>
+                                            </label>
+                                        </div>
+                                    }
+                                    <div class="small text-muted mt-2">
+                                        A primeira opção é a que <strong>mais mistura</strong> — todo mundo joga com
+                                        todo mundo. As de baixo dividem em grupos e cabem em menos tempo de quadra.
+                                    </div>
+                                </div>
+                            }
+                            else if (ViewBag.DivisoesDoAmericano is IReadOnlyList<Padelizou.Services.DivisaoDoAmericano.Divisao> unica && unica.Count == 1)
+                            {
+                                <div class="small text-muted mb-2">
+                                    @Padelizou.Services.DivisaoDoAmericano.ComoFica(unica[0])
+                                </div>
+                            }
+
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <input type="datetime-local" name="dataHoraInicio" class="form-control form-control-sm" style="width: auto;"
+                                       value="@DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm")" required />
+                                <button type="submit" class="btn btn-primary fw-bold shadow-sm">
+                                    <i class="bi bi-shuffle"></i> Sortear Rodadas do Americano
+                                </button>
+                            </div>
                         </form>
                     }
                     else if (Model.Status == "Chaves em Sorteio")

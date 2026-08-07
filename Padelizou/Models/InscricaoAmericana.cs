@@ -16,6 +16,14 @@ public class InscricaoAmericana
     // Mesmo esquema de lista de espera do Dupla — ver Dupla.EmListaDeEspera.
     public bool EmListaDeEspera { get; set; }
 
+    // Em qual grupo esta pessoa caiu no sorteio: "A", "B", "C"... Null = torneio sem divisão
+    // (grupo único), ou ainda não sorteado. Ver Services/FaseDoAmericano.NomeDoGrupo.
+    //
+    // Fica guardado, e não deduzido das partidas, porque a tela de classificação precisa
+    // mostrar o grupo de quem AINDA não jogou — e porque deduzir a mesma coisa em dois
+    // lugares é como as duas telas do torneio passaram a discordar uma da outra.
+    public string? Grupo { get; set; }
+
     // Nulo = inscrição feita antes de 25/07/2026 (quando a coluna nasceu) — usado nas
     // métricas de uso do admin (inscrições por semana).
     public DateTime? CriadoEm { get; set; } = DateTime.Now;

@@ -193,7 +193,27 @@ public class RoboDoChaveamento
         if (partidas.Count == 0) return;
 
         var torneio = await _context.Torneios.FindAsync(torneioId.Value);
-        var classificacao = TabelaDoAmericano.Montar(partidas.Where(p => p.Status == "Finalizada"));
+        var categoria = await _context.Categorias.FindAsync(categoriaId);
+
+        // Torneio dividido em grupos e o GRUPO FINAL ainda não existe? Então acabou foi a fase
+        // de grupos: monta o grupo final com os primeiros de cada, e o título se decide lá.
+        //
+        // A ordem importa: enquanto o grupo final não terminar, ninguém é coroado.
+        bool dividido = (categoria?.GruposAmericano ?? 1) > 1;
+        bool grupoFinalExiste = partidas.Any(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase));
+
+        if (dividido && !grupoFinalExiste)
+        {
+            await MontarGrupoFinalDoAmericanoAsync(categoria!, torneioId.Value, partidas);
+            return;
+        }
+
+        // Quem decide o título: o grupo final quando existe, senão as rodadas do grupo único.
+        var queDecidem = grupoFinalExiste
+            ? partidas.Where(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase))
+            : partidas.Where(p => FaseDoAmericano.EhDaFaseDeGrupos(p.Fase));
+
+        var classificacao = TabelaDoAmericano.Montar(queDecidem.Where(p => p.Status == "Finalizada"));
         var decisao = FimDoAmericano.Decidir(classificacao, torneio?.DesempateAmericano ?? false);
 
         if (decisao.Tipo == FimDoAmericano.Desfecho.CampeaoDireto && decisao.Campeao != null)
@@ -216,6 +236,79 @@ public class RoboDoChaveamento
         // organizador, na tela dele (TorneiosController.DesempateAmericano): ele precisa
         // escolher o parceiro de cada empatado, e isso o robô não tem como adivinhar.
         return;
+    }
+
+    // Fase de grupos encerrada num Americano dividido: os primeiros de CADA grupo formam o
+    // grupo final, que é outro Americano — e é lá que o título se decide.
+    //
+    // ⚠️ Quantos passam saiu de `Categoria.PassamPorGrupo`, gravado no sorteio, e NÃO é
+    // recalculado aqui. Recalcular abriria a porta pro número mudar entre o que foi anunciado
+    // ao organizador e o que acontece — e ele já contou pros jogadores quantos passam.
+    //
+    // ⚠️ A classificação de cada grupo é montada com as partidas DAQUELE grupo. Somar o
+    // torneio inteiro misturaria gente que nunca se enfrentou.
+    private async Task MontarGrupoFinalDoAmericanoAsync(
+        Categoria categoria, int torneioId, List<Partida> partidas)
+    {
+        int passam = categoria.PassamPorGrupo;
+        if (passam < 1) return;   // divisão sem classificação não monta grupo final
+
+        var grupos = partidas
+            .Where(p => FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
+            .Select(p => FaseDoAmericano.GrupoDe(p.Fase))
+            .Where(g => g != null)
+            .Distinct()
+            .OrderBy(g => g, StringComparer.Ordinal)
+            .ToList();
+
+        var classificados = new List<int>();
+        foreach (var grupo in grupos)
+        {
+            var doGrupo = partidas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)
+                                              && p.Status == "Finalizada");
+            var tabela = TabelaDoAmericano.Montar(doGrupo);
+
+            // Empate na fronteira do corte fica com o critério estável da tabela (games e,
+            // em seguida, o Id). Um sorteio ESTÁVEL vale mais que um que muda entre duas telas
+            // — é a mesma lição do chaveamento por grupos.
+            classificados.AddRange(tabela.Take(passam).Select(l => l.Jogador.Id));
+        }
+
+        // Sem gente suficiente (grupo que não terminou, dado torto), não se monta meia final.
+        if (classificados.Count < 4) return;
+
+        var rodadas = RodadasAmericano.Montar(classificados);
+        if (rodadas.Count == 0) return;
+
+        var novas = new List<Partida>();
+        for (int rodada = 1; rodada <= rodadas.Count; rodada++)
+        {
+            foreach (var confronto in rodadas[rodada - 1])
+            {
+                var d1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.A1, Jogador2Id = confronto.A2 };
+                var d2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.B1, Jogador2Id = confronto.B2 };
+                _context.Duplas.AddRange(d1, d2);
+                await _context.SaveChangesAsync();   // precisa dos Ids antes da Partida
+
+                novas.Add(new Partida
+                {
+                    TorneioId = torneioId,
+                    CategoriaId = categoria.Id,
+                    Dupla1Id = d1.Id,
+                    Dupla2Id = d2.Id,
+                    Fase = FaseDoAmericano.RodadaDoGrupoFinal(rodada),
+                    Status = "Agendada",
+                    Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper(),
+                });
+            }
+        }
+
+        // Entra na GRADE como qualquer outra fase: horário e quadra saem das mesmas regras do
+        // resto do torneio, em vez de um horário inventado.
+        await AgendarNaGradeAsync(novas, torneioId);
+
+        _context.Partidas.AddRange(novas);
+        await _context.SaveChangesAsync();
     }
 
     // No Americano o campeão é UMA PESSOA, não uma dupla — o parceiro muda a cada rodada.

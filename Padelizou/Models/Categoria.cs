@@ -37,6 +37,18 @@ public partial class Categoria
     // de sugestão na tela; quem confirma é o organizador.
     public int? RankingRsCategoriaId { get; set; }
 
+    // ---- Divisão em grupos do TORNEIO AMERICANO ----
+    //
+    // Escolhida pelo organizador na hora do sorteio, quando ele já sabe quantos se inscreveram
+    // (ver Services/DivisaoDoAmericano). 1 = sem divisão, todos num grupo só — que é o padrão
+    // e o que os torneios anteriores a 06/08/2026 têm.
+    //
+    // Com mais de um grupo, `PassamPorGrupo` diz quantos de cada grupo vão pro GRUPO FINAL,
+    // que é quem decide o título. Esse número não é fixo: é o menor que faz o grupo final
+    // fechar "cada um com cada um" — com 3 grupos, passar 2 daria 6 finalistas, e 6 não fecha.
+    public int GruposAmericano { get; set; } = 1;
+    public int PassamPorGrupo { get; set; }
+
     // ---- Categoria de TIMES ----
     // Aqui quem disputa são times, não duplas: o organizador define a estrutura (quantos
     // times, quantos grupos, quantos classificam por grupo) e cadastra os times pelo nome —

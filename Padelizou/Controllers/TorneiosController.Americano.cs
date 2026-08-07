@@ -21,7 +21,11 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> GerarRodadasAmericano(int torneioId, DateTime dataHoraInicio)
+        // `gruposEscolhidos`: em quantos grupos o organizador quer dividir (0 = deixa o sistema
+        // escolher a divisão que MAIS MISTURA, que é a de menos grupos). A escolha é feita na
+        // hora do sorteio e não na criação porque é agora que se sabe quantos vieram.
+        public async Task<IActionResult> GerarRodadasAmericano(
+            int torneioId, DateTime dataHoraInicio, int gruposEscolhidos = 0)
         {
             var torneio = await _context.Torneios.Include(t => t.Categorias).FirstOrDefaultAsync(t => t.Id == torneioId);
             if (torneio == null || torneio.Formato != "Americano") return NotFound();
@@ -37,7 +41,7 @@ namespace Padelizou.Controllers
             var rng = new Random();
             int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
             int totalPartidasGeradas = 0;
-            int categoriasComRepeticao = 0;
+            int categoriasComGrupoFinal = 0;
             var jogosDoAmericano = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias)
@@ -47,54 +51,85 @@ namespace Padelizou.Controllers
                     .Select(i => i.JogadorId)
                     .ToListAsync();
 
-                // ⚠️ TODO INSCRITO JOGA, de 4 pra cima. Até 06/08/2026 isto cortava pro
-                // múltiplo de 4 abaixo e quem sobrava ficava de FORA DO TORNEIO INTEIRO — 10
-                // inscritos viravam 8, e as duas pessoas cortadas tinham pago a inscrição.
-                // Agora quem não cabe numa rodada descansa, e o descanso reveza
-                // (ver Services/RodadasAmericano).
                 if (inscritos.Count < 4) continue; // não fecha nem uma quadra
 
-                var jogadoresEmbaralhados = inscritos.OrderBy(_ => rng.Next()).ToList();
-
-                // O sorteio vive em Services/RodadasAmericano e GARANTE cada jogador fazendo
-                // dupla com cada um dos outros. O código que estava aqui era guloso e olhava
-                // só 4 jogadores por vez — num ensaio de 8, deixava 4 parcerias repetidas e 4
-                // sem acontecer.
-                var rodadasSorteadas = RodadasAmericano.Montar(jogadoresEmbaralhados);
-                if (rodadasSorteadas.Count == 0) continue;
-
-                if (!RodadasAmericano.FechaCertinho(inscritos.Count)) categoriasComRepeticao++;
-
-                // As duplas nascem TODAS de uma vez, e só então as partidas. Antes havia um
-                // SaveChanges por partida (era preciso pro Id): um Americano de 40 pessoas são
-                // 390 jogos, ou seja 390 idas ao banco dentro do POST do organizador.
-                var porRodada = new List<(int Rodada, Dupla A, Dupla B)>();
-                for (int rodada = 1; rodada <= rodadasSorteadas.Count; rodada++)
+                // ⚠️ SÓ NÚMERO QUE FECHA. A regra do formato é "cada um joga com cada um, sem
+                // repetir parceiro, e todos jogam a mesma quantidade" — e isso só é possível em
+                // certos números (ver Services/DivisaoDoAmericano). Sortear assim mesmo criaria
+                // um torneio que a própria regra proíbe, e ninguém veria até a quadra.
+                var divisoes = DivisaoDoAmericano.Possiveis(inscritos.Count);
+                if (divisoes.Count == 0)
                 {
-                    foreach (var confronto in rodadasSorteadas[rodada - 1])
+                    TempData["Erro"] = $"{categoria.Nome}: {DivisaoDoAmericano.PorQueNaoFecha(inscritos.Count)}";
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
+
+                // A escolha do organizador; sem escolha, a que mais mistura (menos grupos).
+                var divisao = divisoes.FirstOrDefault(d => d.Grupos == gruposEscolhidos) ?? divisoes[0];
+
+                categoria.GruposAmericano = divisao.Grupos;
+                categoria.PassamPorGrupo = divisao.PassamPorGrupo;
+
+                // Reparte os inscritos nos grupos. Já vem embaralhado, então a repartição é o
+                // próprio sorteio — fatiar em ordem daria grupos por ordem de inscrição.
+                var embaralhados = inscritos.OrderBy(_ => rng.Next()).ToList();
+                var fichas = await _context.InscricoesAmericanas
+                    .Where(i => i.CategoriaId == categoria.Id)
+                    .ToDictionaryAsync(i => i.JogadorId);
+
+                for (int g = 0; g < divisao.Grupos; g++)
+                {
+                    // Grupo único mantém a fase SEM nome de grupo: é a mesma grafia dos
+                    // torneios anteriores a esta mudança, e duas grafias pra mesma coisa é
+                    // como as telas passam a discordar.
+                    string? nomeDoGrupo = divisao.TemGrupoFinal ? FaseDoAmericano.NomeDoGrupo(g) : null;
+                    var doGrupo = embaralhados.Skip(g * divisao.PorGrupo).Take(divisao.PorGrupo).ToList();
+
+                    foreach (var jogadorId in doGrupo)
                     {
-                        var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.A1, Jogador2Id = confronto.A2 };
-                        var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.B1, Jogador2Id = confronto.B2 };
-                        _context.Duplas.AddRange(dupla1, dupla2);
-                        porRodada.Add((rodada, dupla1, dupla2));
+                        if (fichas.TryGetValue(jogadorId, out var ficha)) ficha.Grupo = nomeDoGrupo;
+                    }
+
+                    // O sorteio vive em Services/RodadasAmericano e GARANTE cada jogador
+                    // fazendo dupla com cada um dos outros DO SEU GRUPO.
+                    var rodadasSorteadas = RodadasAmericano.Montar(doGrupo);
+                    if (rodadasSorteadas.Count == 0) continue;
+
+                    // As duplas nascem TODAS de uma vez, e só então as partidas. Antes havia um
+                    // SaveChanges por partida (era preciso pro Id): um Americano de 40 pessoas
+                    // são 390 jogos, ou seja 390 idas ao banco dentro do POST do organizador.
+                    var porRodada = new List<(int Rodada, Dupla A, Dupla B)>();
+                    for (int rodada = 1; rodada <= rodadasSorteadas.Count; rodada++)
+                    {
+                        foreach (var confronto in rodadasSorteadas[rodada - 1])
+                        {
+                            var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.A1, Jogador2Id = confronto.A2 };
+                            var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.B1, Jogador2Id = confronto.B2 };
+                            _context.Duplas.AddRange(dupla1, dupla2);
+                            porRodada.Add((rodada, dupla1, dupla2));
+                        }
+                    }
+                    await _context.SaveChangesAsync();   // uma vez só por grupo: gera os Ids
+
+                    foreach (var (rodada, a, b) in porRodada)
+                    {
+                        jogosDoAmericano.Add(new Partida
+                        {
+                            TorneioId = torneioId,
+                            CategoriaId = categoria.Id,
+                            Dupla1Id = a.Id,
+                            Dupla2Id = b.Id,
+                            Fase = nomeDoGrupo == null
+                                ? FaseDoAmericano.RodadaUnica(rodada)
+                                : FaseDoAmericano.RodadaDeGrupo(nomeDoGrupo, rodada),
+                            Status = "Agendada",
+                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                        });
+                        totalPartidasGeradas++;
                     }
                 }
-                await _context.SaveChangesAsync();   // uma vez só: gera todos os Ids
 
-                foreach (var (rodada, a, b) in porRodada)
-                {
-                    jogosDoAmericano.Add(new Partida
-                    {
-                        TorneioId = torneioId,
-                        CategoriaId = categoria.Id,
-                        Dupla1Id = a.Id,
-                        Dupla2Id = b.Id,
-                        Fase = $"Americano Rodada {rodada}",
-                        Status = "Agendada",
-                        Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                    });
-                    totalPartidasGeradas++;
-                }
+                if (divisao.TemGrupoFinal) categoriasComGrupoFinal++;
             }
 
             // O Americano também somava um jogo por vez a partir do início: com 3 quadras,
@@ -116,15 +151,10 @@ namespace Padelizou.Controllers
             torneio.Status = "Fase de Grupos"; // reaproveita o mesmo status de "torneio em andamento"
             await _context.SaveChangesAsync();
 
-            // Quando o número de inscritos não deixa "cada um com cada um" fechar (6, 7, 10,
-            // 11...), alguém repete parceiro — é aritmética, não escolha do sistema. Dizer
-            // isso é melhor do que deixar o organizador descobrir na quadra e achar que é bug.
-            string avisoDeRepeticao = categoriasComRepeticao > 0
-                ? " Em alguma categoria o número de inscritos não fecha \"cada um com cada um\" " +
-                  "(só fecha com 4, 5, 8, 9, 12, 13... jogadores), então uma dupla se repete — " +
-                  "é o mínimo possível. Quem não cabe numa rodada descansa, revezando."
+            string avisoDoGrupoFinal = categoriasComGrupoFinal > 0
+                ? " O grupo final é montado sozinho quando todos os grupos terminarem."
                 : "";
-            TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDeRepeticao}";
+            TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDoGrupoFinal}";
             return RedirectToAction("Jogos", new { id = torneioId });
         }
 
@@ -231,10 +261,22 @@ namespace Padelizou.Controllers
                          && p.Fase.StartsWith("Americano"))
                 .ToListAsync();
 
-            var classificacao = TabelaDoAmericano.Montar(doAmericano.Where(p => p.Status == "Finalizada"));
+            // ⚠️ Quem decide o título é o GRUPO FINAL quando ele existe. Somar o torneio
+            // inteiro juntaria gente de grupos diferentes, que nunca se enfrentou — e o
+            // desempate nasceria de uma liderança que não existe.
+            bool temGrupoFinal = doAmericano.Any(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase));
+            var queDecidem = doAmericano
+                .Where(p => temGrupoFinal
+                    ? FaseDoAmericano.EhDoGrupoFinal(p.Fase)
+                    : FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
+                .ToList();
+
+            var classificacao = TabelaDoAmericano.Montar(queDecidem.Where(p => p.Status == "Finalizada"));
 
             return (classificacao,
                     TabelaDoAmericano.EmpatadosNaLideranca(classificacao),
+                    // Enquanto QUALQUER partida do torneio estiver aberta a liderança pode
+                    // mudar — inclusive as de grupo, que ainda alimentam o grupo final.
                     doAmericano.Count(p => p.Status != "Finalizada"));
         }
 
@@ -256,13 +298,60 @@ namespace Padelizou.Controllers
             // A conta vive em Services/TabelaDoAmericano — a mesma que alimenta a aba
             // "Classificação" na tela de Jogos. Duas contas separadas divergiriam mais cedo
             // ou mais tarde, e aí o torneio teria dois campeões diferentes na mesma tela.
-            var classificacao = TabelaDoAmericano.Montar(partidas)
-                .Select(l => new ClassificacaoAmericanoItemVM { Jogador = l.Jogador, TotalGames = l.TotalGames })
+            //
+            // ⚠️ Cada grupo tem a SUA tabela. Somar o torneio inteiro compararia gente que
+            // nunca se enfrentou, e o corte de quem passa sairia dessa soma errada.
+            var categoria = await _context.Categorias.FindAsync(categoriaId);
+            int passam = categoria?.PassamPorGrupo ?? 0;
+
+            var tabelas = new List<ClassificacaoDeGrupoVM>();
+
+            var nomesDosGrupos = partidas
+                .Where(p => FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
+                .Select(p => FaseDoAmericano.GrupoDe(p.Fase))
+                .Distinct()
+                .OrderBy(g => g, StringComparer.Ordinal)
                 .ToList();
+
+            foreach (var grupo in nomesDosGrupos)
+            {
+                var linhas = TabelaDoAmericano.Montar(partidas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)));
+                tabelas.Add(new ClassificacaoDeGrupoVM
+                {
+                    // Grupo nulo = torneio sem divisão: a tabela é a do torneio, sem título.
+                    Titulo = grupo == null ? null : $"Grupo {grupo}",
+                    PassamDaqui = grupo == null ? 0 : passam,
+                    Linhas = linhas.Select(l => new ClassificacaoAmericanoItemVM
+                    {
+                        Jogador = l.Jogador,
+                        TotalGames = l.TotalGames,
+                    }).ToList(),
+                });
+            }
+
+            // O grupo final vem por último e é o que decide o título.
+            var doFinal = partidas.Where(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase)).ToList();
+            if (doFinal.Count > 0)
+            {
+                tabelas.Add(new ClassificacaoDeGrupoVM
+                {
+                    Titulo = "Grupo final",
+                    DecideOTitulo = true,
+                    Linhas = TabelaDoAmericano.Montar(doFinal).Select(l => new ClassificacaoAmericanoItemVM
+                    {
+                        Jogador = l.Jogador,
+                        TotalGames = l.TotalGames,
+                    }).ToList(),
+                });
+            }
 
             ViewBag.Torneio = torneio;
             ViewBag.CategoriaId = categoriaId;
-            return View(classificacao);
+            ViewBag.Tabelas = tabelas;
+
+            // A lista "plana" segue no Model pra não quebrar quem já lia assim — na divisão em
+            // grupos ela é a do grupo final, ou a do grupo único.
+            return View(tabelas.LastOrDefault()?.Linhas ?? new List<ClassificacaoAmericanoItemVM>());
         }
 
         // GET: Torneios/Classificacao/5?categoriaId=1
