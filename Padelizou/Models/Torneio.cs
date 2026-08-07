@@ -148,6 +148,21 @@ public partial class Torneio
     // fabricar e não pesar pra quem faz o rodízio de verdade.
     public bool PontuaNoRankingAmericano { get; set; }
 
+    // ---- Aprovação do torneio (decisão do Felipe, 07/08/2026) ----
+    // Quando o admin liberou este torneio pra APARECER. Nulo = criado e ainda esperando.
+    //
+    // ⚠️ Esperar aprovação NÃO trava nada pro organizador: ele monta o torneio, abre a página,
+    // recebe inscrição e compartilha o link no mesmo minuto em que criou. O que não acontece
+    // antes do OK é a VITRINE — listagem pública, Home e o aviso pra base inteira. Segurar a
+    // criação faria ele esperar com a quadra reservada; segurar a vitrine não custa nada a ele
+    // e é exatamente o que impede alguém de lotar o sistema de torneio inventado.
+    //
+    // ⚠️ O aviso "novo torneio aberto" saiu da criação e passou pra cá. Avisar na criação
+    // entregaria à base justamente o torneio que ainda não foi olhado por ninguém.
+    public DateTime? AprovadoEm { get; set; }
+
+    public int? AprovadoPorId { get; set; }
+
     // Quando o acerto dos R$ 5 por pessoa foi confirmado. Nulo = contratado mas ainda não pago.
     //
     // ⚠️ O ponto só entra no ranking depois disto. Contratar é intenção; o que vale é o

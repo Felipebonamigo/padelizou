@@ -24,8 +24,12 @@ namespace Padelizou.Controllers
             // Torneio oculto não aparece na home (mesma regra da listagem de Torneios —
             // antes a home ignorava o Oculto e vazava torneio restrito na vitrine).
             // Cancelado também não: a vitrine é pra quem pode se inscrever.
+            //
+            // ⚠️ E torneio SEM APROVAÇÃO também não (07/08/2026). A home é a vitrine mais
+            // visível que existe: se a aprovação segurasse só a listagem, quem criasse um
+            // torneio inventado apareceria na primeira tela do site mesmo assim.
             var ativos = await _context.Torneios
-                .Where(t => !t.Oculto && t.Status != "Finalizado"
+                .Where(t => !t.Oculto && t.AprovadoEm != null && t.Status != "Finalizado"
                             && t.Status != CancelamentoDoTorneio.Status)
                 .OrderBy(t => t.DataInicio)
                 .ToListAsync();

@@ -155,6 +155,19 @@ public partial class Jogador
     // clube, mas é a fundação pra outras telas administrativas futuras.
     public bool IsAdminGeral { get; set; }
 
+    // Pode CRIAR torneio. Nasce desligado: desde 07/08/2026 criar torneio é liberado pessoa a
+    // pessoa, no painel admin (ver Services/PermissaoDeOrganizador).
+    //
+    // Por que não é aberto a todo mundo: cada torneio criado dispara push e e-mail pra base
+    // inteira. Vinte torneios falsos não sujam uma lista — viram milhares de avisos, e o
+    // jogador que recebe isso desinstala o app. A porta ficou estreita antes de o problema
+    // aparecer, não depois.
+    //
+    // ⚠️ Isto NÃO é o mesmo que organizar um torneio específico: quem é adicionado como
+    // co-organizador de um torneio alheio continua entrando por `TorneioOrganizador`, sem
+    // precisar deste perfil. Aqui é só o direito de ABRIR um torneio novo.
+    public bool IsOrganizadorTorneio { get; set; }
+
     // Preferências de notificação por tipo de aviso (independentes do canal NotificarEmail/
     // NotificarWhatsApp, que definem COMO recebe; estas definem O QUE recebe).
     public bool NotificarTorneiosAbertos { get; set; } = true;

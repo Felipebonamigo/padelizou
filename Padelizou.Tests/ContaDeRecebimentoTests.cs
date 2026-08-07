@@ -70,6 +70,8 @@ public class ContaDeRecebimentoTests
     {
         var ctx = TestInfra.NovoContexto();
         var organizador = TestInfra.NovoJogador(1);
+        // Criar torneio exige o perfil de organizador desde 07/08/2026.
+        organizador.IsOrganizadorTorneio = true;
         ctx.Jogadores.Add(organizador);
         // Namespace minúsculo: CategoriaPadrao é do lote antigo, em `padelizou.Models`.
         var categoria = new padelizou.Models.CategoriaPadrao
@@ -146,6 +148,8 @@ public class ContaDeRecebimentoTests
     {
         using var ctx = TestInfra.NovoContexto();
         var organizador = TestInfra.NovoJogador(1);
+        // Criar torneio exige o perfil de organizador desde 07/08/2026.
+        organizador.IsOrganizadorTorneio = true;
         ctx.Jogadores.Add(organizador);
         ctx.CategoriasPadrao.Add(new padelizou.Models.CategoriaPadrao
         {

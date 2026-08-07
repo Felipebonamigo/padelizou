@@ -1,0 +1,110 @@
+@using Padelizou.Models
+@{
+    ViewData["Title"] = "Quem pode criar torneio - Padelizou";
+    var comPerfil = ViewBag.ComPerfil as List<Jogador> ?? new();
+    var achados = ViewBag.Achados as List<Jogador> ?? new();
+    var busca = ViewBag.Busca as string;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Quem pode criar torneio</h2>
+            <p class="text-muted mb-0">
+                Criar torneio é liberado pessoa a pessoa. Quem não tem o perfil vê um recado
+                pedindo pra falar com a gente.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    @* Por que a porta é estreita — pra quem abrir esta tela daqui a seis meses e achar
+       que é burocracia à toa. *@
+    <div class="alert alert-secondary small">
+        <i class="bi bi-info-circle"></i>
+        Cada torneio criado dispara aviso pra base inteira. Sem essa porta, vinte torneios
+        inventados viram milhares de notificações no celular de quem joga — e é assim que se
+        perde um jogador de vez.
+        <strong>O admin do Padelizou cria torneio de qualquer jeito</strong>, sem precisar deste perfil.
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-2">Liberar alguém</h6>
+            <form asp-controller="Admin" asp-action="Organizadores" method="get" class="d-flex gap-2 flex-wrap">
+                <input type="text" name="busca" value="@busca" class="form-control" style="max-width: 360px;"
+                       placeholder="Nome, apelido ou CPF completo" />
+                <button type="submit" class="btn btn-padel rounded-pill px-3">Procurar</button>
+            </form>
+
+            @if (!string.IsNullOrWhiteSpace(busca) && achados.Count == 0)
+            {
+                <p class="text-muted small mt-3 mb-0">Ninguém encontrado com "@busca".</p>
+            }
+            else if (achados.Count > 0)
+            {
+                <ul class="list-group list-group-flush mt-3">
+                    @foreach (var j in achados)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <span class="fw-bold">@j.ComoChamar</span>
+                                @if (j.IsOrganizadorTorneio)
+                                {
+                                    <span class="badge bg-success ms-2">já pode criar</span>
+                                }
+                                @if (j.IsAdminRaiz || j.IsAdminGeral)
+                                {
+                                    <span class="badge bg-secondary ms-1">admin</span>
+                                }
+                            </div>
+                            @if (!j.IsOrganizadorTorneio)
+                            {
+                                <form asp-controller="Admin" asp-action="DarPerfilDeOrganizador" method="post">
+                                    <input type="hidden" name="jogadorId" value="@j.Id" />
+                                    <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Liberar</button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <h6 class="fw-bold mb-2">Organizadores liberados (@comPerfil.Count)</h6>
+    @if (comPerfil.Count == 0)
+    {
+        <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+            <p class="text-muted mb-0">Ninguém liberado ainda — só os admins criam torneio.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0"><ul class="list-group list-group-flush">
+            @foreach (var j in comPerfil)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@j.Id"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.ComoChamar</a>
+                        @if (!string.IsNullOrWhiteSpace(j.Cidade))
+                        {
+                            <div class="small text-muted">@j.Cidade@(string.IsNullOrWhiteSpace(j.Estado) ? "" : " · " + j.Estado)</div>
+                        }
+                    </div>
+                    <form asp-controller="Admin" asp-action="TirarPerfilDeOrganizador" method="post"
+                          onsubmit="return confirm('Tirar o perfil de organizador? Os torneios que já existem continuam de pé — ela só não abre torneio novo.')">
+                        <input type="hidden" name="jogadorId" value="@j.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">Tirar</button>
+                    </form>
+                </li>
+            }
+        </ul></div>
+    }
+</div>

@@ -27,7 +27,7 @@ public class CategoriaDesligadaTests
     private static DbPadelContext ContextoComCatalogo()
     {
         var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1" });
+        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1", IsOrganizadorTorneio = true });
         ctx.Clubes.Add(new Clube { Id = 1, Nome = "Clube Teste" });
         ctx.CategoriasPadrao.AddRange(
             new padelizou.Models.CategoriaPadrao

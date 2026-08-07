@@ -30,11 +30,20 @@ public class PublicarTorneioNaoEsperaEmailTests
         ctx.Jogadores.Add(new Jogador
         {
             Id = 1, Nome = "Organizador", Cpf = "1", NotificarTorneiosAbertos = false,
+            IsOrganizadorTorneio = true,
         });
         ctx.Clubes.Add(new Clube { Id = 1, Nome = "Clube Teste" });
         ctx.CategoriasPadrao.Add(new padelizou.Models.CategoriaPadrao
         {
             Id = 3, Nome = "3ª Categoria Masculina", Codigo = "3CatM", Tipo = "Masculina",
+        });
+
+        // Quem aprova. Desde 07/08/2026 é ELE que recebe aviso na criação — o torneio entrou
+        // na fila dele.
+        ctx.Jogadores.Add(new Jogador
+        {
+            Id = 2, Nome = "Admin", Cpf = "2", IsAdminRaiz = true,
+            NotificarTorneiosAbertos = false,
         });
 
         // Três pessoas querendo saber de torneio novo — em produção eram 71.
@@ -71,9 +80,19 @@ public class PublicarTorneioNaoEsperaEmailTests
 
         // O torneio nasceu...
         Assert.Single(ctx.Torneios);
-        // ...os três avisos estão na fila...
-        Assert.Equal(3, fila.Pendentes);
-        // ...e NADA de rede aconteceu no caminho de quem clicou em "Publicar".
+
+        // ...e o ÚNICO aviso enfileirado é o do admin, que precisa aprovar.
+        //
+        // ⚠️ Os três interessados NÃO são avisados aqui: desde 07/08/2026 o "novo torneio
+        // aberto" saiu da criação e passou pra APROVAÇÃO. Avisar na criação entregaria à base
+        // inteira justamente o torneio que ninguém olhou ainda.
+        Assert.Equal(1, fila.Pendentes);
+        Assert.True(fila.TentarLer(out var aviso));
+        Assert.Equal(2, aviso!.JogadorId);
+        Assert.Contains("aprova", aviso.Titulo, StringComparison.OrdinalIgnoreCase);
+
+        // E NADA de rede aconteceu no caminho de quem clicou em "Publicar" — que é o que este
+        // teste existe pra garantir desde o começo.
         await email.DidNotReceiveWithAnyArgs().EnviarAsync(default!, default!, default!, default!);
     }
 

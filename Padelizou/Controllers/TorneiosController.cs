@@ -140,8 +140,9 @@ namespace Padelizou.Controllers
         {
             var torneios = await _context.Torneios.OrderByDescending(t => t.DataInicio).ToListAsync();
 
-            // Torneios Ocultos somem da listagem pública — só continuam visíveis aqui
-            // pra quem é organizador deles (pra não "perder" o próprio torneio de vista).
+            // Torneio OCULTO e torneio AINDA NÃO APROVADO somem da listagem pública — os dois
+            // continuam visíveis aqui pra quem organiza (pra não "perder" o próprio torneio de
+            // vista) e pro admin. A regra de vitrine mora em Services/PermissaoDeOrganizador.
             var jogadorId = ObterJogadorIdLogado();
             var meusTorneioIds = jogadorId.HasValue
                 ? (await _context.TorneioOrganizadores.Where(o => o.JogadorId == jogadorId.Value).Select(o => o.TorneioId).ToListAsync()).ToHashSet()
@@ -150,7 +151,9 @@ namespace Padelizou.Controllers
             // Admin do Padelizou vê os ocultos também: se ele manda em qualquer torneio, não
             // faz sentido ter que adivinhar o link de um que não aparece na lista.
             bool souAdmin = User.FindFirstValue("IsAdmin") == "true";
-            torneios = torneios.Where(t => !t.Oculto || souAdmin || meusTorneioIds.Contains(t.Id)).ToList();
+            torneios = torneios
+                .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t) || souAdmin || meusTorneioIds.Contains(t.Id))
+                .ToList();
 
             // Cancelado some da lista pela MESMA porta do oculto: quem organiza continua vendo
             // (é dele o torneio, e é lá que ele vê quem tem que ser reembolsado), o resto não.

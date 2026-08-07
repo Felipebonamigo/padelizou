@@ -25,7 +25,7 @@ public class RankingAmericanoContratadoTests
     private static DbPadelContext ContextoComClube()
     {
         var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1" });
+        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1", IsOrganizadorTorneio = true });
         ctx.Clubes.Add(new Clube { Id = 1, Nome = "Clube Teste" });
         ctx.CategoriasPadrao.Add(new padelizou.Models.CategoriaPadrao
         {

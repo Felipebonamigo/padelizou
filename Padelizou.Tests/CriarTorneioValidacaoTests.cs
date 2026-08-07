@@ -23,7 +23,7 @@ public class CriarTorneioValidacaoTests
     private static DbPadelContext ContextoComClube()
     {
         var ctx = TestInfra.NovoContexto();
-        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1" });
+        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Organizador", Cpf = "1", IsOrganizadorTorneio = true });
         ctx.Clubes.Add(new Clube { Id = 1, Nome = "Clube Teste" });
         ctx.CategoriasPadrao.Add(new padelizou.Models.CategoriaPadrao
         {
@@ -121,7 +121,7 @@ public class CriarTorneioValidacaoTests
         // "Copa de Verão" não pertence a ninguém: bloquear no sistema inteiro recusaria o
         // torneio de um clube por causa do nome escolhido por outro.
         using var ctx = ContextoComClube();
-        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Outro organizador", Cpf = "2" });
+        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Outro organizador", Cpf = "2", IsOrganizadorTorneio = true });
         await ctx.SaveChangesAsync();
 
         await TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 1)

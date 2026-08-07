@@ -1,0 +1,132 @@
+@using Padelizou.Models
+@{
+    ViewData["Title"] = "Torneios esperando aprovação - Padelizou";
+    var esperando = ViewBag.Esperando as List<Torneio> ?? new();
+    var aprovados = ViewBag.Aprovados as List<Torneio> ?? new();
+    var criadores = ViewBag.Criadores as Dictionary<int, Jogador> ?? new();
+}
+
+@functions {
+    // A linha de um torneio, igual nas duas listas. Escrita uma vez porque as duas mostram a
+    // mesma coisa — duas cópias divergiriam na primeira coluna que eu resolvesse acrescentar.
+    string QuemCriou(Dictionary<int, Jogador> criadores, int torneioId) =>
+        criadores.TryGetValue(torneioId, out var j) ? j.ComoChamar : "—";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Torneios esperando aprovação</h2>
+            <p class="text-muted mb-0">
+                Todo torneio nasce fora da vitrine. Aprovar põe ele na listagem, na Home,
+                e dispara o aviso pra quem quer saber de torneio novo.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    <div class="alert alert-secondary small">
+        <i class="bi bi-info-circle"></i>
+        Esperar aprovação <strong>não trava o organizador</strong>: ele já monta o torneio, recebe
+        inscrição e compartilha o link. O que falta é só a vitrine — e é ela que impede alguém
+        de encher o sistema de torneio inventado.
+    </div>
+
+    <h5 class="fw-bold mb-2">
+        Esperando
+        @if (esperando.Count > 0)
+        {
+            <span class="badge bg-danger">@esperando.Count</span>
+        }
+    </h5>
+
+    @if (esperando.Count == 0)
+    {
+        <div class="text-center py-4 rounded-3 bg-light mb-4" style="border: 2px dashed var(--pdz-border);">
+            <i class="bi bi-check2-circle display-6 text-muted"></i>
+            <p class="text-muted mb-0">Nada esperando. Fila limpa.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0 mb-4"><div class="table-responsive"><table class="table align-middle mb-0">
+            <thead><tr>
+                <th>Torneio</th>
+                <th class="d-none d-md-table-cell">Quem criou</th>
+                <th class="text-center d-none d-sm-table-cell">Quando</th>
+                <th class="text-end" style="width: 210px;"></th>
+            </tr></thead>
+            <tbody>
+            @foreach (var t in esperando)
+            {
+                <tr>
+                    <td>
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@t.Nome</a>
+                        <div class="small text-muted">
+                            @t.Clube?.Nome
+                            @if (t.Oculto)
+                            {
+                                <span class="badge bg-secondary ms-1">oculto</span>
+                            }
+                            @if (t.Restrito)
+                            {
+                                <span class="badge bg-secondary ms-1">restrito</span>
+                            }
+                        </div>
+                    </td>
+                    <td class="d-none d-md-table-cell">@QuemCriou(criadores, t.Id)</td>
+                    <td class="text-center d-none d-sm-table-cell text-muted small">
+                        @(t.DataInicio?.ToString("dd/MM/yyyy") ?? "sem data")
+                    </td>
+                    <td class="text-end">
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                           class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1">Ver</a>
+                        <form asp-controller="Admin" asp-action="AprovarTorneio" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@t.Id" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">Aprovar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table></div></div>
+    }
+
+    <h5 class="fw-bold mb-2">Já aprovados</h5>
+    @if (aprovados.Count == 0)
+    {
+        <p class="text-muted small">Nenhum ainda.</p>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0"><ul class="list-group list-group-flush">
+        @foreach (var t in aprovados)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                       class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@t.Nome</a>
+                    <div class="small text-muted">
+                        @QuemCriou(criadores, t.Id) · aprovado em @t.AprovadoEm!.Value.ToString("dd/MM/yyyy 'às' HH:mm")
+                    </div>
+                </div>
+                <form asp-controller="Admin" asp-action="TirarAprovacaoDoTorneio" method="post"
+                      onsubmit="return confirm('Tirar da listagem? Quem já recebeu o aviso continua com o link — pra encerrar de verdade, use o cancelamento na página do torneio.')">
+                    <input type="hidden" name="id" value="@t.Id" />
+                    <button type="submit" class="btn btn-sm btn-link text-muted p-0">tirar da listagem</button>
+                </form>
+            </li>
+        }
+        </ul></div>
+    }
+</div>

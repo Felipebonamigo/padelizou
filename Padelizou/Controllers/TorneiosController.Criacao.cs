@@ -18,6 +18,17 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> Create()
         {
+            // Criar torneio é liberado organizador por organizador (ver
+            // Services/PermissaoDeOrganizador). A recusa vem na PORTA e não depois do
+            // formulário preenchido: descobrir que não podia depois de escolher categorias,
+            // horários e preço seria o pior jeito possível de dizer não.
+            var quemPede = await _context.Jogadores.FindAsync(ObterJogadorIdLogado() ?? 0);
+            if (!PermissaoDeOrganizador.PodeCriarTorneio(quemPede))
+            {
+                TempData["Erro"] = PermissaoDeOrganizador.ComoPedirOPerfil;
+                return RedirectToAction(nameof(Index));
+            }
+
             // Busca as categorias do banco para montar os Checkboxes na tela. Só as ATIVAS:
             // categoria desligada continua valendo onde já foi usada, mas não é oferecida.
             var catalogo = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
@@ -188,6 +199,15 @@ namespace Padelizou.Controllers
             int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            // A mesma trava do GET, agora no servidor: a tela some do menu e recusa na porta,
+            // mas POST montado à mão não passa por tela nenhuma — e é justamente quem quer
+            // lotar o sistema de torneio que não usa o formulário.
+            if (!PermissaoDeOrganizador.PodeCriarTorneio(await _context.Jogadores.FindAsync(criadorId)))
+            {
+                TempData["Erro"] = PermissaoDeOrganizador.ComoPedirOPerfil;
+                return RedirectToAction(nameof(Index));
+            }
 
             // ── As recusas vêm ANTES de qualquer gravação ────────────────────────────────
             // Inclusive antes de achar-ou-criar o clube: recusar depois deixaria um clube
@@ -485,23 +505,41 @@ namespace Padelizou.Controllers
                 TempData["Sucesso"] = recado + " Dá pra revisar categoria por categoria em Editar torneio.";
             }
 
-            // Avisa quem tem NotificarTorneiosAbertos marcado que um torneio novo abriu.
+            // ⚠️ O aviso "novo torneio aberto" NÃO sai daqui desde 07/08/2026 — ele sai da
+            // APROVAÇÃO, no painel admin (AdminController.AprovarTorneio). Avisar na criação
+            // entregaria à base inteira justamente o torneio que ninguém olhou ainda, que é o
+            // contrário do que a aprovação existe pra fazer.
             //
-            // ⚠️ Só ENFILEIRA (e-mail e push saem pela FilaDeAvisos, no serviço de fundo).
-            // Até 07/08/2026 havia aqui um laço de SMTP por jogador, DENTRO da requisição:
-            // com 71 elegíveis o organizador ficou minutos olhando "Publicando o torneio…" —
-            // e cada um deles ainda recebia o e-mail EM DOBRO, porque a fila já manda e-mail
-            // pra quem tem NotificarEmail. Foi essa dobra que ajudou a estourar a cota diária
-            // do Gmail na véspera do lançamento.
-            var elegiveis = await _context.Jogadores
-                .Where(j => j.NotificarTorneiosAbertos)
-                .Select(j => j.Id)
-                .ToListAsync();
-            var urlTorneio = Url.Action("Details", "Torneios", new { id = torneio.Id });
+            // Em compensação o organizador PRECISA saber que está esperando: sem esta frase
+            // ele publica, não vê o torneio na listagem e conclui que quebrou. O recado vai
+            // grudado no que já havia (Ranking RS, pacote de registro), nunca no lugar dele.
+            var esperandoOk = " O torneio já está de pé e você pode compartilhar o link agora "
+                + "mesmo — ele aparece na listagem e no aviso pra galera assim que a gente "
+                + "conferir, o que costuma ser rápido.";
 
-            foreach (var jogadorId in elegiveis)
+            TempData["Sucesso"] = TempData["Sucesso"] is string jaDito
+                ? jaDito + esperandoOk
+                : "Torneio criado!" + esperandoOk;
+
+            // Avisa quem aprova. Sem isto o pedido ficaria esperando alguém lembrar de abrir o
+            // painel — e o organizador esperando um OK que ninguém sabe que precisa dar.
+            try
             {
-                await _pushService.EnviarParaJogadorAsync(jogadorId, "Novo torneio aberto", torneio.Nome, urlTorneio);
+                var admins = await _context.Jogadores
+                    .Where(j => (j.IsAdminGeral || j.IsAdminRaiz) && j.ExcluidoEm == null)
+                    .Select(j => j.Id)
+                    .ToListAsync();
+
+                var urlFila = Url.Action("TorneiosParaAprovar", "Admin");
+                foreach (var adminId in admins)
+                {
+                    await _pushService.EnviarParaJogadorAsync(adminId,
+                        "Torneio esperando aprovação", torneio.Nome, urlFila);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar admins do torneio {TorneioId} esperando aprovação.", torneio.Id);
             }
 
             return RedirectToAction("Details", new { id = torneio.Id });

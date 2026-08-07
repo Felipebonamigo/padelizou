@@ -35,7 +35,14 @@ public class HomeTests
 
     private static Categoria NovaCategoria(DbPadelContext ctx, string nomeTorneio, string status, bool oculto = false)
     {
-        var torneio = new Torneio { Nome = nomeTorneio, Codigo = nomeTorneio, Status = status, Oculto = oculto, DataInicio = DateTime.Now };
+        // `AprovadoEm` preenchido: desde 07/08/2026 a Home só mostra torneio aprovado, e um
+        // torneio de teste sem aprovação nunca chegaria à vitrine — o teste mediria a trava
+        // nova em vez do que ele quer medir (oculto, status, dados do visitante).
+        var torneio = new Torneio
+        {
+            Nome = nomeTorneio, Codigo = nomeTorneio, Status = status, Oculto = oculto,
+            DataInicio = DateTime.Now, AprovadoEm = DateTime.Now,
+        };
         var cat = new Categoria { Nome = "2ª Masculina", Codigo = nomeTorneio + "C", Torneio = torneio };
         ctx.Torneios.Add(torneio);
         ctx.Categorias.Add(cat);
