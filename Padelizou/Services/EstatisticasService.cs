@@ -22,8 +22,21 @@ public class EstatisticasService : IEstatisticasService
         _ => 10 // Fase de Grupos / participou
     };
 
-    // Torneio RESTRITO não entra no ranking (decisão do Felipe, 31/07/2026).
+    // Torneio RESTRITO e AMERICANO não entram no ranking oficial.
     //
+    // ── Americano (decisão do Felipe, 07/08/2026) ─────────────────────────────────────────
+    // O Americano é o rodízio de sábado: gente conhecida, parceiro trocando a cada rodada,
+    // criado na sexta à noite. Ele estava pontuando IGUAL a uma final de 3ª Categoria, e isso
+    // era uma porta escancarada — três amigos criam um Americano, lançam os placares que
+    // quiserem e fabricam ranking sem enfrentar ninguém.
+    //
+    // Pior que o campeão dos 100 pontos: no Americano cada RODADA cria uma dupla nova, então
+    // um rodízio de 12 pessoas despejava ~30 linhas de "participou" no ranking de uma vez.
+    //
+    // O Americano passa a ter ranking PRÓPRIO (separado, e só pontua quando o organizador
+    // contrata isso) — ver RANKING.md. Aqui ele sai do oficial, que é o que mede torneio.
+    //
+    // ── Restrito (decisão do Felipe, 31/07/2026) ──────────────────────────────────────────
     // Restrito é o torneio fechado: entra quem tem a chave de acesso — interno de clube,
     // grupo de amigos, confraternização de fim de ano. Pontuar evento fechado faria o
     // ranking medir ACESSO a torneio privado em vez de padel jogado: quem organiza um
@@ -31,7 +44,12 @@ public class EstatisticasService : IEstatisticasService
     //
     // O que NÃO muda: a participação, o título e os jogos continuam no perfil e no
     // histórico da pessoa — aconteceram. O que não existe é ponto de ranking.
-    public static bool ContaNoRanking(Torneio? torneio) => torneio is null or { Restrito: false };
+    // Torneio NULO continua contando: é a dupla lida numa consulta que não fez Include, e
+    // sumir do ranking por causa de um Include esquecido seria pior do que qualquer das duas
+    // regras acima.
+    public static bool ContaNoRanking(Torneio? torneio) =>
+        torneio is null
+        || (!torneio.Restrito && !FormatoDoTorneio.EhAmericano(torneio.Formato));
 
     // Ordem das fases para "melhor colocação" (maior = mais longe).
     private static int RankFase(string? fase) => fase switch

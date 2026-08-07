@@ -43,6 +43,13 @@ largura. 100 pontos de diferença ≈ 64% de favoritismo; 200 ≈ 76%.
 
 - **Torneio Restrito** (mesma razão do `ContaNoRanking`: evento fechado não mede padel
   contra o mundo).
+- **Americano**, nos dois formatos — individual e de duplas (decisão do Felipe,
+  07/08/2026). Até aqui ele pontuava IGUAL a uma final de 3ª Categoria: três amigos
+  criavam um Americano, lançavam os placares que quisessem e fabricavam ranking sem
+  enfrentar ninguém de fora. E o estrago não era só o campeão — no Americano **cada
+  rodada cria uma dupla nova**, então um rodízio de 12 pessoas despejava dezenas de
+  linhas de "participou" de uma vez. O Americano passa a ter **ranking próprio**
+  (Trilha C, abaixo). A regra mora em `Services/FormatoDoTorneio.EhAmericano`.
 - **Categoria de times** e qualquer dupla-TIME (`Dupla.NomeTime != null` — o
   `Jogador1Id` ali aponta pro organizador que cadastrou, não pra quem jogou).
 - **Partida sem placar** (games nulos) ou com dupla incompleta.
@@ -192,6 +199,25 @@ Quem for mexer nesse método: a ausência das duas checagens é para ficar como 
 - Torneio Restrito continua fora (já é assim hoje).
 - Status: ainda não implementada — hoje os pontos somam a vida toda e sem recorte por
   categoria. Esta trilha é o próximo passo depois da fase 1 do Padelímetro.
+
+## Trilha C — o Ranking Americano (07/08/2026)
+
+Ranking **separado** do oficial, porque o Americano é outro esporte social: rodízio,
+parceiro trocando a cada rodada, gente conhecida, criado na véspera. Misturar os dois
+estraga os dois — o oficial deixa de medir torneio, e o Americano fica sem lugar.
+
+- **Sai do oficial e do Padelímetro** (ver "O que NÃO move o número"). Continua no
+  histórico da pessoa: ela jogou, e isso aparece no perfil.
+- **Só pontua se o organizador contratar**: **R$ 5 por pessoa inscrita**, decidido na
+  criação do Americano — a tela avisa o preço ali, antes de ele publicar.
+  Não contratou, o Americano roda normal e não gera ponto nenhum.
+- **Grátis até 16 pessoas** vale pro Americano em si (o evento não tem taxa). O R$ 5
+  é outra coisa: é o preço de VALER PONTO, e independe do tamanho.
+- Acima de 16 pessoas o Americano não é criado sozinho — a tela manda falar com o
+  Felipe (por enquanto, decisão de 07/08/2026).
+
+Status: a exclusão do oficial está no ar. A trilha própria (tabela de pontos, tela e
+cobrança dos R$ 5) ainda não — é o próximo passo.
 
 ## Decisões registradas
 
