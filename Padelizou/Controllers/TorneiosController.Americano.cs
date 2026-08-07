@@ -37,7 +37,7 @@ namespace Padelizou.Controllers
             var rng = new Random();
             int tempoPartida = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
             int totalPartidasGeradas = 0;
-            int totalDeFora = 0;
+            int categoriasComRepeticao = 0;
             var jogosDoAmericano = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias)
@@ -47,41 +47,53 @@ namespace Padelizou.Controllers
                     .Select(i => i.JogadorId)
                     .ToListAsync();
 
-                int usaveis = RodadasAmericano.Aproveitaveis(inscritos.Count);
-                if (usaveis < 4) continue; // categoria sem jogadores suficientes pra fechar um grupo de 4
+                // ⚠️ TODO INSCRITO JOGA, de 4 pra cima. Até 06/08/2026 isto cortava pro
+                // múltiplo de 4 abaixo e quem sobrava ficava de FORA DO TORNEIO INTEIRO — 10
+                // inscritos viravam 8, e as duas pessoas cortadas tinham pago a inscrição.
+                // Agora quem não cabe numa rodada descansa, e o descanso reveza
+                // (ver Services/RodadasAmericano).
+                if (inscritos.Count < 4) continue; // não fecha nem uma quadra
 
                 var jogadoresEmbaralhados = inscritos.OrderBy(_ => rng.Next()).ToList();
-                var jogadoresUsados = jogadoresEmbaralhados.Take(usaveis).ToList();
-                totalDeFora += jogadoresEmbaralhados.Count - usaveis;
 
-                // O sorteio vive em Services/RodadasAmericano: método do círculo, que GARANTE
-                // cada jogador fazendo dupla com cada um dos outros exatamente uma vez. O
-                // código que estava aqui era guloso e olhava só 4 jogadores por vez — medido
-                // num ensaio de 8, deixava 4 parcerias repetidas e 4 sem acontecer.
-                var rodadasSorteadas = RodadasAmericano.Montar(jogadoresUsados);
+                // O sorteio vive em Services/RodadasAmericano e GARANTE cada jogador fazendo
+                // dupla com cada um dos outros. O código que estava aqui era guloso e olhava
+                // só 4 jogadores por vez — num ensaio de 8, deixava 4 parcerias repetidas e 4
+                // sem acontecer.
+                var rodadasSorteadas = RodadasAmericano.Montar(jogadoresEmbaralhados);
+                if (rodadasSorteadas.Count == 0) continue;
 
+                if (!RodadasAmericano.FechaCertinho(inscritos.Count)) categoriasComRepeticao++;
+
+                // As duplas nascem TODAS de uma vez, e só então as partidas. Antes havia um
+                // SaveChanges por partida (era preciso pro Id): um Americano de 40 pessoas são
+                // 390 jogos, ou seja 390 idas ao banco dentro do POST do organizador.
+                var porRodada = new List<(int Rodada, Dupla A, Dupla B)>();
                 for (int rodada = 1; rodada <= rodadasSorteadas.Count; rodada++)
                 {
                     foreach (var confronto in rodadasSorteadas[rodada - 1])
                     {
                         var dupla1 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.A1, Jogador2Id = confronto.A2 };
                         var dupla2 = new Dupla { CategoriaId = categoria.Id, Jogador1Id = confronto.B1, Jogador2Id = confronto.B2 };
-                        _context.Duplas.Add(dupla1);
-                        _context.Duplas.Add(dupla2);
-                        await _context.SaveChangesAsync(); // precisa dos Ids gerados antes de criar a Partida
-
-                        jogosDoAmericano.Add(new Partida
-                        {
-                            TorneioId = torneioId,
-                            CategoriaId = categoria.Id,
-                            Dupla1Id = dupla1.Id,
-                            Dupla2Id = dupla2.Id,
-                            Fase = $"Americano Rodada {rodada}",
-                            Status = "Agendada",
-                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                        });
-                        totalPartidasGeradas++;
+                        _context.Duplas.AddRange(dupla1, dupla2);
+                        porRodada.Add((rodada, dupla1, dupla2));
                     }
+                }
+                await _context.SaveChangesAsync();   // uma vez só: gera todos os Ids
+
+                foreach (var (rodada, a, b) in porRodada)
+                {
+                    jogosDoAmericano.Add(new Partida
+                    {
+                        TorneioId = torneioId,
+                        CategoriaId = categoria.Id,
+                        Dupla1Id = a.Id,
+                        Dupla2Id = b.Id,
+                        Fase = $"Americano Rodada {rodada}",
+                        Status = "Agendada",
+                        Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                    });
+                    totalPartidasGeradas++;
                 }
             }
 
@@ -104,8 +116,15 @@ namespace Padelizou.Controllers
             torneio.Status = "Fase de Grupos"; // reaproveita o mesmo status de "torneio em andamento"
             await _context.SaveChangesAsync();
 
-            string avisoDeFora = totalDeFora > 0 ? $" {totalDeFora} jogador(es) ficaram de fora por não fechar grupos de 4." : "";
-            TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDeFora}";
+            // Quando o número de inscritos não deixa "cada um com cada um" fechar (6, 7, 10,
+            // 11...), alguém repete parceiro — é aritmética, não escolha do sistema. Dizer
+            // isso é melhor do que deixar o organizador descobrir na quadra e achar que é bug.
+            string avisoDeRepeticao = categoriasComRepeticao > 0
+                ? " Em alguma categoria o número de inscritos não fecha \"cada um com cada um\" " +
+                  "(só fecha com 4, 5, 8, 9, 12, 13... jogadores), então uma dupla se repete — " +
+                  "é o mínimo possível. Quem não cabe numa rodada descansa, revezando."
+                : "";
+            TempData["Sucesso"] = $"Rodadas geradas! {totalPartidasGeradas} partidas agendadas.{avisoDeRepeticao}";
             return RedirectToAction("Jogos", new { id = torneioId });
         }
 

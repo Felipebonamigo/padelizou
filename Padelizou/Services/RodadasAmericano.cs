@@ -25,11 +25,37 @@ public static class RodadasAmericano
     // Uma partida: dupla A (A1+A2) contra dupla B (B1+B2).
     public record Confronto(int A1, int A2, int B1, int B2);
 
-    // Quantos jogadores são efetivamente usados: o Americano precisa fechar quadras de 4.
-    public static int Aproveitaveis(int inscritos) => inscritos - (inscritos % 4);
+    // ⚠️ TODO INSCRITO JOGA, de 4 pra cima (Felipe, 06/08/2026).
+    //
+    // Até esta data o sorteio cortava pro múltiplo de 4 abaixo e quem sobrava ficava de FORA
+    // DO TORNEIO INTEIRO — 10 inscritos viravam 8, e duas pessoas que pagaram não entravam em
+    // jogo nenhum, avisadas só por uma frase no fim da mensagem do organizador. Pior: 5, 9, 13
+    // e 17 fecham a conta perfeitamente e eram recusados à toa.
+    //
+    // Agora a quadra é que fecha em 4: quem não cabe numa rodada DESCANSA, e o descanso
+    // reveza — ninguém descansa duas vezes antes de todo mundo descansar uma.
+    public static int Aproveitaveis(int inscritos) => inscritos >= 4 ? inscritos : 0;
 
-    // Quantas rodadas o torneio terá com N jogadores aproveitados.
-    public static int Rodadas(int jogadores) => jogadores >= 4 ? jogadores - 1 : 0;
+    // Quantas duplas o torneio precisa formar pra cada um jogar com cada um.
+    private static int DuplasAFormar(int n) => n * (n - 1) / 2;
+
+    // Quantas rodadas isso dá. Não é sempre n-1: com gente descansando, o que manda é quantas
+    // duplas cabem por rodada.
+    public static int Rodadas(int jogadores)
+    {
+        if (jogadores < 4) return 0;
+        int duplasPorRodada = 2 * (jogadores / 4);
+        return (int)Math.Ceiling(DuplasAFormar(jogadores) / (double)duplasPorRodada);
+    }
+
+    // "Cada um com cada um" só FECHA CERTINHO quando o número de duplas a formar é par —
+    // ou seja, quando n é múltiplo de 4 ou múltiplo de 4 mais 1 (4, 5, 8, 9, 12, 13...).
+    //
+    // Com 6 pessoas são 15 duplas a formar e cada jogo forma 2: daria 7,5 jogos. Não existe
+    // meio jogo, então alguém repete parceiro. Isso é aritmética, não limitação do sistema —
+    // e a tela precisa dizer isso ao organizador em vez de fingir que ficou perfeito.
+    public static bool FechaCertinho(int jogadores) =>
+        jogadores >= 4 && DuplasAFormar(jogadores) % 2 == 0;
 
     // As rodadas, na ordem. Cada rodada tem jogadores/4 partidas, todas simultâneas —
     // ninguém joga duas vezes na mesma rodada.
@@ -40,31 +66,181 @@ public static class RodadasAmericano
     public static List<List<Confronto>> Montar(IReadOnlyList<int> jogadores, Random? sorteio = null)
     {
         int n = jogadores.Count;
-        if (n < 4 || n % 4 != 0) return new List<List<Confronto>>();
+        if (n < 4) return new List<List<Confronto>>();
 
         var rng = sorteio ?? new Random();
 
-        var rodadasDeRotulos =
-            n == 8 ? TabelaWh8.Select(r => r.Select(m => (int[])m.Clone()).ToList()).ToList()
-            : BasesCiclicas.TryGetValue(n, out var baseCiclica) ? ExpandirBase(n, baseCiclica)
-            : null;
-
-        if (rodadasDeRotulos == null) return MontarPorCirculo(jogadores, rng);
-
-        // O desenho é fixo; o SORTEIO é decidir qual pessoa veste qual número. Embaralhar
-        // esse mapa dá n! tabelas diferentes, todas igualmente perfeitas.
-        var mapa = jogadores.OrderBy(_ => rng.Next()).ToList();
-
-        var rodadas = new List<List<Confronto>>();
-        foreach (var rodada in rodadasDeRotulos)
+        // Múltiplo de 4 com tabela de whist conhecida: ninguém descansa e o desenho é ÓTIMO
+        // (parceiro 1x, adversário 2x, provado). Não se troca isso por busca.
+        if (n % 4 == 0)
         {
-            var confrontos = rodada
-                .Select(m => new Confronto(mapa[m[0]], mapa[m[1]], mapa[m[2]], mapa[m[3]]))
-                .OrderBy(_ => rng.Next())   // ordem das quadras também sorteada
-                .ToList();
-            rodadas.Add(confrontos);
+            var rodadasDeRotulos =
+                n == 8 ? TabelaWh8.Select(r => r.Select(m => (int[])m.Clone()).ToList()).ToList()
+                : BasesCiclicas.TryGetValue(n, out var baseCiclica) ? ExpandirBase(n, baseCiclica)
+                : null;
+
+            if (rodadasDeRotulos == null) return MontarPorCirculo(jogadores, rng);
+
+            // O desenho é fixo; o SORTEIO é decidir qual pessoa veste qual número. Embaralhar
+            // esse mapa dá n! tabelas diferentes, todas igualmente perfeitas.
+            var mapa = jogadores.OrderBy(_ => rng.Next()).ToList();
+
+            var rodadas = new List<List<Confronto>>();
+            foreach (var rodada in rodadasDeRotulos)
+            {
+                var confrontos = rodada
+                    .Select(m => new Confronto(mapa[m[0]], mapa[m[1]], mapa[m[2]], mapa[m[3]]))
+                    .OrderBy(_ => rng.Next())   // ordem das quadras também sorteada
+                    .ToList();
+                rodadas.Add(confrontos);
+            }
+            return rodadas;
         }
-        return rodadas;
+
+        return MontarComRevezamento(jogadores, rng);
+    }
+
+    // ----------------------------------------------------------------------------------
+    // Tamanho que não é múltiplo de 4: todo mundo joga, revezando o descanso
+    // ----------------------------------------------------------------------------------
+    //
+    // Não há tabela pronta pra estes tamanhos, então é busca: monta rodada a rodada com
+    // escolhas gulosas e repete o sorteio inteiro várias vezes, ficando com o melhor.
+    //
+    // O objetivo, na ordem: (1) todo mundo joga com todo mundo — é a obrigação do formato;
+    // (2) menos rodadas; (3) menos parceria repetida; (4) menos reencontro de adversário.
+    private const int TentativasComRevezamento = 40;
+
+    private static List<List<Confronto>> MontarComRevezamento(IReadOnlyList<int> jogadores, Random rng)
+    {
+        List<List<Confronto>>? melhor = null;
+        (int Rodadas, int Repeticoes, int PiorAdversario, int Total) melhorNota =
+            (int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue);
+
+        for (int t = 0; t < TentativasComRevezamento; t++)
+        {
+            var tentativa = UmaTentativaComRevezamento(jogadores, rng);
+            if (tentativa == null) continue;
+
+            var adversarios = Avaliar(tentativa);
+            var nota = (tentativa.Count, ParceriasRepetidas(tentativa), adversarios.PiorRepeticao, adversarios.Total);
+
+            if (nota.CompareTo(melhorNota) < 0)
+            {
+                melhor = tentativa;
+                melhorNota = nota;
+            }
+        }
+
+        return melhor ?? new List<List<Confronto>>();
+    }
+
+    private static List<List<Confronto>>? UmaTentativaComRevezamento(
+        IReadOnlyList<int> jogadores, Random rng)
+    {
+        int n = jogadores.Count;
+        int porRodada = (n / 4) * 4;   // quantos entram em quadra por rodada
+        if (porRodada < 4) return null;
+
+        // Toda dupla que ainda falta acontecer. É a condição de parada: o torneio acaba
+        // quando este conjunto esvazia, não num número fixo de rodadas.
+        var pendentes = new HashSet<(int, int)>();
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+                pendentes.Add(Chave(jogadores[i], jogadores[j]));
+
+        // Quantas duplas cada um ainda tem por fazer. Mantido incremental de propósito:
+        // recontar isso dentro da ordenação de cada rodada é O(pares) por jogador e sozinho
+        // levava o sorteio de 40 pessoas a segundos — dentro do POST do organizador.
+        var faltamPra = jogadores.ToDictionary(j => j, _ => n - 1);
+
+        var descansos = jogadores.ToDictionary(j => j, _ => 0);
+        var adversariosAnteriores = new Dictionary<(int, int), int>();
+        var rodadas = new List<List<Confronto>>();
+
+        // Trava de segurança: sem ela, um caso patológico giraria pra sempre dentro de uma
+        // requisição HTTP. O teto é folgado — o pior tamanho real fecha muito antes.
+        int limite = 4 * n + 8;
+
+        while (pendentes.Count > 0 && rodadas.Count < limite)
+        {
+            // Joga quem DESCANSOU MAIS até agora; empate vai pra quem ainda tem mais duplas
+            // por fazer. É isso que mantém o revezamento parelho e o torneio curto.
+            var ordem = jogadores
+                .OrderByDescending(j => descansos[j])
+                .ThenByDescending(j => faltamPra[j])
+                .ThenBy(_ => rng.Next())
+                .ToList();
+
+            var jogam = ordem.Take(porRodada).ToList();
+            foreach (var fora in ordem.Skip(porRodada)) descansos[fora]++;
+
+            var duplas = FormarDuplas(jogam, pendentes, rng);
+            if (duplas == null) return null;
+
+            foreach (var (a, b) in duplas)
+            {
+                if (pendentes.Remove(Chave(a, b)))
+                {
+                    faltamPra[a]--;
+                    faltamPra[b]--;
+                }
+            }
+
+            rodadas.Add(Emparelhar(duplas, adversariosAnteriores));
+        }
+
+        return pendentes.Count == 0 ? rodadas : null;
+    }
+
+    // Junta em duplas quem vai jogar a rodada, preferindo pares que ainda não jogaram juntos.
+    //
+    // Começa por quem tem MENOS opções pendentes dentro do grupo: deixar o mais difícil por
+    // último é o que faz a última rodada não fechar.
+    private static List<(int, int)>? FormarDuplas(
+        List<int> jogam, HashSet<(int, int)> pendentes, Random rng)
+    {
+        var restantes = new List<int>(jogam);
+        var duplas = new List<(int, int)>();
+
+        int OpcoesDe(int quem, List<int> onde) =>
+            onde.Count(outro => outro != quem && pendentes.Contains(Chave(quem, outro)));
+
+        while (restantes.Count >= 2)
+        {
+            var a = restantes
+                .OrderBy(x => OpcoesDe(x, restantes))
+                .ThenBy(_ => rng.Next())
+                .First();
+            restantes.Remove(a);
+
+            var aindaFaltam = restantes.Where(b => pendentes.Contains(Chave(a, b))).ToList();
+
+            // Sem par pendente disponível, repete uma parceria: nos tamanhos em que a conta
+            // não fecha (6, 7, 10, 11...) isso é inevitável — ver FechaCertinho.
+            var b2 = (aindaFaltam.Count > 0 ? aindaFaltam : restantes)
+                .OrderBy(x => OpcoesDe(x, restantes))
+                .ThenBy(_ => rng.Next())
+                .First();
+
+            restantes.Remove(b2);
+            duplas.Add((a, b2));
+        }
+
+        return restantes.Count == 0 ? duplas : null;
+    }
+
+    // Quantas parcerias aconteceram mais de uma vez. Zero é o ideal, e é alcançável só nos
+    // tamanhos em que FechaCertinho é verdade.
+    private static int ParceriasRepetidas(List<List<Confronto>> rodadas)
+    {
+        var conta = new Dictionary<(int, int), int>();
+        foreach (var c in rodadas.SelectMany(r => r))
+        {
+            foreach (var par in new[] { Chave(c.A1, c.A2), Chave(c.B1, c.B2) })
+                conta[par] = conta.GetValueOrDefault(par) + 1;
+        }
+        return conta.Values.Where(v => v > 1).Sum(v => v - 1);
     }
 
     // ----------------------------------------------------------------------------------

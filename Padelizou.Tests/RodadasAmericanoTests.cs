@@ -163,29 +163,51 @@ public class RodadasAmericanoTests
             $"alguém enfrentou o mesmo rival {conta.Values.Max()} vezes em 35 rodadas");
     }
 
+    // ⚠️ ESTE TESTE JÁ EXIGIU O CONTRÁRIO: que quem não fechasse quadra de 4 ficasse de fora
+    // (5 inscritos → 4 jogam). Isso saiu em 06/08/2026 por decisão do Felipe: quem sobrava
+    // ficava de fora do TORNEIO INTEIRO, tendo pago a inscrição, avisado só por uma frase no
+    // fim da mensagem do organizador. Agora quem não cabe numa rodada descansa, revezando.
+    //
+    // Quem fecha em 4 é a QUADRA, não o torneio.
     [Theory]
     [InlineData(0, 0)]
-    [InlineData(3, 0)]
-    [InlineData(5, 4)]
-    [InlineData(7, 4)]
-    [InlineData(10, 8)]
-    [InlineData(13, 12)]
-    public void Quem_nao_fecha_quadra_de_quatro_fica_de_fora(int inscritos, int esperado)
+    [InlineData(3, 0)]     // menos de 4 não dá nem uma quadra
+    [InlineData(4, 4)]
+    [InlineData(5, 5)]
+    [InlineData(7, 7)]
+    [InlineData(10, 10)]
+    [InlineData(13, 13)]
+    public void Todo_inscrito_de_quatro_pra_cima_entra_no_torneio(int inscritos, int esperado)
     {
-        // Regra que já existia: o Americano joga 2 contra 2, então o total precisa fechar
-        // em quadras de 4. A tela avisa quantos ficaram de fora.
         Assert.Equal(esperado, RodadasAmericano.Aproveitaveis(inscritos));
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     [InlineData(3)]
-    [InlineData(6)]
-    [InlineData(10)]
-    public void Numero_que_nao_fecha_quadra_nao_gera_rodada_nenhuma(int n)
+    public void Menos_de_quatro_nao_gera_rodada_nenhuma(int n)
     {
-        // Montar recebe já a lista aproveitável; se vier torta, sai vazio em vez de gerar
-        // rodada quebrada.
+        // Abaixo de 4 não há partida de padel possível — sai vazio em vez de rodada quebrada.
         Assert.Empty(RodadasAmericano.Montar(Jogadores(n), new Random(7)));
+    }
+
+    // Os tamanhos que antes eram recusados agora rodam, e todo mundo entra em quadra.
+    [Theory]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(10)]
+    [InlineData(13)]
+    public void Tamanho_que_nao_e_multiplo_de_quatro_agora_joga(int n)
+    {
+        var rodadas = RodadasAmericano.Montar(Jogadores(n), new Random(7));
+
+        Assert.NotEmpty(rodadas);
+        var quemJogou = rodadas.SelectMany(r => r)
+            .SelectMany(c => new[] { c.A1, c.A2, c.B1, c.B2 })
+            .Distinct().Count();
+        Assert.Equal(n, quemJogou);
     }
 
     [Theory]
