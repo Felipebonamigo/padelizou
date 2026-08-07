@@ -23,6 +23,11 @@ public class RankingRsSettings
     // ver RankingRsService, que nunca lança e devolve "não consultado".
     public int TimeoutSegundos { get; set; } = 6;
 
+    // Quanto o Padelizou paga a eles por INSCRITO — pessoa, não inscrição (ver
+    // Services/AcertoComORankingRs). Fica em configuração porque é preço combinado:
+    // renegociar não pode exigir republicar o site.
+    public decimal CustoPorInscrito { get; set; } = 1m;
+
     public bool Configurado =>
         !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(BaseUrl);
 }

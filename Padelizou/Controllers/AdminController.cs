@@ -19,17 +19,22 @@ namespace padelizou.Controllers
         private readonly IPushNotificationService _pushNotificationService;
         private readonly IConfiguration _configuration;
         private readonly RegistroResultadosSettings _registro;
+        private readonly RankingRsSettings _rankingRs;
         private readonly ILogger<AdminController>? _logger;
 
         public AdminController(DbPadelContext context, IPushNotificationService pushNotificationService,
             IConfiguration configuration,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
+            // Opcional como o logger: o preço por inscrito tem padrão no próprio settings, e
+            // os testes que só exercitam outras ações não precisam montá-lo.
+            Microsoft.Extensions.Options.IOptions<RankingRsSettings>? rankingRs = null,
             ILogger<AdminController>? logger = null)
         {
             _context = context;
             _pushNotificationService = pushNotificationService;
             _configuration = configuration;
             _registro = registro.Value;
+            _rankingRs = rankingRs?.Value ?? new RankingRsSettings();
             _logger = logger;
         }
 
@@ -979,6 +984,140 @@ namespace padelizou.Controllers
 
             TempData["Sucesso"] = $"Despesa \"{despesa.Descricao}\" apagada.";
             return RedirectToAction("Financeiro");
+        }
+
+        // ── O que devemos ao Ranking RS ───────────────────────────────────────────────────
+        // R$ 1 por INSCRITO, e inscrito é PESSOA: quem joga duas categorias custa um real.
+        // A regra inteira mora em Services/AcertoComORankingRs — inclusive por que ela NÃO
+        // é a mesma da taxa dos 5%.
+
+        // As inscrições de um torneio, já achatadas em "pessoa × categoria".
+        private async Task<List<AcertoComORankingRs.Inscrito>> InscritosDoRankingRsAsync(int torneioId)
+        {
+            var duplas = await _context.Duplas
+                .Where(d => d.Categoria.TorneioId == torneioId).ToListAsync();
+            var americanas = await _context.InscricoesAmericanas
+                .Where(i => i.Categoria.TorneioId == torneioId).ToListAsync();
+
+            var categorias = await _context.Categorias
+                .Where(c => c.TorneioId == torneioId)
+                .ToDictionaryAsync(c => c.Id, c => c.Nome);
+
+            // Os nomes numa consulta só. Vale a pena carregar antes de achatar: sem isso cada
+            // linha da tela de detalhe viraria uma ida ao banco.
+            var jogadorIds = duplas.SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
+                .Where(i => i != null).Select(i => i!.Value)
+                .Concat(americanas.Select(i => i.JogadorId))
+                .Distinct().ToList();
+            var jogadores = await _context.Jogadores
+                .Where(j => jogadorIds.Contains(j.Id))
+                .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+            return AcertoComORankingRs.Achatar(duplas, americanas, categorias, jogadores);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> RankingRs()
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var torneios = await _context.Torneios
+                .Where(t => t.ValidarPeloRankingRs)
+                .OrderByDescending(t => t.DataInicio)
+                .ToListAsync();
+
+            var acertos = await _context.AcertosRankingRs
+                .ToDictionaryAsync(a => a.TorneioId, a => a);
+
+            // Uma linha por torneio, com a contagem de PESSOAS já resolvida.
+            var linhas = new List<AcertoComORankingRs.LinhaDoTorneio>();
+            foreach (var t in torneios)
+            {
+                int pessoas = AcertoComORankingRs.Cobradas(await InscritosDoRankingRsAsync(t.Id)).Count;
+                acertos.TryGetValue(t.Id, out var acerto);
+
+                linhas.Add(new AcertoComORankingRs.LinhaDoTorneio(
+                    t, pessoas,
+                    AcertoComORankingRs.Valor(pessoas, _rankingRs.CustoPorInscrito),
+                    acerto,
+                    // Com inscrição aberta o número ainda se mexe — a tela avisa em vez de
+                    // fingir que o valor está fechado.
+                    InscricoesAbertas: t.Status == "Inscrições Abertas"));
+            }
+
+            ViewBag.Linhas = linhas;
+            ViewBag.CustoPorInscrito = _rankingRs.CustoPorInscrito;
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> RankingRsTorneio(int id)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var cobradas = AcertoComORankingRs.Cobradas(await InscritosDoRankingRsAsync(id));
+
+            ViewBag.Cobradas = cobradas;
+            ViewBag.CustoPorInscrito = _rankingRs.CustoPorInscrito;
+            ViewBag.Valor = AcertoComORankingRs.Valor(cobradas.Count, _rankingRs.CustoPorInscrito);
+            ViewBag.Acerto = await _context.AcertosRankingRs.FirstOrDefaultAsync(a => a.TorneioId == id);
+            return View(torneio);
+        }
+
+        // "Já paguei eles por este torneio": grava a FOTOGRAFIA (quantas pessoas, quanto deu)
+        // e lança a despesa no caixa, pra o Financeiro não ficar devendo essa saída.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarAcertoRankingRs(int id)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            var jaAcertado = await _context.AcertosRankingRs.FirstOrDefaultAsync(a => a.TorneioId == id);
+            var cobradas = torneio == null
+                ? new List<AcertoComORankingRs.PessoaCobrada>()
+                : AcertoComORankingRs.Cobradas(await InscritosDoRankingRsAsync(id));
+
+            var problema = AcertoComORankingRs.ProblemaParaAcertar(torneio, cobradas.Count, jaAcertado);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("RankingRs");
+            }
+
+            var valor = AcertoComORankingRs.Valor(cobradas.Count, _rankingRs.CustoPorInscrito);
+
+            var despesa = new DespesaRegistrada
+            {
+                Descricao = $"Ranking RS — {torneio!.Nome} ({cobradas.Count} inscritos)",
+                Valor = valor,
+                Data = DateTime.Now,
+                RegistradoPorJogadorId = admin.Id,
+            };
+            _context.DespesasRegistradas.Add(despesa);
+            await _context.SaveChangesAsync();
+
+            _context.AcertosRankingRs.Add(new AcertoRankingRs
+            {
+                TorneioId = torneio.Id,
+                PessoasCobradas = cobradas.Count,
+                Valor = valor,
+                AcertadoEm = DateTime.Now,
+                RegistradoPorJogadorId = admin.Id,
+                DespesaId = despesa.Id,
+            });
+            await _context.SaveChangesAsync();
+
+            _logger?.LogInformation("Acerto com o Ranking RS do torneio {TorneioId}: {Pessoas} pessoas, {Valor}.",
+                torneio.Id, cobradas.Count, valor);
+            TempData["Sucesso"] = $"Acerto registrado: {valor:C} por {cobradas.Count} inscritos. A despesa entrou no caixa.";
+            return RedirectToAction("RankingRs");
         }
     }
 }

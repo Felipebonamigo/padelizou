@@ -99,6 +99,10 @@ public partial class DbPadelContext : DbContext
     // Tabela própria de propósito — ver o comentário do modelo.
     public DbSet<DespesaRegistrada> DespesasRegistradas { get; set; }
 
+    // O acerto de contas com o Ranking RS, torneio a torneio. É fotografia, não cálculo — ver
+    // o comentário do modelo.
+    public DbSet<AcertoRankingRs> AcertosRankingRs { get; set; }
+
     // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
     public DbSet<HistoricoDePadelimetro> HistoricosDePadelimetro { get; set; }
 

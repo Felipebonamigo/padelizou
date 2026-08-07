@@ -1,0 +1,165 @@
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Ranking RS - Padelizou";
+
+    var itens = (List<AcertoComORankingRs.LinhaDoTorneio>)ViewBag.Linhas;
+    decimal custo = ViewBag.CustoPorInscrito;
+
+    var aPagar = itens.Where(i => i.EmAberto).ToList();
+    var acertados = itens.Where(i => i.Acerto != null).ToList();
+    var semNinguem = itens.Where(i => i.SemNinguem).ToList();
+
+    decimal totalDevido = aPagar.Sum(i => i.Valor);
+    decimal totalPago = acertados.Sum(i => i.Acerto!.Valor);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Ranking RS</h2>
+            <p class="text-muted mb-0">O que devemos a eles: @custo.ToString("C") por inscrito.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Financeiro" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-wallet2"></i> Financeiro
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Painel
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* A regra que mais gera dúvida na hora de conferir, escrita antes dos números. *@
+    <div class="alert alert-light border small">
+        <i class="bi bi-info-circle"></i>
+        Cobra-se por <strong>pessoa</strong>, não por inscrição: quem joga duas categorias do mesmo
+        torneio custa <strong>@custo.ToString("C")</strong>, não o dobro. Lista de espera e times
+        ficam de fora. Clique num torneio pra ver nome por nome.
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100 @(totalDevido > 0 ? "border-warning border-2" : "")">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-hourglass-split"></i> A pagar</div>
+                    <div class="fs-3 fw-bold @(totalDevido > 0 ? "text-warning" : "text-muted")">@totalDevido.ToString("C")</div>
+                    <div class="small text-muted">@aPagar.Count torneio@(aPagar.Count == 1 ? "" : "s") em aberto</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small"><i class="bi bi-check-circle-fill text-success"></i> Já acertado</div>
+                    <div class="fs-3 fw-bold text-success">@totalPago.ToString("C")</div>
+                    <div class="small text-muted">@acertados.Count torneio@(acertados.Count == 1 ? "" : "s")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!itens.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Nenhum torneio usa o Ranking RS ainda.<br />
+                <span class="small">A validação é escolha do organizador, torneio a torneio.</span>
+            </div>
+        </div>
+    }
+
+    @if (aPagar.Any())
+    {
+        <h5 class="fw-bold mb-2">Em aberto</h5>
+        @foreach (var i in aPagar)
+        {
+            <div class="card border-0 shadow-sm mb-2">
+                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <a asp-action="RankingRsTorneio" asp-route-id="@i.Torneio.Id"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">
+                            @i.Torneio.Nome
+                        </a>
+                        <span class="text-muted small ms-1">(@i.Torneio.Codigo)</span><br />
+                        <span class="small text-muted">
+                            @i.Pessoas pessoa@(i.Pessoas == 1 ? "" : "s") × @custo.ToString("C")
+                            @if (i.Torneio.DataInicio != null)
+                            {
+                                <text>· @i.Torneio.DataInicio.Value.ToString("dd/MM/yyyy")</text>
+                            }
+                        </span>
+                        @if (i.InscricoesAbertas)
+                        {
+                            <br />
+                            <span class="badge text-bg-warning">
+                                inscrições abertas — o número ainda muda
+                            </span>
+                        }
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-5 fw-bold" style="color: var(--padel-green);">@i.Valor.ToString("C")</span>
+                        <form asp-action="RegistrarAcertoRankingRs" method="post"
+                              onsubmit="return confirm('Registrar que você já pagou @i.Valor.ToString("C") ao Ranking RS por @i.Torneio.Nome? Isso lança a despesa no caixa.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@i.Torneio.Id" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                                Já paguei
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (acertados.Any())
+    {
+        <h5 class="fw-bold mt-4 mb-2 text-muted">Já acertados</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr class="text-muted small">
+                        <th>Torneio</th>
+                        <th>Pessoas</th>
+                        <th>Quando</th>
+                        <th class="text-end">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in acertados)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-action="RankingRsTorneio" asp-route-id="@i.Torneio.Id"
+                                   class="text-decoration-none">@i.Torneio.Nome</a>
+                            </td>
+                            @* O número do ACERTO, não o de agora: a lista de inscritos continua
+                               se mexendo depois, e o que foi combinado não muda. *@
+                            <td class="small">@i.Acerto!.PessoasCobradas</td>
+                            <td class="small text-muted">@i.Acerto.AcertadoEm.ToString("dd/MM/yyyy")</td>
+                            <td class="text-end fw-semibold">@i.Acerto.Valor.ToString("C")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (semNinguem.Any())
+    {
+        <h6 class="fw-bold mt-4 mb-2 text-muted">Sem inscritos (nada a pagar)</h6>
+        <p class="text-muted small">
+            @string.Join(" · ", semNinguem.Select(i => i.Torneio.Nome))
+        </p>
+    }
+</div>
