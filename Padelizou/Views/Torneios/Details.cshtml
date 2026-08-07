@@ -1082,7 +1082,7 @@
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge bg-danger">recusa mantida</span>
+                                                        <span class="badge bg-danger">não liberado por você</span>
                                                     }
                                                     @if (b.DecididoEm is DateTime quando)
                                                     {
@@ -1110,14 +1110,18 @@
                                             }
                                             @if (b.Situacao != Padelizou.Models.SituacaoDoBloqueio.Mantido)
                                             {
+                                                @* "Não liberar" e não "Manter": o par do botão é "Liberar", e o
+                                                   organizador precisa ler o que VAI ACONTECER, não o estado que
+                                                   fica. "Manter" só faz sentido pra quem já sabe que existe uma
+                                                   recusa em pé — que é justamente quem não precisa do botão. *@
                                                 <form asp-controller="Torneios" asp-action="ManterBloqueioRanking" method="post"
-                                                      data-confirmar-titulo="Manter a recusa?"
+                                                      data-confirmar-titulo="Não liberar a inscrição?"
                                                       data-confirmar="@(Padelizou.Services.NomeBonito.Formatar(b.NomeConsultado)) continua sem conseguir se inscrever em @(b.Categoria?.Nome)."
-                                                      data-confirmar-ok="Manter recusa"
+                                                      data-confirmar-ok="Não liberar"
                                                       data-confirmar-tom="perigo">
                                                     <input type="hidden" name="id" value="@b.Id" />
                                                     <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                        <i class="bi bi-x-lg"></i> Manter
+                                                        <i class="bi bi-x-lg"></i> Não liberar
                                                     </button>
                                                 </form>
                                             }

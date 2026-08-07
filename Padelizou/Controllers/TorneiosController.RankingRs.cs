@@ -83,7 +83,9 @@ namespace Padelizou.Controllers
 
             await DecidirAsync(bloqueio, SituacaoDoBloqueio.Mantido);
 
-            TempData["Sucesso"] = $"Recusa mantida para {NomeBonito.Formatar(bloqueio.NomeConsultado)}. "
+            // "Não liberado" e não "recusa mantida": o organizador acabou de clicar em
+            // "Não liberar", e a confirmação tem que devolver a palavra que ele usou.
+            TempData["Sucesso"] = $"{NomeBonito.Formatar(bloqueio.NomeConsultado)} não foi liberado(a). "
                 + "A pessoa continua sem conseguir se inscrever nesta categoria.";
             return RedirectToAction(nameof(Details), new { id = bloqueio.TorneioId });
         }
