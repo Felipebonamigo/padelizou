@@ -23,8 +23,8 @@ public class PontosDoAmericanoTests
     }
 
     [Theory]
-    [InlineData(4, 50)]    // metade da gente, metade do ponto
-    [InlineData(8, 100)]
+    [InlineData(8, 100)]   // a referência
+    [InlineData(9, 113)]
     [InlineData(12, 150)]
     [InlineData(16, 200)]  // o teto do Americano livre: o dobro
     public void Ganhar_vale_mais_quanto_mais_gente_tem_em_quadra(int pessoas, int esperado)
@@ -32,15 +32,37 @@ public class PontosDoAmericanoTests
         Assert.Equal(esperado, PontosDoAmericano.Pontos(colocacao: 1, pessoas: pessoas));
     }
 
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(7)]
+    public void Abaixo_de_8_pessoas_nao_vale_ponto_nenhum(int pessoas)
+    {
+        // 4 ou 5 pessoas é o tamanho em que quatro conhecidos fabricam resultado sem esforço,
+        // e sem precisar combinar nada — basta jogar mole. O peso sozinho não resolvia: só
+        // fazia o ponto ser menor, e ponto menor toda semana continua sendo ponto de graça.
+        Assert.Equal(0, PontosDoAmericano.Pontos(colocacao: 1, pessoas: pessoas));
+        Assert.Equal(0, PontosDoAmericano.Pontos(colocacao: 2, pessoas: pessoas));
+        Assert.False(PontosDoAmericano.PontuaNesteTamanho(pessoas));
+    }
+
+    [Fact]
+    public void O_piso_e_exatamente_8_e_nao_7()
+    {
+        Assert.False(PontosDoAmericano.PontuaNesteTamanho(7));
+        Assert.True(PontosDoAmericano.PontuaNesteTamanho(8));
+        Assert.Equal(100, PontosDoAmericano.Pontos(colocacao: 1, pessoas: 8));
+    }
+
     [Fact]
     public void Vencer_um_americano_pequeno_vale_menos_que_ser_vice_num_grande()
     {
-        // É a razão de existir o peso: sem ele, juntar 3 amigos toda semana renderia o mesmo
-        // que enfrentar 15 pessoas.
-        var campeaoDe4 = PontosDoAmericano.Pontos(colocacao: 1, pessoas: 4);   // 50
+        // É a razão de existir o peso: sem ele, um rodízio de 8 renderia o mesmo que
+        // enfrentar 15 pessoas.
+        var campeaoDe8 = PontosDoAmericano.Pontos(colocacao: 1, pessoas: 8);   // 100
         var viceDe16 = PontosDoAmericano.Pontos(colocacao: 2, pessoas: 16);    // 120
 
-        Assert.True(viceDe16 > campeaoDe4);
+        Assert.True(viceDe16 > campeaoDe8);
     }
 
     [Fact]
@@ -64,13 +86,15 @@ public class PontosDoAmericanoTests
     [Fact]
     public void Meio_ponto_arredonda_pra_cima_sempre()
     {
-        // 5 pessoas, 4º lugar: 25 × 0,625 = 15,625 → 16. E o caso que pega o padrão do .NET:
-        // com ToEven (o default de Math.Round) dois jogadores com a mesma conta receberiam
-        // pontos diferentes conforme a paridade, e isso não se explica pra ninguém.
-        Assert.Equal(16, PontosDoAmericano.Pontos(colocacao: 4, pessoas: 5));
+        // 10 pessoas (2 grupos de 5), do 5º lugar pra trás: 10 × 1,25 = 12,5.
+        //
+        // É o caso que pega o padrão do .NET: com ToEven (o default de Math.Round) isso viraria
+        // 12, e 37,5 viraria 38 — dois jogadores com a mesma conta receberiam pontos diferentes
+        // conforme a paridade, e isso não se explica pra ninguém.
+        Assert.Equal(13, PontosDoAmericano.Pontos(colocacao: 5, pessoas: 10));
 
-        // 25 × (4/8) = 12,5 → 13, e não 12.
-        Assert.Equal(13, PontosDoAmericano.Pontos(colocacao: 4, pessoas: 4));
+        // 25 × (9/8) = 28,125 → 28: pra baixo quando é pra baixo mesmo.
+        Assert.Equal(28, PontosDoAmericano.Pontos(colocacao: 4, pessoas: 9));
     }
 
     [Theory]
@@ -79,6 +103,17 @@ public class PontosDoAmericanoTests
     public void Numero_impossivel_vale_zero_em_vez_de_estourar(int pessoas)
     {
         Assert.Equal(0, PontosDoAmericano.Pontos(colocacao: 1, pessoas: pessoas));
+        Assert.Equal(0m, PontosDoAmericano.CustoParaPontuar(pessoas));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(7)]
+    public void Quem_nao_pontua_tambem_nao_paga(int pessoas)
+    {
+        // Um Americano que fechou com 6 pessoas fica fora do ranking pelo piso. Cobrar por um
+        // ponto que não existe seria vender o que não foi entregue — e o organizador não tem
+        // como garantir quantos aparecem no sábado.
         Assert.Equal(0m, PontosDoAmericano.CustoParaPontuar(pessoas));
     }
 

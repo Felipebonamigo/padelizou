@@ -96,6 +96,10 @@
                                     Quem terminar na frente leva ponto, e o valor cresce com o tamanho:
                                     ganhar um Americano de 16 vale o dobro de ganhar um de 8.
                                     <div class="mt-2">
+                                        Vale <strong>a partir de @Padelizou.Services.PontosDoAmericano.MinimoParaPontuar inscritos</strong>.
+                                        Fechou com menos, ninguém pontua — e você não paga nada.
+                                    </div>
+                                    <div class="mt-2">
                                         O Americano <strong>não pontua no ranking oficial</strong> em nenhum caso — lá é
                                         torneio de chave. Este é o ranking dele, separado.
                                     </div>
@@ -1133,6 +1137,15 @@
 
         var esperados = parseInt((document.getElementById('pdzDuplasEsperadas') || {}).value, 10);
         alvo.style.display = 'block';
+
+        // O piso aparece aqui também, e não só no texto acima: é no número que ele acabou de
+        // digitar que a pessoa percebe que o Americano dela não alcança.
+        if (esperados > 0 && esperados < 8) {
+            alvo.innerHTML = 'Com <strong>' + esperados + '</strong> não vale ponto — ' +
+                'o Ranking Americano começa em <strong>8 inscritos</strong>. Nada a pagar.';
+            return;
+        }
+
         alvo.innerHTML = esperados > 0
             ? 'Com <strong>' + esperados + '</strong> inscritos, dá <strong>R$ ' +
               (esperados * 5).toFixed(2).replace('.', ',') + '</strong>. ' +

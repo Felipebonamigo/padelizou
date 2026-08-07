@@ -211,6 +211,18 @@ estraga os dois — o oficial deixa de medir torneio, e o Americano fica sem lug
 - **Só pontua se o organizador contratar**: **R$ 5 por pessoa inscrita**, decidido na
   criação do Americano — a tela avisa o preço ali, antes de ele publicar.
   Não contratou, o Americano roda normal e não gera ponto nenhum.
+- **Piso de 8 inscritos** (decisão do Felipe, 07/08/2026). Abaixo disso não vale ponto
+  e não se cobra nada. 4 ou 5 pessoas é o tamanho em que quatro conhecidos fabricam
+  resultado sem esforço — e o peso sozinho não resolvia, só fazia o ponto ser menor;
+  ponto menor toda semana continua sendo ponto de graça. O piso é o mesmo 8 da
+  referência de peso, de propósito: "vale a partir de 8, e 8 é o peso 1" é uma frase só.
+- **Pontos = colocação × peso** (`Services/PontosDoAmericano`). Tabela 100/60/40/25/10
+  por colocação — a mesma FORMA da oficial, porque as duas aparecem no mesmo perfil e
+  duas escalas fariam a pessoa comparar números que não se comparam. Peso = pessoas ÷ 8,
+  linear: com o teto de 16 o peso vai no máximo a 2×, então não há a distorção de uma
+  tabela sem teto. ⚠️ Arredondamento **AwayFromZero**, não o `ToEven` padrão do .NET —
+  com ToEven, 12,5 vira 12 e 15,5 vira 16, e dois jogadores com a mesma conta receberiam
+  pontos diferentes conforme a paridade.
 - **Grátis até 16 pessoas** vale pro Americano em si (o evento não tem taxa). O R$ 5
   é outra coisa: é o preço de VALER PONTO, e independe do tamanho.
 - Acima de 16 pessoas o Americano não é criado sozinho — a tela manda falar com o

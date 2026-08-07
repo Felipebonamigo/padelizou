@@ -15,6 +15,18 @@ public static class PontosDoAmericano
     // sábado (2 quadras, 7 rodadas) e o número que fecha "cada um com cada um" sem sobra.
     public const int TamanhoDeReferencia = 8;
 
+    // PISO: abaixo de 8 pessoas não vale ponto nenhum (decisão do Felipe, 07/08/2026).
+    //
+    // 4 ou 5 pessoas é o tamanho em que quatro conhecidos fabricam resultado sem esforço — e
+    // ninguém precisa nem combinar nada, basta jogar mole. O peso sozinho não resolvia: só
+    // fazia o ponto ser menor, e ponto menor toda semana continua sendo ponto de graça.
+    //
+    // 8 é o mesmo número da referência de propósito: o rodízio que vale ponto é o rodízio de
+    // verdade, e explicar "vale a partir de 8, e 8 é o peso 1" é uma frase só.
+    public const int MinimoParaPontuar = 8;
+
+    public static bool PontuaNesteTamanho(int pessoas) => pessoas >= MinimoParaPontuar;
+
     // Só as quatro primeiras colocações valem diferente. Da 5ª pra trás é "jogou" — no
     // Americano todo mundo joga contra todo mundo, então terminar em 9º de 16 não é uma
     // conquista menor que terminar em 9º de 12; é a mesma coisa.
@@ -40,7 +52,7 @@ public static class PontosDoAmericano
     // 3,5 vira 4 — dois jogadores com a mesma conta receberiam pontos diferentes conforme a
     // paridade, e ninguém consegue explicar isso pra quem perguntar.
     public static int Pontos(int colocacao, int pessoas) =>
-        pessoas <= 0 || colocacao <= 0
+        !PontuaNesteTamanho(pessoas) || colocacao <= 0
             ? 0
             : (int)Math.Round(PontosPorColocacao(colocacao) * Peso(pessoas), MidpointRounding.AwayFromZero);
 
@@ -50,6 +62,9 @@ public static class PontosDoAmericano
     // mudar sem deploy faria alguém publicar um Americano prometendo um valor e receber outro.
     public const decimal PrecoPorPessoa = 5m;
 
+    // Não pontuou, não paga. Um Americano que fechou com 6 pessoas fica fora do ranking pelo
+    // piso — cobrar por um ponto que não existe seria vender o que não foi entregue, e o
+    // organizador não tem como garantir quantos vão aparecer no sábado.
     public static decimal CustoParaPontuar(int pessoas) =>
-        pessoas <= 0 ? 0m : PrecoPorPessoa * pessoas;
+        !PontuaNesteTamanho(pessoas) ? 0m : PrecoPorPessoa * pessoas;
 }
