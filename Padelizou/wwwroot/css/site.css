@@ -2730,9 +2730,16 @@ button, a, input, select { touch-action: manipulation; }
    Altura FIXA e definida aqui (e não em style inline em dois ramos da view): card de
    altura variável desalinha a grade, e o caso com capa e o sem capa têm que medir
    igual. */
+/* 260px, e não os 160 de antes (Felipe, 08/08/2026: "arruma pra ficar um tamanho maior a
+   imagem"). O folder de torneio é quase sempre RETRATO — cartaz de Instagram —, e num
+   retângulo baixo o `contain` encolhe a arte até virar uma tirinha no meio, com o fundo
+   borrado ocupando quase toda a caixa. Mais altura é o que devolve a arte pro cartão.
+
+   Continua FIXA: card de altura variável desalinha a grade, e o caso com capa e o sem capa
+   têm que medir igual. */
 .pdz-capa-torneio {
     position: relative;
-    height: 160px;
+    height: 260px;
     overflow: hidden;
     background: var(--pdz-navy-900);
 }

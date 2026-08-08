@@ -353,9 +353,16 @@ namespace Padelizou.Controllers
             var jaNoTorneio = await QuemJaEstaNoTorneio.DentreAsync(
                 _context, torneioId, new[] { jogador1.Id, jogador2?.Id ?? 0 });
 
-            // O parceiro ainda desconhecido paga cheio: não dá pra saber se ele repete, e
-            // errar pra menos tira dinheiro do organizador sem ele ter escolhido.
-            var quemPaga = new[] { jaNoTorneio.Contains(jogador1.Id), jogador2 != null && jaNoTorneio.Contains(jogador2.Id) };
+            // ⚠️ SÓ ENTRA NA CONTA QUEM ESTÁ NA INSCRIÇÃO (Felipe, 08/08/2026). Dupla ainda
+            // "procurando parceiro" custa UMA pessoa: cobrar duas seria cobrar por alguém que
+            // não foi definido — a mesma régua que TaxaDoTorneioExterno já usava na base da
+            // taxa. Quando o parceiro entrar, o valor é recalculado (ver TrocarParceiro).
+            //
+            // Quem repete no torneio paga o preço de segunda; o parceiro que ainda não existe
+            // não entra aqui de jeito nenhum.
+            var quemPaga = jogador2 == null
+                ? new[] { jaNoTorneio.Contains(jogador1.Id) }
+                : new[] { jaNoTorneio.Contains(jogador1.Id), jaNoTorneio.Contains(jogador2.Id) };
 
             var dupla = new Dupla
             {
@@ -508,7 +515,27 @@ namespace Padelizou.Controllers
                 : new List<InscricaoRepetida.Achado>();
 
             var antigo = dupla.Jogador2;
+
+            // ⚠️ A conta do parceiro é feita ANTES de gravá-lo na dupla. Depois, esta própria
+            // inscrição já o coloca "no torneio", e ele ganharia o preço de segunda inscrição
+            // por causa de si mesmo.
+            var precisaCobrarOSegundo = antigo == null;
+            var segundoRepete = precisaCobrarOSegundo
+                && await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novo.Id);
+
             dupla.Jogador2Id = novo.Id;
+
+            // A dupla estava SOZINHA e ganhou o segundo nome: o valor da inscrição passa a
+            // contar duas pessoas. Antes de 08/08/2026 isso não existia porque a dupla sem
+            // parceiro já era cobrada por dois — agora ela paga um, e a parte do parceiro
+            // entra aqui.
+            //
+            // ⚠️ ISTO NÃO COBRA NINGUÉM: só corrige o número que os somatórios de dinheiro, a
+            // devolução e a base da taxa leem. A diferença é acertada com o organizador.
+            if (precisaCobrarOSegundo && dupla.ValorInscricao is decimal valorAntes)
+            {
+                dupla.ValorInscricao = valorAntes + PrecoDaInscricao.PorPessoa(torneio, segundoRepete);
+            }
 
             if (absorvidas.Count > 0)
             {
@@ -718,7 +745,20 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Convite), new { token });
             }
 
+            // Mesma conta da troca por CPF, e pelo mesmo motivo: perguntada ANTES de gravar,
+            // senão esta inscrição faria a pessoa ganhar o preço de segunda por causa de si
+            // mesma. Ver TrocarParceiro.
+            var euRepito = await QuemJaEstaNoTorneio.EstaAsync(_context, torneio!.Id, eu.Id);
+
             dupla.Jogador2Id = eu.Id;
+
+            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas. Não cobra
+            // ninguém — corrige o número que os somatórios leem.
+            if (dupla.ValorInscricao is decimal valorAntesDoConvite)
+            {
+                dupla.ValorInscricao = valorAntesDoConvite + PrecoDaInscricao.PorPessoa(torneio, euRepito);
+            }
+
             // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
             // se o parceiro saísse depois.
             dupla.ConviteToken = null;

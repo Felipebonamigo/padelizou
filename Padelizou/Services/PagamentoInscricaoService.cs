@@ -269,13 +269,27 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private async Task<decimal> ValorDaInscricaoAsync(
         Torneio torneio, bool inscricaoDeDupla, IEnumerable<int?> jogadoresConhecidos, int impedimentos)
     {
-        int pessoas = inscricaoDeDupla ? 2 : 1;
+        // ⚠️ QUANTAS PESSOAS a inscrição cobra sai de QUEM ESTÁ NELA, não do formato dela
+        // (Felipe, 08/08/2026). Antes o teto virava piso: dupla cobrava 2 mesmo com o segundo
+        // nome em branco, então quem entrava "procurando parceiro" pagava por DOIS — sozinho,
+        // e sem saber quem seria o outro.
+        //
+        // A régua já existia do outro lado: TaxaDoTorneioExterno.PessoasInscritas conta dupla
+        // sem parceiro como 1 ("cobrar por alguém que ainda não foi definido seria cobrar por
+        // fantasma"). Eram as duas contas discordando sobre a mesma inscrição — o site cobrava
+        // 2 e a base da taxa contava 1.
+        //
+        // `inscricaoDeDupla` continua valendo como TETO: numa dupla entram no máximo dois.
+        var ids = jogadoresConhecidos
+            .Where(id => id.HasValue).Select(id => id!.Value)
+            .Take(inscricaoDeDupla ? 2 : 1)
+            .ToList();
 
-        var ids = jogadoresConhecidos.Where(id => id.HasValue).Select(id => id!.Value).Take(pessoas).ToList();
         var jaEstao = await QuemJaEstaNoTorneio.DentreAsync(_context, torneio.Id, ids);
-
         var repetindo = ids.Select(id => jaEstao.Contains(id)).ToList();
-        while (repetindo.Count < pessoas) repetindo.Add(false);
+
+        // Ninguém conhecido não é inscrição de graça: cobra uma pessoa, pelo preço cheio.
+        if (repetindo.Count == 0) repetindo.Add(false);
 
         return PrecoDaInscricao.Total(torneio, repetindo, impedimentos);
     }
