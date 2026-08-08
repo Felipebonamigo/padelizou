@@ -147,6 +147,57 @@
     </div>
 }
 
+@* ── PAGAR AGORA: a MINHA inscrição está sem pagamento ────────────────────────────────
+   Só aparece em torneio que cobra pelo site e que não exige pagamento na hora de entrar —
+   ali a vaga já é sua e o dinheiro vem depois. Até 08/08/2026 esse arranjo não tinha saída
+   nenhuma: o app não gerava cobrança pra quem já estava inscrito, e o torneio "cobrava pelo
+   site" sem que ninguém conseguisse pagar por ele.
+
+   A escolha da forma vai junto (ForcarEscolhaDeForma) porque sem ela a cobrança nasce em
+   "UNDEFINED" e o organizador paga a taxa CHEIA em vez da de Pix/boleto. *@
+@{
+    var minhaDuplaNaoPaga = ViewBag.MinhaInscricaoNaoPagaDuplaId as int?;
+    var minhaAmericanaNaoPaga = ViewBag.MinhaInscricaoNaoPagaAmericanaId as int?;
+    var valorDaMinhaInscricao = ViewBag.MinhaInscricaoNaoPagaValor as decimal?;
+}
+@if (minhaDuplaNaoPaga != null || minhaAmericanaNaoPaga != null)
+{
+    <div class="alert alert-warning border-0 shadow-sm">
+        <p class="fw-bold mb-1"><i class="bi bi-cash-coin"></i> Sua inscrição está sem pagamento</p>
+        <p class="small mb-3">
+            A vaga já é sua — o pagamento é o que falta.
+            @if (valorDaMinhaInscricao is decimal valor)
+            {
+                <text>São <strong>@valor.ToString("C")</strong>.</text>
+            }
+        </p>
+
+        <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
+            <input type="hidden" name="torneioId" value="@Model.Id" />
+            @if (minhaDuplaNaoPaga is int duplaPagar)
+            {
+                <input type="hidden" name="duplaId" value="@duplaPagar" />
+            }
+            else
+            {
+                <input type="hidden" name="inscricaoAmericanaId" value="@minhaAmericanaNaoPaga" />
+            }
+
+            @{
+                ViewData["ForcarEscolhaDeForma"] = true;
+            }
+            <partial name="_EscolhaFormaPagamento" model="Model" />
+            @{
+                ViewData["ForcarEscolhaDeForma"] = null;
+            }
+
+            <button type="submit" class="btn btn-padel rounded-pill">
+                <i class="bi bi-credit-card me-1"></i> Pagar agora
+            </button>
+        </form>
+    </div>
+}
+
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@

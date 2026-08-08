@@ -16,7 +16,18 @@
     duplicar seria garantir que um dos dois ficaria pra trás numa mudança futura.
 *@
 
-@if (Model.FormaPagamento == "OnlineTodas" && Model.PagamentoObrigatorioNaInscricao && Model.PrecoInscricao > 0)
+@*
+    ⚠️ `ForcarEscolhaDeForma` existe pro "pagar agora" de quem JÁ está inscrito. Ali o torneio
+    é, por definição, um que NÃO exige pagamento na inscrição — então a condição de cima
+    esconderia a escolha, o `formaPagamentoEscolhida` chegaria nulo no servidor e
+    CobrancaDoTorneio.Montar cairia em "UNDEFINED", que cobra a taxa CHEIA (15%) em vez dos 10%
+    do Pix e do boleto. Ou seja: sumir com esta caixa não é detalhe de tela, é dinheiro a mais
+    saindo da fatia do organizador.
+*@
+@{
+    var forcarEscolha = ViewData["ForcarEscolhaDeForma"] as bool? == true;
+}
+@if (Model.FormaPagamento == "OnlineTodas" && (Model.PagamentoObrigatorioNaInscricao || forcarEscolha) && Model.PrecoInscricao > 0)
 {
     var taxas = TaxasOpcoes.Value;
 

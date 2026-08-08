@@ -411,6 +411,100 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id = torneio.Id });
         }
 
+        // ---- "Pagar agora" de uma inscrição que já existe ----
+        //
+        // O par que faltava do torneio que GARANTE A VAGA e cobra depois
+        // (`PagamentoObrigatorioNaInscricao == false`). Sem ele, a combinação "cobra pelo site
+        // + a vaga não depende do pagamento" não levava a lugar nenhum: os dois únicos
+        // caminhos que criam cobrança eram os de inscrição, então quem já estava dentro NUNCA
+        // conseguia pagar pelo app — o torneio cobrava pelo site só no nome.
+        //
+        // Achado no NATA PADEL TOUR, quando o Felipe se inscreveu e não apareceu pagamento.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PagarInscricao(
+            int torneioId, int? duplaId, int? inscricaoAmericanaId, string? formaPagamentoEscolhida = null)
+        {
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+
+            var jogadorId = ObterJogadorIdLogado() ?? 0;
+            if (jogadorId <= 0) return Forbid();
+
+            IActionResult Recusar(string motivo)
+            {
+                TempData["Erro"] = motivo;
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
+            if (!_pagamentos.PodeCobrar(torneio, recebedor))
+                return Recusar("Este torneio não está cobrando pelo site.");
+
+            // ⚠️ A trava de QUEM pode pagar O QUÊ. Sem ela, um id trocado na mão pagaria (e
+            // marcaria como paga) a inscrição de outra pessoa — e o dinheiro sairia do bolso
+            // de quem clicou.
+            bool ehDupla = duplaId.HasValue;
+            bool inscricaoDeDupla;
+            int impedimentos;
+            DadosPagamentoDeInscricao dados;
+
+            if (ehDupla)
+            {
+                var dupla = await _context.Duplas
+                    .Include(d => d.Categoria)
+                    .FirstOrDefaultAsync(d => d.Id == duplaId!.Value);
+
+                if (dupla == null || dupla.Categoria.TorneioId != torneioId)
+                    return Recusar("Inscrição não encontrada neste torneio.");
+
+                if (dupla.Jogador1Id != jogadorId && dupla.Jogador2Id != jogadorId)
+                    return Recusar("Só quem está nesta inscrição pode pagá-la.");
+
+                if (dupla.Pago) return Recusar("Esta inscrição já está paga.");
+
+                inscricaoDeDupla = true;
+                impedimentos = (dupla.ImpedimentoSextaNoite ? 1 : 0)
+                             + (dupla.ImpedimentoSabadoManha ? 1 : 0)
+                             + (dupla.ImpedimentoSabadoTarde ? 1 : 0);
+                dados = new DadosPagamentoDeInscricao(torneioId, dupla.Id, null);
+            }
+            else if (inscricaoAmericanaId is int americanaId)
+            {
+                var inscricao = await _context.InscricoesAmericanas
+                    .Include(i => i.Categoria)
+                    .FirstOrDefaultAsync(i => i.Id == americanaId);
+
+                if (inscricao == null || inscricao.Categoria.TorneioId != torneioId)
+                    return Recusar("Inscrição não encontrada neste torneio.");
+
+                if (inscricao.JogadorId != jogadorId)
+                    return Recusar("Só quem está nesta inscrição pode pagá-la.");
+
+                if (inscricao.Pago) return Recusar("Esta inscrição já está paga.");
+
+                inscricaoDeDupla = false;
+                impedimentos = 0;
+                dados = new DadosPagamentoDeInscricao(torneioId, null, inscricao.Id);
+            }
+            else
+            {
+                return Recusar("Não sei qual inscrição pagar.");
+            }
+
+            var pagador = await _context.Jogadores.FindAsync(jogadorId);
+            if (pagador == null) return Forbid();
+
+            var checkout = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
+                torneio, recebedor!, pagador, inscricaoDeDupla, impedimentos, dados,
+                formaPagamentoEscolhida);
+
+            if (checkout != null) return Redirect(checkout);
+
+            return Recusar("Não foi possível gerar a cobrança agora. Tente novamente em instantes.");
+        }
+
         // ---- Reabrir as inscrições ----
         //
         // O par que faltava do EncerrarInscricoes, que era de mão única: um clique e nunca
