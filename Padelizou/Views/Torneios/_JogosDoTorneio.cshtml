@@ -166,6 +166,7 @@
                 }
             });
         });
+
     </script>
 }
 
@@ -388,16 +389,25 @@
                                    11px no canto — pequeno pra achar com a quadra rolando e
                                    sem parecer clicável. *@
                                 <div class="mt-3 d-flex gap-2">
-                                    @* FINALIZAR daqui mesmo: o placar já está na tela e já foi
-                                       salvo (cada toque no −/+ grava). Abrir a tela cheia só
-                                       pra apertar "finalizar" era uma ida e volta por jogo. *@
-                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1"
+                                    @* FINALIZAR daqui mesmo: abrir a tela cheia só pra apertar
+                                       "finalizar" era uma ida e volta por jogo.
+
+                                       ⚠️ O placar vai JUNTO, nos hidden abaixo. Os números
+                                       editáveis do card pertencem ao formulário de salvar em
+                                       LOTE (form="pdzPlacaresAoVivo"), então não viriam neste
+                                       submit: quem digitava 6 x 1 e apertava Finalizar direto
+                                       encerrava com o que estava gravado, e o aviso repetia o
+                                       número velho. O script no fim do arquivo copia o que
+                                       está na tela pra cá e reescreve o aviso. *@
+                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1 pdz-form-finalizar"
                                           data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
                                           data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
                                           data-confirmar-ok="Finalizar">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="partidaId" value="@jogo.Id" />
                                         <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                                        <input type="hidden" name="games1" value="@(jogo.GamesDupla1 ?? 0)" />
+                                        <input type="hidden" name="games2" value="@(jogo.GamesDupla2 ?? 0)" />
                                         <button type="submit" class="btn btn-padel w-100 fw-bold">
                                             <i class="bi bi-flag-fill"></i> Finalizar
                                         </button>
@@ -577,6 +587,48 @@
                 </form>
             </div>
         </div>
+
+        @* FINALIZAR ENCERRA COM O QUE ESTÁ NA TELA (Felipe, 08/08/2026).
+
+           Ele marcou 6 x 1 no card, apertou Finalizar e o aviso ofereceu encerrar "0 x 1" —
+           o placar GRAVADO. Os números editáveis do card pertencem ao formulário de salvar em
+           LOTE (form="pdzPlacaresAoVivo"), então não iam neste submit, e o texto do aviso é
+           renderizado pelo servidor com o valor do banco. Duas cópias do mesmo número, e a que
+           o organizador estava OLHANDO era justamente a que não valia.
+
+           Fica sob `ehOrganizador` porque só ele vê o botão de finalizar — e o servidor não
+           depende disto: ele recebe games1/games2 e aplica o mesmo PlacarValido do salvar em
+           lote, então tela velha em cache não encerra com número inventado. *@
+        <script>
+            document.addEventListener('submit', function (e) {
+                var form = e.target.closest ? e.target.closest('form.pdz-form-finalizar') : null;
+                if (!form) return;
+
+                var card = form.closest('.pdz-live-card');
+                if (!card) return;
+
+                var naTela = function (nome) {
+                    var campo = card.querySelector('input.pdz-live-games[name="' + nome + '"]');
+                    if (!campo) return null;
+                    var n = parseInt(campo.value, 10);
+                    return isNaN(n) ? null : Math.max(0, n);
+                };
+
+                var g1 = naTela('games1'), g2 = naTela('games2');
+                if (g1 === null || g2 === null) return;   // sem os campos, vale o de sempre
+
+                form.querySelector('input[name="games1"]').value = g1;
+                form.querySelector('input[name="games2"]').value = g2;
+
+                // O aviso passa a falar o mesmo número que o card. Só o trecho do placar é
+                // trocado: o resto da frase (Padelímetro, avisos, fase seguinte) continua
+                // valendo e é o que faz a confirmação ser informada em vez de um "tem certeza?".
+                form.dataset.confirmar = form.dataset.confirmar
+                    .replace(/placar \d+ x \d+/, 'placar ' + g1 + ' x ' + g2);
+            // CAPTURA (true): o confirmar.js escuta o submit na borbulha e lê o data-confirmar.
+            // Na borbulha, o modal já teria aberto com o texto velho.
+            }, true);
+        </script>
 
         <script>
             // O botão do card carrega o jogo A; o select não pode oferecer o próprio A.
