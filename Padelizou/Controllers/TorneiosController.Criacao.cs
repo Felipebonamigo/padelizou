@@ -791,6 +791,9 @@ namespace Padelizou.Controllers
             // Nulo = aba antiga sem o campo: a contagem gravada FICA. Trocar pra "Ate" por
             // omissão mudaria a regra do jogo de um torneio em andamento, calado.
             string? contagemDeGames = null,
+            // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
+            // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
+            string? formaPagamento = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -844,6 +847,38 @@ namespace Padelizou.Controllers
                 TempData["Erro"] = "A duração de cada jogo precisa ser de pelo menos 1 minuto. "
                                  + "Pra jogar sem hora marcada, use \"Sem horário previsto\".";
                 return RedirectToAction("Details", new { id });
+            }
+
+            // ── Trocar a forma de recebimento (só enquanto não há inscrito) ─────────────
+            // Nulo ou igual ao que já está gravado não é troca: a aba antiga em cache não
+            // manda o campo, e mexer aqui por omissão mudaria como o torneio cobra sem
+            // ninguém ter pedido.
+            if (formaPagamento != null && formaPagamento != torneio.FormaPagamento)
+            {
+                if (!FormaDePagamentoDoTorneio.Existe(formaPagamento))
+                {
+                    TempData["Erro"] = "Escolha como você vai receber as inscrições.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                if (!FormaDePagamentoDoTorneio.PodeTrocar(await TemAlguemInscritoAsync(id)))
+                {
+                    TempData["Erro"] = FormaDePagamentoDoTorneio.PorqueTravou;
+                    return RedirectToAction("Details", new { id });
+                }
+
+                // A mesma recusa da criação, pelo mesmo motivo: "pelo site" sem conta
+                // conectada é o torneio rodando e NENHUMA cobrança nascendo, calado. A tela
+                // já trava os rádios, mas quem manda o formulário na mão passaria direto.
+                if (FormaDePagamentoDoTorneio.EhPeloSite(formaPagamento) && precoInscricao > 0
+                    && _pagamentos.OQueFaltaParaReceber(await _pagamentos.ObterRecebedorTorneioAsync(id))
+                        is { } faltaConta)
+                {
+                    TempData["Erro"] = $"{faltaConta} {ContaDeRecebimento.ComoResolver}";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.FormaPagamento = formaPagamento;
             }
 
             torneio.Nome = nome;
@@ -1044,6 +1079,26 @@ namespace Padelizou.Controllers
                 .Frase(PermissaoDeOrganizador.EstadoDoPedido.Esperando);
             return VoltarDoPedido(voltarPara);
         }
+
+        // Tem gente inscrita neste torneio? É o que libera (ou trava) a troca da forma de
+        // recebimento, e por isso mora num lugar só: a TELA usa a resposta pra desenhar os
+        // rádios e o POST usa pra recusar — discordando, a tela ofereceria o que o servidor
+        // nega, que é o pior dos dois mundos.
+        //
+        // ⚠️ Olha as DUAS tabelas de inscrição, porque cada formato grava na sua: o Oficial e
+        // o Americano de Duplas em `Duplas`, o Americano individual em `InscricoesAmericanas`.
+        // Contar só a primeira deixaria todo Americano individual destravado com gente dentro
+        // — o mesmo buraco que zerou o Ranking Americano de duplas em 07/08.
+        //
+        // Lista de espera CONTA: quem está na fila leu o anúncio e vai ser chamado do jeito
+        // que o torneio prometeu. Time NÃO conta — ele é cadastrado pelo próprio organizador
+        // e não paga inscrição pelo sistema, a mesma exceção de TaxaDoTorneioExterno.
+        //
+        // ⚠️ `NomeTime == null` e não `!d.EhTime`: EhTime é [NotMapped] e o EF não traduz
+        // propriedade calculada pra SQL — a consulta estouraria em tempo de execução.
+        private async Task<bool> TemAlguemInscritoAsync(int torneioId) =>
+            await _context.Duplas.AnyAsync(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
+            || await _context.InscricoesAmericanas.AnyAsync(i => i.Categoria.TorneioId == torneioId);
 
         // Lista fechada de destinos: `voltarPara` vem do formulário, e campo de formulário
         // nunca vira redirecionamento pra qualquer lugar.

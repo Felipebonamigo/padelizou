@@ -1,5 +1,6 @@
 ﻿@model Padelizou.Models.Torneio
 @using Padelizou.ViewModels
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @{
     ViewData["Title"] = Model.Nome;
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
@@ -1392,14 +1393,105 @@
                                     <input type="date" name="previsaoChaveamento" class="form-control"
                                            value="@Model.PrevisaoChaveamento?.ToString("yyyy-MM-dd")" />
                                 </div>
-                                @if (!Model.CobraPeloSite)
+                                @* ── Como você vai receber ──────────────────────────────────
+                                   Trocável enquanto ninguém se inscreveu. Antes de 08/08/2026
+                                   a escolha da criação era definitiva, e quem clicou errado só
+                                   saía apagando o torneio e criando outro — perdendo o link já
+                                   compartilhado. Ver Services/FormaDePagamentoDoTorneio. *@
+                                @{
+                                    var podeTrocarForma = ViewBag.PodeTrocarFormaPagamento == true;
+                                    var recebeConectado = ViewBag.RecebimentoConectado == true;
+                                    var taxasTorneio = TaxasOpcoes.Value;
+                                }
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">
+                                        <i class="bi bi-cash-coin"></i> Como você vai receber as inscrições
+                                    </label>
+
+                                    @if (!podeTrocarForma)
+                                    {
+                                        @* Travado: mostra o que está valendo e por quê. Sumir com
+                                           o bloco faria a forma de recebimento parecer coisa que
+                                           o sistema não tem. *@
+                                        <div class="border rounded p-2 small" style="background: var(--pdz-surface);">
+                                            <span class="fw-bold">
+                                                @(Model.FormaPagamento switch
+                                                {
+                                                    Padelizou.Services.FormaDePagamentoDoTorneio.SoPix => "Pelo site, só Pix",
+                                                    Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas => "Pelo site, todas as formas",
+                                                    _ => "Por fora",
+                                                })
+                                            </span>
+                                            <span class="badge bg-secondary ms-1">travado</span>
+                                            <div class="text-muted mt-1">@Padelizou.Services.FormaDePagamentoDoTorneio.PorqueTravou</div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @if (!recebeConectado)
+                                        {
+                                            <div class="alert alert-warning border-0 small py-2 mb-2">
+                                                <strong>Pra receber pelo site, falta conectar sua conta.</strong>
+                                                <a asp-controller="Pagamentos" asp-action="Configurar" target="_blank"
+                                                   class="alert-link">Conectar agora</a> — leva um minuto.
+                                            </div>
+                                        }
+
+                                        <div class="form-check small mb-1 @(recebeConectado ? "" : "opacity-50")">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagPix"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.SoPix"
+                                                   disabled="@(!recebeConectado)"
+                                                   checked="@(Model.FormaPagamento == Padelizou.Services.FormaDePagamentoDoTorneio.SoPix)" />
+                                            <label class="form-check-label" for="edPagPix">
+                                                <span class="fw-bold">Pelo site, só Pix</span>
+                                                <span class="badge bg-success ms-1">taxa @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">Cai na sua conta na hora, e a vaga já nasce confirmada.</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check small mb-1 @(recebeConectado ? "" : "opacity-50")">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagTodas"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas"
+                                                   disabled="@(!recebeConectado)"
+                                                   checked="@(Model.FormaPagamento == Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas)" />
+                                            <label class="form-check-label" for="edPagTodas">
+                                                <span class="fw-bold">Pelo site, todas as formas</span>
+                                                <span class="badge bg-secondary ms-1">taxa @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")% a @taxasTorneio.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">
+                                                    Pix, boleto, débito e crédito. Você paga a taxa da forma que o jogador
+                                                    escolher — Pix ou boleto custam @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")%.
+                                                    O cartão só cai em @taxasTorneio.CreditoAVista.DiasParaReceber dias.
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check small">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagExterno"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.Externo"
+                                                   checked="@(!Model.CobraPeloSite)" />
+                                            <label class="form-check-label" for="edPagExterno">
+                                                <span class="fw-bold">Por fora</span>
+                                                <span class="badge bg-success ms-1">taxa @taxasTorneio.ComissaoPercentualExterno.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">
+                                                    Você combina o Pix direto com o jogador. As chaves saem depois que a
+                                                    taxa for paga — ou combinada com o Padelizou.
+                                                </span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* O campo da chave Pix acompanha quem PODE virar "por fora", e não
+                                   só quem já é: sem isso, trocar a forma exigiria salvar, esperar a
+                                   tela voltar e editar de novo pra informar a chave. *@
+                                @if (!Model.CobraPeloSite || podeTrocarForma)
                                 {
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small">Sua chave Pix</label>
                                         <input type="text" name="chavePixOrganizador" class="form-control" maxlength="140"
                                                value="@Model.ChavePixOrganizador"
                                                placeholder="CPF, celular, e-mail ou chave aleatória" />
-                                        <small class="text-muted">Aparece pro jogador junto com o valor.</small>
+                                        <small class="text-muted">Só é usada no "por fora" — aparece pro jogador junto com o valor.</small>
                                     </div>
                                 }
                                 <div class="col-12">
@@ -2629,6 +2721,7 @@
     <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
 }
 
 <script>

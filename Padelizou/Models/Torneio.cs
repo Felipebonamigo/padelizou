@@ -57,10 +57,13 @@ public partial class Torneio
     //                 caro e só cai em 32 dias → taxa maior.
     // "Externo"     — o Padelizou não toca no dinheiro, só organiza. Sem custo de gateway
     //                 nem risco → taxa menor de todas, cobrada do organizador depois.
-    public string FormaPagamento { get; set; } = "OnlinePix";
+    //
+    // Os três nomes vivem em Services/FormaDePagamentoDoTorneio, que também responde se a
+    // forma ainda pode ser TROCADA (dá, enquanto ninguém se inscreveu).
+    public string FormaPagamento { get; set; } = Padelizou.Services.FormaDePagamentoDoTorneio.SoPix;
 
     [NotMapped]
-    public bool SomentePix => FormaPagamento == "OnlinePix";
+    public bool SomentePix => FormaPagamento == Padelizou.Services.FormaDePagamentoDoTorneio.SoPix;
 
     // Fixo em "Descontada" desde 27/07/2026: o jogador paga exatamente o valor anunciado e a
     // taxa do Padelizou sai de dentro dele. Já foi uma escolha do organizador ("Somada" somava
@@ -69,7 +72,7 @@ public partial class Torneio
     public string ModoComissao { get; set; } = "Descontada";
 
     [NotMapped]
-    public bool CobraPeloSite => FormaPagamento.StartsWith("Online");
+    public bool CobraPeloSite => Padelizou.Services.FormaDePagamentoDoTorneio.EhPeloSite(FormaPagamento);
 
     // Pagar é condição pra se inscrever, ou dá pra garantir a vaga e acertar depois?
     // true (padrão) mantém o comportamento que já existia: sem pagar, sem inscrição.

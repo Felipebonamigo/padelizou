@@ -380,6 +380,16 @@ namespace Padelizou.Controllers
                     .ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+
+                // Trocar a forma de recebimento depois de criado: dá enquanto ninguém se
+                // inscreveu. A MESMA pergunta que o POST do Editar faz — se as duas
+                // divergirem, a tela oferece o que o servidor recusa.
+                ViewBag.PodeTrocarFormaPagamento =
+                    FormaDePagamentoDoTorneio.PodeTrocar(await TemAlguemInscritoAsync(id));
+
+                // Sem conta conectada as opções "pelo site" ficam à vista mas travadas, como
+                // na criação: escondê-las faria o organizador concluir que não existem.
+                ViewBag.RecebimentoConectado = _pagamentos.PodeReceberOnline(recebedorTorneio);
                 // Pra poder ACRESCENTAR categoria depois de publicado: o organizador que
                 // esqueceu a Mista, ou que abriu mais uma quadra, resolvia isso criando outro
                 // torneio.
