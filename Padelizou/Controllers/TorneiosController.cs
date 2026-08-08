@@ -761,13 +761,13 @@ namespace Padelizou.Controllers
             // regra pelo erro.
             ViewBag.SemHorarioPrevisto = torneioDaTela?.SemHorarioPrevisto == true;
 
-            if (torneioDaTela?.Formato == "Americano")
+            if (torneioDaTela?.Formato == FormatoDoTorneio.Americano)
             {
-                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
-
-                ViewBag.ClassificacaoAmericano = categoriasDoTorneio.ToDictionary(
-                    c => c.Nome,
-                    c => TabelaDoAmericano.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+                // ⚠️ Sai da montagem compartilhada, e NÃO da lista `partidas` desta tela: ela
+                // já veio filtrada (por time, por categoria, por "só meus jogos"), e a
+                // classificação calculada em cima de um recorte é a classificação de outro
+                // torneio. Além disso a conta é POR GRUPO — ver ClassificacaoDoAmericano.
+                ViewBag.ClassificacaoAmericano = await MontarClassificacaoAmericanaAsync(torneioId);
 
                 // O botão "montar o desempate" é só do organizador; o jogador vê o aviso.
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;

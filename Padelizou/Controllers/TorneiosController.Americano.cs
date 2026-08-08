@@ -373,6 +373,41 @@ namespace Padelizou.Controllers
                     doAmericano.Count(p => p.Status != "Finalizada"));
         }
 
+        // A classificação do Americano de um torneio, categoria por categoria — pronta pra
+        // tela. É a ÚNICA montagem que existe: a aba "Chaves e Grupos", a sub-aba
+        // "Classificação" dentro de Jogos e a página avulsa leem daqui.
+        //
+        // ⚠️ A consulta é do TORNEIO INTEIRO de propósito, sem os filtros da tela de jogos.
+        // A sub-aba de Jogos calculava em cima da lista já filtrada — então marcar "só meus
+        // jogos" ou filtrar por quadra REESCREVIA a classificação do torneio na tela de quem
+        // filtrou. Classificação não é recorte de lista; é o placar do torneio.
+        private async Task<List<ClassificacaoAmericanaDaCategoriaVM>> MontarClassificacaoAmericanaAsync(int torneioId)
+        {
+            var categorias = await _context.Categorias
+                .Where(c => c.TorneioId == torneioId)
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            var partidas = await _context.Partidas
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .Where(p => p.TorneioId == torneioId && p.Status == "Finalizada")
+                .ToListAsync();
+
+            return categorias
+                .Select(c => new ClassificacaoAmericanaDaCategoriaVM
+                {
+                    CategoriaId = c.Id,
+                    Categoria = c.Nome,
+                    // O corte de quem passa é da CATEGORIA: cada uma tem a sua divisão.
+                    Tabelas = ClassificacaoDoAmericano.Montar(
+                        partidas.Where(p => p.CategoriaId == c.Id), c.PassamPorGrupo),
+                })
+                .ToList();
+        }
+
         // GET: Torneios/ClassificacaoAmericano/5?categoriaId=1 — soma de games por jogador
         // (não por dupla, já que o parceiro muda a cada rodada no formato Americano)
         public async Task<IActionResult> ClassificacaoAmericano(int id, int categoriaId)
@@ -380,71 +415,12 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
-            var partidas = await _context.Partidas
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status == "Finalizada")
-                .ToListAsync();
-
-            // A conta vive em Services/TabelaDoAmericano — a mesma que alimenta a aba
-            // "Classificação" na tela de Jogos. Duas contas separadas divergiriam mais cedo
-            // ou mais tarde, e aí o torneio teria dois campeões diferentes na mesma tela.
-            //
-            // ⚠️ Cada grupo tem a SUA tabela. Somar o torneio inteiro compararia gente que
-            // nunca se enfrentou, e o corte de quem passa sairia dessa soma errada.
-            var categoria = await _context.Categorias.FindAsync(categoriaId);
-            int passam = categoria?.PassamPorGrupo ?? 0;
-
-            var tabelas = new List<ClassificacaoDeGrupoVM>();
-
-            var nomesDosGrupos = partidas
-                .Where(p => FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
-                .Select(p => FaseDoAmericano.GrupoDe(p.Fase))
-                .Distinct()
-                .OrderBy(g => g, StringComparer.Ordinal)
-                .ToList();
-
-            foreach (var grupo in nomesDosGrupos)
-            {
-                var linhas = TabelaDoAmericano.Montar(partidas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)));
-                tabelas.Add(new ClassificacaoDeGrupoVM
-                {
-                    // Grupo nulo = torneio sem divisão: a tabela é a do torneio, sem título.
-                    Titulo = grupo == null ? null : $"Grupo {grupo}",
-                    PassamDaqui = grupo == null ? 0 : passam,
-                    Linhas = linhas.Select(l => new ClassificacaoAmericanoItemVM
-                    {
-                        Jogador = l.Jogador,
-                        TotalGames = l.TotalGames,
-                    }).ToList(),
-                });
-            }
-
-            // O grupo final vem por último e é o que decide o título.
-            var doFinal = partidas.Where(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase)).ToList();
-            if (doFinal.Count > 0)
-            {
-                tabelas.Add(new ClassificacaoDeGrupoVM
-                {
-                    Titulo = "Grupo final",
-                    DecideOTitulo = true,
-                    Linhas = TabelaDoAmericano.Montar(doFinal).Select(l => new ClassificacaoAmericanoItemVM
-                    {
-                        Jogador = l.Jogador,
-                        TotalGames = l.TotalGames,
-                    }).ToList(),
-                });
-            }
+            var todas = await MontarClassificacaoAmericanaAsync(id);
+            var daCategoria = todas.FirstOrDefault(c => c.CategoriaId == categoriaId);
+            if (daCategoria == null) return NotFound();
 
             ViewBag.Torneio = torneio;
-            ViewBag.CategoriaId = categoriaId;
-            ViewBag.Tabelas = tabelas;
-
-            // A lista "plana" segue no Model pra não quebrar quem já lia assim — na divisão em
-            // grupos ela é a do grupo final, ou a do grupo único.
-            return View(tabelas.LastOrDefault()?.Linhas ?? new List<ClassificacaoAmericanoItemVM>());
+            return View(daCategoria);
         }
 
         // GET: Torneios/Classificacao/5?categoriaId=1

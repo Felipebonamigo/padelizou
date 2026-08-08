@@ -33,7 +33,7 @@
     // Só existe no Americano — nos outros formatos a aba nem aparece. O individual conta por
     // JOGADOR; o de duplas conta por DUPLA (a dupla lá é fixa).
     var classificacaoAmericano = ViewBag.ClassificacaoAmericano
-        as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
+        as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
     var classificacaoAmericanoDuplas = ViewBag.ClassificacaoAmericanoDuplas
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericanoDeDuplas.Linha>>;
     bool desempatePrevisto = ViewBag.DesempateAmericano == true;
@@ -680,73 +680,40 @@
                 o parceiro muda a cada rodada, então a conta é individual.
             </p>
 
-            @foreach (var (categoria, linhas) in classificacaoAmericano)
+            @foreach (var daCategoria in classificacaoAmericano)
             {
-                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@categoria</h6>
+                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@daCategoria.Categoria</h6>
 
-                @if (linhas.Count == 0)
+                @* Mesma partial da aba "Chaves e Grupos" e da página avulsa. *@
+                <partial name="_ClassificacaoDoAmericano" model="daCategoria" />
+
+                @* ⚠️ O empate que interessa é o da tabela que DECIDE o título. Empate no topo
+                   do grupo A não vira desempate: ali os dois passam do mesmo jeito, e oferecer
+                   "montar o desempate" no meio da fase de grupos criaria uma final antes de o
+                   grupo final existir. *@
+                @if (daCategoria.EmpateNoTitulo)
                 {
-                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr class="small text-muted">
-                                    <th style="width: 3rem;">#</th>
-                                    <th>Jogador</th>
-                                    <th class="text-center">Jogos</th>
-                                    <th class="text-end">Games</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (var i = 0; i < linhas.Count; i++)
-                                {
-                                    var l = linhas[i];
-                                    <tr class="@(l.Empatado ? "table-warning" : "")">
-                                        <td class="fw-bold">@(i + 1)º</td>
-                                        <td>
-                                            @if (i == 0 && !l.Empatado) { <span>🏅 </span> }
-                                            @l.Jogador.ComoChamar
-                                            @if (l.Empatado)
-                                            {
-                                                <span class="badge bg-warning text-dark ms-1">empatado</span>
-                                            }
-                                        </td>
-                                        <td class="text-center text-muted">@l.Jogos</td>
-                                        <td class="text-end fw-bold">@l.TotalGames</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                    <div class="alert alert-warning small mt-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Empate na liderança.</strong>
+                        @if (desempatePrevisto && ehOrganizador)
+                        {
+                            <span>Os empatados escolhem um parceiro e sai uma partida final.</span>
+                            <a asp-action="DesempateAmericano" asp-route-id="@Model.TorneioId"
+                               asp-route-categoriaId="@daCategoria.CategoriaId"
+                               class="btn btn-sm btn-padel rounded-pill ms-2">
+                                <i class="bi bi-trophy"></i> Montar o desempate
+                            </a>
+                        }
+                        else if (desempatePrevisto)
+                        {
+                            <span>O organizador vai montar a partida final entre os empatados.</span>
+                        }
+                        else
+                        {
+                            <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
+                        }
                     </div>
-
-                    @if (linhas.Any(l => l.Empatado))
-                    {
-                        var idCategoria = categoriasDoTorneio.FirstOrDefault(c => c.Nome == categoria)?.Id;
-                        <div class="alert alert-warning small">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <strong>Empate na liderança.</strong>
-                            @if (desempatePrevisto && ehOrganizador && idCategoria != null)
-                            {
-                                <span>Os empatados escolhem um parceiro e sai uma partida final.</span>
-                                <a asp-action="DesempateAmericano" asp-route-id="@Model.TorneioId"
-                                   asp-route-categoriaId="@idCategoria"
-                                   class="btn btn-sm btn-padel rounded-pill ms-2">
-                                    <i class="bi bi-trophy"></i> Montar o desempate
-                                </a>
-                            }
-                            else if (desempatePrevisto)
-                            {
-                                <span>O organizador vai montar a partida final entre os empatados.</span>
-                            }
-                            else
-                            {
-                                <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
-                            }
-                        </div>
-                    }
                 }
             }
         </div>

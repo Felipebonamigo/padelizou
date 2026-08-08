@@ -51,6 +51,17 @@ public class EstatisticasService : IEstatisticasService
         torneio is null
         || (!torneio.Restrito && !FormatoDoTorneio.EhAmericano(torneio.Formato));
 
+    // A MESMA régua acima, escrita pra rodar NO BANCO.
+    //
+    // Existe porque `ContaNoRanking` recebe uma entidade e o EF não sabe traduzir `is`/método
+    // pra SQL — a consulta do ranking de times, que é a única que precisa filtrar antes de
+    // trazer as linhas, tinha reescrito só metade da regra (`!Restrito`) e deixado o Americano
+    // passar. Aqui as duas ficam lado a lado, e há teste comparando uma com a outra.
+    public static readonly System.Linq.Expressions.Expression<Func<Dupla, bool>> DuplaContaNoRanking =
+        d => !d.Categoria.Torneio.Restrito
+             && d.Categoria.Torneio.Formato != FormatoDoTorneio.Americano
+             && d.Categoria.Torneio.Formato != FormatoDoTorneio.AmericanoDeDuplas;
+
     // Ordem das fases para "melhor colocação" (maior = mais longe).
     private static int RankFase(string? fase) => fase switch
     {
@@ -226,8 +237,13 @@ public class EstatisticasService : IEstatisticasService
         var idsComTime = jogadores.Select(j => j.Id).ToHashSet();
 
         var duplas = await _context.Duplas
+            // ⚠️ Torneio fechado E AMERICANO ficam fora — a mesma régua do ranking individual,
+            // por `DuplaContaNoRanking`. Aqui estava escrito só `!Restrito`, e o buraco não era
+            // teórico: no Americano cada RODADA cria uma dupla nova, então um rodízio de 10
+            // pessoas despejava 4 linhas de "participou" (40 pontos) por jogador no ranking de
+            // times, sem ninguém ter chegado a final nenhuma.
+            .Where(EstatisticasService.DuplaContaNoRanking)
             .Where(d => d.NomeTime == null   // dupla-TIME não pontua jogador nenhum
-                     && !d.Categoria.Torneio.Restrito   // torneio fechado não entra no ranking
                      && (idsComTime.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
@@ -276,6 +292,14 @@ public class EstatisticasService : IEstatisticasService
 
     public async Task<List<PontosTimeTorneioVM>> ObterPontosTimesNoTorneioAsync(int torneioId)
     {
+        // AMERICANO NÃO PONTUA TIME NENHUM (decisão do Felipe, 08/08/2026) — e a tela nem
+        // oferece a aba. É a mesma régua do ranking oficial, pelo mesmo motivo: no Americano
+        // o parceiro troca a cada rodada, cada rodada cria uma dupla nova, e "participou" ×
+        // nº de rodadas virava placar de time. O primeiro Americano real de produção fechou
+        // 120 × 120 × 80 pontos sem que ninguém tivesse ganho coisa alguma.
+        var torneio = await _context.Torneios.FindAsync(torneioId);
+        if (!ContaNoRanking(torneio)) return new List<PontosTimeTorneioVM>();
+
         var duplas = await _context.Duplas
             // Dupla-TIME fora: o Jogador1 dela é o organizador, e a campanha do time
             // inflaria os pontos do TIME DO ORGANIZADOR neste placar.

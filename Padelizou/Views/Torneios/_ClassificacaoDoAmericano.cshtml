@@ -1,0 +1,126 @@
+@model Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM
+@{
+    // O DESENHO da classificação do Americano mora AQUI, e só aqui: a aba "Chaves e Grupos",
+    // a sub-aba "Classificação" dentro de Jogos e a página avulsa renderizam esta partial.
+    // Três marcações separadas divergiriam — e uma delas já divergia, somando a categoria
+    // inteira num torneio dividido em dois grupos.
+    var tabelas = Model.Tabelas;
+}
+
+@if (tabelas.Count == 0)
+{
+    <p class="text-muted small mb-0">
+        <i class="bi bi-info-circle"></i> Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.
+    </p>
+}
+else
+{
+    <div class="row">
+        @foreach (var tabela in tabelas)
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100"
+                     style="border-top: 4px solid @(tabela.EhGrupoFinal ? "var(--bs-warning)" : "var(--padel-green)") !important;">
+                    @if (tabela.Titulo != null)
+                    {
+                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                            <h5 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                                @if (tabela.EhGrupoFinal)
+                                {
+                                    <i class="bi bi-trophy-fill text-warning"></i>
+                                }
+                                @tabela.Titulo
+                            </h5>
+                            @if (tabela.EhGrupoFinal)
+                            {
+                                <span class="badge bg-warning text-dark">decide o título</span>
+                            }
+                            else if (tabela.PassamDaqui > 0)
+                            {
+                                @* O corte escrito, e não só pintado: quem abre no meio do
+                                   torneio precisa saber o que o verde quer dizer. *@
+                                <span class="badge bg-success">passam @tabela.PassamDaqui</span>
+                            }
+                        </div>
+                    }
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr class="small text-muted">
+                                        <th style="width: 3.2rem;" class="ps-3">#</th>
+                                        <th>Jogador</th>
+                                        <th class="text-center" style="width: 4rem;">Jogos</th>
+                                        <th class="text-end pe-3" style="width: 5rem;">Games</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < tabela.Linhas.Count; i++)
+                                    {
+                                        var linha = tabela.Linhas[i];
+
+                                        @* O VERDE marca QUEM PASSA, com o mesmo `table-success`
+                                           da classificação dos torneios de chave — é o corte
+                                           que o organizador prometeu, então tem que ser a mesma
+                                           cor nas duas telas. Só existe onde há corte de
+                                           verdade: no grupo único (PassamDaqui = 0) ninguém se
+                                           "classifica", todos já estão no que decide. *@
+                                        var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui;
+                                        var empatadoNoTopo = linha.Empatado;
+
+                                        <tr class="@(empatadoNoTopo ? "table-warning" : passou ? "table-success" : "")">
+                                            <td class="fw-bold ps-3">
+                                                @(i + 1)º
+                                                @if (passou)
+                                                {
+                                                    <text>🏅</text>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@linha.Jogador.Id"
+                                                   class="text-decoration-none fw-semibold" style="color: inherit;">
+                                                    @linha.Jogador.ComoChamar
+                                                </a>
+                                                @if (empatadoNoTopo)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1">empatado</span>
+                                                }
+                                            </td>
+                                            <td class="text-center text-muted">@linha.Jogos</td>
+                                            <td class="text-end pe-3 fw-bold">@linha.TotalGames</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <p class="text-muted small mb-0">
+        @if (Model.QueDecide?.EhGrupoFinal == true)
+        {
+            <text>
+                🏆 <strong>O grupo final decide o torneio</strong> — quem somar mais games nele é o campeão.
+                As tabelas dos grupos ficam registradas, mas já cumpriram o papel de dizer quem passou.
+            </text>
+        }
+        else if (Model.TemDivisaoEmGrupos)
+        {
+            <text>
+                🏅 Os marcados em <strong class="text-success">verde</strong> passam para o
+                <strong>grupo final</strong>, que é montado sozinho assim que todos os grupos terminarem.
+                Cada grupo tem a sua tabela: quem jogou no A não enfrentou ninguém do B.
+            </text>
+        }
+        else
+        {
+            <text>
+                Vence quem somar mais games. <strong>Só há rodada final se dois ou mais empatarem
+                na liderança</strong> — sem empate, não se joga mais nada.
+            </text>
+        }
+    </p>
+}

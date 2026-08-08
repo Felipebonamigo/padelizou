@@ -89,6 +89,29 @@
 
 :root[data-bs-theme="dark"] .table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .10); }
 
+/* Linha de quem CLASSIFICA (e de quem está empatado). O Bootstrap fixa essas variantes num
+   verde/amarelo pastel de fundo claro: no tema escuro a linha virava um bloco berrante no
+   meio da tabela, e o texto escuro dela some sobre o resto da tela. Aqui vira tinta, não
+   bloco — e a régua é a mesma nas duas telas que pintam classificado (a classificação dos
+   torneios de chave e a do Americano). */
+:root[data-bs-theme="dark"] .table > tbody > tr.table-success {
+    --bs-table-bg: rgba(163, 216, 39, .16);
+    --bs-table-color: var(--pdz-ink);
+    --bs-table-hover-bg: rgba(163, 216, 39, .24);
+    --bs-table-hover-color: var(--pdz-ink);
+    box-shadow: inset 3px 0 0 var(--padel-green);
+}
+:root[data-bs-theme="dark"] .table > tbody > tr.table-warning {
+    --bs-table-bg: rgba(245, 175, 15, .16);
+    --bs-table-color: var(--pdz-ink);
+    --bs-table-hover-bg: rgba(245, 175, 15, .24);
+    --bs-table-hover-color: var(--pdz-ink);
+    box-shadow: inset 3px 0 0 #f5af0f;
+}
+/* No tema claro o verde do Bootstrap fica, só ganha a mesma faixa lateral pra a marcação
+   sobreviver a quem imprime a tabela em preto e branco. */
+.table > tbody > tr.table-success { box-shadow: inset 3px 0 0 var(--padel-green); }
+
 html {
     font-size: 15px;
     position: relative;

@@ -276,7 +276,10 @@
             </button>
         </li>
     }
-    @if (torneioComecou)
+    @* ⚠️ AMERICANO NÃO PONTUA TIME (decisão do Felipe, 08/08/2026), então a aba nem existe
+       nele — a regra de verdade está em EstatisticasService.ObterPontosTimesNoTorneioAsync,
+       aqui é só não oferecer uma tela que responderia zero. *@
+    @if (torneioComecou && !Padelizou.Services.FormatoDoTorneio.EhAmericano(Model.Formato))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="times-tab" data-bs-toggle="tab" data-bs-target="#timesTorneio" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -2185,8 +2188,8 @@
             <partial name="_JogosDoTorneio" model='("Details", Model.Id)' />
         </div>
 
-        <!-- ABA: PONTOS POR TIME (neste torneio) -->
-        <div class="tab-pane fade" id="timesTorneio" role="tabpanel">
+        <!-- ABA: PONTOS POR TIME (neste torneio) — nunca no Americano, ver a aba lá em cima -->
+        <div class="tab-pane fade @(Padelizou.Services.FormatoDoTorneio.EhAmericano(Model.Formato) ? "d-none" : "")" id="timesTorneio" role="tabpanel">
             <h4 class="mb-1 fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Pontos por time</h4>
             <p class="text-muted small mb-3">Quanto cada time somou neste torneio — os pontos das duplas vão para o time que cada jogador representa.</p>
             @if (!pontosTimes.Any())
@@ -2226,6 +2229,34 @@
     }
     <!-- ABA: CHAVES E GRUPOS -->
     <div class="tab-pane fade" id="grupos" role="tabpanel">
+        @{
+            // O Americano não tem CHAVE — ele tem GRUPOS e uma classificação por games. Sem
+            // isto a aba abria vazia num torneio inteiro em andamento: o motor não cria
+            // GrupoTorneio nesse formato, então o laço das categorias lá embaixo não achava
+            // nada pra desenhar e a tela não dizia sequer por quê.
+            var americanoAqui = ViewBag.ClassificacaoAmericano
+                as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
+        }
+
+        @if (americanoAqui != null)
+        {
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0 fw-bold" style="color: var(--pdz-ink);">
+                    <i class="bi bi-layout-split"></i> Grupos e Classificação
+                </h4>
+            </div>
+
+            @foreach (var daCategoria in americanoAqui)
+            {
+                @if (americanoAqui.Count > 1)
+                {
+                    <h5 class="fw-bold mt-3 mb-2" style="color: var(--pdz-ink);">@daCategoria.Categoria</h5>
+                }
+                <partial name="_ClassificacaoDoAmericano" model="daCategoria" />
+            }
+        }
+        else
+        {
         <div class="d-flex justify-content-between align-items-center mb-4">
             @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
                de uma tela que também mostra a chave — e numa chave direta (sem grupo
@@ -2534,6 +2565,7 @@
                 }
             }
         </div>
+        } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
     </div>
     <!-- SCRIPT (Coloque no final do arquivo Details.cshtml) -->
     <script>
