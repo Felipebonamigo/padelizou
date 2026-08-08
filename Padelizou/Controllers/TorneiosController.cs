@@ -755,6 +755,12 @@ namespace Padelizou.Controllers
             // maioria — a flag nem existia, e o organizador não via botão nenhum.
             ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
 
+            // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
+            // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima
+            // da tela. Oferecer o botão e negá-lo em seguida é fazer o organizador descobrir a
+            // regra pelo erro.
+            ViewBag.SemHorarioPrevisto = torneioDaTela?.SemHorarioPrevisto == true;
+
             if (torneioDaTela?.Formato == "Americano")
             {
                 var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));

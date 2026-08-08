@@ -466,7 +466,10 @@
            quando saem os classificados é automático, ninguém aperta nada pra isso. Este
            botão redistribui o que FALTA, a partir de agora, sem tocar em quem já jogou nem
            em quem está em quadra. *@
-        @if (ehOrganizador && agendadasList.Count > 0)
+        @* Some no torneio por ordem de liberação: lá não existe horário a redistribuir, e o
+           servidor recusa o clique. Um botão que só serve pra receber "não dá" é pior que
+           botão nenhum. *@
+        @if (ehOrganizador && agendadasList.Count > 0 && ViewBag.SemHorarioPrevisto != true)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
                   data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
