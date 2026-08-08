@@ -33,7 +33,7 @@ public static class PixCopiaECola
     {
         // O campo 01 (Point of Initiation) fica de FORA de propósito: o exemplo canônico do
         // BCB para código estático não o traz, e é a forma que mais banco aceita sem discutir.
-        var contaPix = Campo("00", "br.gov.bcb.pix") + Campo("01", chave.Trim());
+        var contaPix = Campo("00", "br.gov.bcb.pix") + Campo("01", NormalizarChave(chave));
 
         var payload =
             Campo("00", "01") +                                          // versão do formato
@@ -54,6 +54,48 @@ public static class PixCopiaECola
         var comCabecalhoDoCrc = payload + "6304";
         return comCabecalhoDoCrc + Crc16(comCabecalhoDoCrc);
     }
+
+    // A chave vai pro BR Code EXATAMENTE como o DICT a registrou — e CPF/CNPJ são registrados
+    // só com dígitos.
+    //
+    // ⚠️ Isto começou como bug em PRODUÇÃO (08/08/2026): a chave estava gravada pelo painel
+    // como "68.185.754/0001-05", do jeito que se escreve um CNPJ. Com pontuação o banco do
+    // pagador não acha a chave e mostra só "QR inválido", sem dizer por quê — e como o Pix
+    // direto é o caminho da taxa do torneio E da mensalidade do professor, ninguém conseguia
+    // pagar nada. Uma organizadora real (a Carol) tentou, deu erro, e a cobrança ficou
+    // pendurada em "aguardando confirmação" parecendo que o dinheiro tinha entrado.
+    //
+    // Normalizar aqui (e não só ao salvar) conserta também o que JÁ está gravado torto.
+    //
+    // O que NÃO pode ser mexido: chave aleatória (EVP) é um UUID e os hífens fazem parte dela;
+    // e-mail é literal; telefone é "+55" + dígitos. Só CPF e CNPJ viram dígitos puros — e o
+    // que decide é a forma do que foi digitado, não um palpite.
+    public static string NormalizarChave(string? chave)
+    {
+        var limpa = (chave ?? string.Empty).Trim();
+        if (limpa.Length == 0) return limpa;
+
+        if (limpa.Contains('@')) return limpa;                                  // e-mail
+        if (limpa.StartsWith('+')) return "+" + SoDigitos(limpa);               // telefone
+
+        // Chave aleatória: 32 dígitos hexadecimais em 5 blocos. Tem hífen, mas tirar o hífen
+        // dela quebraria a chave — por isso a checagem vem ANTES de qualquer limpeza.
+        if (limpa.Count(c => c == '-') == 4 && limpa.Length == 36) return limpa;
+
+        // Sobrou CPF/CNPJ escrito com máscara. Só aceita virar dígitos se o que veio for
+        // dígito e pontuação de documento: qualquer outra coisa é chave que eu não conheço,
+        // e devolver intacto é melhor que devolver estragado.
+        if (limpa.All(c => char.IsDigit(c) || c is '.' or '-' or '/' or ' '))
+        {
+            var digitos = SoDigitos(limpa);
+            if (digitos.Length is 11 or 14) return digitos;
+        }
+
+        return limpa;
+    }
+
+    private static string SoDigitos(string texto) =>
+        new(texto.Where(char.IsDigit).ToArray());
 
     // ID + tamanho em 2 dígitos + valor. Nenhum campo daqui passa de 99 caracteres (a maior
     // chave Pix possível é um e-mail de 77), então o "00" nunca transborda.
