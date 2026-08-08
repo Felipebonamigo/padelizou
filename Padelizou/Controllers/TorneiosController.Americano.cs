@@ -272,6 +272,9 @@ namespace Padelizou.Controllers
             ViewBag.Torneio = torneio;
             ViewBag.CategoriaId = categoriaId;
             ViewBag.Empatados = empatados;
+            // A tela só oferece "cravar o campeão" com a lista fechada: com jogo em aberto a
+            // liderança ainda muda, e coroar agora seria coroar uma foto que vai mudar.
+            ViewBag.Pendentes = pendentes;
             ViewBag.Problema = TabelaDoAmericano.ProblemaParaDesempatar(
                 torneio.DesempateAmericano, pendentes, empatados.Count);
 
@@ -343,6 +346,55 @@ namespace Padelizou.Controllers
 
             TempData["Sucesso"] = $"Desempate criado: {empatados[0].Nome} e {empatados[1].Nome} decidem o título. " +
                                   $"Começa {jogo.HorarioPrevisto:dd/MM 'às' HH:mm}.";
+            return RedirectToAction("Jogos", new { id });
+        }
+
+        // O ORGANIZADOR CRAVA O CAMPEÃO — a saída que faltava quando a partida de desempate
+        // não serve (Felipe, 08/08/2026).
+        //
+        // Com 3+ empatados no título, ou com o desempate desligado, a tela só dizia "o critério
+        // fica com o organizador" e acabava ali: um beco. O torneio ficava sem campeão, sem
+        // ponto no ranking e sem conquista no perfil de ninguém — e a saída era mexer no banco.
+        //
+        // ⚠️ Só entre os EMPATADOS: coroar quem não está na liderança não é critério de
+        // desempate, é reescrever o resultado. E só com a lista fechada — com jogo em aberto a
+        // liderança ainda muda, e o campeão de agora pode não ser o de daqui a pouco.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CoroarCampeaoAmericano(int id, int categoriaId, int jogadorId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null || torneio.Formato != FormatoDoTorneio.Americano) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var (_, empatados, pendentes) = await ApurarAmericanoAsync(id, categoriaId);
+
+            if (pendentes > 0)
+            {
+                TempData["Erro"] = $"Ainda há {pendentes} jogo(s) em aberto nesta categoria — " +
+                                   "a liderança pode mudar. Termine todos antes de definir o campeão.";
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            if (empatados.All(e => e.Id != jogadorId))
+            {
+                TempData["Erro"] = "Só dá pra escolher entre quem terminou empatado na liderança.";
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            // Coroar duas vezes criaria dois campeões na mesma categoria — e o segundo não
+            // apaga o primeiro, ele SOMA.
+            if (await _context.Duplas.AnyAsync(d => d.CategoriaId == categoriaId && d.UltimaFase == "Campeao"))
+            {
+                TempData["Erro"] = "Esta categoria já tem campeã(o).";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            await Robo.CoroarNoAmericanoAsync(categoriaId, jogadorId, torneio);
+
+            var campeao = empatados.First(e => e.Id == jogadorId);
+            TempData["Sucesso"] = $"{campeao.Nome} é a campeã/o campeão — definido por você, no critério do empate.";
             return RedirectToAction("Jogos", new { id });
         }
 
