@@ -1,5 +1,4 @@
 @model Padelizou.Models.Torneio
-@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @using Padelizou.Services
 
 @*
@@ -29,8 +28,18 @@
 }
 @if (Model.FormaPagamento == "OnlineTodas" && (Model.PagamentoObrigatorioNaInscricao || forcarEscolha) && Model.PrecoInscricao > 0)
 {
-    var taxas = TaxasOpcoes.Value;
+    @* O JOGADOR SÓ ESCOLHE COMO PAGA (Felipe, 08/08/2026): "ele apenas vê as formas
+       possíveis". Saíram daqui a taxa de cada forma, o selo "taxa menor" e o prazo de
+       repasse ao organizador.
 
+       ⚠️ Nada disso era assunto dele: taxa e prazo são a combinação entre o Padelizou e
+       quem ORGANIZA — o jogador paga o mesmo valor anunciado em qualquer forma (o modo é
+       "Descontada", a taxa sai da fatia do organizador). Mostrar percentual aqui só levantava
+       uma pergunta que não é dele, e ainda expunha nossa régua de comissão pra qualquer um
+       que abrisse a inscrição.
+
+       Fica UM lembrete, e ele é um convite, não uma cobrança: no Pix o dinheiro cai na hora
+       e custa centavos, então é o que sobra mais pro organizador e pro sistema. *@
     <div class="border rounded p-3 mb-3" style="background: var(--pdz-surface);">
         <label class="form-label fw-bold small mb-2">
             <i class="bi bi-credit-card-2-front"></i> Como você vai pagar?
@@ -57,22 +66,14 @@
                        checked="@(escolha == CobrancaDoTorneio.EscolhaPix)" required />
                 <label class="form-check-label w-100" for="forma_@(escolha)_@Model.Id">
                     <span class="fw-semibold"><i class="bi @icone"></i> @rotulo</span>
-                    @* Pix e boleto compartilham a taxa menor — o badge tem que contar isso nos dois,
-                       senão o boleto pareceria caro sem ser. *@
-                    @if (escolha != CobrancaDoTorneio.EscolhaCartao)
-                    {
-                        <span class="badge rounded-pill ms-1" style="background: var(--padel-green); color: #14261a;">taxa menor</span>
-                    }
-                    @* Ao jogador interessa o prazo e o meio; a taxa aparece porque é ela que
-                       muda com a escolha, e esconder isso faria o total mudar sem explicação. *@
-                    <span class="d-block small text-muted">@CobrancaDoTorneio.ExplicacaoDaEscolha(escolha, taxas)</span>
                 </label>
             </div>
         }
 
-        <div class="small text-muted mt-2">
-            <i class="bi bi-info-circle"></i>
-            A forma escolhida aqui é a que abre na tela de pagamento.
+        <div class="small mt-2" style="color: var(--padel-green);">
+            <i class="bi bi-heart-fill"></i>
+            Pagando no <strong>Pix</strong> você favorece o sistema e o organizador.
         </div>
+
     </div>
 }
