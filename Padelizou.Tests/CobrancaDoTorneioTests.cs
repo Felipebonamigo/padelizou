@@ -97,20 +97,21 @@ public class CobrancaDoTorneioTests
         Assert.Equal(5m, c.Percentual);
     }
 
-    // O AMERICANO é livre (Felipe, 07/08/2026): quem não compra o Ranking Americano não
-    // paga taxa nenhuma do Padelizou, em nenhuma forma de recebimento. O Oficial e o
-    // Americano que compra ranking seguem pagando normal.
+    // O AMERICANO NÃO PAGA PERCENTUAL, em nenhuma forma de recebimento. A monetização dele
+    // é R$ 5 por pessoa se comprar o Ranking Americano, acertada por fora.
     [Theory]
-    [InlineData("Americano")]
-    [InlineData("AmericanoDuplas")]
-    public void Americano_sem_ranking_e_isento_de_taxa_em_qualquer_forma(string formato)
+    [InlineData("Americano", false)]
+    [InlineData("Americano", true)]
+    [InlineData("AmericanoDuplas", false)]
+    [InlineData("AmericanoDuplas", true)]
+    public void Americano_nunca_paga_percentual_em_qualquer_forma(string formato, bool compraRanking)
     {
         foreach (var forma in new[] { "Externo", "OnlinePix", "OnlineTodas" })
         {
             var torneio = new Torneio
             {
                 Nome = "x", Codigo = "x", Formato = formato, FormaPagamento = forma,
-                PontuaNoRankingAmericano = false,
+                PontuaNoRankingAmericano = compraRanking,
             };
             Assert.True(CobrancaDoTorneio.IsentoDeTaxa(torneio));
             Assert.Equal(0m, CobrancaDoTorneio.Montar(torneio, null, Taxas).Percentual);
@@ -118,18 +119,27 @@ public class CobrancaDoTorneioTests
         }
     }
 
-    [Theory]
-    [InlineData("Americano")]
-    [InlineData("AmericanoDuplas")]
-    public void Americano_que_compra_ranking_paga_a_taxa_normal(string formato)
+    [Fact]
+    public void Comprar_o_ranking_NAO_traz_o_percentual_de_volta()
     {
-        var torneio = new Torneio
+        // O defeito que cobrou errado num torneio real (o da Carol, 07/08/2026): a primeira
+        // versão isentava só o Americano SEM ranking, então quem comprava o ranking pagava
+        // as DUAS coisas — os R$ 5 por pessoa E o percentual sobre cada inscrição.
+        var comRanking = new Torneio
         {
-            Nome = "x", Codigo = "x", Formato = formato, FormaPagamento = "OnlinePix",
+            Nome = "x", Codigo = "x", Formato = "Americano", FormaPagamento = "Externo",
             PontuaNoRankingAmericano = true,
         };
-        Assert.False(CobrancaDoTorneio.IsentoDeTaxa(torneio));
-        Assert.Equal(10m, CobrancaDoTorneio.Montar(torneio, null, Taxas).Percentual);
+        var semRanking = new Torneio
+        {
+            Nome = "x", Codigo = "x", Formato = "Americano", FormaPagamento = "Externo",
+            PontuaNoRankingAmericano = false,
+        };
+
+        // Comprar ponto não pode virar motivo pra passar a dever comissão: os dois dão zero.
+        Assert.Equal(CobrancaDoTorneio.Montar(semRanking, null, Taxas).Percentual,
+                     CobrancaDoTorneio.Montar(comRanking, null, Taxas).Percentual);
+        Assert.Equal(0m, CobrancaDoTorneio.Montar(comRanking, null, Taxas).Percentual);
     }
 
     [Fact]

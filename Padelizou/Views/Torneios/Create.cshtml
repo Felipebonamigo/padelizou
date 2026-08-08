@@ -1643,7 +1643,7 @@
         // piso ainda vale. Por fora ele recebe tudo na hora e paga a taxa depois — "você
         // recebe" também mentiria nesse caso.
         def('pdzComissaoRotulo', isento
-            ? '− Taxa do Padelizou (Americano livre, sem Ranking Americano: R$ 0,00)'
+            ? '− Taxa do Padelizou (Americano não paga taxa: R$ 0,00)'
             : externo
                 ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
                 : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
@@ -1684,11 +1684,11 @@
         var blocoPix = document.getElementById('pdzBlocoPix');
         if (blocoPix) blocoPix.style.display = externo ? 'block' : 'none';
 
-        // O Americano que não compra o Ranking Americano não paga taxa nenhuma do
-        // Padelizou, em nenhuma forma — espelha CobrancaDoTorneio.IsentoDeTaxa no servidor.
-        // Só o Oficial e o Americano que marcou "valer ponto" seguem pagando a taxa normal.
-        var pontuaRanking = document.getElementById('pontuaRankingAmericano');
-        var isentoAmericano = pdzFormatoAtual() !== 'Padrao' && !(pontuaRanking && pontuaRanking.checked);
+        // O Americano NÃO paga percentual, em nenhuma forma — espelha
+        // CobrancaDoTorneio.IsentoDeTaxa no servidor. A cobrança dele é outra: R$ 5 por
+        // pessoa se comprar o Ranking Americano, acertada por fora. ⚠️ Marcar "valer ponto"
+        // NÃO devolve o percentual — isso cobrava as duas coisas, e cobrou num torneio real.
+        var isentoAmericano = pdzFormatoAtual() !== 'Padrao';
 
         if (preco <= 0) {
             caixa.textContent = 'Informe o valor da inscrição pra ver a conta.';
