@@ -1994,19 +1994,32 @@ button, a, input, select { touch-action: manipulation; }
    Crescem proporcionalmente ao texto: a mais comprida ganha mais espaço. */
 .pdz-pills .nav-item { flex: 1 1 auto; }
 
+/* CONTORNO NAS NÃO SELECIONADAS (Felipe, 08/08/2026): sem borda, as abas inativas eram
+   texto solto boiando na barra, e não dava pra ver onde uma terminava e a outra começava —
+   só a ativa parecia um botão. Com o contorno, todas viram botão e a ativa continua óbvia
+   pela cor, que é o contraste que carrega a informação.
+
+   A borda é transparente na ativa em vez de ausente: assim as duas têm a MESMA largura
+   final e a barra não dança 2px quando se troca de aba. */
 .pdz-pills .nav-link {
     width: 100%;
     white-space: nowrap;
     font-weight: 700;
     color: var(--pdz-ink);
+    border: 1px solid var(--pdz-border);
     border-radius: .5rem;
     padding: .4rem .6rem;
     font-size: .85rem;
 }
 
+.pdz-pills .nav-link:hover {
+    border-color: var(--pdz-lime);
+}
+
 .pdz-pills .nav-link.active {
     background-color: var(--pdz-lime);
     color: var(--pdz-navy);
+    border-color: transparent;
 }
 
 /* Celular estreito: o ícone é enfeite e sai primeiro. O que não pode sumir é o
