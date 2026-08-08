@@ -91,6 +91,28 @@
         <input type="text" id="buscaTorneioNome" class="form-control" placeholder="Buscar torneio pelo nome...">
     </div>
 
+    @* A ORDEM DAS SEÇÕES é decisão do Felipe (08/08/2026): EM ANDAMENTO primeiro, depois
+       Inscrições Abertas, Em breve e Finalizados.
+
+       O que está acontecendo AGORA é o que mais gente abre a página pra ver — é o jogo de
+       hoje, o placar ao vivo, a chave que acabou de sair. Inscrição é decisão de uma vez só;
+       torneio rolando é a tela que a pessoa volta pra ver várias vezes no mesmo dia. A ordem
+       também acompanha a urgência: acontecendo agora > dá pra entrar > vai abrir > acabou. *@
+    <h5 class="pdz-section-title mb-3">Em Andamento</h5>
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio em andamento no momento.">
+        @if (emAndamento.Any())
+        {
+            foreach (var torneio in emAndamento)
+            {
+                <partial name="_TorneioCard" model="torneio" />
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center text-muted"><p>Nenhum torneio em andamento no momento.</p></div>
+        }
+    </div>
+
     <h5 class="pdz-section-title mb-3">Inscrições Abertas</h5>
     <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio com inscrições abertas no momento.">
         @if (abertos.Any())
@@ -127,21 +149,6 @@
             }
         </div>
     }
-
-    <h5 class="pdz-section-title mb-3">Em Andamento</h5>
-    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio em andamento no momento.">
-        @if (emAndamento.Any())
-        {
-            foreach (var torneio in emAndamento)
-            {
-                <partial name="_TorneioCard" model="torneio" />
-            }
-        }
-        else
-        {
-            <div class="col-12 text-center text-muted"><p>Nenhum torneio em andamento no momento.</p></div>
-        }
-    </div>
 
     @* CANCELADOS: seção só de quem organiza. É aqui que ele reencontra o torneio pra resolver
        as devoluções — some da lista pública, mas não pode sumir DELE. Aparece aberta, e não
