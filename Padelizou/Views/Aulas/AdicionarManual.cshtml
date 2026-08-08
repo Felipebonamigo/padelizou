@@ -132,7 +132,9 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Data e hora</label>
-                                <input type="datetime-local" name="dataHora" class="form-control bg-light" required />
+                                @* data-hora-sugerida (js/hora-sugerida.js): a rodinha do celular abre no minuto
+                                   atual, e o professor girava até a hora cheia toda santa aula. *@
+                                <input type="datetime-local" name="dataHora" class="form-control bg-light" data-hora-sugerida required />
                             </div>
 
                             <div class="mb-3">
