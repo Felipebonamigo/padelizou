@@ -825,6 +825,10 @@ namespace Padelizou.Controllers
             // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
             // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
             string? formaPagamento = null,
+            // "Só confirmo a inscrição depois de pago". Nulo = campo ausente (aba antiga, ou
+            // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
+            // gravado FICA.
+            bool? pagamentoObrigatorio = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -910,6 +914,22 @@ namespace Padelizou.Controllers
                 }
 
                 torneio.FormaPagamento = formaPagamento;
+            }
+
+            // ── "Só confirmo a inscrição depois de pago", agora editável ────────────────
+            // A chave só existia na tela de CRIAÇÃO, e o Editar nunca a lia — o mesmo buraco
+            // que a forma de recebimento tinha até hoje de manhã.
+            //
+            // ⚠️ Isso não é preciosismo: desligada, NENHUMA cobrança é gerada em lugar nenhum
+            // (os dois únicos caminhos que criam cobrança de torneio passam por ela). Um
+            // torneio que trocou pra "pelo site" com a chave desligada fica cobrando pelo site
+            // só no nome — foi o que aconteceu no NATA PADEL TOUR, que nasceu "por fora".
+            //
+            // Vale pra quem se inscrever DAQUI PRA FRENTE: ligar não cria cobrança retroativa
+            // pra quem já entrou, e a tela diz isso.
+            if (pagamentoObrigatorio is bool exigePagar)
+            {
+                torneio.PagamentoObrigatorioNaInscricao = exigePagar;
             }
 
             torneio.Nome = nome;

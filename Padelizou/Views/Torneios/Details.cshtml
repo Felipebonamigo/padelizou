@@ -1529,6 +1529,41 @@
                                     }
                                 </div>
 
+                                @* ── Só confirmo a inscrição depois de pago ──────────────────
+                                   Só aparece em torneio que cobra pelo site: no "por fora" o
+                                   sistema não gera cobrança nenhuma, então a chave não decide nada.
+
+                                   ⚠️ DESLIGADA, NENHUMA COBRANÇA É GERADA — os dois únicos
+                                   caminhos que criam cobrança de torneio passam por ela, e não
+                                   existe "pagar depois". Um torneio que virou "pelo site" com ela
+                                   desligada cobra pelo site só no nome; foi o que aconteceu no
+                                   NATA PADEL TOUR, que nasceu por fora. *@
+                                @if (Model.CobraPeloSite && Model.PrecoInscricao > 0)
+                                {
+                                    <div class="col-12">
+                                        <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="pagamentoObrigatorio"
+                                                       value="true" id="edPagObrigatorio" style="transform: scale(1.2); margin-right: 8px;"
+                                                       checked="@Model.PagamentoObrigatorioNaInscricao" />
+                                                <label class="form-check-label fw-bold small" for="edPagObrigatorio">
+                                                    Só confirmo a inscrição depois de pago
+                                                </label>
+                                                @* O hidden vem DEPOIS do checkbox: o binder de bool fica
+                                                   com o primeiro valor, e com ele na frente marcar valeria
+                                                   "false" — a chave faria o contrário do que diz. *@
+                                                <input type="hidden" name="pagamentoObrigatorio" value="false" />
+                                                <div class="small text-muted ps-1 mt-1">
+                                                    <strong>Ligado:</strong> o jogador cai no checkout e a vaga só nasce paga.
+                                                    <strong>Desligado:</strong> ele garante a vaga na hora e acerta com você por fora —
+                                                    e aí <strong>o sistema não gera cobrança nenhuma</strong>, mesmo o torneio cobrando pelo site.
+                                                    <div class="mt-1">Vale pra quem se inscrever daqui pra frente; quem já está dentro não muda.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
                                 @* O campo da chave Pix acompanha quem PODE virar "por fora", e não
                                    só quem já é: sem isso, trocar a forma exigiria salvar, esperar a
                                    tela voltar e editar de novo pra informar a chave. *@
