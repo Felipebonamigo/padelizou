@@ -2677,3 +2677,58 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--padel-green);
     text-decoration: underline;
 }
+
+/* ── Capa do torneio no card: INTEIRA, nunca cortada ─────────────────────────────
+   Queixa do Felipe (08/08/2026): "o folder sempre fica cortado". Era `object-fit:
+   cover`, que preenche a caixa cortando o que sobra — e num folder de torneio o que
+   sobra é a informação. No "Americano das Gurias" sumiam a faixa de cima e o troféu
+   de baixo; no NATA PADEL TOUR, as pontas do escudo.
+
+   A arte agora cabe inteira (`contain`) sobre uma cópia dela mesma borrada e
+   ampliada. O fundo borrado existe pra que a sobra não vire duas tarjas lisas: a cor
+   sai da própria arte, então serve pra folder vertical, quadrado ou deitado.
+
+   Altura FIXA e definida aqui (e não em style inline em dois ramos da view): card de
+   altura variável desalinha a grade, e o caso com capa e o sem capa têm que medir
+   igual. */
+.pdz-capa-torneio {
+    position: relative;
+    height: 160px;
+    overflow: hidden;
+    background: var(--pdz-navy-900);
+}
+
+.pdz-capa-fundo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* O scale esconde a borda transparente que o blur cria nas beiradas — sem ele
+       aparece um halo claro em volta da capa. */
+    transform: scale(1.2);
+    filter: blur(18px) saturate(1.25) brightness(.55);
+}
+
+.pdz-capa-arte {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Descola a arte das bordas: folder encostado na quina do card parece cortado
+       mesmo quando não está. */
+    padding: 6px;
+}
+
+.pdz-capa-vazia {
+    background: linear-gradient(125deg, var(--pdz-navy-900), var(--pdz-navy-fixed) 60%, #29396a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdz-capa-marca {
+    height: 64px;
+    opacity: .92;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .3));
+}
