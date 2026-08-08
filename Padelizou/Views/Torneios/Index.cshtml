@@ -2,6 +2,7 @@
     ViewData["Title"] = "Torneios";
     var abertos = ViewBag.Abertos as List<Padelizou.Models.Torneio> ?? new();
     var emAndamento = ViewBag.EmAndamento as List<Padelizou.Models.Torneio> ?? new();
+    var emBreve = ViewBag.EmBreve as List<Padelizou.Models.Torneio> ?? new();
     var finalizados = ViewBag.Finalizados as List<Padelizou.Models.Torneio> ?? new();
     // O controller só põe torneio cancelado aqui pra quem organiza (e pro admin) — pra todo o
     // resto a lista chega vazia, e aí a seção inteira não existe.
@@ -104,6 +105,28 @@
             <div class="col-12 text-center text-muted"><p>Nenhum torneio com inscrições abertas no momento.</p></div>
         }
     </div>
+
+    @* EM BREVE: o torneio já existe e já dá pra ver (local, data, preço, categorias), mas a
+       inscrição ainda não abriu. Sem esta seção ele caía em "Em Andamento" — anunciando como
+       acontecendo um torneio que o organizador ainda está montando.
+
+       Aparece SÓ quando tem algum: seção vazia com "nenhum torneio em breve" é ruído numa
+       página que já tem quatro blocos. As outras têm texto de vazio porque a ausência delas
+       significa alguma coisa; a ausência desta não. *@
+    @if (emBreve.Any())
+    {
+        <h5 class="pdz-section-title mb-1">Em breve</h5>
+        <p class="text-muted small mb-3">
+            <i class="bi bi-hourglass-split"></i>
+            As inscrições ainda não abriram. Dá pra ver os detalhes e voltar quando abrir.
+        </p>
+        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao">
+            @foreach (var torneio in emBreve)
+            {
+                <partial name="_TorneioCard" model="torneio" />
+            }
+        </div>
+    }
 
     <h5 class="pdz-section-title mb-3">Em Andamento</h5>
     <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio em andamento no momento.">

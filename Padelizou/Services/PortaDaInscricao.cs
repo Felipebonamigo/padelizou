@@ -68,6 +68,9 @@ public static class PortaDaInscricao
     // não abriu. A tela dizia "Inscrições Encerradas! Agora você pode sortear os grupos" pra
     // um torneio com zero inscritos, que é a frase mais confusa possível na hora exata em que
     // o organizador está tentando entender por que ninguém consegue entrar.
+    // ⚠️ Exige o status FECHADA, e não só "não está aberta": cancelado e finalizado também
+    // não estão abertos, e sem gente dentro os dois cairiam aqui — um torneio cancelado
+    // apareceria na vitrine como "em breve".
     public static bool NuncaAbriu(Torneio torneio, bool temInscrito, bool jaSorteou) =>
-        !EstaAberta(torneio) && !temInscrito && !jaSorteou;
+        torneio.Status == Fechada && !temInscrito && !jaSorteou;
 }

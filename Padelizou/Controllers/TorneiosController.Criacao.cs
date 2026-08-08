@@ -197,7 +197,10 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
             bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null,
             bool categoriaDeTimes = false, string? nomeCategoriaTimes = null,
-            int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null)
+            int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null,
+            // Caixa marcada por padrão na tela. Vem como `true` aqui também porque aba aberta
+            // antes deste deploy não manda o campo, e o comportamento de sempre é abrir.
+            bool abrirInscricoes = true)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -376,8 +379,16 @@ namespace Padelizou.Controllers
             // vira o "Ate" de sempre, que é o comportamento histórico.
             torneio.ContagemDeGames = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
 
-            // O Torneio nasce com Inscrições Abertas
-            torneio.Status = "Inscrições Abertas";
+            // O torneio nasce ABERTO, a não ser que o organizador diga que ainda não quer
+            // receber ninguém. Montar categoria, quadra e preço com o formulário já aceitando
+            // gente é o caso comum de quem monta em duas sentadas — e a inscrição que entra no
+            // meio disso pega o torneio pela metade.
+            //
+            // Nasce aberto (e não fechado) porque esse é o caminho de quem cria pra anunciar
+            // agora, que é a maioria: inverter faria todo torneio precisar de um clique extra
+            // pra existir de verdade, e o esquecimento seria silencioso — ninguém consegue se
+            // inscrever e nada na tela explica por quê.
+            torneio.Status = abrirInscricoes ? PortaDaInscricao.Aberta : PortaDaInscricao.Fechada;
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
             // Escolhida pelo organizador quando ele digitou uma; sorteada quando deixou vazio.
             torneio.ChaveAcesso = torneio.Restrito ? ChaveDeAcessoDoTorneio.Definir(chaveAcessoEscolhida) : null;

@@ -171,10 +171,44 @@ namespace Padelizou.Controllers
             static List<Torneio> DoMaisRecente(IEnumerable<Torneio> lista) =>
                 lista.OrderBy(t => t.DataInicio == null).ThenByDescending(t => t.DataInicio).ToList();
 
+            // ── "Em breve": torneio que ainda NÃO abriu inscrição ──────────────────────
+            // Ele não é "aberto" (ninguém consegue entrar) nem "em andamento" (não começou
+            // nada), e sem seção própria caía no meio dos que já estão rolando — anunciando
+            // como acontecendo um torneio que o organizador ainda está montando.
+            //
+            // ⚠️ Duas consultas de CONJUNTO, não uma por torneio: a lista já está inteira em
+            // memória, e perguntar "tem inscrito?" card a card seria uma ida ao banco por
+            // card numa página que qualquer visitante abre.
+            var idsNaTela = torneios.Select(t => t.Id).ToList();
+
+            var comInscrito = (await _context.Duplas
+                    .Where(d => idsNaTela.Contains(d.Categoria.TorneioId) && d.NomeTime == null)
+                    .Select(d => d.Categoria.TorneioId)
+                    .Distinct()
+                    .ToListAsync())
+                .Concat(await _context.InscricoesAmericanas
+                    .Where(i => idsNaTela.Contains(i.Categoria.TorneioId))
+                    .Select(i => i.Categoria.TorneioId)
+                    .Distinct()
+                    .ToListAsync())
+                .ToHashSet();
+
+            var comPartida = (await _context.Partidas
+                    .Where(p => p.TorneioId != null && idsNaTela.Contains(p.TorneioId.Value))
+                    .Select(p => p.TorneioId!.Value)
+                    .Distinct()
+                    .ToListAsync())
+                .ToHashSet();
+
+            bool AindaVaiAbrir(Torneio t) =>
+                PortaDaInscricao.NuncaAbriu(t, comInscrito.Contains(t.Id), comPartida.Contains(t.Id));
+
             ViewBag.Abertos = DoMaisProximo(torneios.Where(t => t.Status == "Inscrições Abertas"));
+            ViewBag.EmBreve = DoMaisProximo(torneios.Where(AindaVaiAbrir));
             ViewBag.EmAndamento = DoMaisProximo(torneios
                 .Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado"
-                            && !CancelamentoDoTorneio.EstaCancelado(t.Status)));
+                            && !CancelamentoDoTorneio.EstaCancelado(t.Status)
+                            && !AindaVaiAbrir(t)));
             ViewBag.Finalizados = DoMaisRecente(torneios.Where(t => t.Status == "Finalizado"));
             // Bloco próprio: cancelado no meio de "em andamento" faria o organizador achar que
             // o torneio ainda está de pé.

@@ -406,6 +406,39 @@
                         <small class="text-muted d-block mt-1">Somando todas as categorias. Quem se inscrever depois de esgotado vai pra lista de espera.</small>
                     </div>
 
+                    @* ── Já abre pra inscrição? ──────────────────────────────────────────
+                       Quem monta o torneio em duas sentadas estava obrigado a deixar o
+                       formulário aceitando gente enquanto ainda mexia em categoria, quadra e
+                       preço — e a inscrição que entra no meio disso pega o torneio pela
+                       metade.
+
+                       ⚠️ O hidden é o que faz o "não" chegar: caixa desmarcada simplesmente
+                       não é enviada pelo navegador, e sem ele o parâmetro cairia no valor
+                       padrão (true) — desmarcar não faria nada.
+
+                       ⚠️⚠️ E ele vem DEPOIS do checkbox, que é a ordem do asp-for do próprio
+                       ASP.NET. O binder de bool fica com o PRIMEIRO valor: com o hidden na
+                       frente, marcar mandava "false,true" e valia o `false` — a caixa fazia
+                       exatamente o contrário do que dizia. Medido no navegador, não deduzido. *@
+                    <div class="col-12">
+                        <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="abrirInscricoes"
+                                       value="true" id="abrirInscricoes" checked />
+                                <label class="form-check-label" for="abrirInscricoes">
+                                    <span class="fw-bold">Já quero receber inscrições</span>
+                                    <span class="d-block small text-muted">
+                                        Desmarque se ainda está montando o torneio. Ele fica na
+                                        seção <strong>"Em breve"</strong> — dá pra ver os detalhes e
+                                        o link funciona, mas ninguém se inscreve até você abrir.
+                                        Abrir depois é um botão em Gerenciar Torneio.
+                                    </span>
+                                </label>
+                                <input type="hidden" name="abrirInscricoes" value="false" />
+                            </div>
+                        </div>
+                    </div>
+
                     @* "Quando fecha?" e "quando sai a chave?" são as duas perguntas que o
                        organizador responde no WhatsApp o torneio inteiro. Publicadas aqui, ele
                        responde uma vez só. São PREVISÕES: nada fecha nem sorteia sozinho —
