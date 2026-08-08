@@ -280,6 +280,11 @@
                         <div class="pdz-live-header">
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <span class="pdz-live-badge"><span class="pdz-live-dot"></span> AO VIVO</span>
+                                @* Onde o card diz se o placar foi gravado. Fica AQUI, no
+                                   próprio card, e não na barra lá em cima: quem marca um game
+                                   está olhando pro número que acabou de mexer, e um aviso fora
+                                   da vista não avisa ninguém. Vazio até alguém editar. *@
+                                <span class="pdz-live-salvo" role="status" aria-live="polite"></span>
                                 @if (temTransmissao)
                                 {
                                     <a href="@jogo.LinkTransmissao" target="_blank" rel="noopener" class="pdz-live-transmissao-btn">

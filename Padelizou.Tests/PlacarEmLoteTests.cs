@@ -136,4 +136,46 @@ public class PlacarEmLoteTests
 
         Assert.Null((await ctx.Partidas.FindAsync(deOutro.Id))!.GamesDupla1);
     }
+
+    // ⚠️ O −/+ do card não recarrega mais a página (Carol, 08/08/2026: "ao clicar no + a tela
+    // ia lá pra cima e recarregava"). Sem a recarga, a tela SÓ fica certa se o servidor
+    // devolver o placar como ele ficou gravado — e ele CORRIGE o que recebe: o teto da fase
+    // manda. Sem esta resposta, o número na tela mentiria sobre o que está no banco, e é por
+    // ele que o organizador decide se o jogo acabou.
+    [Fact]
+    public async Task Salvar_por_fetch_devolve_em_JSON_o_placar_que_o_servidor_gravou()
+    {
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1, gamesDaFase: 4);
+        using var _ = ctx;
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        controller.ControllerContext.HttpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
+
+        // 9 num jogo que vai até 4: o servidor apara pra 4.
+        var resposta = await controller.SalvarPlacaresAoVivo(
+            torneio.Id, new[] { aoVivo[0].Id }, new[] { 9 }, new[] { 0 });
+
+        var json = Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(resposta);
+        var texto = System.Text.Json.JsonSerializer.Serialize(json.Value);
+
+        Assert.Contains("\"games1\":4", texto);
+        Assert.Contains("\"aoVivo\":true", texto);
+        Assert.Equal(4, (await ctx.Partidas.FindAsync(aoVivo[0].Id))!.GamesDupla1);
+    }
+
+    [Fact]
+    public async Task Sem_o_cabecalho_de_fetch_o_salvar_continua_redirecionando_como_sempre()
+    {
+        // A tela cheia e o navegador sem `fetch` continuam no caminho de sempre — POST,
+        // redirect e a faixa de sucesso. O JSON é um caminho a mais, não uma troca.
+        var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1);
+        using var _ = ctx;
+
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        var resposta = await controller.SalvarPlacaresAoVivo(
+            torneio.Id, new[] { aoVivo[0].Id }, new[] { 3 }, new[] { 1 }, voltarPara: "Jogos");
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RedirectToActionResult>(resposta);
+        Assert.Equal(3, (await ctx.Partidas.FindAsync(aoVivo[0].Id))!.GamesDupla1);
+    }
 }

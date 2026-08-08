@@ -100,8 +100,21 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
+            // Quem chamou por `fetch` (o −/+ do card, que não recarrega mais a página) leva o
+            // placar APLICADO de volta em JSON. ⚠️ Isso não é enfeite: o servidor CORRIGE o
+            // que recebeu — o teto da fase manda, e numa soma de 5 um "6" vira 4. Com a
+            // recarga, a tela voltava do servidor já certa; sem ela, o número na tela ficaria
+            // mentindo sobre o que foi gravado, e é justamente o número que o organizador usa
+            // pra decidir se o jogo acabou.
+            //
+            // O tipo da resposta também é o SINAL DE SUCESSO do outro lado: sessão vencida
+            // responde 302 pra tela de login, que o `fetch` segue e entrega como 200 — "ok"
+            // sem ter salvo nada. Só JSON conta como salvo.
+            bool porFetch = Request.Headers.XRequestedWith == "XMLHttpRequest";
+
             if (partidaId.Length == 0 || partidaId.Length != games1.Length || partidaId.Length != games2.Length)
             {
+                if (porFetch) return BadRequest();
                 TempData["Erro"] = "Não recebi os placares — tente de novo.";
                 return VoltarPara(voltarPara, id);
             }
@@ -134,6 +147,24 @@ namespace Padelizou.Controllers
             }
 
             if (mexidos > 0) await _context.SaveChangesAsync();
+
+            if (porFetch)
+            {
+                // O placar de CADA jogo como ele ficou gravado — inclusive o dos que não
+                // mudaram e o dos que saíram do ar no meio (aí a tela para de oferecer o
+                // número de um jogo que já acabou).
+                return Json(new
+                {
+                    salvos = mexidos,
+                    placares = doTorneio.Select(p => new
+                    {
+                        partidaId = p.Id,
+                        games1 = p.GamesDupla1 ?? 0,
+                        games2 = p.GamesDupla2 ?? 0,
+                        aoVivo = p.Status == "AoVivo",
+                    }),
+                });
+            }
 
             TempData["Sucesso"] = mexidos == 0
                 ? "Nenhum placar mudou."

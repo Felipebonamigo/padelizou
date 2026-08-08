@@ -38,6 +38,12 @@
     var BLOCOS = ["#agendadas", "#finalizadas", "#classificacao", "#modalTrocarHorario", "#modalTrocarQuadra"];
 
     function estaOcupado() {
+        // ⚠️ Placar indo pro servidor = não atualizar. O cabeçalho do card seria trocado pelo
+        // HTML do servidor, que ainda não sabe do game recém-marcado — e o número voltaria
+        // pro valor velho na frente de quem acabou de marcar. Quem levanta esta bandeira é o
+        // js/placar-ao-vivo.js.
+        if (window.pdzSalvandoPlacar) return true;
+
         var ativo = document.activeElement;
         if (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName)) return true;
 
@@ -74,6 +80,12 @@
         // 1. O cabeçalho de cada cartão AO VIVO: placar, cronômetro, quadra e botões. A
         //    transmissão (.pdz-live-video) é irmã dele e não é tocada.
         cartoes(document).forEach(function (atual) {
+            // ⚠️ Card com placar que NÃO chegou ao servidor fica intocado. Trocar o cabeçalho
+            // aqui apagaria o game que a pessoa marcou (o servidor ainda tem o número velho) e
+            // levaria junto o aviso "não salvou" — o erro sumiria da tela sem ter sido
+            // resolvido. Quem marca esse estado é o js/placar-ao-vivo.js.
+            if (atual.querySelector(".pdz-live-salvo-erro")) return;
+
             var id = atual.getAttribute("data-partida-id");
             var fresco = novo.querySelector('.pdz-live-card[data-partida-id="' + id + '"]');
             if (!fresco) return;

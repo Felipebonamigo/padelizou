@@ -703,6 +703,28 @@ a:hover { color: var(--pdz-lime-600); }
     background: rgba(255, 255, 255, .05);
     border-radius: 14px;
 }
+/* "salvando… / salvo / não salvou" no próprio card (ver js/placar-ao-vivo.js). Nasce vazio e
+   sem ocupar espaço: card que ninguém editou não fala nada. */
+.pdz-live-salvo {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, .75);
+    background: rgba(255, 255, 255, .12);
+}
+.pdz-live-salvo:empty { display: none; }
+.pdz-live-salvo-ok {
+    color: var(--pdz-navy);
+    background: var(--padel-green);
+}
+/* Falha não pode passar por aviso discreto: é ela que separa "marquei" de "marquei e o
+   servidor não recebeu". */
+.pdz-live-salvo-erro {
+    color: #fff;
+    background: var(--bs-danger, #dc3545);
+}
 .pdz-live-versus {
     display: flex;
     align-items: center;
