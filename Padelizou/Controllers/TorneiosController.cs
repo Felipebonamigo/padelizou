@@ -829,11 +829,21 @@ namespace Padelizou.Controllers
             {
                 // No Americano de DUPLAS a conta é por dupla — a dupla é fixa, então quem
                 // soma games é ela (Services/TabelaDoAmericanoDeDuplas).
-                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
+                //
+                // ⚠️ `todasAsPartidas`, e não a lista da tela: quem APARECE na tabela é a grade
+                // inteira (a dupla existe desde o sorteio, zerada), e a lista `partidas` já veio
+                // filtrada por time/categoria/"só meus jogos" — a classificação de um recorte é
+                // a classificação de outro torneio.
+                var doAmericano = todasAsPartidas.Where(p => p.Fase.StartsWith("Americano")).ToList();
+                var finalizadas = doAmericano.Where(p => p.Status == "Finalizada");
 
                 ViewBag.ClassificacaoAmericanoDuplas = categoriasDoTorneio.ToDictionary(
                     c => c.Nome,
-                    c => TabelaDoAmericanoDeDuplas.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+                    c => TabelaDoAmericanoDeDuplas.Montar(
+                        finalizadas.Where(p => p.CategoriaId == c.Id),
+                        doAmericano.Where(p => p.CategoriaId == c.Id)
+                            .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                            .Where(d => d != null)));
 
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }

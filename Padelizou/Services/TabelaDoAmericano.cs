@@ -35,7 +35,16 @@ public static class TabelaDoAmericano
             .ToList();
     }
 
-    public static List<Linha> Montar(IEnumerable<Partida> partidasFinalizadas)
+    // `participantes` é quem TEM QUE APARECER na tabela mesmo sem ter jogado ainda — a grade
+    // inteira do grupo (Felipe, 08/08/2026: "com tudo zerado e com as participantes"). Sem
+    // isso, a tabela do Americano nascia vazia e só ganhava gente conforme os jogos
+    // terminavam: no começo do torneio ninguém se achava nela.
+    //
+    // Quem ainda não jogou fica NO FIM, em ordem alfabética, e nunca marcado como empatado:
+    // não há empate a desfazer entre pessoas que não entraram em quadra, e mostrar "sorteio"
+    // ou "confronto direto" antes do primeiro jogo seria inventar disputa onde não houve.
+    public static List<Linha> Montar(IEnumerable<Partida> partidasFinalizadas,
+        IEnumerable<Jogador>? participantes = null)
     {
         // Materializado uma vez: o confronto direto varre as partidas de novo, e uma consulta
         // do EF percorrida duas vezes bate no banco duas vezes.
@@ -122,12 +131,29 @@ public static class TabelaDoAmericano
         int melhor = ordenada.Count > 0 ? ordenada[0].Games : 0;
         int quantosNoTopo = ordenada.Count(v => v.Games == melhor);
 
-        return ordenada
+        var linhas = ordenada
             .Select(v => new Linha(
                 v.Jogador, v.Games, v.Jogos,
                 quantosNoTopo > 1 && v.Games == melhor,
                 desempatePor.GetValueOrDefault(v.Jogador.Id)))
             .ToList();
+
+        // E quem ainda não jogou entra zerado, no fim. Ordem alfabética e, no empate de nome,
+        // pelo Id: ordem TOTAL, senão a mesma tabela sai diferente a cada carregamento.
+        if (participantes != null)
+        {
+            var jaEstao = linhas.Select(l => l.Jogador.Id).ToHashSet();
+
+            linhas.AddRange(participantes
+                .GroupBy(j => j.Id)
+                .Select(g => g.First())
+                .Where(j => !jaEstao.Contains(j.Id))
+                .OrderBy(j => j.Nome, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(j => j.Id)
+                .Select(j => new Linha(j, 0, 0, false)));
+        }
+
+        return linhas;
     }
 
     // Games que cada empatado fez JOGANDO CONTRA os outros empatados. É o "confronto direto"

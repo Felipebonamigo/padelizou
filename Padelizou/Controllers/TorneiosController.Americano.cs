@@ -77,6 +77,11 @@ namespace Padelizou.Controllers
                     .Where(i => i.CategoriaId == categoria.Id)
                     .ToDictionaryAsync(i => i.JogadorId);
 
+                // Os jogos saem na ORDEM EM QUE VÃO SER JOGADOS: a próxima rodada é a do grupo
+                // que está parado há mais tempo. A regra e o porquê moram em
+                // Services/FilaDoAmericano — aqui é só juntar os grupos antes de enfileirar.
+                var daCategoria = new List<(int Rodada, int Grupo, string? NomeDoGrupo, Dupla A, Dupla B)>();
+
                 for (int g = 0; g < divisao.Grupos; g++)
                 {
                     // Grupo único mantém a fase SEM nome de grupo: é a mesma grafia dos
@@ -112,21 +117,25 @@ namespace Padelizou.Controllers
                     await _context.SaveChangesAsync();   // uma vez só por grupo: gera os Ids
 
                     foreach (var (rodada, a, b) in porRodada)
+                        daCategoria.Add((rodada, g, nomeDoGrupo, a, b));
+                }
+
+                foreach (var (rodada, _, nomeDoGrupo, a, b) in
+                         FilaDoAmericano.NaOrdemDeJogar(daCategoria, x => x.Rodada, x => x.Grupo))
+                {
+                    jogosDoAmericano.Add(new Partida
                     {
-                        jogosDoAmericano.Add(new Partida
-                        {
-                            TorneioId = torneioId,
-                            CategoriaId = categoria.Id,
-                            Dupla1Id = a.Id,
-                            Dupla2Id = b.Id,
-                            Fase = nomeDoGrupo == null
-                                ? FaseDoAmericano.RodadaUnica(rodada)
-                                : FaseDoAmericano.RodadaDeGrupo(nomeDoGrupo, rodada),
-                            Status = "Agendada",
-                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                        });
-                        totalPartidasGeradas++;
-                    }
+                        TorneioId = torneioId,
+                        CategoriaId = categoria.Id,
+                        Dupla1Id = a.Id,
+                        Dupla2Id = b.Id,
+                        Fase = nomeDoGrupo == null
+                            ? FaseDoAmericano.RodadaUnica(rodada)
+                            : FaseDoAmericano.RodadaDeGrupo(nomeDoGrupo, rodada),
+                        Status = "Agendada",
+                        Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                    });
+                    totalPartidasGeradas++;
                 }
 
                 if (divisao.TemGrupoFinal) categoriasComGrupoFinal++;
@@ -440,12 +449,19 @@ namespace Padelizou.Controllers
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
+            // ⚠️ TODAS as partidas, e não só as finalizadas (Felipe, 08/08/2026: "aqui já
+            // deveria aparecer a classificação, mesmo sem nenhum jogo, com tudo zerado e com
+            // as participantes"). Quem JOGA o torneio está na grade desde o sorteio; quem
+            // PONTUOU sai dos jogos que terminaram. Trazendo só as finalizadas, a aba
+            // Classificação abria vazia até o primeiro placar — logo no começo, que é quando
+            // mais gente entra pra ver se está lá. Quem soma o quê é decidido em
+            // Services/ClassificacaoDoAmericano.
             var partidas = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.TorneioId == torneioId && p.Status == "Finalizada")
+                .Where(p => p.TorneioId == torneioId)
                 .ToListAsync();
 
             return categorias

@@ -9,6 +9,23 @@
                   ?? new Padelizou.Services.FormatoDaPartida.Formato(
                          Padelizou.Services.FormatoDaPartida.SetsPadrao,
                          Padelizou.Services.FormatoDaPartida.GamesPadrao);
+
+    // O link da CÂMERA de cada quadra (ver Services/TransmissaoDaQuadra). A câmera fica
+    // pendurada na quadra e transmite o dia todo, então escolher a quadra já traz o link:
+    // sem isto, todo jogo criado depois do "usar este link em todos os próximos jogos desta
+    // quadra" chegava aqui sem transmissão, e o organizador colava o link de novo, um a um.
+    var linksDasQuadras = ViewBag.LinksDasQuadras as Dictionary<string, string>
+                          ?? new Dictionary<string, string>();
+    var linkDaQuadraAtual = Model.NomeQuadra != null
+        ? linksDasQuadras.GetValueOrDefault(Model.NomeQuadra)
+        : null;
+
+    // O que estiver gravado no jogo manda — o herdado da quadra só preenche o vazio.
+    var linkNaTela = string.IsNullOrWhiteSpace(Model.LinkTransmissao)
+        ? linkDaQuadraAtual
+        : Model.LinkTransmissao;
+    var linkVeioDaQuadra = string.IsNullOrWhiteSpace(Model.LinkTransmissao)
+                           && !string.IsNullOrWhiteSpace(linkDaQuadraAtual);
 }
 
 <div class="container mt-4">
@@ -42,11 +59,15 @@
                                 <label class="form-label fw-bold">Quadra</label>
                                 @if (quadras.Count > 0)
                                 {
-                                    <select name="nomeQuadra" class="form-select">
-                                        <option value="">-- Escolha a quadra --</option>
+                                    @* `data-link`: o link da câmera daquela quadra viaja na
+                                       própria opção, e trocar de quadra troca o link junto
+                                       (o script no fim do arquivo). *@
+                                    <select name="nomeQuadra" class="form-select" id="pdzQuadra">
+                                        <option value="" data-link="">-- Escolha a quadra --</option>
                                         @foreach (var quadra in quadras)
                                         {
-                                            <option value="@quadra.Nome" selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
+                                            <option value="@quadra.Nome" data-link="@(linksDasQuadras.GetValueOrDefault(quadra.Nome) ?? "")"
+                                                    selected="@(quadra.Nome == Model.NomeQuadra)">@quadra.Nome</option>
                                         }
                                     </select>
                                 }
@@ -149,8 +170,13 @@
                         <!-- Linha 3: Link de Transmissão -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">🎥 Link de Transmissão (YouTube/Twitch)</label>
-                            <input type="url" name="linkTransmissao" value="@Model.LinkTransmissao" class="form-control" placeholder="https://..." />
+                            <input type="url" name="linkTransmissao" id="pdzLinkTransmissao" value="@linkNaTela" class="form-control" placeholder="https://..." />
                             <small class="text-muted">Se preenchido, o botão "Ver Ao Vivo" aparecerá na tela do público.</small>
+                            @* Avisar de onde veio: link que aparece sozinho no campo, sem
+                               explicação, parece dado errado — e o organizador apaga. *@
+                            <small class="text-info d-block @(linkVeioDaQuadra ? "" : "d-none")" id="pdzAvisoLinkDaQuadra">
+                                <i class="bi bi-broadcast"></i> Este é o link da câmera desta quadra. Salve pra usar neste jogo.
+                            </small>
                         </div>
 
                         <!-- Aplicar o mesmo link a todos os próximos jogos da quadra (a câmera
@@ -227,6 +253,37 @@
             });
 
             conferir();
+        })();
+
+        // TROCOU DE QUADRA, TROCOU DE CÂMERA (Felipe, 08/08/2026).
+        //
+        // A câmera é da quadra e transmite o dia inteiro, então o link acompanha a escolha da
+        // quadra. Cada <option> carrega o link da sua (data-link), montado no servidor a
+        // partir dos jogos daquela quadra — ver Services/TransmissaoDaQuadra.
+        //
+        // ⚠️ O que a pessoa DIGITOU não pode ser apagado por uma troca de quadra. Só é
+        // substituído o campo vazio ou o que veio de uma quadra (ou seja, o que este script
+        // mesmo escreveu). Link colado à mão fica onde está, e o aviso some — ele explica um
+        // valor que não é mais herdado.
+        (function () {
+            var quadra = document.getElementById('pdzQuadra');
+            var campo = document.getElementById('pdzLinkTransmissao');
+            var aviso = document.getElementById('pdzAvisoLinkDaQuadra');
+            if (!quadra || !campo) return;
+
+            var conhecidos = Array.prototype.map.call(quadra.options, function (o) {
+                return o.getAttribute('data-link') || '';
+            }).filter(function (l) { return l !== ''; });
+
+            quadra.addEventListener('change', function () {
+                var atual = campo.value.trim();
+                var meu = conhecidos.indexOf(atual) !== -1;
+                if (atual !== '' && !meu) return;              // digitado à mão: não se toca
+
+                var novo = quadra.options[quadra.selectedIndex].getAttribute('data-link') || '';
+                campo.value = novo;
+                if (aviso) aviso.classList.toggle('d-none', novo === '');
+            });
         })();
     </script>
 }

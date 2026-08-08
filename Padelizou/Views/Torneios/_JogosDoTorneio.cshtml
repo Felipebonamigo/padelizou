@@ -173,7 +173,9 @@
 <!-- Navegação das Sub-Abas. Ícones do site (não emoji, que rende diferente em cada
      aparelho) e o vermelho do Ao Vivo mora na bolinha pulsante — texto vermelho
      sobre a pill ativa era ilegível. -->
-<ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist">
+@* `data-torneio-id`: a aba escolhida é lembrada POR TORNEIO (ver js/jogos-abas.js) — quem
+   opera dois torneios no mesmo dia não herda a aba de um no outro. *@
+<ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist" data-torneio-id="@Model.TorneioId">
     <li class="nav-item" role="presentation">
         <button class="nav-link @(defaultAoVivo ? "active" : "")" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
             <span class="pdz-tab-dot"></span> Ao Vivo (@aoVivoList.Count)
@@ -269,8 +271,12 @@
                 var youtubeId = ExtrairYoutubeId(jogo.LinkTransmissao);
                 var temTransmissao = !string.IsNullOrEmpty(jogo.LinkTransmissao);
 
+                @* `data-partida-id` no CARD: é por ele que a atualização automática acha o
+                   cartão correspondente pra trocar só o cabeçalho (placar, cronômetro,
+                   botões) e não encostar no <iframe> da transmissão. Ver
+                   js/jogos-ao-vivo-atualiza.js. *@
                 <div class="col-md-6 mb-3">
-                    <div class="pdz-live-card shadow-sm">
+                    <div class="pdz-live-card shadow-sm" data-partida-id="@jogo.Id">
                         <div class="pdz-live-header">
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <span class="pdz-live-badge"><span class="pdz-live-dot"></span> AO VIVO</span>
@@ -786,7 +792,9 @@
 
                 @if (linhas.Count == 0)
                 {
-                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
+                    @* Com a grade sorteada a tabela já nasce cheia e zerada — aqui só sobra o
+                       torneio que ainda não tem jogos. *@
+                    <p class="text-muted small">A tabela aparece quando os jogos forem sorteados.</p>
                 }
                 else
                 {
@@ -807,7 +815,11 @@
                                     <tr class="@(l.Empatada ? "table-warning" : "")">
                                         <td class="fw-bold">@(i + 1)º</td>
                                         <td>
-                                            @if (i == 0 && !l.Empatada) { <span>🏅 </span> }
+                                            @* A medalha é de quem está LIDERANDO, e liderança
+                                               exige jogo jogado: com a tabela nascendo zerada,
+                                               sem esta condição a primeira linha da lista
+                                               ganharia medalha antes da bola rolar. *@
+                                            @if (i == 0 && !l.Empatada && l.Jogos > 0) { <span>🏅 </span> }
                                             @l.Dupla.NomeDeExibicao
                                             @if (l.Empatada)
                                             {

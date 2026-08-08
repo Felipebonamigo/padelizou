@@ -24,14 +24,26 @@ public static class ClassificacaoDoAmericano
         bool EhGrupoFinal,
         IReadOnlyList<TabelaDoAmericano.Linha> Linhas);
 
-    // `partidasDaCategoria` pode vir com o torneio inteiro dentro: o que não é Americano e o
-    // que não terminou são descartados aqui, e não na consulta de quem chama. Filtrar no
-    // chamador é o que faz três telas discordarem sobre o que entra na conta.
+    // `partidasDaCategoria` pode vir com o torneio inteiro dentro: o que não é Americano é
+    // descartado aqui, e não na consulta de quem chama. Filtrar no chamador é o que faz três
+    // telas discordarem sobre o que entra na conta.
+    //
+    // ⚠️ DUAS PERGUNTAS DIFERENTES, DUAS LISTAS (Felipe, 08/08/2026: "já deveria aparecer a
+    // classificação, mesmo sem nenhum jogo, com tudo zerado e com as participantes"):
+    //
+    //   • QUEM ESTÁ NA TABELA sai da GRADE INTEIRA — quem foi sorteado já é participante, e
+    //     ninguém precisa esperar o primeiro placar pra existir na classificação. Antes a
+    //     aba abria com "ninguém pontuou ainda" justamente no começo do torneio, que é
+    //     quando mais gente entra pra procurar o próprio nome.
+    //   • QUEM PONTUOU sai só do que TERMINOU. Jogo em quadra tem placar parcial na tela,
+    //     mas somá-lo aqui faria a classificação subir e descer no meio do game.
     public static List<Tabela> Montar(IEnumerable<Partida> partidasDaCategoria, int passamPorGrupo)
     {
         var doAmericano = partidasDaCategoria
-            .Where(p => FaseDoAmericano.EhDoAmericano(p.Fase) && p.Status == "Finalizada")
+            .Where(p => FaseDoAmericano.EhDoAmericano(p.Fase))
             .ToList();
+
+        var finalizadas = doAmericano.Where(p => p.Status == "Finalizada").ToList();
 
         var tabelas = new List<Tabela>();
 
@@ -53,7 +65,9 @@ public static class ClassificacaoDoAmericano
                 // marcaria "classificados" num torneio que não tem fase seguinte.
                 PassamDaqui: grupo == null ? 0 : passamPorGrupo,
                 EhGrupoFinal: false,
-                Linhas: TabelaDoAmericano.Montar(doAmericano.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)))));
+                Linhas: TabelaDoAmericano.Montar(
+                    finalizadas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)),
+                    Participantes(doAmericano.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo))))));
         }
 
         // O grupo final vem por último: é a fase seguinte, e é ele que decide o título.
@@ -65,11 +79,24 @@ public static class ClassificacaoDoAmericano
                 Titulo: "Grupo final",
                 PassamDaqui: 0,
                 EhGrupoFinal: true,
-                Linhas: TabelaDoAmericano.Montar(doFinal)));
+                Linhas: TabelaDoAmericano.Montar(
+                    doFinal.Where(p => p.Status == "Finalizada"),
+                    Participantes(doFinal))));
         }
 
         return tabelas;
     }
+
+    // Quem joga estas partidas — a fonte de "as participantes" da tabela zerada. Sai da
+    // própria grade porque é ela que diz quem está em qual grupo; a lista de inscritos não
+    // sabe disso.
+    private static List<Jogador> Participantes(IEnumerable<Partida> partidas) =>
+        partidas
+            .SelectMany(p => new[] { p.Dupla1?.Jogador1, p.Dupla1?.Jogador2, p.Dupla2?.Jogador1, p.Dupla2?.Jogador2 })
+            .Where(j => j != null)
+            .GroupBy(j => j!.Id)
+            .Select(g => g.First()!)
+            .ToList();
 
     // Qual tabela responde "quem é o campeão": o grupo final quando ele existe, e o grupo
     // único quando o torneio não tem divisão.

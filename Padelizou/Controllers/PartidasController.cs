@@ -118,6 +118,14 @@ namespace Padelizou.Controllers
                 .OrderBy(q => q.Nome)
                 .ToListAsync();
 
+            // O link da câmera é da QUADRA: escolher a quadra já traz o link dela, e o jogo
+            // que nasceu depois do "usar este link em todos os próximos" para de chegar sem
+            // transmissão. Ver Services/TransmissaoDaQuadra.
+            ViewBag.LinksDasQuadras = partida.TorneioId is int doTorneio
+                ? TransmissaoDaQuadra.PorQuadra(
+                    await _context.Partidas.Where(p => p.TorneioId == doTorneio).ToListAsync())
+                : new Dictionary<string, string>();
+
             // Até quantos games vai ESTE jogo (a fase manda). A tela tinha max="9" cravado,
             // igual a Mesa tinha — o organizador configurava 4 e nada respeitava.
             var torneio = partida.TorneioId is int torneioId

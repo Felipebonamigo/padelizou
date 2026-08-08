@@ -9,8 +9,10 @@
 
 @if (tabelas.Count == 0)
 {
+    @* Agora só sobra o caso de não haver GRADE: com os jogos sorteados a tabela já aparece
+       zerada, com todo mundo dentro (ver Services/ClassificacaoDoAmericano). *@
     <p class="text-muted small mb-0">
-        <i class="bi bi-info-circle"></i> Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.
+        <i class="bi bi-info-circle"></i> A tabela aparece quando os jogos forem sorteados.
     </p>
 }
 else
@@ -65,7 +67,13 @@ else
                                            cor nas duas telas. Só existe onde há corte de
                                            verdade: no grupo único (PassamDaqui = 0) ninguém se
                                            "classifica", todos já estão no que decide. *@
-                                        var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui;
+                                        @* ⚠️ `Jogos > 0`: com a tabela nascendo zerada (todo
+                                           mundo na grade aparece desde o sorteio), sem esta
+                                           condição as duas primeiras linhas de uma tabela
+                                           SEM JOGO NENHUM sairiam verdes com medalha — o
+                                           sistema anunciando classificados antes da bola
+                                           rolar, por ordem alfabética. *@
+                                        var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui && linha.Jogos > 0;
                                         var empatadoNoTopo = linha.Empatado;
 
                                         <tr class="@(empatadoNoTopo ? "table-warning" : passou ? "table-success" : "")">

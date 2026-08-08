@@ -158,4 +158,78 @@ public class ClassificacaoDoAmericanoTests
         Assert.Equal(6, unica.Linhas[0].TotalGames);
         Assert.All(unica.Linhas, l => Assert.Equal(1, l.Jogos));
     }
+
+    // ===================================================================================
+    // A TABELA EXISTE DESDE O SORTEIO (Felipe, 08/08/2026: "aqui já deveria aparecer a
+    // classificação, mesmo sem nenhum jogo, com tudo zerado e com as participantes")
+    // ===================================================================================
+
+    [Fact]
+    public void Sem_nenhum_jogo_terminado_a_tabela_ja_traz_todo_mundo_zerado()
+    {
+        var p = Enumerable.Range(1, 4).Select(P).ToArray();
+
+        // A grade sorteada, nada jogado ainda.
+        var agendadas = new[]
+        {
+            Jogo(FaseDoAmericano.RodadaUnica(1), p[0], p[1], 0, p[2], p[3], 0),
+            Jogo(FaseDoAmericano.RodadaUnica(2), p[0], p[2], 0, p[1], p[3], 0),
+        };
+        foreach (var j in agendadas) j.Status = "Agendada";
+
+        var tabelas = ClassificacaoDoAmericano.Montar(agendadas, passamPorGrupo: 0);
+
+        var unica = Assert.Single(tabelas);
+        Assert.Equal(4, unica.Linhas.Count);
+        Assert.All(unica.Linhas, l =>
+        {
+            Assert.Equal(0, l.TotalGames);
+            Assert.Equal(0, l.Jogos);
+            // ⚠️ Ninguém empatado: sem jogo não há liderança a disputar, e marcar empate aqui
+            // faria a tela oferecer partida de desempate antes da bola rolar.
+            Assert.False(l.Empatado);
+            Assert.Null(l.Desempate);
+        });
+    }
+
+    [Fact]
+    public void Quem_ainda_nao_jogou_fica_depois_de_quem_ja_jogou()
+    {
+        var p = Enumerable.Range(1, 6).Select(P).ToArray();
+
+        var jogada = Jogo(FaseDoAmericano.RodadaUnica(1), p[0], p[1], 6, p[2], p[3], 3);
+        var porVir = Jogo(FaseDoAmericano.RodadaUnica(2), p[4], p[5], 0, p[0], p[2], 0);
+        porVir.Status = "Agendada";
+
+        var tabelas = ClassificacaoDoAmericano.Montar(new[] { jogada, porVir }, passamPorGrupo: 0);
+        var linhas = Assert.Single(tabelas).Linhas;
+
+        Assert.Equal(6, linhas.Count);
+        // As quatro que jogaram vêm primeiro, por games; as duas que ainda não jogaram, depois.
+        Assert.All(linhas.Take(4), l => Assert.Equal(1, l.Jogos));
+        Assert.All(linhas.Skip(4), l => Assert.Equal(0, l.Jogos));
+        Assert.Equal(new[] { 5, 6 }, linhas.Skip(4).Select(l => l.Jogador.Id).ToArray());
+    }
+
+    [Fact]
+    public void O_grupo_aparece_na_tela_antes_de_qualquer_jogo_do_grupo_terminar()
+    {
+        // Antes, os grupos saíam das partidas FINALIZADAS: o grupo B só existia na tela depois
+        // do primeiro placar dele. Dois grupos sorteados, um jogo jogado — as duas tabelas
+        // precisam estar lá.
+        var a = Enumerable.Range(1, 4).Select(P).ToArray();
+        var b = Enumerable.Range(5, 4).Select(P).ToArray();
+
+        var doA = Jogo(FaseDoAmericano.RodadaDeGrupo("A", 1), a[0], a[1], 6, a[2], a[3], 4);
+        var doB = Jogo(FaseDoAmericano.RodadaDeGrupo("B", 1), b[0], b[1], 0, b[2], b[3], 0);
+        doB.Status = "Agendada";
+
+        var tabelas = ClassificacaoDoAmericano.Montar(new[] { doA, doB }, passamPorGrupo: 2);
+
+        Assert.Equal(2, tabelas.Count);
+        Assert.Equal("Grupo B", tabelas[1].Titulo);
+        Assert.Equal(4, tabelas[1].Linhas.Count);
+        Assert.All(tabelas[1].Linhas, l => Assert.Equal(0, l.TotalGames));
+    }
+
 }

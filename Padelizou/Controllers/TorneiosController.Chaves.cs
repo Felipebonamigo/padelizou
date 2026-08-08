@@ -540,13 +540,23 @@ namespace Padelizou.Controllers
 
             var ocupante = TrocaDeQuadra.QuemOcupa(jogo!, quadra, doTorneio);
             var deOnde = jogo!.NomeQuadra;
-            TrocaDeQuadra.Mudar(jogo, quadra, ocupante);
+
+            // A câmera é da QUADRA e não viaja com o jogo: o mapa sai dos jogos como estão
+            // AGORA, antes da troca. Ver Services/TransmissaoDaQuadra.
+            var cameras = TransmissaoDaQuadra.PorQuadra(doTorneio);
+            var linkAntes = jogo.LinkTransmissao;
+
+            TrocaDeQuadra.Mudar(jogo, quadra, ocupante, cameras);
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = ocupante == null
+            TempData["Sucesso"] = (ocupante == null
                 ? $"O jogo {jogo.Codigo} agora é na {quadra}."
                 : $"Quadras trocadas: o jogo {jogo.Codigo} vai pra {quadra} e o {ocupante.Codigo} " +
-                  $"assume a {deOnde ?? "quadra que estava livre"}.";
+                  $"assume a {deOnde ?? "quadra que estava livre"}.")
+                + (jogo.LinkTransmissao == linkAntes ? "" :
+                   string.IsNullOrEmpty(jogo.LinkTransmissao)
+                       ? " A transmissão saiu junto: a nova quadra não tem câmera cadastrada."
+                       : " A transmissão passou a ser a da nova quadra.");
 
             return VoltarPara(voltarPara, id);
         }
