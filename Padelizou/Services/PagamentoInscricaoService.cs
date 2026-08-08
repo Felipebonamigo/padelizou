@@ -226,6 +226,19 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
+        // ⚠️ DOIS CLIQUES NÃO PODEM VIRAR DUAS FATURAS (Felipe, 08/08/2026: "cuide para não
+        // cobrar 2 vezes a mesma pessoa, para que não fique pagamentos pendentes").
+        //
+        // Sem isto, cada toque no "pagar agora" criava uma cobrança nova: a pessoa pagaria
+        // uma e as outras ficariam penduradas como pendentes — na conta do organizador, no
+        // painel financeiro e no e-mail de cobrança do meio de pagamento. E o botão é
+        // justamente do tipo que se toca de novo quando a página demora.
+        //
+        // A mesma regra já existia pra taxa do "por fora", assinatura e Pix direto; a
+        // inscrição era a que faltava.
+        if (await CobrancaPendenteDaInscricaoAsync(dados) is { } jaAberta)
+            return jaAberta;
+
         return await CriarCobrancaAsync(
             recebedor, pagador,
             // ⚠️ Aqui o valor NÃO se recalcula: quem já está inscrito tem o preço gravado na
@@ -238,6 +251,39 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
             billingType: cobranca.BillingType);
+    }
+
+    // Já existe uma cobrança aberta pra ESTA inscrição? Devolve a fatura dela.
+    //
+    // ⚠️ A comparação é pela INSCRIÇÃO (dupla ou inscrição de americano), e não por
+    // jogador+torneio: com múltiplas categorias ligadas, a mesma pessoa tem duas inscrições no
+    // mesmo torneio, e casar por jogador devolveria a fatura da OUTRA — ela pagaria a
+    // categoria errada e as duas ficariam erradas.
+    //
+    // Por isso o filtro fino é feito em memória, sobre o JSON: são pouquíssimas linhas (as
+    // pendentes daquela pessoa naquele torneio), e o `DadosInscricao` não é consultável em SQL.
+    private async Task<string?> CobrancaPendenteDaInscricaoAsync(DadosPagamentoDeInscricao dados)
+    {
+        var candidatas = await _context.Pagamentos
+            .Where(p => p.Tipo == "TorneioPagarDepois"
+                     && p.TorneioId == dados.TorneioId
+                     && p.Status == "Pendente"
+                     && p.InvoiceUrl != null)
+            .ToListAsync();
+
+        foreach (var pagamento in candidatas)
+        {
+            var alvo = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+            if (alvo == null) continue;
+
+            if (alvo.DuplaId == dados.DuplaId
+                && alvo.InscricaoAmericanaId == dados.InscricaoAmericanaId)
+            {
+                return pagamento.InvoiceUrl;
+            }
+        }
+
+        return null;
     }
 
     // O valor de uma inscrição QUE JÁ EXISTE: o que ficou gravado nela quando nasceu.

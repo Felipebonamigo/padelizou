@@ -349,7 +349,10 @@
 
     <!-- ABA 1: LISTA DE INSCRITOS -->
     <div class="tab-pane fade @(torneioComecou ? "" : "show active")" id="inscritos" role="tabpanel">
-        <h4 class="mb-3" style="color: var(--pdz-ink);">@(Model.Formato == "Americano" ? "Inscritos" : "Duplas Confirmadas")</h4>
+        @* "Duplas INSCRITAS", e não "Confirmadas": num torneio em que o pagamento é aprovado
+           depois, a lista tem gente com pagamento pendente — e "confirmada" ao lado de um selo
+           "Pagamento pendente" é a tela se contradizendo. *@
+        <h4 class="mb-3" style="color: var(--pdz-ink);">@(Model.Formato == "Americano" ? "Inscritos" : "Duplas Inscritas")</h4>
         @{
             var inscricoesAmericanas = ViewBag.InscricoesAmericanas as List<Padelizou.Models.InscricaoAmericana> ?? new();
         }
@@ -361,13 +364,17 @@
             <label class="form-label fw-bold small">Categoria</label>
             @* O número vai no próprio nome da opção: sem isso, saber onde ainda tem vaga
                exigia abrir uma categoria de cada vez e voltar. *@
+            @* Ordem e nome curto vêm de Services/CategoriaNaTela: a lista saía na ordem de
+               CRIAÇÃO (a 4ª Feminina, acrescentada depois, caía atrás da 7ª), e o rótulo
+               repetia "Categoria" dentro de um campo já chamado Categoria — era essa palavra
+               que jogava cada opção pra segunda linha no celular. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
-                @foreach (var cat in Model.Categorias)
+                @foreach (var cat in Model.Categorias.OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                 {
                     var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
                     var limite = cat.LimiteDuplas.HasValue ? $"/{cat.LimiteDuplas}" : "";
                     <option value="@cat.Id" selected="@(cat.Id == categoriaSelecionadaId)">
-                        @cat.Nome (@quantos@limite)
+                        @Padelizou.Services.CategoriaNaTela.Curto(cat.Nome) (@quantos@limite)
                     </option>
                 }
             </select>
@@ -461,6 +468,16 @@
                             {
                                 <div class="col">
                                     <div class="border rounded p-3 h-100">
+                                        @* Mesmo selo da inscrição em dupla: no Americano a
+                                           inscrição é individual, mas o pagamento é a mesma
+                                           história. *@
+                                        @if (Padelizou.Services.PagamentoDaInscricao.TemOQueMostrar(Model))
+                                        {
+                                            <span class="badge @Padelizou.Services.PagamentoDaInscricao.Cor(inscricao.Pago) mb-2">
+                                                <i class="bi @(inscricao.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
+                                                @Padelizou.Services.PagamentoDaInscricao.Selo(inscricao.Pago)
+                                            </span>
+                                        }
                                         <partial name="_JogadorChip" model="inscricao.Jogador" />
                                     </div>
                                 </div>
@@ -479,6 +496,18 @@
                         {
                             <div class="col">
                                 <div class="border rounded p-3 h-100">
+                                    @* O selo do pagamento (Felipe, 08/08/2026). Neste torneio o
+                                       pagamento é aprovado pelo organizador, então a inscrição
+                                       existe antes do dinheiro — e a lista não dizia nada sobre
+                                       isso. Quem não pagou CONTINUA aparecendo: a vaga é dele,
+                                       muda só o selo. Ver Services/PagamentoDaInscricao. *@
+                                    @if (Padelizou.Services.PagamentoDaInscricao.TemOQueMostrar(Model))
+                                    {
+                                        <span class="badge @Padelizou.Services.PagamentoDaInscricao.Cor(dupla.Pago) mb-2">
+                                            <i class="bi @(dupla.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
+                                            @Padelizou.Services.PagamentoDaInscricao.Selo(dupla.Pago)
+                                        </span>
+                                    }
                                     <partial name="_JogadorChip" model="dupla.Jogador1" />
                                     @* Inscrição sem parceiro tem Jogador2 nulo — o chip
                                        espera um jogador de verdade e explodia a tela toda. *@
@@ -603,10 +632,12 @@
                     <label class="form-label fw-bold">Selecione a Categoria</label>
                     <select name="categoriaId" class="form-select" required>
                         <option value="">-- Escolha uma categoria --</option>
-                        @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
-                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
+                        @* Times e chave direta ficam fora: nas duas quem monta é o organizador.
+                           Ordem e nome curto: ver Services/CategoriaNaTela. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
+                                                             .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                         {
-                            <option value="@cat.Id">@cat.Nome</option>
+                            <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
                         }
                     </select>
                 </div>
@@ -649,10 +680,12 @@
                 <label class="form-label fw-bold">Selecione a Categoria</label>
                 <select name="categoriaId" class="form-select" required>
                     <option value="">-- Escolha uma categoria --</option>
-                    @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
-                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
+                    @* Times e chave direta ficam fora: nas duas quem monta é o organizador.
+                       Ordem e nome curto: ver Services/CategoriaNaTela. *@
+                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
+                                                         .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                     {
-                        <option value="@cat.Id">@cat.Nome</option>
+                        <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
                     }
                 </select>
 
