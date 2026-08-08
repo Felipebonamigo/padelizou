@@ -1988,12 +1988,14 @@ button, a, input, select { touch-action: manipulation; }
     border-radius: .75rem;
 }
 
-/* Cada aba do tamanho do próprio texto. Esticar pra preencher a linha deixava a
-   última sozinha ocupando a largura inteira embaixo das outras três — parecia
-   um botão de ação, não a quarta aba. */
-.pdz-pills .nav-item { flex: 0 1 auto; }
+/* AS ABAS PREENCHEM A BARRA. Do tamanho do próprio texto, elas deixavam um vão
+   em branco à direita — no celular chegava a 3 abas em cima e 1 embaixo com
+   metade da linha vazia, e a barra parecia inacabada em vez de arrumada.
+   Crescem proporcionalmente ao texto: a mais comprida ganha mais espaço. */
+.pdz-pills .nav-item { flex: 1 1 auto; }
 
 .pdz-pills .nav-link {
+    width: 100%;
     white-space: nowrap;
     font-weight: 700;
     color: var(--pdz-ink);
@@ -2010,9 +2012,16 @@ button, a, input, select { touch-action: manipulation; }
 /* Celular estreito: o ícone é enfeite e sai primeiro. O que não pode sumir é o
    nome da aba e a contagem — e a bolinha do Ao Vivo, que é informação, fica. */
 @media (max-width: 430px) {
+    /* DUAS POR LINHA, iguais. Quatro abas viram um quadrado 2×2 em vez de três em
+       cima e uma sobrando embaixo. Com três, a última cresce e fecha a linha
+       sozinha — em nenhum dos casos sobra buraco.
+       Uma linha só não dá: os quatro rótulos exigiriam letra tão pequena que a
+       aba viraria enfeite, ou reticências, que é pior que duas linhas. */
+    .pdz-pills .nav-item { flex: 1 1 calc(50% - .25rem); }
+
     .pdz-pills .nav-link {
-        font-size: .74rem;
-        padding: .4rem .4rem;
+        font-size: .72rem;
+        padding: .4rem .3rem;
     }
 
     .pdz-pills .nav-link > i.bi { display: none; }
