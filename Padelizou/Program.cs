@@ -272,7 +272,15 @@ using (var scope = app.Services.CreateScope())
         ("Categoria Mista C", "MISTA-C", "Mista", true),
         ("Categoria Mista D", "MISTA-D", "Mista", true),
         // Uma só, sem letra: casal não tem nível. Ver FaixasDePadelimetro.EhCasal.
-        ("Categoria Casal", "CASAL", "Casal", true),
+        //
+        // ⚠️ O NOME é "Casais" (plural) desde 08/08/2026, a pedido do Felipe — e trocá-lo aqui
+        // foi OBRIGATÓRIO, não cosmético: este seed cria por NOME (`nomesExistentes`), então
+        // renomear só no banco faria o start seguinte não achar "Categoria Casal", criar tudo
+        // de novo, e o catálogo terminar com as DUAS.
+        //
+        // `Codigo` e `Tipo` continuam "CASAL": é por Tipo que as telas agrupam a categoria, e
+        // mexer neles quebraria o bloco do coração na criação sem melhorar nada.
+        ("Categoria Casais", "CASAL", "Casal", true),
     };
 
     var nomesExistentes = db.CategoriasPadrao.Select(c => c.Nome).ToHashSet();
