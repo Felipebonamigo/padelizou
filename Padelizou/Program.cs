@@ -271,6 +271,8 @@ using (var scope = app.Services.CreateScope())
         ("Categoria Mista B", "MISTA-B", "Mista", true),
         ("Categoria Mista C", "MISTA-C", "Mista", true),
         ("Categoria Mista D", "MISTA-D", "Mista", true),
+        // Uma só, sem letra: casal não tem nível. Ver FaixasDePadelimetro.EhCasal.
+        ("Categoria Casal", "CASAL", "Casal", true),
     };
 
     var nomesExistentes = db.CategoriasPadrao.Select(c => c.Nome).ToHashSet();

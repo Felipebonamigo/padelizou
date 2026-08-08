@@ -2139,6 +2139,23 @@ button, a, input, select { touch-action: manipulation; }
 
 .pdz-mm-ajuda strong { color: var(--pdz-ink); }
 
+/* O selo de quem JÁ VENCEU e está esperando adversário. Mesma forma do selo de bye, mas
+   apagado de propósito: ele aparece em toda vaga já decidida — às vezes nas duas linhas do
+   mesmo cartão — e em lima roubaria a atenção do nome, que é o que a pessoa procura. O lima
+   fica pro bye, que é raro e surpreende. */
+.pdz-chave-selovem {
+    flex: 0 0 auto;
+    font-size: .58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    color: var(--pdz-muted);
+    background: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+}
+
 /* O selo de quem folgou: texto por extenso, não sigla. Cabe porque a vaga futura tem
    uma linha só de nome. */
 .pdz-chave-selobye {
@@ -2731,4 +2748,12 @@ button, a, input, select { touch-action: manipulation; }
     height: 64px;
     opacity: .92;
     filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .3));
+}
+
+/* A linha de quem GANHOU o Americano, na tabela que decidiu o título. Verde da marca em
+   vez do amarelo de "empatado"/"passou": passar de fase é promessa, ganhar é fato — e o
+   verde é a mesma cor que a chave usa no nome do campeão. */
+.pdz-linha-campea > td {
+    background: color-mix(in srgb, var(--padel-green) 18%, var(--pdz-surface));
+    font-weight: 700;
 }

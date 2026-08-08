@@ -65,6 +65,26 @@ public static class FaixasDePadelimetro
         return n.Contains("Mista") || n.Contains("Misto");
     }
 
+    // CASAL: a mista sem nível. O organizador abre uma categoria só, pra casais de verdade
+    // jogarem juntos, e o que decide quem entra não é força — é a vida. Não existe "Casal B"
+    // porque não existe casal de 5ª: os dois jogam o que jogam.
+    //
+    // Pro Padelímetro ela é irmã da mista, e pelo mesmo motivo: a dupla tem um de cada, então
+    // o resultado não diz em qual das duas réguas cada um corre. Os jogos contam e medem
+    // padel como qualquer outro — o que ela não faz é definir escada nem trancar nível.
+    public static bool EhCasal(string? nomeCategoria)
+    {
+        var n = nomeCategoria ?? "";
+        return n.Contains("Casal", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("Casais", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Categoria de dupla mista (um de cada), que não é degrau de escada nenhuma. É por aqui
+    // que passam as decisões de RÉGUA — faixa, seed e a inferência de escada — pra que uma
+    // categoria nova do mesmo feitio entre num lugar só, em vez de em cinco `if`s espalhados.
+    public static bool ForaDaEscada(string? nomeCategoria) =>
+        EhMista(nomeCategoria) || EhCasal(nomeCategoria);
+
     public static bool EhFeminina(string? nomeCategoria) =>
         (nomeCategoria ?? "").Contains("Fem", StringComparison.OrdinalIgnoreCase);
 
@@ -73,7 +93,7 @@ public static class FaixasDePadelimetro
     public static Faixa? DaCategoria(string? nomeCategoria)
     {
         var n = nomeCategoria ?? "";
-        if (EhMista(n)) return null;
+        if (ForaDaEscada(n)) return null;
 
         var escada = EhFeminina(n) ? Femininas : Masculinas;
         if (n.Contains("Open") || n.Contains("1ª")) return escada[0];
@@ -89,6 +109,9 @@ public static class FaixasDePadelimetro
     // Onde nasce o Padelímetro de quem estreia por esta categoria.
     public static int Entrada(string? nomeCategoria)
     {
+        // Casal não tem letra pra graduar, então nasce no meio do caminho entre as duas
+        // réguas — o mesmo lugar da mista sem letra.
+        if (EhCasal(nomeCategoria)) return EntradaDeMista("") ?? EntradaNeutra;
         if (EhMista(nomeCategoria)) return EntradaDeMista(nomeCategoria!) ?? EntradaNeutra;
         return DaCategoria(nomeCategoria)?.Entrada ?? EntradaNeutra;
     }
