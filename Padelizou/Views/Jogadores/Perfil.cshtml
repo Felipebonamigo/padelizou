@@ -88,10 +88,16 @@
                 <div class="mb-2">
                     @foreach (var pos in posicoesRs)
                     {
+                        @* O NOME DA FONTE VAI DENTRO DO SELO. Ele morava numa linha cinza
+                           embaixo, e ali sumia: o selo ficava parecendo mais um número do
+                           Padelizou, ao lado do Padelímetro e dos pontos de ranking nosso.
+                           São TRÊS números diferentes empilhados no mesmo cabeçalho — quem
+                           lê precisa saber de quem é cada um sem ter que procurar a legenda. *@
                         <span class="badge rounded-pill me-1 mb-1"
                               style="background:#1b3a5c;color:#a8d4ff;font-size:.85rem;"
                               title="Posição no Ranking RS (mundodoatleta.com.br) — atualizado por eles, não pelo Padelizou.">
                             <i class="bi bi-graph-up-arrow"></i>
+                            <strong>Ranking RS</strong> ·
                             @pos.Categoria ·
                             @if (pos.TemColocacao)
                             {
@@ -109,7 +115,11 @@
                             <span class="badge rounded-pill bg-secondary mb-1" style="font-size:.75rem;">promovido</span>
                         }
                     }
-                    <span class="small text-muted d-block mt-1">Ranking RS</span>
+                    @* A linha de baixo deixa de repetir o nome e passa a dizer a PROCEDÊNCIA:
+                       este número não é nosso, e quem quiser conferir sabe onde. *@
+                    <span class="small text-muted d-block mt-1">
+                        Ranking oficial do RS — quem calcula e atualiza é o mundodoatleta.com.br.
+                    </span>
                 </div>
             }
 

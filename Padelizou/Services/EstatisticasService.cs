@@ -404,7 +404,23 @@ public class EstatisticasService : IEstatisticasService
             .ToList();
 
         // 3 a 8: derivados das partidas de torneio finalizadas (com vencedor definido).
-        var partidas = await CarregarPartidasFinalizadasAsync(incluirTorneio: true);
+        //
+        // ⚠️ A MESMA RÉGUA DO RANKING POR CATEGORIA VALE AQUI. Ela estava aplicada na seção 1
+        // (`porCategoria`) e no ranking de Times, mas NÃO nas seções que saem desta lista —
+        // então Vitórias (jogadores), Vitórias (duplas) e Invencibilidade continuavam contando
+        // Americano e torneio Restrito. É a régua duplicada de sempre: corrigiram uma cópia e
+        // a outra seguiu contando.
+        //
+        // O estrago era visível em produção: o "Americano das Gurias" (10 jogadoras, 13 jogos)
+        // ocupava as 8 primeiras posições do ranking geral de vitórias sozinho — um rodízio de
+        // uma noite valendo mais que qualquer campanha de torneio de chave.
+        //
+        // ⚠️ Isto NÃO tira o Americano do perfil de ninguém: o título, os jogos e a
+        // participação continuam lá, e o ponto dele vive no Ranking Americano, que é próprio.
+        // O que sai é só a contagem do ranking OFICIAL.
+        var partidas = (await CarregarPartidasFinalizadasAsync(incluirTorneio: true))
+            .Where(p => ContaNoRanking(p.Categoria?.Torneio))
+            .ToList();
 
         DateTime Ordem(Partida p) =>
             p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto
