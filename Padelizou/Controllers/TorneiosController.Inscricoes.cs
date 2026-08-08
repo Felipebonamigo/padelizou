@@ -159,7 +159,18 @@ namespace Padelizou.Controllers
                     emListaDeEspera = noTorneio >= torneio.LimiteDuplasTotal.Value;
                 }
 
-                _context.InscricoesAmericanas.Add(new InscricaoAmericana { CategoriaId = categoriaId, JogadorId = jogador.Id, EmListaDeEspera = emListaDeEspera });
+                // ⚠️ ANTES de adicionar: depois, a própria inscrição apareceria na consulta e
+                // a pessoa ganharia o desconto de segunda já na primeira categoria.
+                bool jaEstavaNoTorneio = await QuemJaEstaNoTorneio.EstaAsync(_context, torneioId, jogador.Id);
+
+                _context.InscricoesAmericanas.Add(new InscricaoAmericana
+                {
+                    CategoriaId = categoriaId,
+                    JogadorId = jogador.Id,
+                    EmListaDeEspera = emListaDeEspera,
+                    // Quanto esta inscrição custou — o número que os somatórios leem depois.
+                    ValorInscricao = PrecoDaInscricao.PorPessoa(torneio, jaEstavaNoTorneio),
+                });
                 await _context.SaveChangesAsync();
 
                 await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador.Id });

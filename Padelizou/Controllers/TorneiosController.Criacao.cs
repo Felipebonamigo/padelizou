@@ -284,6 +284,16 @@ namespace Padelizou.Controllers
                 return await Recusar("Valor negativo não dá: use zero pra não cobrar nada.");
             }
 
+            if (PrecoDaInscricao.ProblemaCom(torneio.PrecoSegundaInscricao) is { } problemaSegundoPreco)
+            {
+                return await Recusar(problemaSegundoPreco);
+            }
+
+            // Sem múltiplas categorias ninguém chega a uma segunda inscrição — guardar o valor
+            // deixaria um preço escondido esperando pra valer sozinho se a chave fosse religada
+            // meses depois.
+            if (!torneio.PermiteMultiplasCategorias) torneio.PrecoSegundaInscricao = null;
+
             // "Pelo site" sem conta conectada era a armadilha mais cara que o sistema tinha:
             // o torneio nascia, as inscrições entravam e NENHUMA cobrança era criada, porque
             // PodeCobrar exige a conta. Nada disso aparecia — nem erro, nem aviso — e o
@@ -829,6 +839,12 @@ namespace Padelizou.Controllers
             // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
             // gravado FICA.
             bool? pagamentoObrigatorio = null,
+            // Preço da 2ª categoria do mesmo jogador. Nulo = campo ausente (aba antiga, ou
+            // torneio sem múltiplas categorias): o que está gravado FICA. Pra TIRAR o desconto
+            // o organizador manda o campo vazio, que chega como string vazia → 0? não: o
+            // binder devolve null. Ver `limparSegundoPreco` logo abaixo.
+            decimal? precoSegundaInscricao = null,
+            bool limparSegundoPreco = false,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -930,6 +946,29 @@ namespace Padelizou.Controllers
             if (pagamentoObrigatorio is bool exigePagar)
             {
                 torneio.PagamentoObrigatorioNaInscricao = exigePagar;
+            }
+
+            // ── Preço da 2ª categoria do mesmo jogador ──────────────────────────────────
+            // Editável depois de criado desde o primeiro dia: três recursos hoje mostraram que
+            // interruptor que só existe na tela de CRIAÇÃO vira beco (forma de recebimento,
+            // reabrir inscrições e "só confirmo depois de pago").
+            //
+            // ⚠️ Não mexe em inscrição que já existe: cada uma guarda o que custou
+            // (Dupla.ValorInscricao). Mudar o preço agora vale pra quem entrar daqui pra
+            // frente — cobrar retroativamente de quem já pagou seria mudar o combinado.
+            if (limparSegundoPreco)
+            {
+                torneio.PrecoSegundaInscricao = null;
+            }
+            else if (precoSegundaInscricao is decimal segundoPreco)
+            {
+                if (PrecoDaInscricao.ProblemaCom(segundoPreco) is { } problemaPreco)
+                {
+                    TempData["Erro"] = problemaPreco;
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.PrecoSegundaInscricao = segundoPreco;
             }
 
             torneio.Nome = nome;

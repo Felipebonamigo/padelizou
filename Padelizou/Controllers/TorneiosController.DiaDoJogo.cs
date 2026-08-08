@@ -144,7 +144,7 @@ namespace Padelizou.Controllers
                         PrimeiroNome = d.Jogador1.ComoChamar.Split(' ')[0],
                         // A dupla paga por DUAS pessoas; a inscrição sem parceiro também
                         // ocupa uma vaga de dupla, mas quem está lá é uma pessoa só.
-                        Valor = torneio.PrecoInscricao * (d.Jogador2 != null ? 2 : 1),
+                        Valor = PrecoDaInscricao.DaDupla(torneio, d),
                         Pago = d.Pago,
                         PagoEm = d.PagoEm,
                         EmListaDeEspera = d.EmListaDeEspera,
@@ -157,7 +157,7 @@ namespace Padelizou.Controllers
                         Categoria = i.Categoria.Nome,
                         Celular = i.Jogador.Celular,
                         PrimeiroNome = i.Jogador.ComoChamar.Split(' ')[0],
-                        Valor = torneio.PrecoInscricao,
+                        Valor = PrecoDaInscricao.DaInscricaoAmericana(torneio, i),
                         Pago = i.Pago,
                         PagoEm = i.PagoEm,
                         EmListaDeEspera = i.EmListaDeEspera,
@@ -169,6 +169,15 @@ namespace Padelizou.Controllers
                 // A taxa que o Padelizou ainda tem a receber deste torneio. Já paga ou
                 // negociada vira zero: descontar de novo mostraria um líquido menor do que
                 // o organizador realmente tem na mão.
+                //
+                // ⚠️ ESTA CONTA AINDA USA O PREÇO CHEIO PRA TODO MUNDO, e com desconto de
+                // segunda inscrição ela passa a cobrar a MAIS do organizador. Não mudei junto
+                // de propósito: a base do "por fora" tem uma régua própria e mais generosa —
+                // conta PESSOAS e trata dupla sem parceiro como 1 (não cobra por fantasma),
+                // enquanto a cobrança ao jogador trata como 2. Trocar por "soma do que foi
+                // cobrado" alinharia as duas e, de carona, AUMENTARIA a taxa de todo torneio
+                // com dupla incompleta — mudança de dinheiro que ninguém pediu.
+                // Ver PrecoDaInscricao e TaxaDoTorneioExterno.PessoasInscritas.
                 vm.TaxaExterno = TaxaDoTorneioExterno.ChavesLiberadas(torneio)
                     ? 0m
                     : TaxaDoTorneioExterno.Valor(
@@ -182,7 +191,7 @@ namespace Padelizou.Controllers
                 //
                 // A dupla paga por DUAS pessoas; a inscrição sem parceiro ocupa uma vaga de
                 // dupla mas quem está lá é uma pessoa só. Mesma regra da caderneta.
-                decimal ValorDaDupla(Dupla d) => torneio.PrecoInscricao * (d.Jogador2Id != null ? 2 : 1);
+                decimal ValorDaDupla(Dupla d) => PrecoDaInscricao.DaDupla(torneio, d);
 
                 foreach (var linha in vm.PorCategoria)
                 {
@@ -192,9 +201,9 @@ namespace Padelizou.Controllers
                         .Where(i => i.CategoriaId == linha.CategoriaId && !i.EmListaDeEspera).ToList();
 
                     linha.Arrecadado = duplasDaCategoria.Where(d => d.Pago).Sum(ValorDaDupla)
-                                     + americanosDaCategoria.Where(i => i.Pago).Sum(_ => torneio.PrecoInscricao);
+                                     + americanosDaCategoria.Where(i => i.Pago).Sum(i => PrecoDaInscricao.DaInscricaoAmericana(torneio, i));
                     linha.AReceber = duplasDaCategoria.Where(d => !d.Pago).Sum(ValorDaDupla)
-                                   + americanosDaCategoria.Where(i => !i.Pago).Sum(_ => torneio.PrecoInscricao);
+                                   + americanosDaCategoria.Where(i => !i.Pago).Sum(i => PrecoDaInscricao.DaInscricaoAmericana(torneio, i));
                     // Estorno não existe aqui: quem devolve é o organizador, por fora.
                     linha.Estornado = 0m;
                 }

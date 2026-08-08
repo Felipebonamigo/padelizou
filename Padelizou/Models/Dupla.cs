@@ -41,6 +41,19 @@ public partial class Dupla
     public bool Pago { get; set; }
     public DateTime? PagoEm { get; set; }
 
+    // QUANTO ESTA INSCRIÇÃO CUSTOU, gravado quando ela nasce.
+    //
+    // Existe porque desde 08/08/2026 duas inscrições do mesmo torneio podem custar valores
+    // diferentes (a segunda categoria do mesmo jogador é mais barata — ver
+    // Services/PrecoDaInscricao). ⚠️ Sem esta coluna, todo somatório de dinheiro do sistema
+    // — relatório do dia do jogo, lista de devolução do cancelamento, base da taxa do "por
+    // fora" — recalcularia `PrecoInscricao × pessoas` e MENTIRIA, porque não tem como saber
+    // quem entrou pela segunda vez.
+    //
+    // NULO = inscrição anterior a esta coluna: quem soma cai no cálculo de sempre, que
+    // naquele tempo estava certo (havia um preço só).
+    public decimal? ValorInscricao { get; set; }
+
     public virtual ICollection<Partida> PartidasDupla1 { get; set; } = new List<Partida>();
 
     public virtual ICollection<Partida> PartidasDupla2 { get; set; } = new List<Partida>(); 

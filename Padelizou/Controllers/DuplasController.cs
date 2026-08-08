@@ -332,6 +332,16 @@ namespace Padelizou.Controllers
             bool emListaDeEspera = await CategoriaOuTorneioEstaCheioAsync(categoria, torneio);
 
             // 6. Monta a DUPLA e vincula à Categoria
+            // ⚠️ QUEM JÁ ESTAVA no torneio se pergunta ANTES de adicionar esta inscrição:
+            // depois, a própria pessoa apareceria na consulta e ganharia o desconto de segunda
+            // inscrição já na primeira.
+            var jaNoTorneio = await QuemJaEstaNoTorneio.DentreAsync(
+                _context, torneioId, new[] { jogador1.Id, jogador2?.Id ?? 0 });
+
+            // O parceiro ainda desconhecido paga cheio: não dá pra saber se ele repete, e
+            // errar pra menos tira dinheiro do organizador sem ele ter escolhido.
+            var quemPaga = new[] { jaNoTorneio.Contains(jogador1.Id), jogador2 != null && jaNoTorneio.Contains(jogador2.Id) };
+
             var dupla = new Dupla
             {
                 CategoriaId = categoriaId,
@@ -340,7 +350,12 @@ namespace Padelizou.Controllers
                 ImpedimentoSextaNoite = impSextaNoite,
                 ImpedimentoSabadoManha = impSabadoManha,
                 ImpedimentoSabadoTarde = impSabadoTarde,
-                EmListaDeEspera = emListaDeEspera
+                EmListaDeEspera = emListaDeEspera,
+                // Quanto ESTA inscrição custa, gravado agora: é o número que os somatórios de
+                // dinheiro leem depois, e o único que sabe quem pagou o preço de segunda.
+                ValorInscricao = PrecoDaInscricao.Total(
+                    torneio, quemPaga,
+                    (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0)),
             };
 
             _context.Duplas.Add(dupla);

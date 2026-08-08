@@ -194,15 +194,17 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // `formaEscolhida` é a forma que o JOGADOR declarou no nosso checkout (Pix / cartão /
     // boleto). Ela decide as duas coisas juntas — o que a cobrança trava e a taxa que fica —
     // porque o rateio é fixado quando a cobrança nasce. Ver Services/CobrancaDoTorneio.
-    public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
+    public async Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null)
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
-        return CriarCobrancaAsync(
+        return await CriarCobrancaAsync(
             recebedor, pagador,
-            torneio.ValorCobrado(
+            await ValorDaInscricaoAsync(
+                torneio,
                 inscricaoDeDupla: tipo == "TorneioDupla",
+                jogadoresConhecidos: new[] { dados.Jogador1Id, dados.Jogador2Id },
                 impedimentos: ContarImpedimentos(dados)),
             "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
@@ -218,20 +220,64 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // ⚠️ O tipo gravado é "TorneioPagarDepois", e ele é a chave que separa os dois efeitos:
     // se caísse no `default` do EfetivarAsync, o pagamento criaria uma dupla NOVA e a pessoa
     // ficaria inscrita duas vezes.
-    public Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor,
+    public async Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados,
         string? formaEscolhida = null)
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
-        return CriarCobrancaAsync(
+        return await CriarCobrancaAsync(
             recebedor, pagador,
-            torneio.ValorCobrado(inscricaoDeDupla, impedimentos),
+            // ⚠️ Aqui o valor NÃO se recalcula: quem já está inscrito tem o preço gravado na
+            // própria inscrição, e é ele que se cobra. Recalcular faria o "pagar agora" pedir
+            // um valor diferente do que a pessoa viu quando entrou — bastaria o organizador
+            // ter mexido no preço no meio do caminho.
+            await ValorJaCombinadoAsync(torneio, inscricaoDeDupla, impedimentos, dados),
             "Torneio", "TorneioPagarDepois",
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
             billingType: cobranca.BillingType);
+    }
+
+    // O valor de uma inscrição QUE JÁ EXISTE: o que ficou gravado nela quando nasceu.
+    //
+    // Nulo = inscrição anterior à coluna `ValorInscricao`; aí vale o cálculo de sempre (preço
+    // do torneio × pessoas), que naquele tempo era exatamente o que tinha sido cobrado.
+    private async Task<decimal> ValorJaCombinadoAsync(
+        Torneio torneio, bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados)
+    {
+        decimal? gravado = dados.DuplaId is int duplaId
+            ? (await _context.Duplas.FindAsync(duplaId))?.ValorInscricao
+            : dados.InscricaoAmericanaId is int inscricaoId
+                ? (await _context.InscricoesAmericanas.FindAsync(inscricaoId))?.ValorInscricao
+                : null;
+
+        return gravado ?? torneio.ValorCobrado(inscricaoDeDupla, impedimentos);
+    }
+
+    // O valor da inscrição, PESSOA A PESSOA — quem já está no torneio paga o preço da segunda
+    // inscrição (ver Services/PrecoDaInscricao).
+    //
+    // ⚠️ O número de PESSOAS continua vindo do formato (dupla = 2), e não de quantos ids eu
+    // conheço: a dupla "procurando parceiro" segue custando por duas, como sempre custou.
+    // Fazer o parceiro ausente sumir da conta seria mudar o PREÇO de todo torneio de dupla de
+    // carona numa mudança que era só sobre desconto — e ninguém pediu isso.
+    //
+    // O parceiro ainda desconhecido paga o preço CHEIO: não dá pra saber se ele repete, e
+    // errar pra menos aqui tira dinheiro do organizador sem ele ter escolhido.
+    private async Task<decimal> ValorDaInscricaoAsync(
+        Torneio torneio, bool inscricaoDeDupla, IEnumerable<int?> jogadoresConhecidos, int impedimentos)
+    {
+        int pessoas = inscricaoDeDupla ? 2 : 1;
+
+        var ids = jogadoresConhecidos.Where(id => id.HasValue).Select(id => id!.Value).Take(pessoas).ToList();
+        var jaEstao = await QuemJaEstaNoTorneio.DentreAsync(_context, torneio.Id, ids);
+
+        var repetindo = ids.Select(id => jaEstao.Contains(id)).ToList();
+        while (repetindo.Count < pessoas) repetindo.Add(false);
+
+        return PrecoDaInscricao.Total(torneio, repetindo, impedimentos);
     }
 
     // Cada impedimento marcado tira uma janela da grade do organizador — quando ele cobra
@@ -940,6 +986,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 // Chegou aqui porque o dinheiro entrou: a inscrição já nasce quitada.
                 Pago = true,
                 PagoEm = DateTime.Now,
+                // ⚠️ O que foi REALMENTE cobrado, e não o preço do torneio: com desconto de
+                // segunda inscrição os dois divergem, e é este número que os somatórios
+                // (relatório, devolução, base da taxa do externo) precisam ler.
+                ValorInscricao = pagamento.Valor,
             };
             _context.Duplas.Add(dupla);
             await _context.SaveChangesAsync();
@@ -954,6 +1004,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 EmListaDeEspera = emListaDeEspera,
                 Pago = true,
                 PagoEm = DateTime.Now,
+                ValorInscricao = pagamento.Valor,
             };
             _context.InscricoesAmericanas.Add(inscricao);
             await _context.SaveChangesAsync();

@@ -532,7 +532,7 @@ namespace Padelizou.Controllers
                             Categoria = d.Categoria.Nome,
                             Contato = d.Jogador1.Celular,
                             // Dupla paga pelos DOIS: o preço do torneio é por pessoa.
-                            Valor = torneio.PrecoInscricao * (d.Jogador2Id == null ? 1 : 2),
+                            Valor = PrecoDaInscricao.DaDupla(torneio, d),
                             PagoEm = d.PagoEm,
                         })
                         .ToListAsync();
@@ -544,7 +544,7 @@ namespace Padelizou.Controllers
                             Quem = i.Jogador.Nome,
                             Categoria = i.Categoria.Nome,
                             Contato = i.Jogador.Celular,
-                            Valor = torneio.PrecoInscricao,
+                            Valor = PrecoDaInscricao.DaInscricaoAmericana(torneio, i),
                             PagoEm = i.PagoEm,
                         })
                         .ToListAsync();
