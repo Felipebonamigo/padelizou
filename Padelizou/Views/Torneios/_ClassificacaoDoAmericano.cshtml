@@ -5,6 +5,14 @@
     // Três marcações separadas divergiriam — e uma delas já divergia, somando a categoria
     // inteira num torneio dividido em dois grupos.
     var tabelas = Model.Tabelas;
+
+    // O corte deixa de ser notícia quando a fase seguinte já existe: com o grupo final na
+    // tela, quem passou está lá dentro, e a medalha lá em cima vira ruído — pior, vira
+    // contradição de relance. No Interno de 06/08/2026 a mesma jogadora aparecia com
+    // medalha de 1ª do Grupo B e em 4º no grupo final: as duas coisas certas, lidas juntas
+    // como erro. A tabela do grupo continua ali, com o "passam 2" no cabeçalho dizendo qual
+    // era a regra — o que some é só o anúncio de uma classificação que já aconteceu.
+    var grupoFinalJaExiste = Model.QueDecide?.EhGrupoFinal == true;
 }
 
 @if (tabelas.Count == 0)
@@ -91,7 +99,8 @@ else
                                            SEM JOGO NENHUM sairiam verdes com medalha — o
                                            sistema anunciando classificados antes da bola
                                            rolar, por ordem alfabética. *@
-                                        var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui && linha.Jogos > 0;
+                                        var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui
+                                            && linha.Jogos > 0 && !grupoFinalJaExiste;
                                         var empatadoNoTopo = linha.Empatado;
                                         @* A linha da campeã, na tabela que decidiu o título. O
                                            troféu no lugar da medalha: medalha é de quem passou
