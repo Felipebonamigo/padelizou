@@ -692,9 +692,35 @@ a:hover { color: var(--pdz-lime-600); }
    número e, em alguns cards, na própria borda do quadro. `min-width: 0` deixa o bloco do
    nome encolher — sem isso o flex respeita a largura do conteúdo e empurra o placar pra
    fora, que é como o nome acabava colado no fim do card. */
+/* CADA DUPLA É UM BLOCO, e entre elas o "×" (Felipe, 08/08/2026: "no ao vivo não parece que
+   é 2x2, deixe melhor visualmente separando como duplas").
+   Quatro rostos empilhados com o mesmo espaço entre todos não dizem quem joga com quem: o
+   olho tinha que contar de dois em dois e conferir de qual lado estava o número. Agora o
+   fundo agrupa o par e o × marca a fronteira — o confronto se lê antes dos nomes. */
 .pdz-live-linha {
-    padding: .3rem 0;
+    padding: .45rem .6rem;
     gap: .6rem;
+    background: rgba(255, 255, 255, .05);
+    border-radius: 14px;
+}
+.pdz-live-versus {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: .35rem 0;
+    color: rgba(255, 255, 255, .45);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+/* As duas linhas que sobram do × até as bordas: são o que faz ele parecer uma fronteira,
+   e não mais um caractere solto no meio da lista de nomes. */
+.pdz-live-versus::before,
+.pdz-live-versus::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, .12);
 }
 .pdz-live-jogadores {
     min-width: 0;
