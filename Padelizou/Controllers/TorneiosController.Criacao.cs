@@ -69,6 +69,26 @@ namespace Padelizou.Controllers
             });
         }
 
+        // O "vai caber?" da tela de criação, respondido PELO SERVIDOR.
+        //
+        // ⚠️ Existe pra matar uma regra duplicada, não por comodidade: a tela calculava
+        // grupos, mata-mata, o que fecha no Americano e a grade do dia em JavaScript, com um
+        // comentário admitindo que divergir dos Services faria a tela mentir. A cópia em JS
+        // é invisível pra suíte de testes, então a divergência só apareceria no dia do
+        // torneio. Ver Services/PrevisaoDoTorneio.ParaATela.
+        //
+        // GET porque é pergunta, não mudança: não grava nada, não tem efeito colateral e
+        // sai do filtro antifalsificação global (que só vale pros métodos que escrevem).
+        [HttpGet]
+        [Authorize]
+        public IActionResult Previsao(
+            string? formato, int numero, int duracao, int quadras,
+            TimeSpan? horaInicio, TimeSpan? horaSeguintes, TimeSpan? horaFim,
+            DateTime? dataInicio, DateTime? dataFim)
+            => Json(PrevisaoDoTorneio.ParaATela(
+                formato, numero, duracao, quadras,
+                horaInicio, horaSeguintes, horaFim, dataInicio, dataFim));
+
         // ── Pacote "nós registramos os resultados para você" ──────────────────────────────
         // O organizador contrata o Padelizou pra mandar gente lançar os jogos durante o
         // torneio. É SOLICITAÇÃO, não compra: pode não haver ninguém livre naquela data e
