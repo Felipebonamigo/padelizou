@@ -843,7 +843,11 @@
 
             <div class="card bg-light border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Model.Status</span></h6>
+                    @* O nome que se lê, não o que está gravado: "Chaves em Sorteio" descreve o
+                       próximo passo, e a faixa logo abaixo já diz "as inscrições estão
+                       fechadas" — eram duas frases sobre o mesmo estado, e esta era a errada.
+                       Ver Services/StatusDoTorneioNaTela. *@
+                    <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Padelizou.Services.StatusDoTorneioNaTela.Nome(Model.Status)</span></h6>
 
                     @if (Model.Restrito)
                     {
