@@ -43,13 +43,29 @@ namespace padelizou.Controllers
 
         // Qualquer administrador (raiz ou nomeado) — usado pelas ações que administradores
         // nomeados também podem fazer, como atribuir dono de clube.
+        //
+        // ⚠️ E o ASSISTENTE DO SISTEMA entra aqui, mas SÓ NO GET. Ele enxerga o painel inteiro
+        // e não muda nada (pedido do Felipe: o Foka acompanha tudo, só o Felipe edita).
+        //
+        // A trava é o VERBO, e isso não é atalho: foi conferido, uma a uma, que as 23
+        // gravações dos controllers de admin estão TODAS sob [HttpPost] e nenhuma sob
+        // [HttpGet]. Travar aqui, num lugar só, é o que evita ter que lembrar do assistente em
+        // cada uma das ~62 telas — e esquecer uma custa "ele não vê", nunca "ele editou".
+        //
+        // Se algum dia uma ação de GET passar a gravar, ela quebra esta premissa: o teste
+        // TodaGravacaoDoAdminEstaSobPostTests existe pra falhar nesse dia.
         private async Task<Jogador?> ObterJogadorAdminAsync()
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userIdValue, out var userId)) return null;
 
             var jogador = await _context.Jogadores.FindAsync(userId);
-            return jogador != null && (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? jogador : null;
+            if (jogador == null) return null;
+
+            if (PoderesNoSistema.PodeEditarTudo(jogador)) return jogador;
+
+            bool sóLendo = HttpMethods.IsGet(Request.Method) || HttpMethods.IsHead(Request.Method);
+            return sóLendo && PoderesNoSistema.PodeOlharTudo(jogador) ? jogador : null;
         }
 
         // Só o administrador raiz — usado só pra gerenciar quem é IsAdminGeral.
@@ -228,7 +244,54 @@ namespace padelizou.Controllers
                 .OrderBy(j => j.Nome)
                 .ToListAsync();
 
+            // Assistentes do sistema: veem tudo, não mudam nada. Lista separada porque são
+            // poderes diferentes — juntar as duas na mesma tabela faria parecer que existe um
+            // "administrador mais fraco", e não é isso: o assistente não edita NADA.
+            ViewBag.Assistentes = await _context.Jogadores
+                .Where(j => j.IsAssistente)
+                .OrderBy(j => j.Nome)
+                .ToListAsync();
+
             return View(administradores);
+        }
+
+        // ── Assistente do sistema ──────────────────────────────────────────────────────────
+        // Só o RAIZ concede, igual ao administrador: quem pode ver o sistema inteiro é decisão
+        // do dono. Ver Services/PoderesNoSistema.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarAssistente(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            jogador.IsAssistente = true;
+            await _context.SaveChangesAsync();
+
+            // ⚠️ O crachá (claim) só é reescrito quando a pessoa entra de novo: quem estiver
+            // logado agora continua sem enxergar o painel até sair e voltar.
+            TempData["Sucesso"] = $"{NomeBonito.Formatar(jogador.Nome)} agora é assistente do sistema — "
+                + "vê tudo, não altera nada. Ele precisa sair e entrar de novo pra valer.";
+            return RedirectToAction("Administradores");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverAssistente(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador != null)
+            {
+                jogador.IsAssistente = false;
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = "Assistente removido. Ele sai do painel no próximo login.";
+            return RedirectToAction("Administradores");
         }
 
         [HttpPost]

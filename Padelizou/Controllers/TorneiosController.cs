@@ -122,10 +122,26 @@ namespace Padelizou.Controllers
                 .Select(o => o.NivelAcesso)
                 .FirstOrDefaultAsync();
 
-            var ehAdmin = await _context.Jogadores
-                .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
+            // O assistente do sistema também enxerga o caixa (decisão do Felipe: ele vê TUDO,
+            // financeiro incluído). Aqui a pergunta é só de leitura — quem MEXE em dinheiro
+            // são os POSTs, e nenhum deles passa por esta função.
+            var quem = await _context.Jogadores.FindAsync(jogadorId);
 
-            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, ehAdmin);
+            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, PoderesNoSistema.PodeOlharTudo(quem));
+        }
+
+        // "Consegue ABRIR a gestão deste torneio?" — separada de EhOrganizadorAsync de
+        // propósito, porque aquela é a autoridade de EDITAR e é consultada por todos os POSTs.
+        //
+        // ⚠️ Somar o assistente lá teria dado a ele o poder de mexer em qualquer torneio do
+        // sistema. Aqui ele só ganha a porta: a tela abre em modo leitura (formulários
+        // desligados) e o servidor continua recusando toda gravação.
+        private async Task<bool> PodeOlharAGestaoAsync(int torneioId, int jogadorId)
+        {
+            if (await EhOrganizadorAsync(torneioId, jogadorId)) return true;
+
+            var quem = await _context.Jogadores.FindAsync(jogadorId);
+            return PoderesNoSistema.PodeOlharTudo(quem);
         }
 
         private int? ObterJogadorIdLogado()
@@ -394,7 +410,16 @@ namespace Padelizou.Controllers
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
 
-            ViewBag.PodeGerenciar = jogadorLogadoId.HasValue && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
+            // ⚠️ Duas perguntas diferentes: EDITAR (organizador de verdade) e ABRIR A TELA (que
+            // o assistente do sistema também pode). A aba de gestão aparece pelos dois, mas em
+            // modo leitura ela vem com os formulários desligados — ver PoderesNoSistema.
+            bool ehOrganizadorDeVerdade = jogadorLogadoId.HasValue
+                && await EhOrganizadorAsync(id, jogadorLogadoId.Value);
+
+            ViewBag.PodeGerenciar = ehOrganizadorDeVerdade
+                || (jogadorLogadoId.HasValue && await PodeOlharAGestaoAsync(id, jogadorLogadoId.Value));
+
+            ViewBag.GestaoSoLeitura = ViewBag.PodeGerenciar == true && !ehOrganizadorDeVerdade;
 
             // Organiza junto, mas o caixa é de quem criou (ver AcessoAoDinheiroDoTorneio).
             ViewBag.PodeVerDinheiro = jogadorLogadoId.HasValue

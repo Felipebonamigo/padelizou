@@ -50,4 +50,59 @@
             <div class="list-group-item text-muted">Nenhum administrador nomeado ainda.</div>
         }
     </div>
+
+    @* ── ASSISTENTES DO SISTEMA ──────────────────────────────────────────────────────
+       Bloco separado, e não uma coluna na tabela de cima, porque não é "um administrador
+       mais fraco": o assistente NÃO edita nada. Misturar os dois faria alguém conceder um
+       achando que concede o outro. *@
+    @{
+        var assistentes = ViewBag.Assistentes as List<Jogador> ?? new List<Jogador>();
+    }
+    <div class="mt-5">
+        <h4 class="fw-bold" style="color: var(--pdz-ink);">Assistentes do sistema</h4>
+        <p class="text-muted">
+            Enxergam <strong>tudo</strong> — o painel inteiro e a gestão de qualquer torneio —
+            e <strong>não alteram nada</strong>. Nos torneios que a própria pessoa organiza,
+            os botões dela continuam funcionando normalmente.
+        </p>
+        <p class="text-muted small">
+            <i class="bi bi-info-circle"></i>
+            O crachá é reescrito no login: quem já está logado só passa a ver o painel depois
+            de sair e entrar de novo.
+        </p>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-3">Adicionar assistente</h6>
+                @{
+                    ViewData["BuscaOrgActionUrl"] = Url.Action("AdicionarAssistente", "Admin");
+                }
+                <partial name="_BuscaOrganizador" />
+                @{
+                    ViewData["BuscaOrgActionUrl"] = null;
+                }
+            </div>
+        </div>
+
+        <div class="list-group shadow-sm">
+            @if (assistentes.Any())
+            {
+                @foreach (var assistente in assistentes)
+                {
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">@assistente.NomeComApelido</span>
+                        <form asp-controller="Admin" asp-action="RemoverAssistente" method="post"
+                              onsubmit="return confirm('Remover @assistente.Nome como assistente do sistema?');">
+                            <input type="hidden" name="jogadorId" value="@assistente.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="list-group-item text-muted">Nenhum assistente ainda.</div>
+            }
+        </div>
+    </div>
 </div>

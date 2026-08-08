@@ -155,6 +155,19 @@ public partial class Jogador
     // clube, mas é a fundação pra outras telas administrativas futuras.
     public bool IsAdminGeral { get; set; }
 
+    // ASSISTENTE DO SISTEMA: enxerga tudo, não muda nada.
+    //
+    // As duas flags acima significam ver E editar ao mesmo tempo — elas viram a credencial
+    // única `IsAdmin`, que destrava desde o painel /Admin até o placar de qualquer torneio.
+    // O assistente é a terceira resposta que faltava: alguém que acompanha a operação inteira
+    // sem poder mexer nela.
+    //
+    // ⚠️ Ela é ADITIVA e só pra leitura: NÃO entra na credencial `IsAdmin`, justamente pra
+    // que nenhum caminho de escrita se abra por acidente. Quem é assistente E organizador de
+    // um torneio continua editando o torneio dele pelo direito de organizador — a flag não
+    // tira poder de ninguém. Ver Services/PoderesNoSistema.
+    public bool IsAssistente { get; set; }
+
     // Pode CRIAR torneio. Nasce desligado: desde 07/08/2026 criar torneio é liberado pessoa a
     // pessoa, no painel admin (ver Services/PermissaoDeOrganizador).
     //

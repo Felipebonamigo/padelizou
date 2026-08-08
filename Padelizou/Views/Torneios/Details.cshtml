@@ -838,8 +838,31 @@
     <!-- ABA 3: PAINEL DO ORGANIZADOR -->
     @if (ViewBag.PodeGerenciar == true)
     {
+        @* ASSISTENTE DO SISTEMA: enxerga o painel inteiro, não mexe em nada.
+
+           O `<fieldset disabled>` é o que desliga TUDO de uma vez — input, select, textarea e
+           botão, em qualquer profundidade. Desligar item a item seria uma lista pra esquecer
+           um; e o que faz isso ser seguro de verdade não é o HTML, é o servidor: nenhum POST
+           daqui passa por EhOrganizadorAsync pro assistente. Ver PoderesNoSistema. *@
+        var gestaoSoLeitura = ViewBag.GestaoSoLeitura == true;
         <div class="tab-pane fade" id="admin" role="tabpanel">
             <h4 class="mb-3 text-danger"><i class="bi bi-gear-fill"></i> Painel de Controle</h4>
+
+            @if (gestaoSoLeitura)
+            {
+                <div class="alert alert-info border-0 d-flex gap-2 align-items-start">
+                    <i class="bi bi-eyeglasses fs-5 lh-1 mt-1"></i>
+                    <div class="small">
+                        <strong>Você está vendo a gestão deste torneio como assistente.</strong>
+                        Dá pra acompanhar tudo — inscritos, chaves, dinheiro e configuração —, mas
+                        quem altera é quem organiza.
+                    </div>
+                </div>
+            }
+
+            @* `disabled="@false"` some do HTML (o Razor trata atributo booleano assim), então
+               pra quem organiza o fieldset é uma casca sem efeito nenhum. *@
+            <fieldset disabled="@gestaoSoLeitura" class="border-0 p-0 m-0">
 
             <div class="card bg-light border-0 shadow-sm mb-4">
                 <div class="card-body">
@@ -2357,6 +2380,7 @@
                     }
                 </div>
             </div>
+            </fieldset>
         </div>
     }
     <!-- ABA: JOGOS (Ao Vivo/Agendadas/Finalizadas unificados) -->

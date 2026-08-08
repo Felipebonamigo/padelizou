@@ -73,8 +73,13 @@ public static class IdentidadeJogador
             new Claim(ClaimTypes.Email, jogador.Email ?? ""),
             new Claim("FotoPerfil", jogador.FotoPerfil ?? ""),
             new Claim("IsProfessor", jogador.IsProfessor ? "true" : "false"),
-            new Claim("IsAdmin", (jogador.IsAdminGeral || jogador.IsAdminRaiz) ? "true" : "false"),
-            new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false")
+            // ⚠️ `IsAdmin` é a credencial de EDITAR, e o assistente NÃO entra nela — é o que
+            // impede um caminho de escrita de se abrir por acidente. Ver PoderesNoSistema.
+            new Claim("IsAdmin", PoderesNoSistema.PodeEditarTudo(jogador) ? "true" : "false"),
+            new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false"),
+            // Credencial separada, só de leitura: destrava o painel e a gestão do torneio em
+            // modo "olhar", e é ela que acende a faixa de só-leitura na tela.
+            new Claim("Assistente", jogador.IsAssistente ? "true" : "false")
         };
     }
 }

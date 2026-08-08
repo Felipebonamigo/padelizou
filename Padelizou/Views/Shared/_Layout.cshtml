@@ -15,6 +15,14 @@
     var souProfessor = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsProfessor") == "true";
     var souAdmin = User.Identity?.IsAuthenticated == true && User.FindFirstValue("IsAdmin") == "true";
 
+    @* ASSISTENTE DO SISTEMA: vê tudo, não muda nada. A credencial é SEPARADA do IsAdmin de
+       propósito — somá-las abriria os caminhos de escrita junto. Ver Services/PoderesNoSistema.
+
+       O menu do painel abre pra ele (souAdmin || souAssistente) porque "ver tudo" sem achar a
+       porta não é ver nada; quem recusa a escrita é o servidor, não este menu. *@
+    var souAssistente = User.Identity?.IsAuthenticated == true && User.FindFirstValue("Assistente") == "true";
+    var souSoOlhando = souAssistente && !souAdmin;
+
     @* O painel mora num subdomínio só dele em produção (ver AdminHostMiddleware), então "onde
        estou" muda o que a barra pode oferecer. *@
     var ehDesenvolvimento = Ambiente.IsDevelopment();
@@ -226,7 +234,7 @@
                                     </li>
                                 </ul>
                             </li>
-                            if (souAdmin)
+                            if (souAdmin || souAssistente)
                             {
                                 @* Mesma aba: o painel é uma tela do sistema como qualquer outra. Em
                                    produção ele mora noutro host, e por isso o endereço vem pronto de
@@ -341,6 +349,18 @@
                     <i class="bi bi-image me-1"></i>
                     @TempData["ErroImagem"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            }
+
+            @* A faixa do assistente fica NO LAYOUT, e não em cada tela: ele circula pelo painel
+               inteiro e pela gestão de qualquer torneio, e o aviso tem que acompanhar. Aparece
+               só onde há o que editar — na Home e no perfil dele não faz sentido. *@
+            @if (souSoOlhando && (dentroDoPainel || Context.Request.Path.StartsWithSegments("/Admin")
+                 || Context.Request.Path.StartsWithSegments("/Torneios")))
+            {
+                <div class="alert alert-info border-0 shadow-sm d-flex gap-2 align-items-start mt-3" role="status">
+                    <i class="bi bi-eyeglasses fs-5 lh-1 mt-1"></i>
+                    <div class="small">@Padelizou.Services.PoderesNoSistema.AvisoDeSoLeitura</div>
                 </div>
             }
 
