@@ -384,8 +384,17 @@ namespace Padelizou.Controllers
                 // Trocar a forma de recebimento depois de criado: dá enquanto ninguém se
                 // inscreveu. A MESMA pergunta que o POST do Editar faz — se as duas
                 // divergirem, a tela oferece o que o servidor recusa.
-                ViewBag.PodeTrocarFormaPagamento =
-                    FormaDePagamentoDoTorneio.PodeTrocar(await TemAlguemInscritoAsync(id));
+                bool temInscrito = await TemAlguemInscritoAsync(id);
+                ViewBag.PodeTrocarFormaPagamento = FormaDePagamentoDoTorneio.PodeTrocar(temInscrito);
+
+                // Abrir/fechar inscrição é um interruptor, e não mais um caminho só de ida.
+                // "Já sorteou" é PARTIDA existindo — é ela que a jogadora vê e que diz contra
+                // quem joga; o nome da fase não serve de prova.
+                bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == id);
+                ViewBag.PodeReabrirInscricoes =
+                    PortaDaInscricao.PorQueNaoPodeAbrir(torneio, jaSorteou) == null;
+                ViewBag.InscricoesNuncaAbriram =
+                    PortaDaInscricao.NuncaAbriu(torneio, temInscrito, jaSorteou);
 
                 // Sem conta conectada as opções "pelo site" ficam à vista mas travadas, como
                 // na criação: escondê-las faria o organizador concluir que não existem.

@@ -861,6 +861,43 @@
                     }
                     <hr />
 
+                    @* ── Reabrir as inscrições ──────────────────────────────────────────
+                       Fica FORA da corrente de status logo abaixo, e antes dela, de propósito:
+                       o torneio fechado cai em três ramos diferentes (taxa pendente, Americano
+                       e Oficial), e repetir o botão nos três seria a mesma regra escrita três
+                       vezes. Some sozinho depois do sorteio — a régua é PortaDaInscricao.
+
+                       Existe porque encerrar inscrição era de mão única: um clique e nunca
+                       mais. Aconteceu com o NATA PADEL TOUR, que ficou parado sem ninguém
+                       inscrito e sem caminho de volta. *@
+                    @if (ViewBag.PodeReabrirInscricoes == true)
+                    {
+                        <div class="alert @(ViewBag.InscricoesNuncaAbriram == true ? "alert-warning" : "alert-secondary") d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                            <div>
+                                @if (ViewBag.InscricoesNuncaAbriram == true)
+                                {
+                                    @* Zero inscritos e zero jogos: isto não é "encerrada", é
+                                       "ainda não abriu". Dizer "encerradas" aqui era a frase
+                                       mais confusa possível pra quem está tentando entender
+                                       por que ninguém consegue entrar. *@
+                                    <strong><i class="bi bi-lock-fill"></i> As inscrições estão fechadas</strong>
+                                    <div class="small">Ninguém se inscreveu ainda — enquanto estiver assim, o formulário não aceita gente.</div>
+                                }
+                                else
+                                {
+                                    <strong><i class="bi bi-lock-fill"></i> Inscrições encerradas</strong>
+                                    <div class="small">Dá pra reabrir enquanto as chaves não forem sorteadas.</div>
+                                }
+                            </div>
+                            <form asp-controller="Torneios" asp-action="ReabrirInscricoes" method="post" class="mb-0">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                                    <i class="bi bi-unlock-fill"></i> Abrir inscrições
+                                </button>
+                            </form>
+                        </div>
+                    }
+
                     @if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
                     {
                         @* Cancelado não tem próximo passo — o painel para aqui, e o que sobra é
@@ -1055,9 +1092,16 @@
                     }
                     else if (Model.Status == "Chaves em Sorteio")
                     {
-                        <div class="alert alert-info border-info">
-                            <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
-                        </div>
+                        @* Só oferece o sorteio pra quem TEM quem sortear. Com zero inscritos, o
+                           "agora você pode sortear os grupos" era um convite pra um botão que
+                           não tinha o que fazer — e a faixa acima já explica o que está
+                           acontecendo. *@
+                        @if (ViewBag.InscricoesNuncaAbriram != true)
+                        {
+                            <div class="alert alert-info border-info">
+                                <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
+                            </div>
+                        }
 
                         @* Antes de apertar o botão, o organizador vê onde essa grade termina.
                            Aqui os números são REAIS — as duplas já estão inscritas —, então
