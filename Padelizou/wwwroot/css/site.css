@@ -1943,24 +1943,56 @@ button, a, input, select { touch-action: manipulation; }
 
 /* ── Pills de navegação com a cara do site ─────────────────────────────────
    O ativo azul padrão do Bootstrap não existe na identidade (lima + navy) e
-   brigava com o vermelho do "Ao Vivo". Linha única rolável no celular: pill
-   quebrando em duas linhas desalinhadas lia como bagunça, não como abas. */
+   brigava com o vermelho do "Ao Vivo".
+
+   AS ABAS MORAM DENTRO DE UMA BARRA. Soltas sobre o fundo elas pareciam
+   flutuar: sem nada reunindo o grupo, cada uma lia como um botão avulso e a
+   ativa parecia destacada por acaso, não escolhida. A barra é o contorno que
+   diz "isto aqui é UM controle com quatro posições".
+
+   E elas CABEM na tela. A versão anterior era linha única com rolagem
+   lateral — no celular a quarta aba ficava fora do quadro, e ninguém arrasta
+   o que não sabe que existe: a Classificação do Americano simplesmente não
+   era encontrada. Agora dividem a largura e, se não couberem, quebram pra
+   segunda linha DENTRO da barra, que é onde a quebra deixa de parecer
+   bagunça. */
 .pdz-pills {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: .35rem;   /* respiro pra rolagem não colar na pill */
+    flex-wrap: wrap;
+    gap: .25rem;
+    padding: .25rem;
+    background-color: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    border-radius: .75rem;
 }
+
+/* Cada aba do tamanho do próprio texto. Esticar pra preencher a linha deixava a
+   última sozinha ocupando a largura inteira embaixo das outras três — parecia
+   um botão de ação, não a quarta aba. */
+.pdz-pills .nav-item { flex: 0 1 auto; }
 
 .pdz-pills .nav-link {
     white-space: nowrap;
     font-weight: 700;
     color: var(--pdz-ink);
+    border-radius: .5rem;
+    padding: .4rem .6rem;
+    font-size: .85rem;
 }
 
 .pdz-pills .nav-link.active {
     background-color: var(--pdz-lime);
     color: var(--pdz-navy);
+}
+
+/* Celular estreito: o ícone é enfeite e sai primeiro. O que não pode sumir é o
+   nome da aba e a contagem — e a bolinha do Ao Vivo, que é informação, fica. */
+@media (max-width: 430px) {
+    .pdz-pills .nav-link {
+        font-size: .74rem;
+        padding: .4rem .4rem;
+    }
+
+    .pdz-pills .nav-link > i.bi { display: none; }
 }
 
 /* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
