@@ -31,4 +31,14 @@ public class ClassificacaoAmericanaDaCategoriaVM
     // Empate na liderança do que DECIDE. Um empate no topo do grupo A não é empate de título:
     // ali ele só disputa ordem de classificação, e os dois passam do mesmo jeito.
     public bool EmpateNoTitulo => QueDecide?.Linhas.Any(l => l.Empatado) == true;
+
+    // Quem ganhou o torneio — nula até ter ganhado de verdade. Ver ClassificacaoDoAmericano.Campea.
+    public Padelizou.Services.TabelaDoAmericano.Linha? Campea =>
+        Padelizou.Services.ClassificacaoDoAmericano.Campea(Tabelas);
+
+    // "Campeã" numa categoria feminina, "Campeão" no resto. O cadastro não guarda o sexo do
+    // jogador, e o nome da categoria é a única pista que o sistema tem — a mesma convenção
+    // que decide a régua do Padelímetro, então as duas telas concordam.
+    public string RotuloDeCampeao =>
+        Padelizou.Services.FaixasDePadelimetro.EhFeminina(Categoria) ? "Campeã" : "Campeão";
 }

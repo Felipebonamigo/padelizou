@@ -17,6 +17,24 @@
 }
 else
 {
+    @* O MOMENTO DO CAMPEÃO. A tabela dizia quem estava em primeiro e nada mais: acabava o
+       torneio e a tela continuava com cara de placar parcial. É o mesmo bloco que a chave
+       de mata-mata mostra no fim (Views/Torneios/_ChaveDoMataMata), pra que ganhar um
+       Americano e ganhar uma chave tenham o mesmo peso na tela.
+
+       Só aparece quando ganhou DE VERDADE — tabela que decide, encerrada e sem empate na
+       liderança. Ver ClassificacaoDoAmericano.Campea. *@
+    @if (Model.Campea is { } campea)
+    {
+        <div class="pdz-chave-trofeu mb-4">
+            <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
+                 width="110" height="114" class="rounded-3" />
+            <div class="fw-bold mt-2" style="color: var(--pdz-ink);">@Model.RotuloDeCampeao</div>
+            <div class="fw-bold fs-5" style="color: var(--padel-green);">@campea.Jogador.ComoChamar</div>
+            <div class="small text-muted">@campea.TotalGames games em @campea.Jogos jogos</div>
+        </div>
+    }
+
     <div class="row">
         @foreach (var tabela in tabelas)
         {
@@ -75,11 +93,21 @@ else
                                            rolar, por ordem alfabética. *@
                                         var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui && linha.Jogos > 0;
                                         var empatadoNoTopo = linha.Empatado;
+                                        @* A linha da campeã, na tabela que decidiu o título. O
+                                           troféu no lugar da medalha: medalha é de quem passou
+                                           de fase, e aqui não há fase seguinte. *@
+                                        var ehCampea = Model.Campea != null
+                                            && tabela == Model.QueDecide
+                                            && linha.Jogador.Id == Model.Campea.Jogador.Id;
 
-                                        <tr class="@(empatadoNoTopo ? "table-warning" : passou ? "table-success" : "")">
+                                        <tr class="@(ehCampea ? "pdz-linha-campea" : empatadoNoTopo ? "table-warning" : passou ? "table-success" : "")">
                                             <td class="fw-bold ps-3">
                                                 @(i + 1)º
-                                                @if (passou)
+                                                @if (ehCampea)
+                                                {
+                                                    <text>🏆</text>
+                                                }
+                                                else if (passou)
                                                 {
                                                     <text>🏅</text>
                                                 }

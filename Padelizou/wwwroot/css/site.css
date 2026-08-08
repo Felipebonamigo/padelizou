@@ -2749,3 +2749,11 @@ button, a, input, select { touch-action: manipulation; }
     opacity: .92;
     filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .3));
 }
+
+/* A linha de quem GANHOU o Americano, na tabela que decidiu o título. Verde da marca em
+   vez do amarelo de "empatado"/"passou": passar de fase é promessa, ganhar é fato — e o
+   verde é a mesma cor que a chave usa no nome do campeão. */
+.pdz-linha-campea > td {
+    background: color-mix(in srgb, var(--padel-green) 18%, var(--pdz-surface));
+    font-weight: 700;
+}

@@ -17,12 +17,15 @@ public static class ClassificacaoDoAmericano
 {
     // Uma tabela: a de um grupo, a do grupo final, ou a do torneio inteiro quando não há
     // divisão (aí `Grupo` é nulo e não existe corte — todo mundo já está no que decide).
+    // `Encerrada` = todo jogo desta tabela já terminou. É o que separa "está ganhando" de
+    // "ganhou": sem isso a tela coroaria o líder da segunda rodada de seis.
     public sealed record Tabela(
         string? Grupo,
         string? Titulo,
         int PassamDaqui,
         bool EhGrupoFinal,
-        IReadOnlyList<TabelaDoAmericano.Linha> Linhas);
+        IReadOnlyList<TabelaDoAmericano.Linha> Linhas,
+        bool Encerrada = false);
 
     // `partidasDaCategoria` pode vir com o torneio inteiro dentro: o que não é Americano é
     // descartado aqui, e não na consulta de quem chama. Filtrar no chamador é o que faz três
@@ -58,6 +61,7 @@ public static class ClassificacaoDoAmericano
 
         foreach (var grupo in grupos)
         {
+            var doGrupo = doAmericano.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)).ToList();
             tabelas.Add(new Tabela(
                 Grupo: grupo,
                 Titulo: grupo == null ? null : $"Grupo {grupo}",
@@ -67,7 +71,8 @@ public static class ClassificacaoDoAmericano
                 EhGrupoFinal: false,
                 Linhas: TabelaDoAmericano.Montar(
                     finalizadas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)),
-                    Participantes(doAmericano.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo))))));
+                    Participantes(doGrupo)),
+                Encerrada: doGrupo.Count > 0 && doGrupo.All(p => p.Status == "Finalizada")));
         }
 
         // O grupo final vem por último: é a fase seguinte, e é ele que decide o título.
@@ -81,7 +86,8 @@ public static class ClassificacaoDoAmericano
                 EhGrupoFinal: true,
                 Linhas: TabelaDoAmericano.Montar(
                     doFinal.Where(p => p.Status == "Finalizada"),
-                    Participantes(doFinal))));
+                    Participantes(doFinal)),
+                Encerrada: doFinal.All(p => p.Status == "Finalizada")));
         }
 
         return tabelas;
@@ -111,6 +117,22 @@ public static class ClassificacaoDoAmericano
 
         var deGrupo = tabelas.Where(t => !t.EhGrupoFinal).ToList();
         return deGrupo.Count == 1 && deGrupo[0].Grupo == null ? deGrupo[0] : null;
+    }
+
+    // QUEM GANHOU — nula enquanto ninguém ganhou, que é o estado normal de quase toda a
+    // vida do torneio. Três condições, e as três importam:
+    //
+    //  • existe tabela que decide (com vários grupos e sem grupo final, ninguém coroa nada);
+    //  • ela ENCERROU (líder da rodada 2 de 6 não é campeão);
+    //  • e a liderança não está EMPATADA — no Americano empate no topo do que decide vira
+    //    rodada de desempate, então ali ainda não há campeão, há dois candidatos.
+    public static TabelaDoAmericano.Linha? Campea(IReadOnlyList<Tabela> tabelas)
+    {
+        var decide = QueDecideOTitulo(tabelas);
+        if (decide is not { Encerrada: true }) return null;
+
+        var primeira = decide.Linhas.FirstOrDefault();
+        return primeira is null || primeira.Empatado ? null : primeira;
     }
 
     // Este torneio se divide em grupos? Muda o texto da tela: com divisão a tabela do grupo
