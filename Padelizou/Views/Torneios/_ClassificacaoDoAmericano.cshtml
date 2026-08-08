@@ -85,6 +85,21 @@ else
                                                 {
                                                     <span class="badge bg-warning text-dark ms-1">empatado</span>
                                                 }
+                                                @* Empate em games separado por outro critério: quem
+                                                   ficou embaixo precisa saber POR QUE, senão dois
+                                                   números iguais em ordem diferente parecem erro. *@
+                                                @if (linha.Desempate == Padelizou.Services.TabelaDoAmericano.PorConfrontoDireto)
+                                                {
+                                                    <span class="badge bg-secondary ms-1" title="Empate em games desfeito pelos games do confronto direto">
+                                                        confronto direto
+                                                    </span>
+                                                }
+                                                else if (linha.Desempate == Padelizou.Services.TabelaDoAmericano.PorSorteio)
+                                                {
+                                                    <span class="badge bg-secondary ms-1" title="Empate em games e no confronto direto — a ordem saiu de sorteio">
+                                                        sorteio
+                                                    </span>
+                                                }
                                             </td>
                                             <td class="text-center text-muted">@linha.Jogos</td>
                                             <td class="text-end pe-3 fw-bold">@linha.TotalGames</td>
@@ -93,6 +108,25 @@ else
                                 </tbody>
                             </table>
                         </div>
+                        @* A legenda só aparece quando houve empate de verdade nesta tabela —
+                           explicar um critério que não foi usado é ruído. *@
+                        @if (tabela.Linhas.Any(l => l.Desempate != null))
+                        {
+                            <div class="small text-muted px-3 py-2 border-top">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Empate em games?</strong> Decide o <strong>confronto direto</strong> —
+                                os games que cada um fez jogando contra os outros empatados.
+                                @if (tabela.Linhas.Any(l => l.Desempate == Padelizou.Services.TabelaDoAmericano.PorSorteio))
+                                {
+                                    <text>
+                                        Como no Americano cada dupla se enfrenta um número par de vezes, o
+                                        confronto direto também pode empatar — aí a ordem sai de
+                                        <strong>sorteio</strong>. O sorteio é fixo: não muda se você recarregar
+                                        a página.
+                                    </text>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
