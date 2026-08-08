@@ -1548,6 +1548,44 @@
                                 <label class="form-label fw-bold">
                                     <i class="bi bi-stopwatch"></i> Formato das partidas
                                 </label>
+
+                                @* COMO contar os games — vale pro torneio inteiro, nos três
+                                   formatos. Editável depois de criado de propósito: no
+                                   Americano é comum descobrir o tamanho certo da rodada só
+                                   quando se sabe quanta gente veio. *@
+                                @{
+                                    var contagemAtual = Padelizou.Services.ContagemDeGamesDoTorneio
+                                        .Valido(Model.ContagemDeGames);
+                                    var ehSoma = contagemAtual == Padelizou.Services.ContagemDeGamesDoTorneio.Soma;
+                                }
+                                <div class="p-3 rounded mb-3" style="background-color: var(--pdz-surface-alt);">
+                                    <div class="fw-bold small mb-2">Como contar os games</div>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="contagemDeGames"
+                                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Ate"
+                                                   id="editContagemAte" checked="@(!ehSoma)" />
+                                            <label class="form-check-label small" for="editContagemAte">
+                                                <strong>Até</strong> X — quem chegar primeiro vence
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="contagemDeGames"
+                                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Soma"
+                                                   id="editContagemSoma" checked="@ehSoma" />
+                                            <label class="form-check-label small" for="editContagemSoma">
+                                                <strong>Soma de</strong> X — jogam-se X games no total
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mt-2">
+                                        Na <strong>soma</strong>, um jogo de 7 fecha sempre em 7 (4x3, 5x2, 7x0…) e
+                                        vence quem fizer mais — todo jogo dura o mesmo, que é o que segura a grade.
+                                        Prefira número <strong>ímpar</strong>: em soma par dá empate (8 fecha em 4x4)
+                                        e o sistema não finaliza jogo empatado.
+                                    </div>
+                                </div>
+
                                 <div class="row g-3">
                                     <div class="col-md-4">
                                         <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">

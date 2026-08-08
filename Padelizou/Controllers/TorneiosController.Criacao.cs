@@ -371,6 +371,11 @@ namespace Padelizou.Controllers
                 torneio.GamesFaseFinal = torneio.GamesFaseGrupos;
             }
 
+            // Como contar os games decide teto de placar e "já dá pra encerrar?", então um
+            // valor inventado num POST montado à mão não pode passar: o que não for "Soma"
+            // vira o "Ate" de sempre, que é o comportamento histórico.
+            torneio.ContagemDeGames = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
+
             // O Torneio nasce com Inscrições Abertas
             torneio.Status = "Inscrições Abertas";
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
@@ -783,6 +788,9 @@ namespace Padelizou.Controllers
             int? setsFaseGrupos = null, int? gamesFaseGrupos = null,
             int? setsFaseMataMata = null, int? gamesFaseMataMata = null,
             int? setsFaseFinal = null, int? gamesFaseFinal = null,
+            // Nulo = aba antiga sem o campo: a contagem gravada FICA. Trocar pra "Ate" por
+            // omissão mudaria a regra do jogo de um torneio em andamento, calado.
+            string? contagemDeGames = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -850,8 +858,40 @@ namespace Padelizou.Controllers
             torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
             torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
             torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
+
+            // Só troca a contagem se o campo veio E é um valor que existe: um "Soma" mal
+            // digitado virando "Ate" em silêncio mudaria como a Mesa fecha todo jogo.
+            if (ContagemDeGamesDoTorneio.Existe(contagemDeGames))
+            {
+                torneio.ContagemDeGames = contagemDeGames!;
+            }
             torneio.TempoPrevistoPartidaMinutos = tempoPrevistoPartidaMinutos ?? torneio.TempoPrevistoPartidaMinutos;
+
+            // ⚠️ LIGAR "sem horário previsto" TEM QUE APAGAR o horário que já existe. A chave
+            // só evitava marcar horário no sorteio SEGUINTE — quem sorteou antes e ligou
+            // depois ficava com a tela se contradizendo: a faixa dizendo "os jogos não têm
+            // horário" em cima de uma lista de jogos com hora marcada.
+            //
+            // Aconteceu de verdade em 07/08/2026, no "Americano das Gurias do Padel": 10 jogos
+            // anunciando 00:54 às 04:14 da MADRUGADA pras jogadoras, num torneio que ia rodar
+            // por ordem de chamada. Horário que ninguém vai cumprir é pior que horário nenhum.
+            //
+            // Só o que ainda não começou: jogo em quadra ou finalizado tem hora REAL, e isso é
+            // registro do que aconteceu — não se apaga.
+            bool virouPorOrdem = semHorarioPrevisto && !torneio.SemHorarioPrevisto;
             torneio.SemHorarioPrevisto = semHorarioPrevisto;
+
+            if (virouPorOrdem)
+            {
+                var semHoraAgora = await _context.Partidas
+                    .Where(p => p.TorneioId == id
+                             && p.Status == "Agendada"
+                             && p.HorarioInicioReal == null
+                             && p.HorarioPrevisto != null)
+                    .ToListAsync();
+
+                foreach (var jogo in semHoraAgora) jogo.HorarioPrevisto = null;
+            }
 
             // O local É o clube. A tela de edição pedia os dois — o mesmo dado duas vezes — e
             // eles podiam divergir: o cabeçalho do torneio mostra o LocalTorneio, então dava

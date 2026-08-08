@@ -120,13 +120,11 @@ namespace Padelizou.Controllers
                 // é justamente o que faz resultado sumir sem ninguém entender.
                 if (partida == null || partida.Status != "AoVivo") continue;
 
-                // O teto da FASE manda (Services/FormatoDaPartida): num torneio até 4, digitar
-                // 9 seria um placar que aquele jogo não pode ter.
+                // O formato da FASE manda (Services/FormatoDaPartida): num torneio até 4,
+                // digitar 9 seria um placar que aquele jogo não pode ter — e numa soma de 7,
+                // 5x5 também não.
                 var formato = FormatoDaPartida.De(torneio, partida.Fase);
-                int teto = FormatoDaPartida.TetoDeGames(formato.Games, games1[i], games2[i]);
-
-                int g1 = Math.Clamp(games1[i], 0, teto);
-                int g2 = Math.Clamp(games2[i], 0, teto);
+                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, games1[i], games2[i]);
 
                 if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2) continue;
 

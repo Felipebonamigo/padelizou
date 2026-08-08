@@ -98,6 +98,19 @@ public partial class Torneio
     public int GamesFaseMataMata { get; set; }
     public int SetsFaseFinal { get; set; }
     public int GamesFaseFinal { get; set; }
+
+    // COMO os games da partida são contados (Felipe, 08/08/2026). Os números acima dizem
+    // QUANTOS; este diz o que esse número significa:
+    //
+    //   "Ate"  — o de sempre: quem chegar primeiro em X vence. 9 games = "até 9".
+    //   "Soma" — jogam-se X games no TOTAL e pronto: numa soma de 7 o placar fecha em 7
+    //            (4x3, 5x2, 7x0...), e vence quem tiver mais. É como roda a maioria dos
+    //            rodízios, onde a rodada tem tamanho fixo pra grade não escorregar.
+    //
+    // Nasce "Ate" de propósito: é o que TODO torneio existente sempre fez, e a migração
+    // grava esse valor nas linhas antigas. Ver Services/FormatoDaPartida, que é quem
+    // traduz isto em teto de placar e em "já dá pra encerrar?".
+    public string ContagemDeGames { get; set; } = Padelizou.Services.ContagemDeGamesDoTorneio.Ate;
     public int ClubeId { get; set; }
     // Propriedade de navegação: só tem valor em consulta que fez Include. `null!` é o combinado
     // do EF pra isso — quem usa sem Include recebe nulo, e é assim mesmo.
