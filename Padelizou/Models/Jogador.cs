@@ -124,6 +124,18 @@ public partial class Jogador
     // "Destro" / "Canhoto"
     public string? Lateralidade { get; set; }
 
+    // O sexo com que a pessoa se identifica: "Masculino" ou "Feminino" (Felipe, 08/08/2026).
+    //
+    // Existe por UMA razão concreta: a Mista e a Casais são categorias de um homem e uma
+    // mulher, e até aqui isso era honra — o sistema não tinha como saber, nem pra avisar.
+    //
+    // ⚠️ ANULÁVEL, e isso não é frouxidão: os 90 jogadores de produção nasceram antes do campo
+    // existir, e todo PRÉ-CADASTRO (parceiro inscrito pelo CPF, sem conta) chega sem ninguém
+    // pra responder. Não-anulável obrigaria a inventar um valor pra gente real — e inventar
+    // sexo alheio é pior que não saber. Nulo quer dizer "ainda não informou", e é isso que a
+    // tela pede. Ver Services/SexoDoJogador.
+    public string? Sexo { get; set; }
+
     // Se true, visitantes só veem foto e nome no perfil público (Jogadores/Perfil)
     public bool PerfilPrivado { get; set; }
     public bool NotificarEmail { get; set; }

@@ -50,6 +50,34 @@
                             </div>
                         </div>
 
+                        @* SEXO: obrigatório no cadastro desde 08/08/2026, e existe por uma razão
+                           só — a Mista e a Casais são categorias de um homem e uma mulher, e
+                           sem esse dado o sistema não tinha como conferir nem avisar.
+
+                           "com que você se identifica" é a pergunta certa, e não "sexo
+                           biológico": o que a regra do torneio precisa saber é como a pessoa
+                           joga e se apresenta na quadra. *@
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-muted small">Sexo</label>
+                                <div class="d-flex gap-3">
+                                    @foreach (var opcao in new[] { Padelizou.Services.SexoDoJogador.Masculino, Padelizou.Services.SexoDoJogador.Feminino })
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="sexo" value="@opcao"
+                                                   id="sexo_@opcao" required
+                                                   checked="@((ViewBag.FormSexo as string) == opcao)" />
+                                            <label class="form-check-label" for="sexo_@opcao">@opcao</label>
+                                        </div>
+                                    }
+                                </div>
+                                <small class="text-muted">
+                                    O sexo com que você se identifica. Usado só pra categorias de dupla
+                                    mista e de casais, que são de um homem e uma mulher.
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- Dados de Acesso -->
                         <div class="mb-3">
                             <label class="form-label fw-bold text-muted small">Login</label>

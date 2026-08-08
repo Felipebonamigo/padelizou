@@ -83,6 +83,14 @@ namespace Padelizou.Controllers
             vm.PrimeiroNome = jogador.Nome.Split(' ')[0];
             vm.Onboarding = await _estatisticas.ObterOnboardingAsync(jogadorId);
 
+            // O campo SEXO nasceu em 08/08/2026, então todo mundo que já tinha conta está sem
+            // ele. O convite pra preencher fica aqui, na Home, porque é a tela por onde todo
+            // mundo passa — esperar a pessoa descobrir sozinha no perfil significaria descobrir
+            // na hora de se inscrever numa Mista, que é tarde.
+            //
+            // Some sozinho quando ela preenche: aviso que não tem fim vira paisagem.
+            vm.FaltaInformarSexo = !SexoDoJogador.Informou(jogador);
+
             // Próximo jogo de torneio com hora e quadra definidas. A margem de 2h pra trás
             // cobre o jogo atrasado do dia: ainda é "o próximo" até alguém finalizar.
             var corte = DateTime.Now.AddHours(-2);

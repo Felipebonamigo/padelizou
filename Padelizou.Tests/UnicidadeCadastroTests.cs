@@ -34,7 +34,11 @@ public class UnicidadeCadastroTests
             celular: null, isProfessor: false, foto: null!,
             ladoQuadra: null, lateralidade: null, instagram: null,
             notificarEmail: false, notificarWhatsApp: false,
-            categoriasSelecionadas: null, clubesSelecionados: null, diasHorariosSelecionados: null);
+            categoriasSelecionadas: null, clubesSelecionados: null, diasHorariosSelecionados: null,
+            // Desde 08/08/2026 o cadastro exige o sexo (é o que libera Mista e Casais), e a
+            // recusa por falta dele vem ANTES das de unicidade. Sem este argumento estes
+            // testes parariam na porta errada e deixariam de exercitar o que testam.
+            sexo: Padelizou.Services.SexoDoJogador.Masculino);
 
     private static async Task<string?> ErroDoCadastro(
         DbPadelContext ctx, string cpf, string login, string email)

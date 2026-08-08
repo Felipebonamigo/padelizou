@@ -239,6 +239,21 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // 2b². MISTA e CASAIS são de um homem e uma mulher (Felipe, 08/08/2026).
+            //
+            //      Vem DEPOIS do achar-ou-criar dos jogadores porque precisa dos dois objetos
+            //      — inclusive do parceiro que acabou de nascer como pré-cadastro, que é
+            //      justamente quem costuma estar sem o dado.
+            //
+            //      A recusa por "não informou" e a por "mesmo sexo" são frases diferentes de
+            //      propósito: uma pede uma ação, a outra explica um impedimento. Ver
+            //      Services/SexoDoJogador.
+            if (SexoDoJogador.MotivoParaNaoEntrar(categoria.Nome, jogador1!, jogador2) is { } motivoSexo)
+            {
+                TempData["Erro"] = motivoSexo;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             // 2c. O MESMO jogador duas vezes na mesma categoria. Aconteceu de verdade: o
             //     Otávio ficou como parceiro de um e, logo abaixo, sozinho procurando
             //     parceiro — duas vagas pra uma pessoa só, e uma dupla fantasma no sorteio.
@@ -542,6 +557,17 @@ namespace Padelizou.Controllers
             var bloqueio = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
                 _context, torneio, new[] { candidato.Id }, ignorarCategoriaId: dupla.CategoriaId);
             if (bloqueio != null) return bloqueio;
+
+            // Mista e Casais são de um homem e uma mulher — e ESTA é a porta que a checagem
+            // não podia deixar de fora: sem ela, bastava entrar sozinho na categoria e trocar
+            // o parceiro depois pra furar a regra inteira. É o mesmo motivo que já traz o
+            // Ranking RS pra cá.
+            //
+            // O par é o candidato com quem FICA na dupla — quando o titular é o próprio
+            // candidato (troca do parceiro 2), quem fica é o Jogador1.
+            var quemFica = dupla.Jogador1Id == candidato.Id ? dupla.Jogador2 : dupla.Jogador1;
+            if (SexoDoJogador.MotivoParaNaoEntrar(dupla.Categoria.Nome, candidato, quemFica) is { } motivoSexo)
+                return motivoSexo;
 
             // Anti-sandbagging pelo histórico DENTRO do Padelizou: o parceiro precisa poder
             // jogar nesta categoria.

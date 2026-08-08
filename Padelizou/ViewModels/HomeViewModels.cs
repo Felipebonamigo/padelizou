@@ -22,6 +22,11 @@ public class HomeVM
     public string? PrimeiroNome { get; set; }
     public OnboardingVM? Onboarding { get; set; }
 
+    // Quem se cadastrou antes de 08/08/2026 não tem o campo SEXO, que é o que decide a
+    // inscrição na Mista e na Casais. Enquanto estiver vazio, a Home convida a preencher —
+    // e o convite some sozinho depois, porque aviso sem fim vira paisagem.
+    public bool FaltaInformarSexo { get; set; }
+
     // A informação mais valiosa no dia de torneio: hora, quadra e adversário.
     public ProximoJogoVM? ProximoJogo { get; set; }
 
