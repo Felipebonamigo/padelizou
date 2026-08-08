@@ -267,21 +267,52 @@ namespace Padelizou.Controllers
 
             if (idsOrganizados.Count > 0)
             {
-                var torneios = await _context.Torneios
+                // ⚠️ QUEM CONTA INSCRITO É `Services/QuantosInscritos` (Felipe, 08/08/2026:
+                // "essa conta aqui de 30 inscritos não parece correta").
+                //
+                // A conta que morava aqui somava LINHAS DE `Duplas` com LINHAS DE
+                // `InscricoesAmericanas` — e no Americano individual a tabela `Dupla` tem uma
+                // linha por PARCERIA DE RODADA, não por inscrição. O "Americano das Gurias do
+                // Padel", com 10 inscritas em 2 grupos de 5, gera 20 parcerias: 20 + 10 = os
+                // **30 inscritos** que o painel anunciava. É o mesmo buraco que já tinha
+                // mordido o Ranking Americano em 07/08, numa terceira cópia da mesma pergunta.
+                //
+                // Cada formato inscreve uma unidade diferente (pessoa, dupla, time) e a lista
+                // de espera fica de fora — regras que já existem num lugar só. Por isso as
+                // entidades são carregadas e a conta é feita em memória: repetir a régua numa
+                // projeção do EF seria escrever a quarta cópia dela.
+                var doOrganizador = await _context.Torneios
                     .Where(t => idsOrganizados.Contains(t.Id) && t.Status != "Finalizado")
-                    .Select(t => new TorneioOrganizadoVM
+                    .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                    .ToListAsync();
+
+                var inscricoesAmericanas = await _context.InscricoesAmericanas
+                    .Where(i => idsOrganizados.Contains(i.Categoria.TorneioId))
+                    .ToListAsync();
+
+                var aoVivoPorTorneio = (await _context.Partidas
+                        .Where(p => p.TorneioId != null && idsOrganizados.Contains(p.TorneioId.Value)
+                                 && p.Status == "AoVivo")
+                        .GroupBy(p => p.TorneioId!.Value)
+                        .Select(g => new { TorneioId = g.Key, Quantos = g.Count() })
+                        .ToListAsync())
+                    .ToDictionary(x => x.TorneioId, x => x.Quantos);
+
+                var torneios = doOrganizador.Select(t =>
+                {
+                    var idsDasCategorias = t.Categorias.Select(c => c.Id).ToHashSet();
+
+                    return new TorneioOrganizadoVM
                     {
                         Id = t.Id,
                         Nome = t.Nome,
                         Status = t.Status,
-                        // Dupla + americano: Categoria não tem coleção de inscrições
-                        // americanas, então a contagem sai direto do DbSet.
-                        Inscritos = t.Categorias.Sum(c => c.Duplas.Count)
-                                  + _context.InscricoesAmericanas.Count(i => i.Categoria.TorneioId == t.Id),
-                        JogosAoVivo = _context.Partidas.Count(p => p.TorneioId == t.Id && p.Status == "AoVivo"),
+                        Inscritos = QuantosInscritos.Contar(t, t.Categorias,
+                            inscricoesAmericanas.Where(i => idsDasCategorias.Contains(i.CategoriaId))).Rotulo,
+                        JogosAoVivo = aoVivoPorTorneio.GetValueOrDefault(t.Id),
                         PrecisaSortear = t.Status == "Chaves em Sorteio",
-                    })
-                    .ToListAsync();
+                    };
+                }).ToList();
 
                 if (torneios.Count > 0)
                 {
