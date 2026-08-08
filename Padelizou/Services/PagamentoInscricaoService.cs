@@ -431,7 +431,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             rateio,
             descricao,
             pagamento.Id.ToString(),
-            DateTime.Today.AddDays(1),
+            // Boleto precisa de mais que "amanhã": só compensar já leva 1 dia útil. Ver
+            // VencimentoDaCobranca — Pix e cartão seguem em 1 dia, como sempre foram.
+            VencimentoDaCobranca.Para(billingType, DateTime.Today),
             recebedor.AsaasWalletId,
             billingType);
 
