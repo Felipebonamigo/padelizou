@@ -2469,6 +2469,10 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("ContagemDeGames")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("DataFim")
                         .HasColumnType("timestamp without time zone");
 

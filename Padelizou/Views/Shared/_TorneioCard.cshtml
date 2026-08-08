@@ -14,17 +14,30 @@
 }
 <div class="col" data-torneio-nome="@Model.Nome.ToLower()">
     <div class="card h-100 shadow-sm border-0 overflow-hidden">
+        @* A CAPA APARECE INTEIRA (Felipe, 08/08/2026: "o folder sempre fica cortado").
+           Era `object-fit: cover`, que preenche a caixa cortando o que sobra — e o que sobra
+           num folder de torneio é justamente a informação: no "Americano das Gurias" sumiam a
+           faixa de cima e o troféu de baixo; no NATA PADEL TOUR, as pontas do escudo.
+
+           Agora a arte cabe inteira (`contain`) sobre uma cópia dela mesma borrada e ampliada,
+           que preenche o resto. O fundo borrado existe pra que a sobra não vire duas tarjas
+           lisas: a capa continua ocupando o mesmo retângulo e a cor do fundo sai da própria
+           arte, seja ela vertical, quadrada ou um banner deitado.
+
+           A altura é FIXA e vive no CSS junto com o caso sem capa: card de altura variável
+           desalinharia a grade, e os dois ramos precisam medir igual. *@
         @if (!string.IsNullOrEmpty(Model.ImagemCapa))
         {
-            <div style="height: 150px; overflow: hidden;">
-                <img src="@Model.ImagemCapa" style="width: 100%; height: 100%; object-fit: cover;" />
+            <div class="pdz-capa-torneio">
+                <img class="pdz-capa-fundo" src="@Model.ImagemCapa" alt="" aria-hidden="true" />
+                <img class="pdz-capa-arte" src="@Model.ImagemCapa" alt="Capa do torneio @Model.Nome" />
             </div>
         }
         else
         {
-            <div style="height: 150px; background: linear-gradient(125deg, var(--pdz-navy-900), var(--pdz-navy-fixed) 60%, #29396a); display:flex; align-items:center; justify-content:center;">
+            <div class="pdz-capa-torneio pdz-capa-vazia">
                 @* Fundo é o gradiente navy fixo: disco escuro sumiria — vão as raquetes soltas. *@
-                <img src="~/image/logo-raquetes.webp" asp-append-version="true" style="height: 64px; opacity: 0.92; filter: drop-shadow(0 6px 14px rgba(0,0,0,.3));" />
+                <img src="~/image/logo-raquetes.webp" asp-append-version="true" alt="" class="pdz-capa-marca" />
             </div>
         }
 

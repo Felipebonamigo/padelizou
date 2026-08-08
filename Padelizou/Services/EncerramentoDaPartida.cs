@@ -53,6 +53,30 @@ public class EncerramentoDaPartida
         int vencedorId = partida.VencedorId.Value;
         int perdedorId = vencedorId == partida.Dupla1Id ? partida.Dupla2Id : partida.Dupla1Id;
 
+        // 0. A HORA EM QUE ACABOU (Felipe, 08/08/2026: "a ordem das finalizadas tem que ser por
+        //    qual terminou por último vem primeiro").
+        //
+        // ⚠️ Só a tela cheia carimbava isso. Quem finalizava pelo botão do card AO VIVO ou pela
+        // Mesa — que são as duas telas do dia do torneio — deixava `HorarioFimReal` NULO, e a
+        // lista de Finalizadas, que ordena por ele, caía no desempate: num torneio "por ordem
+        // de liberação" (sem horário previsto) sobrava o Id, ou seja, a ordem em que os jogos
+        // foram SORTEADOS. O jogo que acabou agora aparecia no meio da lista.
+        //
+        // Mora aqui pelo motivo de sempre neste arquivo: encerramento é UM só, e regra de
+        // encerramento escrita no chamador é regra que uma das telas não tem.
+        //
+        // `??=`: a tela cheia grava o carimbo antes de chamar (e é o mesmo instante). Correção
+        // de placar antigo (`acabouDeTerminar` falso) não passa por aqui — lá o jogo terminou
+        // quando terminou, e reescrever a hora jogaria um jogo de ontem pro topo da lista.
+        //
+        // Gravado na hora, e não no fim: daqui pra baixo tudo é robô, push e try/catch, e o
+        // carimbo não pode depender de nenhum deles chegar ao fim.
+        if (acabouDeTerminar && partida.HorarioFimReal == null)
+        {
+            partida.HorarioFimReal = DateTime.Now;
+            await _context.SaveChangesAsync();
+        }
+
         // 1. PADELÍMETRO — o placar acabou de virar oficial, move o nível dos 4 jogadores
         //    (regras em RANKING.md; restrito/time/W.O. o serviço filtra). Em try/catch porque
         //    falha aqui não pode travar a Mesa no meio do torneio: o replay do admin

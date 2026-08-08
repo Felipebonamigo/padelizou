@@ -51,9 +51,33 @@ public static class TrocaDeQuadra
 
     // A mudança em si. Com ocupante, as duas quadras trocam de dono; sem ocupante, o jogo
     // simplesmente muda de quadra e a antiga fica livre.
-    public static void Mudar(Partida jogo, string quadra, Partida? ocupante)
+    //
+    // ⚠️ A CÂMERA NÃO VAI JUNTO COM O JOGO — ela fica pendurada na quadra (Felipe,
+    // 08/08/2026). Sem `cameras`, o jogo que saía da Quadra 1 pra Quadra 2 levava o link da
+    // Quadra 1 no bolso: quem abrisse a transmissão desse jogo veria OUTRA partida, ao vivo,
+    // achando que era esta. Errado calado é pior que vazio, então quadra de destino sem
+    // câmera conhecida fica sem link. Mapa em Services/TransmissaoDaQuadra.
+    public static void Mudar(Partida jogo, string quadra, Partida? ocupante,
+        IReadOnlyDictionary<string, string>? cameras = null)
     {
-        if (ocupante != null) ocupante.NomeQuadra = jogo.NomeQuadra;
+        var daOrigem = jogo.NomeQuadra;
+
+        if (ocupante != null) ocupante.NomeQuadra = daOrigem;
         jogo.NomeQuadra = quadra;
+
+        if (cameras == null) return;
+
+        ApontarCamera(jogo, cameras);
+        if (ocupante != null) ApontarCamera(ocupante, cameras);
+    }
+
+    private static void ApontarCamera(Partida jogo, IReadOnlyDictionary<string, string> cameras)
+    {
+        var link = jogo.NomeQuadra != null && cameras.TryGetValue(jogo.NomeQuadra, out var dela)
+            ? dela
+            : null;
+
+        jogo.LinkTransmissao = link;
+        jogo.SendoTransmitida = jogo.Status == "AoVivo" && !string.IsNullOrEmpty(link);
     }
 }

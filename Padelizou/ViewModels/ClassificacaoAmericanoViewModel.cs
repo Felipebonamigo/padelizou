@@ -8,20 +8,27 @@ public class ClassificacaoAmericanoItemVM
     public int TotalGames { get; set; }
 }
 
-// Uma tabela: a de um grupo, a do grupo final, ou a do torneio inteiro quando não há divisão.
+// A classificação de UMA categoria, pronta pra tela: as tabelas por grupo (Services/
+// ClassificacaoDoAmericano) mais o que a tela precisa pra oferecer o desempate.
 //
-// São várias porque cada grupo tem a SUA classificação — somar o torneio todo compararia
-// gente que nunca se enfrentou, e o corte de quem passa sairia dessa soma errada.
-public class ClassificacaoDeGrupoVM
+// Uma por categoria porque um Americano pode ter mais de uma, e cada uma é um torneio à parte.
+public class ClassificacaoAmericanaDaCategoriaVM
 {
-    // Null = torneio sem divisão em grupos; a tabela não precisa de título.
-    public string? Titulo { get; set; }
+    public int CategoriaId { get; set; }
+    public string Categoria { get; set; } = "";
 
-    // Quantos desta tabela vão pro grupo final. Zero quando não há corte.
-    public int PassamDaqui { get; set; }
+    public IReadOnlyList<Padelizou.Services.ClassificacaoDoAmericano.Tabela> Tabelas { get; set; } =
+        new List<Padelizou.Services.ClassificacaoDoAmericano.Tabela>();
 
-    // É a tabela que decide o campeão do torneio.
-    public bool DecideOTitulo { get; set; }
+    // A tabela que responde "quem é o campeão" — nula enquanto a fase de grupos não fechar
+    // num grupo final. É nela, e só nela, que empate na liderança vira partida de desempate.
+    public Padelizou.Services.ClassificacaoDoAmericano.Tabela? QueDecide =>
+        Padelizou.Services.ClassificacaoDoAmericano.QueDecideOTitulo(Tabelas);
 
-    public List<ClassificacaoAmericanoItemVM> Linhas { get; set; } = new();
+    public bool TemDivisaoEmGrupos =>
+        Padelizou.Services.ClassificacaoDoAmericano.TemDivisaoEmGrupos(Tabelas);
+
+    // Empate na liderança do que DECIDE. Um empate no topo do grupo A não é empate de título:
+    // ali ele só disputa ordem de classificação, e os dois passam do mesmo jeito.
+    public bool EmpateNoTitulo => QueDecide?.Linhas.Any(l => l.Empatado) == true;
 }

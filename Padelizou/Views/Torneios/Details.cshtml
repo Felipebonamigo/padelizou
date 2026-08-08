@@ -1,5 +1,6 @@
 ﻿@model Padelizou.Models.Torneio
 @using Padelizou.ViewModels
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @{
     ViewData["Title"] = Model.Nome;
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
@@ -232,7 +233,10 @@
     bool temJogoAoVivoAgora = aoVivoLista.Count > 0;
 }
 <!-- Navegação das Abas -->
-<ul class="nav nav-tabs" id="torneioTabs" role="tablist">
+@* `pdz-abas`: as abas preenchem a linha em vez de ficarem do tamanho do texto.
+   Soltas, elas deixavam três linhas irregulares no celular do organizador — 142px,
+   178px e 75px de vão — e a tela parecia quebrada. *@
+<ul class="nav nav-tabs pdz-abas" id="torneioTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link fw-bold @(torneioComecou ? "" : "active")" id="inscritos-tab" data-bs-toggle="tab" data-bs-target="#inscritos" type="button" role="tab" style="color: var(--pdz-ink);">
             <i class="bi bi-people-fill"></i> Inscritos
@@ -276,7 +280,10 @@
             </button>
         </li>
     }
-    @if (torneioComecou)
+    @* ⚠️ AMERICANO NÃO PONTUA TIME (decisão do Felipe, 08/08/2026), então a aba nem existe
+       nele — a regra de verdade está em EstatisticasService.ObterPontosTimesNoTorneioAsync,
+       aqui é só não oferecer uma tela que responderia zero. *@
+    @if (torneioComecou && !Padelizou.Services.FormatoDoTorneio.EhAmericano(Model.Formato))
     {
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-bold" id="times-tab" data-bs-toggle="tab" data-bs-target="#timesTorneio" type="button" role="tab" style="color: var(--pdz-ink);">
@@ -836,7 +843,11 @@
 
             <div class="card bg-light border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Model.Status</span></h6>
+                    @* O nome que se lê, não o que está gravado: "Chaves em Sorteio" descreve o
+                       próximo passo, e a faixa logo abaixo já diz "as inscrições estão
+                       fechadas" — eram duas frases sobre o mesmo estado, e esta era a errada.
+                       Ver Services/StatusDoTorneioNaTela. *@
+                    <h6 class="fw-bold text-muted text-uppercase">Status Atual: <span class="badge bg-dark ms-2">@Padelizou.Services.StatusDoTorneioNaTela.Nome(Model.Status)</span></h6>
 
                     @if (Model.Restrito)
                     {
@@ -853,6 +864,43 @@
                         </div>
                     }
                     <hr />
+
+                    @* ── Reabrir as inscrições ──────────────────────────────────────────
+                       Fica FORA da corrente de status logo abaixo, e antes dela, de propósito:
+                       o torneio fechado cai em três ramos diferentes (taxa pendente, Americano
+                       e Oficial), e repetir o botão nos três seria a mesma regra escrita três
+                       vezes. Some sozinho depois do sorteio — a régua é PortaDaInscricao.
+
+                       Existe porque encerrar inscrição era de mão única: um clique e nunca
+                       mais. Aconteceu com o NATA PADEL TOUR, que ficou parado sem ninguém
+                       inscrito e sem caminho de volta. *@
+                    @if (ViewBag.PodeReabrirInscricoes == true)
+                    {
+                        <div class="alert @(ViewBag.InscricoesNuncaAbriram == true ? "alert-warning" : "alert-secondary") d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                            <div>
+                                @if (ViewBag.InscricoesNuncaAbriram == true)
+                                {
+                                    @* Zero inscritos e zero jogos: isto não é "encerrada", é
+                                       "ainda não abriu". Dizer "encerradas" aqui era a frase
+                                       mais confusa possível pra quem está tentando entender
+                                       por que ninguém consegue entrar. *@
+                                    <strong><i class="bi bi-lock-fill"></i> As inscrições estão fechadas</strong>
+                                    <div class="small">Ninguém se inscreveu ainda — enquanto estiver assim, o formulário não aceita gente.</div>
+                                }
+                                else
+                                {
+                                    <strong><i class="bi bi-lock-fill"></i> Inscrições encerradas</strong>
+                                    <div class="small">Dá pra reabrir enquanto as chaves não forem sorteadas.</div>
+                                }
+                            </div>
+                            <form asp-controller="Torneios" asp-action="ReabrirInscricoes" method="post" class="mb-0">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                                    <i class="bi bi-unlock-fill"></i> Abrir inscrições
+                                </button>
+                            </form>
+                        </div>
+                    }
 
                     @if (Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status))
                     {
@@ -1048,9 +1096,16 @@
                     }
                     else if (Model.Status == "Chaves em Sorteio")
                     {
-                        <div class="alert alert-info border-info">
-                            <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
-                        </div>
+                        @* Só oferece o sorteio pra quem TEM quem sortear. Com zero inscritos, o
+                           "agora você pode sortear os grupos" era um convite pra um botão que
+                           não tinha o que fazer — e a faixa acima já explica o que está
+                           acontecendo. *@
+                        @if (ViewBag.InscricoesNuncaAbriram != true)
+                        {
+                            <div class="alert alert-info border-info">
+                                <strong>Inscrições Encerradas!</strong> Agora você pode sortear os grupos. O sistema usará o Ranking Global para definir os Cabeças de Chave.
+                            </div>
+                        }
 
                         @* Antes de apertar o botão, o organizador vê onde essa grade termina.
                            Aqui os números são REAIS — as duplas já estão inscritas —, então
@@ -1386,14 +1441,105 @@
                                     <input type="date" name="previsaoChaveamento" class="form-control"
                                            value="@Model.PrevisaoChaveamento?.ToString("yyyy-MM-dd")" />
                                 </div>
-                                @if (!Model.CobraPeloSite)
+                                @* ── Como você vai receber ──────────────────────────────────
+                                   Trocável enquanto ninguém se inscreveu. Antes de 08/08/2026
+                                   a escolha da criação era definitiva, e quem clicou errado só
+                                   saía apagando o torneio e criando outro — perdendo o link já
+                                   compartilhado. Ver Services/FormaDePagamentoDoTorneio. *@
+                                @{
+                                    var podeTrocarForma = ViewBag.PodeTrocarFormaPagamento == true;
+                                    var recebeConectado = ViewBag.RecebimentoConectado == true;
+                                    var taxasTorneio = TaxasOpcoes.Value;
+                                }
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">
+                                        <i class="bi bi-cash-coin"></i> Como você vai receber as inscrições
+                                    </label>
+
+                                    @if (!podeTrocarForma)
+                                    {
+                                        @* Travado: mostra o que está valendo e por quê. Sumir com
+                                           o bloco faria a forma de recebimento parecer coisa que
+                                           o sistema não tem. *@
+                                        <div class="border rounded p-2 small" style="background: var(--pdz-surface);">
+                                            <span class="fw-bold">
+                                                @(Model.FormaPagamento switch
+                                                {
+                                                    Padelizou.Services.FormaDePagamentoDoTorneio.SoPix => "Pelo site, só Pix",
+                                                    Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas => "Pelo site, todas as formas",
+                                                    _ => "Por fora",
+                                                })
+                                            </span>
+                                            <span class="badge bg-secondary ms-1">travado</span>
+                                            <div class="text-muted mt-1">@Padelizou.Services.FormaDePagamentoDoTorneio.PorqueTravou</div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @if (!recebeConectado)
+                                        {
+                                            <div class="alert alert-warning border-0 small py-2 mb-2">
+                                                <strong>Pra receber pelo site, falta conectar sua conta.</strong>
+                                                <a asp-controller="Pagamentos" asp-action="Configurar" target="_blank"
+                                                   class="alert-link">Conectar agora</a> — leva um minuto.
+                                            </div>
+                                        }
+
+                                        <div class="form-check small mb-1 @(recebeConectado ? "" : "opacity-50")">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagPix"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.SoPix"
+                                                   disabled="@(!recebeConectado)"
+                                                   checked="@(Model.FormaPagamento == Padelizou.Services.FormaDePagamentoDoTorneio.SoPix)" />
+                                            <label class="form-check-label" for="edPagPix">
+                                                <span class="fw-bold">Pelo site, só Pix</span>
+                                                <span class="badge bg-success ms-1">taxa @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">Cai na sua conta na hora, e a vaga já nasce confirmada.</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check small mb-1 @(recebeConectado ? "" : "opacity-50")">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagTodas"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas"
+                                                   disabled="@(!recebeConectado)"
+                                                   checked="@(Model.FormaPagamento == Padelizou.Services.FormaDePagamentoDoTorneio.TodasAsFormas)" />
+                                            <label class="form-check-label" for="edPagTodas">
+                                                <span class="fw-bold">Pelo site, todas as formas</span>
+                                                <span class="badge bg-secondary ms-1">taxa @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")% a @taxasTorneio.ComissaoPercentualTodasFormas.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">
+                                                    Pix, boleto, débito e crédito. Você paga a taxa da forma que o jogador
+                                                    escolher — Pix ou boleto custam @taxasTorneio.ComissaoPercentualSomentePix.ToString("0.#")%.
+                                                    O cartão só cai em @taxasTorneio.CreditoAVista.DiasParaReceber dias.
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check small">
+                                            <input class="form-check-input" type="radio" name="formaPagamento" id="edPagExterno"
+                                                   value="@Padelizou.Services.FormaDePagamentoDoTorneio.Externo"
+                                                   checked="@(!Model.CobraPeloSite)" />
+                                            <label class="form-check-label" for="edPagExterno">
+                                                <span class="fw-bold">Por fora</span>
+                                                <span class="badge bg-success ms-1">taxa @taxasTorneio.ComissaoPercentualExterno.ToString("0.#")%</span>
+                                                <span class="d-block text-muted">
+                                                    Você combina o Pix direto com o jogador. As chaves saem depois que a
+                                                    taxa for paga — ou combinada com o Padelizou.
+                                                </span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* O campo da chave Pix acompanha quem PODE virar "por fora", e não
+                                   só quem já é: sem isso, trocar a forma exigiria salvar, esperar a
+                                   tela voltar e editar de novo pra informar a chave. *@
+                                @if (!Model.CobraPeloSite || podeTrocarForma)
                                 {
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small">Sua chave Pix</label>
                                         <input type="text" name="chavePixOrganizador" class="form-control" maxlength="140"
                                                value="@Model.ChavePixOrganizador"
                                                placeholder="CPF, celular, e-mail ou chave aleatória" />
-                                        <small class="text-muted">Aparece pro jogador junto com o valor.</small>
+                                        <small class="text-muted">Só é usada no "por fora" — aparece pro jogador junto com o valor.</small>
                                     </div>
                                 }
                                 <div class="col-12">
@@ -1548,6 +1694,44 @@
                                 <label class="form-label fw-bold">
                                     <i class="bi bi-stopwatch"></i> Formato das partidas
                                 </label>
+
+                                @* COMO contar os games — vale pro torneio inteiro, nos três
+                                   formatos. Editável depois de criado de propósito: no
+                                   Americano é comum descobrir o tamanho certo da rodada só
+                                   quando se sabe quanta gente veio. *@
+                                @{
+                                    var contagemAtual = Padelizou.Services.ContagemDeGamesDoTorneio
+                                        .Valido(Model.ContagemDeGames);
+                                    var ehSoma = contagemAtual == Padelizou.Services.ContagemDeGamesDoTorneio.Soma;
+                                }
+                                <div class="p-3 rounded mb-3" style="background-color: var(--pdz-surface-alt);">
+                                    <div class="fw-bold small mb-2">Como contar os games</div>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="contagemDeGames"
+                                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Ate"
+                                                   id="editContagemAte" checked="@(!ehSoma)" />
+                                            <label class="form-check-label small" for="editContagemAte">
+                                                <strong>Até</strong> X — quem chegar primeiro vence
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="contagemDeGames"
+                                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Soma"
+                                                   id="editContagemSoma" checked="@ehSoma" />
+                                            <label class="form-check-label small" for="editContagemSoma">
+                                                <strong>Soma de</strong> X — jogam-se X games no total
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mt-2">
+                                        Na <strong>soma</strong>, um jogo de 7 fecha sempre em 7 (4x3, 5x2, 7x0…) e
+                                        vence quem fizer mais — todo jogo dura o mesmo, que é o que segura a grade.
+                                        Prefira número <strong>ímpar</strong>: em soma par dá empate (8 fecha em 4x4)
+                                        e o sistema não finaliza jogo empatado.
+                                    </div>
+                                </div>
+
                                 <div class="row g-3">
                                     <div class="col-md-4">
                                         <div class="p-3 rounded h-100" style="background-color: var(--pdz-surface-alt);">
@@ -2147,8 +2331,8 @@
             <partial name="_JogosDoTorneio" model='("Details", Model.Id)' />
         </div>
 
-        <!-- ABA: PONTOS POR TIME (neste torneio) -->
-        <div class="tab-pane fade" id="timesTorneio" role="tabpanel">
+        <!-- ABA: PONTOS POR TIME (neste torneio) — nunca no Americano, ver a aba lá em cima -->
+        <div class="tab-pane fade @(Padelizou.Services.FormatoDoTorneio.EhAmericano(Model.Formato) ? "d-none" : "")" id="timesTorneio" role="tabpanel">
             <h4 class="mb-1 fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Pontos por time</h4>
             <p class="text-muted small mb-3">Quanto cada time somou neste torneio — os pontos das duplas vão para o time que cada jogador representa.</p>
             @if (!pontosTimes.Any())
@@ -2188,6 +2372,34 @@
     }
     <!-- ABA: CHAVES E GRUPOS -->
     <div class="tab-pane fade" id="grupos" role="tabpanel">
+        @{
+            // O Americano não tem CHAVE — ele tem GRUPOS e uma classificação por games. Sem
+            // isto a aba abria vazia num torneio inteiro em andamento: o motor não cria
+            // GrupoTorneio nesse formato, então o laço das categorias lá embaixo não achava
+            // nada pra desenhar e a tela não dizia sequer por quê.
+            var americanoAqui = ViewBag.ClassificacaoAmericano
+                as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
+        }
+
+        @if (americanoAqui != null)
+        {
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0 fw-bold" style="color: var(--pdz-ink);">
+                    <i class="bi bi-layout-split"></i> Grupos e Classificação
+                </h4>
+            </div>
+
+            @foreach (var daCategoria in americanoAqui)
+            {
+                @if (americanoAqui.Count > 1)
+                {
+                    <h5 class="fw-bold mt-3 mb-2" style="color: var(--pdz-ink);">@daCategoria.Categoria</h5>
+                }
+                <partial name="_ClassificacaoDoAmericano" model="daCategoria" />
+            }
+        }
+        else
+        {
         <div class="d-flex justify-content-between align-items-center mb-4">
             @* "Chaves e Grupos", como a aba: o título dizia "Fase de Grupos" em cima
                de uma tela que também mostra a chave — e numa chave direta (sem grupo
@@ -2496,6 +2708,7 @@
                 }
             }
         </div>
+        } @* fim do else: torneio de CHAVE. O Americano sai lá em cima, pela classificação. *@
     </div>
     <!-- SCRIPT (Coloque no final do arquivo Details.cshtml) -->
     <script>
@@ -2556,6 +2769,7 @@
     <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
 }
 
 <script>

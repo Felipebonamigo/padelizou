@@ -10,7 +10,7 @@
 // reentregue dobraria o game). O servidor decide por "marcadoEm" — o relógio DESTE aparelho
 // no momento do toque — então placar velho preso na fila nunca atropela um mais novo.
 const MesaOffline = (function () {
-    let torneioId, limiteGames, chaveFila;
+    let torneioId, limiteGames, contagem, chaveFila;
     const limitePorPartida = {};
     const estado = {};          // partidaId -> {games1, games2, sets1, sets2}
     let fila = {};              // partidaId -> {placar: {...estado, marcadoEm}, finalizar: ms|null}
@@ -66,29 +66,47 @@ const MesaOffline = (function () {
         return limitePorPartida[id] || limiteGames;
     }
 
-    // Até onde o placar pode ir AGORA. O limite não é teto seco: jogo até 4 que empata em
-    // 3x3 vai até 5, até 6 que empata em 5x5 vai até 7 — o "vencer por dois" do padel.
-    // Jogo até 9 não estende: 8x8 se resolve no tie-break, e o 9º game é ele. Quem separa
-    // os casos é a paridade. Mesma conta de Services/FormatoDaPartida.TetoDeGames.
-    function tetoDaPartida(id) {
+    // Até onde ESTE lado pode ir AGORA. Mesma conta de Services/FormatoDaPartida.TetoDoLado.
+    //
+    // Na SOMA o bolo é fixo: numa soma de 7 com o adversário em 3, o máximo daqui é 4 — por
+    // isso o teto depende de QUAL lado está sendo tocado, e não é mais um número só.
+    //
+    // No "até" o limite não é teto seco: jogo até 4 que empata em 3x3 vai até 5, até 6 que
+    // empata em 5x5 vai até 7 — o "vencer por dois" do padel. Jogo até 9 não estende: 8x8 se
+    // resolve no tie-break, e o 9º game é ele. Quem separa os casos é a paridade.
+    function tetoDaPartida(id, campo) {
         const limite = limiteDaPartida(id);
+        const e = estado[id];
+
+        if (contagem === "Soma") {
+            const doOutro = campo === "games2" ? e.games1 : e.games2;
+            return Math.max(0, limite - doOutro);
+        }
+
         if (limite <= 1 || limite % 2 !== 0) return limite;
 
-        const e = estado[id];
         const empatouNaPenultima = e.games1 >= limite - 1 && e.games2 >= limite - 1;
         return empatouNaPenultima ? limite + 1 : limite;
     }
 
+    // O jogo já pode ser encerrado? Na soma fecha quando os games ACABAM (o total foi
+    // jogado); no "até" quando alguém alcança o teto. É o que acende o botão de finalizar.
+    function fechou(id) {
+        const e = estado[id];
+        const limite = limiteDaPartida(id);
+        if (contagem === "Soma") return e.games1 + e.games2 >= limite;
+        return e.games1 >= tetoDaPartida(id, "games1") || e.games2 >= tetoDaPartida(id, "games2");
+    }
+
     function tocar(id, campo, delta) {
         const e = estado[id];
-        const limiteGamesAqui = tetoDaPartida(id);
-        const limite = campo.startsWith("games") ? limiteGamesAqui : 99;
-        const anterior = e[campo];
+        const limite = campo.startsWith("games") ? tetoDaPartida(id, campo) : 99;
+        const fechouAntes = fechou(id);
         e[campo] = Math.min(limite, Math.max(0, e[campo] + delta));
         desenhar(id);
 
         // Aviso do limite só ao CRUZAR a linha — repetir a cada toque vira buzina.
-        if (campo.startsWith("games") && e[campo] >= limiteGamesAqui && anterior < limiteGamesAqui) {
+        if (campo.startsWith("games") && fechou(id) && !fechouAntes) {
             const btn = document.getElementById("btnFim_" + id);
             if (btn) { btn.classList.replace("btn-dark", "btn-success"); btn.classList.add("shadow-lg"); }
         }
@@ -184,6 +202,9 @@ const MesaOffline = (function () {
     function iniciar(config) {
         torneioId = config.torneioId;
         limiteGames = config.limiteGames || 9;
+        // "Soma" = joga-se esse total de games e acabou; qualquer outra coisa (inclusive
+        // ausente, que é a Mesa de um torneio antigo) é o "até" de sempre.
+        contagem = config.contagem === "Soma" ? "Soma" : "Ate";
         chaveFila = "pdz-mesa-fila-v1-" + torneioId;
 
         // `partidas` aceita o Id solto (forma antiga) ou {id, games} — a Mesa passa o limite

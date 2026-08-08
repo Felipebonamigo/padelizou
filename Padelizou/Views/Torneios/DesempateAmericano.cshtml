@@ -5,6 +5,7 @@
     var empatados = ViewBag.Empatados as List<Padelizou.Models.Jogador> ?? new();
     var parceiros = ViewBag.PossiveisParceiros as List<Padelizou.Models.Jogador> ?? new();
     var problema = ViewBag.Problema as string;
+    var pendentes = ViewBag.Pendentes as int? ?? 0;
     ViewData["Title"] = $"Desempate - {torneio.Nome}";
 }
 
@@ -27,6 +28,76 @@
             <i class="bi bi-exclamation-triangle-fill"></i>
             <div>@problema</div>
         </div>
+
+        @* ⚠️ Aqui era um BECO (Felipe, 08/08/2026): a tela dizia "o critério fica com o
+           organizador" e acabava. O torneio ficava sem campeão, sem ponto no ranking e sem
+           conquista no perfil de ninguém, e a saída era mexer no banco.
+
+           Agora o organizador CRAVA o campeão entre os empatados. O primeiro da lista já vem
+           destacado porque a classificação chega ordenada pelo confronto direto — então o
+           caminho mais provável é um clique só, e os outros continuam à mão. *@
+        @if (empatados.Count > 1 && pendentes == 0)
+        {
+            var ordemDoDesempate = Model.Where(l => empatados.Any(e => e.Id == l.Jogador.Id)).ToList();
+            var sugerido = ordemDoDesempate.FirstOrDefault();
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">Quem leva o título?</h5>
+                    <p class="text-muted small">
+                        São <strong>@empatados.Count empatados em @Model[0].TotalGames games</strong>.
+                        A lista abaixo já está na ordem do <strong>confronto direto</strong> — os games
+                        que cada um fez jogando contra os outros empatados.
+                        @if (ordemDoDesempate.Any(l => l.Desempate == Padelizou.Services.TabelaDoAmericano.PorSorteio))
+                        {
+                            <text>
+                                Como no Americano cada par se enfrenta um número par de vezes, aqui o
+                                confronto direto <strong>também empatou</strong> — a ordem saiu de sorteio,
+                                e é por isso que a escolha é sua.
+                            </text>
+                        }
+                    </p>
+
+                    <div class="d-flex flex-column gap-2 mt-3">
+                        @foreach (var linha in ordemDoDesempate)
+                        {
+                            var ehSugerido = sugerido != null && linha.Jogador.Id == sugerido.Jogador.Id;
+                            <form asp-action="CoroarCampeaoAmericano" method="post"
+                                  data-confirmar="@linha.Jogador.ComoChamar passa a ser a campeã/o campeão desta categoria. Isso encerra o torneio, distribui os pontos e entra no perfil de quem jogou."
+                                  data-confirmar-titulo="Definir @linha.Jogador.ComoChamar como campeã/campeão?"
+                                  data-confirmar-ok="Confirmar campeã/campeão">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@torneio.Id" />
+                                <input type="hidden" name="categoriaId" value="@categoriaId" />
+                                <input type="hidden" name="jogadorId" value="@linha.Jogador.Id" />
+                                <button type="submit"
+                                        class="btn @(ehSugerido ? "btn-padel" : "btn-outline-secondary") w-100 d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">
+                                        @if (ehSugerido)
+                                        {
+                                            <i class="bi bi-trophy-fill"></i>
+                                        }
+                                        @linha.Jogador.ComoChamar
+                                    </span>
+                                    <span class="small">
+                                        @linha.TotalGames games
+                                        @if (ehSugerido)
+                                        {
+                                            <text>· à frente no confronto direto</text>
+                                        }
+                                    </span>
+                                </button>
+                            </form>
+                        }
+                    </div>
+
+                    <p class="text-muted small mb-0 mt-3">
+                        Prefere decidir na quadra? Dá pra criar jogos entre os empatados na mão, pela
+                        aba de jogos, e voltar aqui depois — nada é definido enquanto você não clicar.
+                    </p>
+                </div>
+            </div>
+        }
     }
     else
     {

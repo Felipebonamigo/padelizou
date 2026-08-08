@@ -77,6 +77,11 @@ namespace Padelizou.Controllers
                     .Where(i => i.CategoriaId == categoria.Id)
                     .ToDictionaryAsync(i => i.JogadorId);
 
+                // Os jogos saem na ORDEM EM QUE VÃO SER JOGADOS: a próxima rodada é a do grupo
+                // que está parado há mais tempo. A regra e o porquê moram em
+                // Services/FilaDoAmericano — aqui é só juntar os grupos antes de enfileirar.
+                var daCategoria = new List<(int Rodada, int Grupo, string? NomeDoGrupo, Dupla A, Dupla B)>();
+
                 for (int g = 0; g < divisao.Grupos; g++)
                 {
                     // Grupo único mantém a fase SEM nome de grupo: é a mesma grafia dos
@@ -112,21 +117,25 @@ namespace Padelizou.Controllers
                     await _context.SaveChangesAsync();   // uma vez só por grupo: gera os Ids
 
                     foreach (var (rodada, a, b) in porRodada)
+                        daCategoria.Add((rodada, g, nomeDoGrupo, a, b));
+                }
+
+                foreach (var (rodada, _, nomeDoGrupo, a, b) in
+                         FilaDoAmericano.NaOrdemDeJogar(daCategoria, x => x.Rodada, x => x.Grupo))
+                {
+                    jogosDoAmericano.Add(new Partida
                     {
-                        jogosDoAmericano.Add(new Partida
-                        {
-                            TorneioId = torneioId,
-                            CategoriaId = categoria.Id,
-                            Dupla1Id = a.Id,
-                            Dupla2Id = b.Id,
-                            Fase = nomeDoGrupo == null
-                                ? FaseDoAmericano.RodadaUnica(rodada)
-                                : FaseDoAmericano.RodadaDeGrupo(nomeDoGrupo, rodada),
-                            Status = "Agendada",
-                            Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
-                        });
-                        totalPartidasGeradas++;
-                    }
+                        TorneioId = torneioId,
+                        CategoriaId = categoria.Id,
+                        Dupla1Id = a.Id,
+                        Dupla2Id = b.Id,
+                        Fase = nomeDoGrupo == null
+                            ? FaseDoAmericano.RodadaUnica(rodada)
+                            : FaseDoAmericano.RodadaDeGrupo(nomeDoGrupo, rodada),
+                        Status = "Agendada",
+                        Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()
+                    });
+                    totalPartidasGeradas++;
                 }
 
                 if (divisao.TemGrupoFinal) categoriasComGrupoFinal++;
@@ -272,6 +281,9 @@ namespace Padelizou.Controllers
             ViewBag.Torneio = torneio;
             ViewBag.CategoriaId = categoriaId;
             ViewBag.Empatados = empatados;
+            // A tela só oferece "cravar o campeão" com a lista fechada: com jogo em aberto a
+            // liderança ainda muda, e coroar agora seria coroar uma foto que vai mudar.
+            ViewBag.Pendentes = pendentes;
             ViewBag.Problema = TabelaDoAmericano.ProblemaParaDesempatar(
                 torneio.DesempateAmericano, pendentes, empatados.Count);
 
@@ -346,6 +358,55 @@ namespace Padelizou.Controllers
             return RedirectToAction("Jogos", new { id });
         }
 
+        // O ORGANIZADOR CRAVA O CAMPEÃO — a saída que faltava quando a partida de desempate
+        // não serve (Felipe, 08/08/2026).
+        //
+        // Com 3+ empatados no título, ou com o desempate desligado, a tela só dizia "o critério
+        // fica com o organizador" e acabava ali: um beco. O torneio ficava sem campeão, sem
+        // ponto no ranking e sem conquista no perfil de ninguém — e a saída era mexer no banco.
+        //
+        // ⚠️ Só entre os EMPATADOS: coroar quem não está na liderança não é critério de
+        // desempate, é reescrever o resultado. E só com a lista fechada — com jogo em aberto a
+        // liderança ainda muda, e o campeão de agora pode não ser o de daqui a pouco.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CoroarCampeaoAmericano(int id, int categoriaId, int jogadorId)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null || torneio.Formato != FormatoDoTorneio.Americano) return NotFound();
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var (_, empatados, pendentes) = await ApurarAmericanoAsync(id, categoriaId);
+
+            if (pendentes > 0)
+            {
+                TempData["Erro"] = $"Ainda há {pendentes} jogo(s) em aberto nesta categoria — " +
+                                   "a liderança pode mudar. Termine todos antes de definir o campeão.";
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            if (empatados.All(e => e.Id != jogadorId))
+            {
+                TempData["Erro"] = "Só dá pra escolher entre quem terminou empatado na liderança.";
+                return RedirectToAction("DesempateAmericano", new { id, categoriaId });
+            }
+
+            // Coroar duas vezes criaria dois campeões na mesma categoria — e o segundo não
+            // apaga o primeiro, ele SOMA.
+            if (await _context.Duplas.AnyAsync(d => d.CategoriaId == categoriaId && d.UltimaFase == "Campeao"))
+            {
+                TempData["Erro"] = "Esta categoria já tem campeã(o).";
+                return RedirectToAction("Jogos", new { id });
+            }
+
+            await Robo.CoroarNoAmericanoAsync(categoriaId, jogadorId, torneio);
+
+            var campeao = empatados.First(e => e.Id == jogadorId);
+            TempData["Sucesso"] = $"{campeao.Nome} é a campeã/o campeão — definido por você, no critério do empate.";
+            return RedirectToAction("Jogos", new { id });
+        }
+
         // Tabela, empatados na liderança e quantos jogos ainda faltam — a mesma apuração
         // serve pra tela do desempate e pra decisão de criar a partida.
         private async Task<(List<TabelaDoAmericano.Linha> Classificacao, List<Jogador> Empatados, int Pendentes)>
@@ -373,6 +434,48 @@ namespace Padelizou.Controllers
                     doAmericano.Count(p => p.Status != "Finalizada"));
         }
 
+        // A classificação do Americano de um torneio, categoria por categoria — pronta pra
+        // tela. É a ÚNICA montagem que existe: a aba "Chaves e Grupos", a sub-aba
+        // "Classificação" dentro de Jogos e a página avulsa leem daqui.
+        //
+        // ⚠️ A consulta é do TORNEIO INTEIRO de propósito, sem os filtros da tela de jogos.
+        // A sub-aba de Jogos calculava em cima da lista já filtrada — então marcar "só meus
+        // jogos" ou filtrar por quadra REESCREVIA a classificação do torneio na tela de quem
+        // filtrou. Classificação não é recorte de lista; é o placar do torneio.
+        private async Task<List<ClassificacaoAmericanaDaCategoriaVM>> MontarClassificacaoAmericanaAsync(int torneioId)
+        {
+            var categorias = await _context.Categorias
+                .Where(c => c.TorneioId == torneioId)
+                .OrderBy(c => c.Nome)
+                .ToListAsync();
+
+            // ⚠️ TODAS as partidas, e não só as finalizadas (Felipe, 08/08/2026: "aqui já
+            // deveria aparecer a classificação, mesmo sem nenhum jogo, com tudo zerado e com
+            // as participantes"). Quem JOGA o torneio está na grade desde o sorteio; quem
+            // PONTUOU sai dos jogos que terminaram. Trazendo só as finalizadas, a aba
+            // Classificação abria vazia até o primeiro placar — logo no começo, que é quando
+            // mais gente entra pra ver se está lá. Quem soma o quê é decidido em
+            // Services/ClassificacaoDoAmericano.
+            var partidas = await _context.Partidas
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .Where(p => p.TorneioId == torneioId)
+                .ToListAsync();
+
+            return categorias
+                .Select(c => new ClassificacaoAmericanaDaCategoriaVM
+                {
+                    CategoriaId = c.Id,
+                    Categoria = c.Nome,
+                    // O corte de quem passa é da CATEGORIA: cada uma tem a sua divisão.
+                    Tabelas = ClassificacaoDoAmericano.Montar(
+                        partidas.Where(p => p.CategoriaId == c.Id), c.PassamPorGrupo),
+                })
+                .ToList();
+        }
+
         // GET: Torneios/ClassificacaoAmericano/5?categoriaId=1 — soma de games por jogador
         // (não por dupla, já que o parceiro muda a cada rodada no formato Americano)
         public async Task<IActionResult> ClassificacaoAmericano(int id, int categoriaId)
@@ -380,71 +483,12 @@ namespace Padelizou.Controllers
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
 
-            var partidas = await _context.Partidas
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
-                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-                .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId && p.Fase.StartsWith("Americano") && p.Status == "Finalizada")
-                .ToListAsync();
-
-            // A conta vive em Services/TabelaDoAmericano — a mesma que alimenta a aba
-            // "Classificação" na tela de Jogos. Duas contas separadas divergiriam mais cedo
-            // ou mais tarde, e aí o torneio teria dois campeões diferentes na mesma tela.
-            //
-            // ⚠️ Cada grupo tem a SUA tabela. Somar o torneio inteiro compararia gente que
-            // nunca se enfrentou, e o corte de quem passa sairia dessa soma errada.
-            var categoria = await _context.Categorias.FindAsync(categoriaId);
-            int passam = categoria?.PassamPorGrupo ?? 0;
-
-            var tabelas = new List<ClassificacaoDeGrupoVM>();
-
-            var nomesDosGrupos = partidas
-                .Where(p => FaseDoAmericano.EhDaFaseDeGrupos(p.Fase))
-                .Select(p => FaseDoAmericano.GrupoDe(p.Fase))
-                .Distinct()
-                .OrderBy(g => g, StringComparer.Ordinal)
-                .ToList();
-
-            foreach (var grupo in nomesDosGrupos)
-            {
-                var linhas = TabelaDoAmericano.Montar(partidas.Where(p => FaseDoAmericano.EhDoGrupo(p.Fase, grupo)));
-                tabelas.Add(new ClassificacaoDeGrupoVM
-                {
-                    // Grupo nulo = torneio sem divisão: a tabela é a do torneio, sem título.
-                    Titulo = grupo == null ? null : $"Grupo {grupo}",
-                    PassamDaqui = grupo == null ? 0 : passam,
-                    Linhas = linhas.Select(l => new ClassificacaoAmericanoItemVM
-                    {
-                        Jogador = l.Jogador,
-                        TotalGames = l.TotalGames,
-                    }).ToList(),
-                });
-            }
-
-            // O grupo final vem por último e é o que decide o título.
-            var doFinal = partidas.Where(p => FaseDoAmericano.EhDoGrupoFinal(p.Fase)).ToList();
-            if (doFinal.Count > 0)
-            {
-                tabelas.Add(new ClassificacaoDeGrupoVM
-                {
-                    Titulo = "Grupo final",
-                    DecideOTitulo = true,
-                    Linhas = TabelaDoAmericano.Montar(doFinal).Select(l => new ClassificacaoAmericanoItemVM
-                    {
-                        Jogador = l.Jogador,
-                        TotalGames = l.TotalGames,
-                    }).ToList(),
-                });
-            }
+            var todas = await MontarClassificacaoAmericanaAsync(id);
+            var daCategoria = todas.FirstOrDefault(c => c.CategoriaId == categoriaId);
+            if (daCategoria == null) return NotFound();
 
             ViewBag.Torneio = torneio;
-            ViewBag.CategoriaId = categoriaId;
-            ViewBag.Tabelas = tabelas;
-
-            // A lista "plana" segue no Model pra não quebrar quem já lia assim — na divisão em
-            // grupos ela é a do grupo final, ou a do grupo único.
-            return View(tabelas.LastOrDefault()?.Linhas ?? new List<ClassificacaoAmericanoItemVM>());
+            return View(daCategoria);
         }
 
         // GET: Torneios/Classificacao/5?categoriaId=1

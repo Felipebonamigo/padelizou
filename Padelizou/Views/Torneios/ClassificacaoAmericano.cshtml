@@ -1,121 +1,27 @@
-@model List<Padelizou.ViewModels.ClassificacaoAmericanoItemVM>
+@model Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM
 @{
     var torneio = ViewBag.Torneio as Padelizou.Models.Torneio;
-    var tabelas = ViewBag.Tabelas as List<Padelizou.ViewModels.ClassificacaoDeGrupoVM>
-                  ?? new List<Padelizou.ViewModels.ClassificacaoDeGrupoVM>();
     ViewData["Title"] = "Classificação - " + torneio?.Nome;
-
-    var comLinhas = tabelas.Where(t => t.Linhas.Count > 0).ToList();
-    bool temGrupos = comLinhas.Count(t => !t.DecideOTitulo) > 1;
-    var grupoFinal = comLinhas.FirstOrDefault(t => t.DecideOTitulo);
 }
 
 <div class="container mt-4 mb-5">
-    <h3 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-        <i class="bi bi-list-ol"></i> Classificação Individual — @torneio?.Nome
-    </h3>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+        <h3 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+            <i class="bi bi-list-ol"></i> Classificação Individual — @torneio?.Nome
+        </h3>
+        @if (torneio != null)
+        {
+            <a asp-action="Details" asp-route-id="@torneio.Id" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Voltar ao torneio
+            </a>
+        }
+    </div>
     <p class="text-muted small mb-4">
-        No Americano o parceiro muda a cada rodada, então a conta é por jogador: cada um leva os
-        games que a dupla dele fez. <strong>Vence quem somar mais.</strong>
+        @Model.Categoria — no Americano o parceiro muda a cada rodada, então a conta é por jogador:
+        cada um leva os games que a dupla dele fez. <strong>Vence quem somar mais.</strong>
     </p>
 
-    @if (comLinhas.Count == 0)
-    {
-        <p class="text-muted">Nenhuma partida finalizada ainda nesta categoria.</p>
-    }
-    else
-    {
-        @foreach (var tabela in comLinhas)
-        {
-            <div class="mb-4">
-                @if (tabela.Titulo != null)
-                {
-                    <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">
-                        @if (tabela.DecideOTitulo)
-                        {
-                            <i class="bi bi-trophy-fill text-warning"></i>
-                        }
-                        @tabela.Titulo
-                        @if (tabela.DecideOTitulo)
-                        {
-                            <span class="badge bg-warning text-dark ms-1">decide o título</span>
-                        }
-                        else if (tabela.PassamDaqui > 0)
-                        {
-                            <span class="badge bg-secondary ms-1">passam @tabela.PassamDaqui</span>
-                        }
-                    </h5>
-                }
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle bg-white shadow-sm rounded mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Jogador</th>
-                                <th class="text-end">Total de Games</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int i = 0; i < tabela.Linhas.Count; i++)
-                            {
-                                @* A medalha marca QUEM PASSA, e só onde há corte de verdade.
-                                   Antes ela marcava sempre os 4 primeiros, herança da final
-                                   automática que não existe mais — e num grupo de 5 isso
-                                   dizia a quatro pessoas que elas tinham se classificado. *@
-                                var passou = tabela.PassamDaqui > 0 && i < tabela.PassamDaqui;
-                                var campeao = tabela.DecideOTitulo && i == 0;
-                                <tr class="@(passou || campeao ? "table-warning" : "")">
-                                    <td class="fw-bold">
-                                        @(i + 1)
-                                        @if (campeao)
-                                        {
-                                            <text>🏆</text>
-                                        }
-                                        else if (passou)
-                                        {
-                                            <text>🏅</text>
-                                        }
-                                    </td>
-                                    <td>
-                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@tabela.Linhas[i].Jogador.Id"
-                                           class="text-decoration-none text-dark d-flex align-items-center gap-2">
-                                            <img src="@(string.IsNullOrEmpty(tabela.Linhas[i].Jogador.FotoPerfil) ? "/img/default-avatar.png" : tabela.Linhas[i].Jogador.FotoPerfil)"
-                                                 class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
-                                            @tabela.Linhas[i].Jogador.ComoChamar
-                                        </a>
-                                    </td>
-                                    <td class="text-end fw-bold">@tabela.Linhas[i].TotalGames</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        }
-
-        <div class="small text-muted">
-            @if (grupoFinal != null)
-            {
-                <p class="mb-1">
-                    🏆 <strong>O grupo final decide o torneio</strong> — quem somar mais games nele é o campeão.
-                    As tabelas dos grupos acima ficam registradas, mas já cumpriram o papel de dizer quem passou.
-                </p>
-            }
-            else if (temGrupos)
-            {
-                <p class="mb-1">
-                    🏅 Os marcados passam para o <strong>grupo final</strong>, que é montado sozinho assim que
-                    todos os grupos terminarem.
-                </p>
-            }
-            else
-            {
-                <p class="mb-1">
-                    Quem somar mais games é o campeão. <strong>Só há rodada final se dois ou mais empatarem
-                    na liderança</strong> — sem empate, não se joga mais nada.
-                </p>
-            }
-        </div>
-    }
+    @* O desenho mora na partial: esta página, a aba "Chaves e Grupos" e a sub-aba
+       "Classificação" dentro de Jogos mostram exatamente a mesma tabela. *@
+    <partial name="_ClassificacaoDoAmericano" model="Model" />
 </div>

@@ -197,7 +197,10 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
             bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null,
             bool categoriaDeTimes = false, string? nomeCategoriaTimes = null,
-            int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null)
+            int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null,
+            // Caixa marcada por padrão na tela. Vem como `true` aqui também porque aba aberta
+            // antes deste deploy não manda o campo, e o comportamento de sempre é abrir.
+            bool abrirInscricoes = true)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -371,8 +374,21 @@ namespace Padelizou.Controllers
                 torneio.GamesFaseFinal = torneio.GamesFaseGrupos;
             }
 
-            // O Torneio nasce com Inscrições Abertas
-            torneio.Status = "Inscrições Abertas";
+            // Como contar os games decide teto de placar e "já dá pra encerrar?", então um
+            // valor inventado num POST montado à mão não pode passar: o que não for "Soma"
+            // vira o "Ate" de sempre, que é o comportamento histórico.
+            torneio.ContagemDeGames = ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
+
+            // O torneio nasce ABERTO, a não ser que o organizador diga que ainda não quer
+            // receber ninguém. Montar categoria, quadra e preço com o formulário já aceitando
+            // gente é o caso comum de quem monta em duas sentadas — e a inscrição que entra no
+            // meio disso pega o torneio pela metade.
+            //
+            // Nasce aberto (e não fechado) porque esse é o caminho de quem cria pra anunciar
+            // agora, que é a maioria: inverter faria todo torneio precisar de um clique extra
+            // pra existir de verdade, e o esquecimento seria silencioso — ninguém consegue se
+            // inscrever e nada na tela explica por quê.
+            torneio.Status = abrirInscricoes ? PortaDaInscricao.Aberta : PortaDaInscricao.Fechada;
             torneio.Codigo = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
             // Escolhida pelo organizador quando ele digitou uma; sorteada quando deixou vazio.
             torneio.ChaveAcesso = torneio.Restrito ? ChaveDeAcessoDoTorneio.Definir(chaveAcessoEscolhida) : null;
@@ -783,6 +799,12 @@ namespace Padelizou.Controllers
             int? setsFaseGrupos = null, int? gamesFaseGrupos = null,
             int? setsFaseMataMata = null, int? gamesFaseMataMata = null,
             int? setsFaseFinal = null, int? gamesFaseFinal = null,
+            // Nulo = aba antiga sem o campo: a contagem gravada FICA. Trocar pra "Ate" por
+            // omissão mudaria a regra do jogo de um torneio em andamento, calado.
+            string? contagemDeGames = null,
+            // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
+            // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
+            string? formaPagamento = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -838,6 +860,38 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
+            // ── Trocar a forma de recebimento (só enquanto não há inscrito) ─────────────
+            // Nulo ou igual ao que já está gravado não é troca: a aba antiga em cache não
+            // manda o campo, e mexer aqui por omissão mudaria como o torneio cobra sem
+            // ninguém ter pedido.
+            if (formaPagamento != null && formaPagamento != torneio.FormaPagamento)
+            {
+                if (!FormaDePagamentoDoTorneio.Existe(formaPagamento))
+                {
+                    TempData["Erro"] = "Escolha como você vai receber as inscrições.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                if (!FormaDePagamentoDoTorneio.PodeTrocar(await TemAlguemInscritoAsync(id)))
+                {
+                    TempData["Erro"] = FormaDePagamentoDoTorneio.PorqueTravou;
+                    return RedirectToAction("Details", new { id });
+                }
+
+                // A mesma recusa da criação, pelo mesmo motivo: "pelo site" sem conta
+                // conectada é o torneio rodando e NENHUMA cobrança nascendo, calado. A tela
+                // já trava os rádios, mas quem manda o formulário na mão passaria direto.
+                if (FormaDePagamentoDoTorneio.EhPeloSite(formaPagamento) && precoInscricao > 0
+                    && _pagamentos.OQueFaltaParaReceber(await _pagamentos.ObterRecebedorTorneioAsync(id))
+                        is { } faltaConta)
+                {
+                    TempData["Erro"] = $"{faltaConta} {ContaDeRecebimento.ComoResolver}";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.FormaPagamento = formaPagamento;
+            }
+
             torneio.Nome = nome;
             torneio.DataInicio = dataInicio;
             torneio.PrecoInscricao = precoInscricao;
@@ -850,8 +904,40 @@ namespace Padelizou.Controllers
             torneio.GamesFaseMataMata = gamesFaseMataMata ?? torneio.GamesFaseMataMata;
             torneio.SetsFaseFinal = setsFaseFinal ?? torneio.SetsFaseFinal;
             torneio.GamesFaseFinal = gamesFaseFinal ?? torneio.GamesFaseFinal;
+
+            // Só troca a contagem se o campo veio E é um valor que existe: um "Soma" mal
+            // digitado virando "Ate" em silêncio mudaria como a Mesa fecha todo jogo.
+            if (ContagemDeGamesDoTorneio.Existe(contagemDeGames))
+            {
+                torneio.ContagemDeGames = contagemDeGames!;
+            }
             torneio.TempoPrevistoPartidaMinutos = tempoPrevistoPartidaMinutos ?? torneio.TempoPrevistoPartidaMinutos;
+
+            // ⚠️ LIGAR "sem horário previsto" TEM QUE APAGAR o horário que já existe. A chave
+            // só evitava marcar horário no sorteio SEGUINTE — quem sorteou antes e ligou
+            // depois ficava com a tela se contradizendo: a faixa dizendo "os jogos não têm
+            // horário" em cima de uma lista de jogos com hora marcada.
+            //
+            // Aconteceu de verdade em 07/08/2026, no "Americano das Gurias do Padel": 10 jogos
+            // anunciando 00:54 às 04:14 da MADRUGADA pras jogadoras, num torneio que ia rodar
+            // por ordem de chamada. Horário que ninguém vai cumprir é pior que horário nenhum.
+            //
+            // Só o que ainda não começou: jogo em quadra ou finalizado tem hora REAL, e isso é
+            // registro do que aconteceu — não se apaga.
+            bool virouPorOrdem = semHorarioPrevisto && !torneio.SemHorarioPrevisto;
             torneio.SemHorarioPrevisto = semHorarioPrevisto;
+
+            if (virouPorOrdem)
+            {
+                var semHoraAgora = await _context.Partidas
+                    .Where(p => p.TorneioId == id
+                             && p.Status == "Agendada"
+                             && p.HorarioInicioReal == null
+                             && p.HorarioPrevisto != null)
+                    .ToListAsync();
+
+                foreach (var jogo in semHoraAgora) jogo.HorarioPrevisto = null;
+            }
 
             // O local É o clube. A tela de edição pedia os dois — o mesmo dado duas vezes — e
             // eles podiam divergir: o cabeçalho do torneio mostra o LocalTorneio, então dava
@@ -1004,6 +1090,26 @@ namespace Padelizou.Controllers
                 .Frase(PermissaoDeOrganizador.EstadoDoPedido.Esperando);
             return VoltarDoPedido(voltarPara);
         }
+
+        // Tem gente inscrita neste torneio? É o que libera (ou trava) a troca da forma de
+        // recebimento, e por isso mora num lugar só: a TELA usa a resposta pra desenhar os
+        // rádios e o POST usa pra recusar — discordando, a tela ofereceria o que o servidor
+        // nega, que é o pior dos dois mundos.
+        //
+        // ⚠️ Olha as DUAS tabelas de inscrição, porque cada formato grava na sua: o Oficial e
+        // o Americano de Duplas em `Duplas`, o Americano individual em `InscricoesAmericanas`.
+        // Contar só a primeira deixaria todo Americano individual destravado com gente dentro
+        // — o mesmo buraco que zerou o Ranking Americano de duplas em 07/08.
+        //
+        // Lista de espera CONTA: quem está na fila leu o anúncio e vai ser chamado do jeito
+        // que o torneio prometeu. Time NÃO conta — ele é cadastrado pelo próprio organizador
+        // e não paga inscrição pelo sistema, a mesma exceção de TaxaDoTorneioExterno.
+        //
+        // ⚠️ `NomeTime == null` e não `!d.EhTime`: EhTime é [NotMapped] e o EF não traduz
+        // propriedade calculada pra SQL — a consulta estouraria em tempo de execução.
+        private async Task<bool> TemAlguemInscritoAsync(int torneioId) =>
+            await _context.Duplas.AnyAsync(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
+            || await _context.InscricoesAmericanas.AnyAsync(i => i.Categoria.TorneioId == torneioId);
 
         // Lista fechada de destinos: `voltarPara` vem do formulário, e campo de formulário
         // nunca vira redirecionamento pra qualquer lugar.

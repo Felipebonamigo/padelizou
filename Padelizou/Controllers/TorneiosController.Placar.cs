@@ -120,13 +120,11 @@ namespace Padelizou.Controllers
                 // é justamente o que faz resultado sumir sem ninguém entender.
                 if (partida == null || partida.Status != "AoVivo") continue;
 
-                // O teto da FASE manda (Services/FormatoDaPartida): num torneio até 4, digitar
-                // 9 seria um placar que aquele jogo não pode ter.
+                // O formato da FASE manda (Services/FormatoDaPartida): num torneio até 4,
+                // digitar 9 seria um placar que aquele jogo não pode ter — e numa soma de 7,
+                // 5x5 também não.
                 var formato = FormatoDaPartida.De(torneio, partida.Fase);
-                int teto = FormatoDaPartida.TetoDeGames(formato.Games, games1[i], games2[i]);
-
-                int g1 = Math.Clamp(games1[i], 0, teto);
-                int g2 = Math.Clamp(games2[i], 0, teto);
+                var (g1, g2) = FormatoDaPartida.PlacarValido(formato, games1[i], games2[i]);
 
                 if (partida.GamesDupla1 == g1 && partida.GamesDupla2 == g2) continue;
 
@@ -153,7 +151,19 @@ namespace Padelizou.Controllers
                 : VoltarPara(voltarPara, torneioId.Value);
 
         // `voltarPara` existe pra quem finaliza DE FORA da Mesa — o botão no card do Ao Vivo.
-        public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null)
+        // ⚠️ `games1`/`games2` são O PLACAR QUE ESTÁ NA TELA, e não decoração.
+        //
+        // O card do jogo ao vivo tem os números editáveis, mas eles pertencem ao formulário de
+        // SALVAR EM LOTE — então quem digitava 6 x 1 e apertava Finalizar direto encerrava com
+        // o que estava GRAVADO (0 x 1), e o próprio aviso de confirmação repetia o número
+        // velho. O comentário da view dizia "o placar já foi salvo (cada toque no −/+ grava)",
+        // premissa que envelheceu quando a edição virou em lote — e ninguém voltou aqui.
+        //
+        // Agora finalizar SIGNIFICA "encerra com o que estou vendo": o placar recebido é
+        // gravado antes de decidir o vencedor. Nulo (tela antiga em cache, Mesa, fila offline)
+        // mantém o comportamento de sempre — usa o que está no banco.
+        public async Task<IActionResult> FinalizarPartida(int partidaId, string? voltarPara = null,
+            int? games1 = null, int? games2 = null)
         {
             // Usando _context.Partidas (Plural)
             var partida = await _context.Partidas
@@ -172,6 +182,24 @@ namespace Padelizou.Controllers
             if (partida != null && partida.Status == "Finalizada")
             {
                 return DepoisDeFinalizar(voltarPara, partida.TorneioId);
+            }
+
+            // O placar da TELA entra antes de qualquer decisão — inclusive antes da recusa por
+            // empate, senão o organizador seria barrado por um 0 x 1 que ele já tinha corrigido
+            // para 6 x 1 na frente dele. Passa pelo mesmo PlacarValido do salvar em lote: o
+            // teto da fase vale igual aqui, e numa soma de 7 um 5 x 5 não pode entrar por esta
+            // porta só por ser a porta do "finalizar".
+            if (partida != null && partida.Status == "AoVivo" && (games1.HasValue || games2.HasValue))
+            {
+                var formatoDaPartida = FormatoDaPartida.De(
+                    await _context.Torneios.FindAsync(partida.TorneioId ?? 0), partida.Fase);
+
+                var (g1, g2) = FormatoDaPartida.PlacarValido(formatoDaPartida,
+                    games1 ?? partida.GamesDupla1 ?? 0,
+                    games2 ?? partida.GamesDupla2 ?? 0);
+
+                partida.GamesDupla1 = g1;
+                partida.GamesDupla2 = g2;
             }
 
             // Sem placar não há vencedor. A conta antiga comparava os campos NULÁVEIS direto,

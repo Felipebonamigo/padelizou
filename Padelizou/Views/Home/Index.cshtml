@@ -143,7 +143,7 @@ else
                                 <strong class="pdz-cartao-linha-titulo">@m.Torneio.Nome</strong>
                                 <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
                                     <span class="badge rounded-pill @(rolando ? "bg-danger" : "bg-success")">
-                                        @(rolando ? m.Torneio.Status : "Inscrito")
+                                        @(rolando ? Padelizou.Services.StatusDoTorneioNaTela.Nome(m.Torneio.Status) : "Inscrito")
                                     </span>
                                     <small class="text-muted">@m.Categoria</small>
                                     @if (m.ListaDeEspera)
@@ -173,7 +173,7 @@ else
                         <div class="flex-grow-1 pdz-cartao-linha-texto">
                             <strong class="pdz-cartao-linha-titulo">@t.Nome</strong>
                             <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-                                <span class="badge rounded-pill bg-danger"><i class="bi bi-record-circle"></i> @t.Status</span>
+                                <span class="badge rounded-pill bg-danger"><i class="bi bi-record-circle"></i> @Padelizou.Services.StatusDoTorneioNaTela.Nome(t.Status)</span>
                                 @if (!string.IsNullOrEmpty(t.LocalTorneio))
                                 {
                                     <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>

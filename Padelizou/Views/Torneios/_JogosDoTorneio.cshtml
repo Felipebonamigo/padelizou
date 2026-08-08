@@ -33,7 +33,7 @@
     // Só existe no Americano — nos outros formatos a aba nem aparece. O individual conta por
     // JOGADOR; o de duplas conta por DUPLA (a dupla lá é fixa).
     var classificacaoAmericano = ViewBag.ClassificacaoAmericano
-        as Dictionary<string, List<Padelizou.Services.TabelaDoAmericano.Linha>>;
+        as List<Padelizou.ViewModels.ClassificacaoAmericanaDaCategoriaVM>;
     var classificacaoAmericanoDuplas = ViewBag.ClassificacaoAmericanoDuplas
         as Dictionary<string, List<Padelizou.Services.TabelaDoAmericanoDeDuplas.Linha>>;
     bool desempatePrevisto = ViewBag.DesempateAmericano == true;
@@ -166,13 +166,16 @@
                 }
             });
         });
+
     </script>
 }
 
 <!-- Navegação das Sub-Abas. Ícones do site (não emoji, que rende diferente em cada
      aparelho) e o vermelho do Ao Vivo mora na bolinha pulsante — texto vermelho
      sobre a pill ativa era ilegível. -->
-<ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist">
+@* `data-torneio-id`: a aba escolhida é lembrada POR TORNEIO (ver js/jogos-abas.js) — quem
+   opera dois torneios no mesmo dia não herda a aba de um no outro. *@
+<ul class="nav nav-pills pdz-pills mb-3" id="jogosTabs" role="tablist" data-torneio-id="@Model.TorneioId">
     <li class="nav-item" role="presentation">
         <button class="nav-link @(defaultAoVivo ? "active" : "")" id="aovivo-tab" data-bs-toggle="tab" data-bs-target="#aovivo" type="button" role="tab">
             <span class="pdz-tab-dot"></span> Ao Vivo (@aoVivoList.Count)
@@ -268,8 +271,12 @@
                 var youtubeId = ExtrairYoutubeId(jogo.LinkTransmissao);
                 var temTransmissao = !string.IsNullOrEmpty(jogo.LinkTransmissao);
 
+                @* `data-partida-id` no CARD: é por ele que a atualização automática acha o
+                   cartão correspondente pra trocar só o cabeçalho (placar, cronômetro,
+                   botões) e não encostar no <iframe> da transmissão. Ver
+                   js/jogos-ao-vivo-atualiza.js. *@
                 <div class="col-md-6 mb-3">
-                    <div class="pdz-live-card shadow-sm">
+                    <div class="pdz-live-card shadow-sm" data-partida-id="@jogo.Id">
                         <div class="pdz-live-header">
                             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                                 <span class="pdz-live-badge"><span class="pdz-live-dot"></span> AO VIVO</span>
@@ -347,6 +354,13 @@
                                     }
                                 </div>
                             </div>
+                            @* O "×" entre as duas duplas. Quatro rostos empilhados sem nada no
+                               meio não se leem como 2 contra 2 (Felipe, 08/08/2026: "no ao vivo
+                               não parece que é 2x2") — quem chega no card precisa achar o
+                               confronto antes de achar os nomes. Cada dupla vira um bloco e o
+                               × é a fronteira entre eles. *@
+                            <div class="pdz-live-versus"><span>×</span></div>
+
                             <div class="d-flex justify-content-between align-items-center pdz-live-linha">
                                 <div class="flex-grow-1 pdz-live-jogadores">
                                     <partial name="_LadoDaPartida" model="jogo.Dupla2" />
@@ -388,16 +402,25 @@
                                    11px no canto — pequeno pra achar com a quadra rolando e
                                    sem parecer clicável. *@
                                 <div class="mt-3 d-flex gap-2">
-                                    @* FINALIZAR daqui mesmo: o placar já está na tela e já foi
-                                       salvo (cada toque no −/+ grava). Abrir a tela cheia só
-                                       pra apertar "finalizar" era uma ida e volta por jogo. *@
-                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1"
+                                    @* FINALIZAR daqui mesmo: abrir a tela cheia só pra apertar
+                                       "finalizar" era uma ida e volta por jogo.
+
+                                       ⚠️ O placar vai JUNTO, nos hidden abaixo. Os números
+                                       editáveis do card pertencem ao formulário de salvar em
+                                       LOTE (form="pdzPlacaresAoVivo"), então não viriam neste
+                                       submit: quem digitava 6 x 1 e apertava Finalizar direto
+                                       encerrava com o que estava gravado, e o aviso repetia o
+                                       número velho. O script no fim do arquivo copia o que
+                                       está na tela pra cá e reescreve o aviso. *@
+                                    <form asp-controller="Torneios" asp-action="FinalizarPartida" method="post" class="flex-grow-1 pdz-form-finalizar"
                                           data-confirmar="Encerra o jogo com o placar @(jogo.GamesDupla1 ?? 0) x @(jogo.GamesDupla2 ?? 0). Isso move o Padelímetro dos 4 jogadores, avisa todo mundo e, se for o último da fase, gera a fase seguinte."
                                           data-confirmar-titulo="Finalizar @(jogo.Dupla1.NomeDeExibicao) × @(jogo.Dupla2.NomeDeExibicao)?"
                                           data-confirmar-ok="Finalizar">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="partidaId" value="@jogo.Id" />
                                         <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                                        <input type="hidden" name="games1" value="@(jogo.GamesDupla1 ?? 0)" />
+                                        <input type="hidden" name="games2" value="@(jogo.GamesDupla2 ?? 0)" />
                                         <button type="submit" class="btn btn-padel w-100 fw-bold">
                                             <i class="bi bi-flag-fill"></i> Finalizar
                                         </button>
@@ -466,7 +489,10 @@
            quando saem os classificados é automático, ninguém aperta nada pra isso. Este
            botão redistribui o que FALTA, a partir de agora, sem tocar em quem já jogou nem
            em quem está em quadra. *@
-        @if (ehOrganizador && agendadasList.Count > 0)
+        @* Some no torneio por ordem de liberação: lá não existe horário a redistribuir, e o
+           servidor recusa o clique. Um botão que só serve pra receber "não dá" é pior que
+           botão nenhum. *@
+        @if (ehOrganizador && agendadasList.Count > 0 && ViewBag.SemHorarioPrevisto != true)
         {
             <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-3"
                   data-confirmar="Recalcula o horário e a quadra dos @agendadasList.Count jogos que ainda não começaram, a partir de agora. Jogos já finalizados e em quadra não mudam, e os confrontos continuam os mesmos."
@@ -575,6 +601,48 @@
             </div>
         </div>
 
+        @* FINALIZAR ENCERRA COM O QUE ESTÁ NA TELA (Felipe, 08/08/2026).
+
+           Ele marcou 6 x 1 no card, apertou Finalizar e o aviso ofereceu encerrar "0 x 1" —
+           o placar GRAVADO. Os números editáveis do card pertencem ao formulário de salvar em
+           LOTE (form="pdzPlacaresAoVivo"), então não iam neste submit, e o texto do aviso é
+           renderizado pelo servidor com o valor do banco. Duas cópias do mesmo número, e a que
+           o organizador estava OLHANDO era justamente a que não valia.
+
+           Fica sob `ehOrganizador` porque só ele vê o botão de finalizar — e o servidor não
+           depende disto: ele recebe games1/games2 e aplica o mesmo PlacarValido do salvar em
+           lote, então tela velha em cache não encerra com número inventado. *@
+        <script>
+            document.addEventListener('submit', function (e) {
+                var form = e.target.closest ? e.target.closest('form.pdz-form-finalizar') : null;
+                if (!form) return;
+
+                var card = form.closest('.pdz-live-card');
+                if (!card) return;
+
+                var naTela = function (nome) {
+                    var campo = card.querySelector('input.pdz-live-games[name="' + nome + '"]');
+                    if (!campo) return null;
+                    var n = parseInt(campo.value, 10);
+                    return isNaN(n) ? null : Math.max(0, n);
+                };
+
+                var g1 = naTela('games1'), g2 = naTela('games2');
+                if (g1 === null || g2 === null) return;   // sem os campos, vale o de sempre
+
+                form.querySelector('input[name="games1"]').value = g1;
+                form.querySelector('input[name="games2"]').value = g2;
+
+                // O aviso passa a falar o mesmo número que o card. Só o trecho do placar é
+                // trocado: o resto da frase (Padelímetro, avisos, fase seguinte) continua
+                // valendo e é o que faz a confirmação ser informada em vez de um "tem certeza?".
+                form.dataset.confirmar = form.dataset.confirmar
+                    .replace(/placar \d+ x \d+/, 'placar ' + g1 + ' x ' + g2);
+            // CAPTURA (true): o confirmar.js escuta o submit na borbulha e lê o data-confirmar.
+            // Na borbulha, o modal já teria aberto com o texto velho.
+            }, true);
+        </script>
+
         <script>
             // O botão do card carrega o jogo A; o select não pode oferecer o próprio A.
             document.addEventListener('DOMContentLoaded', function () {
@@ -677,73 +745,40 @@
                 o parceiro muda a cada rodada, então a conta é individual.
             </p>
 
-            @foreach (var (categoria, linhas) in classificacaoAmericano)
+            @foreach (var daCategoria in classificacaoAmericano)
             {
-                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@categoria</h6>
+                <h6 class="fw-bold mt-3" style="color: var(--pdz-ink);">@daCategoria.Categoria</h6>
 
-                @if (linhas.Count == 0)
+                @* Mesma partial da aba "Chaves e Grupos" e da página avulsa. *@
+                <partial name="_ClassificacaoDoAmericano" model="daCategoria" />
+
+                @* ⚠️ O empate que interessa é o da tabela que DECIDE o título. Empate no topo
+                   do grupo A não vira desempate: ali os dois passam do mesmo jeito, e oferecer
+                   "montar o desempate" no meio da fase de grupos criaria uma final antes de o
+                   grupo final existir. *@
+                @if (daCategoria.EmpateNoTitulo)
                 {
-                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr class="small text-muted">
-                                    <th style="width: 3rem;">#</th>
-                                    <th>Jogador</th>
-                                    <th class="text-center">Jogos</th>
-                                    <th class="text-end">Games</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (var i = 0; i < linhas.Count; i++)
-                                {
-                                    var l = linhas[i];
-                                    <tr class="@(l.Empatado ? "table-warning" : "")">
-                                        <td class="fw-bold">@(i + 1)º</td>
-                                        <td>
-                                            @if (i == 0 && !l.Empatado) { <span>🏅 </span> }
-                                            @l.Jogador.ComoChamar
-                                            @if (l.Empatado)
-                                            {
-                                                <span class="badge bg-warning text-dark ms-1">empatado</span>
-                                            }
-                                        </td>
-                                        <td class="text-center text-muted">@l.Jogos</td>
-                                        <td class="text-end fw-bold">@l.TotalGames</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                    <div class="alert alert-warning small mt-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Empate na liderança.</strong>
+                        @if (desempatePrevisto && ehOrganizador)
+                        {
+                            <span>Os empatados escolhem um parceiro e sai uma partida final.</span>
+                            <a asp-action="DesempateAmericano" asp-route-id="@Model.TorneioId"
+                               asp-route-categoriaId="@daCategoria.CategoriaId"
+                               class="btn btn-sm btn-padel rounded-pill ms-2">
+                                <i class="bi bi-trophy"></i> Montar o desempate
+                            </a>
+                        }
+                        else if (desempatePrevisto)
+                        {
+                            <span>O organizador vai montar a partida final entre os empatados.</span>
+                        }
+                        else
+                        {
+                            <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
+                        }
                     </div>
-
-                    @if (linhas.Any(l => l.Empatado))
-                    {
-                        var idCategoria = categoriasDoTorneio.FirstOrDefault(c => c.Nome == categoria)?.Id;
-                        <div class="alert alert-warning small">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <strong>Empate na liderança.</strong>
-                            @if (desempatePrevisto && ehOrganizador && idCategoria != null)
-                            {
-                                <span>Os empatados escolhem um parceiro e sai uma partida final.</span>
-                                <a asp-action="DesempateAmericano" asp-route-id="@Model.TorneioId"
-                                   asp-route-categoriaId="@idCategoria"
-                                   class="btn btn-sm btn-padel rounded-pill ms-2">
-                                    <i class="bi bi-trophy"></i> Montar o desempate
-                                </a>
-                            }
-                            else if (desempatePrevisto)
-                            {
-                                <span>O organizador vai montar a partida final entre os empatados.</span>
-                            }
-                            else
-                            {
-                                <span>Este torneio não previu partida de desempate — o critério é do organizador.</span>
-                            }
-                        </div>
-                    }
                 }
             }
         </div>
@@ -764,7 +799,9 @@
 
                 @if (linhas.Count == 0)
                 {
-                    <p class="text-muted small">Ninguém pontuou ainda — a tabela enche conforme os jogos terminam.</p>
+                    @* Com a grade sorteada a tabela já nasce cheia e zerada — aqui só sobra o
+                       torneio que ainda não tem jogos. *@
+                    <p class="text-muted small">A tabela aparece quando os jogos forem sorteados.</p>
                 }
                 else
                 {
@@ -785,7 +822,11 @@
                                     <tr class="@(l.Empatada ? "table-warning" : "")">
                                         <td class="fw-bold">@(i + 1)º</td>
                                         <td>
-                                            @if (i == 0 && !l.Empatada) { <span>🏅 </span> }
+                                            @* A medalha é de quem está LIDERANDO, e liderança
+                                               exige jogo jogado: com a tabela nascendo zerada,
+                                               sem esta condição a primeira linha da lista
+                                               ganharia medalha antes da bola rolar. *@
+                                            @if (i == 0 && !l.Empatada && l.Jogos > 0) { <span>🏅 </span> }
                                             @l.Dupla.NomeDeExibicao
                                             @if (l.Empatada)
                                             {

@@ -41,7 +41,10 @@
                 <div class="flex-grow-1 overflow-hidden">
                     <span class="d-block text-truncate fw-bold" style="color: var(--pdz-ink);">@t.Nome</span>
                     <small class="text-muted">
-                        @t.Status · @t.Inscritos inscrito(s)
+                        @* O rótulo já vem pronto do servidor: no Americano a unidade é PESSOA,
+                           na categoria de times é TIME, no resto é DUPLA. "inscrito(s)" cravado
+                           aqui obrigava a view a fingir que os três são a mesma coisa. *@
+                        @t.Status · @t.Inscritos
                         @if (t.JogosAoVivo > 0)
                         {
                             <span class="badge bg-danger ms-1"><i class="bi bi-record-circle"></i> @t.JogosAoVivo ao vivo</span>

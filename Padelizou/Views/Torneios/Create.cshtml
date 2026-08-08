@@ -406,6 +406,39 @@
                         <small class="text-muted d-block mt-1">Somando todas as categorias. Quem se inscrever depois de esgotado vai pra lista de espera.</small>
                     </div>
 
+                    @* ── Já abre pra inscrição? ──────────────────────────────────────────
+                       Quem monta o torneio em duas sentadas estava obrigado a deixar o
+                       formulário aceitando gente enquanto ainda mexia em categoria, quadra e
+                       preço — e a inscrição que entra no meio disso pega o torneio pela
+                       metade.
+
+                       ⚠️ O hidden é o que faz o "não" chegar: caixa desmarcada simplesmente
+                       não é enviada pelo navegador, e sem ele o parâmetro cairia no valor
+                       padrão (true) — desmarcar não faria nada.
+
+                       ⚠️⚠️ E ele vem DEPOIS do checkbox, que é a ordem do asp-for do próprio
+                       ASP.NET. O binder de bool fica com o PRIMEIRO valor: com o hidden na
+                       frente, marcar mandava "false,true" e valia o `false` — a caixa fazia
+                       exatamente o contrário do que dizia. Medido no navegador, não deduzido. *@
+                    <div class="col-12">
+                        <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="abrirInscricoes"
+                                       value="true" id="abrirInscricoes" checked />
+                                <label class="form-check-label" for="abrirInscricoes">
+                                    <span class="fw-bold">Já quero receber inscrições</span>
+                                    <span class="d-block small text-muted">
+                                        Desmarque se ainda está montando o torneio. Ele fica na
+                                        seção <strong>"Em breve"</strong> — dá pra ver os detalhes e
+                                        o link funciona, mas ninguém se inscreve até você abrir.
+                                        Abrir depois é um botão em Gerenciar Torneio.
+                                    </span>
+                                </label>
+                                <input type="hidden" name="abrirInscricoes" value="false" />
+                            </div>
+                        </div>
+                    </div>
+
                     @* "Quando fecha?" e "quando sai a chave?" são as duas perguntas que o
                        organizador responde no WhatsApp o torneio inteiro. Publicadas aqui, ele
                        responde uma vez só. São PREVISÕES: nada fecha nem sorteia sozinho —
@@ -842,13 +875,58 @@
                     </label>
                 </div>
 
+                @* COMO os games são contados. Vale pro torneio inteiro (o número muda por
+                   fase, o significado dele não), e vale nos três formatos — o rodízio de
+                   games fixos é justamente o mais comum no Americano. *@
+                <div class="p-3 rounded mb-3" style="background-color: var(--pdz-surface-alt);">
+                    <label class="form-label fw-bold small mb-2" style="color: var(--pdz-ink);">
+                        <i class="bi bi-123 me-1"></i> Como contar os games
+                    </label>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="ContagemDeGames"
+                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Ate"
+                                   id="contagemAte" checked onchange="pdzContagem()" />
+                            <label class="form-check-label" for="contagemAte">
+                                <strong>Até</strong> X games — quem chegar primeiro vence
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="ContagemDeGames"
+                                   value="@Padelizou.Services.ContagemDeGamesDoTorneio.Soma"
+                                   id="contagemSoma" onchange="pdzContagem()" />
+                            <label class="form-check-label" for="contagemSoma">
+                                <strong>Soma de</strong> X games — jogam-se X games no total
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2" id="dicaContagemAte">
+                        O de sempre: num jogo até 9, vence quem fizer 9. Em número par vale o
+                        "vencer por dois" — até 4 empatado em 3x3 vai até 5.
+                    </small>
+                    <small class="text-muted d-block mt-2" id="dicaContagemSoma" style="display: none;">
+                        O jogo tem tamanho fixo: numa <strong>soma de 7</strong> o placar sempre fecha
+                        em 7 (4x3, 5x2, 7x0…) e vence quem fizer mais. É o que mantém a grade no
+                        horário, porque todo jogo dura o mesmo.
+                    </small>
+                    @* ⚠️ Soma PAR empata (8 fecha em 4x4), e o sistema recusa finalizar
+                       partida empatada — "no padel alguém tem que fechar o jogo". Avisar aqui
+                       é bem mais barato que descobrir com a quadra ocupada. *@
+                    <div class="alert alert-warning small mt-2 mb-0 py-2 px-3" id="avisoSomaPar" style="display: none;">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Número par empata.</strong> Numa soma de <span id="avisoSomaParN">8</span>
+                        dá <span id="avisoSomaParMeio">4x4</span>, e o sistema não finaliza jogo empatado.
+                        Prefira um número <strong>ímpar</strong> — aí sempre sai um vencedor.
+                    </div>
+                </div>
+
                 <div class="row g-3">
                     <div class="col-md-4">
                         <div class="card bg-light border-0 p-3 h-100">
                             <h6 class="fw-bold" style="color: var(--pdz-ink);">Fase de Grupos (ou Geral)</h6>
                             <label class="small text-muted mt-2">Quantidade de Sets</label>
                             <input type="number" asp-for="SetsFaseGrupos" class="form-control mb-2" value="1" required />
-                            <label class="small text-muted">Games por Set</label>
+                            <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseGrupos" class="form-control" value="9" required />
                         </div>
                     </div>
@@ -859,7 +937,7 @@
                             <h6 class="fw-bold text-secondary">Fases Eliminatórias (Mata-Mata)</h6>
                             <label class="small text-muted mt-2">Quantidade de Sets</label>
                             <input type="number" asp-for="SetsFaseMataMata" class="form-control mb-2" value="1" />
-                            <label class="small text-muted">Games por Set</label>
+                            <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseMataMata" class="form-control" value="9" />
                         </div>
                     </div>
@@ -869,7 +947,7 @@
                             <h6 class="fw-bold text-danger">A Grande Final</h6>
                             <label class="small text-muted mt-2">Quantidade de Sets</label>
                             <input type="number" asp-for="SetsFaseFinal" class="form-control mb-2" value="3" />
-                            <label class="small text-muted">Games por Set</label>
+                            <label class="small text-muted pdz-rotulo-games">Games por Set</label>
                             <input type="number" asp-for="GamesFaseFinal" class="form-control" value="6" />
                         </div>
                     </div>
@@ -1239,6 +1317,44 @@
             if (opcao) opcao.addEventListener('change', pdzHorariosDosJogos);
         });
         pdzHorariosDosJogos();
+    });
+
+    // "Até X" × "Soma de X": troca os textos da seção de formato e avisa quando o total é PAR.
+    // A conta do aviso é a mesma de ContagemDeGamesDoTorneio.PodeEmpatar — soma par alcança o
+    // empate (8 fecha em 4x4) e o sistema recusa finalizar jogo empatado.
+    function pdzContagem() {
+        var soma = (document.getElementById('contagemSoma') || {}).checked;
+
+        var mostrar = function (id, quando) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = quando ? 'block' : 'none';
+        };
+        mostrar('dicaContagemAte', !soma);
+        mostrar('dicaContagemSoma', soma);
+
+        // O rótulo do campo tem que dizer o que o número significa: "9" quer dizer coisas
+        // diferentes em cada modo, e é o rótulo que separa os dois.
+        document.querySelectorAll('.pdz-rotulo-games').forEach(function (r) {
+            r.textContent = soma ? 'Games no total' : 'Games por Set';
+        });
+
+        // O aviso do par olha o campo da fase geral, que é o que vale pra grupo e Americano.
+        var geral = document.getElementById('GamesFaseGrupos');
+        var n = parseInt((geral || {}).value, 10) || 0;
+        var par = soma && n > 0 && n % 2 === 0;
+        mostrar('avisoSomaPar', par);
+        if (par) {
+            var nEl = document.getElementById('avisoSomaParN');
+            var meioEl = document.getElementById('avisoSomaParMeio');
+            if (nEl) nEl.textContent = n;
+            if (meioEl) meioEl.textContent = (n / 2) + 'x' + (n / 2);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var geral = document.getElementById('GamesFaseGrupos');
+        if (geral) ['input', 'change'].forEach(function (e) { geral.addEventListener(e, pdzContagem); });
+        pdzContagem();
     });
 
     // As opções do Americano aparecem nos DOIS sabores (individual e de duplas), cada um com
@@ -1662,7 +1778,7 @@
         // piso ainda vale. Por fora ele recebe tudo na hora e paga a taxa depois — "você
         // recebe" também mentiria nesse caso.
         def('pdzComissaoRotulo', isento
-            ? '− Taxa do Padelizou (Americano livre, sem Ranking Americano: R$ 0,00)'
+            ? '− Taxa do Padelizou (Americano não paga taxa: R$ 0,00)'
             : externo
                 ? '− Taxa do Padelizou (' + pct + '%, você paga depois)'
                 : '− Taxa do Padelizou (' + pct + '%, mín. ' + pdzMoeda(pdzComissaoMin) + ')');
@@ -1703,11 +1819,11 @@
         var blocoPix = document.getElementById('pdzBlocoPix');
         if (blocoPix) blocoPix.style.display = externo ? 'block' : 'none';
 
-        // O Americano que não compra o Ranking Americano não paga taxa nenhuma do
-        // Padelizou, em nenhuma forma — espelha CobrancaDoTorneio.IsentoDeTaxa no servidor.
-        // Só o Oficial e o Americano que marcou "valer ponto" seguem pagando a taxa normal.
-        var pontuaRanking = document.getElementById('pontuaRankingAmericano');
-        var isentoAmericano = pdzFormatoAtual() !== 'Padrao' && !(pontuaRanking && pontuaRanking.checked);
+        // O Americano NÃO paga percentual, em nenhuma forma — espelha
+        // CobrancaDoTorneio.IsentoDeTaxa no servidor. A cobrança dele é outra: R$ 5 por
+        // pessoa se comprar o Ranking Americano, acertada por fora. ⚠️ Marcar "valer ponto"
+        // NÃO devolve o percentual — isso cobrava as duas coisas, e cobrou num torneio real.
+        var isentoAmericano = pdzFormatoAtual() !== 'Padrao';
 
         if (preco <= 0) {
             caixa.textContent = 'Informe o valor da inscrição pra ver a conta.';

@@ -137,10 +137,17 @@
     var torneioDaMesa = ViewBag.Torneio as Padelizou.Models.Torneio;
     var partidasDaMesa = (Model ?? Enumerable.Empty<Padelizou.Models.Partida>())
         .Select(p => $"{{id:{p.Id},games:{Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p.Fase).Games}}}");
+
+    // A CONTAGEM é do torneio inteiro (não muda por fase), então vai uma vez só. Vem do
+    // mesmo serviço que o servidor usa pra validar — se a Mesa decidisse isso sozinha,
+    // voltaria o bug do `9` cravado, agora em forma de "somar quando era até".
+    var contagemDaMesa = Padelizou.Services.ContagemDeGamesDoTorneio
+        .Valido(torneioDaMesa?.ContagemDeGames);
 }
     MesaOffline.iniciar({
         torneioId: @ViewBag.TorneioId,
         limiteGames: @Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, Padelizou.Services.FasesTorneio.FaseDeGrupos).Games,
+        contagem: "@contagemDaMesa",
         partidas: [@Html.Raw(string.Join(",", partidasDaMesa))]
     });
 </script>

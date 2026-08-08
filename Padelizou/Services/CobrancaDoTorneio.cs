@@ -27,13 +27,18 @@ public static class CobrancaDoTorneio
 
     public sealed record Cobranca(string BillingType, decimal Percentual);
 
-    // O AMERICANO é livre (Felipe, 07/08/2026): quem não compra o Ranking Americano não
-    // paga taxa nenhuma do Padelizou, em NENHUMA forma de recebimento — Externo, Pix ou
-    // Todas as formas. A única cobrança que existe pra ele é a do próprio Ranking Americano
-    // (PontosDoAmericano), se ele quiser. O Oficial e o Americano que compra ranking seguem
-    // pagando a taxa normal de sempre.
+    // O AMERICANO NÃO PAGA PERCENTUAL — nunca, em nenhuma forma de recebimento (Externo,
+    // Pix ou Todas as formas). A monetização dele é OUTRA: R$ 5 por pessoa se o organizador
+    // comprar o Ranking Americano (PontosDoAmericano.CustoParaPontuar), acertado POR FORA em
+    // /Admin/RankingAmericano — não passa pelo split da inscrição.
+    //
+    // ⚠️ Corrigido em 07/08/2026 depois de cobrar errado num torneio REAL (o da Carol): a
+    // primeira versão isentava só o Americano SEM ranking, então quem comprava o ranking
+    // pagava as DUAS coisas — os R$ 5 por pessoa E o percentual sobre cada inscrição. São
+    // duas cobranças pela mesma coisa; a régua certa é o FORMATO, não a caixinha do ranking.
+    // Comprar o ranking é comprar ponto, não é motivo pra passar a dever comissão.
     public static bool IsentoDeTaxa(Torneio torneio) =>
-        FormatoDoTorneio.EhAmericano(torneio.Formato) && !torneio.PontuaNoRankingAmericano;
+        FormatoDoTorneio.EhAmericano(torneio.Formato);
 
     // Só faz sentido perguntar quando o organizador abriu mais de uma forma.
     public static bool JogadorEscolheAForma(string formaDoTorneio) => formaDoTorneio == "OnlineTodas";

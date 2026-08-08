@@ -19,15 +19,36 @@ namespace Padelizou.Services;
 // reabre. Nesse ponto a correção deixou de ser um clique e virou decisão de quem organiza.
 public static class DesfazerDoJogo
 {
-    // A ordem das fases dentro de uma categoria. Grupo é 0; o que não se reconhece (Americano,
-    // fase de seed antigo) fica em -1 e nunca é tratado como "depois" de ninguém — apagar por
-    // engano um jogo que não faz parte da corrente seria bem pior que não apagar.
+    // A ordem das fases dentro de uma categoria. Grupo é 0; o que não se reconhece fica em -1
+    // e nunca é tratado como "depois" de ninguém — apagar por engano um jogo que não faz parte
+    // da corrente seria bem pior que não apagar.
     private static readonly string[] Corrente =
         { ChaveamentoMataMata.PrimeiraRodada, "Oitavas de Final", "Quartas de Final", "Semifinal", "Final" };
+
+    // ⚠️ O AMERICANO TAMBÉM TEM CORRENTE desde que ganhou divisão em grupos, e este arquivo
+    // não sabia disso (Felipe, 08/08/2026). O comentário antigo dizia, com todas as letras,
+    // que Americano "fica em -1 e nunca é tratado como depois de ninguém" — verdade enquanto
+    // ele era grupo único e não havia fase seguinte.
+    //
+    // Com a divisão passou a haver: fase de grupos → GRUPO FINAL, montado a partir da
+    // classificação dos grupos. Com as duas em -1, reabrir um jogo de grupo deixava o grupo
+    // final de pé — montado sobre uma classificação que acabou de deixar de valer, e podendo
+    // conter gente que não passa mais. Foi o que aconteceu no torneio de teste: um jogo voltou
+    // pra quadra e as três rodadas da final continuaram agendadas.
+    //
+    // Os números são os mesmos do mata-mata de propósito: os dois formatos nunca convivem na
+    // MESMA categoria, e a comparação é sempre dentro dela.
+    private const int OrdemDoGrupoFinalDoAmericano = 1;
 
     public static int OrdemDaFase(string? fase)
     {
         if (string.IsNullOrEmpty(fase)) return -1;
+
+        // Antes da fase de grupos genérica: a rodada do Americano também começa com o nome do
+        // grupo, e cair no `EhFaseDeGrupos` erraria a resposta pro grupo final.
+        if (FaseDoAmericano.EhDoGrupoFinal(fase)) return OrdemDoGrupoFinalDoAmericano;
+        if (FaseDoAmericano.EhDoAmericano(fase)) return 0;
+
         if (FasesTorneio.EhFaseDeGrupos(fase)) return 0;
 
         var i = Array.IndexOf(Corrente, fase);

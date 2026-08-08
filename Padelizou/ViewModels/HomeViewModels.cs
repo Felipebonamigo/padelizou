@@ -85,7 +85,12 @@ public class TorneioOrganizadoVM
     public int Id { get; set; }
     public string Nome { get; set; } = "";
     public string Status { get; set; } = "";
-    public int Inscritos { get; set; }
+
+    // Texto pronto ("10 inscritos", "8 duplas", "3 times"), e não um número solto: cada
+    // formato inscreve uma UNIDADE diferente, e quem sabe disso é Services/QuantosInscritos.
+    // A conta caseira que morava aqui somava linhas de `Duplas` com linhas de
+    // `InscricoesAmericanas` e anunciava 30 inscritos num Americano de 10.
+    public string Inscritos { get; set; } = "";
     public int JogosAoVivo { get; set; }
     public bool PrecisaSortear { get; set; }
 }

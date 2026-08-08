@@ -31,15 +31,27 @@
     // barra e o convite pra entrar é o convite; ver nada não convida ninguém.
     bool mostraPalpitrometro = temPalpite || jogo.Status == "Agendada";
 
-    string PrimeiroNome(Padelizou.Models.Jogador? j) =>
-        j?.ComoChamar.Split(' ')[0] ?? "?";
+    // NOME E SOBRENOME, não só o primeiro nome (Felipe, 08/08/2026): "aqui no americano está
+    // difícil de entender quem é quem".
+    //
+    // ⚠️ No Americano o primeiro nome não identifica ninguém, e isso é estrutural do formato:
+    // as MESMAS dez pessoas se repetem em dezenas de linhas, embaralhadas em duplas novas a
+    // cada rodada. No primeiro Americano real havia duas Carolines e duas Natálias — a lista
+    // inteira virava adivinhação. Num torneio de chave dava pra viver com o primeiro nome
+    // porque cada dupla aparece poucas vezes; aqui não dá.
+    //
+    // `NomeBonito.Curto` é a MESMA régua do chip do jogador e da tabela de classificação
+    // (primeiro + último sobrenome, partícula e "Junior" tratados) — cortar no primeiro espaço
+    // era a segunda cópia da regra, e a que estava errada.
+    string NomeCurto(Padelizou.Models.Jogador? j) =>
+        j == null ? "?" : Padelizou.Services.NomeBonito.Curto(j.Nome);
 
     // Nome da dupla em texto puro — o modal "quem votou" recebe por atributo, então aqui
     // não pode vir marcação.
     string NomeDaDupla(Padelizou.Models.Dupla? d) =>
         d == null ? "A definir"
         : d.EhTime ? (d.NomeTime ?? "Time")
-        : $"{PrimeiroNome(d.Jogador1)} / {PrimeiroNome(d.Jogador2)}";
+        : $"{NomeCurto(d.Jogador1)} / {NomeCurto(d.Jogador2)}";
 
     int pct1 = temPalpite ? (int)Math.Round(r!.PercentualDupla1) : 50;
     int pct2 = temPalpite ? (int)Math.Round(r!.PercentualDupla2) : 50;
@@ -87,12 +99,12 @@
             + "</span>");
 
         html.AppendHtml("<span class=\"pdz-jl-nome\">");
-        html.AppendHtml($"<a href=\"/Jogadores/Perfil/{d.Jogador1Id}\">").Append(PrimeiroNome(d.Jogador1)).AppendHtml("</a>");
+        html.AppendHtml($"<a href=\"/Jogadores/Perfil/{d.Jogador1Id}\">").Append(NomeCurto(d.Jogador1)).AppendHtml("</a>");
         html.AppendHtml("<span class=\"pdz-jl-barra\"> / </span>");
 
         if (d.Jogador2Id is int segundo)
         {
-            html.AppendHtml($"<a href=\"/Jogadores/Perfil/{segundo}\">").Append(PrimeiroNome(d.Jogador2)).AppendHtml("</a>");
+            html.AppendHtml($"<a href=\"/Jogadores/Perfil/{segundo}\">").Append(NomeCurto(d.Jogador2)).AppendHtml("</a>");
         }
         else
         {

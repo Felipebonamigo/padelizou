@@ -193,6 +193,54 @@ public class EncerramentoIgualNasDuasTelasTests
         Assert.NotNull((await ctx.Partidas.FindAsync(seguinte.Id))!.AvisoProximoEnviadoEm);
     }
 
+    // ---- 4. A HORA EM QUE O JOGO ACABOU ----
+
+    [Theory]
+    [InlineData(Tela.Mesa)]
+    [InlineData(Tela.TelaCheia)]
+    public async Task A_hora_do_fim_fica_carimbada_pelas_duas_telas(Tela tela)
+    {
+        // ⚠️ Só a tela cheia carimbava (Felipe, 08/08/2026: "a ordem das finalizadas tem que
+        // ser por qual terminou por último vem primeiro"). Encerrando pelo botão do card AO
+        // VIVO — a tela do dia do torneio — `HorarioFimReal` ficava NULO, e a lista de
+        // Finalizadas, que ordena por ele, caía no desempate: num torneio por ordem de
+        // liberação sobrava o Id, ou seja, a ordem do SORTEIO. O jogo que acabou agora
+        // aparecia no meio da lista.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Em Andamento");
+        var partida = JogoEntreAsDuasDuplas(ctx, torneio, categoria, "Final");
+
+        var antes = DateTime.Now.AddSeconds(-1);
+        await FinalizarAsync(ctx, tela, partida, org, Substitute.For<IPushNotificationService>());
+
+        var fim = (await ctx.Partidas.FindAsync(partida.Id))!.HorarioFimReal;
+        Assert.NotNull(fim);
+        Assert.InRange(fim!.Value, antes, DateTime.Now.AddSeconds(1));
+    }
+
+    [Fact]
+    public async Task Corrigir_o_placar_de_um_jogo_antigo_NAO_reescreve_a_hora_do_fim()
+    {
+        // Senão um jogo de ontem, corrigido hoje, pularia pro topo das Finalizadas — e o
+        // organizador perderia de vista o que acabou de sair da quadra.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Em Andamento");
+        var partida = JogoEntreAsDuasDuplas(ctx, torneio, categoria, "Final");
+
+        var ontem = new DateTime(2026, 8, 7, 21, 30, 0);
+        partida.Status = "Finalizada";
+        partida.GamesDupla1 = 6;
+        partida.GamesDupla2 = 2;
+        partida.VencedorId = partida.Dupla1Id;
+        partida.HorarioFimReal = ontem;
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoPartidasController(ctx, org.Id)
+            .ControlePlacar(partida.Id, "Finalizada", 6, 3, partida.NomeQuadra, null);
+
+        Assert.Equal(ontem, (await ctx.Partidas.FindAsync(partida.Id))!.HorarioFimReal);
+    }
+
     // ---- montagem ----
 
     private static Partida JogoEntreAsDuasDuplas(DbPadelContext ctx, Torneio torneio, Categoria categoria, string fase)

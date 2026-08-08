@@ -89,6 +89,29 @@
 
 :root[data-bs-theme="dark"] .table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .10); }
 
+/* Linha de quem CLASSIFICA (e de quem está empatado). O Bootstrap fixa essas variantes num
+   verde/amarelo pastel de fundo claro: no tema escuro a linha virava um bloco berrante no
+   meio da tabela, e o texto escuro dela some sobre o resto da tela. Aqui vira tinta, não
+   bloco — e a régua é a mesma nas duas telas que pintam classificado (a classificação dos
+   torneios de chave e a do Americano). */
+:root[data-bs-theme="dark"] .table > tbody > tr.table-success {
+    --bs-table-bg: rgba(163, 216, 39, .16);
+    --bs-table-color: var(--pdz-ink);
+    --bs-table-hover-bg: rgba(163, 216, 39, .24);
+    --bs-table-hover-color: var(--pdz-ink);
+    box-shadow: inset 3px 0 0 var(--padel-green);
+}
+:root[data-bs-theme="dark"] .table > tbody > tr.table-warning {
+    --bs-table-bg: rgba(245, 175, 15, .16);
+    --bs-table-color: var(--pdz-ink);
+    --bs-table-hover-bg: rgba(245, 175, 15, .24);
+    --bs-table-hover-color: var(--pdz-ink);
+    box-shadow: inset 3px 0 0 #f5af0f;
+}
+/* No tema claro o verde do Bootstrap fica, só ganha a mesma faixa lateral pra a marcação
+   sobreviver a quem imprime a tabela em preto e branco. */
+.table > tbody > tr.table-success { box-shadow: inset 3px 0 0 var(--padel-green); }
+
 html {
     font-size: 15px;
     position: relative;
@@ -669,9 +692,35 @@ a:hover { color: var(--pdz-lime-600); }
    número e, em alguns cards, na própria borda do quadro. `min-width: 0` deixa o bloco do
    nome encolher — sem isso o flex respeita a largura do conteúdo e empurra o placar pra
    fora, que é como o nome acabava colado no fim do card. */
+/* CADA DUPLA É UM BLOCO, e entre elas o "×" (Felipe, 08/08/2026: "no ao vivo não parece que
+   é 2x2, deixe melhor visualmente separando como duplas").
+   Quatro rostos empilhados com o mesmo espaço entre todos não dizem quem joga com quem: o
+   olho tinha que contar de dois em dois e conferir de qual lado estava o número. Agora o
+   fundo agrupa o par e o × marca a fronteira — o confronto se lê antes dos nomes. */
 .pdz-live-linha {
-    padding: .3rem 0;
+    padding: .45rem .6rem;
     gap: .6rem;
+    background: rgba(255, 255, 255, .05);
+    border-radius: 14px;
+}
+.pdz-live-versus {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: .35rem 0;
+    color: rgba(255, 255, 255, .45);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+/* As duas linhas que sobram do × até as bordas: são o que faz ele parecer uma fronteira,
+   e não mais um caractere solto no meio da lista de nomes. */
+.pdz-live-versus::before,
+.pdz-live-versus::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, .12);
 }
 .pdz-live-jogadores {
     min-width: 0;
@@ -1943,24 +1992,101 @@ button, a, input, select { touch-action: manipulation; }
 
 /* ── Pills de navegação com a cara do site ─────────────────────────────────
    O ativo azul padrão do Bootstrap não existe na identidade (lima + navy) e
-   brigava com o vermelho do "Ao Vivo". Linha única rolável no celular: pill
-   quebrando em duas linhas desalinhadas lia como bagunça, não como abas. */
+   brigava com o vermelho do "Ao Vivo".
+
+   AS ABAS MORAM DENTRO DE UMA BARRA. Soltas sobre o fundo elas pareciam
+   flutuar: sem nada reunindo o grupo, cada uma lia como um botão avulso e a
+   ativa parecia destacada por acaso, não escolhida. A barra é o contorno que
+   diz "isto aqui é UM controle com quatro posições".
+
+   E elas CABEM na tela. A versão anterior era linha única com rolagem
+   lateral — no celular a quarta aba ficava fora do quadro, e ninguém arrasta
+   o que não sabe que existe: a Classificação do Americano simplesmente não
+   era encontrada. Agora dividem a largura e, se não couberem, quebram pra
+   segunda linha DENTRO da barra, que é onde a quebra deixa de parecer
+   bagunça. */
 .pdz-pills {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: .35rem;   /* respiro pra rolagem não colar na pill */
+    flex-wrap: wrap;
+    gap: .25rem;
+    padding: .25rem;
+    background-color: var(--pdz-surface-alt);
+    border: 1px solid var(--pdz-border);
+    border-radius: .75rem;
 }
 
+/* AS ABAS PREENCHEM A BARRA. Do tamanho do próprio texto, elas deixavam um vão
+   em branco à direita — no celular chegava a 3 abas em cima e 1 embaixo com
+   metade da linha vazia, e a barra parecia inacabada em vez de arrumada.
+   Crescem proporcionalmente ao texto: a mais comprida ganha mais espaço. */
+.pdz-pills .nav-item { flex: 1 1 auto; }
+
+/* CONTORNO NAS NÃO SELECIONADAS (Felipe, 08/08/2026): sem borda, as abas inativas eram
+   texto solto boiando na barra, e não dava pra ver onde uma terminava e a outra começava —
+   só a ativa parecia um botão. Com o contorno, todas viram botão e a ativa continua óbvia
+   pela cor, que é o contraste que carrega a informação.
+
+   A borda é transparente na ativa em vez de ausente: assim as duas têm a MESMA largura
+   final e a barra não dança 2px quando se troca de aba. */
 .pdz-pills .nav-link {
+    width: 100%;
     white-space: nowrap;
     font-weight: 700;
     color: var(--pdz-ink);
+    border: 1px solid var(--pdz-border);
+    border-radius: .5rem;
+    padding: .4rem .6rem;
+    font-size: .85rem;
+}
+
+.pdz-pills .nav-link:hover {
+    border-color: var(--pdz-lime);
 }
 
 .pdz-pills .nav-link.active {
     background-color: var(--pdz-lime);
     color: var(--pdz-navy);
+    border-color: transparent;
+}
+
+/* Celular estreito: o ícone é enfeite e sai primeiro. O que não pode sumir é o
+   nome da aba e a contagem — e a bolinha do Ao Vivo, que é informação, fica. */
+@media (max-width: 430px) {
+    /* DUAS POR LINHA, iguais. Quatro abas viram um quadrado 2×2 em vez de três em
+       cima e uma sobrando embaixo. Com três, a última cresce e fecha a linha
+       sozinha — em nenhum dos casos sobra buraco.
+       Uma linha só não dá: os quatro rótulos exigiriam letra tão pequena que a
+       aba viraria enfeite, ou reticências, que é pior que duas linhas. */
+    .pdz-pills .nav-item { flex: 1 1 calc(50% - .25rem); }
+
+    .pdz-pills .nav-link {
+        font-size: .72rem;
+        padding: .4rem .3rem;
+    }
+
+    .pdz-pills .nav-link > i.bi { display: none; }
+}
+
+/* ── Abas de topo que preenchem a linha ────────────────────────────────────
+   Mesmo remédio das pills, aplicado às `nav-tabs` da página do torneio. Do
+   tamanho do próprio texto, cinco abas viravam TRÊS linhas irregulares no
+   celular do organizador (142px, 178px e 75px de vão) — e tela com buraco não
+   parece arrumada, parece quebrada. */
+.pdz-abas .nav-item { flex: 1 1 auto; }
+
+.pdz-abas .nav-link {
+    width: 100%;
+    white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+    /* Duas por linha, iguais; a última cresce e fecha a linha sozinha quando o
+       número é ímpar. Nunca sobra buraco, e nenhum rótulo é cortado. */
+    .pdz-abas .nav-item { flex: 1 1 calc(50% - .25rem); }
+
+    .pdz-abas .nav-link {
+        font-size: .78rem;
+        padding: .4rem .3rem;
+    }
 }
 
 /* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
@@ -2567,4 +2693,59 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-ver-votos:focus .pdz-total-votos {
     color: var(--padel-green);
     text-decoration: underline;
+}
+
+/* ── Capa do torneio no card: INTEIRA, nunca cortada ─────────────────────────────
+   Queixa do Felipe (08/08/2026): "o folder sempre fica cortado". Era `object-fit:
+   cover`, que preenche a caixa cortando o que sobra — e num folder de torneio o que
+   sobra é a informação. No "Americano das Gurias" sumiam a faixa de cima e o troféu
+   de baixo; no NATA PADEL TOUR, as pontas do escudo.
+
+   A arte agora cabe inteira (`contain`) sobre uma cópia dela mesma borrada e
+   ampliada. O fundo borrado existe pra que a sobra não vire duas tarjas lisas: a cor
+   sai da própria arte, então serve pra folder vertical, quadrado ou deitado.
+
+   Altura FIXA e definida aqui (e não em style inline em dois ramos da view): card de
+   altura variável desalinha a grade, e o caso com capa e o sem capa têm que medir
+   igual. */
+.pdz-capa-torneio {
+    position: relative;
+    height: 160px;
+    overflow: hidden;
+    background: var(--pdz-navy-900);
+}
+
+.pdz-capa-fundo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* O scale esconde a borda transparente que o blur cria nas beiradas — sem ele
+       aparece um halo claro em volta da capa. */
+    transform: scale(1.2);
+    filter: blur(18px) saturate(1.25) brightness(.55);
+}
+
+.pdz-capa-arte {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Descola a arte das bordas: folder encostado na quina do card parece cortado
+       mesmo quando não está. */
+    padding: 6px;
+}
+
+.pdz-capa-vazia {
+    background: linear-gradient(125deg, var(--pdz-navy-900), var(--pdz-navy-fixed) 60%, #29396a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdz-capa-marca {
+    height: 64px;
+    opacity: .92;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .3));
 }

@@ -29,28 +29,23 @@ public class TaxaDoTorneioExternoTests
         }));
     }
 
-    [Fact]
-    public void Americano_sem_ranking_por_fora_nao_trava_e_nao_deve_taxa()
+    [Theory]
+    [InlineData("Americano", false)]
+    [InlineData("Americano", true)]
+    [InlineData("AmericanoDuplas", false)]
+    [InlineData("AmericanoDuplas", true)]
+    public void Americano_por_fora_nunca_deve_os_5_por_cento_nem_trava_as_chaves(
+        string formato, bool compraRanking)
     {
-        // O Americano livre (Felipe, 07/08/2026): sem comprar o Ranking Americano, o "por
-        // fora" não deve os 5% — e por isso as chaves nunca ficam presas nele.
+        // ⚠️ Cobrou errado num torneio REAL (o da Carol, 07/08/2026) antes desta regra: com
+        // o ranking comprado, o "por fora" ainda cobrava os 5% por cima dos R$ 5 por pessoa,
+        // e as chaves ficavam presas até pagar uma taxa que não existia.
         var torneio = Externo();
-        torneio.Formato = "Americano";
-        torneio.PontuaNoRankingAmericano = false;
+        torneio.Formato = formato;
+        torneio.PontuaNoRankingAmericano = compraRanking;
 
         Assert.False(TaxaDoTorneioExterno.SeAplica(torneio));
         Assert.True(TaxaDoTorneioExterno.ChavesLiberadas(torneio));
-    }
-
-    [Fact]
-    public void Americano_que_compra_ranking_continua_devendo_a_taxa_do_externo()
-    {
-        var torneio = Externo();
-        torneio.Formato = "Americano";
-        torneio.PontuaNoRankingAmericano = true;
-
-        Assert.True(TaxaDoTorneioExterno.SeAplica(torneio));
-        Assert.False(TaxaDoTorneioExterno.ChavesLiberadas(torneio));
     }
 
     [Fact]

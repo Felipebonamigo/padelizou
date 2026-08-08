@@ -381,14 +381,15 @@ namespace Padelizou.Controllers
 
             // Torneio cancelado não volta a andar por aqui. A tela já não mostra o botão, mas
             // aba velha e POST feito à mão ressuscitariam o torneio em "Chaves em Sorteio" —
-            // com os inscritos já avisados de que ele não vai acontecer.
-            if (CancelamentoDoTorneio.EstaCancelado(torneio.Status))
+            // com os inscritos já avisados de que ele não vai acontecer. A recusa (e a frase)
+            // moram em PortaDaInscricao, que é a mesma régua que a tela lê.
+            if (PortaDaInscricao.PorQueNaoPodeFechar(torneio) is { } naoFecha)
             {
-                TempData["Erro"] = "Este torneio está cancelado.";
+                TempData["Erro"] = naoFecha;
                 return RedirectToAction("Details", new { id });
             }
 
-            torneio.Status = "Chaves em Sorteio";
+            torneio.Status = PortaDaInscricao.Fechada;
             await _context.SaveChangesAsync();
 
             // Último momento em que dá pra resolver: quem está sem parceiro ainda pode fechar
@@ -407,6 +408,46 @@ namespace Padelizou.Controllers
                     torneio.Id);
             }
 
+            return RedirectToAction("Details", new { id = torneio.Id });
+        }
+
+        // ---- Reabrir as inscrições ----
+        //
+        // O par que faltava do EncerrarInscricoes, que era de mão única: um clique e nunca
+        // mais. O organizador que fechou cedo demais — ou antes mesmo de anunciar — só tinha
+        // a saída errada de apagar o torneio e criar outro, perdendo o link já compartilhado.
+        //
+        // Aconteceu com o NATA PADEL TOUR (id 22 de produção): parado em "Chaves em Sorteio"
+        // com ninguém inscrito, sem caminho de volta.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReabrirInscricoes(int id)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // ⚠️ "Já sorteou" é PARTIDA existindo, não o nome da fase: é a partida que a
+            // jogadora vê na tela e que diz contra quem ela joga. A tela esconde o botão, mas
+            // a recusa mora aqui porque POST feito à mão passaria por cima dela.
+            bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == id);
+
+            if (PortaDaInscricao.PorQueNaoPodeAbrir(torneio, jaSorteou) is { } naoAbre)
+            {
+                TempData["Erro"] = naoAbre;
+                return RedirectToAction("Details", new { id });
+            }
+
+            torneio.Status = PortaDaInscricao.Aberta;
+            await _context.SaveChangesAsync();
+
+            // Sem aviso à base, de propósito: reabrir não é evento novo pra quem não estava
+            // olhando, e o torneio já foi anunciado uma vez. Quem manda aviso pra base é a
+            // APROVAÇÃO do torneio — mandar de novo aqui seria um segundo push pelo mesmo
+            // evento, e cada clique de fechar/abrir viraria mais um.
+            TempData["Sucesso"] = "Inscrições reabertas — o formulário voltou a aceitar gente.";
             return RedirectToAction("Details", new { id = torneio.Id });
         }
 

@@ -381,7 +381,11 @@ public class RoboDoChaveamento
     // percorre `{ Jogador1, Jogador2 }` pulando nulo, então uma linha solo coroa exatamente
     // uma pessoa. A tela de Inscritos do Americano lê `InscricaoAmericana` e não Duplas, então
     // esta linha não aparece como inscrição fantasma.
-    private async Task CoroarNoAmericanoAsync(int categoriaId, int jogadorId, Torneio? torneio)
+    // Público porque o ORGANIZADOR também coroa: quando o empate no título é de 3 ou mais,
+    // uma partida não resolve e ele decide na tela (TorneiosController.CoroarCampeaoAmericano).
+    // Duplicar o carimbo lá seria a segunda cópia da regra que decide campeão — e este projeto
+    // já tem a cicatriz de ter feito isso com "quem venceu".
+    public async Task CoroarNoAmericanoAsync(int categoriaId, int jogadorId, Torneio? torneio)
     {
         _context.Duplas.Add(new Dupla
         {

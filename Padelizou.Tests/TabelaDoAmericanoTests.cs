@@ -193,4 +193,89 @@ public class TabelaDoAmericanoTests
         Assert.Equal(3, tabela.Count);
         Assert.Equal(9, tabela.Single(l => l.Jogador == a).TotalGames);
     }
+
+    // ── EMPATE EM GAMES: confronto direto, e sorteio ESTÁVEL quando ele também empata ──────
+    // (Felipe, 08/08/2026) Antes o critério era o Id do jogador: estável, mas não esportivo —
+    // passava pro grupo final quem tinha se inscrito primeiro.
+
+    [Fact]
+    public void Empate_em_games_e_desfeito_pelo_confronto_direto()
+    {
+        var (a, b, c, d) = (Novo("Ana"), Novo("Bia"), Novo("Caio"), Novo("Duda"));
+        var (e, f) = (Novo("Eva"), Novo("Fabi"));
+
+        // ⚠️ São SEIS jogadoras porque o confronto direto só conta o que aconteceu com as duas
+        // em lados OPOSTOS: num Americano de quatro elas acabam parceiras, e o jogo em que
+        // jogam juntas dá os mesmos games às duas — não separa ninguém.
+        var partidas = new[]
+        {
+            Jogo(a, c, 5, b, d, 2),   // Ana 5 CONTRA a Bia; Bia 2 contra a Ana
+            Jogo(b, c, 4, a, d, 3),   // Bia 4 CONTRA a Ana; Ana 3 contra a Bia
+            Jogo(a, e, 0, c, f, 7),   // Ana sem a Bia na frente: não entra no confronto delas
+            Jogo(b, e, 2, d, f, 5),   // Bia sem a Ana na frente: idem
+        };
+
+        var tabela = TabelaDoAmericano.Montar(partidas);
+        var linhaA = tabela.Single(l => l.Jogador == a);
+        var linhaB = tabela.Single(l => l.Jogador == b);
+
+        // Empatadas no total: Ana 5+3+0 = 8, Bia 2+4+2 = 8.
+        Assert.Equal(8, linhaA.TotalGames);
+        Assert.Equal(8, linhaB.TotalGames);
+
+        // No confronto direto a Ana fez 5+3 = 8 contra a Bia, e a Bia 2+4 = 6 contra a Ana.
+        Assert.True(tabela.IndexOf(linhaA) < tabela.IndexOf(linhaB));
+        Assert.Equal(TabelaDoAmericano.PorConfrontoDireto, linhaA.Desempate);
+    }
+
+    [Fact]
+    public void Confronto_direto_tambem_empatado_cai_no_sorteio_e_o_sorteio_NAO_muda_no_F5()
+    {
+        // O caso que o Felipe levantou: como no Americano cada par se enfrenta um número PAR
+        // de vezes, dá empate no confronto direto também.
+        var (a, b, c, d) = (Novo("Ana"), Novo("Bia"), Novo("Caio"), Novo("Duda"));
+
+        var partidas = new[]
+        {
+            Jogo(a, c, 4, b, d, 4),
+            Jogo(b, c, 4, a, d, 4),
+        };
+
+        var tabela = TabelaDoAmericano.Montar(partidas);
+        var ordemPrimeira = tabela.Select(l => l.Jogador.Id).ToList();
+
+        Assert.Contains(tabela, l => l.Desempate == TabelaDoAmericano.PorSorteio);
+
+        // ⚠️ O QUE MAIS IMPORTA: montar de novo devolve a MESMA ordem. Um Random de verdade
+        // faria a classificação mudar a cada F5, e o robô que monta o grupo final enxergaria
+        // uma tabela enquanto a tela mostrava outra.
+        for (int vez = 0; vez < 5; vez++)
+        {
+            Assert.Equal(ordemPrimeira, TabelaDoAmericano.Montar(partidas).Select(l => l.Jogador.Id).ToList());
+        }
+
+        // E a ordem das partidas na consulta não pode mexer no resultado: cada tela monta a
+        // dela de um jeito, e foi assim que a mesma tabela já respondeu colocações diferentes.
+        Assert.Equal(ordemPrimeira, TabelaDoAmericano.Montar(partidas.Reverse()).Select(l => l.Jogador.Id).ToList());
+    }
+
+    [Fact]
+    public void Quem_nao_empatou_nao_ganha_rotulo_de_desempate()
+    {
+        // O rótulo é o que a tela mostra; carimbá-lo em quem venceu limpo explicaria um
+        // critério que não foi usado.
+        //
+        // ⚠️ Precisa de DUAS partidas: numa só, as duas parceiras levam os mesmos games e
+        // empatam sempre — no Americano o empate em games é o caso comum, não a exceção.
+        var (a, b, c, d) = (Novo("Ana"), Novo("Bia"), Novo("Caio"), Novo("Duda"));
+
+        var tabela = TabelaDoAmericano.Montar(new[]
+        {
+            Jogo(a, b, 6, c, d, 1),   // Ana 6, Bia 6, Caio 1, Duda 1
+            Jogo(a, c, 5, b, d, 2),   // Ana 11, Caio 6, Bia 8, Duda 3
+        });
+
+        Assert.Equal(new[] { 11, 8, 6, 3 }, tabela.Select(l => l.TotalGames));
+        Assert.All(tabela, l => Assert.Null(l.Desempate));
+    }
 }

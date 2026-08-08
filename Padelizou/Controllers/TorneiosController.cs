@@ -171,10 +171,44 @@ namespace Padelizou.Controllers
             static List<Torneio> DoMaisRecente(IEnumerable<Torneio> lista) =>
                 lista.OrderBy(t => t.DataInicio == null).ThenByDescending(t => t.DataInicio).ToList();
 
+            // ── "Em breve": torneio que ainda NÃO abriu inscrição ──────────────────────
+            // Ele não é "aberto" (ninguém consegue entrar) nem "em andamento" (não começou
+            // nada), e sem seção própria caía no meio dos que já estão rolando — anunciando
+            // como acontecendo um torneio que o organizador ainda está montando.
+            //
+            // ⚠️ Duas consultas de CONJUNTO, não uma por torneio: a lista já está inteira em
+            // memória, e perguntar "tem inscrito?" card a card seria uma ida ao banco por
+            // card numa página que qualquer visitante abre.
+            var idsNaTela = torneios.Select(t => t.Id).ToList();
+
+            var comInscrito = (await _context.Duplas
+                    .Where(d => idsNaTela.Contains(d.Categoria.TorneioId) && d.NomeTime == null)
+                    .Select(d => d.Categoria.TorneioId)
+                    .Distinct()
+                    .ToListAsync())
+                .Concat(await _context.InscricoesAmericanas
+                    .Where(i => idsNaTela.Contains(i.Categoria.TorneioId))
+                    .Select(i => i.Categoria.TorneioId)
+                    .Distinct()
+                    .ToListAsync())
+                .ToHashSet();
+
+            var comPartida = (await _context.Partidas
+                    .Where(p => p.TorneioId != null && idsNaTela.Contains(p.TorneioId.Value))
+                    .Select(p => p.TorneioId!.Value)
+                    .Distinct()
+                    .ToListAsync())
+                .ToHashSet();
+
+            bool AindaVaiAbrir(Torneio t) =>
+                PortaDaInscricao.NuncaAbriu(t, comInscrito.Contains(t.Id), comPartida.Contains(t.Id));
+
             ViewBag.Abertos = DoMaisProximo(torneios.Where(t => t.Status == "Inscrições Abertas"));
+            ViewBag.EmBreve = DoMaisProximo(torneios.Where(AindaVaiAbrir));
             ViewBag.EmAndamento = DoMaisProximo(torneios
                 .Where(t => t.Status != "Inscrições Abertas" && t.Status != "Finalizado"
-                            && !CancelamentoDoTorneio.EstaCancelado(t.Status)));
+                            && !CancelamentoDoTorneio.EstaCancelado(t.Status)
+                            && !AindaVaiAbrir(t)));
             ViewBag.Finalizados = DoMaisRecente(torneios.Where(t => t.Status == "Finalizado"));
             // Bloco próprio: cancelado no meio de "em andamento" faria o organizador achar que
             // o torneio ainda está de pé.
@@ -380,6 +414,25 @@ namespace Padelizou.Controllers
                     .ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
                 ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+
+                // Trocar a forma de recebimento depois de criado: dá enquanto ninguém se
+                // inscreveu. A MESMA pergunta que o POST do Editar faz — se as duas
+                // divergirem, a tela oferece o que o servidor recusa.
+                bool temInscrito = await TemAlguemInscritoAsync(id);
+                ViewBag.PodeTrocarFormaPagamento = FormaDePagamentoDoTorneio.PodeTrocar(temInscrito);
+
+                // Abrir/fechar inscrição é um interruptor, e não mais um caminho só de ida.
+                // "Já sorteou" é PARTIDA existindo — é ela que a jogadora vê e que diz contra
+                // quem joga; o nome da fase não serve de prova.
+                bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == id);
+                ViewBag.PodeReabrirInscricoes =
+                    PortaDaInscricao.PorQueNaoPodeAbrir(torneio, jaSorteou) == null;
+                ViewBag.InscricoesNuncaAbriram =
+                    PortaDaInscricao.NuncaAbriu(torneio, temInscrito, jaSorteou);
+
+                // Sem conta conectada as opções "pelo site" ficam à vista mas travadas, como
+                // na criação: escondê-las faria o organizador concluir que não existem.
+                ViewBag.RecebimentoConectado = _pagamentos.PodeReceberOnline(recebedorTorneio);
                 // Pra poder ACRESCENTAR categoria depois de publicado: o organizador que
                 // esqueceu a Mista, ou que abriu mais uma quadra, resolvia isso criando outro
                 // torneio.
@@ -755,13 +808,19 @@ namespace Padelizou.Controllers
             // maioria — a flag nem existia, e o organizador não via botão nenhum.
             ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
 
-            if (torneioDaTela?.Formato == "Americano")
-            {
-                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
+            // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
+            // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima
+            // da tela. Oferecer o botão e negá-lo em seguida é fazer o organizador descobrir a
+            // regra pelo erro.
+            ViewBag.SemHorarioPrevisto = torneioDaTela?.SemHorarioPrevisto == true;
 
-                ViewBag.ClassificacaoAmericano = categoriasDoTorneio.ToDictionary(
-                    c => c.Nome,
-                    c => TabelaDoAmericano.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+            if (torneioDaTela?.Formato == FormatoDoTorneio.Americano)
+            {
+                // ⚠️ Sai da montagem compartilhada, e NÃO da lista `partidas` desta tela: ela
+                // já veio filtrada (por time, por categoria, por "só meus jogos"), e a
+                // classificação calculada em cima de um recorte é a classificação de outro
+                // torneio. Além disso a conta é POR GRUPO — ver ClassificacaoDoAmericano.
+                ViewBag.ClassificacaoAmericano = await MontarClassificacaoAmericanaAsync(torneioId);
 
                 // O botão "montar o desempate" é só do organizador; o jogador vê o aviso.
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
@@ -770,11 +829,21 @@ namespace Padelizou.Controllers
             {
                 // No Americano de DUPLAS a conta é por dupla — a dupla é fixa, então quem
                 // soma games é ela (Services/TabelaDoAmericanoDeDuplas).
-                var finalizadas = partidas.Where(p => p.Status == "Finalizada" && p.Fase.StartsWith("Americano"));
+                //
+                // ⚠️ `todasAsPartidas`, e não a lista da tela: quem APARECE na tabela é a grade
+                // inteira (a dupla existe desde o sorteio, zerada), e a lista `partidas` já veio
+                // filtrada por time/categoria/"só meus jogos" — a classificação de um recorte é
+                // a classificação de outro torneio.
+                var doAmericano = todasAsPartidas.Where(p => p.Fase.StartsWith("Americano")).ToList();
+                var finalizadas = doAmericano.Where(p => p.Status == "Finalizada");
 
                 ViewBag.ClassificacaoAmericanoDuplas = categoriasDoTorneio.ToDictionary(
                     c => c.Nome,
-                    c => TabelaDoAmericanoDeDuplas.Montar(finalizadas.Where(p => p.CategoriaId == c.Id)));
+                    c => TabelaDoAmericanoDeDuplas.Montar(
+                        finalizadas.Where(p => p.CategoriaId == c.Id),
+                        doAmericano.Where(p => p.CategoriaId == c.Id)
+                            .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+                            .Where(d => d != null)));
 
                 ViewBag.DesempateAmericano = torneioDaTela.DesempateAmericano;
             }

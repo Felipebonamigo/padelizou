@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 using padelizou.Models;
@@ -65,6 +66,78 @@ public class SemHorarioPrevistoTests
 
         var criado = Assert.Single(ctx.Torneios);
         Assert.Equal(porOrdem, criado.SemHorarioPrevisto);
+    }
+
+    // Chama a edição do torneio com o mínimo obrigatório, ligando (ou não) o "por ordem".
+    private static Task<IActionResult> EditarAsync(
+        DbPadelContext ctx, Torneio torneio, int organizadorId, bool porOrdem) =>
+        TestInfra.NovoTorneiosController(ctx, organizadorId).Editar(
+            id: torneio.Id, nome: torneio.Nome, localTorneio: null,
+            dataInicio: torneio.DataInicio, precoInscricao: torneio.PrecoInscricao,
+            clubeId: torneio.ClubeId, quantidadeQuadras: 1, nomesQuadras: null,
+            permiteImpedimentos: false, permiteImpedimentoSextaNoite: false,
+            permiteImpedimentoSabadoManha: false, permiteImpedimentoSabadoTarde: false,
+            restricaoCategoria: torneio.RestricaoCategoria, capa: null,
+            tempoPrevistoPartidaMinutos: 50, semHorarioPrevisto: porOrdem);
+
+    [Fact]
+    public async Task LIGAR_o_por_ordem_apaga_o_horario_dos_jogos_que_ainda_nao_comecaram()
+    {
+        // O caso real: a chave foi sorteada COM horário e a opção foi ligada depois. Antes, a
+        // tela ficava se contradizendo — faixa dizendo "os jogos não têm horário" em cima de
+        // uma lista com hora marcada. No "Americano das Gurias do Padel" (07/08/2026) eram 10
+        // jogos anunciando 00:54 às 04:14 da MADRUGADA pras jogadoras.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        Assert.All(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync(),
+            j => Assert.NotNull(j.HorarioPrevisto));   // nasceram COM hora
+
+        await EditarAsync(ctx, torneio, org.Id, porOrdem: true);
+
+        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync();
+        Assert.NotEmpty(jogos);
+        Assert.All(jogos, j => Assert.Null(j.HorarioPrevisto));
+        Assert.True((await ctx.Torneios.FindAsync(torneio.Id))!.SemHorarioPrevisto);
+    }
+
+    [Fact]
+    public async Task O_jogo_que_JA_COMECOU_nao_perde_nada()
+    {
+        // Hora real é registro do que aconteceu, não promessa — apagar seria reescrever o
+        // passado do torneio.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        var emQuadra = await ctx.Partidas.FirstAsync(p => p.TorneioId == torneio.Id);
+        emQuadra.Status = "Em Andamento";
+        emQuadra.HorarioInicioReal = new DateTime(2026, 8, 8, 19, 0, 0);
+        var horaQueTinha = emQuadra.HorarioPrevisto;
+        await ctx.SaveChangesAsync();
+
+        await EditarAsync(ctx, torneio, org.Id, porOrdem: true);
+
+        var depois = await ctx.Partidas.FindAsync(emQuadra.Id);
+        Assert.Equal(horaQueTinha, depois!.HorarioPrevisto);
+        Assert.Equal(new DateTime(2026, 8, 8, 19, 0, 0), depois.HorarioInicioReal);
+    }
+
+    [Fact]
+    public async Task Salvar_a_edicao_SEM_mexer_na_chave_nao_apaga_horario_de_ninguem()
+    {
+        // A limpeza é da TRANSIÇÃO (desligado → ligado). Se ela rodasse a cada gravação, um
+        // torneio já por ordem perderia horário que o organizador tivesse posto na mão, e um
+        // torneio comum ficaria refém de qualquer salvamento.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 6);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        await EditarAsync(ctx, torneio, org.Id, porOrdem: false);
+
+        Assert.All(await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).ToListAsync(),
+            j => Assert.NotNull(j.HorarioPrevisto));
     }
 
     [Fact]

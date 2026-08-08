@@ -276,4 +276,41 @@ public class PixDiretoTests
 
         Assert.Null(await ChavePixDoPadelizou.LerAsync(ctx));
     }
+
+    // ── A chave vai pro código como o DICT a registrou ────────────────────────────────────
+
+    [Fact]
+    public void Cnpj_escrito_com_mascara_vira_digitos_no_codigo()
+    {
+        // ⚠️ O CASO REAL de 08/08/2026: a chave de produção estava gravada assim, do jeito
+        // que se escreve um CNPJ. Com pontuação o banco do pagador não acha a chave e mostra
+        // "QR inválido" sem dizer por quê — a taxa do torneio e a mensalidade do professor
+        // pararam de ser pagáveis, e uma organizadora real tentou e não conseguiu.
+        Assert.Equal("68185754000105", PixCopiaECola.NormalizarChave("68.185.754/0001-05"));
+        Assert.Equal("12345678909", PixCopiaECola.NormalizarChave("123.456.789-09"));
+
+        // E o código montado carrega a versão limpa, não a mascarada.
+        var codigo = PixCopiaECola.Montar("68.185.754/0001-05", "Padelizou", "Gravatai", 6.50m, "PDZ00000004");
+        Assert.Contains("68185754000105", codigo);
+        Assert.DoesNotContain("68.185.754/0001-05", codigo);
+    }
+
+    [Theory]
+    // Aleatória (EVP): os hífens SÃO a chave — tirá-los quebraria o que estava certo.
+    [InlineData("71d4a0f8-3c2b-4e19-9a77-0f2c1b8e5d63")]
+    // E-mail e telefone são literais.
+    [InlineData("padelizou@gmail.com")]
+    [InlineData("+5551994854884")]
+    public void Chave_que_nao_e_documento_passa_intacta(string chave)
+    {
+        Assert.Equal(chave, PixCopiaECola.NormalizarChave(chave));
+    }
+
+    [Fact]
+    public void Numero_que_nao_tem_tamanho_de_documento_nao_e_mexido()
+    {
+        // 9 dígitos não é CPF nem CNPJ. Chutar uma limpeza aqui seria estragar uma chave que
+        // eu não sei ler — devolver intacta deixa o erro visível em vez de silencioso.
+        Assert.Equal("123456789", PixCopiaECola.NormalizarChave("123456789"));
+    }
 }

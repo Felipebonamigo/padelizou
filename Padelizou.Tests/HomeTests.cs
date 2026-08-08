@@ -281,4 +281,59 @@ public class HomeTests
         Assert.True(vm.Compromissos[0].Data < vm.Compromissos[1].Data);
         Assert.True(vm.MeusTorneios.Single().ListaDeEspera);
     }
+
+    [Fact]
+    public async Task O_painel_do_organizador_conta_PESSOAS_no_americano___nao_parcerias_de_rodada()
+    {
+        // ⚠️ O caso real (Felipe, 08/08/2026): o painel anunciava "30 inscrito(s)" no
+        // "Americano das Gurias do Padel", que tinha DEZ inscritas.
+        //
+        // A conta somava linhas de `Duplas` com linhas de `InscricoesAmericanas`, e no
+        // Americano individual a tabela `Dupla` guarda uma linha por PARCERIA DE RODADA: 10
+        // pessoas em 2 grupos de 5 geram 20 parcerias, e 20 + 10 = 30. Quem sabe que cada
+        // formato inscreve uma UNIDADE diferente é Services/QuantosInscritos — este teste
+        // existe pra impedir a quarta cópia dessa régua.
+        using var ctx = TestInfra.NovoContexto();
+        var org = new Jogador { Nome = "Organizadora", Email = "org@local.test", Cpf = "99900011122" };
+        ctx.Jogadores.Add(org);
+        ctx.SaveChanges();
+
+        var cat = NovaCategoria(ctx, "Americano das Gurias", "Fase de Grupos");
+        var torneio = ctx.Torneios.Find(cat.TorneioId)!;
+        torneio.Formato = "Americano";
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador
+        {
+            TorneioId = torneio.Id, JogadorId = org.Id, NivelAcesso = "Criador",
+        });
+
+        var inscritas = new List<Jogador>();
+        for (int i = 0; i < 10; i++)
+        {
+            var j = new Jogador { Nome = $"Jogadora {i:00}", Email = $"j{i}@local.test", Cpf = $"9990000{i:00}0" };
+            ctx.Jogadores.Add(j);
+            inscritas.Add(j);
+        }
+        ctx.SaveChanges();
+
+        foreach (var j in inscritas)
+            ctx.InscricoesAmericanas.Add(new InscricaoAmericana { CategoriaId = cat.Id, JogadorId = j.Id });
+
+        // As parcerias de rodada, que é o que o sorteio cria de verdade — e o que fazia a
+        // conta velha estourar.
+        for (int rodada = 0; rodada < 4; rodada++)
+            for (int i = 0; i < inscritas.Count; i += 2)
+                ctx.Duplas.Add(new Dupla
+                {
+                    CategoriaId = cat.Id,
+                    Jogador1Id = inscritas[i].Id,
+                    Jogador2Id = inscritas[i + 1].Id,
+                });
+
+        ctx.SaveChanges();
+
+        var vm = await Renderizar(ctx, org.Id);
+
+        var noPainel = vm.Organizador!.Torneios.Single();
+        Assert.Equal("10 inscritos", noPainel.Inscritos);
+    }
 }
