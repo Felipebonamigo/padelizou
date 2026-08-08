@@ -110,6 +110,84 @@ public class NaoCobrarDuasVezesTests
         Assert.Equal(2, ctx.Pagamentos.Count(p => p.Tipo == "TorneioPagarDepois"));
     }
 
+    // ── O CAMINHO ONDE O PROBLEMA ACONTECEU DE VERDADE ────────────────────────────────
+    // Em produção, 08/08/2026, NATA PADEL TOUR: o Lucas gerou TRÊS cobranças de R$ 125 no
+    // fluxo de INSCRIÇÃO (duas às 20:20, a terceira às 20:23 — essa ele pagou) e sobraram
+    // duas pendentes órfãs no nome dele.
+
+    [Fact]
+    public async Task Dois_cliques_no_CHECKOUT_DA_INSCRICAO_geram_UMA_cobranca()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.PrecoInscricao = 125m;
+        var eu = TestInfra.NovoJogador(1);
+        var parceiro = TestInfra.NovoJogador(2);
+        ctx.Jogadores.AddRange(eu, parceiro);
+        ctx.SaveChanges();
+
+        var (servico, _) = Novo(ctx);
+        var dados = new DadosInscricaoTorneio(
+            torneio.Id, categoria.Id, eu.Id, parceiro.Id, false, false, false);
+
+        var primeira = await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla", dados);
+        var segunda = await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla", dados);
+
+        Assert.Equal(primeira, segunda);
+        Assert.Equal(1, ctx.Pagamentos.Count(p => p.Tipo == "TorneioDupla"));
+    }
+
+    [Fact]
+    public async Task Trocar_de_PARCEIRO_no_meio_gera_cobranca_NOVA()
+    {
+        // ⚠️ O caso que impede a guarda de ser burra. A dupla só existe DENTRO do JSON da
+        // cobrança — é ele que o webhook lê pra criar a inscrição. Reaproveitar a fatura de
+        // uma intenção diferente inscreveria a pessoa com o PARCEIRO ERRADO: ela começou com
+        // um, desistiu, recomeçou com outro, e pagaria a primeira sem perceber.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.PrecoInscricao = 125m;
+        var eu = TestInfra.NovoJogador(1);
+        var primeiroParceiro = TestInfra.NovoJogador(2);
+        var outroParceiro = TestInfra.NovoJogador(3);
+        ctx.Jogadores.AddRange(eu, primeiroParceiro, outroParceiro);
+        ctx.SaveChanges();
+
+        var (servico, _) = Novo(ctx);
+
+        await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, primeiroParceiro.Id, false, false, false));
+
+        await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, outroParceiro.Id, false, false, false));
+
+        Assert.Equal(2, ctx.Pagamentos.Count(p => p.Tipo == "TorneioDupla"));
+    }
+
+    [Fact]
+    public async Task Outra_CATEGORIA_gera_cobranca_nova()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 0);
+        torneio.PrecoInscricao = 125m;
+        torneio.PermiteMultiplasCategorias = true;
+        var outra = new Categoria { Nome = "5ª Categoria Masculina", Codigo = "C5M", TorneioId = torneio.Id };
+        var eu = TestInfra.NovoJogador(1);
+        ctx.Categorias.Add(outra);
+        ctx.Jogadores.Add(eu);
+        ctx.SaveChanges();
+
+        var (servico, _) = Novo(ctx);
+
+        await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, null, false, false, false, SemParceiro: true));
+
+        await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
+            new DadosInscricaoTorneio(torneio.Id, outra.Id, eu.Id, null, false, false, false, SemParceiro: true));
+
+        Assert.Equal(2, ctx.Pagamentos.Count(p => p.Tipo == "TorneioDupla"));
+    }
+
     [Fact]
     public async Task Cobranca_ja_paga_nao_bloqueia_uma_nova()
     {

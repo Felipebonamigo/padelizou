@@ -199,6 +199,16 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
+        // ⚠️ DOIS CLIQUES, UMA FATURA — e aqui não é hipótese: aconteceu em produção em
+        // 08/08/2026, no NATA PADEL TOUR. O Lucas gerou TRÊS cobranças de R$ 125 (duas no
+        // mesmo minuto, 20:20, e a terceira às 20:23, que foi a que ele pagou) e sobraram duas
+        // pendentes órfãs no nome dele — no painel financeiro, na conta do organizador e no
+        // e-mail de cobrança do meio de pagamento.
+        //
+        // O checkout demora (fala com o gateway), e tocar de novo é o que qualquer um faz.
+        if (await CobrancaPendenteIgualAsync(tipo, dados) is { } jaAberta)
+            return jaAberta;
+
         return await CriarCobrancaAsync(
             recebedor, pagador,
             await ValorDaInscricaoAsync(
@@ -251,6 +261,43 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
             billingType: cobranca.BillingType);
+    }
+
+    // Já existe cobrança aberta pra EXATAMENTE esta inscrição (que ainda não nasceu)?
+    //
+    // ⚠️ A comparação é da INTENÇÃO INTEIRA — categoria, os dois jogadores e o "sem parceiro"
+    // —, e não só de quem está pagando. Aqui a dupla só existe DENTRO do JSON da cobrança: é
+    // ele que o webhook lê pra criar a inscrição. Reaproveitar uma fatura de intenção
+    // diferente inscreveria a pessoa com o PARCEIRO ERRADO — ela começou com um, desistiu,
+    // recomeçou com outro, e pagaria a primeira sem perceber.
+    //
+    // Por isso, se qualquer campo mudou, nasce cobrança nova: errar pra cá deixa uma pendente
+    // a mais (que o organizador vê e ignora); errar pro outro lado inscreve gente errada.
+    private async Task<string?> CobrancaPendenteIgualAsync(string tipo, DadosInscricaoTorneio dados)
+    {
+        var candidatas = await _context.Pagamentos
+            .Where(p => p.Tipo == tipo
+                     && p.TorneioId == dados.TorneioId
+                     && p.JogadorId == dados.Jogador1Id
+                     && p.Status == "Pendente"
+                     && p.InvoiceUrl != null)
+            .ToListAsync();
+
+        foreach (var pagamento in candidatas)
+        {
+            var alvo = Desserializar<DadosInscricaoTorneio>(pagamento);
+            if (alvo == null) continue;
+
+            if (alvo.CategoriaId == dados.CategoriaId
+                && alvo.Jogador1Id == dados.Jogador1Id
+                && alvo.Jogador2Id == dados.Jogador2Id
+                && alvo.SemParceiro == dados.SemParceiro)
+            {
+                return pagamento.InvoiceUrl;
+            }
+        }
+
+        return null;
     }
 
     // Já existe uma cobrança aberta pra ESTA inscrição? Devolve a fatura dela.
