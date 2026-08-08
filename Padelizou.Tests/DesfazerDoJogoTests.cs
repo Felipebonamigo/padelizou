@@ -235,12 +235,17 @@ public class DesfazerDoJogoTests
     [Fact]
     public void Fase_desconhecida_nunca_e_tratada_como_posterior()
     {
-        // Americano e fases de seed antigo não fazem parte da corrente do mata-mata. Apagar
-        // um jogo desses por engano seria bem pior que não apagar.
+        // Fase de seed antigo não faz parte de corrente nenhuma. Apagar um jogo desses por
+        // engano seria bem pior que não apagar.
         var grupo = new Partida { Codigo = "G", Fase = "Grupo A", CategoriaId = 1 };
-        var americano = new Partida { Id = 2, Codigo = "AM", Fase = "Americano", CategoriaId = 1 };
+        var esquisita = new Partida { Id = 2, Codigo = "??", Fase = "Fase Antiga", CategoriaId = 1 };
 
-        Assert.Equal(-1, DesfazerDoJogo.OrdemDaFase("Americano"));
+        Assert.Equal(-1, DesfazerDoJogo.OrdemDaFase("Fase Antiga"));
+        Assert.Empty(DesfazerDoJogo.GeradosDepois(grupo, new[] { esquisita }));
+
+        // Uma rodada de Americano também não vem DEPOIS de um grupo do mata-mata: os dois
+        // formatos nunca convivem na mesma categoria, e nada pode apagar nada do outro.
+        var americano = new Partida { Id = 3, Codigo = "AM", Fase = "Americano Rodada 1", CategoriaId = 1 };
         Assert.Empty(DesfazerDoJogo.GeradosDepois(grupo, new[] { americano }));
     }
 
@@ -250,5 +255,61 @@ public class DesfazerDoJogoTests
         Assert.True(DesfazerDoJogo.OrdemDaFase("Grupo A") < DesfazerDoJogo.OrdemDaFase("Quartas de Final"));
         Assert.True(DesfazerDoJogo.OrdemDaFase("Quartas de Final") < DesfazerDoJogo.OrdemDaFase("Semifinal"));
         Assert.True(DesfazerDoJogo.OrdemDaFase("Semifinal") < DesfazerDoJogo.OrdemDaFase("Final"));
+    }
+
+    // ⚠️ O AMERICANO TAMBÉM TEM CORRENTE, e este arquivo não sabia (Felipe, 08/08/2026).
+    // Enquanto o Americano era grupo único, tratá-lo como "fora de qualquer corrente" estava
+    // certo — não havia fase seguinte. Com a divisão em grupos passou a haver: a fase de
+    // grupos gera o GRUPO FINAL. Sem isto, reabrir um jogo de grupo deixava o grupo final de
+    // pé, montado sobre uma classificação que tinha acabado de deixar de valer.
+    [Fact]
+    public void Grupo_final_do_americano_vem_DEPOIS_da_fase_de_grupos()
+    {
+        var deGrupo = FaseDoAmericano.RodadaDeGrupo("A", 3);
+        var daFinal = FaseDoAmericano.RodadaDoGrupoFinal(1);
+
+        Assert.True(DesfazerDoJogo.OrdemDaFase(deGrupo) < DesfazerDoJogo.OrdemDaFase(daFinal));
+    }
+
+    [Fact]
+    public void Reabrir_jogo_de_grupo_apaga_o_grupo_final_que_saiu_dele()
+    {
+        var jogoDoGrupo = new Partida
+        {
+            Id = 1, Codigo = "G1", CategoriaId = 7, Status = "Finalizada",
+            Fase = FaseDoAmericano.RodadaDeGrupo("A", 3),
+        };
+        var daFinal = new Partida
+        {
+            Id = 2, Codigo = "F1", CategoriaId = 7, Status = "Agendada",
+            Fase = FaseDoAmericano.RodadaDoGrupoFinal(1),
+        };
+
+        var daCategoria = new[] { jogoDoGrupo, daFinal };
+
+        Assert.Contains(daFinal, DesfazerDoJogo.GeradosDepois(jogoDoGrupo, daCategoria));
+        Assert.Null(DesfazerDoJogo.MotivoParaNaoReabrir(jogoDoGrupo, daCategoria));
+    }
+
+    [Fact]
+    public void Com_o_grupo_final_JA_EM_QUADRA_o_jogo_de_grupo_nao_reabre()
+    {
+        // A trava que já existia pro mata-mata, valendo agora pro Americano: apagar um grupo
+        // final que já começou tiraria gente da quadra.
+        var jogoDoGrupo = new Partida
+        {
+            Id = 1, Codigo = "G1", CategoriaId = 7, Status = "Finalizada",
+            Fase = FaseDoAmericano.RodadaDeGrupo("A", 3),
+        };
+        var daFinal = new Partida
+        {
+            Id = 2, Codigo = "F1", CategoriaId = 7, Status = "AoVivo",
+            Fase = FaseDoAmericano.RodadaDoGrupoFinal(1),
+        };
+
+        var motivo = DesfazerDoJogo.MotivoParaNaoReabrir(jogoDoGrupo, new[] { jogoDoGrupo, daFinal });
+
+        Assert.NotNull(motivo);
+        Assert.Contains("F1", motivo);
     }
 }

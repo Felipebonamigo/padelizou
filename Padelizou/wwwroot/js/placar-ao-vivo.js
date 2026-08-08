@@ -92,12 +92,30 @@
     document.addEventListener("focusin", selecionar);
     document.addEventListener("click", selecionar);
 
+    // ⚠️ Clicar num BOTÃO não pode disparar o auto-salvar (Felipe, 08/08/2026).
+    //
+    // A ordem dos eventos é pointerdown → blur → change → click. Sem esta trava, digitar o
+    // placar e clicar em "Finalizar" fazia o `change` enviar o formulário de salvar primeiro:
+    // a página recarregava e ENGOLIA o clique. A pessoa clicava em Finalizar, não acontecia
+    // nada, clicava de novo — e só então via a confirmação. Parecia que o sistema pedia
+    // confirmação duas vezes.
+    //
+    // Não se perde nada suprimindo: o formulário de Finalizar já copia o placar da tela pros
+    // próprios campos antes de enviar, e os botões −/+ leem o valor digitado e salvam junto.
+    var cliqueEmAcao = false;
+
+    document.addEventListener("pointerdown", function (e) {
+        cliqueEmAcao = !!(e.target.closest && e.target.closest("button, a"));
+    });
+
     // Sair do campo com o número mudado JÁ SALVA — sem Enter e sem procurar botão nenhum.
     // No DOCUMENTO pelo mesmo motivo dos botões: a lista é remontada por filtro e por troca
     // de aba, e ligar campo por campo faria o que nascesse depois parar de salvar, calado.
     document.addEventListener("change", function (e) {
         var campo = e.target;
         if (!campo.classList || !campo.classList.contains("pdz-live-input")) return;
+
+        if (cliqueEmAcao) { cliqueEmAcao = false; return; }
         enviar(campo);
     });
 })();
