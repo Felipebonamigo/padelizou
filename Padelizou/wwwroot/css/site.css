@@ -2027,6 +2027,29 @@ button, a, input, select { touch-action: manipulation; }
     .pdz-pills .nav-link > i.bi { display: none; }
 }
 
+/* ── Abas de topo que preenchem a linha ────────────────────────────────────
+   Mesmo remédio das pills, aplicado às `nav-tabs` da página do torneio. Do
+   tamanho do próprio texto, cinco abas viravam TRÊS linhas irregulares no
+   celular do organizador (142px, 178px e 75px de vão) — e tela com buraco não
+   parece arrumada, parece quebrada. */
+.pdz-abas .nav-item { flex: 1 1 auto; }
+
+.pdz-abas .nav-link {
+    width: 100%;
+    white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+    /* Duas por linha, iguais; a última cresce e fecha a linha sozinha quando o
+       número é ímpar. Nunca sobra buraco, e nenhum rótulo é cortado. */
+    .pdz-abas .nav-item { flex: 1 1 calc(50% - .25rem); }
+
+    .pdz-abas .nav-link {
+        font-size: .78rem;
+        padding: .4rem .3rem;
+    }
+}
+
 /* A bolinha pulsante do Ao Vivo: o vermelho mora nela, não no texto da aba —
    texto vermelho sobre o fundo ativo era ilegível. */
 .pdz-tab-dot {
