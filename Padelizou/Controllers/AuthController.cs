@@ -253,7 +253,8 @@ namespace padelizou.Controllers
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var principal = new ClaimsPrincipal(identidade);
 
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+                SessaoDoJogador.Propriedades());
 
             // Volta pra tela em que a pessoa estava; sem destino, o INÍCIO — e não o perfil.
             // Quem acabou de entrar quer continuar o que estava fazendo, não ver as próprias
@@ -524,7 +525,8 @@ namespace padelizou.Controllers
             // não do banco — sem isso ficaria com o nome antigo até o próximo login).
             var claims = IdentidadeJogador.ClaimsDe(jogador);
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade),
+                SessaoDoJogador.Propriedades());
 
             // O aviso da carência vem JUNTO com o "perfil atualizado", não no lugar dele: o
             // resto do formulário foi salvo, e sumir com a confirmação faria parecer que nada
@@ -871,7 +873,8 @@ namespace padelizou.Controllers
             // 3. Loga o usuário automaticamente e manda pro Perfil
             var claims = IdentidadeJogador.ClaimsDe(jogador);
             var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade));
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identidade),
+                SessaoDoJogador.Propriedades());
 
             // A primeira tela depois do cadastro convida a instalar o app (o modal do layout
             // lê este sinal). É O momento: a pessoa acabou de criar a conta, ainda não foi

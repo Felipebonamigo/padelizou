@@ -201,6 +201,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Auth/Login"; // Para onde mandar quem não está logado
         options.AccessDeniedPath = "/Auth/AcessoNegado";
+
+        // Quanto o login dura. O padrão do framework são 14 dias, e ele já desliza — mas
+        // nada disso valia, porque o cookie era de SESSÃO (ver Services/SessaoDoJogador).
+        //
+        // Deslizante: cada visita empurra a validade pra frente. Quem abre o app pra ver a
+        // chave no sábado não é deslogado nunca; quem sumiu três meses entra de novo. Pra
+        // um app que a pessoa abre no meio de um jogo, ser deslogado é pior que o risco de
+        // a sessão durar demais — e o sair continua ali pra quem usa aparelho emprestado.
+        options.ExpireTimeSpan = TimeSpan.FromDays(90);
+        options.SlidingExpiration = true;
     });
 // Add services to the container.
 //

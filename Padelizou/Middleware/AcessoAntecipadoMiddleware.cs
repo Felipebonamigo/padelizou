@@ -101,11 +101,11 @@ public class AcessoAntecipadoMiddleware
                 var claims = IdentidadeJogador.ClaimsDe(jogadorDemo);
                 var identidade = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 var principal = new ClaimsPrincipal(identidade);
-                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(90)
-                });
+                // Mesmas propriedades do login de verdade (Services/SessaoDoJogador). O
+                // ExpiresUtc fixo que morava aqui furava a renovação deslizante: 90 dias
+                // contados do primeiro acesso, e não dos últimos 90 dias de uso.
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal,
+                    SessaoDoJogador.Propriedades());
                 context.User = principal;
             }
         }
