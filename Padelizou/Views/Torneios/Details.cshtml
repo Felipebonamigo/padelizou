@@ -452,6 +452,85 @@
                                          && (dupla.Jogador1Id == meuIdNaPagina || dupla.Jogador2Id == meuIdNaPagina))
                                     {
                                         var sozinho = dupla.Jogador2Id == null;
+
+                                        @* PÔR OU TROCAR O PARCEIRO NA PRÓPRIA INSCRIÇÃO.
+                                           O servidor sempre deixou — TrocarParceiro e GerarConvite
+                                           aceitam "qualquer um dos dois integrantes" — mas os botões
+                                           só existiam no painel "Gerenciar Inscritos", que é do
+                                           organizador. Quem se inscreveu sozinho abria a própria
+                                           inscrição, lia "Procurando parceiro" e só tinha o botão de
+                                           cancelar: para trocar de parceiro precisava desistir e se
+                                           inscrever de novo, perdendo a vaga na fila.
+
+                                           Time não entra: quem monta a lista é o organizador, e o
+                                           "parceiro" de um time é a linha do próprio time. *@
+                                        @if (!dupla.EhTime)
+                                        {
+                                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                                @if (sozinho)
+                                                {
+                                                    @* Vem antes do CPF porque é o caminho que a maioria
+                                                       usa: fecha a dupla sem ninguém precisar do documento
+                                                       do outro. *@
+                                                    <form asp-controller="Duplas" asp-action="GerarConvite" method="post">
+                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                                            <i class="bi bi-link-45deg"></i> Convidar por link
+                                                        </button>
+                                                    </form>
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                                        data-bs-toggle="collapse" data-bs-target="#meuParceiro-@dupla.Id">
+                                                    <i class="bi bi-arrow-left-right"></i>
+                                                    @(sozinho ? "Definir por CPF" : "Trocar parceiro")
+                                                </button>
+                                            </div>
+
+                                            @* Mesmas classes do formulário do organizador: o script que
+                                               faz a caixa "juntar com a inscrição que já existe" aparecer
+                                               se liga em .pdz-form-parceiro, então este ganha o
+                                               comportamento sem uma linha de JS a mais. Os ids têm prefixo
+                                               próprio porque quem organiza vê as DUAS telas na mesma
+                                               página, e id repetido faria um botão abrir o outro. *@
+                                            <div class="collapse mt-2" id="meuParceiro-@dupla.Id">
+                                                <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
+                                                      class="border rounded p-2 pdz-form-parceiro"
+                                                      data-categoria="@dupla.CategoriaId">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <div class="row g-2 align-items-center">
+                                                        <div class="col-12">
+                                                            <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
+                                                                   placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
+                                                                   placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <button type="submit" class="btn btn-sm btn-padel w-100">
+                                                                <i class="bi bi-check-lg"></i> Confirmar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-check mt-2 d-none pdz-juntar-caixa">
+                                                        <input class="form-check-input" type="checkbox" value="true"
+                                                               name="juntarComInscricaoSolo" id="meuJuntar-@dupla.Id" />
+                                                        <label class="form-check-label small" for="meuJuntar-@dupla.Id">
+                                                            Juntar com a inscrição que já existe
+                                                            <span class="text-muted d-block pdz-juntar-quem"></span>
+                                                        </label>
+                                                    </div>
+
+                                                    <small class="text-muted d-block mt-1">
+                                                        @(sozinho
+                                                            ? "Seu parceiro é avisado. Se ele já estiver inscrito sozinho, dá pra juntar as duas inscrições."
+                                                            : "Quem sai e quem entra são avisados.")
+                                                    </small>
+                                                </form>
+                                            </div>
+                                        }
+
                                         <form asp-controller="Torneios" asp-action="Desistir" method="post" class="mt-2"
                                               data-confirmar-tom="perigo"
                                               data-confirmar-titulo="@(sozinho ? "Cancelar sua inscrição?" : "Sair da dupla?")"
