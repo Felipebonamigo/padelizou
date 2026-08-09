@@ -193,8 +193,20 @@ namespace padelizou.Controllers
                 var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
                 foreach (var jogadorId in elegiveis)
                 {
+                    // ⚠️ SEM E-MAIL desde 09/08/2026, e este é o corte mais pesado do dia:
+                    // eram 87 e-mails numa tacada só — o disparo que queimou a cota do Gmail e
+                    // levou junto 130 e-mails, duas recuperações de senha entre eles. É o único
+                    // aviso do sistema proporcional ao TAMANHO DA BASE, então era ele que
+                    // definia de quanto precisava ser o plano de envio.
+                    //
+                    // ⚠️ O preço disto, de olhos abertos (decisão do Felipe): o anúncio passa a
+                    // alcançar só quem tem o app instalado (4 aparelhos em ~130) mais quem abrir
+                    // a caixa de avisos no site. Se um dia o alcance do torneio novo importar
+                    // mais que a cota, é aqui que se volta — e a alternativa já estudada é mirar
+                    // por estado (`Jogador.Estado`), em vez de reabrir pra base inteira.
                     await _pushNotificationService.EnviarParaJogadorAsync(
-                        jogadorId, "Novo torneio aberto", torneio.Nome, url);
+                        jogadorId, "Novo torneio aberto", torneio.Nome, url,
+                        AlcanceDoAviso.AppSemEmail);
                 }
             }
 

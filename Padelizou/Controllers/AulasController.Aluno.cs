@@ -289,6 +289,10 @@ namespace padelizou.Controllers
 
             // Push além do e-mail: solicitação de aula é o aviso mais urgente do professor —
             // enquanto ele não responde, o horário fica travado pro aluno.
+            //
+            // ⚠️ SEM E-MAIL aqui desde 09/08/2026, e não é corte de aviso: é corte de DUPLICATA.
+            // O e-mail já saiu logo acima, e é o bom — o que leva os botões Aceitar e Recusar.
+            // O do funil chegava atrás dele com o mesmo assunto e sem botão nenhum.
             try
             {
                 var primeira = novasAulas[0];
@@ -301,7 +305,7 @@ namespace padelizou.Controllers
                     // painel e o e-mail, e a solicitação fica lá esperando — nada se perde se
                     // ele vir uma hora depois. Diferente da aula DESMARCADA, que continua no
                     // WhatsApp: essa faz ele viajar até a quadra à toa.
-                    Url.Action("MinhaAgenda", "Aulas"));
+                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppSemEmail);
             }
             catch (Exception ex)
             {

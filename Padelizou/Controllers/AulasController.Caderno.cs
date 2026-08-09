@@ -72,10 +72,13 @@ namespace padelizou.Controllers
                 try
                 {
                     var autor = await _context.Jogadores.FindAsync(meuId);
+                    // ⚠️ SEM E-MAIL desde 09/08/2026: a anotação fica guardada na aula e é lida
+                    // quando a pessoa abrir o caderno — não perde valor por chegar amanhã.
                     await _pushService.EnviarParaJogadorAsync(destinatario.Value,
                         "Nova anotação na aula",
                         $"{autor?.Nome ?? "Alguém"} anotou algo sobre a aula de {aula.DataHora:dd/MM}.",
-                        Url.Action(nameof(Anotacoes), "Aulas", new { id = aulaId }));
+                        Url.Action(nameof(Anotacoes), "Aulas", new { id = aulaId }),
+                        AlcanceDoAviso.AppSemEmail);
                 }
                 catch (Exception ex)
                 {

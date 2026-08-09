@@ -14,19 +14,19 @@ namespace padelizou.Controllers
     public class JogoAulaController : Controller
     {
         private readonly DbPadelContext _context;
-        private readonly IEmailService _emailService;
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
         private readonly PlanoProfessorSettings _plano;
         private readonly ILogger<JogoAulaController> _logger;
 
-        public JogoAulaController(DbPadelContext context, IEmailService emailService,
+        // Sem IEmailService de propósito, mesmo motivo do DuplasController: quem manda e-mail
+        // aqui é o funil de avisos. Voltar a injetar isto é o caminho pro envio em dobro.
+        public JogoAulaController(DbPadelContext context,
             IPushNotificationService pushService, IPagamentoInscricaoService pagamentos,
             Microsoft.Extensions.Options.IOptions<PlanoProfessorSettings> plano,
             ILogger<JogoAulaController> logger)
         {
             _context = context;
-            _emailService = emailService;
             _pushService = pushService;
             _pagamentos = pagamentos;
             _plano = plano.Value;
@@ -159,30 +159,17 @@ namespace padelizou.Controllers
             var corpo = $"Com Prof. {jogoCompleto.Professor.Nome} em {jogoCompleto.LocalAula.Nome}, {jogoCompleto.DataHora:dd/MM 'às' HH:mm}.";
             var url = Url.Action("Detalhes", "JogoAula", new { id = jogoAula.Id });
 
-            foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
-            {
-                try
-                {
-                    await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
-                        "Novo Jogo Aula - Padelizou",
-                        $@"<p>Olá {jogador.Nome},</p>
-                           <p>O Prof. <strong>{jogoCompleto.Professor.Nome}</strong> publicou um jogo aula de
-                           <strong>{jogoCompleto.CategoriaPadrao.Nome}</strong> ({jogoCompleto.Modalidade}) em
-                           <strong>{jogoCompleto.LocalAula.Nome}</strong> no dia
-                           <strong>{jogoCompleto.DataHora:dd/MM/yyyy 'às' HH:mm}</strong>.</p>
-                           {(string.IsNullOrWhiteSpace(jogoCompleto.Observacoes) ? "" : $"<p>{jogoCompleto.Observacoes}</p>")}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar e-mail de jogo aula {JogoAulaId} para jogador {JogadorId}", jogoCompleto.Id, jogador.Id);
-                }
-            }
-
+            // ⚠️ SEM E-MAIL desde 09/08/2026, e aqui saíam DOIS por pessoa: este laço inline
+            // mais o do funil de avisos, que já cobre o canal — a mesma sobra que o
+            // DuplasController tinha e que fez a inscrição demorar. Divulgação de jogo é
+            // rajada proporcional ao grupo, e nenhum destinatário está esperando por ela.
+            // Push e caixa de entrada continuam levando o recado.
             foreach (var jogador in elegiveis)
             {
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogador.Id, titulo, corpo, url);
+                    await _pushService.EnviarParaJogadorAsync(jogador.Id, titulo, corpo, url,
+                        AlcanceDoAviso.AppSemEmail);
                 }
                 catch (Exception ex)
                 {

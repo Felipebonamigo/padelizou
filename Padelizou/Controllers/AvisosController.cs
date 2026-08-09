@@ -83,7 +83,10 @@ namespace padelizou.Controllers
             var urlAvisos = Url.Action("Index", "Avisos");
             foreach (var jogador in elegiveis)
             {
-                await _pushService.EnviarParaJogadorAsync(jogador.Id, "Novo jogo disponível", corpo, urlAvisos);
+                // ⚠️ SEM E-MAIL desde 09/08/2026: é divulgação, rajada proporcional ao número
+                // de elegíveis, e ninguém está esperando por ela. Push e caixa de entrada ficam.
+                await _pushService.EnviarParaJogadorAsync(jogador.Id, "Novo jogo disponível", corpo, urlAvisos,
+                    AlcanceDoAviso.AppSemEmail);
             }
 
             return RedirectToAction("AvisoPublicado", new { id = aviso.Id });

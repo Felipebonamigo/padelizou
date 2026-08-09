@@ -177,10 +177,13 @@ public class ProfessoresController : Controller
             try
             {
                 var aluno = await _context.Jogadores.FindAsync(alunoId);
+                // ⚠️ SEM E-MAIL desde 09/08/2026: é bilhete social, do mesmo naipe do elogio no
+                // perfil — bom de ver, mas não pede resposta nem tem hora pra ser lido.
                 await _pushService.EnviarParaJogadorAsync(professorId,
                     "Você recebeu uma avaliação",
                     $"{aluno?.Nome ?? "Um aluno"} te deu {nota} estrela(s).",
-                    Url.Action("Perfil", "Professores", new { id = professorId }));
+                    Url.Action("Perfil", "Professores", new { id = professorId }),
+                    AlcanceDoAviso.AppSemEmail);
             }
             catch (Exception ex)
             {

@@ -14,15 +14,15 @@ namespace padelizou.Controllers
     public class RaqueteLivreController : Controller
     {
         private readonly DbPadelContext _context;
-        private readonly IEmailService _emailService;
         private readonly IPushNotificationService _pushService;
         private readonly ILogger<RaqueteLivreController> _logger;
 
-        public RaqueteLivreController(DbPadelContext context, IEmailService emailService,
+        // Sem IEmailService de propósito, mesmo motivo do DuplasController: quem manda e-mail
+        // aqui é o funil de avisos. Voltar a injetar isto é o caminho pro envio em dobro.
+        public RaqueteLivreController(DbPadelContext context,
             IPushNotificationService pushService, ILogger<RaqueteLivreController> logger)
         {
             _context = context;
-            _emailService = emailService;
             _pushService = pushService;
             _logger = logger;
         }
@@ -131,31 +131,16 @@ namespace padelizou.Controllers
             var corpo = $"{avisoCompleto.DataHoraInicio:dd/MM}, {SessaoRaqueteLivre.DescreverHorario(avisoCompleto)}.";
             var url = Url.Action("Detalhes", "RaqueteLivre", new { id = aviso.Id });
 
-            foreach (var jogador in elegiveis.Where(j => j.NotificarEmail && !string.IsNullOrWhiteSpace(j.Email)))
-            {
-                try
-                {
-                    await _emailService.EnviarAsync(jogador.Email!, jogador.Nome,
-                        "Raquete Livre - Padelizou",
-                        $@"<p>Olá {jogador.ComoChamar},</p>
-                           <p><strong>{avisoCompleto.Clube.Nome}</strong> tem um raquete livre marcado pra
-                           <strong>{avisoCompleto.DataHoraInicio:dd/MM/yyyy}</strong>,
-                           {SessaoRaqueteLivre.DescreverHorario(avisoCompleto)}.</p>
-                           {(avisoCompleto.Preco.HasValue ? $"<p>Valor fixo de R$ {avisoCompleto.Preco:0.00} por pessoa — você joga enquanto durar.</p>" : "")}
-                           <p>É rodízio: não precisa levar dupla, o pessoal se reveza na quadra.</p>
-                           {(string.IsNullOrWhiteSpace(avisoCompleto.Observacoes) ? "" : $"<p>{avisoCompleto.Observacoes}</p>")}");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Falha ao enviar e-mail de raquete livre {AvisoId} para jogador {JogadorId}", avisoCompleto.Id, jogador.Id);
-                }
-            }
-
+            // ⚠️ SEM E-MAIL desde 09/08/2026, e aqui saíam DOIS por pessoa: este laço inline
+            // mais o do funil de avisos, que já cobre o canal — mesma sobra do jogo-aula e do
+            // DuplasController. Divulgação é rajada proporcional ao grupo, e ninguém está
+            // esperando por ela. Push e caixa de entrada continuam levando o recado.
             foreach (var jogador in elegiveis)
             {
                 try
                 {
-                    await _pushService.EnviarParaJogadorAsync(jogador.Id, titulo, corpo, url);
+                    await _pushService.EnviarParaJogadorAsync(jogador.Id, titulo, corpo, url,
+                        AlcanceDoAviso.AppSemEmail);
                 }
                 catch (Exception ex)
                 {

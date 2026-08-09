@@ -82,10 +82,13 @@ public class QuadraAtrasadaBackgroundService : BackgroundService
                 {
                     foreach (var jogadorId in AvisosDoDiaDeJogo.JogadoresDa(partida))
                     {
+                        // ⚠️ SEM E-MAIL desde 09/08/2026: quem recebe isto está NO CLUBE, com o
+                        // celular na mão, esperando a quadra vagar. E-mail chega tarde e chega
+                        // no lugar errado — e são 4 pessoas por partida atrasada.
                         await push.EnviarParaJogadorAsync(jogadorId,
                             "Sua quadra está atrasada",
                             QuadraAtrasada.Corpo(partida, agora),
-                            $"/Torneios/Jogos/{torneioId}");
+                            $"/Torneios/Jogos/{torneioId}", AlcanceDoAviso.AppSemEmail);
                     }
                     partida.AvisoAtrasoEnviadoEm = agora;
                 }

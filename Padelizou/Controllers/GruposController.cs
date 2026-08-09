@@ -475,10 +475,13 @@ namespace padelizou.Controllers
             // direto na tela de responder. O WhatsApp continua sendo o canal principal.
             try
             {
+                // ⚠️ SEM E-MAIL desde 09/08/2026: o WhatsApp já é o canal principal deste
+                // convite (o texto acima é o que vai por lá), e o e-mail era uma terceira via
+                // pra mesma frase, multiplicada pelo tamanho da panelinha.
                 await _pushService.EnviarParaJogadorAsync(jogadorId,
                     "Te chamaram pra jogar!",
                     $"{grupo.Nome} · {sessao.DataHora:dd/MM 'às' HH:mm}{(grupo.Clube != null ? $" em {grupo.Clube.Nome}" : "")}",
-                    Url.Action("Index", "Grupos"));
+                    Url.Action("Index", "Grupos"), AlcanceDoAviso.AppSemEmail);
             }
             catch (Exception ex)
             {
