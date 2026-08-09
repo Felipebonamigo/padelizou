@@ -62,6 +62,19 @@ public static class EstornoParcial
         return new Sobra(novoValor, novoValor - novaComissao, novaComissao);
     }
 
+    // Quanto da devolução sai da fatia do ORGANIZADOR (o resto sai da comissão).
+    //
+    // ⚠️ Isto não é informativo: o gateway PRECISA receber este número. Num estorno parcial ele
+    // tira o valor todo da fatia da conta principal e recusa se não couber — foi o que
+    // aconteceu ao tentar devolver R$ 125 de uma cobrança cuja comissão era R$ 37,50
+    // ("Valor da cobrança insuficiente para o estorno solicitado", 09/08/2026). O split só se
+    // reverte sozinho no estorno TOTAL.
+    public static decimal ParteDoRepasse(Pagamento pagamento, decimal aDevolver)
+    {
+        var sobra = Calcular(pagamento.Valor, pagamento.ValorRepasse, pagamento.Comissao, aDevolver);
+        return pagamento.ValorRepasse - sobra.Repasse;
+    }
+
     // Aplica a sobra no registro e acumula quanto já voltou pro jogador.
     public static void Aplicar(Pagamento pagamento, decimal aDevolver)
     {

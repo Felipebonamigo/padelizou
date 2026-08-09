@@ -7,8 +7,10 @@ using NSubstitute;
 using Padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 
 namespace Padelizou.Tests;
 
@@ -141,6 +143,14 @@ public class EstornoParcialTests
     // ── Pela tela ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
+    public void Quanto_da_devolucao_sai_da_fatia_do_organizador()
+    {
+        // O número que o gateway PRECISA receber. Sem ele o Asaas tira os R$ 125 da comissão
+        // de R$ 37,50 e recusa: "Valor da cobrança insuficiente para o estorno solicitado".
+        Assert.Equal(106.25m, EstornoParcial.ParteDoRepasse(CobrancaDe250(), 125m));
+    }
+
+    [Fact]
     public async Task Devolver_parte_NAO_desfaz_a_inscricao()
     {
         var (c, ctx, asaas, inscricoes) = Montar(logadoComoId: 2);
@@ -159,8 +169,9 @@ public class EstornoParcialTests
         Assert.Equal(18.75m, p.Comissao);
         Assert.Equal(125m, p.ValorEstornado);
 
-        // E o gateway recebeu o valor — sem ele, o Asaas devolveria a cobrança inteira.
-        await asaas.Received().EstornarAsync("pay_teste", true, 125m);
+        // E o gateway recebeu os DOIS números: quanto devolver e quanto disso é do organizador.
+        await asaas.Received().EstornarAsync("pay_teste", true,
+            Arg.Is<DevolucaoParcial>(d => d.Valor == 125m && d.ValorDoRepasse == 106.25m));
     }
 
     [Fact]
@@ -300,6 +311,121 @@ public class EstornoParcialTests
         Assert.Equal(125m, p.Valor);
         Assert.Equal(125m, p.ValorEstornado);
     }
+
+    // ── O que sai no fio pro gateway ──────────────────────────────────────────────────────
+    //
+    // Esta seção existe por causa de uma recusa em PRODUÇÃO (09/08/2026): o corpo ia só com
+    // `value`, o Asaas tentou tirar os R$ 125 da comissão de R$ 37,50 e respondeu "Valor da
+    // cobrança insuficiente para o estorno solicitado". Testar o serviço com dublê não pegaria:
+    // o defeito estava no JSON, não na decisão de chamar.
+
+    [Fact]
+    public async Task Devolucao_parcial_manda_splitRefunds_com_o_id_do_split()
+    {
+        var http = new HttpFalso();
+        http.Responder = req => req.Method == HttpMethod.Get
+            ? Resposta("""{"data":[{"id":"split-abc","walletId":"w-1","value":212.50}]}""")
+            : Resposta("""{"status":"REFUNDED"}""");
+
+        var ok = await NovoAsaas(http).EstornarAsync("pay_1", true, new DevolucaoParcial(125m, 106.25m));
+
+        Assert.True(ok);
+
+        // Consultou os splits antes — é de lá que sai o id, que a gente não guarda.
+        Assert.Contains(http.Chamadas, c => c.Metodo == "GET" && c.Url.EndsWith("/payments/pay_1/splits"));
+
+        var post = http.Chamadas.Single(c => c.Metodo == "POST");
+        using var corpo = JsonDocument.Parse(post.Corpo!);
+        Assert.Equal(125m, corpo.RootElement.GetProperty("value").GetDecimal());
+
+        var split = corpo.RootElement.GetProperty("splitRefunds").EnumerateArray().Single();
+        Assert.Equal("split-abc", split.GetProperty("id").GetString());
+        Assert.Equal(106.25m, split.GetProperty("value").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Sem_repasse_a_devolver_nao_consulta_split_nenhum()
+    {
+        // Cobrança sem split (o recebedor é o próprio Padelizou): o valor todo é da casa.
+        var http = new HttpFalso();
+        http.Responder = _ => Resposta("""{"status":"REFUNDED"}""");
+
+        var ok = await NovoAsaas(http).EstornarAsync("pay_1", true, new DevolucaoParcial(50m, 0m));
+
+        Assert.True(ok);
+        Assert.DoesNotContain(http.Chamadas, c => c.Metodo == "GET");
+
+        using var corpo = JsonDocument.Parse(http.Chamadas.Single().Corpo!);
+        Assert.False(corpo.RootElement.TryGetProperty("splitRefunds", out _));
+    }
+
+    [Fact]
+    public async Task Estorno_total_vai_sem_corpo_nenhum()
+    {
+        // No total o gateway reverte o split sozinho — mandar splitRefunds aqui seria pedir
+        // duas vezes a mesma devolução.
+        var http = new HttpFalso();
+        http.Responder = _ => Resposta("""{"status":"REFUNDED"}""");
+
+        await NovoAsaas(http).EstornarAsync("pay_1", true);
+
+        Assert.Null(http.Chamadas.Single().Corpo);
+    }
+
+    [Fact]
+    public async Task Split_que_nao_da_pra_identificar_ABORTA_a_devolucao()
+    {
+        // Duas carteiras e nenhuma regra pra dividir a devolução entre elas. Chutar tiraria
+        // dinheiro de quem não devia — melhor não devolver do que devolver do lado errado.
+        var http = new HttpFalso();
+        http.Responder = req => req.Method == HttpMethod.Get
+            ? Resposta("""{"data":[{"id":"split-a"},{"id":"split-b"}]}""")
+            : Resposta("""{"status":"REFUNDED"}""");
+
+        var ok = await NovoAsaas(http).EstornarAsync("pay_1", true, new DevolucaoParcial(125m, 106.25m));
+
+        Assert.False(ok);
+        Assert.DoesNotContain(http.Chamadas, c => c.Metodo == "POST");
+    }
+
+    [Fact]
+    public async Task Se_a_consulta_de_splits_falha_o_estorno_nao_sai()
+    {
+        var http = new HttpFalso();
+        http.Responder = req => req.Method == HttpMethod.Get
+            ? Resposta("""{"errors":[{"description":"nao encontrado"}]}""", HttpStatusCode.NotFound)
+            : Resposta("""{"status":"REFUNDED"}""");
+
+        var ok = await NovoAsaas(http).EstornarAsync("pay_1", true, new DevolucaoParcial(125m, 106.25m));
+
+        Assert.False(ok);
+        Assert.DoesNotContain(http.Chamadas, c => c.Metodo == "POST");
+    }
+
+    private sealed record Chamada(string Metodo, string Url, string? Corpo);
+
+    private sealed class HttpFalso : HttpMessageHandler
+    {
+        public List<Chamada> Chamadas { get; } = new();
+        public Func<HttpRequestMessage, HttpResponseMessage>? Responder { get; set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken ct)
+        {
+            var corpo = request.Content == null ? null : await request.Content.ReadAsStringAsync(ct);
+            Chamadas.Add(new Chamada(request.Method.Method, request.RequestUri!.AbsoluteUri, corpo));
+
+            return Responder?.Invoke(request) ?? Resposta("{}");
+        }
+    }
+
+    private static HttpResponseMessage Resposta(string corpo, HttpStatusCode status = HttpStatusCode.OK) =>
+        new(status) { Content = new StringContent(corpo, Encoding.UTF8, "application/json") };
+
+    private static AsaasService NovoAsaas(HttpFalso http) =>
+        new(new HttpClient(http),
+            Options.Create(new AsaasSettings { ApiKey = "chave", BaseUrl = "https://gateway.test/v3" }),
+            NullLogger<AsaasService>.Instance);
 
     // ── Montagem ──────────────────────────────────────────────────────────────────────────
 

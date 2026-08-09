@@ -345,7 +345,13 @@ public class PagamentosController : Controller
             }
         }
 
-        if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId, jaFoiPaga, parcial ? valor : null))
+        // No parcial o gateway precisa saber quanto sai da fatia do ORGANIZADOR: sozinho, ele
+        // tira tudo da comissão e recusa quando não cabe (ver DevolucaoParcial).
+        var devolucao = parcial
+            ? new DevolucaoParcial(valor!.Value, EstornoParcial.ParteDoRepasse(pagamento, valor.Value))
+            : null;
+
+        if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId, jaFoiPaga, devolucao))
         {
             TempData["Erro"] = "O gateway recusou o estorno. Tente novamente em instantes.";
             return RedirectToAction(nameof(Meus));

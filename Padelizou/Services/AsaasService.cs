@@ -218,27 +218,38 @@ public class AsaasService : IAsaasService
         }
     }
 
-    public async Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, decimal? valorParcial = null)
+    public async Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, DevolucaoParcial? parcial = null)
     {
         try
         {
+            object? corpoDoPedido = null;
+            if (jaFoiPaga && parcial != null)
+            {
+                corpoDoPedido = await CorpoDaDevolucaoParcialAsync(asaasPaymentId, parcial);
+                if (corpoDoPedido == null) return false;   // já logado lá dentro
+            }
+
             // Paga -> POST /refund devolve o valor. Ainda pendente -> DELETE remove a cobrança:
             // pedir refund de algo não pago o Asaas recusa.
             //
-            // `value` ausente devolve a cobrança INTEIRA — é o default do próprio Asaas, e é
-            // por isso que o valor parcial só entra no corpo quando existe de verdade. O split
-            // é estornado junto na mesma proporção, sem precisar mandar `splitRefunds`.
+            // Corpo ausente devolve a cobrança INTEIRA — é o default do próprio Asaas — e só no
+            // total o split se reverte sozinho.
             using var request = jaFoiPaga
-                ? Requisicao(HttpMethod.Post, $"payments/{asaasPaymentId}/refund",
-                    valorParcial is { } parcial ? new { value = parcial } : null)
+                ? Requisicao(HttpMethod.Post, $"payments/{asaasPaymentId}/refund", corpoDoPedido)
                 : Requisicao(HttpMethod.Delete, $"payments/{asaasPaymentId}");
 
             var resposta = await _httpClient.SendAsync(request);
             if (!resposta.IsSuccessStatusCode)
             {
                 var corpo = await resposta.Content.ReadAsStringAsync();
-                _logger.LogWarning("Asaas retornou {Status} ao estornar {PaymentId}: {Corpo}",
-                    resposta.StatusCode, asaasPaymentId, corpo);
+
+                // O valor pedido vai no log de propósito: sem ele, "insuficiente para o estorno
+                // solicitado" não diz solicitado QUANTO, e o diagnóstico vira adivinhação.
+                _logger.LogWarning("Asaas retornou {Status} ao estornar {PaymentId} "
+                    + "(pedido: {Pedido}): {Corpo}",
+                    resposta.StatusCode, asaasPaymentId,
+                    parcial == null ? "tudo" : $"{parcial.Valor} ({parcial.ValorDoRepasse} do repasse)",
+                    corpo);
                 return false;
             }
 
@@ -249,6 +260,60 @@ public class AsaasService : IAsaasService
             _logger.LogError(ex, "Falha ao estornar a cobrança {PaymentId} no Asaas.", asaasPaymentId);
             return false;
         }
+    }
+
+    // Monta o corpo do estorno parcial, indo buscar no gateway o ID DO SPLIT daquela cobrança.
+    //
+    // Por que uma chamada a mais em vez de guardar o id na criação: as cobranças que já existem
+    // nunca o guardaram, e é justamente numa delas que a primeira devolução aconteceu. Perguntar
+    // ao gateway funciona pro histórico inteiro.
+    //
+    // Devolve null quando não dá pra montar com segurança — e aí o estorno NÃO sai. Um refund
+    // parcial montado errado tira dinheiro do lado errado, e isso é pior do que não devolver.
+    private async Task<object?> CorpoDaDevolucaoParcialAsync(string asaasPaymentId, DevolucaoParcial parcial)
+    {
+        // Sem repasse a devolver, o valor todo é da fatia da plataforma: o refund simples basta
+        // (é o caso de quando o recebedor é o próprio Padelizou e a cobrança nasceu sem split).
+        if (parcial.ValorDoRepasse <= 0) return new { value = parcial.Valor };
+
+        using var consulta = Requisicao(HttpMethod.Get, $"payments/{asaasPaymentId}/splits");
+        var resposta = await _httpClient.SendAsync(consulta);
+        var conteudo = await resposta.Content.ReadAsStringAsync();
+
+        if (!resposta.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Asaas retornou {Status} ao ler os splits de {PaymentId}: {Corpo}",
+                resposta.StatusCode, asaasPaymentId, conteudo);
+            return null;
+        }
+
+        using var json = JsonDocument.Parse(conteudo);
+        if (!json.RootElement.TryGetProperty("data", out var lista) || lista.ValueKind != JsonValueKind.Array)
+        {
+            _logger.LogWarning("Splits de {PaymentId} vieram em formato inesperado: {Corpo}",
+                asaasPaymentId, conteudo);
+            return null;
+        }
+
+        var ids = lista.EnumerateArray()
+            .Select(s => s.TryGetProperty("id", out var id) ? id.GetString() : null)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .ToList();
+
+        // Uma cobrança nossa tem no máximo UM split (um recebedor). Com mais de um, não existe
+        // divisão óbvia do que devolver, e chutar seria tirar dinheiro de quem não devia.
+        if (ids.Count != 1)
+        {
+            _logger.LogWarning("Devolução parcial de {PaymentId} abortada: a cobrança tem {Quantos} "
+                + "splits, e o rateio da devolução só é conhecido pra um.", asaasPaymentId, ids.Count);
+            return null;
+        }
+
+        return new
+        {
+            value = parcial.Valor,
+            splitRefunds = new[] { new { id = ids[0], value = parcial.ValorDoRepasse } },
+        };
     }
 
     public async Task<(SubcontaCriada?, FalhaAoCriarSubconta?)> CriarSubcontaAsync(DadosDaSubconta dados)

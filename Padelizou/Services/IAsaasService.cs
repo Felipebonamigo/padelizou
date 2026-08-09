@@ -48,6 +48,17 @@ public record SubcontaCriada(string WalletId);
 // casava com nada, e o organizador ficava sem saída nenhuma na tela.
 public record FalhaAoCriarSubconta(string Motivo, bool JaTemConta);
 
+// Devolver só um PEDAÇO do dinheiro de uma cobrança já paga.
+//
+// ⚠️ `ValorDoRepasse` existe porque **estorno parcial não reverte o split sozinho**. No estorno
+// TOTAL o Asaas devolve a transferência de todo mundo; no parcial, ele tira o valor inteiro da
+// fatia da conta PRINCIPAL — que é só a comissão — e recusa com "Valor da cobrança insuficiente
+// para o estorno solicitado" se não couber. Foi exatamente o que aconteceu ao tentar devolver
+// R$ 125 de uma cobrança de R$ 250 cuja comissão era R$ 37,50 (09/08/2026, em produção).
+//
+// Quanto sai de cada lado é conta de Services/EstornoParcial — aqui só chega o resultado.
+public record DevolucaoParcial(decimal Valor, decimal ValorDoRepasse);
+
 public interface IAsaasService
 {
     // Falso quando a ApiKey não está configurada — o chamador cai no fluxo "pago por fora".
@@ -76,9 +87,9 @@ public interface IAsaasService
     // Devolve o dinheiro ao jogador. Cobrança ainda não paga é cancelada em vez de estornada —
     // são endpoints diferentes no Asaas.
     //
-    // valorParcial null devolve tudo. Com valor, o gateway devolve só aquela parte e estorna
-    // a mesma proporção do split — ver Services/EstornoParcial pro nosso lado da conta.
-    Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, decimal? valorParcial = null);
+    // `parcial` null devolve TUDO, e aí o gateway reverte o split sozinho. Ver DevolucaoParcial
+    // pro caso de devolver só um pedaço, que não funciona do mesmo jeito.
+    Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, DevolucaoParcial? parcial = null);
 
     // Abre a conta de recebimento do organizador sem que ele saia do Padelizou. Devolve o
     // walletId em caso de sucesso, ou o motivo escrito pra tela em caso de recusa.
