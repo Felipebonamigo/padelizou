@@ -92,7 +92,10 @@ namespace Padelizou.Controllers
             bool juntarComInscricaoSolo = false,
             // Forma que o jogador declarou no checkout. Só é perguntada quando o organizador
             // abriu todas as formas — é ela que decide a taxa (ver CobrancaDoTorneio).
-            string? formaPagamentoEscolhida = null)
+            string? formaPagamentoEscolhida = null,
+            // Parceiro escolhido pelo NOME, na lista de sugestões — quem já tem conta é
+            // achado por aqui, e ninguém precisa saber o CPF dele pra inscrever a dupla.
+            int? jogador2Id = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -108,6 +111,31 @@ namespace Padelizou.Controllers
             // dupla sem turno nenhum disponível trava o chaveamento inteiro.
             (impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde) =
                 ImpedimentoUnico.Apenas(impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde);
+
+            // PARCEIRO ESCOLHIDO PELA LISTA DE NOMES. O CPF de terceiro não sai do servidor
+            // (a busca por nome devolve só Id, nome e foto — Services/BuscaJogador), então
+            // quem chega por aqui traz o Id e o resto vem do cadastro dele.
+            //
+            // Preencher cpf2/nome2 aqui, e não mais adiante, é de propósito: daqui pra baixo
+            // tudo continua sendo a mesma inscrição por CPF de sempre — a checagem de CPF
+            // válido, a de inscrição repetida, o "juntar com a inscrição solo". Um caminho
+            // paralelo teria que repetir as quatro, e é assim que duas telas divergem.
+            if (jogador2Id is int idParceiro && !semParceiro)
+            {
+                var escolhido = await _context.Jogadores
+                    .Where(j => j.Id == idParceiro)
+                    .Select(j => new { j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+
+                if (escolhido == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse parceiro. Escolha de novo na lista ou informe o CPF.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                cpf2 = escolhido.Cpf;
+                nome2 = escolhido.Nome;
+            }
 
             // Marcou "ainda não tenho parceiro"? Então tudo do jogador 2 é ignorado — mesmo
             // que o formulário tenha mandado algo preenchido antes de o check ser marcado.
