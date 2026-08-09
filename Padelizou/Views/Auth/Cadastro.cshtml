@@ -21,6 +21,10 @@
 
                     <!-- ATENÇÃO AO ENCTYPE: Obrigatório para a foto funcionar -->
                     <form asp-controller="Auth" asp-action="Cadastro" method="post" enctype="multipart/form-data">
+                        @* Pra onde voltar depois de criar a conta — o convite que trouxe a
+                           pessoa até aqui. Vai escondido no formulário pra sobreviver às
+                           recusas: sem isto, um CPF digitado errado apagava o destino. *@
+                        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
 
                         <!-- Dados Pessoais -->
                         <div class="row mb-3">

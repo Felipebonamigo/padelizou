@@ -705,9 +705,16 @@ namespace padelizou.Controllers
             return RedirectToAction("Index", "Home");
         }
         // 5. TELA DE CADASTRO (Abre o formulário)
+        //
+        // `returnUrl` atravessa o cadastro pelo mesmo motivo que atravessa o login, e o buraco
+        // aqui era pior: quem chega por um CONVITE (o link da panelinha no WhatsApp) quase
+        // nunca tem conta — é justamente pra essa pessoa que o convite existe. Ela caía no
+        // login, tocava em "Cadastre-se", e o destino se perdia ali: criava a conta e ia parar
+        // na Home, sem nunca entrar na panelinha pra qual foi chamada.
         [HttpGet]
-        public async Task<IActionResult> Cadastro()
+        public async Task<IActionResult> Cadastro(string? returnUrl)
         {
+            ViewBag.ReturnUrl = returnUrl;
             await PopularCatalogosAsync();
             return View();
         }
@@ -734,8 +741,15 @@ namespace padelizou.Controllers
             // Casais. Com default no FIM da lista de propósito: chamada antiga (e teste que
             // não conhece o campo) continua compilando, e quem não mandar cai na recusa
             // logo abaixo, com a mensagem certa.
-            string? sexo = null)
+            string? sexo = null,
+            // Pra onde voltar depois de criar a conta — o convite que trouxe a pessoa até aqui.
+            string? returnUrl = null)
         {
+            // ⚠️ O destino tem que sobreviver às RECUSAS, igual no login: cada `return View()`
+            // abaixo devolve o formulário, e sem isto o primeiro erro de digitação apagaria o
+            // convite. A pessoa terminaria o cadastro na Home, sem entender o que perdeu.
+            ViewBag.ReturnUrl = returnUrl;
+
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
                 string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
             {
@@ -912,6 +926,13 @@ namespace padelizou.Controllers
             // fazer outra coisa, e cada instalação é alguém alcançável por push — o único
             // canal de aviso que é 100% nosso (o WhatsApp provou isso em 04/08/2026).
             TempData["ConviteInstalarApp"] = true;
+
+            // Quem veio de um CONVITE volta pra ele. Sem isto, a pessoa criava a conta e caía
+            // no perfil — e o convite da panelinha que a trouxe até aqui virava um link que
+            // "não fez nada". Mesma trava do login: só destino local, senão o cadastro viraria
+            // trampolim pra outro site.
+            var destinoDoConvite = VoltarDepoisDoLogin.Destino(returnUrl);
+            if (Url.IsLocalUrl(destinoDoConvite)) return LocalRedirect(destinoDoConvite);
 
             return RedirectToAction("Perfil");
         }
