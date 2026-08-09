@@ -22,10 +22,16 @@ public static class LembreteDeInscricaoNaoPaga
 {
     // Os marcos, em DIAS QUE FALTAM pro prazo — do mais distante pro mais perto.
     //
-    // Dois, de propósito: um pra lembrar (dá tempo de resolver com calma) e um pra apertar
-    // (é agora ou perde). Um terceiro no meio viraria cobrança chata de quem já decidiu pagar,
-    // e cada aviso a mais é um motivo a mais pra pessoa desligar as notificações.
-    public static readonly int[] Marcos = { 7, 2 };
+    // Escolha do Felipe (09/08/2026): **7 dias** e **24 horas** antes do fechamento. Um pra
+    // lembrar, com tempo de resolver com calma; outro pra apertar, quando é agora ou perde.
+    // Um terceiro no meio viraria cobrança chata de quem já decidiu pagar, e cada aviso a mais
+    // é um motivo a mais pra pessoa desligar as notificações.
+    //
+    // ⚠️ O "24 horas" é o marco **1**, e ele vale o DIA INTEIRO da véspera: o varredor passa de
+    // hora em hora a partir das 9h, então na prática o aviso sai na manhã do dia anterior ao
+    // prazo. Contar em horas exatas faria o aviso sair de madrugada pra quem se inscreveu de
+    // madrugada — ver HoraCivilizada e o comentário de MarcoDevido sobre dias de calendário.
+    public static readonly int[] Marcos = { 7, 1 };
 
     // Ninguém é acordado às 3h da manhã pra ser cobrado. O varredor pode rodar a qualquer hora;
     // o AVISO só sai em horário de gente.

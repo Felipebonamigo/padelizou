@@ -94,29 +94,41 @@ public class LembreteDeInscricaoNaoPagaTests
     }
 
     [Fact]
-    public void A_dois_dias_sai_o_segundo_aviso()
+    public void No_meio_do_caminho_o_robo_fica_quieto()
     {
-        Assert.Equal(2, LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 19, 10, 0, 0), 7));
+        // ⚠️ Entre os dois marcos não sai NADA — e é isso que faz o segundo aviso significar
+        // alguma coisa. Faltando 2, 3 ou 5 dias, quem já levou o de 7 dias não ouve de novo.
+        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 19, 10, 0, 0), 7));
+        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 18, 10, 0, 0), 7));
+    }
+
+    [Fact]
+    public void A_24_HORAS_do_prazo_sai_o_segundo_aviso()
+    {
+        // O marco de "24 horas" é o dia da véspera inteiro: o varredor passa de hora em hora a
+        // partir das 9h, então na prática o aviso sai na manhã do dia anterior.
+        Assert.Equal(1, LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 20, 9, 0, 0), 7));
+        Assert.Equal(1, LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 20, 20, 0, 0), 7));
     }
 
     [Fact]
     public void Depois_do_ultimo_marco_o_silencio_volta()
     {
         // Dois avisos e pronto. Insistir todo dia até o prazo é perseguição, não lembrete.
-        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 21, 10, 0, 0), 2));
+        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, new DateTime(2026, 9, 21, 10, 0, 0), 1));
     }
 
     [Fact]
     public void Quem_se_inscreve_em_cima_da_hora_leva_UM_aviso_so()
     {
-        // ⚠️ O caso que quebraria a versão ingênua: faltando 1 dia, os marcos de 7 e de 2 estão
+        // ⚠️ O caso que quebraria a versão ingênua: faltando 1 dia, os marcos de 7 e de 1 estão
         // os dois vencidos. Pegando o primeiro da lista, a pessoa levaria o de 7 num tick e o de
-        // 2 no seguinte — dois avisos em uma hora. Vale o MAIS URGENTE, e os outros são dados
+        // 1 no seguinte — dois avisos em uma hora. Vale o MAIS URGENTE, e os outros são dados
         // por cumpridos.
         var vespera = new DateTime(2026, 9, 20, 10, 0, 0);
 
-        Assert.Equal(2, LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, vespera, null));
-        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, vespera.AddHours(1), ultimoMarcoEnviado: 2));
+        Assert.Equal(1, LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, vespera, null));
+        Assert.Null(LembreteDeInscricaoNaoPaga.MarcoDevido(Prazo, vespera.AddHours(1), ultimoMarcoEnviado: 1));
     }
 
     [Fact]
