@@ -45,6 +45,18 @@ public static class LembreteDeInscricaoNaoPaga
         && torneio.CanceladoEm == null
         && PrazoParaPagar.Ate(torneio) != null;
 
+    // ⚠️ ONDE MORA A INSCRIÇÃO DESTE TORNEIO — e no Americano individual NÃO é na tabela Dupla.
+    //
+    // Lá `Dupla` guarda o PAR DE UMA RODADA, não uma inscrição: o parceiro é sorteado de novo a
+    // cada rodada e cada uma cria linhas novas. Em produção, o "Americano das Gurias do Padel"
+    // tem **10 jogadoras e 27 linhas de Dupla** — varrer essa tabela mandaria a cada uma delas
+    // uma cobrança POR PARTIDA JOGADA. A inscrição individual mora em `InscricaoAmericana`.
+    //
+    // O discriminador é o mesmo do resto do sistema: tudo que não é "Americano" (o individual)
+    // se inscreve em dupla — inclusive o Americano DE DUPLAS, onde a dupla é fixa e é mesmo a
+    // inscrição. Ver [[project_padelizou_ranking_americano_formatos]].
+    public static bool AInscricaoEhDupla(Torneio torneio) => torneio.Formato != "Americano";
+
     // Qual marco cabe AGORA nesta inscrição — nulo quando não há o que avisar.
     //
     // ⚠️ Quando mais de um marco está vencido de uma vez (a pessoa se inscreveu faltando 1 dia,
