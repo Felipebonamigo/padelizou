@@ -99,7 +99,7 @@
        torneio rolando é a tela que a pessoa volta pra ver várias vezes no mesmo dia. A ordem
        também acompanha a urgência: acontecendo agora > dá pra entrar > vai abrir > acabou. *@
     <h5 class="pdz-section-title mb-3">Em Andamento</h5>
-    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio em andamento no momento.">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio em andamento no momento.">
         @if (emAndamento.Any())
         {
             foreach (var torneio in emAndamento)
@@ -114,7 +114,7 @@
     </div>
 
     <h5 class="pdz-section-title mb-3">Inscrições Abertas</h5>
-    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio com inscrições abertas no momento.">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao" data-vazio="Nenhum torneio com inscrições abertas no momento.">
         @if (abertos.Any())
         {
             foreach (var torneio in abertos)
@@ -142,7 +142,7 @@
             <i class="bi bi-hourglass-split"></i>
             As inscrições ainda não abriram. Dá pra ver os detalhes e voltar quando abrir.
         </p>
-        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao">
             @foreach (var torneio in emBreve)
             {
                 <partial name="_TorneioCard" model="torneio" />
@@ -159,7 +159,7 @@
         <p class="text-muted small mb-3">
             <i class="bi bi-eye-slash"></i> Só você vê estes aqui — eles saíram da lista pública.
         </p>
-        <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 torneio-secao">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao">
             @foreach (var torneio in cancelados)
             {
                 <partial name="_TorneioCard" model="torneio" />

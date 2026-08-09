@@ -51,6 +51,7 @@ public class FinanceiroProfessorVM
     public List<DevedorVM> Devedores { get; set; } = new();
     public List<FinanceiroPorLocalVM> PorLocal { get; set; } = new();
     public List<MesFaturamentoVM> UltimosMeses { get; set; } = new();
+    public List<SemanaFaturamentoVM> UltimasSemanas { get; set; } = new();
 
     public bool TemMovimento => Recebido > 0 || Previsto > 0 || AReceber > 0;
 }
@@ -83,4 +84,15 @@ public class MesFaturamentoVM
     public int Aulas { get; set; }
 
     public string Rotulo => Mes.ToString("MMM/yy");
+}
+
+// Uma barra da visão semanal do Financeiro. A semana vai de segunda a domingo.
+public class SemanaFaturamentoVM
+{
+    public DateTime Inicio { get; set; }
+    public decimal Valor { get; set; }
+    public int Aulas { get; set; }
+
+    public DateTime Fim => Inicio.AddDays(6);
+    public string Rotulo => $"{Inicio:dd/MM}–{Fim:dd/MM}";
 }

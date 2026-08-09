@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -157,16 +158,46 @@ public class CobrancaDoTorneioTests
     }
 
     [Fact]
-    public void A_explicacao_de_cada_forma_diz_prazo_e_taxa()
+    public void A_tela_do_JOGADOR_nao_fala_de_taxa()
     {
-        var pix = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaPix, Taxas);
-        var cartao = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaCartao, Taxas);
-        var boleto = CobrancaDoTorneio.ExplicacaoDaEscolha(CobrancaDoTorneio.EscolhaBoleto, Taxas);
+        // ⚠️ Este teste substituiu o `A_explicacao_de_cada_forma_diz_prazo_e_taxa`, que
+        // afirmava o CONTRÁRIO: que a tela de pagamento mostrava "10%", "15%" e "32 dias" ao
+        // lado de cada forma. Aquilo saiu em 08/08/2026 — taxa e prazo de repasse são a
+        // combinação entre o Padelizou e quem ORGANIZA, não com quem paga a inscrição.
+        //
+        // Ele lê a VIEW porque é lá que o vazamento aconteceria: o serviço pode continuar
+        // sabendo os percentuais (a tela de criação do torneio precisa deles); o que não pode
+        // é a tela do jogador escrevê-los.
+        var view = Path.Combine(PastaDoProjeto(), "Views", "Shared", "_EscolhaFormaPagamento.cshtml");
+        var arquivo = File.ReadAllText(view);
 
-        Assert.Contains("na hora", pix);
-        Assert.Contains("10%", pix);
-        Assert.Contains("32 dias", cartao);   // o prazo do crédito é o que mais pesa na escolha
-        Assert.Contains("15%", cartao);
-        Assert.Contains("10%", boleto);       // boleto compartilha a taxa do Pix
+        // ⚠️ Os comentários Razor saem ANTES da conferência: eles não chegam ao navegador, e o
+        // comentário que explica POR QUE "taxa menor" foi removida contém a própria expressão
+        // — sem este corte o teste acusa a explicação como se fosse o defeito (aconteceu).
+        var texto = Regex.Replace(arquivo, @"@\*.*?\*@", "", RegexOptions.Singleline);
+
+        Assert.DoesNotContain("ExplicacaoDaEscolha", texto);
+        Assert.DoesNotContain("Taxa do Padelizou", texto);
+        Assert.DoesNotContain("taxa menor", texto);
+        Assert.DoesNotContain("ComissaoPercentual", texto);
+
+        // O que TEM que estar lá: o convite do Pix e o prazo do boleto (que é sobre quando o
+        // pagamento conta, não sobre quanto custa).
+        Assert.Contains("favorece o sistema e o organizador", texto);
+        Assert.Contains("VencimentoDaCobranca.DiasParaBoleto", texto);
+    }
+
+    private static string PastaDoProjeto()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var alvo = Path.Combine(dir.FullName, "Padelizou", "Views");
+            if (Directory.Exists(alvo)) return Path.Combine(dir.FullName, "Padelizou");
+            dir = dir.Parent;
+        }
+
+        throw new DirectoryNotFoundException(
+            $"Não achei a pasta do projeto subindo a partir de {AppContext.BaseDirectory}");
     }
 }

@@ -71,14 +71,14 @@ public class TrofeuDeMaterialTests
     [Fact]
     public void So_conta_campeonato_e_agrupa_por_categoria()
     {
-        var campanhas = new (string?, string?)[]
+        var campanhas = new (string?, string?, bool)[]
         {
-            ("2ª Categoria Masculina", "Campeao"),
-            ("2ª Categoria Masculina", "Campeao"),  // bicampeão da MESMA categoria: soma junto
-            ("2ª Categoria Feminina", "Campeao"),   // mesmo material, taça separada
-            ("3ª Categoria Masculina", "Campeao"),
-            ("2ª Categoria Masculina", "Final"),    // vice não é troféu
-            ("Categoria Open Masculino", "Semifinal"),
+            ("2ª Categoria Masculina", "Campeao", false),
+            ("2ª Categoria Masculina", "Campeao", false),  // bicampeão da MESMA categoria: soma junto
+            ("2ª Categoria Feminina", "Campeao", false),   // mesmo material, taça separada
+            ("3ª Categoria Masculina", "Campeao", false),
+            ("2ª Categoria Masculina", "Final", false),    // vice não é troféu
+            ("Categoria Open Masculino", "Semifinal", false),
         };
 
         var prateleira = TrofeuDeMaterial.Contar(campanhas);
@@ -104,10 +104,10 @@ public class TrofeuDeMaterialTests
     {
         // O nome vem digitado pelo organizador; um espaço sobrando não pode partir o
         // bicampeonato em duas taças de 1×.
-        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?)[]
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?, bool)[]
         {
-            ("2ª Categoria Masculina", "Campeao"),
-            (" 2ª CATEGORIA MASCULINA ", "Campeao"),
+            ("2ª Categoria Masculina", "Campeao", false),
+            (" 2ª CATEGORIA MASCULINA ", "Campeao", false),
         });
 
         Assert.Single(prateleira);
@@ -115,14 +115,82 @@ public class TrofeuDeMaterialTests
         Assert.Equal("2ª Categoria Masculina", prateleira[0].Categoria); // a 1ª grafia vista
     }
 
+    // ── O troféu do AMERICANO (decisão do Felipe, 08/08/2026) ────────────────────────────
+    // Ele FICA na prateleira: foi ganho. Mas não pode se passar por título de torneio de
+    // chave — vencer o rodízio da 6ª e ser campeão da 6ª são duas conquistas diferentes.
+
+    [Fact]
+    public void O_titulo_do_Americano_NAO_soma_com_o_da_mesma_categoria_no_Oficial()
+    {
+        // O caso que decide o desenho: sem separar na CHAVE do agrupamento, os dois viravam
+        // "2× 6ª Categoria Feminina" e a diferença sumia justamente onde ela importa.
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?, bool)[]
+        {
+            ("6ª Categoria Feminina", "Campeao", false),   // torneio de chave
+            ("6ª Categoria Feminina", "Campeao", true),    // rodízio
+        });
+
+        Assert.Equal(2, prateleira.Count);
+        Assert.All(prateleira, t => Assert.Equal(1, t.Titulos));
+
+        var oficial = prateleira.Single(t => !t.EhAmericano);
+        var americano = prateleira.Single(t => t.EhAmericano);
+
+        // O nome da categoria é o mesmo nos dois — quem separa é a marca.
+        Assert.Equal("6ª Categoria Feminina", oficial.Categoria);
+        Assert.Equal("6ª Categoria Feminina", americano.Categoria);
+    }
+
+    [Fact]
+    public void O_Americano_usa_VIDRO_porque_nao_e_degrau_da_escada()
+    {
+        // Mesma razão da mista e da de casais: é outro jogo, não "mais forte" nem "mais
+        // fraco". Com o material da categoria, a taça ficaria idêntica à do título de chave.
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?, bool)[]
+        {
+            ("2ª Categoria Masculina", "Campeao", true),
+        });
+
+        Assert.Equal("Vidro", prateleira[0].Material.Chave);
+        Assert.True(prateleira[0].EhAmericano);
+    }
+
+    [Fact]
+    public void Dois_Americanos_da_mesma_categoria_somam_entre_si()
+    {
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?, bool)[]
+        {
+            ("6ª Categoria Feminina", "Campeao", true),
+            ("6ª Categoria Feminina", "Campeao", true),
+        });
+
+        Assert.Single(prateleira);
+        Assert.Equal(2, prateleira[0].Titulos);
+        Assert.True(prateleira[0].EhAmericano);
+    }
+
+    [Fact]
+    public void Dentro_da_mesma_forca_o_titulo_de_CHAVE_vem_antes_do_Americano()
+    {
+        // A prateleira abre pelo que foi mais difícil de ganhar.
+        var prateleira = TrofeuDeMaterial.Contar(new (string?, string?, bool)[]
+        {
+            ("Categoria Mista A", "Campeao", true),    // vidro, americano
+            ("Categoria Mista B", "Campeao", false),   // vidro, oficial
+        });
+
+        Assert.False(prateleira[0].EhAmericano);
+        Assert.True(prateleira[1].EhAmericano);
+    }
+
     [Fact]
     public void O_mais_forte_vem_primeiro_e_o_vidro_fecha_a_fila()
     {
-        var campanhas = new (string?, string?)[]
+        var campanhas = new (string?, string?, bool)[]
         {
-            ("Categoria Mista A", "Campeao"),
-            ("6ª Categoria Masculina", "Campeao"),
-            ("Categoria Open Masculino", "Campeao"),
+            ("Categoria Mista A", "Campeao", false),
+            ("6ª Categoria Masculina", "Campeao", false),
+            ("Categoria Open Masculino", "Campeao", false),
         };
 
         var ordem = TrofeuDeMaterial.Contar(campanhas).Select(t => t.Material.Chave).ToList();
@@ -135,14 +203,14 @@ public class TrofeuDeMaterialTests
     {
         // Prateleira com sete taças vazias diria "esse jogador não ganhou nada" de um jeito
         // pior que não ter prateleira: quem nunca foi campeão simplesmente não vê a seção.
-        var campanhas = new (string?, string?)[]
+        var campanhas = new (string?, string?, bool)[]
         {
-            ("2ª Categoria Masculina", "Final"),
-            ("3ª Categoria Masculina", "Grupos"),
+            ("2ª Categoria Masculina", "Final", false),
+            ("3ª Categoria Masculina", "Grupos", false),
         };
 
         Assert.Empty(TrofeuDeMaterial.Contar(campanhas));
-        Assert.Empty(TrofeuDeMaterial.Contar(Array.Empty<(string?, string?)>()));
+        Assert.Empty(TrofeuDeMaterial.Contar(Array.Empty<(string?, string?, bool)>()));
     }
 
     [Fact]

@@ -50,7 +50,11 @@
                             <a asp-action="EsqueciSenha" class="small">Esqueci minha senha</a>
                         </div>
                         <div class="text-center mt-3">
-                            <a asp-action="Cadastro" class="text-decoration-none fw-bold" style="color: var(--pdz-ink);">Ainda não tem conta? Cadastre-se</a>
+                            @* O destino atravessa pro cadastro. Quem chega por um convite
+                               quase nunca tem conta — é o caminho MAIS usado deste link, e
+                               era justamente onde a volta se perdia. *@
+                            <a asp-action="Cadastro" asp-route-returnUrl="@ViewBag.ReturnUrl"
+                               class="text-decoration-none fw-bold" style="color: var(--pdz-ink);">Ainda não tem conta? Cadastre-se</a>
                         </div>
                     </form>
                 </div>

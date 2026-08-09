@@ -189,6 +189,41 @@ namespace Padelizou.Migrations
                     b.ToTable("AvaliacaoProfessor");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.AvisoDoJogador", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Corpo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LidaEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("AvisoDoJogador");
+                });
+
             modelBuilder.Entity("Padelizou.Models.AvisoJogo", b =>
                 {
                     b.Property<int>("Id")
@@ -863,6 +898,9 @@ namespace Padelizou.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("ValorInscricao")
+                        .HasColumnType("numeric");
+
                     b.HasKey("Id")
                         .HasName("PK__Dupla__3214EC07E192F96C");
 
@@ -1177,6 +1215,9 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("PagoEm")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<decimal?>("ValorInscricao")
+                        .HasColumnType("numeric");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoriaId");
@@ -1442,6 +1483,9 @@ namespace Padelizou.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("SenhaHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sexo")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("SolicitouOrganizadorEm")
@@ -2575,6 +2619,9 @@ namespace Padelizou.Migrations
                     b.Property<decimal>("PrecoInscricao")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("PrecoSegundaInscricao")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTime?>("PrevisaoChaveamento")
                         .HasColumnType("timestamp without time zone");
 
@@ -2680,6 +2727,9 @@ namespace Padelizou.Migrations
 
                     b.Property<int?>("AlunoId")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("AlunoPagaQuadra")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("CanceladaEm")
                         .HasColumnType("timestamp without time zone");
@@ -3013,6 +3063,17 @@ namespace Padelizou.Migrations
                     b.Navigation("Aluno");
 
                     b.Navigation("Professor");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.AvisoDoJogador", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoJogo", b =>

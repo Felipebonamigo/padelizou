@@ -5,6 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>287393b4-5141-4aed-8644-93a3dfeeb932</UserSecretsId>
+
+    <!-- NENHUMA pasta de build entra como conteúdo do projeto.
+         O MSBuild exclui sozinho a pasta de saída DA VEZ, e só ela. Como aqui cada sessão
+         compila numa pasta própria (`-p:BaseOutputPath=bin/<sessao>/`, pra não brigar pelo
+         bin/Debug), a saída de uma virava CONTEÚDO da outra: bin/opus dentro de bin/fable,
+         bin/fable dentro de bin/nata2, e assim por diante, até o caminho passar dos 260
+         caracteres do Windows e o build parar de compilar com um erro de CÓPIA DE ARQUIVO —
+         que não parece, mas é isto aqui. Aconteceu três vezes em 08/08/2026. -->
+    <DefaultItemExcludesInProjectFolder>bin/**;obj/**</DefaultItemExcludesInProjectFolder>
   </PropertyGroup>
 
   <ItemGroup>

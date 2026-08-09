@@ -24,6 +24,20 @@ public record DadosInscricaoTorneio(
     bool ImpedimentoSabadoTarde,
     bool SemParceiro = false);
 
+// Pagamento de uma inscrição QUE JÁ EXISTE — o "pagar agora" do torneio que garante a vaga
+// primeiro e cobra depois (`PagamentoObrigatorioNaInscricao == false`).
+//
+// É um tipo separado de DadosInscricaoTorneio porque o efeito na confirmação é o OPOSTO: lá
+// a inscrição NASCE quando o dinheiro entra; aqui ela já está na lista e só precisa ser
+// marcada como paga. Reusar o mesmo tipo criaria uma dupla duplicada a cada pagamento.
+//
+// Um dos dois ids vem preenchido: `DuplaId` no Oficial e no Americano de Duplas,
+// `InscricaoAmericanaId` no Americano individual — cada formato grava numa tabela.
+public record DadosPagamentoDeInscricao(
+    int TorneioId,
+    int? DuplaId,
+    int? InscricaoAmericanaId);
+
 public record DadosInscricaoAula(int JogoAulaId, int JogadorId);
 
 // Cobrança da taxa de 5% do torneio "por fora" — o pagamento que destrava o sorteio das
@@ -55,6 +69,12 @@ public interface IPagamentoInscricaoService
 
     Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
         string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null);
+
+    // "Pagar agora" de uma inscrição que JÁ existe e está como não paga — o par que faltava
+    // pro torneio que garante a vaga primeiro e cobra depois. Devolve a URL da fatura.
+    Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
+        bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados,
+        string? formaEscolhida = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
         DadosInscricaoAula dados, string? formaEscolhida = null);
 
@@ -175,21 +195,201 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // `formaEscolhida` é a forma que o JOGADOR declarou no nosso checkout (Pix / cartão /
     // boleto). Ela decide as duas coisas juntas — o que a cobrança trava e a taxa que fica —
     // porque o rateio é fixado quando a cobrança nasce. Ver Services/CobrancaDoTorneio.
-    public Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
+    public async Task<string?> IniciarCobrancaTorneioAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, string tipo, DadosInscricaoTorneio dados, string? formaEscolhida = null)
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
-        return CriarCobrancaAsync(
+        // ⚠️ DOIS CLIQUES, UMA FATURA — e aqui não é hipótese: aconteceu em produção em
+        // 08/08/2026, no NATA PADEL TOUR. O Lucas gerou TRÊS cobranças de R$ 125 (duas no
+        // mesmo minuto, 20:20, e a terceira às 20:23, que foi a que ele pagou) e sobraram duas
+        // pendentes órfãs no nome dele — no painel financeiro, na conta do organizador e no
+        // e-mail de cobrança do meio de pagamento.
+        //
+        // O checkout demora (fala com o gateway), e tocar de novo é o que qualquer um faz.
+        if (await CobrancaPendenteIgualAsync(tipo, dados) is { } jaAberta)
+            return jaAberta;
+
+        return await CriarCobrancaAsync(
             recebedor, pagador,
-            torneio.ValorCobrado(
+            await ValorDaInscricaoAsync(
+                torneio,
                 inscricaoDeDupla: tipo == "TorneioDupla",
+                jogadoresConhecidos: new[] { dados.Jogador1Id, dados.Jogador2Id },
                 impedimentos: ContarImpedimentos(dados)),
             "Torneio", tipo,
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
-            billingType: cobranca.BillingType);
+            billingType: cobranca.BillingType,
+            expiraEm: PrazoParaPagar.Ate(torneio));
+    }
+
+    // O "pagar agora" de quem JÁ está inscrito. Mesma conta e mesma taxa do checkout de
+    // inscrição — o que muda é só o efeito lá na frente: em vez de CRIAR a inscrição, o
+    // webhook vai marcar a que já existe como paga (ver EfetivarPagamentoDeInscricaoAsync).
+    //
+    // ⚠️ O tipo gravado é "TorneioPagarDepois", e ele é a chave que separa os dois efeitos:
+    // se caísse no `default` do EfetivarAsync, o pagamento criaria uma dupla NOVA e a pessoa
+    // ficaria inscrita duas vezes.
+    public async Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor,
+        Jogador pagador, bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados,
+        string? formaEscolhida = null)
+    {
+        var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
+
+        // ⚠️ DOIS CLIQUES NÃO PODEM VIRAR DUAS FATURAS (Felipe, 08/08/2026: "cuide para não
+        // cobrar 2 vezes a mesma pessoa, para que não fique pagamentos pendentes").
+        //
+        // Sem isto, cada toque no "pagar agora" criava uma cobrança nova: a pessoa pagaria
+        // uma e as outras ficariam penduradas como pendentes — na conta do organizador, no
+        // painel financeiro e no e-mail de cobrança do meio de pagamento. E o botão é
+        // justamente do tipo que se toca de novo quando a página demora.
+        //
+        // A mesma regra já existia pra taxa do "por fora", assinatura e Pix direto; a
+        // inscrição era a que faltava.
+        if (await CobrancaPendenteDaInscricaoAsync(dados) is { } jaAberta)
+            return jaAberta;
+
+        return await CriarCobrancaAsync(
+            recebedor, pagador,
+            // ⚠️ Aqui o valor NÃO se recalcula: quem já está inscrito tem o preço gravado na
+            // própria inscrição, e é ele que se cobra. Recalcular faria o "pagar agora" pedir
+            // um valor diferente do que a pessoa viu quando entrou — bastaria o organizador
+            // ter mexido no preço no meio do caminho.
+            await ValorJaCombinadoAsync(torneio, inscricaoDeDupla, impedimentos, dados),
+            "Torneio", "TorneioPagarDepois",
+            $"Inscrição — {torneio.Nome}", dados,
+            torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
+            percentual: cobranca.Percentual,
+            billingType: cobranca.BillingType,
+            // O link de pagamento é justamente o que a pessoa volta pra usar depois: matá-lo
+            // em 60 minutos transformaria "pago depois" em "não pagou".
+            expiraEm: PrazoParaPagar.Ate(torneio));
+    }
+
+    // Já existe cobrança aberta pra EXATAMENTE esta inscrição (que ainda não nasceu)?
+    //
+    // ⚠️ A comparação é da INTENÇÃO INTEIRA — categoria, os dois jogadores e o "sem parceiro"
+    // —, e não só de quem está pagando. Aqui a dupla só existe DENTRO do JSON da cobrança: é
+    // ele que o webhook lê pra criar a inscrição. Reaproveitar uma fatura de intenção
+    // diferente inscreveria a pessoa com o PARCEIRO ERRADO — ela começou com um, desistiu,
+    // recomeçou com outro, e pagaria a primeira sem perceber.
+    //
+    // Por isso, se qualquer campo mudou, nasce cobrança nova: errar pra cá deixa uma pendente
+    // a mais (que o organizador vê e ignora); errar pro outro lado inscreve gente errada.
+    private async Task<string?> CobrancaPendenteIgualAsync(string tipo, DadosInscricaoTorneio dados)
+    {
+        var candidatas = await _context.Pagamentos
+            .Where(p => p.Tipo == tipo
+                     && p.TorneioId == dados.TorneioId
+                     && p.JogadorId == dados.Jogador1Id
+                     && p.Status == "Pendente"
+                     && p.InvoiceUrl != null)
+            .ToListAsync();
+
+        foreach (var pagamento in candidatas)
+        {
+            var alvo = Desserializar<DadosInscricaoTorneio>(pagamento);
+            if (alvo == null) continue;
+
+            if (alvo.CategoriaId == dados.CategoriaId
+                && alvo.Jogador1Id == dados.Jogador1Id
+                && alvo.Jogador2Id == dados.Jogador2Id
+                && alvo.SemParceiro == dados.SemParceiro)
+            {
+                return pagamento.InvoiceUrl;
+            }
+        }
+
+        return null;
+    }
+
+    // Já existe uma cobrança aberta pra ESTA inscrição? Devolve a fatura dela.
+    //
+    // ⚠️ A comparação é pela INSCRIÇÃO (dupla ou inscrição de americano), e não por
+    // jogador+torneio: com múltiplas categorias ligadas, a mesma pessoa tem duas inscrições no
+    // mesmo torneio, e casar por jogador devolveria a fatura da OUTRA — ela pagaria a
+    // categoria errada e as duas ficariam erradas.
+    //
+    // Por isso o filtro fino é feito em memória, sobre o JSON: são pouquíssimas linhas (as
+    // pendentes daquela pessoa naquele torneio), e o `DadosInscricao` não é consultável em SQL.
+    private async Task<string?> CobrancaPendenteDaInscricaoAsync(DadosPagamentoDeInscricao dados)
+    {
+        var candidatas = await _context.Pagamentos
+            .Where(p => p.Tipo == "TorneioPagarDepois"
+                     && p.TorneioId == dados.TorneioId
+                     && p.Status == "Pendente"
+                     && p.InvoiceUrl != null)
+            .ToListAsync();
+
+        foreach (var pagamento in candidatas)
+        {
+            var alvo = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+            if (alvo == null) continue;
+
+            if (alvo.DuplaId == dados.DuplaId
+                && alvo.InscricaoAmericanaId == dados.InscricaoAmericanaId)
+            {
+                return pagamento.InvoiceUrl;
+            }
+        }
+
+        return null;
+    }
+
+    // O valor de uma inscrição QUE JÁ EXISTE: o que ficou gravado nela quando nasceu.
+    //
+    // Nulo = inscrição anterior à coluna `ValorInscricao`; aí vale o cálculo de sempre (preço
+    // do torneio × pessoas), que naquele tempo era exatamente o que tinha sido cobrado.
+    private async Task<decimal> ValorJaCombinadoAsync(
+        Torneio torneio, bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados)
+    {
+        decimal? gravado = dados.DuplaId is int duplaId
+            ? (await _context.Duplas.FindAsync(duplaId))?.ValorInscricao
+            : dados.InscricaoAmericanaId is int inscricaoId
+                ? (await _context.InscricoesAmericanas.FindAsync(inscricaoId))?.ValorInscricao
+                : null;
+
+        return gravado ?? torneio.ValorCobrado(inscricaoDeDupla, impedimentos);
+    }
+
+    // O valor da inscrição, PESSOA A PESSOA — quem já está no torneio paga o preço da segunda
+    // inscrição (ver Services/PrecoDaInscricao).
+    //
+    // ⚠️ O número de PESSOAS continua vindo do formato (dupla = 2), e não de quantos ids eu
+    // conheço: a dupla "procurando parceiro" segue custando por duas, como sempre custou.
+    // Fazer o parceiro ausente sumir da conta seria mudar o PREÇO de todo torneio de dupla de
+    // carona numa mudança que era só sobre desconto — e ninguém pediu isso.
+    //
+    // O parceiro ainda desconhecido paga o preço CHEIO: não dá pra saber se ele repete, e
+    // errar pra menos aqui tira dinheiro do organizador sem ele ter escolhido.
+    private async Task<decimal> ValorDaInscricaoAsync(
+        Torneio torneio, bool inscricaoDeDupla, IEnumerable<int?> jogadoresConhecidos, int impedimentos)
+    {
+        // ⚠️ QUANTAS PESSOAS a inscrição cobra sai de QUEM ESTÁ NELA, não do formato dela
+        // (Felipe, 08/08/2026). Antes o teto virava piso: dupla cobrava 2 mesmo com o segundo
+        // nome em branco, então quem entrava "procurando parceiro" pagava por DOIS — sozinho,
+        // e sem saber quem seria o outro.
+        //
+        // A régua já existia do outro lado: TaxaDoTorneioExterno.PessoasInscritas conta dupla
+        // sem parceiro como 1 ("cobrar por alguém que ainda não foi definido seria cobrar por
+        // fantasma"). Eram as duas contas discordando sobre a mesma inscrição — o site cobrava
+        // 2 e a base da taxa contava 1.
+        //
+        // `inscricaoDeDupla` continua valendo como TETO: numa dupla entram no máximo dois.
+        var ids = jogadoresConhecidos
+            .Where(id => id.HasValue).Select(id => id!.Value)
+            .Take(inscricaoDeDupla ? 2 : 1)
+            .ToList();
+
+        var jaEstao = await QuemJaEstaNoTorneio.DentreAsync(_context, torneio.Id, ids);
+        var repetindo = ids.Select(id => jaEstao.Contains(id)).ToList();
+
+        // Ninguém conhecido não é inscrição de graça: cobra uma pessoa, pelo preço cheio.
+        if (repetindo.Count == 0) repetindo.Add(false);
+
+        return PrecoDaInscricao.Total(torneio, repetindo, impedimentos);
     }
 
     // Cada impedimento marcado tira uma janela da grade do organizador — quando ele cobra
@@ -402,7 +602,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private async Task<string?> CriarCobrancaAsync(Jogador recebedor, Jogador pagador, decimal preco,
         string tipoOperacao, string tipoPagamento, string descricao, object dados,
         int? torneioId, int? jogoAulaId, string? modoComissao = null,
-        decimal? percentual = null, string billingType = "UNDEFINED")
+        decimal? percentual = null, string billingType = "UNDEFINED",
+        // Até quando esta cobrança vale. Nulo = a regra de sempre (os minutos do gateway), que
+        // é o certo pra quadra, aula e mensalidade: ali o valor fica reservado e não pode
+        // ficar pendurado. Quem manda outra data é o torneio que aceita pagar depois —
+        // ver Services/PrazoParaPagar.
+        DateTime? expiraEm = null)
     {
         var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor.ModoComissao, percentual);
 
@@ -422,7 +627,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             Comissao = rateio.Comissao,
             AsaasCustomerId = clienteId,
             DadosInscricao = JsonSerializer.Serialize(dados),
-            ExpiraEm = DateTime.Now.AddMinutes(_settings.MinutosParaPagar),
+            ExpiraEm = expiraEm ?? DateTime.Now.AddMinutes(_settings.MinutosParaPagar),
             Status = "Pendente"
         };
         _context.Pagamentos.Add(pagamento);
@@ -435,7 +640,11 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             pagamento.Id.ToString(),
             // Boleto precisa de mais que "amanhã": só compensar já leva 1 dia útil. Ver
             // VencimentoDaCobranca — Pix e cartão seguem em 1 dia, como sempre foram.
-            VencimentoDaCobranca.Para(billingType, DateTime.Today),
+            //
+            // ⚠️ E o `expiraEm` vai JUNTO: é o que faz o vencimento lá no gateway acompanhar o
+            // prazo que a tela prometeu. Sem ele, "Pague até 21/09" convivia com uma fatura que
+            // vencia amanhã — os dois relógios corriam separados, e o curto vencia.
+            VencimentoDaCobranca.Para(billingType, DateTime.Today, expiraEm),
             recebedor.AsaasWalletId,
             billingType);
 
@@ -481,6 +690,19 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             return false;
         }
 
+        // ⚠️ "Pagar depois" desfaz de um jeito DIFERENTE, e sair daqui é obrigatório: no
+        // caminho de baixo o dinheiro de volta APAGA a inscrição, porque lá ela só nasceu por
+        // causa do pagamento. Aqui a vaga existia antes e continua existindo — o que volta
+        // atrás é só o "pago".
+        //
+        // Não é detalhe: o JSON deste tipo é outro (DadosPagamentoDeInscricao), então a
+        // desserialização abaixo devolveria um objeto zerado e o código removeria a linha de
+        // OUTRA pessoa, achada por um id que veio da tabela errada.
+        if (pagamento.Tipo == "TorneioPagarDepois")
+        {
+            return await DesfazerPagamentoDeInscricaoAsync(pagamento);
+        }
+
         var dados = Desserializar<DadosInscricaoTorneio>(pagamento);
         if (dados == null) return false;
 
@@ -518,6 +740,41 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         }
 
         _logger.LogInformation("Pagamento {Id} estornado — inscrição desfeita.", pagamento.Id);
+        return true;
+    }
+
+    // Estorno do "pagar agora": a inscrição FICA, só deixa de estar paga. Quem garantiu a
+    // vaga não a perde por ter tomado o dinheiro de volta — ele acerta por fora com o
+    // organizador, que é exatamente o combinado desse tipo de torneio.
+    private async Task<bool> DesfazerPagamentoDeInscricaoAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+        if (dados == null) return false;
+
+        if (dados.DuplaId is int duplaId)
+        {
+            var dupla = await _context.Duplas.FindAsync(duplaId);
+            if (dupla == null) return false;
+
+            dupla.Pago = false;
+            dupla.PagoEm = null;
+        }
+        else if (dados.InscricaoAmericanaId is int inscricaoId)
+        {
+            var inscricao = await _context.InscricoesAmericanas.FindAsync(inscricaoId);
+            if (inscricao == null) return false;
+
+            inscricao.Pago = false;
+            inscricao.PagoEm = null;
+        }
+        else
+        {
+            return false;
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Pagamento {Id} estornado — inscrição segue de pé, marcada como "
+            + "não paga.", pagamento.Id);
         return true;
     }
 
@@ -595,10 +852,67 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             case "AssinaturaProfessor":
                 await EfetivarAssinaturaAsync(pagamento);
                 break;
+            // ⚠️ TEM que vir ANTES do default: no default o pagamento CRIA a inscrição, e aqui
+            // ela já existe — cair lá deixaria a pessoa inscrita duas vezes, ocupando duas
+            // vagas e aparecendo duas vezes na chave.
+            case "TorneioPagarDepois":
+                await EfetivarPagamentoDeInscricaoAsync(pagamento);
+                break;
             default:
                 await EfetivarTorneioAsync(pagamento);
                 break;
         }
+    }
+
+    // O dinheiro entrou pra uma inscrição que JÁ estava na lista: ela só passa a ser paga.
+    //
+    // O carimbo do ReferenciaId no fim é o que torna isto idempotente — o Asaas reenvia o
+    // mesmo evento até receber 200, e o EfetivarAsync sai fora quando ele já está preenchido.
+    private async Task EfetivarPagamentoDeInscricaoAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+        if (dados == null) return;
+
+        if (dados.DuplaId is int duplaId)
+        {
+            var dupla = await _context.Duplas.FindAsync(duplaId);
+            if (dupla == null)
+            {
+                // A inscrição sumiu entre a cobrança e a confirmação (desistência). O dinheiro
+                // entrou e não há vaga: fica no log pra devolução à mão, porque inscrever de
+                // volta alguém que desistiu seria pior.
+                _logger.LogError("Pagamento {Id} confirmado, mas a dupla {DuplaId} não existe mais — "
+                    + "devolver à mão (ver ESTORNO.md).", pagamento.Id, duplaId);
+                return;
+            }
+
+            dupla.Pago = true;
+            dupla.PagoEm = DateTime.Now;
+            pagamento.ReferenciaId = dupla.Id;
+        }
+        else if (dados.InscricaoAmericanaId is int inscricaoId)
+        {
+            var inscricao = await _context.InscricoesAmericanas.FindAsync(inscricaoId);
+            if (inscricao == null)
+            {
+                _logger.LogError("Pagamento {Id} confirmado, mas a inscrição {InscricaoId} não existe "
+                    + "mais — devolver à mão (ver ESTORNO.md).", pagamento.Id, inscricaoId);
+                return;
+            }
+
+            inscricao.Pago = true;
+            inscricao.PagoEm = DateTime.Now;
+            pagamento.ReferenciaId = inscricao.Id;
+        }
+        else
+        {
+            _logger.LogError("Pagamento {Id} do tipo TorneioPagarDepois não diz qual inscrição "
+                + "pagar.", pagamento.Id);
+            return;
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Pagamento {Id} confirmado — inscrição marcada como paga.", pagamento.Id);
     }
 
     // A mensalidade entrou: estende a assinatura em 1 mês a partir de onde ela estiver.
@@ -795,6 +1109,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 // Chegou aqui porque o dinheiro entrou: a inscrição já nasce quitada.
                 Pago = true,
                 PagoEm = DateTime.Now,
+                // ⚠️ O que foi REALMENTE cobrado, e não o preço do torneio: com desconto de
+                // segunda inscrição os dois divergem, e é este número que os somatórios
+                // (relatório, devolução, base da taxa do externo) precisam ler.
+                ValorInscricao = pagamento.Valor,
             };
             _context.Duplas.Add(dupla);
             await _context.SaveChangesAsync();
@@ -809,6 +1127,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 EmListaDeEspera = emListaDeEspera,
                 Pago = true,
                 PagoEm = DateTime.Now,
+                ValorInscricao = pagamento.Valor,
             };
             _context.InscricoesAmericanas.Add(inscricao);
             await _context.SaveChangesAsync();

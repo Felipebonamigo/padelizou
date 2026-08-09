@@ -32,4 +32,8 @@ public class InscricaoAmericana
     // organizador pode virar na mão (muita inscrição é paga em dinheiro na quadra).
     public bool Pago { get; set; }
     public DateTime? PagoEm { get; set; }
+
+    // Mesma ideia do Dupla.ValorInscricao: quanto ESTA inscrição custou, gravado quando ela
+    // nasce. Nulo = anterior à coluna, e aí quem soma usa o preço do torneio.
+    public decimal? ValorInscricao { get; set; }
 }

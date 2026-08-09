@@ -410,6 +410,52 @@ namespace Padelizou.Controllers
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
 
+            // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de
+            // recebimento de pé). É o que decide se a inscrição pergunta "pagar agora ou
+            // depois" — ver Services/QuandoPagarInscricao.
+            ViewBag.TorneioPodeCobrar = _pagamentos.PodeCobrar(torneio, recebedorTorneio);
+
+            // ── "Pagar agora": a MINHA inscrição que ainda não foi paga ──────────────────
+            // Só existe em torneio que cobra pelo site e que NÃO exige pagamento na inscrição
+            // (nos que exigem, a inscrição já nasce paga). Antes disso, quem entrava nesse
+            // arranjo não tinha como pagar pelo app em lugar nenhum.
+            if (jogadorLogadoId.HasValue && _pagamentos.PodeCobrar(torneio, recebedorTorneio))
+            {
+                var minhaDupla = await _context.Duplas
+                    .Where(d => d.Categoria.TorneioId == id && !d.Pago && d.NomeTime == null
+                             && (d.Jogador1Id == jogadorLogadoId.Value || d.Jogador2Id == jogadorLogadoId.Value))
+                    .Select(d => new
+                    {
+                        d.Id,
+                        Impedimentos = (d.ImpedimentoSextaNoite ? 1 : 0)
+                                     + (d.ImpedimentoSabadoManha ? 1 : 0)
+                                     + (d.ImpedimentoSabadoTarde ? 1 : 0),
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (minhaDupla != null)
+                {
+                    ViewBag.MinhaInscricaoNaoPagaDuplaId = minhaDupla.Id;
+                    ViewBag.MinhaInscricaoNaoPagaValor =
+                        torneio.ValorCobrado(inscricaoDeDupla: true, impedimentos: minhaDupla.Impedimentos);
+                }
+                else
+                {
+                    var minhaAmericana = await _context.InscricoesAmericanas
+                        .Where(i => i.Categoria.TorneioId == id && !i.Pago
+                                 && i.JogadorId == jogadorLogadoId.Value)
+                        .Select(i => (int?)i.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (minhaAmericana is int americanaId)
+                    {
+                        ViewBag.MinhaInscricaoNaoPagaAmericanaId = americanaId;
+                        ViewBag.MinhaInscricaoNaoPagaValor =
+                            torneio.ValorCobrado(inscricaoDeDupla: false, impedimentos: 0);
+                    }
+                }
+            }
+
             // ⚠️ Duas perguntas diferentes: EDITAR (organizador de verdade) e ABRIR A TELA (que
             // o assistente do sistema também pode). A aba de gestão aparece pelos dois, mas em
             // modo leitura ela vem com os formulários desligados — ver PoderesNoSistema.
@@ -491,7 +537,7 @@ namespace Padelizou.Controllers
                             Categoria = d.Categoria.Nome,
                             Contato = d.Jogador1.Celular,
                             // Dupla paga pelos DOIS: o preço do torneio é por pessoa.
-                            Valor = torneio.PrecoInscricao * (d.Jogador2Id == null ? 1 : 2),
+                            Valor = PrecoDaInscricao.DaDupla(torneio, d),
                             PagoEm = d.PagoEm,
                         })
                         .ToListAsync();
@@ -503,7 +549,7 @@ namespace Padelizou.Controllers
                             Quem = i.Jogador.Nome,
                             Categoria = i.Categoria.Nome,
                             Contato = i.Jogador.Celular,
-                            Valor = torneio.PrecoInscricao,
+                            Valor = PrecoDaInscricao.DaInscricaoAmericana(torneio, i),
                             PagoEm = i.PagoEm,
                         })
                         .ToListAsync();

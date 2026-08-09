@@ -363,7 +363,10 @@ namespace padelizou.Controllers
         public async Task<IActionResult> EditarPerfil(
             string nome, string email, string? celular, string? cidade, string? estado, bool isProfessor, IFormFile? foto,
             string? apelido = null,
-            bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null)
+            bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null,
+            // Nulo = a aba veio de antes deste campo existir. Aí o que está gravado FICA: quem
+            // já informou o sexo não pode perdê-lo por causa de um formulário em cache.
+            string? sexo = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -466,6 +469,14 @@ namespace padelizou.Controllers
             // resolve espaço sobrando e duplicado; acento continua por conta de quem digita.
             jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : NomeDeCidade.Arrumar(cidade);
             jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+
+            // ⚠️ Só grava quando veio um valor RECONHECIDO. Campo em branco (aba antiga, ou
+            // quem não quis responder) mantém o que já estava — apagar o sexo de quem já
+            // informou o barraria da Mista e da Casais sem ele ter mexido em nada.
+            if (SexoDoJogador.Normalizar(sexo) is { } sexoEscolhido)
+            {
+                jogador.Sexo = sexoEscolhido;
+            }
 
             // Guardado ANTES de sobrescrever: quem acabou de marcar "sou professor" vai direto
             // definir a cidade, em vez de voltar pro perfil achando que terminou. Marcar a
@@ -696,9 +707,16 @@ namespace padelizou.Controllers
             return RedirectToAction("Index", "Home");
         }
         // 5. TELA DE CADASTRO (Abre o formulário)
+        //
+        // `returnUrl` atravessa o cadastro pelo mesmo motivo que atravessa o login, e o buraco
+        // aqui era pior: quem chega por um CONVITE (o link da panelinha no WhatsApp) quase
+        // nunca tem conta — é justamente pra essa pessoa que o convite existe. Ela caía no
+        // login, tocava em "Cadastre-se", e o destino se perdia ali: criava a conta e ia parar
+        // na Home, sem nunca entrar na panelinha pra qual foi chamada.
         [HttpGet]
-        public async Task<IActionResult> Cadastro()
+        public async Task<IActionResult> Cadastro(string? returnUrl)
         {
+            ViewBag.ReturnUrl = returnUrl;
             await PopularCatalogosAsync();
             return View();
         }
@@ -720,8 +738,20 @@ namespace padelizou.Controllers
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
             string? apelido = null, int[]? cidadesSelecionadas = null, string? novoClubeNome = null,
             string? novaCidadeNome = null, string? novaCidadeEstado = null,
-            int? timeId = null, string? nomeTime = null)
+            int? timeId = null, string? nomeTime = null,
+            // Pedido no cadastro desde 08/08/2026 — é o que decide a inscrição na Mista e na
+            // Casais. Com default no FIM da lista de propósito: chamada antiga (e teste que
+            // não conhece o campo) continua compilando, e quem não mandar cai na recusa
+            // logo abaixo, com a mensagem certa.
+            string? sexo = null,
+            // Pra onde voltar depois de criar a conta — o convite que trouxe a pessoa até aqui.
+            string? returnUrl = null)
         {
+            // ⚠️ O destino tem que sobreviver às RECUSAS, igual no login: cada `return View()`
+            // abaixo devolve o formulário, e sem isto o primeiro erro de digitação apagaria o
+            // convite. A pessoa terminaria o cadastro na Home, sem entender o que perdeu.
+            ViewBag.ReturnUrl = returnUrl;
+
             if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(cpf) ||
                 string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
             {
@@ -744,6 +774,18 @@ namespace padelizou.Controllers
             ViewBag.FormEmail = email;
             ViewBag.FormCelular = celular;
             ViewBag.FormIsProfessor = isProfessor;
+            ViewBag.FormSexo = SexoDoJogador.Normalizar(sexo);
+
+            // A tela marca o rádio como `required`, mas POST montado à mão passa por cima —
+            // e uma conta nova sem sexo já nasceria travada fora da Mista e da Casais, sem a
+            // pessoa entender por quê.
+            if (SexoDoJogador.Normalizar(sexo) == null)
+            {
+                ViewBag.Erro = "Escolha o sexo com que você se identifica — é o que libera as "
+                             + "categorias mista e de casais.";
+                await PopularCatalogosAsync();
+                return View();
+            }
 
             // Nome e login antes de qualquer consulta: as duas colunas são varchar e o Postgres
             // RECUSA o que passa do tamanho (não corta), então sem isto o cadastro morria com
@@ -860,6 +902,12 @@ namespace padelizou.Controllers
             jogador.Login = login;
             jogador.LadoQuadra = ladoQuadra;
             jogador.Lateralidade = lateralidade;
+            // Mesma régua do perfil: só grava o que é reconhecido, e o que não vier não apaga
+            // o que já existe (quem reivindica um pré-cadastro cai por aqui também).
+            if (SexoDoJogador.Normalizar(sexo) is { } sexoEscolhido)
+            {
+                jogador.Sexo = sexoEscolhido;
+            }
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             jogador.NotificarEmail = notificarEmail;
@@ -881,6 +929,13 @@ namespace padelizou.Controllers
             // fazer outra coisa, e cada instalação é alguém alcançável por push — o único
             // canal de aviso que é 100% nosso (o WhatsApp provou isso em 04/08/2026).
             TempData["ConviteInstalarApp"] = true;
+
+            // Quem veio de um CONVITE volta pra ele. Sem isto, a pessoa criava a conta e caía
+            // no perfil — e o convite da panelinha que a trouxe até aqui virava um link que
+            // "não fez nada". Mesma trava do login: só destino local, senão o cadastro viraria
+            // trampolim pra outro site.
+            var destinoDoConvite = VoltarDepoisDoLogin.Destino(returnUrl);
+            if (Url.IsLocalUrl(destinoDoConvite)) return LocalRedirect(destinoDoConvite);
 
             return RedirectToAction("Perfil");
         }

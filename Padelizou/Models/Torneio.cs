@@ -43,6 +43,17 @@ public partial class Torneio
     // não é somada por cima.
     public decimal PrecoInscricao { get; set; }
 
+    // Quanto UMA PESSOA paga da SEGUNDA categoria em diante, no mesmo torneio. Nulo = não há
+    // desconto, e toda inscrição dela custa o preço cheio.
+    //
+    // É como o padel cobra de verdade: quem joga duas categorias paga menos na segunda,
+    // porque a segunda não traz um atleta novo — traz mais jogos pro mesmo. Só faz sentido
+    // com PermiteMultiplasCategorias ligado; desligado, ninguém entra duas vezes.
+    //
+    // ⚠️ O desconto é POR PESSOA, não por inscrição: numa dupla em que um repete e o outro
+    // não, um lado paga cheio e o outro paga o desconto. Ver Services/PrecoDaInscricao.
+    public decimal? PrecoSegundaInscricao { get; set; }
+
     // Quanto a mais custa CADA impedimento de horário marcado na inscrição. Zero = de graça.
     //
     // Impedimento não é capricho do sistema: cada um deles tira uma janela da grade e obriga

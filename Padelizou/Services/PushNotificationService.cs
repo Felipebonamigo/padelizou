@@ -64,8 +64,39 @@ public class PushNotificationService : IPushNotificationService
         if (aviso.Alcance == AlcanceDoAviso.AppEWhatsApp)
             await EnviarWhatsAppAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
 
+        // A CAIXA DE ENTRADA vem PRIMEIRO, e é o único canal que não pode falhar em silêncio.
+        // Push depende de aparelho registrado (4 em 128), e-mail depende de cota do provedor,
+        // WhatsApp depende de chip pareado — os três já falharam num dia só. A tela de
+        // Notificações é o canal que não depende de entrega nenhuma: é só abrir o app.
+        await GuardarNaCaixaDeEntradaAsync(aviso);
+
         await EnviarEmailAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
         await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
+    }
+
+    // Guarda o aviso na tela de Notificações do jogador.
+    //
+    // ⚠️ Falha aqui NÃO pode derrubar os outros canais — mesma regra do e-mail e do WhatsApp.
+    // Um erro de banco não pode impedir o push de sair; o aviso na mão da pessoa vale mais
+    // que a linha no histórico.
+    private async Task GuardarNaCaixaDeEntradaAsync(AvisoPendente aviso)
+    {
+        try
+        {
+            _context.AvisosDoJogador.Add(new AvisoDoJogador
+            {
+                JogadorId = aviso.JogadorId,
+                Titulo = aviso.Titulo,
+                Corpo = aviso.Corpo,
+                Url = aviso.Url,
+            });
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Não consegui guardar o aviso do jogador {JogadorId} na caixa de entrada.",
+                aviso.JogadorId);
+        }
     }
 
     // Falha aqui não pode derrubar o aviso, mesmo motivo do WhatsApp: SMTP fora do ar não

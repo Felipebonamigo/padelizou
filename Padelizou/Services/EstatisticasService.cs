@@ -48,8 +48,16 @@ public class EstatisticasService : IEstatisticasService
     // sumir do ranking por causa de um Include esquecido seria pior do que qualquer das duas
     // regras acima.
     public static bool ContaNoRanking(Torneio? torneio) =>
-        torneio is null
-        || (!torneio.Restrito && !FormatoDoTorneio.EhAmericano(torneio.Formato));
+        torneio is null || ContaNoRanking(torneio.Restrito, torneio.Formato);
+
+    // A mesma pergunta quando a consulta trouxe só os DOIS CAMPOS, e não o torneio inteiro —
+    // é o caso de quem projeta (`.Select`) pra não carregar entidade à toa.
+    //
+    // ⚠️ Existe pra não haver uma terceira escrita da regra: as versões que liam só
+    // `!Restrito` e esqueciam o Americano estavam justamente nesses `Select` enxutos, e cada
+    // uma delas foi um bug diferente (pontos do perfil, pontos da busca, ranking de times).
+    public static bool ContaNoRanking(bool restrito, string? formato) =>
+        !restrito && !FormatoDoTorneio.EhAmericano(formato);
 
     // A MESMA régua acima, escrita pra rodar NO BANCO.
     //
@@ -404,7 +412,23 @@ public class EstatisticasService : IEstatisticasService
             .ToList();
 
         // 3 a 8: derivados das partidas de torneio finalizadas (com vencedor definido).
-        var partidas = await CarregarPartidasFinalizadasAsync(incluirTorneio: true);
+        //
+        // ⚠️ A MESMA RÉGUA DO RANKING POR CATEGORIA VALE AQUI. Ela estava aplicada na seção 1
+        // (`porCategoria`) e no ranking de Times, mas NÃO nas seções que saem desta lista —
+        // então Vitórias (jogadores), Vitórias (duplas) e Invencibilidade continuavam contando
+        // Americano e torneio Restrito. É a régua duplicada de sempre: corrigiram uma cópia e
+        // a outra seguiu contando.
+        //
+        // O estrago era visível em produção: o "Americano das Gurias" (10 jogadoras, 13 jogos)
+        // ocupava as 8 primeiras posições do ranking geral de vitórias sozinho — um rodízio de
+        // uma noite valendo mais que qualquer campanha de torneio de chave.
+        //
+        // ⚠️ Isto NÃO tira o Americano do perfil de ninguém: o título, os jogos e a
+        // participação continuam lá, e o ponto dele vive no Ranking Americano, que é próprio.
+        // O que sai é só a contagem do ranking OFICIAL.
+        var partidas = (await CarregarPartidasFinalizadasAsync(incluirTorneio: true))
+            .Where(p => ContaNoRanking(p.Categoria?.Torneio))
+            .ToList();
 
         DateTime Ordem(Partida p) =>
             p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto
@@ -1025,19 +1049,32 @@ public class EstatisticasService : IEstatisticasService
 
     public async Task<ResumoJogadorVM> ObterResumoJogadorAsync(int jogadorId)
     {
-        // A fase de cada participação + se aquele torneio conta ponto. O torneio restrito
-        // continua na CONTA de torneios/títulos (aconteceu), mas não soma ponto — senão o
-        // número do perfil discordaria do número do ranking.
+        // A fase de cada participação + se aquele torneio conta ponto. O torneio restrito e o
+        // Americano continuam na CONTA de torneios/títulos (aconteceram, e o troféu do
+        // Americano fica no perfil), mas não somam PONTO — senão o número do perfil
+        // discordaria do número do ranking.
+        //
+        // ⚠️ Aqui estava escrito só `!Restrito`, e o Americano pontuava: a campeã do
+        // "Americano das Gurias" aparecia com 170 pts no perfil por um rodízio de uma noite.
         var participacoes = await _context.Duplas
             .Where(d => d.NomeTime == null   // time não é participação do organizador
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Select(d => new { d.UltimaFase, Restrito = d.Categoria.Torneio.Restrito })
+            .Select(d => new
+            {
+                d.UltimaFase,
+                d.Categoria.TorneioId,
+                Restrito = d.Categoria.Torneio.Restrito,
+                Formato = d.Categoria.Torneio.Formato,
+            })
             .ToListAsync();
 
         var fases = participacoes.Select(p => p.UltimaFase).ToList();
 
         int vitorias = 0, derrotas = 0;
-        var partidas = await CarregarPartidasFinalizadasAsync();
+        var partidas = (await CarregarPartidasFinalizadasAsync(incluirTorneio: true))
+            // Mesma régua das vitórias do ranking: sem isto, o card de vitórias do perfil
+            // contava rodízio e o do ranking não — dois números pra mesma pergunta.
+            .Where(p => ContaNoRanking(p.Categoria?.Torneio));
         foreach (var p in partidas)
         {
             var (minhaDupla, oppDupla) = LocalizarDuplas(p, jogadorId);
@@ -1048,8 +1085,15 @@ public class EstatisticasService : IEstatisticasService
 
         return new ResumoJogadorVM
         {
-            Pontos = participacoes.Where(p => !p.Restrito).Sum(p => PontosPorFase(p.UltimaFase)),
-            TotalTorneios = fases.Count,
+            Pontos = participacoes
+                .Where(p => ContaNoRanking(p.Restrito, p.Formato))
+                .Sum(p => PontosPorFase(p.UltimaFase)),
+
+            // ⚠️ Torneios DISTINTOS, não linhas de dupla. No Americano cada RODADA cria uma
+            // dupla nova, então um rodízio de uma noite se anunciava como "8 torneio(s)" no
+            // perfil de quem jogou UM. No Padrão o efeito era menor e igualmente errado: quem
+            // entra em duas categorias do mesmo torneio contava dois.
+            TotalTorneios = participacoes.Select(p => p.TorneioId).Distinct().Count(),
             Titulos = fases.Count(f => f == "Campeao"),
             Finais = fases.Count(f => f == "Final"),
             Semis = fases.Count(f => f == "Semifinal"),
@@ -1069,8 +1113,12 @@ public class EstatisticasService : IEstatisticasService
         if (ids.Count == 0) return pontos;
 
         var duplas = await _context.Duplas
+            // ⚠️ `DuplaContaNoRanking` e não `!Restrito` na mão: escrita à mão, esta consulta
+            // esquecia o Americano — e ela alimenta a BUSCA de jogadores e o sorteio de
+            // chaves, então o rodízio inflava o número que o organizador usa pra montar as
+            // chaves e pra julgar se alguém está se inscrevendo numa categoria fraca demais.
+            .Where(EstatisticasService.DuplaContaNoRanking)
             .Where(d => d.NomeTime == null
-                     && !d.Categoria.Torneio.Restrito   // torneio fechado não pontua
                      && (ids.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
             .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })

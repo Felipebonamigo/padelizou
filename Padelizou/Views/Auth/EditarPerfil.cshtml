@@ -121,6 +121,41 @@
                             </div>
                         </div>
 
+                        @* SEXO — pedido a quem se cadastrou antes de o campo existir.
+                           Fica em DESTAQUE (amarelo) enquanto estiver vazio, porque quem abre o
+                           perfil pra resolver isso precisa achar o campo de primeira; preenchido,
+                           ele vira um campo comum como qualquer outro. *@
+                        @{
+                            var faltaSexo = !Padelizou.Services.SexoDoJogador.Informou(Model);
+                        }
+                        <div class="row mb-4 @(faltaSexo ? "p-3 rounded border border-warning" : "")"
+                             style="@(faltaSexo ? "background-color: var(--pdz-surface-alt);" : "")">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-muted small">
+                                    Sexo
+                                    @if (faltaSexo)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">falta preencher</span>
+                                    }
+                                </label>
+                                <div class="d-flex gap-3">
+                                    @foreach (var opcao in new[] { Padelizou.Services.SexoDoJogador.Masculino, Padelizou.Services.SexoDoJogador.Feminino })
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="sexo" value="@opcao"
+                                                   id="sexo_@opcao" checked="@(Model.Sexo == opcao)" />
+                                            <label class="form-check-label" for="sexo_@opcao">@opcao</label>
+                                        </div>
+                                    }
+                                </div>
+                                <small class="text-muted">
+                                    O sexo com que você se identifica. Usado só pra categorias de dupla
+                                    mista e de casais, que são de um homem e uma mulher —
+                                    <strong>sem ele você não consegue se inscrever nessas duas</strong>.
+                                </small>
+                            </div>
+                        </div>
+
                         <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="isProfessor" value="true" id="isProfessor" style="transform: scale(1.2);" @(Model.IsProfessor ? "checked" : "") />

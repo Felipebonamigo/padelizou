@@ -147,6 +147,64 @@
     </div>
 }
 
+@* ── PAGAR AGORA: a MINHA inscrição está sem pagamento ────────────────────────────────
+   Só aparece em torneio que cobra pelo site e que não exige pagamento na hora de entrar —
+   ali a vaga já é sua e o dinheiro vem depois. Até 08/08/2026 esse arranjo não tinha saída
+   nenhuma: o app não gerava cobrança pra quem já estava inscrito, e o torneio "cobrava pelo
+   site" sem que ninguém conseguisse pagar por ele.
+
+   A escolha da forma vai junto (ForcarEscolhaDeForma) porque sem ela a cobrança nasce em
+   "UNDEFINED" e o organizador paga a taxa CHEIA em vez da de Pix/boleto. *@
+@{
+    var minhaDuplaNaoPaga = ViewBag.MinhaInscricaoNaoPagaDuplaId as int?;
+    var minhaAmericanaNaoPaga = ViewBag.MinhaInscricaoNaoPagaAmericanaId as int?;
+    var valorDaMinhaInscricao = ViewBag.MinhaInscricaoNaoPagaValor as decimal?;
+    @* Quem está olhando a tela. A lista de inscritos usa isto pra saber o que é recado
+       pessoal (o prazo de pagamento) e o que é informação do torneio (o selo). *@
+    var meuJogadorId = ViewBag.MeuJogadorId as int?;
+}
+@if (minhaDuplaNaoPaga != null || minhaAmericanaNaoPaga != null)
+{
+    <div class="alert alert-warning border-0 shadow-sm">
+        <p class="fw-bold mb-1"><i class="bi bi-cash-coin"></i> Sua inscrição está sem pagamento</p>
+        <p class="small mb-3">
+            A vaga já é sua — o pagamento é o que falta.
+            @if (valorDaMinhaInscricao is decimal valor)
+            {
+                <text>São <strong>@valor.ToString("C")</strong>.</text>
+            }
+            @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
+            {
+                <text><strong>@prazoDaMinha.</strong></text>
+            }
+        </p>
+
+        <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
+            <input type="hidden" name="torneioId" value="@Model.Id" />
+            @if (minhaDuplaNaoPaga is int duplaPagar)
+            {
+                <input type="hidden" name="duplaId" value="@duplaPagar" />
+            }
+            else
+            {
+                <input type="hidden" name="inscricaoAmericanaId" value="@minhaAmericanaNaoPaga" />
+            }
+
+            @{
+                ViewData["ForcarEscolhaDeForma"] = true;
+            }
+            <partial name="_EscolhaFormaPagamento" model="Model" />
+            @{
+                ViewData["ForcarEscolhaDeForma"] = null;
+            }
+
+            <button type="submit" class="btn btn-padel rounded-pill">
+                <i class="bi bi-credit-card me-1"></i> Pagar agora
+            </button>
+        </form>
+    </div>
+}
+
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@
@@ -298,7 +356,10 @@
 
     <!-- ABA 1: LISTA DE INSCRITOS -->
     <div class="tab-pane fade @(torneioComecou ? "" : "show active")" id="inscritos" role="tabpanel">
-        <h4 class="mb-3" style="color: var(--pdz-ink);">@(Model.Formato == "Americano" ? "Inscritos" : "Duplas Confirmadas")</h4>
+        @* "Duplas INSCRITAS", e não "Confirmadas": num torneio em que o pagamento é aprovado
+           depois, a lista tem gente com pagamento pendente — e "confirmada" ao lado de um selo
+           "Pagamento pendente" é a tela se contradizendo. *@
+        <h4 class="mb-3" style="color: var(--pdz-ink);">@(Model.Formato == "Americano" ? "Inscritos" : "Duplas Inscritas")</h4>
         @{
             var inscricoesAmericanas = ViewBag.InscricoesAmericanas as List<Padelizou.Models.InscricaoAmericana> ?? new();
         }
@@ -310,13 +371,17 @@
             <label class="form-label fw-bold small">Categoria</label>
             @* O número vai no próprio nome da opção: sem isso, saber onde ainda tem vaga
                exigia abrir uma categoria de cada vez e voltar. *@
+            @* Ordem e nome curto vêm de Services/CategoriaNaTela: a lista saía na ordem de
+               CRIAÇÃO (a 4ª Feminina, acrescentada depois, caía atrás da 7ª), e o rótulo
+               repetia "Categoria" dentro de um campo já chamado Categoria — era essa palavra
+               que jogava cada opção pra segunda linha no celular. *@
             <select id="seletorCategoriaInscritos" class="form-select" onchange="mostrarCategoriaInscritos(this.value)">
-                @foreach (var cat in Model.Categorias)
+                @foreach (var cat in Model.Categorias.OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                 {
                     var quantos = Padelizou.Services.QuantosInscritos.DaCategoria(Model, cat, inscricoesAmericanas);
                     var limite = cat.LimiteDuplas.HasValue ? $"/{cat.LimiteDuplas}" : "";
                     <option value="@cat.Id" selected="@(cat.Id == categoriaSelecionadaId)">
-                        @cat.Nome (@quantos@limite)
+                        @Padelizou.Services.CategoriaNaTela.Curto(cat.Nome) (@quantos@limite)
                     </option>
                 }
             </select>
@@ -410,6 +475,24 @@
                             {
                                 <div class="col">
                                     <div class="border rounded p-3 h-100">
+                                        @* Mesmo selo da inscrição em dupla: no Americano a
+                                           inscrição é individual, mas o pagamento é a mesma
+                                           história. *@
+                                        @if (Padelizou.Services.PagamentoDaInscricao.TemOQueMostrar(Model))
+                                        {
+                                            <span class="badge @Padelizou.Services.PagamentoDaInscricao.Cor(inscricao.Pago) mb-2">
+                                                <i class="bi @(inscricao.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
+                                                @Padelizou.Services.PagamentoDaInscricao.Selo(inscricao.Pago)
+                                            </span>
+                                            @* O prazo é do dono da inscrição, igual à lista de duplas —
+                                               a mesma régua nos dois lugares, senão só um dos dois
+                                               receberia a próxima mudança. *@
+                                            @if (Padelizou.Services.PrazoParaPagar.FraseParaODono(
+                                                    Model, inscricao.JogadorId == meuJogadorId, inscricao.Pago) is { } prazoAmericano)
+                                            {
+                                                <span class="badge bg-secondary mb-2 ms-1">@prazoAmericano</span>
+                                            }
+                                        }
                                         <partial name="_JogadorChip" model="inscricao.Jogador" />
                                     </div>
                                 </div>
@@ -428,6 +511,32 @@
                         {
                             <div class="col">
                                 <div class="border rounded p-3 h-100">
+                                    @* O selo do pagamento (Felipe, 08/08/2026). Neste torneio o
+                                       pagamento é aprovado pelo organizador, então a inscrição
+                                       existe antes do dinheiro — e a lista não dizia nada sobre
+                                       isso. Quem não pagou CONTINUA aparecendo: a vaga é dele,
+                                       muda só o selo. Ver Services/PagamentoDaInscricao. *@
+                                    @if (Padelizou.Services.PagamentoDaInscricao.TemOQueMostrar(Model))
+                                    {
+                                        <span class="badge @Padelizou.Services.PagamentoDaInscricao.Cor(dupla.Pago) mb-2">
+                                            <i class="bi @(dupla.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
+                                            @Padelizou.Services.PagamentoDaInscricao.Selo(dupla.Pago)
+                                        </span>
+                                        @* O prazo ao lado do selo: "pendente" sem data não diz se é
+                                           pra hoje ou pro mês que vem. Só aparece quando existe data
+                                           combinada — e SÓ PRA QUEM DEVE, porque é recado pessoal e
+                                           não placar público (ver PrazoParaPagar.FraseParaODono). *@
+                                        @* ⚠️ O `meuJogadorId != null` não é sobra: `Jogador2Id` é
+                                           anulável, e sem a guarda a dupla SEM PARCEIRO casaria
+                                           com o visitante deslogado (nulo == nulo). *@
+                                        @if (Padelizou.Services.PrazoParaPagar.FraseParaODono(Model,
+                                                souDaInscricao: meuJogadorId != null
+                                                    && (dupla.Jogador1Id == meuJogadorId || dupla.Jogador2Id == meuJogadorId),
+                                                pago: dupla.Pago) is { } prazoDupla)
+                                        {
+                                            <span class="badge bg-secondary mb-2 ms-1">@prazoDupla</span>
+                                        }
+                                    }
                                     <partial name="_JogadorChip" model="dupla.Jogador1" />
                                     @* Inscrição sem parceiro tem Jogador2 nulo — o chip
                                        espera um jogador de verdade e explodia a tela toda. *@
@@ -631,10 +740,12 @@
                     <label class="form-label fw-bold">Selecione a Categoria</label>
                     <select name="categoriaId" class="form-select" required>
                         <option value="">-- Escolha uma categoria --</option>
-                        @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
-                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
+                        @* Times e chave direta ficam fora: nas duas quem monta é o organizador.
+                           Ordem e nome curto: ver Services/CategoriaNaTela. *@
+                        @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
+                                                             .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                         {
-                            <option value="@cat.Id">@cat.Nome</option>
+                            <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
                         }
                     </select>
                 </div>
@@ -662,6 +773,9 @@
                 }
 
                 <partial name="_EscolhaFormaPagamento" model="Model" />
+                @* Os dois nunca aparecem juntos: um é do torneio que exige pagamento na
+                   inscrição, o outro do que aceita pagar até o fechamento. *@
+                <partial name="_QuandoPagar" model="Model" />
 
                 <button type="submit" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
                     <i class="bi bi-check2-circle"></i> Confirmar Inscrição Individual
@@ -677,10 +791,12 @@
                 <label class="form-label fw-bold">Selecione a Categoria</label>
                 <select name="categoriaId" class="form-select" required>
                     <option value="">-- Escolha uma categoria --</option>
-                    @* Times e chave direta ficam fora: nas duas quem monta é o organizador. *@
-                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta))
+                    @* Times e chave direta ficam fora: nas duas quem monta é o organizador.
+                       Ordem e nome curto: ver Services/CategoriaNaTela. *@
+                    @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
+                                                         .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                     {
-                        <option value="@cat.Id">@cat.Nome</option>
+                        <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
                     }
                 </select>
 
@@ -943,6 +1059,9 @@
             }
 
             <partial name="_EscolhaFormaPagamento" model="Model" />
+            @* Os dois nunca aparecem juntos: um é do torneio que exige pagamento na inscrição,
+               o outro do que aceita pagar até o fechamento. *@
+            <partial name="_QuandoPagar" model="Model" />
 
             @* O id existe pro aviso de "já inscrito" poder travar o envio quando o parceiro
                escolhido já tem dupla fechada nesta categoria. *@
@@ -1678,27 +1797,88 @@
                                    existe "pagar depois". Um torneio que virou "pelo site" com ela
                                    desligada cobra pelo site só no nome; foi o que aconteceu no
                                    NATA PADEL TOUR, que nasceu por fora. *@
+                                @* Preço da 2ª categoria do mesmo jogador. Editável aqui, e não
+                                   só na criação: é o normal do padel e o organizador costuma
+                                   decidir isso depois de ver quanta gente quer duas categorias.
+                                   Não mexe em quem já entrou — cada inscrição guarda o que
+                                   custou (ver Services/PrecoDaInscricao). *@
+                                @if (Padelizou.Services.PrecoDaInscricao.CabeSegundoPreco(Model))
+                                {
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small">
+                                            Preço da 2ª categoria do mesmo jogador
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            <input type="number" step="0.01" min="0" class="form-control"
+                                                   name="precoSegundaInscricao"
+                                                   value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.PrecoSegundaInscricao)"
+                                                   placeholder="mesmo preço" />
+                                        </div>
+                                        <div class="form-check mt-1">
+                                            @* Campo em branco não chega ao servidor como "apague":
+                                               chega como ausente, e ausente significa "não mexi".
+                                               Sem esta caixa não haveria como TIRAR o desconto. *@
+                                            <input class="form-check-input" type="checkbox" value="true"
+                                                   name="limparSegundoPreco" id="limparSegundoPreco" />
+                                            <label class="form-check-label small text-muted" for="limparSegundoPreco">
+                                                Tirar o desconto (toda inscrição volta a custar o preço cheio)
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">
+                                            Vale pra quem se inscrever daqui pra frente; quem já entrou mantém o que pagou.
+                                        </small>
+                                    </div>
+                                }
+
                                 @if (Model.CobraPeloSite && Model.PrecoInscricao > 0)
                                 {
                                     <div class="col-12">
                                         <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="pagamentoObrigatorio"
-                                                       value="true" id="edPagObrigatorio" style="transform: scale(1.2); margin-right: 8px;"
+                                            <label class="form-label fw-bold small">Quando o jogador precisa pagar?</label>
+
+                                            @* DUAS OPÇÕES, e não um interruptor (Felipe, 08/08/2026). O
+                                               interruptor escondia a segunda escolha atrás de um "desligado",
+                                               e "desligado" não conta o que acontece no lugar. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="pagamentoObrigatorio"
+                                                       value="true" id="edPagAgora"
                                                        checked="@Model.PagamentoObrigatorioNaInscricao" />
-                                                <label class="form-check-label fw-bold small" for="edPagObrigatorio">
-                                                    Só confirmo a inscrição depois de pago
+                                                <label class="form-check-label" for="edPagAgora">
+                                                    <span class="fw-bold small">@Padelizou.Services.PrazoParaPagar.SoDepoisDePago</span>
+                                                    <span class="d-block small text-muted">
+                                                        A vaga só existe com o dinheiro. Acaba o calote — mas
+                                                        <strong>quem abandona o checkout não aparece na lista</strong>,
+                                                        e some sem deixar rastro.
+                                                    </span>
                                                 </label>
-                                                @* O hidden vem DEPOIS do checkbox: o binder de bool fica
-                                                   com o primeiro valor, e com ele na frente marcar valeria
-                                                   "false" — a chave faria o contrário do que diz. *@
-                                                <input type="hidden" name="pagamentoObrigatorio" value="false" />
-                                                <div class="small text-muted ps-1 mt-1">
-                                                    <strong>Ligado:</strong> o jogador cai no checkout e a vaga só nasce paga.
-                                                    <strong>Desligado:</strong> ele garante a vaga na hora e acerta com você por fora —
-                                                    e aí <strong>o sistema não gera cobrança nenhuma</strong>, mesmo o torneio cobrando pelo site.
-                                                    <div class="mt-1">Vale pra quem se inscrever daqui pra frente; quem já está dentro não muda.</div>
-                                                </div>
+                                            </div>
+
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="pagamentoObrigatorio"
+                                                       value="false" id="edPagDepois"
+                                                       checked="@(!Model.PagamentoObrigatorioNaInscricao)" />
+                                                <label class="form-check-label" for="edPagDepois">
+                                                    <span class="fw-bold small">@Padelizou.Services.PrazoParaPagar.AteOFechamento</span>
+                                                    <span class="d-block small text-muted">
+                                                        A vaga nasce na hora, marcada como <strong>Pagamento pendente</strong>,
+                                                        e o jogador paga pelo botão <strong>Pagar agora</strong> até o
+                                                        fechamento das inscrições.
+                                                        @if (Model.PrevisaoEncerramentoInscricoes is DateTime fecha)
+                                                        {
+                                                            <text>No seu torneio isso dá até <strong>@fecha.ToString("dd/MM")</strong>.</text>
+                                                        }
+                                                        else
+                                                        {
+                                                            <text><strong>Preencha "Inscrições fecham em"</strong> acima pra ter uma data —
+                                                            sem ela o prazo fica em aberto.</text>
+                                                        }
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            <div class="small text-muted ps-1 mt-2">
+                                                Vale pra quem se inscrever daqui pra frente; quem já está dentro não muda.
                                             </div>
                                         </div>
                                     </div>

@@ -20,7 +20,11 @@ public record MaterialDoTrofeu(
 // Um troféu da prateleira: o material desenha, mas quem dá nome é a CATEGORIA. Ninguém ganha
 // "um diamante" — ganha a 1ª Categoria Masculina, e é isso que a pessoa quer ler no perfil.
 // O material continua existindo pra desenhar a taça e pra ordenar a fila.
-public record TrofeuContado(MaterialDoTrofeu Material, string Categoria, int Titulos);
+//
+// `EhAmericano` marca o título de rodízio (decisão do Felipe, 08/08/2026): ele CONTINUA no
+// perfil — foi ganho —, mas não pode se passar por título de torneio de chave. Sem a marca,
+// vencer o Americano da 6ª aparecia igualzinho a ser campeão da 6ª Categoria Feminina.
+public record TrofeuContado(MaterialDoTrofeu Material, string Categoria, int Titulos, bool EhAmericano = false);
 
 public static class TrofeuDeMaterial
 {
@@ -68,33 +72,44 @@ public static class TrofeuDeMaterial
     //
     // Ordena pelo material mais forte; os de fora da escada (vidro/geral) vão pro fim, e entre
     // iguais manda quem tem mais título.
-    public static List<TrofeuContado> Contar(IEnumerable<(string? Categoria, string? UltimaFase)> campanhas)
+    // ⚠️ O AMERICANO CONTA SEPARADO, mesmo na mesma categoria: ganhar a 6ª num torneio de
+    // chave e ganhar o rodízio da 6ª são duas conquistas diferentes, e somá-las num "2× 6ª
+    // Categoria Feminina" apagaria justamente a diferença que o Felipe pediu pra mostrar.
+    // Por isso a marca entra na CHAVE do agrupamento, não só na exibição.
+    public static List<TrofeuContado> Contar(
+        IEnumerable<(string? Categoria, string? UltimaFase, bool EhAmericano)> campanhas)
     {
-        var porCategoria = new Dictionary<string, (MaterialDoTrofeu Material, string Nome, int Titulos)>();
+        var porCategoria = new Dictionary<string, (MaterialDoTrofeu Material, string Nome, int Titulos, bool Americano)>();
 
-        foreach (var (categoria, fase) in campanhas)
+        foreach (var (categoria, fase, ehAmericano) in campanhas)
         {
             if (fase != "Campeao") continue;
 
-            var material = Do(categoria);
+            // O Americano usa VIDRO pelo mesmo motivo da mista e da de casais: não é um degrau
+            // da escada de força, é outro jogo. Deixá-lo com o material da categoria daria à
+            // taça a mesma aparência do título de chave.
+            var material = ehAmericano ? Vidro : Do(categoria);
 
             // Categoria sem nome (dado antigo ou torneio importado) cai no nome do material:
             // é feio deixar a taça sem legenda nenhuma.
             var nome = string.IsNullOrWhiteSpace(categoria) ? material.Nome : categoria.Trim();
-            var chave = nome.ToLowerInvariant();
+            var chave = (ehAmericano ? "americano:" : "oficial:") + nome.ToLowerInvariant();
 
             // Na segunda passagem só o contador sobe: reescrever o nome faria a grafia da
             // ÚLTIMA campanha ganhar, e um " 2ª CATEGORIA " digitado torto apagaria a boa.
             porCategoria[chave] = porCategoria.TryGetValue(chave, out var v)
-                ? (v.Material, v.Nome, v.Titulos + 1)
-                : (material, nome, 1);
+                ? (v.Material, v.Nome, v.Titulos + 1, v.Americano)
+                : (material, nome, 1, ehAmericano);
         }
 
         return porCategoria.Values
+            // Título de chave vem primeiro: dentro da mesma força, o Americano é o desempate
+            // de baixo — a prateleira abre pelo que é mais difícil de ganhar.
             .OrderByDescending(t => t.Material.Forca)
+            .ThenBy(t => t.Americano)
             .ThenByDescending(t => t.Titulos)
             .ThenBy(t => t.Nome)
-            .Select(t => new TrofeuContado(t.Material, t.Nome, t.Titulos))
+            .Select(t => new TrofeuContado(t.Material, t.Nome, t.Titulos, t.Americano))
             .ToList();
     }
 }

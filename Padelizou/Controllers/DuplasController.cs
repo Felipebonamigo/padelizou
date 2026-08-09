@@ -93,6 +93,10 @@ namespace Padelizou.Controllers
             // Forma que o jogador declarou no checkout. Só é perguntada quando o organizador
             // abriu todas as formas — é ela que decide a taxa (ver CobrancaDoTorneio).
             string? formaPagamentoEscolhida = null,
+            // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
+            // Services/QuandoPagarInscricao. Nulo vale como "depois", que é o lado seguro:
+            // nenhuma cobrança nasce sem alguém ter pedido.
+            string? quandoPagar = null,
             // Parceiro escolhido pelo NOME, na lista de sugestões — quem já tem conta é
             // achado por aqui, e ninguém precisa saber o CPF dele pra inscrever a dupla.
             int? jogador2Id = null)
@@ -267,6 +271,21 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // 2b². MISTA e CASAIS são de um homem e uma mulher (Felipe, 08/08/2026).
+            //
+            //      Vem DEPOIS do achar-ou-criar dos jogadores porque precisa dos dois objetos
+            //      — inclusive do parceiro que acabou de nascer como pré-cadastro, que é
+            //      justamente quem costuma estar sem o dado.
+            //
+            //      A recusa por "não informou" e a por "mesmo sexo" são frases diferentes de
+            //      propósito: uma pede uma ação, a outra explica um impedimento. Ver
+            //      Services/SexoDoJogador.
+            if (SexoDoJogador.MotivoParaNaoEntrar(categoria.Nome, jogador1!, jogador2) is { } motivoSexo)
+            {
+                TempData["Erro"] = motivoSexo;
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             // 2c. O MESMO jogador duas vezes na mesma categoria. Aconteceu de verdade: o
             //     Otávio ficou como parceiro de um e, logo abaixo, sozinho procurando
             //     parceiro — duas vagas pra uma pessoa só, e uma dupla fantasma no sorteio.
@@ -322,9 +341,10 @@ namespace Padelizou.Controllers
             //    jogador vai pro checkout e a inscrição nasce quando o webhook confirmar o
             //    pagamento (PagamentoInscricaoService.EfetivarAsync).
             var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
+            bool podeCobrar = _pagamentos.PodeCobrar(torneio, recebedor);
             // Pagar na hora só é obrigatório se o organizador quis assim. Senão a inscrição
             // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
-            if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
+            if (podeCobrar && torneio.PagamentoObrigatorioNaInscricao)
             {
                 // Juntar com a inscrição solo NÃO vale aqui. A dupla só nasce quando o
                 // webhook confirma o pagamento, e apagar a inscrição do outro agora deixaria
@@ -361,6 +381,23 @@ namespace Padelizou.Controllers
             bool emListaDeEspera = await CategoriaOuTorneioEstaCheioAsync(categoria, torneio);
 
             // 6. Monta a DUPLA e vincula à Categoria
+            // ⚠️ QUEM JÁ ESTAVA no torneio se pergunta ANTES de adicionar esta inscrição:
+            // depois, a própria pessoa apareceria na consulta e ganharia o desconto de segunda
+            // inscrição já na primeira.
+            var jaNoTorneio = await QuemJaEstaNoTorneio.DentreAsync(
+                _context, torneioId, new[] { jogador1.Id, jogador2?.Id ?? 0 });
+
+            // ⚠️ SÓ ENTRA NA CONTA QUEM ESTÁ NA INSCRIÇÃO (Felipe, 08/08/2026). Dupla ainda
+            // "procurando parceiro" custa UMA pessoa: cobrar duas seria cobrar por alguém que
+            // não foi definido — a mesma régua que TaxaDoTorneioExterno já usava na base da
+            // taxa. Quando o parceiro entrar, o valor é recalculado (ver TrocarParceiro).
+            //
+            // Quem repete no torneio paga o preço de segunda; o parceiro que ainda não existe
+            // não entra aqui de jeito nenhum.
+            var quemPaga = jogador2 == null
+                ? new[] { jaNoTorneio.Contains(jogador1.Id) }
+                : new[] { jaNoTorneio.Contains(jogador1.Id), jaNoTorneio.Contains(jogador2.Id) };
+
             var dupla = new Dupla
             {
                 CategoriaId = categoriaId,
@@ -370,7 +407,12 @@ namespace Padelizou.Controllers
                 ImpedimentoSextaNoite = impSextaNoite,
                 ImpedimentoSabadoManha = impSabadoManha,
                 ImpedimentoSabadoTarde = impSabadoTarde,
-                EmListaDeEspera = emListaDeEspera
+                EmListaDeEspera = emListaDeEspera,
+                // Quanto ESTA inscrição custa, gravado agora: é o número que os somatórios de
+                // dinheiro leem depois, e o único que sabe quem pagou o preço de segunda.
+                ValorInscricao = PrecoDaInscricao.Total(
+                    torneio, quemPaga,
+                    (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0)),
             };
 
             _context.Duplas.Add(dupla);
@@ -393,6 +435,31 @@ namespace Padelizou.Controllers
 
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
             await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
+
+            // ── "QUERO PAGAR AGORA" ──────────────────────────────────────────────────────────
+            // A cobrança nasce AQUI, e não lá em cima: a inscrição já está gravada, então um
+            // checkout abandonado deixa a pessoa inscrita e devendo — não a apaga. É a diferença
+            // inteira entre este caminho e o "só confirmo depois de pago".
+            //
+            // ⚠️ Lista de espera não gera cobrança: a vaga ainda não é dela, e cobrar por uma
+            // vaga que talvez não exista é o pior desfecho possível — daria trabalho de estorno
+            // pro organizador e sensação de golpe pro jogador.
+            if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar) && !emListaDeEspera)
+            {
+                var checkoutAgora = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
+                    torneio, recebedor!, jogador1, inscricaoDeDupla: true,
+                    impedimentos: (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0),
+                    new DadosPagamentoDeInscricao(torneioId, dupla.Id, null),
+                    formaPagamentoEscolhida);
+
+                if (checkoutAgora != null) return Redirect(checkoutAgora);
+
+                // Falhou o gateway, mas a INSCRIÇÃO está feita — e é isso que a mensagem
+                // precisa deixar claro, senão a pessoa tenta se inscrever de novo.
+                TempData["Erro"] = "Inscrição confirmada, mas não deu pra abrir o pagamento agora. "
+                    + "Use o botão \"Pagar agora\" na tela do torneio.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
 
             var juntadas = juntaveis.Count > 0
                 ? $" {(juntaveis.Count > 1 ? "As inscrições sozinhas saíram" : "A inscrição sozinha saiu")} — agora é uma só."
@@ -508,7 +575,27 @@ namespace Padelizou.Controllers
                 : new List<InscricaoRepetida.Achado>();
 
             var antigo = dupla.Jogador2;
+
+            // ⚠️ A conta do parceiro é feita ANTES de gravá-lo na dupla. Depois, esta própria
+            // inscrição já o coloca "no torneio", e ele ganharia o preço de segunda inscrição
+            // por causa de si mesmo.
+            var precisaCobrarOSegundo = antigo == null;
+            var segundoRepete = precisaCobrarOSegundo
+                && await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novo.Id);
+
             dupla.Jogador2Id = novo.Id;
+
+            // A dupla estava SOZINHA e ganhou o segundo nome: o valor da inscrição passa a
+            // contar duas pessoas. Antes de 08/08/2026 isso não existia porque a dupla sem
+            // parceiro já era cobrada por dois — agora ela paga um, e a parte do parceiro
+            // entra aqui.
+            //
+            // ⚠️ ISTO NÃO COBRA NINGUÉM: só corrige o número que os somatórios de dinheiro, a
+            // devolução e a base da taxa leem. A diferença é acertada com o organizador.
+            if (precisaCobrarOSegundo && dupla.ValorInscricao is decimal valorAntes)
+            {
+                dupla.ValorInscricao = valorAntes + PrecoDaInscricao.PorPessoa(torneio, segundoRepete);
+            }
 
             if (absorvidas.Count > 0)
             {
@@ -557,6 +644,17 @@ namespace Padelizou.Controllers
             var bloqueio = await InscricaoTorneio.MotivoBloqueioMultiplasCategoriasAsync(
                 _context, torneio, new[] { candidato.Id }, ignorarCategoriaId: dupla.CategoriaId);
             if (bloqueio != null) return bloqueio;
+
+            // Mista e Casais são de um homem e uma mulher — e ESTA é a porta que a checagem
+            // não podia deixar de fora: sem ela, bastava entrar sozinho na categoria e trocar
+            // o parceiro depois pra furar a regra inteira. É o mesmo motivo que já traz o
+            // Ranking RS pra cá.
+            //
+            // O par é o candidato com quem FICA na dupla — quando o titular é o próprio
+            // candidato (troca do parceiro 2), quem fica é o Jogador1.
+            var quemFica = dupla.Jogador1Id == candidato.Id ? dupla.Jogador2 : dupla.Jogador1;
+            if (SexoDoJogador.MotivoParaNaoEntrar(dupla.Categoria.Nome, candidato, quemFica) is { } motivoSexo)
+                return motivoSexo;
 
             // Anti-sandbagging pelo histórico DENTRO do Padelizou: o parceiro precisa poder
             // jogar nesta categoria.
@@ -707,7 +805,20 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Convite), new { token });
             }
 
+            // Mesma conta da troca por CPF, e pelo mesmo motivo: perguntada ANTES de gravar,
+            // senão esta inscrição faria a pessoa ganhar o preço de segunda por causa de si
+            // mesma. Ver TrocarParceiro.
+            var euRepito = await QuemJaEstaNoTorneio.EstaAsync(_context, torneio!.Id, eu.Id);
+
             dupla.Jogador2Id = eu.Id;
+
+            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas. Não cobra
+            // ninguém — corrige o número que os somatórios leem.
+            if (dupla.ValorInscricao is decimal valorAntesDoConvite)
+            {
+                dupla.ValorInscricao = valorAntesDoConvite + PrecoDaInscricao.PorPessoa(torneio, euRepito);
+            }
+
             // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
             // se o parceiro saísse depois.
             dupla.ConviteToken = null;

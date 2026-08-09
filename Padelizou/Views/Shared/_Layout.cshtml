@@ -261,6 +261,14 @@
                                     <i class="bi bi-search"></i> Buscar
                                 </a>
                             </li>
+
+                            @* A caixa de entrada de avisos. Fica junto do resto do menu, e não
+                               escondida no menu do avatar: é onde cai o convite pra jogo, e
+                               convite que ninguém acha não é convite. *@
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                @await Component.InvokeAsync("SinoDeAvisos")
+                            }
                         }
                         @if (User.Identity?.IsAuthenticated == true)
                         {
@@ -404,6 +412,7 @@
     <script src="~/js/instalar-app.js" asp-append-version="true"></script>
     <script src="~/js/push.js" asp-append-version="true"></script>
     <script src="~/js/mascaras.js" asp-append-version="true"></script>
+    <script src="~/js/hora-sugerida.js" asp-append-version="true"></script>
     @* Confirmação bonita no lugar do confirm() do navegador. Vale em TODA tela: basta o
        formulário ter data-confirmar. Ver Views/Shared/_ModalConfirmar.cshtml. *@
     <partial name="_ModalConfirmar" />

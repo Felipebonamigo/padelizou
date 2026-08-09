@@ -132,12 +132,22 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Data e hora</label>
-                                <input type="datetime-local" name="dataHora" class="form-control bg-light" required />
+                                @* data-hora-sugerida (js/hora-sugerida.js): a rodinha do celular abre no minuto
+                                   atual, e o professor girava até a hora cheia toda santa aula. *@
+                                <input type="datetime-local" name="dataHora" class="form-control bg-light" data-hora-sugerida required />
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Preço (deixe vazio pra usar o sugerido)</label>
                                 <input type="number" step="0.01" min="0" name="preco" id="input-preco" class="form-control bg-light" />
+                            </div>
+
+                            @* Às vezes o aluno acerta o aluguel direto com o clube. Marcado,
+                               o custo do local não conta como despesa do professor NESTA aula. *@
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="check-aluno-paga-quadra" name="alunoPagaQuadra" value="true" />
+                                <label class="form-check-label" for="check-aluno-paga-quadra">O aluno paga a quadra por fora</label>
+                                <div class="form-text">O aluguel da quadra não entra como custo seu no financeiro.</div>
                             </div>
 
                             <div class="form-check mb-3">

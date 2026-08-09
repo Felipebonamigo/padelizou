@@ -68,7 +68,10 @@ public class JogadoresController : Controller
         // Sai do histórico que já foi carregado acima — o total de títulos sozinho tratava um
         // título na Open e um na 7ª como a mesma coisa.
         ViewBag.TrofeusPorMaterial = TrofeuDeMaterial.Contar(
-            historicoDuplas.Select(d => ((string?)d.Categoria.Nome, (string?)d.UltimaFase)));
+            historicoDuplas.Select(d => (
+                (string?)d.Categoria.Nome,
+                (string?)d.UltimaFase,
+                FormatoDoTorneio.EhAmericano(d.Categoria.Torneio?.Formato))));
 
         // Categoria prevista (nível comprovado): categoria mais forte em que o jogador
         // chegou à final/foi campeão. Base da regra anti-sandbagging. Null se ainda não comprovou.

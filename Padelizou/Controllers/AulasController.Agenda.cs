@@ -109,7 +109,7 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
             DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
-            int? alunoId = null)
+            int? alunoId = null, bool alunoPagaQuadra = false)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -197,6 +197,7 @@ namespace padelizou.Controllers
                     DataHora = horario,
                     Preco = precoDaAula,
                     QuantidadeAlunos = alunos,
+                    AlunoPagaQuadra = alunoPagaQuadra,
                     Status = "Confirmada",
                     RecorrenciaId = recorrenciaId
                 });

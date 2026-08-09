@@ -20,15 +20,26 @@
             {
                 @* min-width segura o alinhamento com nome curto ("Open"); max-width impede
                    que um nome comprido estique a coluna e desencontre as taças. *@
+                @* O título de AMERICANO fica na prateleira — foi ganho —, mas com o selo
+                   dizendo o que é. Sem ele, vencer o rodízio da 6ª aparecia igualzinho a ser
+                   campeão da 6ª Categoria Feminina num torneio de chave, e a prateleira
+                   passava a contar duas coisas diferentes como se fossem a mesma. *@
                 <div class="text-center" style="min-width: 84px; max-width: 116px;"
-                     title="@t.Titulos título(s) — @t.Categoria (troféu de @t.Material.Nome)">
+                     title="@t.Titulos título(s) — @t.Categoria@(t.EhAmericano ? " (Americano — rodízio, não torneio de chave)" : $" (troféu de {t.Material.Nome})")">
                     <svg width="64" height="64" role="img"
-                         aria-label="@t.Titulos título(s) em @t.Categoria">
+                         aria-label="@t.Titulos título(s) em @t.Categoria@(t.EhAmericano ? ", no Americano" : "")">
                         <use href="#trofeu-@t.Material.Chave" />
                     </svg>
                     <div class="fw-bold" style="font-size: .95rem; color: var(--pdz-ink);">
                         @t.Titulos×
                     </div>
+                    @if (t.EhAmericano)
+                    {
+                        <div class="badge rounded-pill mb-1"
+                             style="background:#1b3a5c;color:#a8d4ff;font-size:.62rem;">
+                            <i class="bi bi-arrow-repeat"></i> Americano
+                        </div>
+                    }
                     <div class="text-muted lh-sm" style="font-size: .75rem;">@t.Categoria</div>
                 </div>
             }

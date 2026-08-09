@@ -55,7 +55,7 @@ public class EstornoDesfazInscricaoTests
             Valor = 200m,
             ReferenciaId = dupla.Id,
             DadosInscricao = JsonSerializer.Serialize(new DadosInscricaoTorneio(
-                torneioId, categoriaId, jogador1, jogador2, false, false, false, false)),
+                torneioId, categoriaId, jogador1, jogador2, false, false, false, false, false)),
         };
 
     [Fact]

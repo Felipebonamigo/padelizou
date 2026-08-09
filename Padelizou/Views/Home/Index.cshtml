@@ -49,6 +49,28 @@ else
             </a>
         </div>
     </div>
+
+    @* Pedido de quem se cadastrou antes de o campo SEXO existir (08/08/2026). Fica aqui, na
+       Home, porque é a tela por onde todo mundo passa: esperar a pessoa achar sozinha no
+       perfil significaria descobrir na hora de se inscrever numa Mista, que é tarde.
+
+       Some sozinho quando ela preenche — aviso que não tem fim vira paisagem. *@
+    @if (Model.FaltaInformarSexo)
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div>
+                <strong><i class="bi bi-person-vcard"></i> Falta uma informação no seu perfil</strong>
+                <div class="small">
+                    Informe o sexo com que você se identifica. É o que libera a inscrição nas
+                    categorias <strong>mista</strong> e <strong>de casais</strong>, que são de um
+                    homem e uma mulher.
+                </div>
+            </div>
+            <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-warning rounded-pill fw-bold">
+                Preencher agora
+            </a>
+        </div>
+    }
 }
 
 <div class="container px-0">

@@ -1,0 +1,23 @@
+@model int
+@{
+    var teto = ViewBag.Teto as int? ?? 9;
+    var rotulo = Model > teto ? $"{teto}+" : Model.ToString();
+}
+
+@* O sino fica no menu SEMPRE que a pessoa está logada, com ou sem aviso novo — quem só
+   aparece quando tem novidade some da memória de todo mundo, e aí a caixa de entrada nunca
+   é encontrada nos dias em que ela importa. A bolinha é que muda. *@
+<li class="nav-item">
+    <a class="nav-link position-relative" asp-controller="Notificacoes" asp-action="Index"
+       title="@(Model == 0 ? "Notificações" : $"{Model} aviso(s) não lido(s)")">
+        <i class="bi @(Model > 0 ? "bi-bell-fill" : "bi-bell")"></i> Avisos
+        @if (Model > 0)
+        {
+            <span class="position-absolute translate-middle badge rounded-pill"
+                  style="top: .45rem; left: 1.35rem; background: var(--pdz-lime); color: var(--pdz-navy); font-size:.6rem;">
+                @rotulo
+                <span class="visually-hidden">avisos não lidos</span>
+            </span>
+        }
+    </a>
+</li>
