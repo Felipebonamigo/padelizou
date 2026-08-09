@@ -23,6 +23,11 @@ Environment="EmailSettings__SmtpPort=587"
 Environment="EmailSettings__RemetenteEmail=seuemail@gmail.com"
 Environment="EmailSettings__RemetenteSenhaApp=senha-de-app-do-gmail"
 Environment="EmailSettings__RemetenteNome=Padelizou"
+# Só ao sair do Gmail pra um serviço de envio (ver EMAIL.md): lá o usuário do SMTP é fixo
+# (`resend`) e não é o endereço do remetente, e o remetente vira `nao-responda@`, que não tem
+# caixa — sem ResponderPara a resposta da pessoa se perde. Vazio = jeito antigo, Gmail.
+Environment="EmailSettings__SmtpUsuario="
+Environment="EmailSettings__ResponderPara="
 Environment="GoogleCalendar__ClientId=SEU_CLIENT_ID_AQUI"
 Environment="GoogleCalendar__ClientSecret=SEU_CLIENT_SECRET_AQUI"
 Environment="GoogleCalendar__RedirectUri=https://padelizou.com.br/GoogleAuth/Callback"

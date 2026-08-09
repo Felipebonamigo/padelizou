@@ -16,6 +16,24 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
+    // Separado do envio pra poder conferir em teste quem assina e pra onde volta a resposta —
+    // montar a mensagem não precisa de servidor nenhum, conectar precisa.
+    public static MimeMessage MontarMensagem(EmailSettings settings, string paraEmail, string paraNome, string assunto, string corpoHtml)
+    {
+        var mensagem = new MimeMessage();
+        mensagem.From.Add(new MailboxAddress(settings.RemetenteNome, settings.RemetenteEmail));
+        mensagem.To.Add(new MailboxAddress(paraNome, paraEmail));
+        mensagem.Subject = assunto;
+        mensagem.Body = new BodyBuilder { HtmlBody = corpoHtml }.ToMessageBody();
+
+        if (!string.IsNullOrWhiteSpace(settings.ResponderPara))
+        {
+            mensagem.ReplyTo.Add(MailboxAddress.Parse(settings.ResponderPara));
+        }
+
+        return mensagem;
+    }
+
     public async Task EnviarAsync(string paraEmail, string paraNome, string assunto, string corpoHtml)
     {
         if (string.IsNullOrWhiteSpace(paraEmail))
@@ -23,22 +41,18 @@ public class EmailService : IEmailService
             return;
         }
 
-        var mensagem = new MimeMessage();
-        mensagem.From.Add(new MailboxAddress(_settings.RemetenteNome, _settings.RemetenteEmail));
-        mensagem.To.Add(new MailboxAddress(paraNome, paraEmail));
-        mensagem.Subject = assunto;
-        mensagem.Body = new BodyBuilder { HtmlBody = corpoHtml }.ToMessageBody();
+        var mensagem = MontarMensagem(_settings, paraEmail, paraNome, assunto, corpoHtml);
 
         using var client = new SmtpClient();
         try
         {
             await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(_settings.RemetenteEmail, _settings.RemetenteSenhaApp);
+            await client.AuthenticateAsync(_settings.UsuarioDeLogin, _settings.RemetenteSenhaApp);
             await client.SendAsync(mensagem);
         }
         catch (Exception ex)
         {
-            // Falha de SMTP (Gmail fora do ar, senha de app expirada, timeout) NÃO pode quebrar
+            // Falha de SMTP (provedor fora do ar, chave revogada, cota do dia estourada, timeout) NÃO pode quebrar
             // a ação do usuário que disparou o e-mail (inscrição, aula, etc.) — igual ao que já
             // fazem o WhatsApp e o push. Registra no log e segue; o e-mail simplesmente não sai.
             _logger.LogError(ex, "Falha ao enviar e-mail para {ParaEmail} (assunto: {Assunto}).", paraEmail, assunto);

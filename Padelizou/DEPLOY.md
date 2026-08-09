@@ -90,6 +90,8 @@ EmailSettings__SmtpPort        = 587
 EmailSettings__RemetenteEmail  = seuemail@gmail.com
 EmailSettings__RemetenteSenhaApp = senha-de-app-do-gmail
 EmailSettings__RemetenteNome   = Padelizou
+EmailSettings__SmtpUsuario     = (vazio no Gmail; `resend` ao usar serviço de envio — ver EMAIL.md)
+EmailSettings__ResponderPara   = (vazio no Gmail; contato@padelizou.com.br ao enviar de `nao-responda@`)
 
 GoogleCalendar__ClientId       = (mesmo valor já usado localmente)
 GoogleCalendar__ClientSecret   = (mesmo valor já usado localmente)
