@@ -57,6 +57,8 @@ public partial class Dupla
     public virtual ICollection<Partida> PartidasDupla1 { get; set; } = new List<Partida>();
 
     public virtual ICollection<Partida> PartidasDupla2 { get; set; } = new List<Partida>(); 
+    // A quinta só existe em torneio que COMEÇA na quinta — ver Torneio.QuintaEhDiaDoTorneio.
+    public bool ImpedimentoQuintaNoite { get; set; }
     public bool ImpedimentoSextaNoite { get; set; }
     public bool ImpedimentoSabadoManha { get; set; }
     public bool ImpedimentoSabadoTarde { get; set; }

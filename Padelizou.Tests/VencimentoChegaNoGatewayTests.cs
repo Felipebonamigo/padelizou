@@ -137,7 +137,7 @@ public class VencimentoChegaNoGatewayTests
 
         await servico.IniciarCobrancaTorneioAsync(
             torneio, Apto(), pagador, "TorneioDupla",
-            new DadosInscricaoTorneio(torneio.Id, categoria.Id, pagador.Id, null, false, false, false),
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, pagador.Id, null, false, false, false, false),
             CobrancaDoTorneio.EscolhaPix);
 
         var (vencimento, billingType) = OQueFoiProGateway(asaas);

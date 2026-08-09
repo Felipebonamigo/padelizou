@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260809172457_ImpedimentoNaQuinta")]
+    partial class ImpedimentoNaQuinta
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -187,41 +190,6 @@ namespace Padelizou.Migrations
                         .IsUnique();
 
                     b.ToTable("AvaliacaoProfessor");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.AvisoDoJogador", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Corpo")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("JogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("LidaEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Titulo")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Url")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JogadorId");
-
-                    b.ToTable("AvisoDoJogador");
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoJogo", b =>
@@ -898,9 +866,6 @@ namespace Padelizou.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("ValorInscricao")
-                        .HasColumnType("numeric");
-
                     b.HasKey("Id")
                         .HasName("PK__Dupla__3214EC07E192F96C");
 
@@ -1215,9 +1180,6 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("PagoEm")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<decimal?>("ValorInscricao")
-                        .HasColumnType("numeric");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CategoriaId");
@@ -1483,9 +1445,6 @@ namespace Padelizou.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("SenhaHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Sexo")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("SolicitouOrganizadorEm")
@@ -2619,9 +2578,6 @@ namespace Padelizou.Migrations
                     b.Property<decimal>("PrecoInscricao")
                         .HasColumnType("numeric");
 
-                    b.Property<decimal?>("PrecoSegundaInscricao")
-                        .HasColumnType("numeric");
-
                     b.Property<DateTime?>("PrevisaoChaveamento")
                         .HasColumnType("timestamp without time zone");
 
@@ -2727,9 +2683,6 @@ namespace Padelizou.Migrations
 
                     b.Property<int?>("AlunoId")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("AlunoPagaQuadra")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("CanceladaEm")
                         .HasColumnType("timestamp without time zone");
@@ -3063,17 +3016,6 @@ namespace Padelizou.Migrations
                     b.Navigation("Aluno");
 
                     b.Navigation("Professor");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.AvisoDoJogador", b =>
-                {
-                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
-                        .WithMany()
-                        .HasForeignKey("JogadorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Jogador");
                 });
 
             modelBuilder.Entity("Padelizou.Models.AvisoJogo", b =>

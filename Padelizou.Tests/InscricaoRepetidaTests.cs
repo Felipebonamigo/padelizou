@@ -216,7 +216,7 @@ public class InscricaoRepetidaTests
             torneioId: cat.TorneioId, categoriaId: cat.Id,
             nome1: j1.Nome, cpf1: j1.Cpf, celular1: null, cidade1: null, estado1: null,
             nome2: j2.Nome, cpf2: j2.Cpf, celular2: null, cidade2: null, estado2: null,
-            impSextaNoite: false, impSabadoManha: false, impSabadoTarde: false,
+            impQuintaNoite: false, impSextaNoite: false, impSabadoManha: false, impSabadoTarde: false,
             juntarComInscricaoSolo: juntar);
 
     [Fact]

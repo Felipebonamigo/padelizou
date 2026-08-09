@@ -19,7 +19,21 @@ public partial class Torneio
     // Quem organiza vive em TorneioOrganizadores (vários por torneio, com NivelAcesso).
     // A entidade Organizador antiga foi removida em 26/07/2026 — tabela estava vazia.
     public DateTime? DataInicio{ get; set; }
+
+    // O turno de quinta só faz sentido quando o torneio COMEÇA na quinta — foi o pedido do
+    // Chakra (06/08/2026): quinta a domingo, e as duplas precisavam poder dizer que não
+    // jogam na abertura. Num fim de semana comum a opção seria um turno que não existe.
+    //
+    // Fica junto do "já está ligado" pra que um torneio que teve a data mudada depois não
+    // perca em silêncio um impedimento que alguém já marcou e pagou.
+    public bool QuintaEhDiaDoTorneio =>
+        DataInicio?.DayOfWeek == DayOfWeek.Thursday || PermiteImpedimentoQuintaNoite;
+
     public bool PermiteImpedimentos { get; set; }
+    // Nasce DESLIGADO, ao contrário dos outros três: quinta não é dia de torneio na
+    // maioria, e ligada por padrão ela ofereceria um turno que não existe em quase todo
+    // fim de semana. Quem começa na quinta liga na criação.
+    public bool PermiteImpedimentoQuintaNoite { get; set; }
     public bool PermiteImpedimentoSextaNoite { get; set; } = true;
     public bool PermiteImpedimentoSabadoManha { get; set; } = true;
     public bool PermiteImpedimentoSabadoTarde { get; set; } = true;

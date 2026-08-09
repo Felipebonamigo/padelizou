@@ -128,7 +128,7 @@ public class NaoCobrarDuasVezesTests
 
         var (servico, _) = Novo(ctx);
         var dados = new DadosInscricaoTorneio(
-            torneio.Id, categoria.Id, eu.Id, parceiro.Id, false, false, false);
+            torneio.Id, categoria.Id, eu.Id, parceiro.Id, false, false, false, false);
 
         var primeira = await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla", dados);
         var segunda = await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla", dados);
@@ -156,10 +156,10 @@ public class NaoCobrarDuasVezesTests
         var (servico, _) = Novo(ctx);
 
         await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
-            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, primeiroParceiro.Id, false, false, false));
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, primeiroParceiro.Id, false, false, false, false));
 
         await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
-            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, outroParceiro.Id, false, false, false));
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, outroParceiro.Id, false, false, false, false));
 
         Assert.Equal(2, ctx.Pagamentos.Count(p => p.Tipo == "TorneioDupla"));
     }
@@ -180,10 +180,10 @@ public class NaoCobrarDuasVezesTests
         var (servico, _) = Novo(ctx);
 
         await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
-            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, null, false, false, false, SemParceiro: true));
+            new DadosInscricaoTorneio(torneio.Id, categoria.Id, eu.Id, null, false, false, false, false, SemParceiro: true));
 
         await servico.IniciarCobrancaTorneioAsync(torneio, Apto(), eu, "TorneioDupla",
-            new DadosInscricaoTorneio(torneio.Id, outra.Id, eu.Id, null, false, false, false, SemParceiro: true));
+            new DadosInscricaoTorneio(torneio.Id, outra.Id, eu.Id, null, false, false, false, false, SemParceiro: true));
 
         Assert.Equal(2, ctx.Pagamentos.Count(p => p.Tipo == "TorneioDupla"));
     }

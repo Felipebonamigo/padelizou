@@ -84,7 +84,7 @@ namespace Padelizou.Controllers
             int torneioId, int categoriaId,
             string nome1, string cpf1, string? celular1, string? cidade1, string? estado1,
             string? nome2, string? cpf2, string? celular2, string? cidade2, string? estado2,
-            bool impSextaNoite, bool impSabadoManha, bool impSabadoTarde,
+            bool impQuintaNoite, bool impSextaNoite, bool impSabadoManha, bool impSabadoTarde,
             bool semParceiro = false, bool ignorarBloqueio = false, string? chaveAcesso = null,
             // "Ele já está inscrito sozinho — pode juntar." Vem marcado na tela, depois de o
             // aviso aparecer (ver Services/InscricaoRepetida). Sem isto, o servidor recusa e
@@ -96,7 +96,10 @@ namespace Padelizou.Controllers
             // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
             // Services/QuandoPagarInscricao. Nulo vale como "depois", que é o lado seguro:
             // nenhuma cobrança nasce sem alguém ter pedido.
-            string? quandoPagar = null)
+            string? quandoPagar = null,
+            // Parceiro escolhido pelo NOME, na lista de sugestões — quem já tem conta é
+            // achado por aqui, e ninguém precisa saber o CPF dele pra inscrever a dupla.
+            int? jogador2Id = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -110,8 +113,33 @@ namespace Padelizou.Controllers
             // No máximo UM impedimento (ver Services/ImpedimentoUnico). A tela já não deixa
             // marcar dois, mas página em cache e POST feito à mão não passam pela tela — e
             // dupla sem turno nenhum disponível trava o chaveamento inteiro.
-            (impSextaNoite, impSabadoManha, impSabadoTarde) =
-                ImpedimentoUnico.Apenas(impSextaNoite, impSabadoManha, impSabadoTarde);
+            (impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde) =
+                ImpedimentoUnico.Apenas(impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde);
+
+            // PARCEIRO ESCOLHIDO PELA LISTA DE NOMES. O CPF de terceiro não sai do servidor
+            // (a busca por nome devolve só Id, nome e foto — Services/BuscaJogador), então
+            // quem chega por aqui traz o Id e o resto vem do cadastro dele.
+            //
+            // Preencher cpf2/nome2 aqui, e não mais adiante, é de propósito: daqui pra baixo
+            // tudo continua sendo a mesma inscrição por CPF de sempre — a checagem de CPF
+            // válido, a de inscrição repetida, o "juntar com a inscrição solo". Um caminho
+            // paralelo teria que repetir as quatro, e é assim que duas telas divergem.
+            if (jogador2Id is int idParceiro && !semParceiro)
+            {
+                var escolhido = await _context.Jogadores
+                    .Where(j => j.Id == idParceiro)
+                    .Select(j => new { j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+
+                if (escolhido == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse parceiro. Escolha de novo na lista ou informe o CPF.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                cpf2 = escolhido.Cpf;
+                nome2 = escolhido.Nome;
+            }
 
             // Marcou "ainda não tenho parceiro"? Então tudo do jogador 2 é ignorado — mesmo
             // que o formulário tenha mandado algo preenchido antes de o check ser marcado.
@@ -335,7 +363,8 @@ namespace Padelizou.Controllers
                 // chegam aqui com Jogador2Id nulo (ver DadosInscricaoTorneio).
                 var dadosInscricao = new DadosInscricaoTorneio(
                     torneioId, categoriaId, jogador1.Id, jogador2?.Id,
-                    impSextaNoite, impSabadoManha, impSabadoTarde, SemParceiro: semParceiro);
+                    impQuintaNoite, impSextaNoite, impSabadoManha, impSabadoTarde,
+                    SemParceiro: semParceiro);
 
                 var checkout = await _pagamentos.IniciarCobrancaTorneioAsync(
                     torneio, recebedor!, jogador1, "TorneioDupla", dadosInscricao, formaPagamentoEscolhida);
@@ -374,6 +403,7 @@ namespace Padelizou.Controllers
                 CategoriaId = categoriaId,
                 Jogador1Id = jogador1.Id,
                 Jogador2Id = jogador2?.Id,   // nulo = ainda procurando parceiro
+                ImpedimentoQuintaNoite = impQuintaNoite,
                 ImpedimentoSextaNoite = impSextaNoite,
                 ImpedimentoSabadoManha = impSabadoManha,
                 ImpedimentoSabadoTarde = impSabadoTarde,

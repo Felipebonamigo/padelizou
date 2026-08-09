@@ -18,6 +18,7 @@ public record DadosInscricaoTorneio(
     int CategoriaId,
     int Jogador1Id,
     int? Jogador2Id,
+    bool ImpedimentoQuintaNoite,
     bool ImpedimentoSextaNoite,
     bool ImpedimentoSabadoManha,
     bool ImpedimentoSabadoTarde,
@@ -394,7 +395,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // Cada impedimento marcado tira uma janela da grade do organizador — quando ele cobra
     // por isso, é este número que multiplica a taxa.
     private static int ContarImpedimentos(DadosInscricaoTorneio dados) =>
-        (dados.ImpedimentoSextaNoite ? 1 : 0)
+        (dados.ImpedimentoQuintaNoite ? 1 : 0)
+        + (dados.ImpedimentoSextaNoite ? 1 : 0)
         + (dados.ImpedimentoSabadoManha ? 1 : 0)
         + (dados.ImpedimentoSabadoTarde ? 1 : 0);
 
@@ -1099,6 +1101,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 CategoriaId = dados.CategoriaId,
                 Jogador1Id = dados.Jogador1Id,
                 Jogador2Id = dados.Jogador2Id,
+                ImpedimentoQuintaNoite = dados.ImpedimentoQuintaNoite,
                 ImpedimentoSextaNoite = dados.ImpedimentoSextaNoite,
                 ImpedimentoSabadoManha = dados.ImpedimentoSabadoManha,
                 ImpedimentoSabadoTarde = dados.ImpedimentoSabadoTarde,

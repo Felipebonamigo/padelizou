@@ -138,7 +138,7 @@ namespace Padelizou.Controllers
                 if (podeCobrar && torneio.PagamentoObrigatorioNaInscricao)
                 {
                     var dadosInscricao = new DadosInscricaoTorneio(
-                        torneioId, categoriaId, jogador.Id, null, false, false, false);
+                        torneioId, categoriaId, jogador.Id, null, false, false, false, false);
 
                     var checkout = await _pagamentos.IniciarCobrancaTorneioAsync(
                         torneio, recebedor!, jogador, "TorneioAmericano", dadosInscricao, formaPagamentoEscolhida);
