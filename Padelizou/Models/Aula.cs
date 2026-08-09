@@ -59,6 +59,11 @@ public partial class Aula
     // Entra na previsão financeira como valor a receber.
     public bool CobrarMesmoFaltando { get; set; }
 
+    // NESTA aula o aluno acerta o aluguel da quadra direto com o clube. O custo por aula
+    // do local (LocalAula.CustoPorAula) deixa de contar como despesa do professor aqui —
+    // é por aula, e não por local, porque o mesmo aluno ora paga a quadra, ora não.
+    public bool AlunoPagaQuadra { get; set; }
+
     // Quantas horas antes da aula o cancelamento foi feito. Guardado no momento do
     // cancelamento porque a política do professor pode mudar depois — o que valeu
     // pro aluno foi a regra do dia.

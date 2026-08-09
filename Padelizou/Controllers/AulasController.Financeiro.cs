@@ -77,6 +77,8 @@ namespace padelizou.Controllers
                 .OrderByDescending(d => d.Valor)
                 .ToList();
 
+            // O custo do local só conta nas aulas em que o PROFESSOR paga a quadra — às
+            // vezes o aluno acerta o aluguel direto com o clube (Aula.AlunoPagaQuadra).
             vm.PorLocal = realizadas
                 .GroupBy(a => a.LocalAula)
                 .Select(g => new FinanceiroPorLocalVM
@@ -84,7 +86,7 @@ namespace padelizou.Controllers
                     Local = g.Key.Nome,
                     Aulas = g.Count(),
                     Recebido = g.Sum(a => a.Preco),
-                    Custo = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count() : null,
+                    Custo = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count(a => !a.AlunoPagaQuadra) : null,
                 })
                 .OrderByDescending(l => l.Recebido)
                 .ToList();
@@ -97,6 +99,18 @@ namespace padelizou.Controllers
                 var fim = mes.AddMonths(1);
                 var doMes = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= mes && a.DataHora < fim).ToList();
                 return new MesFaturamentoVM { Mes = mes, Valor = doMes.Sum(a => a.Preco), Aulas = doMes.Count };
+            }).ToList();
+
+            // E as últimas 6 semanas, de segunda a domingo — no mês a mordida de uma semana
+            // fraca some na média.
+            var estaSegunda = hoje.AddDays(-(((int)hoje.DayOfWeek + 6) % 7));
+            var primeiraSemana = estaSegunda.AddDays(-7 * 5);
+            vm.UltimasSemanas = Enumerable.Range(0, 6).Select(i =>
+            {
+                var inicio = primeiraSemana.AddDays(7 * i);
+                var fim = inicio.AddDays(7);
+                var daSemana = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= inicio && a.DataHora < fim).ToList();
+                return new SemanaFaturamentoVM { Inicio = inicio, Valor = daSemana.Sum(a => a.Preco), Aulas = daSemana.Count };
             }).ToList();
 
             return View(vm);
@@ -178,7 +192,8 @@ namespace padelizou.Controllers
                         NomeLocal = g.Key.Nome,
                         QuantidadeAulas = g.Count(),
                         Recebido = g.Sum(a => a.Preco),
-                        Gasto = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count() : null
+                        // Mesma régua do Financeiro: quadra que o aluno paga não é gasto do professor.
+                        Gasto = g.Key.CustoPorAula.HasValue ? g.Key.CustoPorAula.Value * g.Count(a => !a.AlunoPagaQuadra) : null
                     })
                     .OrderByDescending(l => l.Recebido)
                     .ToList()

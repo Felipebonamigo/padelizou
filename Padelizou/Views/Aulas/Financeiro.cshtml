@@ -6,6 +6,7 @@
     string SoDigitos(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
 
     var maxMes = Model.UltimosMeses.Any() ? Math.Max(1m, Model.UltimosMeses.Max(m => m.Valor)) : 1m;
+    var maxSemana = Model.UltimasSemanas.Any() ? Math.Max(1m, Model.UltimasSemanas.Max(s => s.Valor)) : 1m;
 }
 
 <div class="container mt-4 mb-5">
@@ -104,6 +105,28 @@
         </div>
     }
 
+    <!-- Últimas 6 semanas -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-calendar-week"></i> Últimas 6 semanas</h6>
+            @foreach (var s in Model.UltimasSemanas)
+            {
+                var pctSemana = (int)Math.Round(s.Valor / maxSemana * 100);
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <small class="text-muted text-nowrap" style="width: 88px;">@s.Rotulo</small>
+                    <div class="progress flex-grow-1" style="height: 18px;">
+                        <div class="progress-bar" role="progressbar"
+                             style="width: @pctSemana%; background: var(--padel-green);"></div>
+                    </div>
+                    <small class="fw-bold text-nowrap" style="width: 90px; text-align: right; color: var(--pdz-ink);">
+                        @s.Valor.ToString("C0", ptBr)
+                    </small>
+                </div>
+            }
+            <p class="small text-muted mb-0 mt-2">Semana de segunda a domingo; a última linha é a semana atual.</p>
+        </div>
+    </div>
+
     <!-- Últimos 6 meses -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
@@ -160,6 +183,7 @@
                 </div>
                 <p class="small text-muted mb-0 mt-2">
                     O custo por aula é o que você cadastrou em <a asp-action="MeusLocais">Meus Locais</a> (aluguel da quadra).
+                    Aulas em que o aluno paga a quadra por fora não entram no custo.
                 </p>
             </div>
         </div>
