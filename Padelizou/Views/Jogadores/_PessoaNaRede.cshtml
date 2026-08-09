@@ -1,0 +1,61 @@
+@model Padelizou.ViewModels.LinhaDaRede
+@{
+    var pessoa = Model.Pessoa;
+}
+
+<li class="list-group-item d-flex align-items-center gap-3 px-3 py-3">
+    @if (!string.IsNullOrWhiteSpace(pessoa.Foto))
+    {
+        <img src="@pessoa.Foto" alt="" class="rounded-circle flex-shrink-0"
+             style="width: 44px; height: 44px; object-fit: cover;" />
+    }
+    else
+    {
+        <i class="bi bi-person-circle fs-2 text-muted flex-shrink-0"></i>
+    }
+
+    @* min-width: 0 é o que deixa o text-truncate funcionar dentro de um flex — sem isso o
+       nome comprido empurra o botão pra fora da tela no celular. *@
+    <div class="flex-grow-1" style="min-width: 0;">
+        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@pessoa.Id"
+           class="fw-bold text-decoration-none d-block text-truncate" style="color: var(--pdz-ink);">
+            @NomeBonito.ComApelido(pessoa.Nome, pessoa.Apelido)
+        </a>
+        <span class="text-muted small">
+            @if (!string.IsNullOrWhiteSpace(pessoa.Cidade))
+            {
+                <text>@pessoa.Cidade@(string.IsNullOrWhiteSpace(pessoa.Estado) ? "" : " - " + pessoa.Estado) · </text>
+            }
+            @TempoRelativo.Desde(pessoa.Desde)
+        </span>
+    </div>
+
+    @if (Model.SouDonoDaRede && Model.NaListaDeSeguidores && !pessoa.EuSigo)
+    {
+        <form asp-controller="Jogadores" asp-action="Seguir" method="post" class="flex-shrink-0">
+            <input type="hidden" name="id" value="@pessoa.Id" />
+            <input type="hidden" name="voltarParaRede" value="@Model.DonoDaRede" />
+            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3">
+                <i class="bi bi-person-plus"></i> Seguir de volta
+            </button>
+        </form>
+    }
+    else if (Model.SouDonoDaRede && Model.NaListaDeSeguidores)
+    {
+        <span class="badge rounded-pill flex-shrink-0"
+              style="background: var(--pdz-surface-alt); color: var(--pdz-ink); border: 1px solid var(--pdz-border);">
+            <i class="bi bi-arrow-left-right"></i> vocês se seguem
+        </span>
+    }
+    else if (Model.SouDonoDaRede)
+    {
+        <form asp-controller="Jogadores" asp-action="DeixarDeSeguir" method="post" class="flex-shrink-0">
+            <input type="hidden" name="id" value="@pessoa.Id" />
+            <input type="hidden" name="voltarParaRede" value="@Model.DonoDaRede" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                    title="Deixar de seguir @pessoa.Nome">
+                <i class="bi bi-person-dash"></i>
+            </button>
+        </form>
+    }
+</li>

@@ -51,6 +51,35 @@ public static class TestInfra
         return controller;
     }
 
+    // JogadoresController: perfil, elogio, comentário, seguir e a rede.
+    //
+    // Mesma razão do PartidasController abaixo — quatro arquivos de teste montavam este
+    // construtor à mão, e injetar o push (pros avisos de elogio/comentário/seguidor) quebrou
+    // os quatro de uma vez. Agora o próximo parâmetro se resolve aqui.
+    public static JogadoresController NovoJogadoresController(
+        DbPadelContext ctx, int? usuarioLogadoId = null, IPushNotificationService? push = null)
+    {
+        var controller = new JogadoresController(
+            ctx,
+            new EstatisticasService(ctx),
+            Substitute.For<IRankingRsService>(),
+            push ?? Substitute.For<IPushNotificationService>());
+
+        var user = usuarioLogadoId == null
+            ? new ClaimsPrincipal(new ClaimsIdentity())
+            : new ClaimsPrincipal(new ClaimsIdentity(
+                new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.Value.ToString()) }, "Teste"));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = user },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
     // PartidasController com os serviços de borda dublados. Fica aqui, e não repetido em
     // cada arquivo de teste, porque toda vez que o construtor ganha uma dependência os
     // testes quebram em vários lugares ao mesmo tempo — foi o que aconteceu ao injetar push.

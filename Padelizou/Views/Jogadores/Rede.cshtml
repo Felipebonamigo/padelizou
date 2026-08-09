@@ -1,0 +1,75 @@
+@model Padelizou.ViewModels.RedeDoJogadorVM
+@{
+    ViewData["Title"] = Model.SouEu ? "Minha rede" : $"Rede de {Model.NomeDoJogador}";
+
+    @* As duas listas usam o MESMO partial: elas têm a mesma forma e mudam só no botão da
+       direita. Duas cópias do HTML dariam duas telas que envelhecem separadas. *@
+}
+
+<div class="container px-0 mt-4 mb-5" style="max-width: 720px;">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+            <i class="bi bi-people-fill"></i> @(Model.SouEu ? "Minha rede" : Model.NomeDoJogador)
+        </h2>
+        <a asp-action="Perfil" asp-route-id="@Model.JogadorId" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-person"></i> Ver perfil
+        </a>
+    </div>
+
+    <ul class="nav nav-pills pdz-pills mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(Model.AbrirEmSeguindo ? "" : "active")" data-bs-toggle="tab"
+                    data-bs-target="#abaSeguidores" type="button" role="tab">
+                <i class="bi bi-person-heart"></i> Seguidores (@Model.Seguidores.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(Model.AbrirEmSeguindo ? "active" : "")" data-bs-toggle="tab"
+                    data-bs-target="#abaSeguindo" type="button" role="tab">
+                <i class="bi bi-binoculars"></i> Seguindo (@Model.Seguindo.Count)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade @(Model.AbrirEmSeguindo ? "" : "show active")" id="abaSeguidores" role="tabpanel">
+            @if (!Model.Seguidores.Any())
+            {
+                <partial name="_Vazio" model='@(new EstadoVazio(Model.SouEu
+                    ? "Ninguém te segue ainda. Quem te seguir recebe aviso dos seus torneios e dos seus jogos de mata-mata."
+                    : "Ninguém segue esta pessoa ainda.", "Procurar jogadores", "Jogadores", "Buscar"))' />
+            }
+            else
+            {
+                <div class="card border-0 shadow-sm">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var p in Model.Seguidores)
+                        {
+                            <partial name="_PessoaNaRede" model="@(new LinhaDaRede(p, Model.SouEu, Model.JogadorId, true))" />
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade @(Model.AbrirEmSeguindo ? "show active" : "")" id="abaSeguindo" role="tabpanel">
+            @if (!Model.Seguindo.Any())
+            {
+                <partial name="_Vazio" model='@(new EstadoVazio(Model.SouEu
+                    ? "Você ainda não segue ninguém. Seguir alguém te avisa quando essa pessoa entra num torneio ou joga um mata-mata."
+                    : "Esta pessoa ainda não segue ninguém.", "Procurar jogadores", "Jogadores", "Buscar"))' />
+            }
+            else
+            {
+                <div class="card border-0 shadow-sm">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var p in Model.Seguindo)
+                        {
+                            <partial name="_PessoaNaRede" model="@(new LinhaDaRede(p, Model.SouEu, Model.JogadorId, false))" />
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</div>

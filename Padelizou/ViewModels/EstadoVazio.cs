@@ -10,7 +10,11 @@ public record EstadoVazio(
     string Mensagem,
     string? TextoDoBotao = null,
     string? Controller = null,
-    string? Acao = null)
+    string? Acao = null,
+    // Parâmetros de rota do botão, pra ação que exige um id ("meu perfil" precisa saber qual).
+    // Sem isto, o link saía sem o id e a ação recebia 0 — ou seja, um botão que dá "não
+    // encontrado". Dicionário porque é o que o asp-all-route-data aceita.
+    Dictionary<string, string>? Rota = null)
 {
     public bool TemBotao =>
         !string.IsNullOrWhiteSpace(TextoDoBotao) &&

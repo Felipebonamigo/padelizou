@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using padelizou.Models;
 using Padelizou.Models;
 using Padelizou.Services;
+using Padelizou.ViewModels;
 using System.Security.Claims;
 
 namespace padelizou.Controllers
@@ -309,6 +310,14 @@ namespace padelizou.Controllers
                 .Take(5)
                 .ToListAsync();
 
+            ViewBag.Recebidos = await RecebidosNoPerfilAsync(jogadorId);
+
+            // Os dois números da rede, pro card "Quem te segue". Contados no banco: carregar
+            // as duas listas inteiras pra tirar o .Count seria puxar o mundo pra mostrar dois
+            // números — a lista completa tem tela própria (Jogadores/Rede).
+            ViewBag.QuantosSeguidores = await _context.SeguidoresJogador.CountAsync(s => s.SeguidoId == jogadorId);
+            ViewBag.QuantosSeguindo = await _context.SeguidoresJogador.CountAsync(s => s.SeguidorId == jogadorId);
+
             // Clubes que ele é dono ou administrador — pra linkar direto na tela de gerenciar.
             var clubesAdministrados = await _context.ClubeAdministradores
                 .Include(a => a.Clube)
@@ -319,6 +328,82 @@ namespace padelizou.Controllers
             ViewBag.MeusClubes = clubesDono.Concat(clubesAdministrados).DistinctBy(c => c.Id).ToList();
 
             return View(jogador);
+        }
+
+        // Quantos elogios e comentários o card do painel mostra antes do "ver todos". É um
+        // resumo, não o mural: a lista completa mora no perfil público, que é onde ela já
+        // existia e onde dá pra apagar comentário.
+        private const int RecebidosNoCard = 5;
+
+        // ELOGIOS E COMENTÁRIOS RECEBIDOS, COM O NOME DE QUEM FEZ.
+        //
+        // ⚠️ Aqui NÃO se agrega por tipo, e é essa a diferença pro perfil público: lá o
+        // interesse é "como essa pessoa joga" (3× Boa Bandeja), aqui é "quem falou de mim".
+        // Agregado, o nome de quem elogiou desaparecia — e era justamente o que faltava.
+        private async Task<RecebidosNoPerfilVM> RecebidosNoPerfilAsync(int jogadorId)
+        {
+            // ⚠️ O filtro pelo catálogo entra na CONSULTA, não só na exibição: sem ele, um
+            // código que saísse do catálogo continuaria no total e a tela diria "e mais 1
+            // elogio" que ela nunca vai desenhar. O que não aparece não conta.
+            var codigosValidos = CatalogoElogios.Todos.Select(t => t.Codigo).ToList();
+
+            var elogios = await _context.Elogios
+                .Where(e => e.ParaJogadorId == jogadorId && codigosValidos.Contains(e.Tipo))
+                .OrderByDescending(e => e.CriadoEm).ThenByDescending(e => e.Id)
+                .Take(RecebidosNoCard)
+                .Select(e => new
+                {
+                    e.DeJogadorId,
+                    e.DeJogador.Nome,
+                    e.DeJogador.Apelido,
+                    e.DeJogador.FotoPerfil,
+                    e.Tipo,
+                    e.CriadoEm,
+                })
+                .ToListAsync();
+
+            var comentarios = await _context.ComentariosPerfil
+                .Where(c => c.PerfilId == jogadorId)
+                .OrderByDescending(c => c.CriadoEm).ThenByDescending(c => c.Id)
+                .Take(RecebidosNoCard)
+                .Select(c => new
+                {
+                    c.AutorId,
+                    c.Autor.Nome,
+                    c.Autor.Apelido,
+                    c.Autor.FotoPerfil,
+                    c.Texto,
+                    c.CriadoEm,
+                })
+                .ToListAsync();
+
+            return new RecebidosNoPerfilVM
+            {
+                // Código fora do catálogo é PULADO em vez de virar uma linha com o código cru
+                // na tela ("SmashBom"). Mesma decisão do perfil público.
+                Elogios = elogios
+                    .Select(e => (Linha: e, Tipo: CatalogoElogios.Obter(e.Tipo)))
+                    .Where(x => x.Tipo != null)
+                    .Select(x => new ElogioRecebidoVM(
+                        x.Linha.DeJogadorId,
+                        NomeBonito.ComApelido(x.Linha.Nome, x.Linha.Apelido),
+                        x.Linha.FotoPerfil,
+                        x.Tipo!.Titulo,
+                        x.Tipo.Icone,
+                        x.Linha.CriadoEm))
+                    .ToList(),
+                Comentarios = comentarios
+                    .Select(c => new ComentarioRecebidoVM(
+                        c.AutorId,
+                        NomeBonito.ComApelido(c.Nome, c.Apelido),
+                        c.FotoPerfil,
+                        c.Texto,
+                        c.CriadoEm))
+                    .ToList(),
+                TotalElogios = await _context.Elogios
+                    .CountAsync(e => e.ParaJogadorId == jogadorId && codigosValidos.Contains(e.Tipo)),
+                TotalComentarios = await _context.ComentariosPerfil.CountAsync(c => c.PerfilId == jogadorId),
+            };
         }
 
         // 3.1 TELA DE EDITAR PERFIL (dados pessoais — diferente de "Preferências", que é sobre jogo)
@@ -959,6 +1044,10 @@ namespace padelizou.Controllers
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
             ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+            // A lista de cidades é nacional e só cresce. Abrir já filtrada pelo estado de quem
+            // está na tela deixa à vista as poucas que interessam — o resto continua a um
+            // clique no seletor de UF.
+            ViewBag.EstadoPreferido = jogador.Estado;
 
             return View(jogador);
         }

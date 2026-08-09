@@ -2,19 +2,6 @@
 @{
     ViewData["Title"] = "Notificações";
     var naoLidosAgora = ViewBag.NaoLidosAgora as HashSet<int> ?? new HashSet<int>();
-
-    // "há 3 min", "ontem", "12/08". Data cheia numa lista de avisos obriga a pessoa a fazer
-    // a conta de quanto tempo faz — que é a única coisa que ela quer saber.
-    string Quando(DateTime q)
-    {
-        var faz = DateTime.Now - q;
-        if (faz.TotalMinutes < 1) return "agora";
-        if (faz.TotalMinutes < 60) return $"há {(int)faz.TotalMinutes} min";
-        if (faz.TotalHours < 24) return $"há {(int)faz.TotalHours}h";
-        if (faz.TotalDays < 2) return "ontem";
-        if (faz.TotalDays < 7) return $"há {(int)faz.TotalDays} dias";
-        return q.ToString("dd/MM");
-    }
 }
 
 <div class="container px-0 mt-4 mb-5" style="max-width: 720px;">
@@ -57,7 +44,7 @@
                                 }
                                 @a.Titulo
                             </div>
-                            <span class="text-muted small text-nowrap">@Quando(a.CriadoEm)</span>
+                            <span class="text-muted small text-nowrap">@TempoRelativo.Curto(a.CriadoEm)</span>
                         </div>
                         <div class="text-muted small mt-1">@a.Corpo</div>
                     </li>

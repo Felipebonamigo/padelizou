@@ -29,20 +29,8 @@ public class DenunciaComentarioTests
         return (ctx, comentario);
     }
 
-    private static JogadoresController Jogadores(DbPadelContext ctx, int usuarioLogadoId)
-    {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity(
-                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
-            },
-        };
-        controller.TempData = new TempDataDictionary(controller.HttpContext, Substitute.For<ITempDataProvider>());
-        return controller;
-    }
+    private static JogadoresController Jogadores(DbPadelContext ctx, int usuarioLogadoId) =>
+        TestInfra.NovoJogadoresController(ctx, usuarioLogadoId);
 
     private static AdminController Admin(DbPadelContext ctx, int usuarioLogadoId)
     {

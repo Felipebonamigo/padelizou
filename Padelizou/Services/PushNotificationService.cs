@@ -70,7 +70,11 @@ public class PushNotificationService : IPushNotificationService
         // Notificações é o canal que não depende de entrega nenhuma: é só abrir o app.
         await GuardarNaCaixaDeEntradaAsync(aviso);
 
-        await EnviarEmailAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
+        // O e-mail é o único canal que um aviso pode dispensar (ver AlcanceDoAviso.AppSemEmail):
+        // bilhete social não vale uma entrada na caixa de e-mail de ninguém.
+        if (aviso.Alcance != AlcanceDoAviso.AppSemEmail)
+            await EnviarEmailAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
+
         await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
     }
 

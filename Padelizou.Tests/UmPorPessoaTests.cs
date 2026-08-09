@@ -29,20 +29,10 @@ public class UmPorPessoaTests
         return ctx;
     }
 
-    private static JogadoresController Como(DbPadelContext ctx, int jogadorId)
-    {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity(
-                    new[] { new Claim(ClaimTypes.NameIdentifier, jogadorId.ToString()) }, "Teste")),
-            },
-        };
-        controller.TempData = new TempDataDictionary(controller.HttpContext, Substitute.For<ITempDataProvider>());
-        return controller;
-    }
+    // ⚠️ O TestInfra é obrigatório aqui desde que elogio e comentário passaram a avisar a
+    // pessoa: montar o controller à mão deixava o `Url` nulo, e `Url.Action` estoura.
+    private static JogadoresController Como(DbPadelContext ctx, int jogadorId) =>
+        TestInfra.NovoJogadoresController(ctx, jogadorId);
 
     // ── Elogios ───────────────────────────────────────────────────────────────────────────
 

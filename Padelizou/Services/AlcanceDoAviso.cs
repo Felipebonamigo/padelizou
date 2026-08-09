@@ -18,4 +18,12 @@ public enum AlcanceDoAviso
     // (sobre a própria pessoa), **urgente** (perde valor se ela vir amanhã) e **acionável**
     // (ela faz alguma coisa por causa dele).
     AppEWhatsApp,
+
+    // Só a caixa de entrada e a notificação do app — SEM e-mail.
+    //
+    // Existe pros bilhetes sociais: alguém te elogiou, comentou no seu perfil, começou a te
+    // seguir. São bons de ver, mas nenhum deles pede resposta nem tem hora pra ser lido, e
+    // e-mail pra cada um é exatamente o que faz a pessoa marcar o remetente como lixo — aí
+    // ela perde junto o aviso de que a chave saiu. A cota do Gmail já estourou uma vez.
+    AppSemEmail,
 }

@@ -25,11 +25,7 @@ public class SeletorDoRankingTests
 
     private static async Task<List<Torneio>> SeletorAsync(DbPadelContext ctx)
     {
-        var controller = new JogadoresController(
-            ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>())
-        {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
-        };
+        var controller = TestInfra.NovoJogadoresController(ctx);
 
         // O dublê precisa devolver o VM vazio, e não o `null` que o NSubstitute dá de graça:
         // a tela lê as DUAS listas do Americano (individual e duplas) e nenhuma pode faltar.

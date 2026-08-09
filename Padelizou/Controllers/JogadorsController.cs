@@ -13,14 +13,24 @@ public class JogadoresController : Controller
     private readonly DbPadelContext _context;
     private readonly IEstatisticasService _estatisticas;
     private readonly IRankingRsService _rankingRs;
+    private readonly IPushNotificationService _push;
 
     public JogadoresController(DbPadelContext context, IEstatisticasService estatisticas,
-        IRankingRsService rankingRs)
+        IRankingRsService rankingRs, IPushNotificationService push)
     {
         _context = context;
         _estatisticas = estatisticas;
         _rankingRs = rankingRs;
+        _push = push;
     }
+
+    // Quem fez a coisa, pro texto do aviso. Uma consulta só, projetada — carregar o Jogador
+    // inteiro pra pegar nome e apelido traria foto, CPF e telefone junto, sem necessidade.
+    private async Task<(string? Nome, string? Apelido)> QuemSouAsync(int jogadorId) =>
+        await _context.Jogadores
+            .Where(j => j.Id == jogadorId)
+            .Select(j => new ValueTuple<string?, string?>(j.Nome, j.Apelido))
+            .FirstOrDefaultAsync();
 
     [HttpGet]
     public async Task<IActionResult> Perfil(int id)
@@ -101,6 +111,11 @@ public class JogadoresController : Controller
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
 
+        // Os dois números da rede. Ficam DEPOIS da saída do perfil privado, como o resto:
+        // quantas pessoas seguem alguém também é dado de quem fechou o perfil.
+        ViewBag.QuantosSeguidores = await _context.SeguidoresJogador.CountAsync(s => s.SeguidoId == id);
+        ViewBag.QuantosSeguindo = await _context.SeguidoresJogador.CountAsync(s => s.SeguidorId == id);
+
         // Evolução de pontos mês a mês (gráfico do perfil).
         ViewBag.Evolucao = await _estatisticas.ObterEvolucaoJogadorAsync(id);
 
@@ -175,7 +190,7 @@ public class JogadoresController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Seguir(int id)
+    public async Task<IActionResult> Seguir(int id, int? voltarParaRede = null)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         if (meuId != id)
@@ -185,16 +200,29 @@ public class JogadoresController : Controller
             {
                 _context.SeguidoresJogador.Add(new SeguidorJogador { SeguidorId = meuId, SeguidoId = id });
                 await _context.SaveChangesAsync();
+
+                // ⚠️ Só quando o vínculo NASCE. Deixar de seguir e seguir de novo é o caminho
+                // óbvio de transformar isto em cutucão repetido na mesma pessoa.
+                var eu = await QuemSouAsync(meuId);
+                var texto = AvisoSocial.NovoSeguidor(eu.Nome, eu.Apelido);
+
+                // O destino é o perfil de QUEM SEGUIU, não o meu: a pergunta que o aviso
+                // levanta é "quem é essa pessoa?", e é lá que ela se responde (e que dá pra
+                // seguir de volta).
+                await _push.EnviarParaJogadorAsync(id, texto.Titulo, texto.Corpo,
+                    Url.Action("Perfil", "Jogadores", new { id = meuId }), AlcanceDoAviso.AppSemEmail);
             }
         }
 
-        return RedirectToAction("Perfil", new { id });
+        return voltarParaRede is int redeDe
+            ? RedirectToAction(nameof(Rede), new { id = redeDe })
+            : RedirectToAction("Perfil", new { id });
     }
 
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeixarDeSeguir(int id)
+    public async Task<IActionResult> DeixarDeSeguir(int id, int? voltarParaRede = null)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var vinculo = await _context.SeguidoresJogador
@@ -205,7 +233,90 @@ public class JogadoresController : Controller
             await _context.SaveChangesAsync();
         }
 
-        return RedirectToAction("Perfil", new { id });
+        // Deixar de seguir NÃO avisa ninguém, de propósito: é a única das quatro ações do
+        // perfil que a outra pessoa preferia não saber, e avisar transformaria um botão
+        // discreto num recado constrangedor.
+        return voltarParaRede is int redeDe
+            ? RedirectToAction(nameof(Rede), new { id = redeDe })
+            : RedirectToAction("Perfil", new { id });
+    }
+
+    // QUEM TE SEGUE e QUEM VOCÊ SEGUE, as duas listas na mesma tela.
+    //
+    // Seguir existe desde o começo e nunca teve onde ser visto: dava pra apertar o botão no
+    // perfil de alguém e pronto — nem quem seguia sabia a própria lista, nem quem era seguido
+    // sabia por quem. É público de propósito (o perfil e o histórico já são), com a MESMA
+    // trava do perfil privado.
+    [HttpGet]
+    public async Task<IActionResult> Rede(int id, string? aba = null)
+    {
+        var jogador = await _context.Jogadores
+            .Where(j => j.Id == id)
+            .Select(j => new { j.Id, j.Nome, j.Apelido, j.PerfilPrivado })
+            .FirstOrDefaultAsync();
+        if (jogador == null) return NotFound();
+
+        int? meuId = User.Identity?.IsAuthenticated == true
+            ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
+            : null;
+        bool souEuMesmo = meuId.HasValue && meuId.Value == id;
+
+        // Perfil privado esconde tudo menos foto e nome — a rede seria uma porta lateral pro
+        // que o perfil acabou de fechar. Volta pro perfil, que é onde a recusa está explicada.
+        if (jogador.PerfilPrivado && !souEuMesmo) return RedirectToAction(nameof(Perfil), new { id });
+
+        // Quem EU sigo, pra saber onde cabe o "Seguir de volta". Vazio pra visitante deslogado
+        // — ele não segue ninguém, e nenhum botão faz sentido pra ele.
+        var euSigo = meuId.HasValue
+            ? (await _context.SeguidoresJogador
+                .Where(s => s.SeguidorId == meuId.Value)
+                .Select(s => s.SeguidoId)
+                .ToListAsync()).ToHashSet()
+            : new HashSet<int>();
+
+        // Mais recente primeiro, com o nome como desempate: CriadoEm nasceu depois de parte
+        // dos vínculos, e sem o segundo critério a lista trocaria de ordem entre dois cliques.
+        var seguidores = await _context.SeguidoresJogador
+            .Where(s => s.SeguidoId == id)
+            .OrderByDescending(s => s.CriadoEm).ThenBy(s => s.Seguidor.Nome)
+            .Select(s => new PessoaNaRedeVM
+            {
+                Id = s.Seguidor.Id,
+                Nome = s.Seguidor.Nome,
+                Apelido = s.Seguidor.Apelido,
+                Foto = s.Seguidor.FotoPerfil,
+                Cidade = s.Seguidor.Cidade,
+                Estado = s.Seguidor.Estado,
+                Desde = s.CriadoEm,
+            })
+            .ToListAsync();
+
+        var seguindo = await _context.SeguidoresJogador
+            .Where(s => s.SeguidorId == id)
+            .OrderByDescending(s => s.CriadoEm).ThenBy(s => s.Seguido.Nome)
+            .Select(s => new PessoaNaRedeVM
+            {
+                Id = s.Seguido.Id,
+                Nome = s.Seguido.Nome,
+                Apelido = s.Seguido.Apelido,
+                Foto = s.Seguido.FotoPerfil,
+                Cidade = s.Seguido.Cidade,
+                Estado = s.Seguido.Estado,
+                Desde = s.CriadoEm,
+            })
+            .ToListAsync();
+
+        foreach (var p in seguidores.Concat(seguindo)) p.EuSigo = euSigo.Contains(p.Id);
+
+        return View(new RedeDoJogadorVM
+        {
+            JogadorId = jogador.Id,
+            NomeDoJogador = NomeBonito.ComApelido(jogador.Nome, jogador.Apelido),
+            SouEu = souEuMesmo,
+            Seguidores = seguidores,
+            Seguindo = seguindo,
+            AbrirEmSeguindo = string.Equals(aba, "seguindo", StringComparison.OrdinalIgnoreCase),
+        });
     }
 
     [HttpPost]
@@ -227,6 +338,14 @@ public class JogadoresController : Controller
         {
             _context.Elogios.Add(new Elogio { DeJogadorId = meuId, ParaJogadorId = id, Tipo = tipo });
             await _context.SaveChangesAsync();
+
+            // ⚠️ Avisa só o elogio NOVO. A troca abaixo não avisa: é a MESMA pessoa mexendo no
+            // MESMO elogio, e mandar "fulano te elogiou" a cada troca contaria a mesma coisa
+            // três vezes — além de deixar o mural do outro à mercê de quem fica trocando.
+            var eu = await QuemSouAsync(meuId);
+            var texto = AvisoSocial.Elogio(eu.Nome, eu.Apelido, escolhido.Titulo);
+            await _push.EnviarParaJogadorAsync(id, texto.Titulo, texto.Corpo,
+                Url.Action("Perfil", "Jogadores", new { id }), AlcanceDoAviso.AppSemEmail);
         }
         else if (meuElogio.Tipo != tipo)
         {
@@ -270,6 +389,11 @@ public class JogadoresController : Controller
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         texto = (texto ?? "").Trim();
 
+        // ⚠️ O aviso sai só do comentário NOVO, e por isso a decisão é tomada aqui dentro e
+        // usada depois do SaveChanges: editar pra corrigir um "voce" sem acento não é notícia
+        // nenhuma pro dono do perfil, e avisaria de novo a cada letra trocada.
+        bool avisarDoComentario = false;
+
         if (meuId == id)
         {
             TempData["Erro"] = "Você não pode comentar no seu próprio perfil.";
@@ -297,6 +421,7 @@ public class JogadoresController : Controller
             if (meuComentario == null)
             {
                 _context.ComentariosPerfil.Add(new ComentarioPerfil { AutorId = meuId, PerfilId = id, Texto = texto });
+                avisarDoComentario = true;
             }
             else if (meuComentario.Texto != texto)
             {
@@ -313,6 +438,16 @@ public class JogadoresController : Controller
             }
 
             await _context.SaveChangesAsync();
+
+            if (avisarDoComentario)
+            {
+                // O aviso sai DEPOIS de gravar: comentário que não entrou no banco não pode
+                // gerar recado dizendo que entrou.
+                var eu = await QuemSouAsync(meuId);
+                var aviso = AvisoSocial.Comentario(eu.Nome, eu.Apelido, texto);
+                await _push.EnviarParaJogadorAsync(id, aviso.Titulo, aviso.Corpo,
+                    Url.Action("Perfil", "Jogadores", new { id }), AlcanceDoAviso.AppSemEmail);
+            }
         }
 
         return RedirectToAction("Perfil", new { id });

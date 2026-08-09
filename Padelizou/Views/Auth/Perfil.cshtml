@@ -6,6 +6,9 @@
     var historicoTorneios = (List<Padelizou.Models.Dupla>)ViewBag.HistoricoTorneios;
     var evolucao = (EvolucaoJogadorVM)ViewBag.Evolucao;
     var onboarding = (OnboardingVM)ViewBag.Onboarding;
+    var recebidos = ViewBag.Recebidos as RecebidosNoPerfilVM ?? new RecebidosNoPerfilVM();
+    int quantosSeguidores = ViewBag.QuantosSeguidores ?? 0;
+    int quantosSeguindo = ViewBag.QuantosSeguindo ?? 0;
 }
 
 <div class="container mt-4">
@@ -139,6 +142,97 @@
                 </div>
             }
 
+            @* O QUE OS OUTROS DISSERAM DE VOCÊ.
+               O perfil público mostra elogio agregado por tipo ("3× Boa Bandeja"), que é a
+               leitura de quem chega de fora. Aqui a pergunta é outra — QUEM — e ela não tinha
+               resposta em tela nenhuma do sistema. *@
+            <div class="card border-0 shadow-sm mb-4 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                        <i class="bi bi-chat-heart-fill text-danger"></i> O que dizem de você
+                    </h6>
+                    @if (recebidos.TemAlgo)
+                    {
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Id" class="small">Ver tudo no meu perfil</a>
+                    }
+                </div>
+
+                @if (!recebidos.TemAlgo)
+                {
+                    <partial name="_Vazio" model='@(new EstadoVazio(
+                        "Ninguém te elogiou nem comentou ainda. Elogio e comentário são deixados no seu perfil por quem já jogou com você.",
+                        "Ver meu perfil público", "Jogadores", "Perfil",
+                        new Dictionary<string, string> { ["id"] = Model.Id.ToString() }))' />
+                }
+                else
+                {
+                    @if (recebidos.Elogios.Any())
+                    {
+                        <div class="mb-2">
+                            @foreach (var e in recebidos.Elogios)
+                            {
+                                <div class="d-flex align-items-center gap-2 py-1">
+                                    <i class="bi @e.Icone text-success flex-shrink-0"></i>
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <span class="fw-bold small">@e.Titulo</span>
+                                        <span class="text-muted small">
+                                            por
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@e.DeJogadorId"
+                                               class="text-decoration-none">@e.DeQuem</a>
+                                        </span>
+                                    </div>
+                                    <span class="text-muted text-nowrap flex-shrink-0" style="font-size: .75rem;">
+                                        @TempoRelativo.Curto(e.Quando)
+                                    </span>
+                                </div>
+                            }
+                            @if (recebidos.TotalElogios > recebidos.Elogios.Count)
+                            {
+                                <div class="text-muted small mt-1">
+                                    e mais @(recebidos.TotalElogios - recebidos.Elogios.Count) elogio(s).
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (recebidos.Comentarios.Any())
+                    {
+                        @if (recebidos.Elogios.Any())
+                        {
+                            <hr class="my-2" />
+                        }
+                        @foreach (var c in recebidos.Comentarios)
+                        {
+                            <div class="d-flex gap-2 py-2">
+                                @if (!string.IsNullOrWhiteSpace(c.Foto))
+                                {
+                                    <img src="@c.Foto" alt="" class="rounded-circle flex-shrink-0"
+                                         style="width: 32px; height: 32px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-circle fs-5 text-muted flex-shrink-0"></i>
+                                }
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId"
+                                           class="fw-bold small text-decoration-none" style="color: var(--pdz-ink);">@c.DeQuem</a>
+                                        <span class="text-muted text-nowrap" style="font-size: .75rem;">@TempoRelativo.Curto(c.Quando)</span>
+                                    </div>
+                                    <div class="small text-muted">@c.Texto</div>
+                                </div>
+                            </div>
+                        }
+                        @if (recebidos.TotalComentarios > recebidos.Comentarios.Count)
+                        {
+                            <div class="text-muted small">
+                                e mais @(recebidos.TotalComentarios - recebidos.Comentarios.Count) comentário(s).
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
             <div class="row mb-4">
                 <!-- Card de Torneios -->
                 <div class="col-sm-6 mb-3">
@@ -196,6 +290,21 @@
                             <p class="small text-muted mb-0">Veja quem está procurando jogadores ou crie seu aviso.</p>
                         </div>
                         <a asp-controller="Avisos" asp-action="Index" class="btn btn-sm btn-padel rounded-pill px-4 fw-bold">Ver Avisos</a>
+                    </div>
+                </div>
+                @* SUA REDE. Seguir existia desde o começo e nunca teve lista: dava pra apertar
+                   o botão no perfil de alguém e nunca mais saber quem estava dos dois lados. *@
+                <div class="col-sm-12 mb-3">
+                    <div class="card border-0 bg-light p-3 d-flex flex-row justify-content-between align-items-center shadow-sm gap-2" style="border-radius: 12px;">
+                        <div>
+                            <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-people-fill"></i> Sua rede</h6>
+                            <p class="small text-muted mb-0">
+                                <strong>@quantosSeguidores</strong> te @(quantosSeguidores == 1 ? "segue" : "seguem") ·
+                                você segue <strong>@quantosSeguindo</strong>
+                            </p>
+                        </div>
+                        <a asp-controller="Jogadores" asp-action="Rede" asp-route-id="@Model.Id"
+                           class="btn btn-sm btn-padel rounded-pill px-4 fw-bold flex-shrink-0">Ver quem é</a>
                     </div>
                 </div>
                 @{

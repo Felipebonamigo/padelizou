@@ -15,7 +15,7 @@
 
     @if (Model.TemBotao)
     {
-        <a asp-controller="@Model.Controller" asp-action="@Model.Acao"
+        <a asp-controller="@Model.Controller" asp-action="@Model.Acao" asp-all-route-data="@Model.Rota"
            class="btn btn-sm btn-padel rounded-pill px-4 mt-3 fw-bold">
             @Model.TextoDoBotao
         </a>

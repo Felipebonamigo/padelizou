@@ -123,6 +123,23 @@
                 </div>
             }
 
+            @* Os dois números são LINK: até aqui dava pra seguir e deixar de seguir, e nunca
+               pra ver quem estava dos dois lados. *@
+            @if (!perfilBloqueado)
+            {
+                <div class="mb-2 small">
+                    <a asp-controller="Jogadores" asp-action="Rede" asp-route-id="@Model.jogador.Id"
+                       class="text-decoration-none" style="color: var(--pdz-ink);">
+                        <strong>@(ViewBag.QuantosSeguidores ?? 0)</strong> <span class="text-muted">seguidores</span>
+                    </a>
+                    <span class="text-muted mx-1">·</span>
+                    <a asp-controller="Jogadores" asp-action="Rede" asp-route-id="@Model.jogador.Id" asp-route-aba="seguindo"
+                       class="text-decoration-none" style="color: var(--pdz-ink);">
+                        <strong>@(ViewBag.QuantosSeguindo ?? 0)</strong> <span class="text-muted">seguindo</span>
+                    </a>
+                </div>
+            }
+
             @if (ViewBag.EstouSeguindo != null)
             {
                 bool estouSeguindo = (bool)ViewBag.EstouSeguindo;

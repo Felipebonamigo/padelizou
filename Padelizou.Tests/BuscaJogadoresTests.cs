@@ -15,7 +15,7 @@ public class BuscaJogadoresTests
         string? q = null, int? categoriaId = null, string? estado = null, string? cidade = null, int? clubeId = null,
         int pagina = 1)
     {
-        var controller = new JogadoresController(ctx, new EstatisticasService(ctx), Substitute.For<IRankingRsService>());
+        var controller = TestInfra.NovoJogadoresController(ctx);
         var result = (ViewResult)await controller.Buscar(q, categoriaId, estado, cidade, clubeId, pagina);
         return (BuscaJogadoresVM)result.Model!;
     }
