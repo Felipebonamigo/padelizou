@@ -23,6 +23,14 @@
                 <div class="alert alert-danger">@ViewBag.Erro</div>
             }
 
+            @* Girar a foto é a única ação que volta PRA CÁ em vez de ir pro perfil, e o
+               "Sucesso" só era mostrado lá. Sem isto a confirmação não sumia: ficava guardada
+               e aparecia na próxima vez que a pessoa abrisse o perfil, fora de hora. *@
+            @if (TempData["Sucesso"] != null)
+            {
+                <div class="alert alert-success">@TempData["Sucesso"]</div>
+            }
+
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <form asp-controller="Auth" asp-action="EditarPerfil" method="post" enctype="multipart/form-data">
@@ -31,6 +39,25 @@
                             @if (!string.IsNullOrEmpty(Model.FotoPerfil))
                             {
                                 <img src="@Model.FotoPerfil" alt="Foto de perfil" class="rounded-circle mb-2" style="width: 96px; height: 96px; object-fit: cover;" />
+
+                                @* Girar é um botão SEPARADO do resto do formulário: o giro acontece
+                                   no arquivo em disco na hora, e não faz sentido esperar a pessoa
+                                   apertar "Salvar Alterações" pra ver a foto de pé. O atributo
+                                   `form` faz cada botão enviar o formulário lá de baixo, porque
+                                   formulário dentro de formulário não existe em HTML. *@
+                                <div class="d-flex justify-content-center gap-2 mb-1">
+                                    <button type="submit" form="girar-esquerda" class="btn btn-sm btn-outline-secondary rounded-pill"
+                                            title="Girar um quarto de volta pra esquerda">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                    <button type="submit" form="girar-direita" class="btn btn-sm btn-outline-secondary rounded-pill"
+                                            title="Girar um quarto de volta pra direita">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
+                                <div class="text-muted small mb-2">
+                                    Foto de lado? Gire aqui — vale na hora, sem precisar salvar o resto.
+                                </div>
                             }
                             else
                             {
@@ -210,6 +237,20 @@
 
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Salvar Alterações</button>
                     </form>
+
+                    @* Os dois formulários do giro, fora do de cima porque HTML não aninha
+                       formulário. Quem os aciona são os botões lá em cima, pelo atributo `form`.
+                       O token anti-CSRF entra sozinho: todo form com method="post" e tag helper
+                       ganha o dele. *@
+                    @if (!string.IsNullOrEmpty(Model.FotoPerfil))
+                    {
+                        <form id="girar-esquerda" asp-controller="Auth" asp-action="GirarFoto" method="post" class="d-none">
+                            <input type="hidden" name="quartosDeVolta" value="3" />
+                        </form>
+                        <form id="girar-direita" asp-controller="Auth" asp-action="GirarFoto" method="post" class="d-none">
+                            <input type="hidden" name="quartosDeVolta" value="1" />
+                        </form>
+                    }
                 </div>
             </div>
         </div>

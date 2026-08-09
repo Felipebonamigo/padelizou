@@ -126,21 +126,11 @@ public class OtimizacaoDeImagens
         return new Resultado(otimizadas, puladas, problemas, antes, depois);
     }
 
-    // O caminho vem do banco no formato "/uploads/pasta/arquivo". Confere que ele continua
-    // dentro de wwwroot/uploads antes de tocar em qualquer coisa — uma linha adulterada no banco
-    // não vai fazer esse laço apagar arquivo de sistema.
-    private string? CaminhoFisico(string? caminhoRelativo)
-    {
-        if (string.IsNullOrWhiteSpace(caminhoRelativo)) return null;
-
-        var raizUploads = Path.GetFullPath(Path.Combine(_env.WebRootPath, "uploads"));
-        var completo = Path.GetFullPath(Path.Combine(_env.WebRootPath,
-            caminhoRelativo.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar)));
-
-        return completo.StartsWith(raizUploads + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            ? completo
-            : null;
-    }
+    // O caminho vem do banco no formato "/uploads/pasta/arquivo", e quem confere que ele continua
+    // dentro de wwwroot/uploads é o ImagemEnviada — o mesmo guard usado por todo mundo que toca
+    // em arquivo de upload.
+    private string? CaminhoFisico(string? caminhoRelativo) =>
+        ImagemEnviada.CaminhoFisico(_env.WebRootPath, caminhoRelativo);
 
     private void TentarApagar(string caminho)
     {

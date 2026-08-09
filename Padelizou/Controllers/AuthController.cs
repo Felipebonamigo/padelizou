@@ -644,6 +644,54 @@ namespace padelizou.Controllers
             return RedirectToAction("Perfil");
         }
 
+        // ── Girar a foto de perfil ────────────────────────────────────────────────────────
+        //
+        // A foto do celular guarda no EXIF quanto girar pra ficar de pé, e o Padelizou joga o EXIF
+        // fora de propósito (é lá que mora a coordenada de GPS). Hoje o ImagemEnviada gira os
+        // pixels na hora de salvar, mas quem subiu a foto ANTES disso ficou deitado no site sem
+        // ter feito nada de errado — e continuaria deitado pra sempre, porque o arquivo salvo já
+        // não tem mais como saber que estava torto.
+        //
+        // Além do conserto retroativo, isto cobre o que o EXIF nunca soube: foto tirada com o
+        // celular virado pro lado errado, print de tela, imagem baixada de outro lugar.
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GirarFoto(int quartosDeVolta = 1)
+        {
+            var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(jogador.FotoPerfil))
+            {
+                TempData["ErroImagem"] = "Você ainda não tem foto de perfil pra girar.";
+                return RedirectToAction("EditarPerfil");
+            }
+
+            var girada = await ImagemEnviada.GirarNoDiscoAsync(
+                jogador.FotoPerfil, _env.WebRootPath, FormatoDeImagem.FotoPerfil, quartosDeVolta, _logger);
+
+            if (!girada.Salvou)
+            {
+                // A foto que está lá continua exatamente como estava: a nova só entra no banco
+                // depois de gravada em disco.
+                TempData["ErroImagem"] = girada.Erro;
+                return RedirectToAction("EditarPerfil");
+            }
+
+            var anterior = jogador.FotoPerfil;
+            jogador.FotoPerfil = girada.Caminho;
+            await _context.SaveChangesAsync();
+
+            // O arquivo velho só sai depois que o banco já aponta pro novo. Ao contrário, um
+            // SaveChanges que falhasse deixaria a pessoa sem foto nenhuma.
+            ApagarArquivoDeUpload(anterior);
+
+            TempData["Sucesso"] = "Foto girada!";
+            return RedirectToAction("EditarPerfil");
+        }
+
         // ── Excluir a própria conta (LGPD) ────────────────────────────────────────────────
 
         // Quantos torneios ainda não finalizados dependem SÓ desta pessoa como organizador.
