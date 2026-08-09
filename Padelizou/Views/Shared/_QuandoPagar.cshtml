@@ -1,0 +1,96 @@
+@model Padelizou.Models.Torneio
+@using Padelizou.Services
+
+@*
+    "Quando você quer pagar?" — a pergunta da inscrição no torneio que aceita pagamento até o
+    fechamento (Felipe, 09/08/2026).
+
+    Antes disto o arranjo "pago depois" não perguntava nada: a inscrição nascia pendente e quem
+    QUERIA resolver na hora precisava voltar pra tela do torneio, achar a faixa amarela e clicar
+    de novo. Quem quer pagar é justamente quem não se deve fazer procurar.
+
+    ⚠️ A cobrança só nasce se a resposta for "agora" — ver Services/QuandoPagarInscricao. Fatura
+    criada por via das dúvidas fica pendurada na conta do organizador e no e-mail de cobrança.
+
+    ⚠️ É um parcial porque os DOIS formulários de inscrição (dupla e americano) precisam dele,
+    a mesma razão do _EscolhaFormaPagamento: duplicar seria garantir que um dos dois ficaria pra
+    trás na próxima mudança.
+*@
+@{
+    var podeCobrarNoTorneio = ViewBag.TorneioPodeCobrar as bool? == true;
+    var idBloco = $"quandoPagar_bloco_{Model.Id}";
+}
+@if (QuandoPagarInscricao.PodePerguntar(Model, podeCobrarNoTorneio))
+{
+    var prazoDoTorneio = PrazoParaPagar.Frase(Model);
+
+    <div class="border rounded p-3 mb-3" id="@idBloco" style="background: var(--pdz-surface);">
+        <label class="form-label fw-bold small mb-2">
+            <i class="bi bi-cash-coin"></i> Quando você quer pagar?
+        </label>
+
+        @* "Depois" vem marcado de propósito: é a resposta que NÃO gera cobrança. Quem só quer
+           garantir a vaga e sair não deve ser jogado num checkout sem ter pedido. *@
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="quandoPagar"
+                   id="quandoPagar_depois_@Model.Id" value="@QuandoPagarInscricao.Depois" checked />
+            <label class="form-check-label w-100" for="quandoPagar_depois_@Model.Id">
+                <span class="fw-semibold"><i class="bi bi-hourglass-split"></i> Depois — só garantir minha vaga</span>
+                <span class="d-block small text-muted">
+                    A inscrição entra na hora como <strong>pagamento pendente</strong>.
+                    @if (prazoDoTorneio != null)
+                    {
+                        <text>@prazoDoTorneio.</text>
+                    }
+                </span>
+            </label>
+        </div>
+
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="quandoPagar"
+                   id="quandoPagar_agora_@Model.Id" value="@QuandoPagarInscricao.Agora" />
+            <label class="form-check-label w-100" for="quandoPagar_agora_@Model.Id">
+                <span class="fw-semibold"><i class="bi bi-lightning-charge-fill"></i> Agora — já resolver o pagamento</span>
+                <span class="d-block small text-muted">
+                    A vaga é sua do mesmo jeito; depois de confirmar você segue direto pro pagamento.
+                </span>
+            </label>
+        </div>
+
+        @* A escolha da forma só interessa a quem vai pagar agora. ForcarEscolhaDeForma é
+           necessário aqui: sem ele o parcial se esconde (este torneio, por definição, NÃO exige
+           pagamento na inscrição), a forma chegaria nula no servidor e a cobrança nasceria em
+           "UNDEFINED" — que cobra a taxa cheia em vez da de Pix/boleto. *@
+        <div class="js-como-pagar mt-2 d-none">
+            @{
+                ViewData["ForcarEscolhaDeForma"] = true;
+            }
+            <partial name="_EscolhaFormaPagamento" model="Model" />
+            @{
+                ViewData["ForcarEscolhaDeForma"] = null;
+            }
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var bloco = document.getElementById('@idBloco');
+            if (!bloco) return;
+
+            var formas = bloco.querySelector('.js-como-pagar');
+            var agora = bloco.querySelector('input[name="quandoPagar"][value="@QuandoPagarInscricao.Agora"]');
+            if (!formas || !agora) return;
+
+            function atualizar() {
+                formas.classList.toggle('d-none', !agora.checked);
+            }
+
+            bloco.querySelectorAll('input[name="quandoPagar"]').forEach(function (radio) {
+                radio.addEventListener('change', atualizar);
+            });
+
+            // Roda uma vez na carga: o navegador restaura a escolha anterior num "voltar".
+            atualizar();
+        })();
+    </script>
+}

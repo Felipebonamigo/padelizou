@@ -410,6 +410,11 @@ namespace Padelizou.Controllers
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
 
+            // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de
+            // recebimento de pé). É o que decide se a inscrição pergunta "pagar agora ou
+            // depois" — ver Services/QuandoPagarInscricao.
+            ViewBag.TorneioPodeCobrar = _pagamentos.PodeCobrar(torneio, recebedorTorneio);
+
             // ── "Pagar agora": a MINHA inscrição que ainda não foi paga ──────────────────
             // Só existe em torneio que cobra pelo site e que NÃO exige pagamento na inscrição
             // (nos que exigem, a inscrição já nasce paga). Antes disso, quem entrava nesse

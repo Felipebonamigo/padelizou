@@ -20,7 +20,10 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> InscreverIndividual(int torneioId, int categoriaId, string nome, string cpf,
-            string? chaveAcesso = null, string? formaPagamentoEscolhida = null)
+            string? chaveAcesso = null, string? formaPagamentoEscolhida = null,
+            // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
+            // Services/QuandoPagarInscricao. Nulo vale como "depois".
+            string? quandoPagar = null)
         {
             // Mesma limpeza de DuplasController.Create: CPF com máscara estoura a coluna de
             // 11 chars e derruba a página em vez de avisar o jogador.
@@ -129,9 +132,10 @@ namespace Padelizou.Controllers
                 // jogador vai pro checkout e ela nasce quando o webhook confirmar o pagamento
                 // (PagamentoInscricaoService.EfetivarAsync).
                 var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
+                bool podeCobrar = _pagamentos.PodeCobrar(torneio, recebedor);
                 // Pagar na hora só é obrigatório se o organizador quis assim. Senão a inscrição
-            // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
-            if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
+                // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
+                if (podeCobrar && torneio.PagamentoObrigatorioNaInscricao)
                 {
                     var dadosInscricao = new DadosInscricaoTorneio(
                         torneioId, categoriaId, jogador.Id, null, false, false, false);
@@ -163,17 +167,34 @@ namespace Padelizou.Controllers
                 // a pessoa ganharia o desconto de segunda já na primeira categoria.
                 bool jaEstavaNoTorneio = await QuemJaEstaNoTorneio.EstaAsync(_context, torneioId, jogador.Id);
 
-                _context.InscricoesAmericanas.Add(new InscricaoAmericana
+                var inscricaoCriada = new InscricaoAmericana
                 {
                     CategoriaId = categoriaId,
                     JogadorId = jogador.Id,
                     EmListaDeEspera = emListaDeEspera,
                     // Quanto esta inscrição custou — o número que os somatórios leem depois.
                     ValorInscricao = PrecoDaInscricao.PorPessoa(torneio, jaEstavaNoTorneio),
-                });
+                };
+                _context.InscricoesAmericanas.Add(inscricaoCriada);
                 await _context.SaveChangesAsync();
 
                 await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador.Id });
+
+                // Mesma escolha da inscrição em dupla: a cobrança só nasce se a pessoa disse
+                // que vai pagar agora, e só DEPOIS da inscrição estar gravada.
+                if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar) && !emListaDeEspera)
+                {
+                    var checkoutAgora = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
+                        torneio, recebedor!, jogador, inscricaoDeDupla: false, impedimentos: 0,
+                        new DadosPagamentoDeInscricao(torneioId, null, inscricaoCriada.Id),
+                        formaPagamentoEscolhida);
+
+                    if (checkoutAgora != null) return Redirect(checkoutAgora);
+
+                    TempData["Erro"] = "Inscrição confirmada, mas não deu pra abrir o pagamento agora. "
+                        + "Use o botão \"Pagar agora\" na tela do torneio.";
+                    return RedirectToAction("Details", new { id = torneioId });
+                }
 
                 TempData["Sucesso"] = emListaDeEspera
                     ? "Vagas esgotadas — inscrição entrou na lista de espera. Se alguém desistir, é chamado na ordem de inscrição."

@@ -159,6 +159,9 @@
     var minhaDuplaNaoPaga = ViewBag.MinhaInscricaoNaoPagaDuplaId as int?;
     var minhaAmericanaNaoPaga = ViewBag.MinhaInscricaoNaoPagaAmericanaId as int?;
     var valorDaMinhaInscricao = ViewBag.MinhaInscricaoNaoPagaValor as decimal?;
+    @* Quem está olhando a tela. A lista de inscritos usa isto pra saber o que é recado
+       pessoal (o prazo de pagamento) e o que é informação do torneio (o selo). *@
+    var meuJogadorId = ViewBag.MeuJogadorId as int?;
 }
 @if (minhaDuplaNaoPaga != null || minhaAmericanaNaoPaga != null)
 {
@@ -481,6 +484,14 @@
                                                 <i class="bi @(inscricao.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
                                                 @Padelizou.Services.PagamentoDaInscricao.Selo(inscricao.Pago)
                                             </span>
+                                            @* O prazo é do dono da inscrição, igual à lista de duplas —
+                                               a mesma régua nos dois lugares, senão só um dos dois
+                                               receberia a próxima mudança. *@
+                                            @if (Padelizou.Services.PrazoParaPagar.FraseParaODono(
+                                                    Model, inscricao.JogadorId == meuJogadorId, inscricao.Pago) is { } prazoAmericano)
+                                            {
+                                                <span class="badge bg-secondary mb-2 ms-1">@prazoAmericano</span>
+                                            }
                                         }
                                         <partial name="_JogadorChip" model="inscricao.Jogador" />
                                     </div>
@@ -513,8 +524,15 @@
                                         </span>
                                         @* O prazo ao lado do selo: "pendente" sem data não diz se é
                                            pra hoje ou pro mês que vem. Só aparece quando existe data
-                                           combinada — ver PrazoParaPagar.Frase. *@
-                                        @if (!dupla.Pago && Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDupla)
+                                           combinada — e SÓ PRA QUEM DEVE, porque é recado pessoal e
+                                           não placar público (ver PrazoParaPagar.FraseParaODono). *@
+                                        @* ⚠️ O `meuJogadorId != null` não é sobra: `Jogador2Id` é
+                                           anulável, e sem a guarda a dupla SEM PARCEIRO casaria
+                                           com o visitante deslogado (nulo == nulo). *@
+                                        @if (Padelizou.Services.PrazoParaPagar.FraseParaODono(Model,
+                                                souDaInscricao: meuJogadorId != null
+                                                    && (dupla.Jogador1Id == meuJogadorId || dupla.Jogador2Id == meuJogadorId),
+                                                pago: dupla.Pago) is { } prazoDupla)
                                         {
                                             <span class="badge bg-secondary mb-2 ms-1">@prazoDupla</span>
                                         }
@@ -676,6 +694,9 @@
                 }
 
                 <partial name="_EscolhaFormaPagamento" model="Model" />
+                @* Os dois nunca aparecem juntos: um é do torneio que exige pagamento na
+                   inscrição, o outro do que aceita pagar até o fechamento. *@
+                <partial name="_QuandoPagar" model="Model" />
 
                 <button type="submit" class="btn btn-padel btn-lg w-100 mt-3 shadow-sm">
                     <i class="bi bi-check2-circle"></i> Confirmar Inscrição Individual
@@ -921,6 +942,9 @@
             }
 
             <partial name="_EscolhaFormaPagamento" model="Model" />
+            @* Os dois nunca aparecem juntos: um é do torneio que exige pagamento na inscrição,
+               o outro do que aceita pagar até o fechamento. *@
+            <partial name="_QuandoPagar" model="Model" />
 
             @* O id existe pro aviso de "já inscrito" poder travar o envio quando o parceiro
                escolhido já tem dupla fechada nesta categoria. *@

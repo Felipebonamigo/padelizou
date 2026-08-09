@@ -59,4 +59,16 @@ public static class PrazoParaPagar
         var ate = Ate(torneio);
         return ate == null ? null : $"Pague até {ate.Value:dd/MM}";
     }
+
+    // ⚠️ O PRAZO É RECADO PESSOAL (Felipe, 09/08/2026: "só mostre esse 'pague até 21/09' para o
+    // usuário que deve, não para todos").
+    //
+    // O selo "Pagamento pendente" é informação DO TORNEIO — quem abre a lista tem o direito de
+    // saber quantas vagas já estão acertadas, e foi pedido justamente pra isso. Já "Pague até
+    // 21/09" é uma ORDEM dirigida a UMA pessoa: pendurada no nome dos outros ela não informa
+    // nada a quem lê e ainda cobra em público quem está devendo, na frente do torneio inteiro.
+    //
+    // Quem vê é só quem pode agir — as mesmas pessoas pra quem o botão "pagar agora" aparece.
+    public static string? FraseParaODono(Torneio torneio, bool souDaInscricao, bool pago)
+        => !souDaInscricao || pago ? null : Frase(torneio);
 }

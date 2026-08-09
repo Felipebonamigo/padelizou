@@ -92,7 +92,11 @@ namespace Padelizou.Controllers
             bool juntarComInscricaoSolo = false,
             // Forma que o jogador declarou no checkout. Só é perguntada quando o organizador
             // abriu todas as formas — é ela que decide a taxa (ver CobrancaDoTorneio).
-            string? formaPagamentoEscolhida = null)
+            string? formaPagamentoEscolhida = null,
+            // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
+            // Services/QuandoPagarInscricao. Nulo vale como "depois", que é o lado seguro:
+            // nenhuma cobrança nasce sem alguém ter pedido.
+            string? quandoPagar = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -309,9 +313,10 @@ namespace Padelizou.Controllers
             //    jogador vai pro checkout e a inscrição nasce quando o webhook confirmar o
             //    pagamento (PagamentoInscricaoService.EfetivarAsync).
             var recebedor = await _pagamentos.ObterRecebedorTorneioAsync(torneioId);
+            bool podeCobrar = _pagamentos.PodeCobrar(torneio, recebedor);
             // Pagar na hora só é obrigatório se o organizador quis assim. Senão a inscrição
             // nasce agora mesmo, marcada como não paga, e o acerto vem depois.
-            if (_pagamentos.PodeCobrar(torneio, recebedor) && torneio.PagamentoObrigatorioNaInscricao)
+            if (podeCobrar && torneio.PagamentoObrigatorioNaInscricao)
             {
                 // Juntar com a inscrição solo NÃO vale aqui. A dupla só nasce quando o
                 // webhook confirma o pagamento, e apagar a inscrição do outro agora deixaria
@@ -400,6 +405,31 @@ namespace Padelizou.Controllers
 
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
             await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
+
+            // ── "QUERO PAGAR AGORA" ──────────────────────────────────────────────────────────
+            // A cobrança nasce AQUI, e não lá em cima: a inscrição já está gravada, então um
+            // checkout abandonado deixa a pessoa inscrita e devendo — não a apaga. É a diferença
+            // inteira entre este caminho e o "só confirmo depois de pago".
+            //
+            // ⚠️ Lista de espera não gera cobrança: a vaga ainda não é dela, e cobrar por uma
+            // vaga que talvez não exista é o pior desfecho possível — daria trabalho de estorno
+            // pro organizador e sensação de golpe pro jogador.
+            if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar) && !emListaDeEspera)
+            {
+                var checkoutAgora = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
+                    torneio, recebedor!, jogador1, inscricaoDeDupla: true,
+                    impedimentos: (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0),
+                    new DadosPagamentoDeInscricao(torneioId, dupla.Id, null),
+                    formaPagamentoEscolhida);
+
+                if (checkoutAgora != null) return Redirect(checkoutAgora);
+
+                // Falhou o gateway, mas a INSCRIÇÃO está feita — e é isso que a mensagem
+                // precisa deixar claro, senão a pessoa tenta se inscrever de novo.
+                TempData["Erro"] = "Inscrição confirmada, mas não deu pra abrir o pagamento agora. "
+                    + "Use o botão \"Pagar agora\" na tela do torneio.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
 
             var juntadas = juntaveis.Count > 0
                 ? $" {(juntaveis.Count > 1 ? "As inscrições sozinhas saíram" : "A inscrição sozinha saiu")} — agora é uma só."

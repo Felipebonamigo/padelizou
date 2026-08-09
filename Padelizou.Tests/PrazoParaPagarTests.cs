@@ -69,6 +69,39 @@ public class PrazoParaPagarTests
         Assert.Equal("Pague até 21/09", frase);
     }
 
+    // ── O prazo é RECADO PESSOAL ─────────────────────────────────────────────────────────────
+    // Felipe, 09/08/2026, olhando a lista do NATA PADEL TOUR: "só mostre esse 'pague até 21/09'
+    // para o usuário que deve, não para todos". O selo "Pagamento pendente" é informação do
+    // torneio; a ORDEM de pagar é de uma pessoa só.
+
+    [Fact]
+    public void Quem_deve_ve_o_prazo()
+    {
+        var frase = PrazoParaPagar.FraseParaODono(
+            Torneio(exigePagarNaHora: false, fecha: new DateTime(2026, 9, 21)),
+            souDaInscricao: true, pago: false);
+
+        Assert.Equal("Pague até 21/09", frase);
+    }
+
+    [Fact]
+    public void Quem_esta_so_olhando_a_lista_NAO_ve_o_prazo_dos_outros()
+    {
+        // Pendurado no nome alheio, o aviso não informa nada a quem lê e cobra em público quem
+        // ainda não pagou.
+        Assert.Null(PrazoParaPagar.FraseParaODono(
+            Torneio(exigePagarNaHora: false, fecha: new DateTime(2026, 9, 21)),
+            souDaInscricao: false, pago: false));
+    }
+
+    [Fact]
+    public void Quem_ja_pagou_nao_recebe_cobranca_nenhuma()
+    {
+        Assert.Null(PrazoParaPagar.FraseParaODono(
+            Torneio(exigePagarNaHora: false, fecha: new DateTime(2026, 9, 21)),
+            souDaInscricao: true, pago: true));
+    }
+
     [Fact]
     public void A_cobranca_de_quem_paga_depois_dura_MUITO_mais_que_os_60_minutos()
     {
