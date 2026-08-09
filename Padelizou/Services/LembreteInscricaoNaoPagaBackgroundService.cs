@@ -95,10 +95,15 @@ public class LembreteInscricaoNaoPagaBackgroundService : BackgroundService
             // ⚠️ `NomeTime == null`, e não `!EhTime`: EhTime é [NotMapped] e o EF não traduz
             // propriedade calculada — a consulta estouraria em produção e passaria no teste
             // InMemory, que avalia em C#.
-            var duplas = await context.Duplas
-                .Where(d => d.Categoria.TorneioId == torneio.Id
-                         && !d.Pago && !d.EmListaDeEspera && d.NomeTime == null)
-                .ToListAsync(stoppingToken);
+            //
+            // ⚠️ E no AMERICANO INDIVIDUAL esta tabela nem é olhada: lá `Dupla` é o par de uma
+            // rodada, não uma inscrição — ver LembreteDeInscricaoNaoPaga.AInscricaoEhDupla.
+            var duplas = LembreteDeInscricaoNaoPaga.AInscricaoEhDupla(torneio)
+                ? await context.Duplas
+                    .Where(d => d.Categoria.TorneioId == torneio.Id
+                             && !d.Pago && !d.EmListaDeEspera && d.NomeTime == null)
+                    .ToListAsync(stoppingToken)
+                : new List<Dupla>();
 
             foreach (var dupla in duplas)
             {

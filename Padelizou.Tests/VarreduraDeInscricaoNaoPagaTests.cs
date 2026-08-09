@@ -171,10 +171,48 @@ public class VarreduraDeInscricaoNaoPagaTests
     }
 
     [Fact]
+    public async Task No_americano_individual_a_tabela_Dupla_NAO_e_inscricao()
+    {
+        // ⚠️ ACHADO OLHANDO PRODUÇÃO, não raciocinando: o "Americano das Gurias do Padel" tem
+        // **10 jogadoras e 27 linhas de Dupla**, porque lá cada RODADA cria um par novo. Varrer
+        // essa tabela mandaria a cada jogadora uma cobrança POR PARTIDA. A inscrição individual
+        // mora em InscricaoAmericana, e é só ela que conta.
+        //
+        // Naquele torneio isso não chegou a acontecer (recebimento por fora, sem prazo), mas o
+        // primeiro Americano que cobrar pelo site cairia direto no buraco.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria) = TorneioQueCobra(ctx, qtdDuplas: 3);
+        torneio.Formato = "Americano";
+        ctx.SaveChanges();
+        var push = Substitute.For<IPushNotificationService>();
+
+        var lembradas = await LembreteInscricaoNaoPagaBackgroundService.VarrerAsync(ctx, push, SeteDiasAntes);
+
+        Assert.Equal(0, lembradas);
+        await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task O_americano_DE_DUPLAS_segue_sendo_lembrado_pela_dupla()
+    {
+        // O contrário do teste acima, e a razão de o discriminador ser o FORMATO e não "tem
+        // dupla": no Americano de Duplas a dupla é FIXA e é mesmo a inscrição.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _) = TorneioQueCobra(ctx, qtdDuplas: 1);
+        torneio.Formato = "Americano de Duplas";
+        ctx.SaveChanges();
+        var push = Substitute.For<IPushNotificationService>();
+
+        Assert.Equal(1, await LembreteInscricaoNaoPagaBackgroundService.VarrerAsync(ctx, push, SeteDiasAntes));
+    }
+
+    [Fact]
     public async Task O_americano_tambem_e_lembrado()
     {
         using var ctx = TestInfra.NovoContexto();
-        var (_, categoria) = TorneioQueCobra(ctx, qtdDuplas: 0);
+        var (torneio, categoria) = TorneioQueCobra(ctx, qtdDuplas: 0);
+        // Formato de verdade: é justamente aqui que a inscrição NÃO está na tabela Dupla.
+        torneio.Formato = "Americano";
         var jogador = ctx.Jogadores.First(j => j.Nome == "Organizador");
         ctx.InscricoesAmericanas.Add(new InscricaoAmericana
         {
