@@ -161,7 +161,11 @@ public class PagamentosController : Controller
         vm.Movimentos = recebidos;
         vm.Recebido = recebidos.Where(p => p.Status == "Confirmado").Sum(p => p.ValorRepasse);
         vm.AReceber = recebidos.Where(p => p.Status == "Pendente").Sum(p => p.ValorRepasse);
-        vm.Estornado = recebidos.Where(p => p.Status == "Estornado").Sum(p => p.ValorRepasse);
+        // Devolução PARCIAL não vira status "Estornado" (a cobrança segue paga, só que menor),
+        // então sem somar o ValorEstornado o card diria "R$ 0,00 devolvido" logo depois de
+        // devolvermos dinheiro de verdade.
+        vm.Estornado = recebidos.Where(p => p.Status == "Estornado").Sum(p => p.ValorRepasse)
+            + recebidos.Sum(p => p.ValorEstornado);
         vm.TaxaPaga = recebidos.Where(p => p.Status == "Confirmado").Sum(p => p.Comissao);
         vm.QtdRecebimentos = recebidos.Count(p => p.Status == "Confirmado");
         vm.Pendentes = recebidos.Where(p => p.Status == "Pendente").OrderBy(p => p.ExpiraEm ?? p.CriadoEm).ToList();
@@ -293,16 +297,25 @@ public class PagamentosController : Controller
     }
 
     // Estorna (ou cancela, se ainda não foi paga) uma cobrança dos meus torneios/aulas.
+    //
+    // `valor` em branco devolve TUDO — e devolver tudo desfaz a inscrição junto. Com valor, o
+    // jogador recebe só aquela parte e a inscrição continua de pé (ver Services/EstornoParcial).
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Estornar(int id)
+    public async Task<IActionResult> Estornar(int id, decimal? valor)
     {
         var meuId = ObterJogadorIdLogado();
         var pagamento = await _context.Pagamentos.FindAsync(id);
+        if (pagamento == null) return Forbid();
 
         // Só o dono do torneio/aula mexe no dinheiro dele — sem esta checagem qualquer usuário
         // logado poderia estornar a cobrança de outra pessoa mandando o id na mão.
-        if (pagamento == null || pagamento.RecebedorId != meuId) return Forbid();
+        //
+        // O admin RAIZ também passa: quando quem cobrou errado foi o Padelizou, quem conserta
+        // é a plataforma. A conta do gateway é dele de qualquer forma, então recusar aqui só
+        // empurraria o conserto pro painel do Asaas — onde o nosso banco não fica sabendo.
+        var eu = await _context.Jogadores.FindAsync(meuId);
+        if (pagamento.RecebedorId != meuId && eu?.IsAdminRaiz != true) return Forbid();
 
         if (pagamento.Status is not ("Confirmado" or "Pendente"))
         {
@@ -317,9 +330,44 @@ public class PagamentosController : Controller
         }
 
         bool jaFoiPaga = pagamento.Status == "Confirmado";
-        if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId, jaFoiPaga))
+
+        // Devolver exatamente o que resta é o estorno de sempre: cai no caminho total, que
+        // desfaz a inscrição. Só é "parcial" o que deixa dinheiro na cobrança.
+        bool parcial = valor is { } pedido && jaFoiPaga && !EstornoParcial.EhTotal(pagamento, pedido);
+
+        if (parcial)
+        {
+            var problema = EstornoParcial.ProblemaParaEstornar(pagamento, valor!.Value);
+            if (problema != null)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction(nameof(Meus));
+            }
+        }
+
+        if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId, jaFoiPaga, parcial ? valor : null))
         {
             TempData["Erro"] = "O gateway recusou o estorno. Tente novamente em instantes.";
+            return RedirectToAction(nameof(Meus));
+        }
+
+        if (parcial)
+        {
+            // A cobrança segue CONFIRMADA: o que aconteceu foi uma devolução em cima dela, não
+            // um cancelamento. Marcar "Estornado" aqui faria a inscrição sumir na hora em que
+            // o webhook de estorno total chegasse — e ela não deve sumir.
+            var devolvido = valor!.Value;
+            EstornoParcial.Aplicar(pagamento, devolvido);
+            await _context.SaveChangesAsync();
+
+            await _inscricoes.AjustarValorDaInscricaoAsync(pagamento);
+
+            _logger.LogInformation("Pagamento {Id}: devolvidos {Valor} ao jogador; sobrou {Sobra} "
+                + "(repasse {Repasse} / comissão {Comissao}).",
+                pagamento.Id, devolvido, pagamento.Valor, pagamento.ValorRepasse, pagamento.Comissao);
+
+            TempData["Sucesso"] = $"Devolvidos {devolvido:C} — a inscrição continua de pé, "
+                + $"agora valendo {pagamento.Valor:C}.";
             return RedirectToAction(nameof(Meus));
         }
 
@@ -489,6 +537,13 @@ public class PagamentosController : Controller
                 await _inscricoes.DesfazerAsync(pagamento);
                 break;
 
+            case "PAYMENT_PARTIALLY_REFUNDED":
+                // Devolução de PARTE do dinheiro. Nada de DesfazerAsync aqui: a inscrição
+                // continua valendo, só passou a custar menos. Confundir este evento com o
+                // total apagaria a inscrição de quem só recebeu um troco de volta.
+                await RegistrarDevolucaoParcialAsync(pagamento, pagamentoJson);
+                break;
+
             case "PAYMENT_DELETED":
             case "PAYMENT_OVERDUE":
                 pagamento.Status = "Cancelado";
@@ -497,6 +552,46 @@ public class PagamentosController : Controller
         }
 
         return Ok();
+    }
+
+    // O quanto o gateway diz que já voltou pro jogador, reconciliado com o que temos gravado.
+    //
+    // Reconciliar em vez de "subtrair o que chegou agora" é o que torna isto idempotente: o
+    // Asaas reenvia o mesmo evento até receber 200, e o payload traz a lista INTEIRA de
+    // estornos da cobrança. Descontar por evento tiraria o mesmo dinheiro duas vezes.
+    //
+    // Também cobre o estorno feito direto no painel do Asaas, fora do Padelizou — que é como
+    // ele era feito antes desta tela existir.
+    private async Task RegistrarDevolucaoParcialAsync(Pagamento pagamento, JsonElement pagamentoJson)
+    {
+        if (!pagamentoJson.TryGetProperty("refunds", out var refunds) || refunds.ValueKind != JsonValueKind.Array)
+        {
+            _logger.LogWarning("Devolução parcial do pagamento {Id} chegou sem a lista de estornos — "
+                + "o valor precisa ser conferido à mão.", pagamento.Id);
+            return;
+        }
+
+        decimal totalDevolvido = 0m;
+        foreach (var refund in refunds.EnumerateArray())
+        {
+            // Estorno cancelado é dinheiro que NÃO voltou.
+            var status = refund.TryGetProperty("status", out var s) ? s.GetString() : null;
+            if (string.Equals(status, "CANCELLED", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (refund.TryGetProperty("value", out var v) && v.TryGetDecimal(out var quanto))
+                totalDevolvido += quanto;
+        }
+
+        var falta = totalDevolvido - pagamento.ValorEstornado;
+        if (falta <= 0) return;   // já registrado (o estorno saiu da nossa tela, ou o evento repetiu)
+
+        EstornoParcial.Aplicar(pagamento, falta);
+        await _context.SaveChangesAsync();
+
+        await _inscricoes.AjustarValorDaInscricaoAsync(pagamento);
+
+        _logger.LogInformation("Pagamento {Id}: devolução parcial de {Falta} registrada pelo webhook "
+            + "(total devolvido {Total}).", pagamento.Id, falta, totalDevolvido);
     }
 
     private bool TokenValido()

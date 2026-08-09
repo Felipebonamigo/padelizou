@@ -218,14 +218,19 @@ public class AsaasService : IAsaasService
         }
     }
 
-    public async Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga)
+    public async Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, decimal? valorParcial = null)
     {
         try
         {
             // Paga -> POST /refund devolve o valor. Ainda pendente -> DELETE remove a cobrança:
             // pedir refund de algo não pago o Asaas recusa.
+            //
+            // `value` ausente devolve a cobrança INTEIRA — é o default do próprio Asaas, e é
+            // por isso que o valor parcial só entra no corpo quando existe de verdade. O split
+            // é estornado junto na mesma proporção, sem precisar mandar `splitRefunds`.
             using var request = jaFoiPaga
-                ? Requisicao(HttpMethod.Post, $"payments/{asaasPaymentId}/refund")
+                ? Requisicao(HttpMethod.Post, $"payments/{asaasPaymentId}/refund",
+                    valorParcial is { } parcial ? new { value = parcial } : null)
                 : Requisicao(HttpMethod.Delete, $"payments/{asaasPaymentId}");
 
             var resposta = await _httpClient.SendAsync(request);

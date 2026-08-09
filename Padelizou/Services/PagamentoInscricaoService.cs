@@ -81,6 +81,10 @@ public interface IPagamentoInscricaoService
     // O avesso do EfetivarAsync: o dinheiro voltou, a inscrição volta junto.
     Task<bool> DesfazerAsync(Pagamento pagamento);
 
+    // Devolvemos só PARTE do dinheiro: a inscrição fica, mas passa a valer menos. Sincroniza
+    // o ValorInscricao dela com o valor que sobrou no Pagamento (ver Services/EstornoParcial).
+    Task<bool> AjustarValorDaInscricaoAsync(Pagamento pagamento);
+
     // A taxa dos 5% do torneio "por fora": quem paga é o ORGANIZADOR, e o valor inteiro fica
     // com o Padelizou (sem split). Devolve a URL da fatura, ou null se o gateway falhou.
     Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
@@ -775,6 +779,67 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         await _context.SaveChangesAsync();
         _logger.LogInformation("Pagamento {Id} estornado — inscrição segue de pé, marcada como "
             + "não paga.", pagamento.Id);
+        return true;
+    }
+
+    // Devolvemos parte do dinheiro: a inscrição CONTINUA de pé e paga, mas passou a custar
+    // menos. Sem isto o `ValorInscricao` gravado nela seguiria dizendo o valor antigo — e
+    // é justamente esse número que os somatórios de dinheiro do torneio leem (ver
+    // Dupla.ValorInscricao), então o organizador veria uma receita que não existe mais.
+    //
+    // Espelha a bifurcação do DesfazerAsync de propósito: cada formato grava numa tabela, e
+    // escolher a errada aqui reescreveria o valor da inscrição de OUTRA pessoa.
+    public async Task<bool> AjustarValorDaInscricaoAsync(Pagamento pagamento)
+    {
+        if (pagamento.ReferenciaId == null) return false;
+
+        // Aula, quadra, taxa e mensalidade não têm "valor da inscrição" pra corrigir: o
+        // Pagamento já é o registro do quanto valeram.
+        if (pagamento.Tipo is not ("TorneioDupla" or "TorneioAmericano" or "TorneioPagarDepois"))
+            return false;
+
+        if (pagamento.Tipo == "TorneioPagarDepois")
+        {
+            var dadosDoPagamento = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+            if (dadosDoPagamento == null) return false;
+
+            if (dadosDoPagamento.DuplaId is int duplaJaExistente)
+            {
+                var dupla = await _context.Duplas.FindAsync(duplaJaExistente);
+                if (dupla == null) return false;
+                dupla.ValorInscricao = pagamento.Valor;
+            }
+            else if (dadosDoPagamento.InscricaoAmericanaId is int inscricaoJaExistente)
+            {
+                var inscricao = await _context.InscricoesAmericanas.FindAsync(inscricaoJaExistente);
+                if (inscricao == null) return false;
+                inscricao.ValorInscricao = pagamento.Valor;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            var dados = Desserializar<DadosInscricaoTorneio>(pagamento);
+            if (dados == null) return false;
+
+            if (dados.Jogador2Id.HasValue || dados.SemParceiro)
+            {
+                var dupla = await _context.Duplas.FindAsync(pagamento.ReferenciaId.Value);
+                if (dupla == null) return false;
+                dupla.ValorInscricao = pagamento.Valor;
+            }
+            else
+            {
+                var inscricao = await _context.InscricoesAmericanas.FindAsync(pagamento.ReferenciaId.Value);
+                if (inscricao == null) return false;
+                inscricao.ValorInscricao = pagamento.Valor;
+            }
+        }
+
+        await _context.SaveChangesAsync();
         return true;
     }
 

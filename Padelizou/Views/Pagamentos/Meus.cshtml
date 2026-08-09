@@ -237,15 +237,39 @@
                                    class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="Comprovante">
                                     <i class="bi bi-receipt"></i>
                                 </a>
-                                @if (p.Status is "Confirmado" or "Pendente")
+                                @if (p.Status == "Confirmado")
                                 {
-                                    <form asp-action="Estornar" asp-route-id="@p.Id" method="post" class="d-inline"
-                                          onsubmit="return confirm('@(p.Status == "Confirmado" ? $"Estornar {p.Valor.ToString("C")} para {p.Jogador?.Nome}? O valor volta pro jogador." : "Cancelar esta cobrança?")');">
+                                    @* Campo em branco devolve TUDO (e desfaz a inscrição); com valor,
+                                       devolve só aquela parte e a inscrição continua de pé. *@
+                                    <form asp-action="Estornar" asp-route-id="@p.Id" method="post"
+                                          class="d-inline-flex align-items-center gap-1"
+                                          data-quem="@(p.Jogador?.Nome ?? "o jogador")"
+                                          data-total="@p.Valor.ToString("C")"
+                                          onsubmit="return confirmarDevolucao(this);">
                                         @Html.AntiForgeryToken()
+                                        <input type="text" name="valor" inputmode="decimal" placeholder="Tudo"
+                                               class="form-control form-control-sm text-end" style="width: 5.5rem;"
+                                               aria-label="Quanto devolver — em branco devolve tudo">
                                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
-                                            @(p.Status == "Confirmado" ? "Estornar" : "Cancelar")
+                                            Estornar
                                         </button>
                                     </form>
+                                }
+                                else if (p.Status == "Pendente")
+                                {
+                                    <form asp-action="Estornar" asp-route-id="@p.Id" method="post" class="d-inline"
+                                          onsubmit="return confirm('Cancelar esta cobrança?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                            Cancelar
+                                        </button>
+                                    </form>
+                                }
+                                @if (p.ValorEstornado > 0)
+                                {
+                                    <div class="small text-muted mt-1">
+                                        @p.ValorEstornado.ToString("C") devolvidos
+                                    </div>
                                 }
                             </td>
                         </tr>
@@ -294,6 +318,31 @@
                                     <a asp-action="Pix" asp-route-id="@p.Id"
                                        class="btn btn-sm btn-padel rounded-pill px-3">Pagar</a>
                                 }
+                                @* Quem cobrou a mais foi o Padelizou, então quem devolve é o Padelizou.
+                                   O organizador segue devolvendo o que ELE recebeu, lá no extrato. *@
+                                @if (Model.EhAdmin && p.Status == "Confirmado"
+                                    && p.MetodoPagamento != Padelizou.Services.PixDireto.Metodo)
+                                {
+                                    <form asp-action="Estornar" asp-route-id="@p.Id" method="post"
+                                          class="d-inline-flex align-items-center gap-1 ms-1"
+                                          data-quem="você"
+                                          data-total="@p.Valor.ToString("C")"
+                                          onsubmit="return confirmarDevolucao(this);">
+                                        @Html.AntiForgeryToken()
+                                        <input type="text" name="valor" inputmode="decimal" placeholder="Tudo"
+                                               class="form-control form-control-sm text-end" style="width: 5.5rem;"
+                                               aria-label="Quanto devolver — em branco devolve tudo">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                            Devolver
+                                        </button>
+                                    </form>
+                                }
+                                @if (p.ValorEstornado > 0)
+                                {
+                                    <div class="small text-muted mt-1">
+                                        @p.ValorEstornado.ToString("C") devolvidos
+                                    </div>
+                                }
                             </td>
                         </tr>
                     }
@@ -302,3 +351,23 @@
         </div>
     }
 </div>
+
+<script>
+    // Devolver TUDO e devolver UMA PARTE têm consequências diferentes — tudo desfaz a
+    // inscrição, parte não —, então o aviso precisa dizer qual dos dois vai acontecer.
+    // O nome de quem recebe vem por data-attribute pra apóstrofo no nome não quebrar o script.
+    function confirmarDevolucao(form) {
+        var campo = form.querySelector('input[name="valor"]');
+        var digitado = (campo && campo.value || '').trim();
+        var quem = form.dataset.quem;
+
+        if (!digitado) {
+            return confirm('Devolver TUDO (' + form.dataset.total + ') para ' + quem
+                + '?\n\nA inscrição também é desfeita.');
+        }
+
+        return confirm('Devolver R$ ' + digitado + ' para ' + quem
+            + '?\n\nA inscrição continua de pé, valendo o que sobrar. O organizador devolve a '
+            + 'parte dele junto.');
+    }
+</script>

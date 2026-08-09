@@ -75,7 +75,10 @@ public interface IAsaasService
 
     // Devolve o dinheiro ao jogador. Cobrança ainda não paga é cancelada em vez de estornada —
     // são endpoints diferentes no Asaas.
-    Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga);
+    //
+    // valorParcial null devolve tudo. Com valor, o gateway devolve só aquela parte e estorna
+    // a mesma proporção do split — ver Services/EstornoParcial pro nosso lado da conta.
+    Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, decimal? valorParcial = null);
 
     // Abre a conta de recebimento do organizador sem que ele saia do Padelizou. Devolve o
     // walletId em caso de sucesso, ou o motivo escrito pra tela em caso de recusa.

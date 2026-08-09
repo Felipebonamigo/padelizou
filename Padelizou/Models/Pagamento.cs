@@ -36,7 +36,10 @@ public class Pagamento
     // o extrato de repasses de cada organizador.
     public int? RecebedorId { get; set; }
 
-    // Total pago pelo jogador.
+    // Total pago pelo jogador — o que VALE hoje, não o que foi cobrado um dia. Um estorno
+    // parcial abaixa os três números de baixo (ver Services/EstornoParcial), de propósito:
+    // assim todo relatório que já somava Valor/Repasse/Comissao continua certo sem precisar
+    // saber que estorno existe. Quanto voltou fica em ValorEstornado.
     public decimal Valor { get; set; }
 
     // Fatia que o split manda direto pro organizador/professor.
@@ -44,6 +47,11 @@ public class Pagamento
 
     // Fatia do Padelizou, bruta — a taxa do Asaas ainda é descontada dela.
     public decimal Comissao { get; set; }
+
+    // Quanto já voltou pro jogador. Zero na esmagadora maioria das cobranças; > 0 quando
+    // devolvemos parte do dinheiro (cobrança a maior, desconto combinado depois do pagamento).
+    // Estorno TOTAL não usa este campo — lá o status vira "Estornado" e a inscrição é desfeita.
+    public decimal ValorEstornado { get; set; }
 
     public string? AsaasPaymentId { get; set; }
     public string? AsaasCustomerId { get; set; }
