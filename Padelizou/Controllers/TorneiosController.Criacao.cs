@@ -845,11 +845,22 @@ namespace Padelizou.Controllers
             // binder devolve null. Ver `limparSegundoPreco` logo abaixo.
             decimal? precoSegundaInscricao = null,
             bool limparSegundoPreco = false,
-            // Turno de QUINTA. Nulo = a tela nem desenhou o campo (torneio que não começa na
-            // quinta, ou aba aberta antes deste deploy): o que está gravado FICA, senão um
-            // impedimento que alguém já marcou e pagou sumiria calado.
+            // Turno de QUINTA. A tela de gestão manda sempre (a linha existe escondida, e quem
+            // decide se aparece é a data de início, ao vivo). Nulo = aba aberta antes deste
+            // deploy: o que está gravado FICA, senão um impedimento que alguém já marcou e
+            // pagou sumiria calado.
             bool? permiteImpedimentoQuintaNoite = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
+            // Até quando o organizador tem a quadra. O par com `dataFimInformada` existe porque
+            // aqui nulo tem DOIS sentidos: "apaguei o limite de propósito" (campo em branco) e
+            // "meu formulário nem tem esse campo" (aba aberta antes deste deploy). Sem a marca,
+            // a segunda apagaria a primeira — a mesma armadilha do preço da 2ª categoria.
+            DateTime? dataFim = null, bool dataFimInformada = false,
+            // A janela de jogos, agora editável depois de criado: horário de quadra é das
+            // primeiras coisas que o clube remarca. Nulo = campo ausente, e aí o que está
+            // gravado FICA — trocar por 00:00 faria a grade abrir à meia-noite.
+            TimeSpan? horaInicioDoDia = null, TimeSpan? horaInicioDiasSeguintes = null,
+            TimeSpan? horaFimDoDia = null,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
             // (0 = "não validar esta"). Par de arrays, e não dicionário, porque é o que o
@@ -901,6 +912,36 @@ namespace Padelizou.Controllers
             {
                 TempData["Erro"] = "A duração de cada jogo precisa ser de pelo menos 1 minuto. "
                                  + "Pra jogar sem hora marcada, use \"Sem horário previsto\".";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // ── A janela de jogos ────────────────────────────────────────────────────────
+            // Vale o que veio no formulário; campo ausente (aba antiga) mantém o que está
+            // gravado. As recusas olham o resultado FINAL, e não só o campo digitado: mexer
+            // num horário só é o jeito mais fácil de deixar a janela torta em relação aos
+            // outros dois.
+            var inicioDoDia = horaInicioDoDia ?? torneio.HoraInicioDoDia;
+            var inicioDosSeguintes = horaInicioDiasSeguintes ?? torneio.HoraInicioDiasSeguintes;
+            var fimDoDia = horaFimDoDia ?? torneio.HoraFimDoDia;
+
+            // Último jogo COMEÇANDO antes de o dia abrir não é janela curta: é janela que não
+            // existe. A grade não teria como virar o dia e empilharia o torneio inteiro numa
+            // data só, madrugada adentro (ver Services/GradeDeJogos). O erro típico é digitar
+            // 07:00 no lugar de 19:00, e ele só apareceria depois do sorteio das chaves.
+            if (fimDoDia <= inicioDoDia || fimDoDia <= inicioDosSeguintes)
+            {
+                TempData["Erro"] = "A hora do último jogo tem que ser depois das horas de abertura "
+                                 + "— senão a grade não tem dia nenhum pra marcar os jogos.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Terminar antes de começar é erro de digitação, e ele não fica quieto: a previsão
+            // passaria a avisar "os jogos não cabem" em todo torneio.
+            var fimPedido = dataFimInformada ? dataFim : torneio.DataFim;
+            if (fimPedido is DateTime ultimoDia && dataInicio is DateTime primeiroDia
+                && ultimoDia.Date < primeiroDia.Date)
+            {
+                TempData["Erro"] = "A data de término não pode ser antes da data de início.";
                 return RedirectToAction("Details", new { id });
             }
 
@@ -990,6 +1031,14 @@ namespace Padelizou.Controllers
             torneio.PrecoInscricao = precoInscricao;
             torneio.ClubeId = clubeId;
 
+            // Só mexe no dia de término se o formulário disse que traz o campo — aí o nulo
+            // dele é "apaguei o limite", e não "não tenho esse campo". Ver `dataFimInformada`.
+            if (dataFimInformada) torneio.DataFim = dataFim;
+
+            torneio.HoraInicioDoDia = inicioDoDia;
+            torneio.HoraInicioDiasSeguintes = inicioDosSeguintes;
+            torneio.HoraFimDoDia = fimDoDia;
+
             // Nulo = campo não veio (aba antiga em cache) — mantém o que já estava gravado.
             torneio.SetsFaseGrupos = setsFaseGrupos ?? torneio.SetsFaseGrupos;
             torneio.GamesFaseGrupos = gamesFaseGrupos ?? torneio.GamesFaseGrupos;
@@ -1045,8 +1094,8 @@ namespace Padelizou.Controllers
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.ValidarPeloRankingRs = validarPeloRankingRs;
             await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);
-            // Nulo = a tela nem desenhou o campo (torneio que não começa na quinta, ou aba
-            // aberta antes deste deploy). Mantém o que está gravado em vez de desligar.
+            // Nulo = aba aberta antes deste deploy, que não tem o campo. Mantém o que está
+            // gravado em vez de desligar.
             if (permiteImpedimentoQuintaNoite is bool quinta) torneio.PermiteImpedimentoQuintaNoite = quinta;
             torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
             torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;

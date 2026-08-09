@@ -1670,7 +1670,26 @@
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold small">Data de Início</label>
-                                    <input type="date" name="dataInicio" class="form-control" value="@Model.DataInicio?.ToString("yyyy-MM-dd")" />
+                                    <input type="date" name="dataInicio" id="editDataInicio" class="form-control"
+                                           value="@Model.DataInicio?.ToString("yyyy-MM-dd")"
+                                           onchange="pdzEditarTurnoDeQuinta()" />
+                                    <small class="text-muted d-block mt-1">
+                                        É o dia do primeiro jogo — e é ele que decide se a quinta à noite entra
+                                        nos impedimentos, ali embaixo.
+                                    </small>
+                                </div>
+                                @* O dia em que ACABA. Só dava pra dizer na criação, e a data que
+                                   escorrega ("consegui a quadra até domingo, não sábado") é
+                                   exatamente o tipo de coisa que muda depois de publicar. *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Precisa terminar até <span class="fw-normal">(opcional)</span></label>
+                                    <input type="date" name="dataFim" class="form-control" value="@Model.DataFim?.ToString("yyyy-MM-dd")" />
+                                    @* Marca que o formulário NOVO mandou o campo. Sem isto, aba
+                                       aberta antes deste deploy (que não manda `dataFim`) chegaria
+                                       com nulo e APAGARIA o limite calado — e é justamente o nulo
+                                       que serve pra limpar o campo de propósito. Ver Editar. *@
+                                    <input type="hidden" name="dataFimInformada" value="true" />
+                                    <small class="text-muted d-block mt-1">Até quando você tem a quadra. Vazio = sem limite.</small>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold small">Preço da Inscrição</label>
@@ -1927,21 +1946,27 @@
                                 <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
                             </div>
                             <div id="editTurnosImpedimento" class="ps-4 mb-3" style="display: @(Model.PermiteImpedimentos ? "block" : "none");">
-                                @* A quinta só aparece em torneio que COMEÇA na quinta — num fim de
-                                   semana comum seria oferecer um turno que não existe. O campo fica
-                                   ausente quando não vale, e o Editar trata ausência como "não
-                                   mexe", pra não desligar em silêncio o que já estava ligado. *@
-                                @if (Model.QuintaEhDiaDoTorneio)
-                                {
-                                    <div class="form-check">
-                                        @* ⚠️ O hidden vem DEPOIS do checkbox: o binder fica com o
-                                           PRIMEIRO valor, e com ele na frente marcar valeria
-                                           "false". Mesma pegadinha do "só confirmo depois de pago". *@
-                                        <input class="form-check-input" type="checkbox" name="permiteImpedimentoQuintaNoite" value="true" @(Model.PermiteImpedimentoQuintaNoite ? "checked" : "")>
-                                        <input type="hidden" name="permiteImpedimentoQuintaNoite" value="false">
-                                        <label class="form-check-label">Quinta à noite</label>
-                                    </div>
-                                }
+                                @* A quinta só vale em torneio que COMEÇA na quinta — num fim de
+                                   semana comum seria oferecer um turno que não existe.
+
+                                   Agora que a DATA DE INÍCIO se edita nesta mesma tela, a linha é
+                                   desenhada sempre e quem manda nela é o JavaScript, acompanhando o
+                                   campo de data: marcar a quinta e só ver a opção depois de salvar
+                                   e recarregar seria pedir fé no formulário.
+
+                                   ⚠️ O JS só ESCONDE, nunca desmarca — e nem esconde o que está
+                                   marcado. Escondida e desmarcada ela chega como "false", que é o
+                                   que já estava gravado; desmarcar sozinho apagaria em silêncio um
+                                   impedimento que alguém já marcou e pagou. *@
+                                <div class="form-check" id="editLinhaImpQuinta"
+                                     style="display: @(Model.QuintaEhDiaDoTorneio ? "block" : "none");">
+                                    @* ⚠️ O hidden vem DEPOIS do checkbox: o binder fica com o
+                                       PRIMEIRO valor, e com ele na frente marcar valeria
+                                       "false". Mesma pegadinha do "só confirmo depois de pago". *@
+                                    <input class="form-check-input" type="checkbox" id="editImpQuinta" name="permiteImpedimentoQuintaNoite" value="true" @(Model.PermiteImpedimentoQuintaNoite ? "checked" : "")>
+                                    <input type="hidden" name="permiteImpedimentoQuintaNoite" value="false">
+                                    <label class="form-check-label" for="editImpQuinta">Quinta à noite</label>
+                                </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="permiteImpedimentoSextaNoite" value="true" @(Model.PermiteImpedimentoSextaNoite ? "checked" : "")>
                                     <label class="form-check-label">Sexta à noite</label>
@@ -2148,7 +2173,7 @@
                                só dava pra dizer na criação, antes de saber quanta gente vinha. *@
                             <div class="mb-3 mt-2 border-top pt-3">
                                 <label class="form-label fw-bold" for="editTempoPartida">
-                                    <i class="bi bi-clock-history"></i> Duração de cada jogo
+                                    <i class="bi bi-clock-history"></i> Duração e horários dos jogos
                                 </label>
                                 <div class="row g-3 align-items-start">
                                     <div class="col-md-5">
@@ -2166,7 +2191,8 @@
                                         <div class="form-check form-switch p-3 rounded" style="background-color: var(--pdz-surface-alt);">
                                             <input class="form-check-input ms-0 me-2" type="checkbox" role="switch"
                                                    name="semHorarioPrevisto" value="true" id="editSemHorario"
-                                                   @(Model.SemHorarioPrevisto ? "checked" : "")>
+                                                   @(Model.SemHorarioPrevisto ? "checked" : "")
+                                                   onchange="pdzEditarHorariosDaGrade()">
                                             <label class="form-check-label fw-bold ms-2" for="editSemHorario">
                                                 Sem horário previsto (por ordem de liberação)
                                             </label>
@@ -2175,9 +2201,52 @@
                                                 na quadra conforme ela vaga — você chama pela Mesa de Controle.
                                                 É como roda a maioria dos internos: ninguém prevê quanto dura um jogo,
                                                 e grade que atrasa cedo passa o dia inteiro mentindo.
-                                                Ligado, o campo de duração acima deixa de valer.
+                                                Ligado, a duração e os horários abaixo deixam de valer.
                                             </div>
                                         </div>
+                                    </div>
+
+                                    @* Os mesmos três campos da criação. Antes só dava pra escolher
+                                       a janela ANTES de existir torneio — e o horário da quadra é
+                                       das primeiras coisas que o clube remarca. Sem isto, corrigir
+                                       "na verdade começa às 19h" era refazer o torneio inteiro.
+
+                                       São DUAS aberturas porque o fim de semana tem duas: o
+                                       primeiro dia começa à noite (todo mundo trabalha) e os
+                                       demais começam cedo. Ver Services/GradeDeJogos. *@
+                                    <div class="col-12" id="editHorariosDaGrade"
+                                         style="display: @(Model.SemHorarioPrevisto ? "none" : "block");">
+                                        <label class="form-label fw-bold small">Horários dos jogos</label>
+                                        <div class="row g-2">
+                                            <div class="col-6 col-md-4">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">1º dia</span>
+                                                    <input type="time" name="horaInicioDoDia" class="form-control"
+                                                           value="@Model.HoraInicioDoDia.ToString(@"hh\:mm")" />
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-4">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">demais</span>
+                                                    <input type="time" name="horaInicioDiasSeguintes" class="form-control"
+                                                           value="@Model.HoraInicioDiasSeguintes.ToString(@"hh\:mm")" />
+                                                </div>
+                                            </div>
+                                            <div class="col-12 col-md-4">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">último jogo até</span>
+                                                    <input type="time" name="horaFimDoDia" class="form-control"
+                                                           value="@Model.HoraFimDoDia.ToString(@"hh\:mm")" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">
+                                            É a hora em que o último jogo <strong>começa</strong> — ele pode virar a
+                                            madrugada. O que não couber no dia vai pro seguinte.
+                                            <strong class="d-block">Mudar aqui vale pros jogos que ainda vão ser
+                                            marcados</strong> — quem já tem horário sorteado só muda se você sortear
+                                            a chave de novo.
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -3092,6 +3161,35 @@
             function toggleImpedimentosEdicao() {
                 var ligado = document.getElementById('editImpSwitch').checked;
                 document.getElementById('editTurnosImpedimento').style.display = ligado ? 'block' : 'none';
+            }
+
+            // O turno de QUINTA acompanha a data de início ali de cima: só faz sentido no
+            // torneio que COMEÇA na quinta. Como a data virou campo editável nesta mesma tela,
+            // esperar salvar pra ver a opção aparecer seria pedir fé no formulário.
+            //
+            // ⚠️ Só esconde, e nunca o que está MARCADO: a data pode ter mudado depois de
+            // alguém marcar (e pagar) o impedimento, e sumir com ele aqui apagaria a restrição
+            // em silêncio no próximo "Salvar". Ver Torneio.QuintaEhDiaDoTorneio.
+            function pdzEditarTurnoDeQuinta() {
+                var data = document.getElementById('editDataInicio');
+                var linha = document.getElementById('editLinhaImpQuinta');
+                var caixa = document.getElementById('editImpQuinta');
+                if (!data || !linha || !caixa) return;
+
+                // 'T12:00' de propósito: só a data, o navegador leria como UTC e o fuso de
+                // Brasília jogaria o dia pra trás.
+                var ehQuinta = data.value && new Date(data.value + 'T12:00').getDay() === 4;
+                linha.style.display = (ehQuinta || caixa.checked) ? 'block' : 'none';
+            }
+
+            // "Sem horário previsto" desliga a grade inteira — mostrar a janela de horários
+            // ao lado seria oferecer um ajuste que não vale pra nada.
+            function pdzEditarHorariosDaGrade() {
+                var semHora = document.getElementById('editSemHorario');
+                var campos = document.getElementById('editHorariosDaGrade');
+                if (!semHora || !campos) return;
+
+                campos.style.display = semHora.checked ? 'none' : 'block';
             }
 
             // Chave de acesso e "sumir da listagem" só fazem sentido com o restrito ligado.
