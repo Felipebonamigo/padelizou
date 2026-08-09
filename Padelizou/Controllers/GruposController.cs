@@ -69,11 +69,105 @@ namespace padelizou.Controllers
             return RedirectToAction("Detalhes", new { id = grupo.Id });
         }
 
+        // A tela de entrar por código — e também o destino do LINK de convite.
+        //
+        // O código vem pela URL, mas quem entra é o POST logo abaixo: convite não pode ser um
+        // GET que já mete a pessoa no grupo. Link é coisa que o WhatsApp pré-visualiza, que
+        // antivírus abre e que a pessoa toca sem querer — entrar tem que ser um ato dela.
         [HttpGet]
-        public IActionResult Entrar() => View();
+        public async Task<IActionResult> Entrar(string? codigo)
+        {
+            if (!string.IsNullOrWhiteSpace(codigo))
+            {
+                var convite = codigo.Trim().ToUpper();
+                ViewBag.CodigoDoConvite = convite;
 
+                // O nome do grupo na tela é o que faz o convite parecer convite, e não um
+                // campo de código solto: "Entrar na Pinel Gravataí" responde sozinho.
+                ViewBag.GrupoDoConvite = await _context.GruposPrivados
+                    .Where(g => g.CodigoConvite == convite)
+                    .Select(g => g.Nome)
+                    .FirstOrDefaultAsync();
+            }
+
+            return View();
+        }
+
+        // Convida alguém pra PANELINHA (o grupo em si), pelo sistema.
+        //
+        // O convite pelo WhatsApp não passa por aqui: ele é só um link montado na tela, e é o
+        // caminho de quem convida quem ainda NÃO tem conta. Este aqui é pro contrário — a
+        // pessoa já está no Padelizou, e o aviso chega onde ela já olha.
         [HttpPost]
-        public async Task<IActionResult> Entrar(string codigo)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConvidarParaGrupo(int grupoId, string? identificador)
+        {
+            var euId = ObterUserId();
+
+            var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == grupoId);
+            if (grupo == null) return NotFound();
+
+            // ⚠️ Só quem é DO grupo convida. Sem esta guarda, qualquer pessoa logada mandaria
+            // convite em nome de uma panelinha que não é dela — spam com a nossa cara.
+            bool souMembro = await _context.JogadoresGrupo
+                .AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == euId);
+            if (!souMembro) return Forbid();
+
+            if (string.IsNullOrWhiteSpace(identificador))
+            {
+                TempData["Erro"] = "Digite o CPF ou o login de quem você quer convidar.";
+                return RedirectToAction("Detalhes", new { id = grupoId });
+            }
+
+            // Mesma régua da entrada do sistema: acha por login OU por CPF, com ou sem
+            // pontuação. Quem convida copia do jeito que tem na mão.
+            var procurado = identificador.Trim();
+            var soDigitos = new string(procurado.Where(char.IsDigit).ToArray());
+
+            var convidado = await _context.Jogadores.FirstOrDefaultAsync(j =>
+                j.Login == procurado || j.Cpf == procurado
+                || (soDigitos.Length == 11 && j.Cpf == soDigitos));
+
+            if (convidado == null)
+            {
+                TempData["Erro"] = $"Não achei ninguém com \"{procurado}\". "
+                                 + "Confira o CPF/login — ou use o convite por WhatsApp, que serve pra quem ainda não tem conta.";
+                return RedirectToAction("Detalhes", new { id = grupoId });
+            }
+
+            if (convidado.Id == euId)
+            {
+                TempData["Erro"] = "Você já está na panelinha.";
+                return RedirectToAction("Detalhes", new { id = grupoId });
+            }
+
+            bool jaEstaDentro = await _context.JogadoresGrupo
+                .AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == convidado.Id);
+            if (jaEstaDentro)
+            {
+                TempData["Erro"] = $"{convidado.Nome} já está nesta panelinha.";
+                return RedirectToAction("Detalhes", new { id = grupoId });
+            }
+
+            var quemConvidou = await _context.Jogadores.FindAsync(euId);
+            var link = Url.Action("Entrar", "Grupos", new { codigo = grupo.CodigoConvite });
+
+            await _pushService.EnviarParaJogadorAsync(
+                convidado.Id,
+                "Convite pra uma panelinha",
+                $"{quemConvidou?.Nome ?? "Alguém"} te convidou pra entrar na \"{grupo.Nome}\".",
+                link);
+
+            TempData["Sucesso"] = $"Convite enviado pra {convidado.Nome}. "
+                                + "Ele aparece nas notificações dele — e no celular, se tiver o app.";
+            return RedirectToAction("Detalhes", new { id = grupoId });
+        }
+
+        // O método tem outro nome só porque o GET acima agora também recebe `codigo` (o link
+        // de convite) — em C# os dois seriam a MESMA assinatura. A rota continua /Grupos/Entrar.
+        [HttpPost]
+        [ActionName("Entrar")]
+        public async Task<IActionResult> EntrarNoGrupo(string codigo)
         {
             var userId = ObterUserId();
             var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.CodigoConvite == codigo.Trim().ToUpper());

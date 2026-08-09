@@ -261,6 +261,14 @@
                                     <i class="bi bi-search"></i> Buscar
                                 </a>
                             </li>
+
+                            @* A caixa de entrada de avisos. Fica junto do resto do menu, e não
+                               escondida no menu do avatar: é onde cai o convite pra jogo, e
+                               convite que ninguém acha não é convite. *@
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                @await Component.InvokeAsync("SinoDeAvisos")
+                            }
                         }
                         @if (User.Identity?.IsAuthenticated == true)
                         {

@@ -7,11 +7,40 @@
         <div class="col-md-6">
             <div class="card shadow-sm border-0" style="border-top: 4px solid var(--pdz-navy-fixed);">
                 <div class="card-body p-4 p-md-5">
-                    <div class="text-center mb-4">
-                        <i class="bi bi-box-arrow-in-right display-4" style="color: var(--pdz-ink);"></i>
-                        <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Entrar em um Grupo</h3>
-                        <p class="text-muted">Peça o código de convite pra quem criou o grupo.</p>
-                    </div>
+                    @{
+                        var codigoDoConvite = ViewBag.CodigoDoConvite as string;
+                        var grupoDoConvite = ViewBag.GrupoDoConvite as string;
+                    }
+
+                    @* QUEM CHEGOU POR UM LINK DE CONVITE vê o nome da panelinha e um botão —
+                       não um campo de código pra preencher. O código já veio na URL; pedir
+                       que a pessoa digite o que o link trouxe é o jeito de perder gente na
+                       porta. O código inválido cai no formulário normal, com o aviso. *@
+                    @if (grupoDoConvite != null)
+                    {
+                        <div class="text-center mb-4">
+                            <i class="bi bi-people-fill display-4" style="color: var(--pdz-ink);"></i>
+                            <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Você foi convidado</h3>
+                            <p class="text-muted mb-0">pra entrar na panelinha</p>
+                            <p class="fs-5 fw-bold" style="color: var(--pdz-ink);">@grupoDoConvite</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center mb-4">
+                            <i class="bi bi-box-arrow-in-right display-4" style="color: var(--pdz-ink);"></i>
+                            <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Entrar em um Grupo</h3>
+                            <p class="text-muted">Peça o código de convite pra quem criou o grupo.</p>
+                        </div>
+
+                        @if (codigoDoConvite != null)
+                        {
+                            <div class="alert alert-warning">
+                                Não achei nenhuma panelinha com o código <strong>@codigoDoConvite</strong>.
+                                Confira com quem te convidou.
+                            </div>
+                        }
+                    }
 
                     @if (TempData["Erro"] != null)
                     {
@@ -19,11 +48,23 @@
                     }
 
                     <form asp-controller="Grupos" asp-action="Entrar" method="post">
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Código de convite</label>
-                            <input type="text" name="codigo" class="form-control bg-light text-uppercase" required placeholder="Ex: AB12CD" style="letter-spacing: 2px;" />
-                        </div>
-                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Entrar</button>
+                        @if (grupoDoConvite != null)
+                        {
+                            @* O código vai escondido: entrar continua sendo um POST (nunca um
+                               link que já mete a pessoa dentro), mas ela só precisa confirmar. *@
+                            <input type="hidden" name="codigo" value="@codigoDoConvite" />
+                            <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">
+                                <i class="bi bi-check2-circle"></i> Entrar na panelinha
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-muted small">Código de convite</label>
+                                <input type="text" name="codigo" class="form-control bg-light text-uppercase" required placeholder="Ex: AB12CD" style="letter-spacing: 2px;" value="@codigoDoConvite" />
+                            </div>
+                            <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Entrar</button>
+                        }
                     </form>
                 </div>
             </div>

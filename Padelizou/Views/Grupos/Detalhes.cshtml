@@ -26,7 +26,66 @@
             <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@Model.Id" class="btn btn-padel rounded-pill">
                 <i class="bi bi-plus-circle"></i> Registrar Jogo
             </a>
+            <button type="button" class="btn btn-outline-success rounded-pill"
+                    data-bs-toggle="modal" data-bs-target="#modalConvidarPanelinha">
+                <i class="bi bi-person-plus"></i> Convidar
+            </button>
             <a asp-controller="Grupos" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+        </div>
+    </div>
+
+    @* CONVIDAR PRA PANELINHA — dois caminhos, porque são duas situações diferentes:
+       o WhatsApp serve pra quem AINDA NÃO TEM CONTA (a maioria de quem a gente quer trazer),
+       e o convite pelo sistema serve pra quem já está aqui, caindo direto nas notificações
+       dele. Um só dos dois deixaria metade das pessoas de fora. *@
+    <div class="modal fade" id="modalConvidarPanelinha" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Convidar pra @Model.Nome</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    @{
+                        var linkConvite = Url.Action("Entrar", "Grupos",
+                            new { codigo = Model.CodigoConvite }, protocol: Context.Request.Scheme);
+                        var textoZap = $"Bora jogar? Te convidei pra panelinha \"{Model.Nome}\" no Padelizou. É só entrar por aqui: {linkConvite}";
+                    }
+
+                    <p class="fw-bold small mb-2"><i class="bi bi-whatsapp text-success"></i> Pelo WhatsApp</p>
+                    <p class="text-muted small">
+                        Serve até pra quem ainda não tem conta — o link leva direto pra entrar na panelinha.
+                    </p>
+                    <a class="btn btn-success rounded-pill w-100 mb-2"
+                       href="https://wa.me/?text=@Uri.EscapeDataString(textoZap)"
+                       target="_blank" rel="noopener">
+                        <i class="bi bi-whatsapp"></i> Escolher no WhatsApp
+                    </a>
+                    @* Nem todo mundo compartilha pelo zap: quem prefere colar no grupo, num
+                       e-mail ou num Instagram precisa do link cru. *@
+                    <div class="input-group input-group-sm mb-4">
+                        <input type="text" class="form-control" id="linkDoConvite" readonly value="@linkConvite" />
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="navigator.clipboard.writeText(document.getElementById('linkDoConvite').value); this.innerText='Copiado!';">
+                            Copiar
+                        </button>
+                    </div>
+
+                    <p class="fw-bold small mb-2"><i class="bi bi-bell"></i> Pelo sistema</p>
+                    <p class="text-muted small">
+                        Pra quem já usa o Padelizou. O convite aparece nas notificações da pessoa.
+                    </p>
+                    <form asp-controller="Grupos" asp-action="ConvidarParaGrupo" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="grupoId" value="@Model.Id" />
+                        <div class="input-group">
+                            <input type="text" name="identificador" class="form-control"
+                                   placeholder="CPF ou login da pessoa" maxlength="60" />
+                            <button type="submit" class="btn btn-padel">Convidar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 

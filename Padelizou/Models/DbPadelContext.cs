@@ -78,6 +78,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<ComentarioPerfil> ComentariosPerfil { get; set; }
     public DbSet<FeedbackSite> FeedbacksSite { get; set; }
 
+    // A caixa de entrada de avisos do jogador (a tela "Notificações"). Ver AvisoDoJogador.
+    public DbSet<AvisoDoJogador> AvisosDoJogador { get; set; }
+
     // Inscrições que o Ranking RS reprovou e que esperam a decisão do organizador.
     public DbSet<BloqueioDoRanking> BloqueiosDoRanking { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }

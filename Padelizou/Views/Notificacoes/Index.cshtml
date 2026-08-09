@@ -1,0 +1,73 @@
+@model List<Padelizou.Models.AvisoDoJogador>
+@{
+    ViewData["Title"] = "Notificações";
+    var naoLidosAgora = ViewBag.NaoLidosAgora as HashSet<int> ?? new HashSet<int>();
+
+    // "há 3 min", "ontem", "12/08". Data cheia numa lista de avisos obriga a pessoa a fazer
+    // a conta de quanto tempo faz — que é a única coisa que ela quer saber.
+    string Quando(DateTime q)
+    {
+        var faz = DateTime.Now - q;
+        if (faz.TotalMinutes < 1) return "agora";
+        if (faz.TotalMinutes < 60) return $"há {(int)faz.TotalMinutes} min";
+        if (faz.TotalHours < 24) return $"há {(int)faz.TotalHours}h";
+        if (faz.TotalDays < 2) return "ontem";
+        if (faz.TotalDays < 7) return $"há {(int)faz.TotalDays} dias";
+        return q.ToString("dd/MM");
+    }
+}
+
+<div class="container px-0 mt-4 mb-5" style="max-width: 720px;">
+    <h2 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+        <i class="bi bi-bell-fill"></i> Notificações
+    </h2>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 rounded-3" style="border: 2px dashed var(--pdz-border);">
+            <i class="bi bi-bell-slash display-6 text-muted"></i>
+            <p class="text-muted mb-1 mt-2">Nenhum aviso ainda.</p>
+            <p class="text-muted small mb-0">
+                Convite pra jogo, chave que saiu, seu jogo chegando — tudo aparece aqui.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <ul class="list-group list-group-flush">
+                @foreach (var a in Model)
+                {
+                    var novo = naoLidosAgora.Contains(a.Id);
+
+                    @* A linha inteira é o link quando o aviso tem destino. Um "ver" pequeno no
+                       canto seria um alvo minúsculo no celular, que é onde isto é lido. *@
+                    <li class="list-group-item px-3 py-3 @(novo ? "border-start border-3" : "")"
+                        style="@(novo ? "border-left-color: var(--pdz-lime) !important; background-color: var(--pdz-surface-alt);" : "")">
+                        @if (!string.IsNullOrWhiteSpace(a.Url))
+                        {
+                            <a href="@a.Url" class="text-decoration-none stretched-link" style="color: inherit;"></a>
+                        }
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="fw-bold" style="color: var(--pdz-ink);">
+                                @if (novo)
+                                {
+                                    <span class="badge rounded-pill me-1"
+                                          style="background: var(--pdz-lime); color: var(--pdz-navy); font-size:.6rem;">novo</span>
+                                }
+                                @a.Titulo
+                            </div>
+                            <span class="text-muted small text-nowrap">@Quando(a.CriadoEm)</span>
+                        </div>
+                        <div class="text-muted small mt-1">@a.Corpo</div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <p class="text-muted small mt-3 mb-0">
+            <i class="bi bi-info-circle"></i>
+            Os avisos ficam aqui mesmo que você não tenha recebido no celular.
+        </p>
+    }
+</div>
