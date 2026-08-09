@@ -1659,11 +1659,11 @@ Quase confirmados, em três frentes:
 | Frente | Quem | Modelo de cobrança | Dá pra vender hoje? |
 |---|---|---|---|
 | **Torneios** | Loberos, Corneteiros, Golden Point, Nata Padel, Chakra, Er Padel | régua 5/10/15% já no ar | ✅ produto completo, pagamento real já testado |
-| **Professores** | Jonatas Portal, Gabriel Reis "Índio" | assinante R$ 49,90/mês + 3% Pix / 6% cartão | ⚠️ modelo decidido mas **não implementado** — entram como fundadores (1º mês grátis) enquanto se constrói |
+| **Professores** | Jonatas Portal, Gabriel Reis "Índio" | assinante R$ 49,90/mês + 3% Pix / 6% cartão | ✅ **implementado** (`Services/PlanoDoProfessor` + `/PlanoProfessor`): 15 dias de teste, R$ 49,90/mês, 3% Pix / 6% cartão, avulso 10%, carência de 7 dias no atraso |
 | **Clubes** | Golden Point, Er Padel, Chakra Padel | mensalidade caso a caso (âncora R$ 59–99/quadra) | ⚠️ preço não fechado; a porta de entrada é o torneio deles |
 
 - **Golden Point, Chakra e Er Padel aparecem em DUAS frentes** (clube + torneio): entrar pelo torneio (pronto, sem mensalidade) e a conversa de clube vem depois, com o sistema já em uso na casa.
-- Antes do primeiro cliente externo entrar: decidir o **portão de Acesso Antecipado** (dar a senha ou abrir), gerar **chave+token novos do Asaas**, e decidir o **"externo 5%"** (hoje na prática é grátis — pode virar argumento de venda em vez de furo).
+- Antes do primeiro cliente externo entrar: decidir o **portão de Acesso Antecipado** (dar a senha ou abrir), gerar **chave+token novos do Asaas**, e decidir o **"externo 5%"** (ver abaixo — ele **tem** trava de cobrança).
 
 ---
 
@@ -1680,9 +1680,9 @@ Quase confirmados, em três frentes:
 - [x] **Asaas para produção** (chave + webhook) ✅ 27/07 — **primeiro pagamento real recebido**, corrente verificada nos logs
 - [x] **Limpar dados fictícios** ✅ 27/07 — 144 jogadores e os torneios de demo apagados de produção, com backup antes
 - [x] ✅ **Google: app publicado ("Em produção") 29/07** — o token do backup fora do servidor não expira mais a cada 7 dias. Sem custo (API gratuita; 22,7 MB de 15 GB no Drive) e sem verificação do Google (escopo `drive.file` não é restrito).
-- [ ] ⏳ **Conta bancária no Asaas** — **em andamento, sem pressa**: o Felipe está abrindo a conta PJ (o MEI é recém-criado, leva alguns dias). Auditado pela API em 29/07: comercial/documentação/geral **APROVADOS**, só `bankAccountInfo: PENDING`, **0 contas cadastradas**, saldo **R$ 0,00**. Nada está travado: o pagamento de R$ 9 está `CONFIRMED` mas com `paymentDate` vazio — no cartão o dinheiro só é liberado em ~32 dias (≈28/08), e o líquido é R$ 8,34. Enquanto não houver saldo, a pendência não impede nada; dinheiro que entrar antes fica acumulado na conta do gateway, não se perde. ⚠️ Ao cadastrar, a **titularidade tem que bater com o CNPJ do MEI** — conta de pessoa física costuma ser recusada
+- [x] ✅ **Conta bancária no Asaas** — **RESOLVIDA** (confirmado pelo Felipe em 09/08/2026: a conta está certa e **já recebeu pagamentos**). O histórico de como estava, guardado porque explica o susto: o Felipe está abrindo a conta PJ (o MEI é recém-criado, leva alguns dias). Auditado pela API em 29/07: comercial/documentação/geral **APROVADOS**, só `bankAccountInfo: PENDING`, **0 contas cadastradas**, saldo **R$ 0,00**. Nada está travado: o pagamento de R$ 9 está `CONFIRMED` mas com `paymentDate` vazio — no cartão o dinheiro só é liberado em ~32 dias (≈28/08), e o líquido é R$ 8,34. Enquanto não houver saldo, a pendência não impede nada; dinheiro que entrar antes fica acumulado na conta do gateway, não se perde. ⚠️ Ao cadastrar, a **titularidade tem que bater com o CNPJ do MEI** — conta de pessoa física costuma ser recusada
 - [x] ✅ **Webhook auditado pela API em 29/07**: produção tem **1 só** webhook, ativo, não interrompido, 0 requisições penalizadas. As recusas de hora em hora vinham de um webhook do **sandbox** apontando pra URL de produção (o Asaas já o havia marcado `interrupted`) — apagado com autorização. O "Atomatiza" no sandbox é de outro projeto do Felipe e não foi tocado.
-- [ ] ⏳ **Gerar chave e token novos** do Asaas, agora que a configuração estabilizou ← *precisa do Felipe*
+- [ ] 🔵 **Gerar chave e token novos** do Asaas — **higiene, não pendência**: nada está travado por isso e o par atual funciona. Vale trocar um dia porque a chave circulou por configurações de teste durante a montagem.
 - [x] **Alerta de limite do MEI** (e-mail aos admins em 70% e 90% do teto) ✅ 25/07 💡
 - [x] **Métricas de uso** no admin (`/Admin/Metricas`): cadastros, inscrições, pagamentos, série semanal e medidor do MEI ✅ 25/07
 - [x] **Lembrete automático de cobrança** (push + e-mail a 6h do vencimento, 1x só) ✅ 25/07
@@ -1803,9 +1803,14 @@ Gerados em 26/07/2026 (PDFs na Área de Trabalho + artifacts no claude.ai):
   Artifact: `claude.ai/code/artifact/05bdbad2-ff8c-411f-99a2-675455a21756`
 - **Análise de monetização — 2ª edição 29/07/2026, alinhada ao código:**
   · Torneio: MANTÉM a régua já construída — organizador escolhe: externo 5% / só Pix 10% /
-    todas as formas 15%, taxa descontada. ⚠️ o 5% do "externo" NÃO tem mecanismo de
-    cobrança (na prática é grátis) — decidir: zerar oficialmente ou construir faturamento
-  · Professor (decidido, AINDA NÃO IMPLEMENTADO): **100% assinante** — R$ 49,90/mês ou
+    todas as formas 15%, taxa descontada. ✅ **CORREÇÃO 09/08/2026: o 5% do "externo" TEM
+    mecanismo de cobrança** — a afirmação antiga ("na prática é grátis") estava errada.
+    No Externo o dinheiro nunca passa pelo sistema, então a moeda de troca é o **sorteio
+    das chaves**: `Services/TaxaDoTorneioExterno.ChavesLiberadas` só libera depois que o
+    **admin registra a taxa como paga** (`TaxaExternoPagaEm`, pelo formulário do
+    `/Admin/Financeiro`) ou registra uma **negociação** (`TaxaExternoNegociadaEm`). A
+    cobrança é manual — o admin combina e marca — mas a trava é do sistema
+  · Professor (✅ IMPLEMENTADO — o "ainda não" aqui envelheceu): **100% assinante** — R$ 49,90/mês ou
     R$ 499,90/ano + **3% Pix / 6% cartão**; 1º mês grátis; fundadores; carência na saída.
     Implementação sugerida: régua por forma de recebimento como no torneio (só Pix 3% /
     todas 6%), modo descontado, mínimo próprio (~R$ 2 — o piso global de R$ 4 atropela
