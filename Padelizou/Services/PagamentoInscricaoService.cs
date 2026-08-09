@@ -220,7 +220,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
-            billingType: cobranca.BillingType);
+            billingType: cobranca.BillingType,
+            expiraEm: PrazoParaPagar.Ate(torneio));
     }
 
     // O "pagar agora" de quem JÁ está inscrito. Mesma conta e mesma taxa do checkout de
@@ -260,7 +261,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
             percentual: cobranca.Percentual,
-            billingType: cobranca.BillingType);
+            billingType: cobranca.BillingType,
+            // O link de pagamento é justamente o que a pessoa volta pra usar depois: matá-lo
+            // em 60 minutos transformaria "pago depois" em "não pagou".
+            expiraEm: PrazoParaPagar.Ate(torneio));
     }
 
     // Já existe cobrança aberta pra EXATAMENTE esta inscrição (que ainda não nasceu)?
@@ -596,7 +600,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private async Task<string?> CriarCobrancaAsync(Jogador recebedor, Jogador pagador, decimal preco,
         string tipoOperacao, string tipoPagamento, string descricao, object dados,
         int? torneioId, int? jogoAulaId, string? modoComissao = null,
-        decimal? percentual = null, string billingType = "UNDEFINED")
+        decimal? percentual = null, string billingType = "UNDEFINED",
+        // Até quando esta cobrança vale. Nulo = a regra de sempre (os minutos do gateway), que
+        // é o certo pra quadra, aula e mensalidade: ali o valor fica reservado e não pode
+        // ficar pendurado. Quem manda outra data é o torneio que aceita pagar depois —
+        // ver Services/PrazoParaPagar.
+        DateTime? expiraEm = null)
     {
         var rateio = _asaas.CalcularRateio(preco, tipoOperacao, modoComissao ?? recebedor.ModoComissao, percentual);
 
@@ -616,7 +625,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             Comissao = rateio.Comissao,
             AsaasCustomerId = clienteId,
             DadosInscricao = JsonSerializer.Serialize(dados),
-            ExpiraEm = DateTime.Now.AddMinutes(_settings.MinutosParaPagar),
+            ExpiraEm = expiraEm ?? DateTime.Now.AddMinutes(_settings.MinutosParaPagar),
             Status = "Pendente"
         };
         _context.Pagamentos.Add(pagamento);

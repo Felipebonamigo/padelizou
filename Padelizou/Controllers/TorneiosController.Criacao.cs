@@ -946,6 +946,16 @@ namespace Padelizou.Controllers
             if (pagamentoObrigatorio is bool exigePagar)
             {
                 torneio.PagamentoObrigatorioNaInscricao = exigePagar;
+
+                // "Aceito pagamento até o fechamento das inscrições" não é só desligar a
+                // exigência: é PROMETER uma data. Ela vem do "Inscrições fecham em", que o
+                // organizador preenche logo acima — assim a tela e a cobrança falam do mesmo
+                // dia, e o prazo não fica em aberto por esquecimento.
+                //
+                // ⚠️ Sem data de encerramento não há prazo a gravar: prometer "até o
+                // fechamento" quando ninguém marcou o fechamento seria promessa vazia. Ver
+                // Services/PrazoParaPagar.
+                torneio.PrazoPagamento = exigePagar ? null : previsaoEncerramentoInscricoes;
             }
 
             // ── Preço da 2ª categoria do mesmo jogador ──────────────────────────────────

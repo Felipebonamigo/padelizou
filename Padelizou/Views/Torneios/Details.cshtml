@@ -170,6 +170,10 @@
             {
                 <text>São <strong>@valor.ToString("C")</strong>.</text>
             }
+            @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
+            {
+                <text><strong>@prazoDaMinha.</strong></text>
+            }
         </p>
 
         <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
@@ -507,6 +511,13 @@
                                             <i class="bi @(dupla.Pago ? "bi-check-circle" : "bi-hourglass-split")"></i>
                                             @Padelizou.Services.PagamentoDaInscricao.Selo(dupla.Pago)
                                         </span>
+                                        @* O prazo ao lado do selo: "pendente" sem data não diz se é
+                                           pra hoje ou pro mês que vem. Só aparece quando existe data
+                                           combinada — ver PrazoParaPagar.Frase. *@
+                                        @if (!dupla.Pago && Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDupla)
+                                        {
+                                            <span class="badge bg-secondary mb-2 ms-1">@prazoDupla</span>
+                                        }
                                     }
                                     <partial name="_JogadorChip" model="dupla.Jogador1" />
                                     @* Inscrição sem parceiro tem Jogador2 nulo — o chip
@@ -1683,23 +1694,50 @@
                                 {
                                     <div class="col-12">
                                         <div class="p-3 rounded" style="background-color: var(--pdz-surface-alt); border-left: 4px solid var(--pdz-lime);">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="pagamentoObrigatorio"
-                                                       value="true" id="edPagObrigatorio" style="transform: scale(1.2); margin-right: 8px;"
+                                            <label class="form-label fw-bold small">Quando o jogador precisa pagar?</label>
+
+                                            @* DUAS OPÇÕES, e não um interruptor (Felipe, 08/08/2026). O
+                                               interruptor escondia a segunda escolha atrás de um "desligado",
+                                               e "desligado" não conta o que acontece no lugar. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="pagamentoObrigatorio"
+                                                       value="true" id="edPagAgora"
                                                        checked="@Model.PagamentoObrigatorioNaInscricao" />
-                                                <label class="form-check-label fw-bold small" for="edPagObrigatorio">
-                                                    Só confirmo a inscrição depois de pago
+                                                <label class="form-check-label" for="edPagAgora">
+                                                    <span class="fw-bold small">@Padelizou.Services.PrazoParaPagar.SoDepoisDePago</span>
+                                                    <span class="d-block small text-muted">
+                                                        A vaga só existe com o dinheiro. Acaba o calote — mas
+                                                        <strong>quem abandona o checkout não aparece na lista</strong>,
+                                                        e some sem deixar rastro.
+                                                    </span>
                                                 </label>
-                                                @* O hidden vem DEPOIS do checkbox: o binder de bool fica
-                                                   com o primeiro valor, e com ele na frente marcar valeria
-                                                   "false" — a chave faria o contrário do que diz. *@
-                                                <input type="hidden" name="pagamentoObrigatorio" value="false" />
-                                                <div class="small text-muted ps-1 mt-1">
-                                                    <strong>Ligado:</strong> o jogador cai no checkout e a vaga só nasce paga.
-                                                    <strong>Desligado:</strong> ele garante a vaga na hora e acerta com você por fora —
-                                                    e aí <strong>o sistema não gera cobrança nenhuma</strong>, mesmo o torneio cobrando pelo site.
-                                                    <div class="mt-1">Vale pra quem se inscrever daqui pra frente; quem já está dentro não muda.</div>
-                                                </div>
+                                            </div>
+
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="pagamentoObrigatorio"
+                                                       value="false" id="edPagDepois"
+                                                       checked="@(!Model.PagamentoObrigatorioNaInscricao)" />
+                                                <label class="form-check-label" for="edPagDepois">
+                                                    <span class="fw-bold small">@Padelizou.Services.PrazoParaPagar.AteOFechamento</span>
+                                                    <span class="d-block small text-muted">
+                                                        A vaga nasce na hora, marcada como <strong>Pagamento pendente</strong>,
+                                                        e o jogador paga pelo botão <strong>Pagar agora</strong> até o
+                                                        fechamento das inscrições.
+                                                        @if (Model.PrevisaoEncerramentoInscricoes is DateTime fecha)
+                                                        {
+                                                            <text>No seu torneio isso dá até <strong>@fecha.ToString("dd/MM")</strong>.</text>
+                                                        }
+                                                        else
+                                                        {
+                                                            <text><strong>Preencha "Inscrições fecham em"</strong> acima pra ter uma data —
+                                                            sem ela o prazo fica em aberto.</text>
+                                                        }
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            <div class="small text-muted ps-1 mt-2">
+                                                Vale pra quem se inscrever daqui pra frente; quem já está dentro não muda.
                                             </div>
                                         </div>
                                     </div>
