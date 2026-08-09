@@ -43,7 +43,13 @@ public class AmericanoForaDasVitoriasTests
         }
         await ctx.SaveChangesAsync();
 
-        var vencedora = new Dupla { CategoriaId = categoria.Id, Jogador1Id = jogadores[0].Id, Jogador2Id = jogadores[1].Id };
+        // `UltimaFase` é o que carimba o TÍTULO (é dela que saem troféu e pontos do perfil);
+        // o `VencedorId` da partida só diz quem ganhou aquele jogo.
+        var vencedora = new Dupla
+        {
+            CategoriaId = categoria.Id, Jogador1Id = jogadores[0].Id, Jogador2Id = jogadores[1].Id,
+            UltimaFase = "Campeao",
+        };
         var perdedora = new Dupla { CategoriaId = categoria.Id, Jogador1Id = jogadores[2].Id, Jogador2Id = jogadores[3].Id };
         ctx.Duplas.AddRange(vencedora, perdedora);
         await ctx.SaveChangesAsync();
