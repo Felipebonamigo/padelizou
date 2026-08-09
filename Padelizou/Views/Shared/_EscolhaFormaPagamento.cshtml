@@ -66,6 +66,22 @@
                        checked="@(escolha == CobrancaDoTorneio.EscolhaPix)" required />
                 <label class="form-check-label w-100" for="forma_@(escolha)_@Model.Id">
                     <span class="fw-semibold"><i class="bi @icone"></i> @rotulo</span>
+                    @* A ÚNICA informação que voltou pro jogador (Felipe, 08/08/2026), e ela não
+                       é sobre taxa: é sobre QUANDO o pagamento dele conta. O boleto é o único
+                       meio aqui que não resolve na hora, e quem escolhe sem saber disso sai
+                       achando que já está pago.
+
+                       ⚠️ O prazo vem da CONSTANTE, não digitado à mão. A tela já disse "vence
+                       em alguns dias" enquanto o código gravava vencimento pra AMANHÃ — texto
+                       certo, código errado, e ninguém percebeu porque os dois eram
+                       independentes. Amarrados, um não mente sobre o outro. *@
+                    @if (escolha == CobrancaDoTorneio.EscolhaBoleto)
+                    {
+                        <span class="d-block small text-muted">
+                            Vence em @Padelizou.Services.VencimentoDaCobranca.DiasParaBoleto dias e leva
+                            1 dia útil pra compensar — só conta como pago quando o banco confirmar.
+                        </span>
+                    }
                 </label>
             </div>
         }
