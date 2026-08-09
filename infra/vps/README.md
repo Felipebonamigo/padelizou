@@ -72,17 +72,36 @@ Em **Settings → Secrets and variables → Actions → New repository secret**:
 |---|---|
 | `VPS_SSH_KEY` | O conteúdo do arquivo **privado** `~/.ssh/padelizou_deploy` (inteiro, com as linhas `BEGIN`/`END`) |
 | `VPS_HOST` | O IP ou hostname do VPS |
-| `VPS_KNOWN_HOSTS` | A saída de `ssh-keyscan -t ed25519 SEU_IP` |
+| `VPS_KNOWN_HOSTS` | **Opcional.** A saída de `ssh-keyscan -t ed25519 SEU_IP` |
 
-O `VPS_KNOWN_HOSTS` é o que permite o workflow rodar sem `StrictHostKeyChecking=no`:
-com ele, se algo se passar pelo VPS, o ssh recusa a conexão em vez de entregar o
-acesso. Rode o `ssh-keyscan` de uma rede em que você confia.
+O `VPS_KNOWN_HOSTS` fixa a chave pública do servidor: com ele, se algo se passar pelo
+VPS, o ssh recusa a conexão em vez de entregar o acesso. Rode o `ssh-keyscan` de uma rede
+em que você confia.
+
+**Ele é opcional.** Sem o secret, o workflow busca a chave do servidor na hora do deploy —
+confia no primeiro contato em vez de conferir contra algo sabido. É mais fraco, e é o
+padrão da maioria dos deploys por CI. A troca existe por um motivo prático: pegar o valor
+exigia ENTRAR no servidor, e esse era o único passo da configuração que não dava pra fazer
+do computador. Com dois secrets (IP e chave privada) o deploy já sai — e um deploy
+configurado protege mais que um pino que ninguém chegou a configurar.
 
 O usuário não precisa de configuração: o workflow já usa `root`, que é o do VPS. Se um
 dia isso mudar, crie a **variável** (não secret) `VPS_USER` com o nome do novo — e
 garanta que ele consegue rodar `systemctl restart` e escrever em `/opt`.
 
-### Atalho: gerar os três valores de uma vez
+### O mínimo pra funcionar
+
+Dois secrets, os dois preenchíveis sem abrir o servidor:
+
+```powershell
+# 1) VPS_HOST  →  179.197.233.184
+# 2) VPS_SSH_KEY
+Get-Content "$HOME\.ssh\padelizou_deploy" -Raw | Set-Clipboard
+```
+
+Com esses dois o deploy já sai. O `VPS_KNOWN_HOSTS` fica pra quando sobrar tempo.
+
+### Atalho: gerar todos os valores de uma vez
 
 **No Linux ou no Mac:**
 

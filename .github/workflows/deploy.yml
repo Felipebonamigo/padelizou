@@ -67,14 +67,36 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # A chave pública do servidor vem de secret em vez de
-          # StrictHostKeyChecking=no: assim, se alguém se passar pelo VPS,
-          # o ssh recusa em vez de entregar o acesso.
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          # A chave pública do SERVIDOR — a que faz o ssh saber que está falando com o
+          # VPS certo, e não com quem se passa por ele.
+          #
+          # Com o secret VPS_KNOWN_HOSTS ela é FIXA: o valor foi lido de dentro do
+          # servidor uma vez, e daí em diante qualquer divergência derruba a conexão. É o
+          # jeito mais seguro e continua sendo o preferido.
+          #
+          # Sem o secret, buscamos na hora. Isso confia no primeiro contato em vez de
+          # conferir contra algo sabido — mais fraco, e é o padrão da maioria dos deploys
+          # por CI. A troca é deliberada: pegar a chave do servidor exigia ENTRAR nele, e
+          # esse era o único passo da configuração que não dava pra fazer do computador.
+          # Um deploy configurado com TOFU protege mais que um pino que ninguém chegou a
+          # configurar.
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS não está definido — buscando a chave do servidor na hora (menos rígido). Defina o secret pra fixá-la."
+            ssh-keyscan -t ed25519,rsa "$VPS_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "ERRO: não consegui a chave pública do servidor. Confira o secret VPS_HOST."
+            exit 1
+          fi
           chmod 644 ~/.ssh/known_hosts
 
       - name: ${{ inputs.acao == 'rollback' && 'Voltar pra versão anterior' || 'Publicar' }}
