@@ -638,7 +638,11 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             pagamento.Id.ToString(),
             // Boleto precisa de mais que "amanhã": só compensar já leva 1 dia útil. Ver
             // VencimentoDaCobranca — Pix e cartão seguem em 1 dia, como sempre foram.
-            VencimentoDaCobranca.Para(billingType, DateTime.Today),
+            //
+            // ⚠️ E o `expiraEm` vai JUNTO: é o que faz o vencimento lá no gateway acompanhar o
+            // prazo que a tela prometeu. Sem ele, "Pague até 21/09" convivia com uma fatura que
+            // vencia amanhã — os dois relógios corriam separados, e o curto vencia.
+            VencimentoDaCobranca.Para(billingType, DateTime.Today, expiraEm),
             recebedor.AsaasWalletId,
             billingType);
 

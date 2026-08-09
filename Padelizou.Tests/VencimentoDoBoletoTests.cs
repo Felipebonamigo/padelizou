@@ -49,4 +49,51 @@ public class VencimentoDoBoletoTests
 
         Assert.Equal(new DateTime(2026, 8, 10), VencimentoDaCobranca.Para("BOLETO", tarde));
     }
+
+    // ── OS DOIS RELÓGIOS (09/08/2026) ────────────────────────────────────────────────────────
+    // O torneio que aceita "pagar até o fechamento" esticava só o NOSSO relógio; o vencimento
+    // que ia pro gateway continuava sendo hoje+1. A tela prometia "Pague até 21/09" e a fatura
+    // vencia no dia seguinte — vencida, PAYMENT_OVERDUE, pagamento "Cancelado" aqui.
+
+    [Fact]
+    public void O_prazo_do_torneio_manda_no_vencimento_da_fatura()
+    {
+        var fechamento = new DateTime(2026, 9, 21);
+
+        Assert.Equal(fechamento, VencimentoDaCobranca.Para("PIX", UmaSexta, fechamento));
+        Assert.Equal(fechamento, VencimentoDaCobranca.Para("BOLETO", UmaSexta, fechamento));
+        Assert.Equal(fechamento, VencimentoDaCobranca.Para("UNDEFINED", UmaSexta, fechamento));
+    }
+
+    [Fact]
+    public void Sem_prazo_combinado_nada_muda()
+    {
+        // Quadra, aula e mensalidade não passam prazo nenhum: ali o valor fica reservado e a
+        // regra de sempre continua valendo.
+        Assert.Equal(new DateTime(2026, 8, 10), VencimentoDaCobranca.Para("BOLETO", UmaSexta, null));
+        Assert.Equal(UmaSexta.AddDays(1), VencimentoDaCobranca.Para("PIX", UmaSexta, null));
+    }
+
+    [Fact]
+    public void O_prazo_combinado_so_ESTICA_nunca_encurta()
+    {
+        // ⚠️ Fechamento amanhã não pode encurtar o boleto pra amanhã: ele nasceria morto, que é
+        // exatamente o defeito que este arquivo existe pra impedir. Custa aceitar pagamento
+        // dois dias depois do fechamento — barato perto de emitir papel que o banco não aceita.
+        var fechaAmanha = UmaSexta.AddDays(1);
+
+        Assert.Equal(new DateTime(2026, 8, 10), VencimentoDaCobranca.Para("BOLETO", UmaSexta, fechaAmanha));
+        Assert.Equal(UmaSexta.AddDays(1), VencimentoDaCobranca.Para("PIX", UmaSexta, fechaAmanha));
+    }
+
+    [Fact]
+    public void A_hora_do_prazo_combinado_nao_entra_no_vencimento()
+    {
+        // PrazoParaPagar.Ate devolve o FIM DO DIA (23:59:59.999…) pra quem tem até dia 21 ter o
+        // dia 21 inteiro. O gateway quer uma data, e mandar a hora junto arriscaria arredondar
+        // pro dia seguinte.
+        var fimDoDia21 = new DateTime(2026, 9, 21).AddDays(1).AddTicks(-1);
+
+        Assert.Equal(new DateTime(2026, 9, 21), VencimentoDaCobranca.Para("PIX", UmaSexta, fimDoDia21));
+    }
 }

@@ -27,8 +27,28 @@ public static class VencimentoDaCobranca
     // vaga não passa a noite pendurada em quem desistiu no meio do checkout.
     public const int DiasParaOResto = 1;
 
-    public static DateTime Para(string? billingType, DateTime hoje) =>
-        hoje.Date.AddDays(EhBoleto(billingType) ? DiasParaBoleto : DiasParaOResto);
+    // ⚠️ `prazoCombinado` É O CONSERTO DE 09/08/2026, e ele fecha um buraco que passou batido:
+    // o torneio que aceita "pagar até o fechamento das inscrições" esticava só o NOSSO relógio
+    // (Pagamento.ExpiraEm) — o vencimento que ia pro gateway continuava sendo hoje+1.
+    //
+    // O resultado era a tela prometendo "Pague até 21/09" enquanto a fatura vencia no dia
+    // seguinte; vencida, o Asaas manda PAYMENT_OVERDUE e o pagamento vira "Cancelado" aqui.
+    // Pior: o lembrete de "sua cobrança está pra vencer" só procura status "Pendente", então
+    // ele NUNCA sairia — a cobrança já estaria cancelada muito antes das 6h finais.
+    //
+    // ⚠️ O prazo combinado só ESTICA, nunca encurta. Se o fechamento for antes do mínimo do
+    // meio de pagamento, vale o mínimo: boleto que vence antes de conseguir compensar já nasce
+    // morto (a lição lá de cima), e emitir um assim seria trocar um problema por outro. Custa
+    // aceitar pagamento um ou dois dias depois do fechamento — barato perto de cobrar de
+    // alguém com um papel que o banco não aceita.
+    public static DateTime Para(string? billingType, DateTime hoje, DateTime? prazoCombinado = null)
+    {
+        var minimo = hoje.Date.AddDays(EhBoleto(billingType) ? DiasParaBoleto : DiasParaOResto);
+
+        if (prazoCombinado is not { } prazo) return minimo;
+
+        return prazo.Date > minimo ? prazo.Date : minimo;
+    }
 
     // "UNDEFINED" (o jogador escolhe no meio de pagamento) entra aqui de propósito: ali o
     // boleto É uma das opções que ele pode abrir, e um vencimento de um dia tiraria a opção
