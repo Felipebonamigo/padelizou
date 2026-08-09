@@ -85,18 +85,19 @@ public static class CobrancaDoTorneio
         return new Cobranca("UNDEFINED", taxas.PercentualDoTorneio(formaDoTorneio));
     }
 
-    // O que a tela escreve ao lado de cada opção, pra escolha ser informada: o jogador vê o
-    // prazo, e o organizador (que leu a régua na criação) entende por que a taxa muda.
-    public static string ExplicacaoDaEscolha(string escolha, TaxasExibicao taxas) => escolha switch
-    {
-        EscolhaPix => $"Cai na hora pro organizador. Taxa do Padelizou: {Pct(taxas.ComissaoPercentualSomentePix)}.",
-        EscolhaCartao => $"Dá pra parcelar. O organizador recebe em {taxas.CreditoAVista.DiasParaReceber} dias. " +
-                         $"Taxa do Padelizou: {Pct(taxas.ComissaoPercentualTodasFormas)}.",
-        EscolhaBoleto => $"Vence em alguns dias e leva 1 dia útil pra compensar. " +
-                         $"Taxa do Padelizou: {Pct(taxas.ComissaoPercentualSomentePix)} — a mesma do Pix.",
-        _ => "",
-    };
-
-    private static string Pct(decimal valor) =>
-        valor.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")) + "%";
+    // ⚠️ AQUI MORAVA `ExplicacaoDaEscolha`, e ela NÃO deve voltar (Felipe, 08/08/2026).
+    //
+    // Era o texto que a tela de pagamento punha ao lado de cada forma: "Taxa do Padelizou:
+    // 10%", "o organizador recebe em 32 dias". Isso não é assunto do JOGADOR — taxa e prazo
+    // de repasse são a combinação entre o Padelizou e quem ORGANIZA. Ele paga o mesmo valor
+    // anunciado em qualquer forma (o modo é "Descontada", a taxa sai da fatia do organizador),
+    // então o percentual só levantava uma pergunta que não era dele e expunha nossa régua de
+    // comissão pra qualquer um que abrisse a inscrição.
+    //
+    // O que a tela do jogador mostra hoje é só o NOME das formas, um lembrete de que o Pix
+    // favorece o sistema e o organizador, e — no boleto — quando o pagamento passa a contar
+    // (esse prazo vem de VencimentoDaCobranca, não daqui). Ver _EscolhaFormaPagamento.cshtml.
+    //
+    // A régua de taxa continua existindo e aparecendo onde ela é devida: na tela de CRIAÇÃO
+    // do torneio, que é do organizador — ver TaxasExibicao.
 }

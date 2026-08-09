@@ -9,7 +9,9 @@ namespace Padelizou.Services;
 // NORMAL do boleto, não o excepcional.
 //
 // ⚠️ E a tela já prometia outra coisa: a escolha do jogador diz "vence em alguns dias"
-// (CobrancaDoTorneio.ExplicacaoDaEscolha). Era o texto que estava certo e o código errado.
+// Era o texto que estava certo e o código errado. Hoje esse aviso vive em
+// _EscolhaFormaPagamento.cshtml e lê `DiasParaBoleto` daqui — amarrado à constante justamente
+// pra que a tela não volte a prometer um prazo que o código não cumpre.
 //
 // Achado em 08/08/2026 preparando o primeiro torneio que aceita boleto (Nata Padel). Até
 // aqui nenhum boleto real tinha sido emitido pelo sistema, então não há cobrança antiga a
