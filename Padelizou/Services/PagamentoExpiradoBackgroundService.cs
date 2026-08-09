@@ -42,12 +42,10 @@ public class PagamentoExpiradoBackgroundService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
             var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
-            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
             var agora = DateTime.Now;
             var limite = agora.Add(AntecedenciaLembrete);
             var paraLembrar = await context.Pagamentos
-                .Include(p => p.Jogador)
                 .Where(p => p.Status == "Pendente"
                     && p.LembreteEnviadoEm == null
                     && p.ExpiraEm != null && p.ExpiraEm > agora && p.ExpiraEm <= limite)
@@ -60,23 +58,16 @@ public class PagamentoExpiradoBackgroundService : BackgroundService
                 var horas = Math.Max(1, (int)Math.Round((pagamento.ExpiraEm!.Value - agora).TotalHours));
                 var texto = $"Sua inscrição de {pagamento.Valor:C} expira em ~{horas}h. Pague pra garantir a vaga!";
 
+                // ⚠️ SÓ ENFILEIRAR — o e-mail sai DAQUI TAMBÉM. Este método mandava e-mail por
+                // fora, direto pelo IEmailService, e o resultado eram DOIS e-mails do mesmo
+                // aviso: a fila entrega caixa de entrada + e-mail + push num lugar só
+                // (PushNotificationService.EntregarAgoraAsync). O envio inline sobrou de quando
+                // o funil ainda não existia. Mesmo motivo pelo qual DuplasController não tem
+                // IEmailService.
                 await push.EnviarParaJogadorAsync(pagamento.JogadorId,
                     // Tem hora pra vencer e custa a vaga. Aviso que chega tarde aqui é o mesmo
                     // que não ter chegado.
                     "Pagamento pendente", texto, pagamento.InvoiceUrl, AlcanceDoAviso.AppEWhatsApp);
-
-                if (pagamento.Jogador?.Email != null)
-                {
-                    var corpo = $@"
-                        <p>Olá, {pagamento.Jogador.Nome}!</p>
-                        <p>{texto}</p>
-                        {(pagamento.InvoiceUrl != null
-                            ? $"<p><a href='{pagamento.InvoiceUrl}'>Pagar agora</a></p>"
-                            : "")}
-                        <p>Se já pagou, pode ignorar este aviso — a confirmação chega em instantes.</p>";
-                    await email.EnviarAsync(pagamento.Jogador.Email, pagamento.Jogador.Nome,
-                        "Padelizou: seu pagamento está pra vencer", corpo);
-                }
 
                 pagamento.LembreteEnviadoEm = agora;
             }

@@ -180,6 +180,9 @@ builder.Services.AddScoped<ModuloDoBar>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
+// Cobra a FATURA a vencer × cobra a INSCRIÇÃO devendo. São dois avisos diferentes de propósito:
+// quem escolheu "pago depois" não tem fatura nenhuma pra vencer.
+builder.Services.AddHostedService<LembreteInscricaoNaoPagaBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 builder.Services.AddSingleton<FilaDeWhatsApp>();

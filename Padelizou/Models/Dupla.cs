@@ -91,6 +91,15 @@ public partial class Dupla
     // Serve pro organizador ver quem falta antes de começar, e evitar W.O. surpresa.
     public DateTime? CheckInEm { get; set; }
 
+    // Último lembrete de "você ainda não pagou" já enviado, guardado como o MARCO em dias que
+    // faltavam pro prazo (ver Services/LembreteDeInscricaoNaoPaga). Nulo = nenhum ainda.
+    //
+    // ⚠️ Guarda o marco e não a data do envio de propósito: com a data, decidir "já mandei o
+    // aviso de 7 dias?" viraria uma conta com o calendário toda vez, e o varredor roda de hora
+    // em hora — bastaria um fuso ou um restart no meio pra alguém levar o mesmo aviso duas
+    // vezes. Com o marco, a pergunta é uma comparação de inteiros e a resposta é sempre a mesma.
+    public int? UltimoLembreteDePagamento { get; set; }
+
     // ---- Time (categoria de times) ----
     // Preenchido = esta linha é um TIME, não dois jogadores. Jogador1Id aponta pro
     // organizador que cadastrou (a coluna é NOT NULL e o sistema inteiro depende dela),

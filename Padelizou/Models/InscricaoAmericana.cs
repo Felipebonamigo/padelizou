@@ -36,4 +36,8 @@ public class InscricaoAmericana
     // Mesma ideia do Dupla.ValorInscricao: quanto ESTA inscrição custou, gravado quando ela
     // nasce. Nulo = anterior à coluna, e aí quem soma usa o preço do torneio.
     public decimal? ValorInscricao { get; set; }
+
+    // Mesma ideia do Dupla.UltimoLembreteDePagamento — o marco do último aviso de "você ainda
+    // não pagou". As duas tabelas guardam inscrição, e o lembrete vale pra qualquer uma.
+    public int? UltimoLembreteDePagamento { get; set; }
 }
