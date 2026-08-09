@@ -52,9 +52,18 @@ namespace Padelizou.Controllers
 
             var url = Url.Action("Details", "Torneios", new { id = torneioId });
 
-            // Só ENFILEIRA: a FilaDeAvisos entrega e-mail e push por fora da requisição. O
-            // e-mail inline que morava aqui saía em dobro (a fila já cobre o canal) e foi um
-            // dos motivos de a inscrição demorar a ponto de gente clicar três vezes.
+            // Só ENFILEIRA: a FilaDeAvisos entrega por fora da requisição. O e-mail inline que
+            // morava aqui saía em dobro (a fila já cobre o canal) e foi um dos motivos de a
+            // inscrição demorar a ponto de gente clicar três vezes.
+            //
+            // ⚠️ SEM E-MAIL desde 09/08/2026 (decisão do Felipe, cortando volume depois de a
+            // cota do Gmail estourar): que um amigo se inscreveu é bilhete social — bom de ver,
+            // não pede resposta, não tem hora pra ser lido. E é exatamente o tipo de e-mail que
+            // faz a pessoa marcar o remetente como lixo, e aí ela perde junto o aviso de que a
+            // chave saiu. Push e caixa de entrada seguem iguais; ali o aviso não custa cota.
+            //
+            // ⚠️ A cópia gêmea deste gancho está em TorneiosController — mudar aqui só resolve
+            // metade, porque a inscrição individual passa pela outra.
             foreach (var grupo in seguidores.GroupBy(s => s.SeguidorId))
             {
                 var seguidor = grupo.First().Seguidor;
@@ -62,7 +71,8 @@ namespace Padelizou.Controllers
                 var titulo = "Alguém que você segue se inscreveu num torneio";
                 var corpo = $"{string.Join(" e ", nomesQueSigo)} se inscreveu em {torneio.Nome}.";
 
-                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
+                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url,
+                    AlcanceDoAviso.AppSemEmail);
             }
         }
 

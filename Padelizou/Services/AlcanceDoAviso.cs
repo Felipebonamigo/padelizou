@@ -25,5 +25,17 @@ public enum AlcanceDoAviso
     // seguir. São bons de ver, mas nenhum deles pede resposta nem tem hora pra ser lido, e
     // e-mail pra cada um é exatamente o que faz a pessoa marcar o remetente como lixo — aí
     // ela perde junto o aviso de que a chave saiu. A cota do Gmail já estourou uma vez.
+    //
+    // 09/08/2026 — depois de a cota estourar DE NOVO (130 e-mails perdidos num dia, duas
+    // recuperações de senha entre eles), duas famílias inteiras vieram pra cá:
+    //
+    //   • RESULTADO DE PARTIDA, pros 4 que jogaram e pros seguidores deles. Quem jogou
+    //     estava na quadra e já sabe o placar; e uma rodada terminando junto é rajada.
+    //   • "ALGUÉM QUE VOCÊ SEGUE SE INSCREVEU", nas duas cópias do gancho.
+    //
+    // ⚠️ A pergunta pra decidir se um aviso novo entra aqui: *"a pessoa já sabe disso por ter
+    // estado lá?"* e *"ela faz alguma coisa por causa deste aviso?"*. Se já sabe, ou se não
+    // faz nada, é aqui. E-mail é caro e é o único canal que alcança quem não instalou o app —
+    // gastar em recado que não pede ação é tirar de quem pede.
     AppSemEmail,
 }

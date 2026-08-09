@@ -174,6 +174,18 @@ public class EncerramentoDaPartida
 
     // Fim de jogo: avisa quem jogou e quem acompanha esses jogadores. É o momento em que o
     // app tem algo a dizer — antes disso a pessoa precisava abrir a tela pra descobrir.
+    //
+    // ⚠️ NADA DAQUI VAI POR E-MAIL desde 09/08/2026 (decisão do Felipe, cortando volume depois
+    // de a cota do Gmail estourar e derrubar 130 e-mails num dia, duas recuperações de senha
+    // entre eles). O motivo não é só cota: quem jogou estava na quadra e já sabe o placar — o
+    // e-mail chega pra contar o que a pessoa acabou de viver. E o resultado de quem se segue é
+    // bilhete social, mesmo caso do elogio.
+    //
+    // ⚠️ E o volume aqui é de RAJADA: um jogo avisa 4 jogadores mais os seguidores de cada um,
+    // e uma rodada inteira termina junto. Era o segundo maior gasto de cota do sistema, atrás
+    // só do "Novo torneio aberto".
+    //
+    // O push e a caixa de entrada continuam iguais — ali o aviso não custa cota nem incomoda.
     private async Task NotificarResultadoAsync(Partida partida, int vencedorId, int perdedorId, string? url)
     {
         try
@@ -208,7 +220,7 @@ public class EncerramentoDaPartida
                     ehFinal
                         ? $"Vocês venceram a final{ondeFoi}!"
                         : $"Vocês venceram {Nomes(perdedora)} ({placar}){ondeFoi}.",
-                    url);
+                    url, AlcanceDoAviso.AppSemEmail);
             }
 
             foreach (var id in idsPerdedores)
@@ -216,7 +228,7 @@ public class EncerramentoDaPartida
                 await _push.EnviarParaJogadorAsync(id,
                     "Resultado do seu jogo",
                     $"{Nomes(vencedora)} venceu ({placar}){ondeFoi}.",
-                    url);
+                    url, AlcanceDoAviso.AppSemEmail);
             }
 
             // Quem SEGUE os jogadores fica sabendo — mas só do mata-mata. Num dia de torneio a
@@ -239,7 +251,7 @@ public class EncerramentoDaPartida
                 await _push.EnviarParaJogadorAsync(seguidorId,
                     ehFinal ? "Saiu o campeão!" : "Resultado de quem você segue",
                     $"{Nomes(vencedora)} venceu {Nomes(perdedora)} ({placar}){ondeFoi}.",
-                    url);
+                    url, AlcanceDoAviso.AppSemEmail);
             }
         }
         catch (Exception ex)

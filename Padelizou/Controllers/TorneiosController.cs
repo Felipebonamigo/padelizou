@@ -68,9 +68,13 @@ namespace Padelizou.Controllers
 
             var url = Url.Action("Details", "Torneios", new { id = torneioId });
 
-            // Só ENFILEIRA: a FilaDeAvisos entrega e-mail e push por fora da requisição. O
-            // e-mail inline que morava aqui saía em dobro (a fila já cobre o canal) e segurava
-            // a tela de quem estava se inscrevendo.
+            // Só ENFILEIRA: a FilaDeAvisos entrega por fora da requisição. O e-mail inline que
+            // morava aqui saía em dobro (a fila já cobre o canal) e segurava a tela de quem
+            // estava se inscrevendo.
+            //
+            // ⚠️ SEM E-MAIL desde 09/08/2026 — mesma decisão e mesmo motivo do gêmeo em
+            // DuplasController: bilhete social não vale uma linha na caixa de entrada de
+            // ninguém, e cada um desses gasta cota que a recuperação de senha precisa.
             foreach (var grupo in seguidores.GroupBy(s => s.SeguidorId))
             {
                 var seguidor = grupo.First().Seguidor;
@@ -78,7 +82,8 @@ namespace Padelizou.Controllers
                 var titulo = "Alguém que você segue se inscreveu num torneio";
                 var corpo = $"{string.Join(" e ", nomesQueSigo)} se inscreveu em {torneio.Nome}.";
 
-                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url);
+                await _pushService.EnviarParaJogadorAsync(seguidor.Id, titulo, corpo, url,
+                    AlcanceDoAviso.AppSemEmail);
             }
         }
 
