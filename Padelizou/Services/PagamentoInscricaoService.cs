@@ -1218,8 +1218,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                     emListaDeEspera
                         ? $"{torneio.Nome} · {categoria.Nome} estava lotado. Se alguém desistir, vocês são chamados."
                         : $"{torneio.Nome} · {categoria.Nome}. Boa sorte!",
-                    // Confirmação de algo que a pessoa acabou de fazer e pagar: é o recibo.
-                    $"/Torneios/Details/{torneio.Id}", AlcanceDoAviso.AppEWhatsApp);
+                    // Fora do WhatsApp por decisão do Felipe (09/08/2026): a pessoa ACABOU de
+                    // se inscrever e está olhando a tela que já diz isso. Mensagem no celular
+                    // repetindo o que ela viu meio segundo antes não informa nada — e é o
+                    // aviso de maior volume que existe, um por inscrição.
+                    // "Abriu vaga" continua no WhatsApp: aquele é notícia, este é eco.
+                    $"/Torneios/Details/{torneio.Id}");
             }
             catch (Exception ex)
             {

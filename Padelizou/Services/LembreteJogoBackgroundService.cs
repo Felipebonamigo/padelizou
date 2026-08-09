@@ -87,8 +87,12 @@ public class LembreteJogoBackgroundService : BackgroundService
                 "Jogo em 24h!",
                 $"Confirma presença no jogo fixo dia {sessao.DataHora:dd/MM 'às' HH:mm}"
                   + (grupo.Clube != null ? $" em {grupo.Clube.Nome}." : "."),
-                "/Agenda",
-                AlcanceDoAviso.AppEWhatsApp);
+                // Fora do WhatsApp por decisão do Felipe (09/08/2026): o jogo fixo é o mesmo
+                // dia e a mesma hora toda semana, e quem está no grupo já sabe que ele existe.
+                // Cobrar confirmação por mensagem é o aviso que mais parece cobrança — e
+                // ainda sai pra TODO o grupo de uma vez, que é a forma de rajada que já custou
+                // o número uma vez.
+                "/Agenda");
 
             // Marcado como enviado por ter sido DESPACHADO, não entregue: a fila entrega
             // depois, e insistir a cada passada transformaria um lembrete em perseguição.

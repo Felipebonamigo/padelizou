@@ -297,9 +297,11 @@ namespace padelizou.Controllers
                     novasAulas.Count == 1
                         ? $"{aluno!.Nome} quer aula em {local.Nome}, {primeira.DataHora:dd/MM 'às' HH:mm}."
                         : $"{aluno!.Nome} pediu {novasAulas.Count} aulas em {local.Nome}, a partir de {primeira.DataHora:dd/MM}.",
-                    // O professor perde dinheiro se demorar pra responder — e professor não
-                    // fica de olho em e-mail entre uma aula e outra.
-                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
+                    // Fora do WhatsApp por decisão do Felipe (09/08/2026). O professor tem o
+                    // painel e o e-mail, e a solicitação fica lá esperando — nada se perde se
+                    // ele vir uma hora depois. Diferente da aula DESMARCADA, que continua no
+                    // WhatsApp: essa faz ele viajar até a quadra à toa.
+                    Url.Action("MinhaAgenda", "Aulas"));
             }
             catch (Exception ex)
             {
