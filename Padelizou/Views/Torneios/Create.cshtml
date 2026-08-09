@@ -283,7 +283,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Data de Início</label>
-                        <input type="date" asp-for="DataInicio" class="form-control bg-light" required />
+                        <input type="date" asp-for="DataInicio" id="dataInicio" class="form-control bg-light" required />
 
                     </div>
                     @* A PERGUNTA QUE DESPOLUI A TELA. Metade dos campos daqui só existe pra
@@ -749,6 +749,14 @@
                         </div>
                         <div id="turnosImpedimento" class="ps-4" style="display: none;">
                             <p class="small text-muted mb-2">Quais turnos as duplas podem marcar como impedimento?</p>
+                            @* A quinta só vale pra torneio que COMEÇA na quinta — a linha
+                               aparece e some conforme a data escolhida (ver o script no fim
+                               da página). Num fim de semana comum, oferecer o turno seria
+                               oferecer um dia que não existe. *@
+                            <div class="form-check" id="linhaImpQuinta" style="display: none;">
+                                <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoQuintaNoite" id="impQuinta">
+                                <label class="form-check-label" for="impQuinta">Quinta à noite</label>
+                            </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" asp-for="PermiteImpedimentoSextaNoite" id="impSexta">
                                 <label class="form-check-label" for="impSexta">Sexta à noite</label>
@@ -1146,9 +1154,34 @@
         });
     }
 
+    // O turno de QUINTA só existe em torneio que começa na quinta (pedido do Chakra,
+    // 06/08/2026: quinta a domingo). Some quando a data muda pra outro dia — e desmarca
+    // junto, senão ficaria gravado um turno que a tela não mostra mais.
+    function ajustarTurnoDeQuinta() {
+        var data = document.getElementById('dataInicio');
+        var linha = document.getElementById('linhaImpQuinta');
+        if (!data || !linha) return;
+
+        // 'T12:00' evita o fuso comer um dia: 'yyyy-MM-dd' puro é UTC, e no Brasil isso
+        // vira 21h do dia anterior — uma quinta lida como quarta.
+        var ehQuinta = data.value && new Date(data.value + 'T12:00').getDay() === 4;
+        linha.style.display = ehQuinta ? 'block' : 'none';
+        if (!ehQuinta) {
+            var caixa = document.getElementById('impQuinta');
+            if (caixa) caixa.checked = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var data = document.getElementById('dataInicio');
+        if (data) data.addEventListener('change', ajustarTurnoDeQuinta);
+        ajustarTurnoDeQuinta();
+    });
+
     function toggleImpedimentos() {
         var ligado = document.getElementById('impSwitch').checked;
         document.getElementById('turnosImpedimento').style.display = ligado ? 'block' : 'none';
+        ajustarTurnoDeQuinta();
     }
 
     // O nome do torneio entra na mensagem do WhatsApp SE já tiver sido digitado. É melhoria

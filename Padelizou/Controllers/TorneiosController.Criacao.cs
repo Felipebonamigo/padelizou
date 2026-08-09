@@ -829,6 +829,10 @@ namespace Padelizou.Controllers
             // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
             // gravado FICA.
             bool? pagamentoObrigatorio = null,
+            // Turno de QUINTA. Nulo = a tela nem desenhou o campo (torneio que não começa na
+            // quinta, ou aba aberta antes deste deploy): o que está gravado FICA, senão um
+            // impedimento que alguém já marcou e pagou sumiria calado.
+            bool? permiteImpedimentoQuintaNoite = null,
             int? tempoPrevistoPartidaMinutos = null, bool semHorarioPrevisto = false,
             // Validação pelo Ranking RS. As duas listas andam em par, posição a posição:
             // rankingCategoriaId[i] é a categoria DAQUI e rankingRsId[i] é a do ranking
@@ -992,6 +996,9 @@ namespace Padelizou.Controllers
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.ValidarPeloRankingRs = validarPeloRankingRs;
             await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);
+            // Nulo = a tela nem desenhou o campo (torneio que não começa na quinta, ou aba
+            // aberta antes deste deploy). Mantém o que está gravado em vez de desligar.
+            if (permiteImpedimentoQuintaNoite is bool quinta) torneio.PermiteImpedimentoQuintaNoite = quinta;
             torneio.PermiteImpedimentoSextaNoite = permiteImpedimentoSextaNoite;
             torneio.PermiteImpedimentoSabadoManha = permiteImpedimentoSabadoManha;
             torneio.PermiteImpedimentoSabadoTarde = permiteImpedimentoSabadoTarde;

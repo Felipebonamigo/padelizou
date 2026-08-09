@@ -15,11 +15,12 @@ namespace Padelizou.Services;
 // inscrição inteira por causa disso perderia o cadastro por um detalhe que dá pra resolver.
 public static class ImpedimentoUnico
 {
-    public static (bool Sexta, bool SabadoManha, bool SabadoTarde) Apenas(
-        bool sexta, bool sabadoManha, bool sabadoTarde)
+    public static (bool Quinta, bool Sexta, bool SabadoManha, bool SabadoTarde) Apenas(
+        bool quinta, bool sexta, bool sabadoManha, bool sabadoTarde)
     {
-        if (sexta) return (true, false, false);
-        if (sabadoManha) return (false, true, false);
-        return (false, false, sabadoTarde);
+        if (quinta) return (true, false, false, false);
+        if (sexta) return (false, true, false, false);
+        if (sabadoManha) return (false, false, true, false);
+        return (false, false, false, sabadoTarde);
     }
 }

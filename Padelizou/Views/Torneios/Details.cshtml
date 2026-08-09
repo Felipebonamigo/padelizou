@@ -733,6 +733,13 @@
                         </p>
                     }
 
+                    @if (Model.PermiteImpedimentoQuintaNoite)
+                    {
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="impQuintaNoite" value="true" id="impQuinta">
+                            <label class="form-check-label" for="impQuinta">Não podemos jogar na <strong>Quinta à noite</strong></label>
+                        </div>
+                    }
                     @if (Model.PermiteImpedimentoSextaNoite)
                     {
                         <div class="form-check form-switch mb-2">
@@ -761,7 +768,7 @@
                 <script>
                     (function () {
                         var taxa = @Model.TaxaPorImpedimento.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        var caixas = ['impSexta', 'impSabManha', 'impSabTarde']
+                        var caixas = ['impQuinta', 'impSexta', 'impSabManha', 'impSabTarde']
                             .map(function (id) { return document.getElementById(id); })
                             .filter(Boolean);
                         var aviso = document.getElementById('pdzTotalImpedimentos');
@@ -1630,6 +1637,21 @@
                                 <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
                             </div>
                             <div id="editTurnosImpedimento" class="ps-4 mb-3" style="display: @(Model.PermiteImpedimentos ? "block" : "none");">
+                                @* A quinta só aparece em torneio que COMEÇA na quinta — num fim de
+                                   semana comum seria oferecer um turno que não existe. O campo fica
+                                   ausente quando não vale, e o Editar trata ausência como "não
+                                   mexe", pra não desligar em silêncio o que já estava ligado. *@
+                                @if (Model.QuintaEhDiaDoTorneio)
+                                {
+                                    <div class="form-check">
+                                        @* ⚠️ O hidden vem DEPOIS do checkbox: o binder fica com o
+                                           PRIMEIRO valor, e com ele na frente marcar valeria
+                                           "false". Mesma pegadinha do "só confirmo depois de pago". *@
+                                        <input class="form-check-input" type="checkbox" name="permiteImpedimentoQuintaNoite" value="true" @(Model.PermiteImpedimentoQuintaNoite ? "checked" : "")>
+                                        <input type="hidden" name="permiteImpedimentoQuintaNoite" value="false">
+                                        <label class="form-check-label">Quinta à noite</label>
+                                    </div>
+                                }
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="permiteImpedimentoSextaNoite" value="true" @(Model.PermiteImpedimentoSextaNoite ? "checked" : "")>
                                     <label class="form-check-label">Sexta à noite</label>
