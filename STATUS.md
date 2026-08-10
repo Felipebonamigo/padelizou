@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔒 **A BUSCA ERA A PORTA LATERAL DO PERFIL PRIVADO** (não publicado).
+> Última atualização: **10/08/2026** — ⏰ **A ASSINATURA DO PROFESSOR PAROU DE VENCER EM SILÊNCIO** (não publicado).
+>
+> ⏰ **O PIOR DEFEITO DO PLANO DO PROFESSOR NÃO ERA UM BUG — ERA UM SILÊNCIO.** A mensalidade **não é recorrente**: quem paga tem que voltar na tela e gerar a cobrança de novo. Quem não voltava caía sozinho pra `AssinanteEmAtraso` depois da carência de 7 dias, e **a taxa das aulas dele subia de 3% pra 10% sem uma linha em lugar nenhum** — nem pra ele, nem pra nós. Ele descobriria no extrato, se descobrisse. A trava automática está certa (é ela que impede assinante inadimplente de pagar taxa de assinante); o que faltava era **contar**.
+>
+> Agora `LembreteAssinaturaVencendoBackgroundService` varre de hora em hora e fala **três vezes, uma por momento**: **5 dias antes** ("renove pra manter os 3%"), **no vencimento** ("venceu, mas os 3% ainda valem até dd/MM" — a carência), e **quando a carência acaba** ("a taxa voltou pros 10%; renove e ela volta na hora"). Cinco dias porque o pagamento é manual e pode ser boleto: avisar na véspera é avisar quem já não tem como resolver.
+>
+> ⚠️ **AQUI SE AVISA DEPOIS DO PRAZO — E É O CONTRÁRIO DA DECISÃO DO LEMBRETE DE INSCRIÇÃO.** Lá está escrito que passado o prazo *"não é lembrete, é cobrança — e essa conversa é do organizador com a pessoa, não de um robô às 9 da manhã"*. Aqui o prazo é **nosso**, a consequência é **automática** e a pessoa não participou dela: calar depois do vencimento seria esconder exatamente o momento em que ela perdeu alguma coisa.
+>
+> ⚠️ **A JANELA DE 15 DIAS EXISTE PRO DIA DO DEPLOY.** No minuto em que isso subir, todo assinante que largou a mensalidade meses atrás está tecnicamente vencido — e disparar "sua taxa subiu" pra todos eles é uma rajada sobre algo que aconteceu em maio. Depois de 15 dias do fim da carência o aviso **não sai mais**: vencimento velho é assunto encerrado. É a régua do "avisar só no NOVO", e a cota de e-mail já estourou duas vezes por rajada. **Conferido por mutação**: tirei a guarda, o teste ficou vermelho.
+>
+> ⚠️ **E O ESTÁGIO É MONOTÔNICO, com o zeramento no pagamento sendo a peça que quase falta.** Quando vários estágios se vencem juntos (o serviço ficou fora do ar, ou a assinatura já tinha caído), vale **só o de agora** — mandar os três seguidos num tick é como se perde a permissão de notificação de alguém. E o `EfetivarAssinaturaAsync` **zera a coluna** a cada pagamento confirmado: sem essa linha, o professor seria avisado **uma vez na vida**, porque no vencimento seguinte o estágio gravado já seria maior que o devido.
+>
+> 🗃️ Uma coluna nova (`Jogador.UltimoLembreteDeAssinatura`, migration `20260810165222_AvisoDeAssinaturaVencendo`), **nullable e sem `defaultValue`** — conferido no `.cs` gerado, que é onde a lição do `= 60` mandou olhar. Snapshot com **3 linhas**, `has-pending-model-changes` limpo.
+>
+> 🧪 **11 testes novos** (`LembreteDeAssinaturaVencendoTests`), suíte em **3.128, 0 falhas**. Quase todos conferem o **texto que sai**, não a contagem: aqui um teste que passa sem testar nada esconderia de volta o silêncio que o serviço veio quebrar. ✅ **Medido no app rodando**: a varredura da subida achou **só** o assinante certo (o de vencimento distante e o que nunca pagou ficaram de fora), o aviso chegou em `/Notificacoes` com o texto certo — *"vence em 5 dias (15/08) … volta pros 10%"* —, a coluna gravou o estágio 1, e **reiniciar o processo NÃO reenviou** (que é o deploy no meio da tarde). Nada de e-mail saiu da máquina: endereço `@teste.local` e SMTP apontado pra porta morta de propósito.
+>
+> Antes, no mesmo dia — 🔒 **A BUSCA ERA A PORTA LATERAL DO PERFIL PRIVADO** (não publicado).
 >
 > 🔒 **"ARRUMA O PERFIL PRIVADO NA BUSCA TAMBÉM"** (Felipe, na sequência do botão de seguir). A régua não precisou ser inventada — **está escrita na tela de preferências**, na frase que a pessoa lê antes de ligar a chave: *"quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos"*. O perfil cumpria; a **busca publicava tudo**: cidade, lado da quadra, categorias, clubes, pontos e time, no card, pra qualquer visitante deslogado. Mesma família do que já havia sido fechado na rede.
 >

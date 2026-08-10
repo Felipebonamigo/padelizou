@@ -1012,6 +1012,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         var ehAnual = dados.Ciclo == PlanoDoProfessor.CicloAnual;
         professor.AssinaturaProfessorPagaAte =
             PlanoDoProfessor.NovaDataPagaAte(professor.AssinaturaProfessorPagaAte, DateTime.Now, dados.Ciclo);
+
+        // ⚠️ Zera os avisos de vencimento: a vigência é outra, então o ciclo de lembretes
+        // recomeça. Sem esta linha o professor seria avisado UMA VEZ NA VIDA — no vencimento
+        // seguinte o estágio gravado já seria maior que o devido e nada mais sairia.
+        professor.UltimoLembreteDeAssinatura = null;
+
         pagamento.ReferenciaId = professor.Id;
         await _context.SaveChangesAsync();
 

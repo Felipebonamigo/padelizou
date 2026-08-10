@@ -198,6 +198,9 @@ builder.Services.AddHostedService<LembreteInscricaoNaoPagaBackgroundService>();
 // E, no fechamento, PERGUNTA ao organizador o que fazer com quem ficou devendo. Pergunta —
 // nunca remove sozinho: ver Services/DecisaoSobreQuemNaoPagou.
 builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
+// A mensalidade do professor não é recorrente: sem este aviso, a assinatura vence e a taxa das
+// aulas dele sobe de 3% pra 10% sem ninguém dizer nada. Ver LembreteDeAssinaturaVencendo.
+builder.Services.AddHostedService<LembreteAssinaturaVencendoBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 // O gêmeo do de cima, pro outro canal. Nasceu de 09/08/2026: a cota de e-mail estourou e 130

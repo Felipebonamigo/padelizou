@@ -290,6 +290,11 @@ public partial class Jogador
     // Até quando a mensalidade de assinante está quitada. Nulo = nunca pagou.
     public DateTime? AssinaturaProfessorPagaAte { get; set; }
 
+    // Último estágio de aviso de vencimento já enviado (ver LembreteDeAssinaturaVencendo).
+    // ⚠️ VOLTA PRA NULO a cada pagamento confirmado, e é isso que faz o ciclo seguinte avisar
+    // de novo — sem o zeramento, o professor seria lembrado uma vez na vida.
+    public int? UltimoLembreteDeAssinatura { get; set; }
+
     // ---- Padelímetro (Services/Padelimetro + RANKING.md) ----
     // O nível de habilidade, 0–1000. Nulo = nunca teve partida contada — o número NASCE
     // na primeira partida de torneio, com o valor de entrada da categoria em que ela foi
