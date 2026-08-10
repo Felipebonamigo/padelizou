@@ -53,21 +53,74 @@ public class GoogleCalendarService : IGoogleCalendarService
 
     public async Task<string?> CriarEventoAsync(Aula aula)
     {
-        var token = await _flow.LoadTokenAsync(aula.ProfessorId.ToString(), CancellationToken.None);
-        if (token == null || string.IsNullOrEmpty(token.RefreshToken))
+        var calendarService = await AbrirAgendaAsync(aula.ProfessorId);
+        if (calendarService == null) return null;
+
+        try
         {
+            var request = calendarService.Events.Insert(EventoDa(aula), "primary");
+            request.SendUpdates = EventsResource.InsertRequest.SendUpdatesEnum.All;
+            var criado = await request.ExecuteAsync();
+            return criado.Id;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para o professor {ProfessorId}", aula.ProfessorId);
             return null;
         }
+    }
 
-        var credential = new UserCredential(_flow, aula.ProfessorId.ToString(), token);
-        var calendarService = new CalendarService(new BaseClientService.Initializer
+    public async Task<string?> AtualizarEventoAsync(Aula aula)
+    {
+        // Aula que nunca teve evento (marcada antes de conectar a agenda, ou de um dia em que
+        // a chamada falhou) entra aqui pelo caminho de criação. É o mesmo botão pro professor:
+        // ele corrigiu a aula e espera que o Google fique certo, sem precisar saber se o evento
+        // já existia.
+        if (string.IsNullOrWhiteSpace(aula.GoogleEventId))
         {
-            HttpClientInitializer = credential,
-            ApplicationName = ApplicationName
-        });
+            return await CriarEventoAsync(aula);
+        }
 
-        var duracaoMinutos = 60;
-        var evento = new Event
+        var calendarService = await AbrirAgendaAsync(aula.ProfessorId);
+        if (calendarService == null) return aula.GoogleEventId;
+
+        try
+        {
+            var request = calendarService.Events.Patch(EventoDa(aula), "primary", aula.GoogleEventId);
+            // O aluno é convidado do evento: mudança de horário só serve se chegar até ele.
+            request.SendUpdates = EventsResource.PatchRequest.SendUpdatesEnum.All;
+            var atualizado = await request.ExecuteAsync();
+            return atualizado.Id;
+        }
+        catch (Google.GoogleApiException ex) when (
+            ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound ||
+            ex.HttpStatusCode == System.Net.HttpStatusCode.Gone)
+        {
+            // O professor apagou o evento na mão lá no Google. Insistir no id morto deixaria a
+            // aula fora da agenda pra sempre; criar de novo é o que ele espera ao corrigir.
+            _logger.LogInformation(
+                "Evento {EventoId} não existe mais na agenda do professor {ProfessorId}; criando outro.",
+                aula.GoogleEventId, aula.ProfessorId);
+            return await CriarEventoAsync(aula);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao atualizar o evento {EventoId} na Google Agenda do professor {ProfessorId}",
+                aula.GoogleEventId, aula.ProfessorId);
+            // Devolve o id que já existia: perder a referência aqui faria a próxima edição
+            // criar um evento DUPLICADO em vez de corrigir este.
+            return aula.GoogleEventId;
+        }
+    }
+
+    // O evento como o Google o enxerga. Um lugar só, porque criar e atualizar precisam
+    // montar exatamente a mesma coisa — se divergirem, editar a aula "conserta" o horário e
+    // deixa o local velho.
+    private static Event EventoDa(Aula aula)
+    {
+        const int duracaoMinutos = 60;
+
+        return new Event
         {
             Summary = $"Aula de Padel - {aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno"}",
             // Cai no nome quando não há endereço: o Google mostra o campo vazio como "sem
@@ -87,19 +140,21 @@ public class GoogleCalendarService : IGoogleCalendarService
                 ? null
                 : new List<EventAttendee> { new EventAttendee { Email = aula.Aluno.Email, DisplayName = aula.Aluno.Nome } }
         };
+    }
 
-        try
+    // Abre a agenda do professor, ou devolve null quando ele não conectou a conta. Separado
+    // porque os três caminhos (criar, atualizar, remover) precisam do mesmo token.
+    private async Task<CalendarService?> AbrirAgendaAsync(int professorId)
+    {
+        var token = await _flow.LoadTokenAsync(professorId.ToString(), CancellationToken.None);
+        if (token == null || string.IsNullOrEmpty(token.RefreshToken)) return null;
+
+        var credential = new UserCredential(_flow, professorId.ToString(), token);
+        return new CalendarService(new BaseClientService.Initializer
         {
-            var request = calendarService.Events.Insert(evento, "primary");
-            request.SendUpdates = EventsResource.InsertRequest.SendUpdatesEnum.All;
-            var criado = await request.ExecuteAsync();
-            return criado.Id;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para o professor {ProfessorId}", aula.ProfessorId);
-            return null;
-        }
+            HttpClientInitializer = credential,
+            ApplicationName = ApplicationName
+        });
     }
 
     public async Task RemoverEventoAsync(int professorId, string googleEventId)

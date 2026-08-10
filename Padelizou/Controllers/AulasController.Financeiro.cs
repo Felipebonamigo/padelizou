@@ -26,8 +26,15 @@ namespace padelizou.Controllers
             var hoje = DateTime.Today;
             periodo = (periodo ?? "mes").Trim().ToLower();
 
+            // A semana entrou em 09/08/2026: o professor acerta a quadra com o clube POR SEMANA,
+            // e o mês inteiro somado não responde "quanto eu levo lá na sexta". Segunda a
+            // domingo, a mesma régua do gráfico das últimas 6 semanas logo abaixo — duas
+            // definições de semana na mesma tela seriam dois números diferentes pro mesmo dia.
+            var estaSegunda = hoje.AddDays(-(((int)hoje.DayOfWeek + 6) % 7));
+
             var (de, rotulo) = periodo switch
             {
+                "semana" => (estaSegunda, "nesta semana"),
                 "ano" => (new DateTime(hoje.Year, 1, 1), $"em {hoje.Year}"),
                 "sempre" => (DateTime.MinValue, "desde sempre"),
                 _ => (new DateTime(hoje.Year, hoje.Month, 1), "neste mês"),
@@ -103,7 +110,6 @@ namespace padelizou.Controllers
 
             // E as últimas 6 semanas, de segunda a domingo — no mês a mordida de uma semana
             // fraca some na média.
-            var estaSegunda = hoje.AddDays(-(((int)hoje.DayOfWeek + 6) % 7));
             var primeiraSemana = estaSegunda.AddDays(-7 * 5);
             vm.UltimasSemanas = Enumerable.Range(0, 6).Select(i =>
             {

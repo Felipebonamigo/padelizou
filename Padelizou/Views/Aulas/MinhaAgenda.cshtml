@@ -73,6 +73,25 @@
         </div>
     }
 
+    @* Aula que ficou fora da Google Agenda. O evento nasce junto com a aula, e quando aquele
+       instante dá errado (conta ainda não conectada, chamada recusada) nada tenta de novo —
+       era isso que aparecia como "algumas aulas vão pro Google, outras não". *@
+    @if (Model.AulasForaDoGoogle > 0)
+    {
+        <div class="alert alert-warning d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+            <span>
+                <i class="bi bi-calendar-x"></i>
+                <strong>@Model.AulasForaDoGoogle aula(s)</strong> ainda não estão na sua Google Agenda —
+                foram marcadas antes de você conectar a conta, ou o envio falhou na hora.
+            </span>
+            <form asp-action="SincronizarGoogle" method="post" class="flex-shrink-0">
+                <button type="submit" class="btn btn-sm btn-warning rounded-pill fw-bold">
+                    <i class="bi bi-arrow-repeat"></i> Enviar pro Google
+                </button>
+            </form>
+        </div>
+    }
+
     @* ── Barra de controle: navegar, escolher período, trocar de vista ───────────────── *@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -382,6 +401,10 @@
                     <i class="bi bi-people-fill"></i> Vem mais gente: <span id="mAcompanhantes"></span>
                 </p>
                 <p class="mb-0"><span class="badge" id="mStatus"></span></p>
+                @* Qual aula está fora do Google — o aviso do topo dá o total, este diz quem. *@
+                <p class="mb-0 mt-2 small text-warning d-none" id="mForaDoGoogle">
+                    <i class="bi bi-calendar-x"></i> Esta aula não está na sua Google Agenda.
+                </p>
             </div>
             <div class="modal-footer flex-wrap gap-2">
                 <a href="#" id="mWhats" class="btn btn-sm btn-success rounded-pill fw-bold d-none" target="_blank">
@@ -389,6 +412,11 @@
                 </a>
                 <a href="#" id="mAnotacoes" class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
                     <i class="bi bi-journal-text"></i> Anotações
+                </a>
+                @* Editar em vez de apagar e lançar de novo: apagar leva as anotações junto e
+                   troca o id, matando o link do caderno que o aluno já tem. *@
+                <a href="#" id="mEditar" class="btn btn-sm btn-outline-primary rounded-pill fw-bold d-none">
+                    <i class="bi bi-pencil"></i> Editar
                 </a>
 
                 <form asp-action="ConfirmarSolicitacao" method="post" class="d-none" id="fAceitar">
@@ -471,6 +499,13 @@
                     tamanho = PrecoDaAula.Rotulo(a.QuantidadeAlunos),
                     status = a.Status,
                     iso = a.DataHora.ToString("o"),
+                    // Só aula de pé se edita — realizada e cancelada já viraram fato (ver
+                    // Services/EdicaoDeAula).
+                    podeEditar = EdicaoDeAula.PodeEditar(a),
+                    // Aula sem evento no Google. Só vira aviso com a conta conectada: sem ela,
+                    // "não está no Google" valeria pra todas e não seria notícia nenhuma.
+                    foraDoGoogle = Model.GoogleConectado && a.GoogleEventId == null
+                                   && a.Status == "Confirmada" && a.DataHora >= DateTime.Now,
                     // A frase da confirmação muda com o que está em jogo: apagar lançamento
                     // errado de ontem não é o mesmo que desmarcar quem está esperando.
                     confirmacaoExcluir = ExclusaoDeAula.Confirmacao(a, DateTime.Now),
@@ -523,6 +558,15 @@
                 var whats = document.getElementById('mWhats');
                 whats.classList.toggle('d-none', !a.whats || a.status === 'Pendente');
                 if (a.whats) whats.href = a.whats;
+
+                // Mudar horário/local/valor sem apagar a aula.
+                var editar = document.getElementById('mEditar');
+                editar.classList.toggle('d-none', !a.podeEditar);
+                editar.href = '/Aulas/Editar/' + a.id;
+
+                // Por que ESTA aula não está no Google: sem isso o professor só via o total no
+                // topo, sem saber quais eram.
+                document.getElementById('mForaDoGoogle').classList.toggle('d-none', !a.foraDoGoogle);
 
                 // O caderno da aula: sempre disponível — anotar vale antes ("focar na
                 // bandeja") e depois ("evoluiu no voleio") da aula acontecer.

@@ -24,7 +24,9 @@
     @if (TempData["Erro"] != null) { <div class="alert alert-danger">@TempData["Erro"]</div> }
 
     <div class="btn-group mb-4" role="group">
-        @foreach (var (chave, texto) in new[] { ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
+        @* A semana vem primeiro porque é o ciclo real: a quadra se acerta com o clube por
+           semana, e o mês somado não responde "quanto eu levo lá na sexta". *@
+        @foreach (var (chave, texto) in new[] { ("semana", "Esta semana"), ("mes", "Este mês"), ("ano", "Este ano"), ("sempre", "Sempre") })
         {
             <a asp-action="Financeiro" asp-route-periodo="@chave"
                class="btn btn-sm @(Model.Periodo == chave ? "btn-padel" : "btn-outline-secondary") rounded-pill px-3 me-1">@texto</a>
@@ -151,9 +153,18 @@
     <!-- Por local -->
     @if (Model.PorLocal.Any())
     {
+        var totalAulas = Model.PorLocal.Sum(l => l.Aulas);
+        var totalRecebido = Model.PorLocal.Sum(l => l.Recebido);
+        // Soma só o que TEM custo cadastrado. Tratar local sem custo como zero daria um total
+        // que parece completo e não é — ele acha que deve R$ 300 e no clube são R$ 500.
+        var comCusto = Model.PorLocal.Where(l => l.Custo.HasValue).ToList();
+        var totalQuadra = comCusto.Sum(l => l.Custo!.Value);
+        var semCusto = Model.PorLocal.Where(l => !l.Custo.HasValue).ToList();
+
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt"></i> Por local</h6>
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt"></i> Por local</h6>
+                <p class="small text-muted mb-3">Quanto entrou em cada quadra e quanto você deve de aluguel @Model.PeriodoRotulo.</p>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
@@ -161,7 +172,7 @@
                                 <th>Local</th>
                                 <th class="text-center">Aulas</th>
                                 <th class="text-end">Recebido</th>
-                                <th class="text-end">Custo</th>
+                                <th class="text-end">Quadra a pagar</th>
                                 <th class="text-end">Líquido</th>
                             </tr>
                         </thead>
@@ -172,15 +183,46 @@
                                     <td>@l.Local</td>
                                     <td class="text-center">@l.Aulas</td>
                                     <td class="text-end">@l.Recebido.ToString("C", ptBr)</td>
-                                    <td class="text-end text-muted">@(l.Custo?.ToString("C", ptBr) ?? "—")</td>
+                                    <td class="text-end text-danger">@(l.Custo?.ToString("C", ptBr) ?? "—")</td>
                                     <td class="text-end fw-bold" style="color: var(--pdz-ink);">
                                         @(l.Liquido?.ToString("C", ptBr) ?? "—")
                                     </td>
                                 </tr>
                             }
                         </tbody>
+                        @* O total é o número que ele leva pro bolso: com mais de um clube, somar
+                           as linhas de cabeça toda semana é onde a conta erra. *@
+                        @if (Model.PorLocal.Count > 1)
+                        {
+                            <tfoot>
+                                <tr class="border-top">
+                                    <td class="fw-bold" style="color: var(--pdz-ink);">Total</td>
+                                    <td class="text-center fw-bold" style="color: var(--pdz-ink);">@totalAulas</td>
+                                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">@totalRecebido.ToString("C", ptBr)</td>
+                                    <td class="text-end fw-bold text-danger">
+                                        @(comCusto.Any() ? totalQuadra.ToString("C", ptBr) : "—")
+                                    </td>
+                                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">
+                                        @(comCusto.Any() ? (totalRecebido - totalQuadra).ToString("C", ptBr) : "—")
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        }
                     </table>
                 </div>
+
+                @* Sem custo cadastrado a coluna fica em "—" e a tela parece quebrada. Dizer QUAL
+                   local falta é o que transforma o traço em uma coisa que ele resolve em 20s. *@
+                @if (semCusto.Any())
+                {
+                    <div class="alert alert-light border small mt-3 mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        Falta o valor da quadra em <strong>@string.Join(", ", semCusto.Select(l => l.Local))</strong>.
+                        Cadastre o custo por aula em <a asp-action="MeusLocais">Meus Locais</a> pra ver aqui quanto
+                        você deve em cada lugar.
+                    </div>
+                }
+
                 <p class="small text-muted mb-0 mt-2">
                     O custo por aula é o que você cadastrou em <a asp-action="MeusLocais">Meus Locais</a> (aluguel da quadra).
                     Aulas em que o aluno paga a quadra por fora não entram no custo.

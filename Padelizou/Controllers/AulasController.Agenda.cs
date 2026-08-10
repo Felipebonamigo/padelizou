@@ -109,7 +109,7 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
             DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
-            int? alunoId = null, bool alunoPagaQuadra = false)
+            int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -142,8 +142,24 @@ namespace padelizou.Controllers
                 return RedirectToAction("AdicionarManual");
             }
 
-            var quantidade = recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1;
-            var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
+            // As datas da aula fixa. A tela manda a lista que o professor marcou (mês com 5
+            // sextas, feriado no meio, a semana em que ele viaja — nada disso cabe num "repetir
+            // por N semanas"); a contagem cega continua valendo como plano B, pro navegador
+            // sem JS e pra quem mandou o formulário direto.
+            var escolhidas = recorrente ? DatasDaAulaFixa.Ler(datas, DateTime.Now) : new List<DateTime>();
+
+            if (recorrente && datas != null && datas.Count > 0 && escolhidas.Count == 0)
+            {
+                TempData["Erro"] = "Escolha pelo menos uma data para a aula fixa.";
+                return RedirectToAction("AdicionarManual");
+            }
+
+            var horarios = escolhidas.Count > 0
+                ? escolhidas
+                : DatasDaAulaFixa.Semanais(dataHora,
+                    recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1);
+
+            var recorrenciaId = horarios.Count > 1 ? Guid.NewGuid() : (Guid?)null;
 
             // Aluno escolhido da lista TEM conta: a aula passa a apontar pra ela, e não pra um
             // nome solto. É o que faz o aluno enxergar a aula no próprio app, receber o aviso
@@ -169,10 +185,8 @@ namespace padelizou.Controllers
             var novasAulas = new List<Aula>();
             var puladas = 0;
 
-            for (var i = 0; i < quantidade; i++)
+            foreach (var horario in horarios)
             {
-                var horario = dataHora.AddDays(7 * i);
-
                 var ocupado = await _context.Aulas.AnyAsync(a =>
                     a.ProfessorId == professorId &&
                     a.DataHora == horario &&
@@ -260,6 +274,8 @@ namespace padelizou.Controllers
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
+            var conectado = await _googleCalendarService.EstaConectadoAsync(professorId.Value);
+
             var vm = new AgendaProfessorVM
             {
                 Vista = PeriodoAgenda.NormalizarVista(vista),
@@ -270,7 +286,16 @@ namespace padelizou.Controllers
                 Titulo = PeriodoAgenda.Titulo(periodo, referencia),
                 NoPeriodo = noPeriodo,
                 Pendentes = pendentes,
-                GoogleConectado = await _googleCalendarService.EstaConectadoAsync(professorId.Value),
+                GoogleConectado = conectado,
+                // De QUALQUER data futura, não só da janela na tela: a aula que ficou fora do
+                // Google costuma ser justamente a que ele não está olhando agora, e era esse
+                // silêncio que fazia "algumas vão, outras não" parecer sorte.
+                AulasForaDoGoogle = conectado
+                    ? await _context.Aulas.CountAsync(a => a.ProfessorId == professorId
+                                                        && a.Status == PoliticaAula.Confirmada
+                                                        && a.DataHora >= DateTime.Now
+                                                        && a.GoogleEventId == null)
+                    : 0,
             };
 
             return View(vm);
@@ -304,7 +329,249 @@ namespace padelizou.Controllers
             return RedirectToAction("MinhaAgenda");
         }
 
-        // 5. APAGAR A AULA — o desfazer de quem lançou errado. Diferente de Cancelar, que é
+        // 5. EDITAR A AULA — mudar horário, local e valor de uma aula que já está marcada.
+        //
+        // Até aqui o único conserto era APAGAR e lançar de novo, e isso cobrava caro: as
+        // anotações da aula iam junto (cascade), o id mudava — matando o link do caderno que o
+        // aluno já tinha — e ele recebia um "aula apagada" seguido de nada. Ver
+        // Services/EdicaoDeAula pra regra de quem pode editar e de quem precisa ser avisado.
+        [HttpGet]
+        public async Task<IActionResult> Editar(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .FirstOrDefaultAsync(a => a.Id == id && a.ProfessorId == professorId);
+
+            if (aula == null)
+            {
+                TempData["Erro"] = "Aula não encontrada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            if (!EdicaoDeAula.PodeEditar(aula))
+            {
+                TempData["Erro"] = EdicaoDeAula.MotivoDeNaoPoderEditar(aula);
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            ViewBag.Locais = await LocaisParaEscolherAsync(professorId.Value, aula.LocalAulaId);
+            return View(aula);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId no filtro é a autorização: sem ele, qualquer professor logado
+            // remarcaria a aula de qualquer outro só mandando o id.
+            var aula = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.Professor)
+                .Include(a => a.LocalAula)
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+
+            if (aula == null)
+            {
+                TempData["Erro"] = "Aula não encontrada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            if (!EdicaoDeAula.PodeEditar(aula))
+            {
+                TempData["Erro"] = EdicaoDeAula.MotivoDeNaoPoderEditar(aula);
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var local = await _context.LocaisAula
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+
+            if (local == null)
+            {
+                TempData["Erro"] = "Local inválido.";
+                return RedirectToAction(nameof(Editar), new { id = aulaId });
+            }
+
+            if (preco < 0)
+            {
+                TempData["Erro"] = "O valor não pode ser negativo.";
+                return RedirectToAction(nameof(Editar), new { id = aulaId });
+            }
+
+            // Mesma trava da marcação: dois alunos no mesmo horário é o erro que a agenda
+            // existe pra evitar. A própria aula sai da conta — senão ela bloquearia a si
+            // mesma quando o professor mudasse só o preço.
+            var ocupado = await _context.Aulas.AnyAsync(a =>
+                a.Id != aula.Id &&
+                a.ProfessorId == professorId &&
+                a.DataHora == dataHora &&
+                (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada));
+
+            if (ocupado)
+            {
+                TempData["Erro"] = $"Você já tem outra aula em {dataHora:dd/MM 'às' HH:mm}.";
+                return RedirectToAction(nameof(Editar), new { id = aulaId });
+            }
+
+            var mudanca = new MudancaDaAula(
+                aula.DataHora, dataHora,
+                aula.LocalAula.Nome, local.Nome,
+                aula.Preco, preco);
+
+            if (!mudanca.MudouAlgo)
+            {
+                TempData["Sucesso"] = "Nada mudou nessa aula.";
+                return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
+            }
+
+            aula.DataHora = dataHora;
+            aula.LocalAulaId = local.Id;
+            aula.LocalAula = local;
+            aula.Preco = preco;
+            await _context.SaveChangesAsync();
+
+            // O Google só sabe de horário e local — preço não vai pro evento, e disparar um
+            // "atualizado" na agenda do aluno por causa de R$ 10 seria barulho à toa.
+            if (mudanca.MudouOQueVaiProGoogle)
+            {
+                try
+                {
+                    var eventoId = await _googleCalendarService.AtualizarEventoAsync(aula);
+                    if (eventoId != aula.GoogleEventId)
+                    {
+                        aula.GoogleEventId = eventoId;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // A aula já foi corrigida aqui; falhar no Google não desfaz nem justifica
+                    // erro na tela. O aviso de "fora do Google" na agenda mostra o estrago.
+                    _logger.LogWarning(ex, "Falha ao atualizar a aula {AulaId} na Google Agenda", aula.Id);
+                }
+            }
+
+            if (EdicaoDeAula.PrecisaAvisarAluno(aula, mudanca, DateTime.Now))
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(aula.AlunoId!.Value,
+                        "Sua aula mudou",
+                        $"A aula com {aula.Professor?.ComoChamar ?? "seu professor"}: {EdicaoDeAula.Recado(mudanca)}.",
+                        Url.Action("MinhasAulas", "Aulas"),
+                        EdicaoDeAula.CanalDoAviso(mudanca));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao avisar o aluno da mudança na aula {AulaId}", aula.Id);
+                }
+            }
+
+            TempData["Sucesso"] = EdicaoDeAula.ResumoParaOProfessor(mudanca);
+
+            // Aluno sem conta não recebe aviso nenhum — não há pra onde mandar. O professor
+            // combina por fora, e a tela já entrega a mensagem pronta pra ele mandar.
+            var celular = aula.Aluno?.Celular ?? aula.TelefoneAlunoAvulso;
+            if (!aula.AlunoId.HasValue && !string.IsNullOrWhiteSpace(celular) && mudanca.MudouOQueVaiProGoogle)
+            {
+                TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(celular,
+                    $"Olá, {aula.NomeAlunoAvulso}! Mudança na nossa aula: {EdicaoDeAula.Recado(mudanca)}.");
+            }
+
+            // Volta na semana da aula NOVA: remarcar pro mês que vem e cair na semana de onde
+            // ela saiu deixa o professor achando que a mudança não pegou.
+            return RedirectToAction("MinhaAgenda", new { data = dataHora.ToString("yyyy-MM-dd") });
+        }
+
+        // MANDA PRO GOOGLE AS AULAS QUE FICARAM PRA TRÁS.
+        //
+        // POR QUE ISTO EXISTE: o evento só nascia no instante em que a aula era criada
+        // (AdicionarManual) ou aceita (ProcessarDecisaoAsync). Se naquele instante o professor
+        // ainda não tinha conectado a conta, ou se a chamada falhou, `CriarEventoAsync` devolvia
+        // null, o log levava um aviso que ninguém lê e a aula ficava fora da agenda PRA SEMPRE —
+        // nada nunca tentava de novo. Da tela, isso aparecia como "algumas aulas vão pro Google,
+        // outras não", sem jeito de saber quais nem por quê.
+        //
+        // Só aula futura: encher a agenda do professor de eventos de três meses atrás não
+        // ajuda ninguém, e cada um deles mandaria convite pro aluno.
+        [HttpPost]
+        public async Task<IActionResult> SincronizarGoogle()
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            if (!await _googleCalendarService.EstaConectadoAsync(professorId.Value))
+            {
+                TempData["Erro"] = "Conecte sua Google Agenda antes de sincronizar.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var pendentesDeEnvio = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId
+                         && a.Status == PoliticaAula.Confirmada
+                         && a.DataHora >= DateTime.Now
+                         && a.GoogleEventId == null)
+                .OrderBy(a => a.DataHora)
+                .ToListAsync();
+
+            var enviadas = 0;
+            var falharam = 0;
+
+            foreach (var aula in pendentesDeEnvio)
+            {
+                try
+                {
+                    var eventoId = await _googleCalendarService.CriarEventoAsync(aula);
+                    if (eventoId != null)
+                    {
+                        aula.GoogleEventId = eventoId;
+                        enviadas++;
+                    }
+                    else
+                    {
+                        falharam++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    falharam++;
+                    _logger.LogWarning(ex, "Falha ao sincronizar a aula {AulaId} com a Google Agenda", aula.Id);
+                }
+            }
+
+            if (enviadas > 0) await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = (enviadas, falharam) switch
+            {
+                (0, 0) => "Sua agenda já estava toda no Google.",
+                (_, 0) => $"{enviadas} aula(s) enviada(s) pra sua Google Agenda.",
+                (0, _) => $"Nenhuma aula foi enviada — o Google recusou {falharam}. Tente reconectar sua conta.",
+                _ => $"{enviadas} aula(s) enviada(s); {falharam} o Google recusou. Tente reconectar sua conta.",
+            };
+
+            return RedirectToAction("MinhaAgenda");
+        }
+
+        // Os locais que o professor pode escolher. O local ATUAL da aula entra mesmo estando
+        // desativado: ele desativou o clube depois de marcar a aula, e a lista sem ele faria
+        // o <select> abrir em outro local — trocando por acidente o que ninguém pediu.
+        private async Task<List<LocalAula>> LocaisParaEscolherAsync(int professorId, int localAtualId)
+        {
+            return await _context.LocaisAula
+                .Where(l => l.ProfessorId == professorId && (l.Ativo || l.Id == localAtualId))
+                .OrderByDescending(l => l.Ativo)
+                .ThenBy(l => l.Nome)
+                .ToListAsync();
+        }
+
+        // 6. APAGAR A AULA — o desfazer de quem lançou errado. Diferente de Cancelar, que é
         // um fato registrado (ver Services/ExclusaoDeAula).
         [HttpPost]
         public async Task<IActionResult> ExcluirAula(int aulaId)

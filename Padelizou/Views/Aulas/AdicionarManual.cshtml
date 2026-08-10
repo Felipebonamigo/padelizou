@@ -157,7 +157,24 @@
 
                             <div class="mb-4" id="grupo-semanas" style="display:none;">
                                 <label class="form-label fw-bold text-muted small">Repetir por quantas semanas (incluindo essa)?</label>
-                                <input type="number" min="2" max="26" value="4" name="semanasRecorrencia" class="form-control bg-light" />
+                                <input type="number" min="2" max="26" value="4" name="semanasRecorrencia" id="input-semanas" class="form-control bg-light" />
+
+                                @* As datas geradas, uma a uma, pra ele desmarcar o que não vale.
+                                   "Repetir por N semanas" sozinho obrigava a adivinhar o N: mês
+                                   com 5 sextas, feriado no meio, a semana da viagem — nada disso
+                                   cabe num número, e o conserto era apagar aula por aula depois. *@
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label fw-bold text-muted small mb-0">
+                                            Datas que vão ser criadas
+                                        </label>
+                                        <span class="small text-muted" id="contador-datas"></span>
+                                    </div>
+                                    <div class="border rounded p-2" id="lista-datas" style="max-height: 260px; overflow-y: auto;"></div>
+                                    <div class="form-text">
+                                        Desmarque as datas que não vão ter aula. Dá pra mudar a hora de cada uma.
+                                    </div>
+                                </div>
                             </div>
 
                             <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">
@@ -195,9 +212,89 @@
             var COMBINADOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(precosCombinados));
             var MEUS_ALUNOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(alunosParaJs));
 
+            // ── As datas da aula fixa ────────────────────────────────────────────────────
+            // A tela GERA as datas e o professor desmarca o que não vale. Antes ele mandava só
+            // um número de semanas e descobria o estrago depois, apagando aula por aula: mês
+            // com 5 sextas, feriado no meio, a semana em que ele viaja.
+            var $inputDataHora = $('input[name="dataHora"]');
+            var $inputSemanas = $('#input-semanas');
+            var $listaDatas = $('#lista-datas');
+            var $contadorDatas = $('#contador-datas');
+
+            var DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+            function doisDigitos(n) { return n < 10 ? '0' + n : '' + n; }
+
+            // "yyyy-MM-ddTHH:mm" — o mesmo formato que o <input type="datetime-local"> manda e
+            // que o servidor lê como invariante (Services/DatasDaAulaFixa). Montado na mão
+            // porque toISOString() converte pra UTC: 08:00 de Brasília viraria 11:00.
+            function paraTexto(d) {
+                return d.getFullYear() + '-' + doisDigitos(d.getMonth() + 1) + '-' + doisDigitos(d.getDate())
+                     + 'T' + doisDigitos(d.getHours()) + ':' + doisDigitos(d.getMinutes());
+            }
+
+            function contar() {
+                var marcadas = $listaDatas.find('input[name="datas"]:checked').length;
+                $contadorDatas.text(marcadas + ' de ' + $listaDatas.find('input[name="datas"]').length + ' marcadas');
+            }
+
+            function gerarDatas() {
+                var base = $inputDataHora.val();
+                if (!base) {
+                    $listaDatas.html('<div class="small text-muted p-2">Escolha a data e a hora da primeira aula.</div>');
+                    $contadorDatas.text('');
+                    return;
+                }
+
+                var primeira = new Date(base);
+                if (isNaN(primeira)) return;
+
+                var quantas = Math.min(Math.max(parseInt($inputSemanas.val(), 10) || 1, 1), 26);
+                var linhas = '';
+
+                for (var i = 0; i < quantas; i++) {
+                    // setDate com o dia + 7*i atravessa virada de mês e de ano sozinho.
+                    var d = new Date(primeira.getTime());
+                    d.setDate(d.getDate() + 7 * i);
+
+                    var valor = paraTexto(d);
+                    var rotulo = DIAS[d.getDay()] + ', ' + doisDigitos(d.getDate()) + '/' + doisDigitos(d.getMonth() + 1);
+
+                    linhas += '<div class="d-flex align-items-center gap-2 py-1" data-linha>'
+                        + '<input class="form-check-input mt-0 flex-shrink-0" type="checkbox" name="datas" value="' + valor + '" checked />'
+                        + '<span class="flex-grow-1 small">' + rotulo + '</span>'
+                        + '<input type="time" class="form-control form-control-sm" style="width: 108px;"'
+                        + ' value="' + doisDigitos(d.getHours()) + ':' + doisDigitos(d.getMinutes()) + '" data-hora />'
+                        + '</div>';
+                }
+
+                $listaDatas.html(linhas);
+                contar();
+            }
+
+            // Mudar a hora de UMA data: a semana em que a quadra só tem 9h não obriga a
+            // remarcar a série inteira.
+            $listaDatas.on('change', 'input[data-hora]', function () {
+                var $linha = $(this).closest('[data-linha]');
+                var $check = $linha.find('input[name="datas"]');
+                var hora = this.value || '00:00';
+                $check.val($check.val().substring(0, 11) + hora);
+                // Mexeu na hora, é porque quer essa data: desmarcada, o ajuste não iria a lugar nenhum.
+                $check.prop('checked', true);
+                contar();
+            });
+
+            $listaDatas.on('change', 'input[name="datas"]', contar);
+
             $checkRecorrente.on('change', function () {
                 $grupoSemanas.toggle(this.checked);
+                if (this.checked) gerarDatas();
             });
+
+            // Regerar quando a base muda descarta o que ele já tinha desmarcado — é o certo:
+            // mudou o dia da semana, as datas velhas não valem mais.
+            $inputDataHora.on('change', function () { if ($checkRecorrente.prop('checked')) gerarDatas(); });
+            $inputSemanas.on('change input', gerarDatas);
 
             // Mesma conta do servidor (Services/PrecoDaAula): sem preço pro tamanho pedido,
             // cai pro tamanho menor mais próximo que o professor informou. Se as duas contas

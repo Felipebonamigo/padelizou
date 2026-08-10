@@ -25,6 +25,14 @@ public class AgendaProfessorVM
 
     public bool GoogleConectado { get; set; }
 
+    // Quantas aulas futuras confirmadas ainda não têm evento no Google. Só faz sentido com a
+    // conta conectada — desconectado, a resposta seria "todas", e isso não é notícia.
+    //
+    // Existe porque a falha de envio era MUDA: o evento nascia junto com a aula, e quando
+    // aquele instante dava errado (conta ainda não conectada, chamada recusada) nada tentava
+    // de novo e nada aparecia na tela.
+    public int AulasForaDoGoogle { get; set; }
+
     public List<Aula> Do(DateTime dia) =>
         NoPeriodo.Where(a => a.DataHora.Date == dia.Date).OrderBy(a => a.DataHora).ToList();
 
