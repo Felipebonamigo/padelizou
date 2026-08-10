@@ -76,7 +76,9 @@ public class AvisoNoCelularTests
 
         Assert.Contains("if (!pdzAppInstalado()) return;", modal);
         Assert.Contains("Notification.permission !== 'default'", modal);
-        Assert.Contains("CHAVE_AVISOS_DISPENSADO", modal);
+        // A marca por aparelho segue existindo; desde 10/08/2026 quem decide se ela cala o
+        // convite é a régua compartilhada (ConviteDeInstalarAppTests), e não um booleano.
+        Assert.Contains("pdzPodeConvidar(CHAVE_CONVITE_AVISOS)", modal);
     }
 
     // Duas ligações à distância, as duas mudas se quebrarem: sem o pdzJogadorLogado a

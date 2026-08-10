@@ -21,6 +21,116 @@ function pdzTemInstalacaoNativa() {
   return !!window.pdzEventoInstalacao;
 }
 
+// Onde o passo a passo do modal seria MENTIRA, porque o navegador da vez não instala nada.
+//
+// É o caso mais comum de todos e passou despercebido até 10/08/2026: o Padelizou circula em
+// link de WhatsApp, e link de WhatsApp não abre no navegador da pessoa — abre num navegador
+// de dentro do próprio WhatsApp. No iPhone, "Adicionar à Tela de Início" existe SÓ no Safari
+// de verdade: naquela tela o item não está no menu, e o modal mandava procurar uma coisa que
+// não existe ali. Quem procurou e não achou concluiu que o app não instala.
+//
+// `navigator.standalone` é a prova, e é melhor que farejar o User-Agent (que WhatsApp e
+// Instagram não marcam de forma confiável no iOS): o Safari do iPhone declara essa
+// propriedade — `false` navegando, `true` já instalado —, e WebView de outro app não a tem.
+// Chrome e Firefox do iPhone caem aqui junto, e é o certo: o atalho criado por eles não
+// recebe push, que é justamente o motivo de a gente querer a instalação.
+//
+// No Android o problema é menor (o Chrome abre de verdade na maioria dos casos), então aqui
+// só o User-Agent das WebViews que sabidamente não instalam.
+function pdzNavegadorParaTrocar() {
+  if (pdzAppInstalado() || pdzTemInstalacaoNativa()) return null;
+
+  var plataforma = pdzPlataforma();
+  if (plataforma === "ios") return typeof navigator.standalone === "undefined" ? "safari" : null;
+  if (plataforma === "android") return /Instagram|FBAN|FBAV|FB_IAB|Line\//.test(navigator.userAgent || "") ? "chrome" : null;
+  return null;
+}
+
+// ————————————————————————————————————————————————————————————————
+// A régua dos convites (instalar o app, ligar os avisos)
+//
+// Até 10/08/2026 QUALQUER fechamento gravava "dispensado" pra sempre, e isso derrubava
+// justamente quem estava indo instalar: no iPhone os três toques acontecem FORA do modal, de
+// modo que fechar é exatamente o que a pessoa faz PRA seguir o passo a passo. O botão que
+// dizia "vou fazer agora" e o que dizia "nunca mais me pergunte" eram o mesmo botão.
+//
+// Agora fechar ADIA, e só o "Não quero" — dito com todas as letras, num botão próprio —
+// encerra de vez. A espera cresce a cada vez pra não virar chateação: quem ignora três
+// convites não recebe um quarto.
+//
+// Mora aqui, e não dentro de cada modal, porque são dois convites com a mesma regra: duas
+// cópias significariam, inevitavelmente, uma delas voltando a tratar "agora não" como "não".
+var PDZ_ESPERA_DIAS = [3, 10, 21];
+
+function pdzGravarConvite(chave, valor) {
+  try {
+    localStorage.setItem(chave, JSON.stringify(valor));
+  } catch (e) {
+    // Armazenamento bloqueado (aba anônima, iPhone com rastreamento cortado). Sem memória, o
+    // convite volta na próxima visita — errar pro lado de convidar demais é melhor que sumir.
+  }
+}
+
+function pdzLerConvite(chave) {
+  var vazio = { vezes: 0, em: 0, recusado: false };
+
+  var bruto = null;
+  try {
+    bruto = localStorage.getItem(chave);
+  } catch (e) {
+    return vazio;
+  }
+  if (!bruto) return vazio;
+
+  // Marca antiga ('1'), gravada por qualquer fechamento até 10/08/2026. Ela vale como UM
+  // adiamento e não como recusa, porque a pessoa nunca teve como dizer "não quero" — o
+  // aparelho dela decidiu isso por ela.
+  //
+  // ⚠️ A conversão é GRAVADA aqui de propósito: devolvê-la sem persistir faria `em` virar
+  // "agora" a cada carregamento de página, o relógio nunca completaria os 3 dias, e o
+  // reconvite não chegaria nunca — o mesmo defeito de antes, agora silencioso.
+  if (bruto === "1") {
+    var convertido = { vezes: 1, em: Date.now(), recusado: false };
+    pdzGravarConvite(chave, convertido);
+    return convertido;
+  }
+
+  try {
+    var lido = JSON.parse(bruto);
+    return { vezes: lido.vezes || 0, em: lido.em || 0, recusado: lido.recusado === true };
+  } catch (e) {
+    return vazio;
+  }
+}
+
+function pdzAdiarConvite(chave) {
+  var atual = pdzLerConvite(chave);
+  pdzGravarConvite(chave, { vezes: atual.vezes + 1, em: Date.now(), recusado: atual.recusado });
+}
+
+function pdzRecusarConvite(chave) {
+  pdzGravarConvite(chave, { vezes: pdzLerConvite(chave).vezes, em: Date.now(), recusado: true });
+}
+
+// "Eu não quero isto", dito no botão próprio. Separado de pdzPodeConvidar porque o convite
+// que sai LOGO DEPOIS de uma inscrição (ver Services/ConviteDeInstalarApp) atropela de
+// propósito a espera do adiamento — a pessoa acabou de fazer justamente a coisa que os avisos
+// acompanham. O que ele não pode atropelar é a recusa: fechar por pressa e dizer "não quero"
+// são as duas coisas que este arquivo inteiro existe pra parar de confundir.
+function pdzConviteRecusado(chave) {
+  return pdzLerConvite(chave).recusado;
+}
+
+function pdzPodeConvidar(chave) {
+  var estado = pdzLerConvite(chave);
+
+  if (estado.recusado) return false;
+  if (estado.vezes === 0) return true;
+  if (estado.vezes > PDZ_ESPERA_DIAS.length) return false;
+
+  return Date.now() - estado.em >= PDZ_ESPERA_DIAS[estado.vezes - 1] * 24 * 60 * 60 * 1000;
+}
+
 // Abre a caixa nativa do Android. Devolve true se a pessoa aceitou instalar.
 async function pdzInstalarApp() {
   var evento = window.pdzEventoInstalacao;

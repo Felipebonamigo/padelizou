@@ -1142,7 +1142,7 @@ namespace padelizou.Controllers
             // lê este sinal). É O momento: a pessoa acabou de criar a conta, ainda não foi
             // fazer outra coisa, e cada instalação é alguém alcançável por push — o único
             // canal de aviso que é 100% nosso (o WhatsApp provou isso em 04/08/2026).
-            TempData["ConviteInstalarApp"] = true;
+            TempData[ConviteDeInstalarApp.ChaveTempData] = ConviteDeInstalarApp.ContaCriada;
 
             // Quem veio de um CONVITE volta pra ele. Sem isto, a pessoa criava a conta e caía
             // no perfil — e o convite da panelinha que a trouxe até aqui virava um link que

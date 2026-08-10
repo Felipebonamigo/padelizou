@@ -334,6 +334,10 @@ namespace padelizou.Controllers
                 _logger.LogWarning(ex, "Falha ao enviar push de solicitação de aula ao professor {ProfessorId}", professorId);
             }
 
+            // A tela de "solicitação enviada" convida a instalar o app. A aula depende de uma
+            // RESPOSTA do professor que chega depois, quando o aluno já fechou o site — é o
+            // caso mais claro de alguém que precisa ser alcançado fora da tela.
+            TempData[ConviteDeInstalarApp.ChaveTempData] = ConviteDeInstalarApp.AulaMarcada;
             return RedirectToAction("SolicitacaoEnviada", new { recorrenciaId, id = novasAulas[0].Id, puladas });
         }
 

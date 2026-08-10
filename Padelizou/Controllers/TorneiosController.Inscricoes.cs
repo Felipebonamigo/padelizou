@@ -204,6 +204,10 @@ namespace Padelizou.Controllers
             {
                 TempData["Sucesso"] = "Inscrição individual confirmada!";
             }
+
+            // Mesmo momento da inscrição em dupla: acabou de entrar no torneio, e o que ela
+            // espera agora (chaves, horário) chega por aviso.
+            TempData[ConviteDeInstalarApp.ChaveTempData] = ConviteDeInstalarApp.InscricaoConfirmada;
             return RedirectToAction("Details", new { id = torneioId });
         }
 

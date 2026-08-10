@@ -1,15 +1,29 @@
-@* Modal de "instale como app". Aparece sozinho uma única vez por dispositivo pra usuários
-   logados no celular (iOS ou Android), e pode ser reaberto quando quiser pelo item "Instalar
-   o app" no menu — quem fechou sem querer não fica sem saída. Não aparece se o site já está
-   rodando instalado (modo standalone).
+@using System.Text.Json
+@using Padelizou.Services
+@{
+    // Lido UMA vez por carregamento: TempData morre na leitura, e é isso que faz o convite
+    // valer só pra tela logo depois da inscrição/aula, e não pra todas as próximas.
+    var conviteAgora = ConviteDeInstalarApp.Da(TempData[ConviteDeInstalarApp.ChaveTempData] as string);
+}
+@* Modal de "instale como app". Aparece sozinho pra usuários logados no celular (iOS ou
+   Android) e pode ser reaberto quando quiser pelo item "Instalar o app" no menu. Não aparece
+   se o site já está rodando instalado (modo standalone).
+
+   Quantas vezes ele aparece é decisão da régua em wwwroot/js/instalar-app.js, compartilhada
+   com o convite de ligar os avisos: fechar ADIA (3, 10 e 21 dias), e só o "Não quero
+   instalar" encerra. Era uma vez por dispositivo pra sempre até 10/08/2026 — e como no
+   iPhone os três toques acontecem FORA do modal, fechar era exatamente o que fazia quem ia
+   instalar. O convite morria justo em quem estava a caminho.
 
    Quando o navegador oferece instalação de verdade (Android/Chrome), o modal mostra UM botão
    e a caixa nativa abre. O passo a passo escrito é o plano B: no iPhone é o único caminho,
-   porque a Apple não deixa nenhum site abrir essa caixa. *@
+   porque a Apple não deixa nenhum site abrir essa caixa. E quando o navegador é uma WebView
+   de dentro de outro app (o link que veio pelo WhatsApp), nenhum dos dois serve: aí o que
+   vale é ensinar a sair dali, que é o bloco pwaTrocarNavegador. *@
 <div id="pwaInstallOverlay" class="pdz-pwa-overlay" style="display:none;">
     <div class="pdz-pwa-card">
         <button type="button" class="pdz-pwa-close" onclick="fecharInstalarPwaModal()" aria-label="Fechar">&times;</button>
-        <div class="pdz-pwa-eyebrow" id="pwaEyebrow"><i class="bi bi-phone"></i> INSTALAÇÃO</div>
+        <div class="pdz-pwa-eyebrow"><i class="bi bi-phone" id="pwaEyebrowIcone"></i> <span id="pwaEyebrowTexto">INSTALAÇÃO</span></div>
         <h3 class="pdz-pwa-title" id="pwaTitle">Adicionar Padelizou à tela inicial</h3>
         <p class="pdz-pwa-subtitle" id="pwaSubtitle">Use o Padelizou como se fosse um app, sem precisar procurar o link no navegador.</p>
 
@@ -23,6 +37,36 @@
             <button type="button" class="pdz-pwa-instalar" onclick="instalarPeloModal()">
                 <i class="bi bi-download"></i> <span id="pwaInstalarTexto">Instalar agora</span>
             </button>
+        </div>
+
+        @* O caso que faltava, e é o mais comum de todos: a pessoa chegou por um link de
+           WhatsApp, e o link de WhatsApp abre num navegador de dentro do próprio WhatsApp.
+           Lá o passo a passo abaixo é falso — "Adicionar à Tela de Início" não existe naquele
+           menu. Antes de ensinar a instalar, é preciso ensinar a sair daqui. *@
+        <div class="pdz-pwa-steps" id="pwaTrocarNavegador" style="display:none;">
+            <div class="pdz-pwa-steps-title">Abra no <span class="pwaNavegadorNome">Safari</span> pra instalar</div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">1</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-three-dots"></i></span>
+                <span>Toque no menu deste navegador (<strong>&bull;&bull;&bull;</strong> ou o ícone de compartilhar)</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">2</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-box-arrow-up-right"></i></span>
+                <span>Escolha <strong>Abrir no <span class="pwaNavegadorNome">Safari</span></strong></span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-badge">3</span>
+                <span class="pdz-pwa-icon"><i class="bi bi-phone"></i></span>
+                <span id="pwaTrocarPasso3">Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong></span>
+            </div>
+            <button type="button" class="pdz-pwa-copiar" onclick="copiarLinkDoPadelizou()">
+                <i class="bi bi-clipboard"></i> <span id="pwaCopiarTexto">Copiar o link do Padelizou</span>
+            </button>
+            <div class="pdz-pwa-note">
+                Você está num navegador que abre dentro de outro app (WhatsApp, Instagram). Ele não
+                instala app na tela inicial &mdash; e só o app instalado recebe os avisos do seu jogo.
+            </div>
         </div>
 
         <div class="pdz-pwa-steps" id="pwaStepsIos" style="display:none;">
@@ -75,6 +119,12 @@
         </div>
 
         <button type="button" class="pdz-pwa-cta" onclick="fecharInstalarPwaModal()" id="pwaCta">Entendi</button>
+
+        @* Até 10/08/2026 este botão não existia, e o de cima fazia os dois papéis: fechar o
+           modal era o gesto de quem ia instalar (no iPhone os três toques acontecem fora
+           daqui) E a única forma de nunca mais ser convidado. Quem estava indo fazer sumia
+           do convite pra sempre. Agora fechar adia; desistir é uma escolha própria, escrita. *@
+        <button type="button" class="pdz-pwa-nao" onclick="naoQueroInstalarApp()">Não quero instalar</button>
     </div>
 </div>
 
@@ -225,16 +275,55 @@
     .pdz-pwa-instalar:disabled {
         opacity: .6;
     }
+
+    /* Sai do fluxo dos passos e não compete com o botão principal: aqui a ação certa é sair
+       deste navegador, e o link copiado é o que a pessoa leva pro Safari. */
+    .pdz-pwa-copiar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        font-weight: 700;
+        padding: 12px;
+    }
+
+    /* Discreto de propósito: é a saída definitiva, não pode disputar atenção com "agora não". */
+    .pdz-pwa-nao {
+        display: block;
+        width: 100%;
+        margin-top: 2px;
+        background: none;
+        border: none;
+        color: #8a93a8;
+        font-size: 0.85rem;
+        padding: 6px;
+    }
 </style>
 
 <script>
-    var CHAVE_PWA_DISPENSADO = 'pdzPwaInstallDismissed';
+    @* O nome guardado no aparelho continua sendo o antigo ('...Dismissed') de propósito: é
+       nele que está a marca de quem já dispensou o convite alguma vez, e trocar o nome faria
+       todo mundo voltar à estaca zero. A régua lê aquele '1' antigo como UM adiamento — a
+       pessoa nunca teve como dizer "não quero", quem decidiu isso por ela foi o botão. *@
+    var CHAVE_CONVITE_PWA = 'pdzPwaInstallDismissed';
 
-    // Verdadeiro só no PRIMEIRO carregamento depois de criar a conta (o Cadastro deixa o
-    // sinal no TempData, que morre ao ser lido). Nesse modo o convite ignora o "já dispensei"
-    // do aparelho: quem fechou o modal semana passada como visitante acabou de virar OUTRA
-    // pessoa pro sistema — uma conta nova, que ainda não disse não.
-    var conviteDeBoasVindas = @((TempData["ConviteInstalarApp"] as bool?) == true ? "true" : "false");
+    // Preenchido só no PRIMEIRO carregamento depois de a pessoa ganhar alguma coisa que vai
+    // gerar aviso — criar a conta, confirmar inscrição, fechar dupla, marcar aula. O
+    // controller deixa o motivo no TempData, que morre ao ser lido; os textos vêm de
+    // Services/ConviteDeInstalarApp. `null` quando não há nada a comemorar agora.
+    //
+    // Nesse modo o convite ignora a régua de adiamento do aparelho, e de propósito: a pessoa
+    // acabou de fazer justamente a coisa que os avisos servem pra acompanhar, e este é o
+    // único instante em que o app responde uma pergunta que ela mesma fez.
+    var convite = @Html.Raw(conviteAgora == null
+        ? "null"
+        : JsonSerializer.Serialize(conviteAgora, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
 
     // Monta o conteúdo conforme o que o aparelho realmente oferece. Roda de novo quando o
     // `beforeinstallprompt` chega atrasado: aí o modal que abriu com o passo a passo escrito
@@ -242,21 +331,53 @@
     function montarInstalarPwaModal() {
         var nativa = pdzTemInstalacaoNativa();
         var plataforma = pdzPlataforma();
+        // Manda em todos os outros: num navegador que não instala, o passo a passo abaixo
+        // mandaria procurar um item de menu que não existe naquela tela.
+        var trocar = pdzNavegadorParaTrocar();
 
         document.getElementById('pwaAcaoNativa').style.display = nativa ? 'block' : 'none';
-        document.getElementById('pwaStepsIos').style.display = (!nativa && plataforma === 'ios') ? 'block' : 'none';
-        document.getElementById('pwaStepsAndroid').style.display = (!nativa && plataforma === 'android') ? 'block' : 'none';
-        document.getElementById('pwaStepsDesktop').style.display = (!nativa && !plataforma) ? 'block' : 'none';
+        document.getElementById('pwaTrocarNavegador').style.display = trocar ? 'block' : 'none';
+        document.getElementById('pwaStepsIos').style.display = (!nativa && !trocar && plataforma === 'ios') ? 'block' : 'none';
+        document.getElementById('pwaStepsAndroid').style.display = (!nativa && !trocar && plataforma === 'android') ? 'block' : 'none';
+        document.getElementById('pwaStepsDesktop').style.display = (!nativa && !trocar && !plataforma) ? 'block' : 'none';
         document.getElementById('pwaCta').textContent = nativa ? 'Agora não' : 'Entendi';
 
-        // Boas-vindas: mesma mecânica, outra conversa. O título genérico fala de atalho; aqui
-        // o argumento é o que a pessoa GANHA — os avisos do jogo dela chegarem no celular.
-        if (conviteDeBoasVindas) {
-            document.getElementById('pwaEyebrow').innerHTML = '<i class="bi bi-check-circle-fill"></i> CONTA CRIADA';
-            document.getElementById('pwaTitle').textContent = 'Falta 1 toque pra virar app';
-            document.getElementById('pwaSubtitle').textContent =
-                'Instala o Padelizou na tela inicial pra receber os avisos que importam: ' +
-                'seu jogo chegando, as chaves saindo, aula marcada.';
+        if (trocar) montarTrocaDeNavegador(trocar);
+
+        // Mesma mecânica, outra conversa. O título genérico fala de atalho; aqui o argumento
+        // é o que a pessoa acabou de ganhar — e o aviso que vem junto com aquilo.
+        if (convite) {
+            document.getElementById('pwaEyebrowIcone').className = 'bi bi-check-circle-fill';
+            document.getElementById('pwaEyebrowTexto').textContent = convite.selo;
+            document.getElementById('pwaTitle').textContent = convite.titulo;
+            document.getElementById('pwaSubtitle').textContent = convite.texto;
+        }
+    }
+
+    // Os dois destinos possíveis mudam só o nome do navegador e o item final do menu — o
+    // caminho até lá é o mesmo, e por isso o bloco é um só.
+    function montarTrocaDeNavegador(destino) {
+        var nome = destino === 'chrome' ? 'Chrome' : 'Safari';
+        var nomes = document.querySelectorAll('.pwaNavegadorNome');
+        for (var i = 0; i < nomes.length; i++) nomes[i].textContent = nome;
+
+        document.getElementById('pwaTrocarPasso3').innerHTML = destino === 'chrome'
+            ? 'Lá, toque no menu (<strong>⋮</strong>) e depois em <strong>Instalar aplicativo</strong>'
+            : 'Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>';
+    }
+
+    // O link copiado é a HOME, não a página da vez: é dela que o app nasce (o start_url do
+    // manifest), e o endereço de um torneio antigo viraria um app que abre num torneio que
+    // já acabou.
+    async function copiarLinkDoPadelizou() {
+        var texto = document.getElementById('pwaCopiarTexto');
+        try {
+            await navigator.clipboard.writeText(window.location.origin);
+            texto.textContent = 'Link copiado!';
+        } catch (e) {
+            // Sem área de transferência (permissão negada, navegador antigo): mostrar o
+            // endereço resolve — ele é curto o bastante pra ser digitado à mão.
+            texto.textContent = window.location.host;
         }
     }
 
@@ -265,9 +386,21 @@
         document.getElementById('pwaInstallOverlay').style.display = 'flex';
     }
 
-    function fecharInstalarPwaModal() {
-        localStorage.setItem(CHAVE_PWA_DISPENSADO, '1');
+    function esconderInstalarPwaModal() {
         document.getElementById('pwaInstallOverlay').style.display = 'none';
+    }
+
+    // Fechar ADIA — ver a régua em instalar-app.js. No iPhone, fechar o modal é o gesto de
+    // quem VAI instalar (os três toques acontecem fora daqui), e tratar isso como recusa
+    // definitiva apagava justamente quem estava a caminho.
+    function fecharInstalarPwaModal() {
+        pdzAdiarConvite(CHAVE_CONVITE_PWA);
+        esconderInstalarPwaModal();
+    }
+
+    function naoQueroInstalarApp() {
+        pdzRecusarConvite(CHAVE_CONVITE_PWA);
+        esconderInstalarPwaModal();
     }
 
     async function instalarPeloModal() {
@@ -276,9 +409,10 @@
         var instalou = await pdzInstalarApp();
         texto.textContent = 'Instalar agora';
 
-        // Recusou na caixa nativa: o evento morreu junto, então o botão viraria um botão que
-        // não faz nada. Volta pro passo a passo escrito, que continua funcionando pelo menu.
-        if (instalou) fecharInstalarPwaModal();
+        // Instalou: só esconde. Marcar adiamento em quem acabou de instalar sujaria a régua
+        // com um "não" que nunca houve — e o modal não volta mesmo, porque quem está
+        // instalado nem chega a ser convidado.
+        if (instalou) esconderInstalarPwaModal();
         else montarInstalarPwaModal();
     }
 
@@ -286,15 +420,19 @@
         function aparecerSozinho() {
             if (pdzAppInstalado()) return;
 
-            // Conta recém-criada: convida SEMPRE, inclusive no computador (lá o bloco de
-            // desktop ensina o ícone da barra de endereço) e mesmo que este aparelho já tenha
-            // dispensado o modal genérico algum dia.
-            if (conviteDeBoasVindas) {
+            // Acabou de acontecer algo que gera aviso: convida inclusive no computador (lá o
+            // bloco de desktop ensina o ícone da barra de endereço) e mesmo que este aparelho
+            // tenha ADIADO o convite genérico dias atrás — o assunto agora é outro.
+            //
+            // ⚠️ Mas quem apertou "Não quero instalar" fica de fora, e essa é a diferença que
+            // dá sentido àquele botão: sem isto, a recusa explícita seria desfeita na próxima
+            // inscrição, e a pessoa perceberia que dizer não ali não serve pra nada.
+            if (convite && !pdzConviteRecusado(CHAVE_CONVITE_PWA)) {
                 abrirInstalarPwaModal();
                 return;
             }
 
-            if (localStorage.getItem(CHAVE_PWA_DISPENSADO) === '1') return;
+            if (!pdzPodeConvidar(CHAVE_CONVITE_PWA)) return;
             if (!pdzPlataforma()) return; // no computador não interrompe: lá o menu dá conta
 
             abrirInstalarPwaModal();

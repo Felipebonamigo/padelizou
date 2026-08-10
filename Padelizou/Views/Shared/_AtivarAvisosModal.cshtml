@@ -42,19 +42,35 @@
         </div>
 
         <button type="button" class="pdz-pwa-cta" onclick="fecharAtivarAvisosModal()">Agora não</button>
+        <button type="button" class="pdz-pwa-nao" onclick="naoQueroAvisos()">Não quero receber avisos</button>
     </div>
 </div>
 
 <script>
-    var CHAVE_AVISOS_DISPENSADO = 'pdzAvisosDispensado';
+    @* O nome guardado no aparelho não muda: é ele que carrega o "já dispensei" de quem viu
+       este convite antes de 10/08/2026. A régua (instalar-app.js) lê o '1' antigo como um
+       adiamento, não como recusa. *@
+    var CHAVE_CONVITE_AVISOS = 'pdzAvisosDispensado';
 
     function abrirAtivarAvisosModal() {
         document.getElementById('pdzAvisosOverlay').style.display = 'flex';
     }
 
-    function fecharAtivarAvisosModal() {
-        try { localStorage.setItem(CHAVE_AVISOS_DISPENSADO, '1'); } catch (e) { }
+    function esconderAtivarAvisosModal() {
         document.getElementById('pdzAvisosOverlay').style.display = 'none';
+    }
+
+    @* "Agora não" adia (3, 10 e 21 dias, depois para de perguntar); recusar é o botão de
+       baixo. Mesma régua do convite de instalar, pelo mesmo motivo: fechar um convite é o
+       gesto mais comum de quem só está no meio de outra coisa. *@
+    function fecharAtivarAvisosModal() {
+        pdzAdiarConvite(CHAVE_CONVITE_AVISOS);
+        esconderAtivarAvisosModal();
+    }
+
+    function naoQueroAvisos() {
+        pdzRecusarConvite(CHAVE_CONVITE_AVISOS);
+        esconderAtivarAvisosModal();
     }
 
     async function ativarAvisosPeloModal() {
@@ -67,7 +83,9 @@
             // Se a pessoa estava justamente em Preferências, o botão de lá tem que acompanhar
             // — senão ele continua dizendo "Ativar notificações" logo depois de ativar.
             if (typeof atualizarBotaoPush === 'function') atualizarBotaoPush();
-            fecharAtivarAvisosModal();
+            // Só esconde: quem acabou de ligar o aviso não adiou nada, e o convite já não
+            // volta porque a permissão deixou de ser 'default'.
+            esconderAtivarAvisosModal();
             return;
         }
 
@@ -87,7 +105,7 @@
             // decisão tomada: o navegador não deixa perguntar duas vezes.
             if (Notification.permission !== 'default') return;
 
-            try { if (localStorage.getItem(CHAVE_AVISOS_DISPENSADO) === '1') return; } catch (e) { }
+            if (!pdzPodeConvidar(CHAVE_CONVITE_AVISOS)) return;
 
             abrirAtivarAvisosModal();
         }

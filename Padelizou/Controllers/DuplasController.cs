@@ -505,6 +505,11 @@ namespace Padelizou.Controllers
                 : jogador2 == null
                     ? "Inscrição confirmada! Você está sem parceiro — defina o parceiro pela tela do torneio quando encontrar alguém."
                     : "Inscrição confirmada com sucesso!") + juntadas;
+
+            // A tela do torneio convida a instalar o app. É o melhor momento que existe: a
+            // pessoa acabou de se inscrever e a próxima notícia que ela espera — o sorteio
+            // das chaves e o horário do primeiro jogo — é exatamente o que o aviso entrega.
+            TempData[ConviteDeInstalarApp.ChaveTempData] = ConviteDeInstalarApp.InscricaoConfirmada;
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
         }
 
@@ -865,6 +870,11 @@ namespace Padelizou.Controllers
             await AvisarTrocaDeParceiroAsync(dupla, torneio!, null, eu);
 
             TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}.";
+
+            // Quem chega por aqui veio de um link — muitas vezes o link que o parceiro mandou
+            // pelo WhatsApp — e acabou de entrar num torneio. Mesmo motivo da inscrição: o
+            // que vem a seguir é o sorteio, e o sorteio é aviso.
+            TempData[ConviteDeInstalarApp.ChaveTempData] = ConviteDeInstalarApp.DuplaFechada;
             return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
         }
 
