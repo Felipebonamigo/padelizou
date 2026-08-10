@@ -76,6 +76,15 @@ namespace Padelizou.Controllers
             }
         }
 
+        // Quantos impedimentos esta inscrição tem. Hoje é sempre 0 ou 1 (ver
+        // Services/ImpedimentoUnico), mas a conta é a soma mesmo assim: o dia em que o
+        // organizador puder marcar dois, o preço acompanha sozinho.
+        private static int ImpedimentosDa(Dupla dupla) =>
+            (dupla.ImpedimentoQuintaNoite ? 1 : 0)
+            + (dupla.ImpedimentoSextaNoite ? 1 : 0)
+            + (dupla.ImpedimentoSabadoManha ? 1 : 0)
+            + (dupla.ImpedimentoSabadoTarde ? 1 : 0);
+
         // Recebe os dados do formulário de inscrição em dupla, que vive em
         // Views/Torneios/Details.cshtml (não há GET aqui: /Duplas/Create sozinho
         // não teria o torneioId e a inscrição falharia).
@@ -596,15 +605,15 @@ namespace Padelizou.Controllers
             dupla.Jogador2Id = novo.Id;
 
             // A dupla estava SOZINHA e ganhou o segundo nome: o valor da inscrição passa a
-            // contar duas pessoas. Antes de 08/08/2026 isso não existia porque a dupla sem
-            // parceiro já era cobrada por dois — agora ela paga um, e a parte do parceiro
-            // entra aqui.
+            // contar duas pessoas — com TETO, porque quem se inscreveu antes de 08/08/2026 já
+            // pagou pelos dois. Ver PrecoDaInscricao.AoEntrarOParceiro.
             //
             // ⚠️ ISTO NÃO COBRA NINGUÉM: só corrige o número que os somatórios de dinheiro, a
             // devolução e a base da taxa leem. A diferença é acertada com o organizador.
             if (precisaCobrarOSegundo && dupla.ValorInscricao is decimal valorAntes)
             {
-                dupla.ValorInscricao = valorAntes + PrecoDaInscricao.PorPessoa(torneio, segundoRepete);
+                dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
+                    torneio, valorAntes, segundoRepete, ImpedimentosDa(dupla));
             }
 
             if (absorvidas.Count > 0)
@@ -822,11 +831,13 @@ namespace Padelizou.Controllers
 
             dupla.Jogador2Id = eu.Id;
 
-            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas. Não cobra
-            // ninguém — corrige o número que os somatórios leem.
+            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas, com o mesmo
+            // TETO da troca por CPF — o caminho é outro, a regra é a mesma, e é exatamente por
+            // isso que ela mora no PrecoDaInscricao e não aqui.
             if (dupla.ValorInscricao is decimal valorAntesDoConvite)
             {
-                dupla.ValorInscricao = valorAntesDoConvite + PrecoDaInscricao.PorPessoa(torneio, euRepito);
+                dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
+                    torneio, valorAntesDoConvite, euRepito, ImpedimentosDa(dupla));
             }
 
             // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo

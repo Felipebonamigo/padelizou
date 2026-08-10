@@ -43,6 +43,33 @@ public static class PrecoDaInscricao
         return total + torneio.TaxaPorImpedimento * Math.Max(impedimentos, 0);
     }
 
+    // ── QUANDO O PARCEIRO ENTRA NUMA DUPLA QUE ESTAVA SOZINHA ──────────────────────────
+    //
+    // O valor da inscrição sobe pra contar duas pessoas. ⚠️ Isto NÃO cobra ninguém: só ajeita
+    // o número que os somatórios de dinheiro, a devolução e a base da taxa leem — a diferença
+    // é acertada com o organizador.
+    //
+    // ⚠️ E É AQUI QUE ENTRA O TETO (Felipe, 10/08/2026: *"a dupla q já pagou 250, quando entrar
+    // o novo parceiro, não cobre dele"*). Até 08/08/2026 a inscrição sem parceiro era cobrada
+    // por DUAS pessoas; das 20 do NATA PADEL TOUR, uma é dessa época e pagou **R$ 250**. Somar
+    // a parte do parceiro nela daria R$ 375 — pediria de novo um dinheiro que já entrou, e
+    // ainda inflaria o faturamento do organizador com R$ 125 que nunca chegaram (relatório do
+    // dia do jogo e caderneta leem `DaDupla`).
+    //
+    // O teto é o que uma dupla COMPLETA custa pagando cheio pelos dois. Quem já alcançou não
+    // sobe mais.
+    //
+    // ⚠️ E o teto nunca ABAIXA o que já está gravado: inscrição antiga de um torneio que
+    // barateou depois continua valendo o que foi cobrado dela. Corrigir pra menos aqui seria
+    // reescrever história de dinheiro.
+    public static decimal AoEntrarOParceiro(Torneio torneio, decimal valorAtual,
+        bool segundoJaEstaNoTorneio, int impedimentos = 0)
+    {
+        var teto = Math.Max(valorAtual, Total(torneio, new[] { false, false }, impedimentos));
+
+        return Math.Min(valorAtual + PorPessoa(torneio, segundoJaEstaNoTorneio), teto);
+    }
+
     // ── O QUE OS SOMATÓRIOS DEVEM LER ──────────────────────────────────────────────────
     // Quanto uma inscrição JÁ EXISTENTE custou. É sempre o valor gravado nela; o cálculo por
     // preço do torneio só entra pra linha antiga (anterior à coluna `ValorInscricao`), quando
