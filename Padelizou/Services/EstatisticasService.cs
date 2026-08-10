@@ -136,6 +136,18 @@ public class EstatisticasService : IEstatisticasService
     // Ids dos jogadores que batem com o filtro de estado + cidades. null = sem filtro (país todo).
     // Pode receber VÁRIAS cidades (jogador entra se estiver em qualquer uma delas).
     // Cidade/Estado são texto livre no cadastro, então compara sem diferenciar maiúsculas.
+    //
+    // ⚠️ NÃO filtre `PerfilPrivado` aqui: a ausência é DECISÃO, não esquecimento (Felipe,
+    // 10/08/2026). O ranking não sai do cadastro, e sim de RESULTADO DE TORNEIO: evento
+    // público, de chave pública, com o nome já divulgado na hora em que se jogou. Esconder a
+    // pessoa daqui não a protegeria — tiraria ela do próprio ranking, que é o oposto. Mesmo
+    // raciocínio que deixou cidade/UF fora da trava do `EnderecoPublico` (ver STATUS.md).
+    //
+    // 📌 Este comentário já disse que "a busca de jogadores faz o CONTRÁRIO", quando ela
+    // escondia quem era privado. Não faz mais, e a régua vale IGUAL nas duas telas: "perfil
+    // privado" é sobre CONTATO (Instagram e WhatsApp), não sobre resultado de padel — ver
+    // JogadoresController.Buscar e PerfilPrivadoEContatoTests.
+    // Preso por teste em `FiltroDeCidadeNoRankingTests`, pra ninguém "consertar" sem querer.
     public async Task<HashSet<int>?> ObterJogadoresDoLocalAsync(IEnumerable<string>? cidades, string? estado)
     {
         var escolhidas = (cidades ?? Enumerable.Empty<string>())
