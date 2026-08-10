@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔒 **A BUSCA ERA A PORTA LATERAL DO PERFIL PRIVADO** (não publicado).
+> Última atualização: **10/08/2026** — 🔒 **A BUSCA ERA A PORTA LATERAL DO PERFIL PRIVADO — E A DO RANKING FICA ABERTA DE PROPÓSITO, AGORA POR ESCRITO** (não publicado).
 >
 > 🔒 **"ARRUMA O PERFIL PRIVADO NA BUSCA TAMBÉM"** (Felipe, na sequência do botão de seguir). A régua não precisou ser inventada — **está escrita na tela de preferências**, na frase que a pessoa lê antes de ligar a chave: *"quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos"*. O perfil cumpria; a **busca publicava tudo**: cidade, lado da quadra, categorias, clubes, pontos e time, no card, pra qualquer visitante deslogado. Mesma família do que já havia sido fechado na rede.
 >
@@ -10,6 +10,8 @@
 > ➕ E o card de quem é privado sai do controller **já vazio** (`Pontos = 0`, `Time = null`, listas vazias) em vez de a view lembrar de esconder campo por campo: assim a próxima linha que alguém acrescentar ao card não nasce vazando. Fica foto, nome e o cadeado *"Perfil privado"* — e **sem botão de seguir**, que é o que o perfil dela também não oferece.
 >
 > 🧪 **3.117 testes**, 3 novos, 0 falhas. ✅ **Medido no app rodando**, com uma jogadora local marcada como privada: buscar pelo nome traz o card **só com o cadeado** (nenhuma cidade, categoria, clube, pts ou time no HTML); filtrar por `cidade=Porto Alegre` e por `estado=RS` **não a traz** — e o contador acompanha, senão a tela diria "1 encontrado" mostrando zero cards, o que denuncia igual; sem filtro nenhum ela aparece; e os cards dos demais seguem completos, com botão. ⚠️ **Não publicado ainda.**
+>
+> 🧭 **E a varredura achou a MESMA porta uma tela adiante — no RANKING — que fica ABERTA de propósito.** `/Jogadores/Ranking` filtra por cidade/estado (`ObterJogadoresDoLocalAsync`) **sem olhar `PerfilPrivado`**: filtrar por "Porto Alegre" e ver a pessoa na lista responde exatamente a pergunta que a busca acabou de se recusar a responder. **Decisão do Felipe (10/08): fica como está** — o ranking não sai do cadastro, sai de **resultado de torneio**, evento público de chave pública onde o nome já foi divulgado no dia em que se jogou; sumir dali não protegeria ninguém, **tiraria a pessoa do ranking que é dela**. É a mesma razão que já havia deixado cidade/UF fora da trava do `EnderecoPublico`. ⚠️ **O que não podia ficar era a decisão MUDA**: a régua da busca e a do ranking são opostas a uma tela de distância, e quem chegasse na consulta do ranking depois de ler a da busca ia "consertar" achando que faltava um `!j.PerfilPrivado`. Agora está escrita no ponto exato onde esse conserto seria feito, e **presa por teste-guarda** (`FiltroDeCidadeNoRankingTests`) que afirma o contrário do que se espera de um teste de privacidade: privado **continua** no ranking. ✅ **Conferido que o guarda guarda** — com o filtro "consertado" à mão na consulta, ele é o **único** dos 8 do arquivo que fica vermelho; sonda removida e o arquivo conferido idêntico ao original.
 >
 > Antes, no mesmo dia — 📧 **O E-MAIL PRÓPRIO FOI DECIDIDO, O VOLUME FOI CORTADO PELA METADE E O CANAL GANHOU VIGIA** (nada publicado).
 >

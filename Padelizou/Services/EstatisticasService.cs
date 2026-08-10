@@ -136,6 +136,16 @@ public class EstatisticasService : IEstatisticasService
     // Ids dos jogadores que batem com o filtro de estado + cidades. null = sem filtro (país todo).
     // Pode receber VÁRIAS cidades (jogador entra se estiver em qualquer uma delas).
     // Cidade/Estado são texto livre no cadastro, então compara sem diferenciar maiúsculas.
+    //
+    // ⚠️ NÃO filtre `PerfilPrivado` aqui: a ausência é DECISÃO, não esquecimento (Felipe,
+    // 10/08/2026). A busca de jogadores faz o CONTRÁRIO — lá quem é privado sai de qualquer
+    // resultado filtrado por atributo, porque aparecer numa lista filtrada por cidade É a
+    // resposta que o card se recusou a dar (ver JogadoresController.Buscar). O ranking não
+    // segue essa régua porque não sai do cadastro, e sim de RESULTADO DE TORNEIO: evento
+    // público, de chave pública, com o nome já divulgado na hora em que se jogou. Esconder a
+    // pessoa daqui não a protegeria — tiraria ela do próprio ranking, que é o oposto. Mesmo
+    // raciocínio que deixou cidade/UF fora da trava do `EnderecoPublico` (ver STATUS.md).
+    // Preso por teste em `FiltroDeCidadeNoRankingTests`, pra ninguém "consertar" sem querer.
     public async Task<HashSet<int>?> ObterJogadoresDoLocalAsync(IEnumerable<string>? cidades, string? estado)
     {
         var escolhidas = (cidades ?? Enumerable.Empty<string>())

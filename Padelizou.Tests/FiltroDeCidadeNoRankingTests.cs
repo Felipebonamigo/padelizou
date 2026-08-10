@@ -132,6 +132,38 @@ public class FiltroDeCidadeNoRankingTests
     }
 
     [Fact]
+    public async Task Perfil_privado_CONTINUA_no_ranking_e_isso_e_de_proposito()
+    {
+        // ⚠️ Teste-guarda de uma DECISÃO, não de um bug (Felipe, 10/08/2026). Quem chegar aqui
+        // vindo da busca de jogadores — onde quem é privado sai de TODO resultado filtrado por
+        // atributo, justamente porque aparecer numa lista filtrada por cidade entrega a cidade
+        // — vai ler a consulta acima, achar que falta um `!j.PerfilPrivado` e "consertar".
+        //
+        // Não falta. O ranking não sai do cadastro: sai de RESULTADO DE TORNEIO, evento público
+        // de chave pública, onde o nome já foi divulgado no dia em que se jogou. Sumir daqui não
+        // protegeria a pessoa — tiraria ela do ranking que é dela. É a mesma razão que deixou
+        // cidade/UF fora da trava do `EnderecoPublico`: esconder o que faz o filtro regional
+        // funcionar tira a pessoa da própria lista.
+        //
+        // Se um dia a régua mudar, é este teste que tem que cair PRIMEIRO — porque na tela a
+        // mudança não dá erro nenhum, só vem gente a menos na tabela.
+        var (ctx, svc) = Cenario();
+        using var _ = ctx;
+
+        var reservado = ctx.Jogadores.First(j => j.Nome == "J1");
+        reservado.PerfilPrivado = true;
+        await ctx.SaveChangesAsync();
+
+        var porCidade = await svc.ObterJogadoresDoLocalAsync(new[] { "Gravataí" }, null);
+        var porEstado = await svc.ObterJogadoresDoLocalAsync(null, "RS");
+
+        // Continua entre os quatro de Gravataí, e continua no recorte do estado.
+        Assert.Equal(4, porCidade!.Count);
+        Assert.Contains(reservado.Id, porCidade);
+        Assert.Contains(reservado.Id, porEstado!);
+    }
+
+    [Fact]
     public async Task O_estado_escolhido_continua_recortando_a_lista_de_cidades()
     {
         var (ctx, svc) = Cenario();
