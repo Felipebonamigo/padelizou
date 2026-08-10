@@ -283,6 +283,52 @@ public class RelatorioDoRankingRsTests
     }
 
     [Fact]
+    public void Os_tres_motivos_de_nao_conferencia_FECHAM_a_conta()
+    {
+        // ⚠️ Se os baldes não somarem exatamente `SemConferencia`, a tela explica só parte do
+        // buraco e o resto some — que é pior do que não repartir.
+        var totais = RelatorioDoRankingRs.Somar(new[]
+        {
+            Linha(new[] { ResultadoDaConsulta.Aprovado, ResultadoDaConsulta.SemDePara,
+                          ResultadoDaConsulta.SemResposta, ResultadoDaConsulta.Barrado }, 4m),
+            LinhaSemRegistro(quantas: 3),
+        });
+
+        Assert.Equal(7, totais.Inscritos);
+        Assert.Equal(2, totais.Conferidos);                 // Aprovado + Barrado
+        Assert.Equal(5, totais.SemConferencia);
+        Assert.Equal(3, totais.SemRegistro);
+        Assert.Equal(1, totais.SemCorrespondencia);
+        Assert.Equal(1, totais.SemRespostaDoRanking);
+        Assert.Equal(totais.SemConferencia,
+            totais.SemRegistro + totais.SemCorrespondencia + totais.SemRespostaDoRanking);
+    }
+
+    [Fact]
+    public void Inscricao_anterior_ao_registro_e_SEM_REGISTRO_e_nao_categoria_sem_depara()
+    {
+        // ⚠️ O caso do primeiro torneio real: 20 de 22 se inscreveram antes de a tabela de
+        // consultas existir, e a tela dizia que "quase sempre é categoria sem correspondência".
+        // Causa errada numa página que o parceiro lê vira "a integração de vocês não funciona".
+        var totais = RelatorioDoRankingRs.Somar(new[] { LinhaSemRegistro(quantas: 20) });
+
+        Assert.Equal(20, totais.SemRegistro);
+        Assert.Equal(0, totais.SemCorrespondencia);
+        Assert.Equal(0, totais.SemRespostaDoRanking);
+    }
+
+    // Pessoas inscritas SEM nenhuma consulta gravada — inscrição anterior ao registro.
+    private static RelatorioDoRankingRs.LinhaDoTorneio LinhaSemRegistro(int quantas)
+    {
+        var inscritos = Enumerable.Range(0, quantas).Select(i => new RelatorioDoRankingRs.Inscrito(
+            i, $"Antigo {i}", $"cpfv{i}", new[] { "6ª Masc" }, null)).ToList();
+
+        return new RelatorioDoRankingRs.LinhaDoTorneio(
+            new Torneio { Nome = "Torneio", Codigo = "T2", Status = "Encerrado" },
+            inscritos, Array.Empty<RelatorioDoRankingRs.Barrado>(), quantas, null);
+    }
+
+    [Fact]
     public void Sem_ninguem_inscrito_a_cobertura_nao_se_aplica()
     {
         // ⚠️ 0% diria que a integração falhou em conferir gente que não existe. A tela precisa
@@ -364,6 +410,14 @@ public class RelatorioDoRankingRsTests
         Assert.Contains("sem conferência", semComentarios);
         Assert.Contains("Barrado não é inscrito", semComentarios);
         Assert.Contains("pessoa, não inscrição", semComentarios);
+
+        // ⚠️ A tela NÃO pode voltar a narrar uma causa provável pro buraco de cobertura: ela
+        // reparte pelo que está no banco. Este teste falha se alguém reescrever a explicação
+        // como texto fixo de novo.
+        Assert.Contains("totais.SemRegistro", semComentarios);
+        Assert.Contains("totais.SemCorrespondencia", semComentarios);
+        Assert.Contains("totais.SemRespostaDoRanking", semComentarios);
+        Assert.DoesNotContain("Quase sempre é categoria", semComentarios);
     }
 
     // ── LIBERAR QUEM AINDA NÃO TEM CONTA ──────────────────────────────────────────────

@@ -86,6 +86,25 @@ public static class RelatorioDoRankingRs
         public string Situacao => RotuloDoResultado(Consulta?.Resultado);
         public bool Conferido => Consulta != null && FoiConferida(Consulta);
         public bool Aprovado => Consulta != null && PassouPeloFiltro(Consulta);
+
+        // ── POR QUE ESTA PESSOA NÃO FOI CONFERIDA ─────────────────────────────────────
+        //
+        // ⚠️ Três motivos MUITO diferentes, e a tela precisa dizer qual é qual. A primeira
+        // versão desta página narrava um deles como se fosse quase sempre o caso ("categoria
+        // sem correspondência") — e no primeiro torneio real a causa era outra: 20 das 22
+        // pessoas se inscreveram ANTES de o registro existir. Numa página lida pelo parceiro,
+        // atribuir a causa errada é pior que não explicar: ele lê a cobertura baixa como
+        // integração ruim, quando o que houve foi o registro ter nascido depois.
+        //
+        // Sem registro nenhum: a inscrição é anterior à tabela de consultas. Não diz nada
+        // sobre o ranking ter sido ouvido — provavelmente foi, e a gente é que não guardava.
+        public bool SemRegistro => Consulta == null;
+
+        // Perguntar era impossível: a categoria do torneio não casa com nenhuma do ranking.
+        public bool SemCorrespondencia => Consulta?.Resultado == ResultadoDaConsulta.SemDePara;
+
+        // Perguntamos e não veio resposta útil — servidor fora do ar, ou integração sem chave.
+        public bool SemRespostaDoRanking => Consulta?.Resultado == ResultadoDaConsulta.SemResposta;
     }
 
     // Alguém que o ranking barrou. ⚠️ Barrado NÃO é inscrito: a recusa acontece antes de a
@@ -114,6 +133,13 @@ public static class RelatorioDoRankingRs
         public int Aprovados => Inscritos.Count(i => i.Aprovado);
         public int SemConferencia => Inscritos.Count - Conferidos;
 
+        // A repartição do número acima. ⚠️ Os três somam exatamente `SemConferencia` — há
+        // teste guardando isso, porque um balde que não fecha a conta é pior que nenhum:
+        // a tela passaria a explicar só uma parte do buraco e o resto sumiria.
+        public int SemRegistro => Inscritos.Count(i => i.SemRegistro);
+        public int SemCorrespondencia => Inscritos.Count(i => i.SemCorrespondencia);
+        public int SemRespostaDoRanking => Inscritos.Count(i => i.SemRespostaDoRanking);
+
         // Barrado que o organizador manteve: a recusa produziu efeito de verdade. É o número
         // que prova que a integração fez alguma coisa neste torneio.
         public int RecusasQueFicaramDePe => Barrados.Count(b => b.AindaBarrado);
@@ -128,6 +154,9 @@ public static class RelatorioDoRankingRs
         int Conferidos,
         int Aprovados,
         int SemConferencia,
+        int SemRegistro,
+        int SemCorrespondencia,
+        int SemRespostaDoRanking,
         int Barrados,
         int RecusasQueFicaramDePe,
         int LiberadosPeloOrganizador,
@@ -158,6 +187,9 @@ public static class RelatorioDoRankingRs
             Conferidos: lista.Sum(l => l.Conferidos),
             Aprovados: lista.Sum(l => l.Aprovados),
             SemConferencia: lista.Sum(l => l.SemConferencia),
+            SemRegistro: lista.Sum(l => l.SemRegistro),
+            SemCorrespondencia: lista.Sum(l => l.SemCorrespondencia),
+            SemRespostaDoRanking: lista.Sum(l => l.SemRespostaDoRanking),
             Barrados: barrados.Count,
             RecusasQueFicaramDePe: barrados.Count(b => b.AindaBarrado),
             LiberadosPeloOrganizador: barrados.Count(b => !b.AindaBarrado),

@@ -130,6 +130,23 @@
                     <div class="text-muted mt-1" style="font-size: .75rem;">
                         @totais.Conferidos de @totais.Inscritos
                     </div>
+                    @* ⚠️ A BARRA É O QUE MAIS ENGANA: quem bate o olho lê o gráfico, não os
+                       tópicos ao lado. Enquanto a maior parte do buraco for inscrição ANTERIOR
+                       ao registro, esta porcentagem mede a idade da tabela, não a integração —
+                       e isso tem que estar colado nela, não numa lista adiante. *@
+                    @if (totais.SemRegistro > 0 && totais.SemRegistro >= totais.SemConferencia - totais.SemRegistro)
+                    {
+                        <div class="alert alert-warning small mt-2 mb-0 py-2">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Esta régua ainda é jovem.</strong> @totais.SemRegistro
+                            @(totais.SemRegistro == 1 ? "pessoa se inscreveu" : "pessoas se inscreveram")
+                            antes de o registro existir, então
+                            @(totais.SemRegistro == 1 ? "ela entra" : "elas entram") como não
+                            conferida@(totais.SemRegistro == 1 ? "" : "s") mesmo que o ranking
+                            tenha sido ouvido na hora. A porcentagem sobe sozinha conforme entra
+                            gente nova.
+                        </div>
+                    }
                 </div>
 
                 <div class="col-12 col-lg-7">
@@ -139,13 +156,51 @@
                             @MarcaDoRanking.Nome e liberado por ele</em> — não é "se inscreveu e
                             não deu problema".
                         </li>
-                        <li>
-                            <strong>@totais.SemConferencia pessoa@(totais.SemConferencia == 1 ? "" : "s") entr@(totais.SemConferencia == 1 ? "ou" : "aram") sem conferência.</strong>
-                            Quase sempre é categoria do torneio sem correspondência no ranking
-                            (a validação não chuta o sexo da categoria, de propósito); também
-                            entra aí quem se inscreveu com o servidor fora do ar — a inscrição
-                            nunca é recusada por falha de consulta.
-                        </li>
+                        @* ⚠️ AQUI SE DIZ A CAUSA MEDIDA, NÃO A PROVÁVEL. A primeira versão desta
+                           linha narrava "quase sempre é categoria sem correspondência" — e no
+                           primeiro torneio real a causa era outra (20 de 22 se inscreveram antes
+                           de o registro existir). Causa errada numa página que o parceiro lê faz
+                           ele concluir que a integração é ruim. Só aparece o balde que tem gente. *@
+                        @if (totais.SemConferencia > 0)
+                        {
+                            <li>
+                                <strong>@totais.SemConferencia pessoa@(totais.SemConferencia == 1 ? "" : "s") entr@(totais.SemConferencia == 1 ? "ou" : "aram") sem conferência</strong>, e por motivos diferentes:
+                                <ul class="mt-1 mb-0">
+                                    @if (totais.SemRegistro > 0)
+                                    {
+                                        <li>
+                                            <strong>@totais.SemRegistro</strong> se @(totais.SemRegistro == 1 ? "inscreveu" : "inscreveram")
+                                            @if (registroDesde is DateTime quando)
+                                            {
+                                                <text>antes de <strong>@quando.ToString("dd/MM/yyyy")</strong>, quando passamos a registrar cada consulta.</text>
+                                            }
+                                            else
+                                            {
+                                                <text>antes de existir o registro de consultas.</text>
+                                            }
+                                            Isso <em>não</em> quer dizer que o ranking não foi ouvido na inscrição —
+                                            quer dizer que não guardávamos a resposta.
+                                        </li>
+                                    }
+                                    @if (totais.SemCorrespondencia > 0)
+                                    {
+                                        <li>
+                                            <strong>@totais.SemCorrespondencia</strong> jog@(totais.SemCorrespondencia == 1 ? "a" : "am") em categoria
+                                            <strong>sem correspondência</strong> no @MarcaDoRanking.Nome — aí não há o que
+                                            perguntar. A validação não chuta o sexo da categoria, de propósito.
+                                        </li>
+                                    }
+                                    @if (totais.SemRespostaDoRanking > 0)
+                                    {
+                                        <li>
+                                            <strong>@totais.SemRespostaDoRanking</strong> se @(totais.SemRespostaDoRanking == 1 ? "inscreveu" : "inscreveram")
+                                            quando <strong>não foi possível consultar</strong> (servidor fora do ar ou
+                                            integração sem chave). A inscrição nunca é recusada por falha de consulta.
+                                        </li>
+                                    }
+                                </ul>
+                            </li>
+                        }
                         <li>
                             <strong>Barrado não é inscrito.</strong> A recusa acontece antes de a
                             inscrição existir. Quem foi liberado pelo organizador e voltou
