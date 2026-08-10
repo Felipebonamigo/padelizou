@@ -71,6 +71,24 @@
 <div class="mb-4">
     <h2 class="fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h2>
     <p class="text-muted">
+        @* QUANDO O TORNEIO É — e até 09/08/2026 esta tela não dizia (Felipe, adiando o NATA
+           PADEL TOUR: "coloque a data do torneio no cabeçalho"). Ela trazia local, preço, quando
+           as inscrições fecham e quando sai a chave; o dia do evento só existia no card da
+           listagem, então quem abria o link direto do torneio não tinha como saber.
+
+           Vem PRIMEIRO porque é a pergunta que decide o resto: quem não pode naquele fim de
+           semana não precisa saber o preço. Formatação em Services/DataDoTorneioNaTela, a mesma
+           que o card lê.
+
+           ⚠️ Só aparece com data marcada: "Data a definir" no cabeçalho é ruído. No CARD é
+           informação (lá se comparam torneios), e por isso a regra de mostrar é da tela, não do
+           serviço. *@
+        @if (Padelizou.Services.DataDoTorneioNaTela.TemData(Model))
+        {
+            <i class="bi bi-calendar-event text-primary"></i>
+            <strong>@Padelizou.Services.DataDoTorneioNaTela.Frase(Model)</strong>
+            <text>|</text>
+        }
         <i class="bi bi-geo-alt-fill text-danger"></i> @(string.IsNullOrEmpty(Model.LocalTorneio) ? "A definir" : Model.LocalTorneio) |
         <i class="bi bi-cash text-success"></i>
         @{

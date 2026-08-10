@@ -4,13 +4,9 @@
     var textoBotao = aberto ? "Ver Torneio e Inscrever-se" : (Model.Status == "Finalizado" ? "Ver Resultado" : "Ver Torneio");
 
     // QUANDO é a primeira pergunta de quem bate o olho num torneio — antes do preço e até
-    // do lugar. Torneio de mais de um dia mostra o intervalo: só o primeiro dia esconderia
-    // metade do evento de quem está decidindo se consegue ir.
-    var quando = Model.DataInicio == null
-        ? "Data a definir"
-        : (Model.DataFim != null && Model.DataFim.Value.Date > Model.DataInicio.Value.Date
-            ? $"{Model.DataInicio.Value:dd/MM} a {Model.DataFim.Value:dd/MM/yyyy}"
-            : Model.DataInicio.Value.ToString("dd/MM/yyyy"));
+    // do lugar. A formatação saiu daqui e virou Services/DataDoTorneioNaTela quando a página
+    // do torneio passou a mostrar a data também: eram duas telas pra uma regra só.
+    var quando = Padelizou.Services.DataDoTorneioNaTela.Frase(Model);
 }
 <div class="col" data-torneio-nome="@Model.Nome.ToLower()">
     <div class="card h-100 shadow-sm border-0 overflow-hidden">
