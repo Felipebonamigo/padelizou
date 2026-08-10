@@ -165,6 +165,27 @@
     </div>
 }
 
+@* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
+   Quem está inscrito (e quem organiza) ganha o botão de entrar; pra todo o resto ele não
+   existe — nem escondido, nem no código-fonte. Esta página abre sem login, e convite de
+   grupo é chave de porta: quem tem o link entra, e o organizador só descobre depois.
+
+   Quem decide se ESTA pessoa pode ver é o controller (ViewBag.PodeVerOGrupoDoWhats); o link
+   só sai pelo serviço, que confere o endereço de novo na hora de mostrar. A view nunca lê
+   Model.LinkGrupoWhatsApp num href — se ler, o portão deixa de existir. *@
+@if (Padelizou.Services.GrupoDoTorneioNoWhatsApp.LinkPara(Model, ViewBag.PodeVerOGrupoDoWhats == true) is { } linkDoGrupo)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a href="@linkDoGrupo" target="_blank" rel="noopener noreferrer"
+           class="btn btn-success rounded-pill px-3">
+            <i class="bi bi-whatsapp"></i> Entrar no grupo do torneio
+        </a>
+        <small class="text-muted">
+            É onde o organizador avisa mudança de horário e chama pra quadra.
+        </small>
+    </div>
+}
+
 @* ── PAGAR AGORA: a MINHA inscrição está sem pagamento ────────────────────────────────
    Só aparece em torneio que cobra pelo site e que não exige pagamento na hora de entrar —
    ali a vaga já é sua e o dinheiro vem depois. Até 08/08/2026 esse arranjo não tinha saída
@@ -1938,6 +1959,21 @@
                                     <label class="form-label fw-bold small">Recado pra quem se inscrever</label>
                                     <textarea name="recadoAosInscritos" class="form-control" rows="2" maxlength="600"
                                               placeholder="Ex: confirme no grupo do WhatsApp depois de pagar.">@Model.RecadoAosInscritos</textarea>
+                                </div>
+
+                                @* O convite do grupo. Aparece preenchido só aqui, na gestão —
+                                   na página do torneio ele nunca é escrito como texto, só como
+                                   destino do botão de quem está inscrito. *@
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Link do grupo no WhatsApp</label>
+                                    <input type="text" name="linkGrupoWhatsApp" class="form-control" maxlength="300"
+                                           inputmode="url" value="@Model.LinkGrupoWhatsApp"
+                                           placeholder="https://chat.whatsapp.com/..." />
+                                    <small class="text-muted">
+                                        Vira o botão <strong>Entrar no grupo do torneio</strong>, que só
+                                        quem está inscrito enxerga. Apague o campo pra tirar o botão —
+                                        quem já entrou no grupo continua lá.
+                                    </small>
                                 </div>
 
                                 <div class="col-12">

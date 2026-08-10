@@ -314,6 +314,15 @@ namespace Padelizou.Controllers
                 return await Recusar(problemaChave);
             }
 
+            // O link do grupo vira um `href` na página do torneio. Endereço que não é o convite
+            // do WhatsApp viraria um botão levando pra fora dele — e aceitar qualquer texto
+            // aqui é o que transformaria o campo numa porta pra dentro da nossa página.
+            if (GrupoDoTorneioNoWhatsApp.ProblemaCom(torneio.LinkGrupoWhatsApp) is { } problemaGrupo)
+            {
+                return await Recusar(problemaGrupo);
+            }
+            torneio.LinkGrupoWhatsApp = GrupoDoTorneioNoWhatsApp.Normalizar(torneio.LinkGrupoWhatsApp);
+
             // Torneio sem categoria nenhuma é um torneio em que NINGUÉM consegue se inscrever:
             // o formulário de inscrição escolhe a categoria, e sem opção não há o que escolher.
             // Ele era aceito em silêncio — o organizador compartilhava o link e descobria pelo
@@ -820,6 +829,10 @@ namespace Padelizou.Controllers
             // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
+            // Convite do grupo no WhatsApp. Segue a mesma regra dos dois de cima: campo em
+            // branco APAGA o link (e com ele o botão), que é como o organizador desfaz um
+            // grupo que acabou.
+            string? linkGrupoWhatsApp = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
             bool usaCheckIn = false,
             bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false,
@@ -891,6 +904,14 @@ namespace Padelizou.Controllers
             if (restrito && ChaveDeAcessoDoTorneio.ProblemaCom(chaveAcessoEscolhida) is { } problemaChave)
             {
                 TempData["Erro"] = problemaChave;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Pelo mesmo motivo, e antes de gravar qualquer coisa: o link do grupo vira botão
+            // na página do torneio, e endereço que não é convite do WhatsApp leva pra fora dele.
+            if (GrupoDoTorneioNoWhatsApp.ProblemaCom(linkGrupoWhatsApp) is { } problemaGrupo)
+            {
+                TempData["Erro"] = problemaGrupo;
                 return RedirectToAction("Details", new { id });
             }
 
@@ -1105,6 +1126,9 @@ namespace Padelizou.Controllers
             // não pôs recado" e "pôs um recado vazio", e a tela decide o que mostrar por isso.
             torneio.ChavePixOrganizador = string.IsNullOrWhiteSpace(chavePixOrganizador) ? null : chavePixOrganizador.Trim();
             torneio.RecadoAosInscritos = string.IsNullOrWhiteSpace(recadoAosInscritos) ? null : recadoAosInscritos.Trim();
+            // Já passou pela recusa lá em cima; aqui só falta guardar em formato único (com
+            // https na frente), pra o botão não depender de como o organizador colou.
+            torneio.LinkGrupoWhatsApp = GrupoDoTorneioNoWhatsApp.Normalizar(linkGrupoWhatsApp);
             torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
             torneio.PrevisaoChaveamento = previsaoChaveamento;
             // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".

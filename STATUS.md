@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🚀 **`build-483-76e0a58` NO AR EM PROD** (19:13 UTC). Leva TUDO: o `build-482` abaixo **mais** o ranking por tamanho de torneio.
+> Última atualização: **10/08/2026** — 💬 **O GRUPO DO TORNEIO NO WHATSAPP VIROU BOTÃO — E SÓ QUEM ESTÁ INSCRITO ENXERGA.** ⚠️ **Não publicado ainda.**
+>
+> 💬 **Pedido do Felipe, olhando o NATA PADEL TOUR em produção.** O organizador cola o convite do grupo (campo novo na criação e na aba Gerenciar) e a página do torneio passa a mostrar **"Entrar no grupo do torneio"**. Até aqui isso vivia no boca a boca — o convite ia no recado ou no particular, e **quem se inscrevia depois ficava de fora sem ninguém perceber**, justamente do lugar onde sai mudança de horário e chamada pra quadra.
+>
+> ⚠️ **O BOTÃO NÃO EXISTE PRA QUEM NÃO ESTÁ NO TORNEIO — nem escondido, nem no código-fonte.** A página do torneio **abre sem login** e aparece na listagem: convite de grupo é chave de porta, e o organizador só descobriria o estranho depois de ele já estar lá dentro. Por isso o `href` **nem é escrito no HTML** de quem não está inscrito (esconder com CSS seria publicar o link pra quem abrisse "ver código-fonte"), e um teste falha se alguém escrever `href="@Model.LinkGrupoWhatsApp"` direto na view — que funciona, fica bonito na tela de quem testou, e vaza. ✅ **Provado rodando, com a MESMA pessoa e no mesmo minuto**: o Diego (jogador comum) num torneio em que não está → **sem botão e sem o link no fonte**; inscrito como parceiro no outro → **botão e link**. Quem está na **lista de espera vê** (decisão minha: é no grupo que a vaga que abre é anunciada) e quem está com **pagamento pendente também** — a vaga já é dele.
+>
+> ⚠️ **E o link vira `href` DENTRO da nossa página, o que é a segunda razão de existir `Services/GrupoDoTorneioNoWhatsApp`**: sem conferir o endereço, o campo seria uma porta pra qualquer lugar — inclusive `javascript:` rodando na sessão de quem clicasse. Só passa `https://chat.whatsapp.com/<código>`, comparado por **igualdade de host**: `chat.whatsapp.com.pegadinha.com.br`, `pegadinha.com.br/chat.whatsapp.com` e `chat.whatsapp.com@pegadinha.com.br` (onde o destino real é o "usuário") são recusados um por um em teste. A conferência roda **duas vezes** — ao salvar e ao mostrar — porque linha antiga e correção na mão no banco nunca passaram pela tela. Digitar sem `https://` é **completado**, não recusado.
+>
+> 🧪 **21 testes novos** (`GrupoDoTorneioNoWhatsAppTests`), suíte em **3.272, 0 falhas**. Migration `GrupoDoTorneioNoWhatsApp` (uma coluna `text` nula) gerada em **worktree limpo** e conferida com `has-pending-model-changes`; aplicada e vista no `__EFMigrationsHistory` local. Layout em 375px sem rolagem lateral.
+>
+> Antes, no mesmo dia — 🚀 **`build-483-76e0a58` NO AR EM PROD** (19:13 UTC). Leva TUDO: o `build-482` abaixo **mais** o ranking por tamanho de torneio.
 >
 > ⚠️ **CORREÇÃO DO BLOCO ABAIXO: o `build-482` ficou 2 MINUTOS no ar.** O `.historico` registra `19:10 build-483` · `19:11 build-482` · `19:13 build-483` — **três deploys de mãos diferentes em quatro minutos**. Quem publicou o 482 às 19:11 passou por cima do 483 que já estava lá, e conferiu tudo certo *naquele segundo*: é a lição já escrita em [[feedback_padelizou_deploy_regressao_silenciosa]] de que **conferir logo depois de publicar não basta**. Nada se perdeu porque o `4fa782f` é ancestral do `76e0a58` e o deploy seguinte devolveu o topo do main.
 >

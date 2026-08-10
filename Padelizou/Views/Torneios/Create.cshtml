@@ -474,6 +474,24 @@
                             Aparece na tela de inscrição e no comprovante. Dá pra mudar depois, editando o torneio.
                         </small>
                     </div>
+
+                    @* O grupo do torneio no WhatsApp. Diferente do recado acima, que é público,
+                       o link só chega a quem ESTÁ inscrito: convite de grupo é chave de porta,
+                       e esta página abre sem login. *@
+                    <div class="col-12">
+                        <label class="form-label fw-bold small">
+                            Link do grupo no WhatsApp <span class="fw-normal">(opcional)</span>
+                        </label>
+                        @* type="text" e não type="url": o navegador recusaria "chat.whatsapp.com/XX"
+                           colado sem o https, que o servidor completa sozinho. *@
+                        <input asp-for="LinkGrupoWhatsApp" type="text" inputmode="url" class="form-control bg-light"
+                               maxlength="300" placeholder="https://chat.whatsapp.com/..." />
+                        <small class="text-muted d-block mt-1">
+                            Vira o botão <strong>Entrar no grupo do torneio</strong> na página — e só
+                            quem está inscrito enxerga. No WhatsApp: abra o grupo, toque no nome dele
+                            e escolha "Convidar via link".
+                        </small>
+                    </div>
                 </div>
 
                 @* ── Como o dinheiro vai correr ────────────────────────────────────────

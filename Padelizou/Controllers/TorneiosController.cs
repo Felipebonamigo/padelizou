@@ -391,6 +391,16 @@ namespace Padelizou.Controllers
             }
             ViewBag.CategoriaSelecionadaId = categoriaDoUsuario ?? torneio.Categorias.Select(c => c.Id).FirstOrDefault();
 
+            // "Eu estou NESTE torneio?" — a mesma consulta que escolheu a categoria acima, de
+            // propósito: com duas, a tela poderia abrir na categoria de alguém que ela não
+            // considera inscrito.
+            //
+            // ⚠️ Conta quem está na LISTA DE ESPERA e quem está com pagamento pendente. Em
+            // outros lugares do sistema "quem espera não está inscrito" (não ocupa vaga, não
+            // entra no sorteio), mas aqui a pergunta é outra — quem está na fila é justamente
+            // quem mais precisa do grupo, porque é lá que a vaga que abre é anunciada.
+            bool estouNoTorneio = categoriaDoUsuario != null;
+
             // Pro botão "sou eu" da inscrição e pro aviso de estar inscrevendo outra pessoa.
             // O único CPF que vai pra tela é o de quem está logado — o dele mesmo.
             if (jogadorLogadoId.HasValue)
@@ -471,6 +481,11 @@ namespace Padelizou.Controllers
                 || (jogadorLogadoId.HasValue && await PodeOlharAGestaoAsync(id, jogadorLogadoId.Value));
 
             ViewBag.GestaoSoLeitura = ViewBag.PodeGerenciar == true && !ehOrganizadorDeVerdade;
+
+            // Quem enxerga o botão do grupo no WhatsApp: quem está inscrito e quem cuida do
+            // torneio. Fica AQUI, e não na view, porque é uma decisão de quem-pode — a view só
+            // pergunta ao Services/GrupoDoTorneioNoWhatsApp se há link pra esta pessoa.
+            ViewBag.PodeVerOGrupoDoWhats = estouNoTorneio || ViewBag.PodeGerenciar == true;
 
             // Organiza junto, mas o caixa é de quem criou (ver AcessoAoDinheiroDoTorneio).
             ViewBag.PodeVerDinheiro = jogadorLogadoId.HasValue

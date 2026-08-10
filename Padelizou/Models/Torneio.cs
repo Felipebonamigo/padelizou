@@ -305,6 +305,15 @@ public partial class Torneio
     // fundos", "confirma no grupo do zap"). Aparece na tela de inscrição e no comprovante.
     public string? RecadoAosInscritos { get; set; }
 
+    // Convite do grupo do torneio no WhatsApp ("https://chat.whatsapp.com/..."). Nulo = este
+    // torneio não tem grupo, e aí não há botão nenhum.
+    //
+    // ⚠️ Ao contrário do recado acima, que é público, este campo NÃO sai pra qualquer um que
+    // abra a página: convite de grupo é chave de porta, e só quem está inscrito (ou organiza)
+    // recebe o link. Quem responde "esta pessoa pode ver?" é
+    // Services/GrupoDoTorneioNoWhatsApp — nenhuma tela lê esta propriedade direto num href.
+    public string? LinkGrupoWhatsApp { get; set; }
+
     // ---- O que o inscrito quer saber e ninguém respondia ----
     // Duas datas PREVISTAS, não automáticas: quando as inscrições devem fechar e quando o
     // chaveamento deve sair. O sistema não age por elas (quem encerra e quem sorteia continua
