@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (não publicado).
+> Última atualização: **10/08/2026** — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (`build-467-ea43026` **no ar em prod**).
 >
 > 👥 **"EU ACEITEI AQUI E NÃO APARECE QUANDO EU CLICO EM MEUS GRUPOS"** (Felipe, print da tela inicial com o card da *Pinel Gravataí* marcado **convidado / Você vai**). Quem é chamado de fora pra um jogo de panelinha entra como **avulso**: ele responde o RSVP daquele dia, mas **não vira membro do grupo** — e por isso a panelinha nunca aparece na lista de `/Grupos`, que é montada a partir de `JogadorGrupo`. O convite tinha um bloco só dele nessa tela… filtrado por `Status == "Pendente"`.
 >
@@ -9,7 +9,7 @@
 >
 > ➕ Agora o convite fica até **o dia do jogo passar**, respondido ou não, com selo do que foi respondido (*Você vai / Você não vai / Falta responder*): quem confirmou ainda precisa da tela pra ver quem mais vai — e pra desmarcar quando não der. ⚠️ **O corte é por DIA, não por hora** — cortar em `DateTime.Now` apagaria o convite no meio do próprio jogo, que é justamente quando a pessoa abre a tela. E o vazio de baixo ("Você ainda não está em nenhum grupo") passou a explicar a diferença quando existe convite: **ser chamado pra um jogo não é entrar na panelinha**, e sem essa linha o vazio se lê como "minha resposta se perdeu".
 >
-> 🧪 **3.082 testes**, 5 novos, 0 falhas. ⚠️ **Não publicado ainda.**
+> 🧪 **3.082 testes**, 5 novos, 0 falhas. 🚀 **PUBLICADO** em `build-467-ea43026`, conferido do jeito que a memória manda: `readlink -f /opt/padelizou` e o **`cwd` do processo** na release nova, `NRestarts=0`, `TZ=America/Sao_Paulo`, e os strings `ConvitesDeJogo`/"Jogos em que você foi convidado" **dentro do assembly no ar** (o `healthz` sozinho não prova versão). ✅ **E a prova final veio do banco de produção, no caso que gerou a queixa**: a linha do Felipe na *Pinel Gravataí* é `Avulso=t`, `Status=Confirmado`, `sou_membro=0`, jogo em **11/08 20:00** — exatamente a combinação que o filtro antigo jogava fora e que o novo mantém na tela.
 >
 > Antes, no mesmo dia — 📮 **O CEP ENTROU NO CADASTRO — E É ELE QUE FECHA A TORNEIRA DAS CIDADES DUPLICADAS** (`build-465-bbd73df` **no ar em prod**).
 >
