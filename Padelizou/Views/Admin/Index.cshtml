@@ -196,8 +196,8 @@
             <a asp-controller="Admin" asp-action="RankingRsRelatorio" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shield-check"></i> Relatório @Padelizou.Services.MarcaDoRanking.Nome</h5>
-                        <p class="text-muted small mb-0">Torneios que aderiram, quem se inscreveu, quem foi barrado e quem passou pelo filtro. Compartilhada com eles.</p>
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shield-check"></i> Relatório @Padelizou.Services.MarcaDoRanking.Nome — só leitura</h5>
+                        <p class="text-muted small mb-0">Torneios que aderiram, quem se inscreveu, quem foi barrado e quem passou pelo filtro. <strong>É a tela que eles enxergam</strong> — sem botão nenhum.</p>
                     </div>
                 </div>
             </a>
@@ -243,8 +243,11 @@
                 <a asp-controller="Admin" asp-action="RankingRs" class="text-decoration-none">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body">
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-trophy"></i> @Padelizou.Services.MarcaDoRanking.Nome</h5>
-                            <p class="text-muted small mb-0">O que devemos a eles: R$ 1 por inscrito, torneio a torneio, com quem foi cobrado.</p>
+                            @* Dois cards falam do mesmo parceiro, e o Felipe já procurou o botão
+                               de conferir no card errado. O título de cada um passa a dizer o que
+                               se FAZ ali, não só de quem é o assunto. *@
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-trophy"></i> @Padelizou.Services.MarcaDoRanking.Nome — acerto e conferência</h5>
+                            <p class="text-muted small mb-0">O que devemos a eles (R$ 1 por inscrito) e o botão de <strong>conferir os inscritos no ranking</strong>, torneio a torneio.</p>
                         </div>
                     </div>
                 </a>

@@ -265,7 +265,23 @@
                         {
                             <tr>
                                 <td>
-                                    <div class="fw-bold">@linha.Torneio.Nome</div>
+                                    @* ⚠️ LINK, e nunca formulário: esta tela é a que o parceiro
+                                       abre, e a trava dele é o verbo HTTP — há teste garantindo
+                                       que aqui não existe um `<form>`. O link só aparece pra
+                                       quem tem o painel, senão seria um caminho que devolve o
+                                       parceiro pro lugar de onde ele veio. *@
+                                    @if (soVeORelatorio)
+                                    {
+                                        <div class="fw-bold">@linha.Torneio.Nome</div>
+                                    }
+                                    else
+                                    {
+                                        <a asp-action="RankingRsTorneio" asp-route-id="@linha.Torneio.Id"
+                                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">
+                                            @linha.Torneio.Nome
+                                            <i class="bi bi-box-arrow-up-right small text-muted"></i>
+                                        </a>
+                                    }
                                     <div class="text-muted" style="font-size: .8rem;">
                                         @(linha.Torneio.DataInicio?.ToString("dd/MM/yyyy") ?? "sem data")
                                         · @linha.Torneio.Status

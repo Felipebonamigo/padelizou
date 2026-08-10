@@ -107,13 +107,18 @@ public class RelatorioDoRankingRsTests
     public void A_tela_do_relatorio_nao_tem_nenhum_formulario()
     {
         // ⚠️ A trava do parceiro é o verbo HTTP, igual à do assistente — e ela só é honesta
-        // enquanto esta tela não oferecer nada pra clicar. Um <form> aqui seria um POST que a
-        // porta do relatório não cobre.
+        // enquanto esta tela não oferecer nada pra POSTAR. Link é livre; formulário, não.
+        //
+        // ⚠️ O QUE VALE É O QUE CHEGA AO NAVEGADOR, então o comentário Razor sai antes da
+        // comparação. Sem isso o teste cai por explicar a si mesmo: o comentário que justifica
+        // a regra precisa citar a tag que a regra proíbe. Mesmo tropeço do
+        // PoliticaDePrivacidadeTests e do AvisoNoCelularTests.
         var view = File.ReadAllText(Path.Combine(
             PastaDoProjeto(), "Views", "Admin", "RankingRsRelatorio.cshtml"));
+        var semComentarios = Regex.Replace(view, @"@\*.*?\*@", "", RegexOptions.Singleline);
 
-        Assert.DoesNotContain("<form", view, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("method=\"post\"", view, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<form", semComentarios, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("method=\"post\"", semComentarios, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
