@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 👣 **A BUSCA GANHOU O BOTÃO DE SEGUIR — SEM PERDER A BUSCA** (não publicado).
+> Última atualização: **10/08/2026** — 📅 **O PLANO ANUAL DO PROFESSOR: R$ 499,90 POR 12 MESES** (não publicado; o código caiu dentro do commit `e07fb94`, ver a lição no fim deste bloco).
+>
+> 📅 **O PROFESSOR SÓ CONSEGUIA COMPRAR UM MÊS POR VEZ.** O plano Assinante existe desde 29/07 com mensalidade de R$ 49,90 funcionando ponta a ponta, mas o **anual de R$ 499,90 nunca tinha saído do papel** — estava só na linha de plano de negócio deste documento. Agora ele existe: **R$ 499,90 compram 12 meses**, contra R$ 598,80 de doze mensalidades — **economia de R$ 98,90**, que a tela calcula (`PlanoDoProfessor.EconomiaDoAnual`) em vez de anunciar "2 meses grátis" chumbado, porque os dois preços vêm de configuração e o desconto vira mentira no dia em que um deles mudar.
+>
+> ⚠️ **O ciclo é do PAGAMENTO, não do professor — e por isso não houve migration nenhuma.** Quem assina continua sendo `"Assinante"`; o que muda é **quanto tempo cada cobrança compra**. O ciclo viaja no JSON que a cobrança já carregava (`DadosAssinaturaProfessor`), e uma coluna no `Jogador` diria uma coisa falsa: pagar 12 meses agora e um mês no ano que vem **não é trocar de plano**. Sem migration, sem `defaultValue` pra conferir à mão, sem snapshot pra contaminar.
+>
+> ⚠️ **O NULL TINHA QUE SER MENSAL, e esse é o teste que protege o dia do deploy.** Toda cobrança de assinatura em aberto no banco nasceu antes do anual existir e tem só `{"ProfessorId":N}` gravado. Se o ciclo ausente virasse "não sei", a confirmação delas morreria calada; se virasse "anual", elas dariam **12 meses de graça**. `MesesDo(null) == 1`, e lixo na entrada (`"anual"` em caixa errada, texto qualquer) também cai no mensal — **nunca no ciclo caro**.
+>
+> ⚠️ **Uma cobrança de assinatura aberta por vez.** Escolher o outro ciclo com uma cobrança em aberto deixaria **dois códigos de pagamento vivos ao mesmo tempo**, e pagar os dois é o erro que o professor não desfaz sozinho. A tela já esconde os botões quando existe uma, mas a trava mora no controller — a página aberta noutra aba, ou o botão de voltar, gerariam a segunda. Segundo clique no **mesmo** ciclo não é erro: volta pra cobrança que já existe, sem recado vermelho.
+>
+> 🧾 **O registro à mão do admin ganhou "1 mês / 12 meses"** (`/Admin/Financeiro`): é por ali que entra o Pix combinado no WhatsApp, e **adivinhar o ciclo pelo valor creditaria um mês só pra quem fechou 12 por R$ 450**. E a palavra "Mensalidade" saiu das telas de pagamento (tela do Pix, Meus Pagamentos, fila do admin) — virou **"Plano Assinante"**, porque com dois ciclos ela passou a mentir na metade dos casos.
+>
+> 🧪 **8 testes novos** (`PlanoAnualDoProfessorTests`), suíte em **3.101, 0 falhas**. ✅ **Medido no app rodando**, não só em teste: o card mostrando "ou R$ 499,90 por 12 meses / economize R$ 98,90", o botão anual gerando cobrança de **R$ 499,90 com `{"ProfessorId":113,"Ciclo":"Anual"}` no banco**, a trava recusando a segunda cobrança (pedi o mensal com a anual aberta → voltou pra cobrança existente com o recado, e o banco seguiu com **uma linha só**), e o caminho que mais importa: **registro à mão de R$ 499,90 pelo formulário real do admin levou a assinatura de 07/09/2026 pra 07/09/2027** — 12 meses somados no FIM da vigência, não a partir de hoje.
+>
+> ⚠️ **LIÇÃO DE DIRETÓRIO COMPARTILHADO, a mesma de sempre e de novo:** na hora de commitar, o `git status` estava **limpo** — a sessão paralela tinha commitado, e o commit dela (`e07fb94`, "O nome do clube vira editavel") **levou os 13 arquivos deste trabalho junto**. Nada se perdeu e o commit ainda não foi pro remoto, mas reescrever histórico com a outra sessão trabalhando em cima seria pior que o problema. Fica registrado aqui onde o código caiu.
+>
+> Antes, no mesmo dia — 👣 **A BUSCA GANHOU O BOTÃO DE SEGUIR — SEM PERDER A BUSCA** (não publicado).
 >
 > 👣 **"NA TELA DE BUSCAR, TER A OPÇÃO DE SEGUIR JOGADOR, NÃO PRECISA SER GRANDE"** (Felipe, print de `/Jogadores/Buscar` com os 163 jogadores de produção). Seguir existe desde o começo do sistema e tinha **um lugar só**: o perfil. Quem varria a lista atrás de parceiro precisava entrar em cada um, seguir e voltar — e a volta caía na busca **sem filtro nenhum**. Agora cada card tem o botão, pequeno, ao lado do nome, com "Seguir" e "Seguindo" trocando de lugar como no perfil.
 >
