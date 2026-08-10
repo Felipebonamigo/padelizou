@@ -180,6 +180,9 @@ builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();
 // Cobra a FATURA a vencer × cobra a INSCRIÇÃO devendo. São dois avisos diferentes de propósito:
 // quem escolheu "pago depois" não tem fatura nenhuma pra vencer.
 builder.Services.AddHostedService<LembreteInscricaoNaoPagaBackgroundService>();
+// E, no fechamento, PERGUNTA ao organizador o que fazer com quem ficou devendo. Pergunta —
+// nunca remove sozinho: ver Services/DecisaoSobreQuemNaoPagou.
+builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 builder.Services.AddSingleton<FilaDeWhatsApp>();

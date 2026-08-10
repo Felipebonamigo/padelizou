@@ -106,10 +106,21 @@ public partial class Torneio
     // Data limite pra quitar quando o pagamento não é obrigatório na hora. Nulo = sem prazo.
     public DateTime? PrazoPagamento { get; set; }
 
-    // O que acontece com quem não pagou até o prazo: sai do torneio ou só fica devendo.
-    // Padrão false — tirar alguém de um torneio é grave demais pra ser o comportamento
-    // implícito; o organizador liga isso conscientemente.
+    // O organizador quer ser PERGUNTADO, no fechamento, sobre quem não pagou.
+    //
+    // ⚠️ O nome ficou da promessa antiga ("quem não pagar perde a vaga") e o sistema NUNCA a
+    // cumpriu: até 10/08/2026 esta coluna existia só aqui e na tela de criação, sem uma linha
+    // que a lesse. Agora ela dispara a PERGUNTA — quem remove é o organizador, no botão. Ver
+    // Services/DecisaoSobreQuemNaoPagou. Padrão false: tirar alguém de um torneio é grave
+    // demais pra ser comportamento implícito.
     public bool ExcluirSeNaoPagar { get; set; }
+
+    // Quando a pergunta sobre quem não pagou já foi feita a este organizador. Nulo = ainda não.
+    //
+    // ⚠️ É o que garante UMA pergunta só: o varredor passa de hora em hora, e sem esta marca o
+    // organizador levaria o mesmo aviso doze vezes no primeiro dia — mesma lição do
+    // `Dupla.UltimoLembreteDePagamento`.
+    public DateTime? PerguntaDeNaoPagosEm { get; set; }
 
     public string? LocalTorneio { get; set; }
     public string? ImagemCapa { get; set; }

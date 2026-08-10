@@ -657,13 +657,21 @@
                                     <input type="date" asp-for="PrazoPagamento" class="form-control form-control-sm" />
                                 </div>
                                 <div class="col-md-7">
+                                    @* ⚠️ O TEXTO ANTIGO PROMETIA O QUE O CÓDIGO NUNCA FEZ: "quem
+                                       não pagar perde a vaga" sugeria exclusão automática, e a
+                                       coluna não era lida por uma linha sequer — o organizador
+                                       do NATA PADEL TOUR passou o torneio inteiro achando que o
+                                       sistema limparia sozinho. Agora a caixinha diz o que
+                                       acontece de verdade: o sistema PERGUNTA. O rótulo mora em
+                                       Services/DecisaoSobreQuemNaoPagou pra não voltar a
+                                       divergir do comportamento. *@
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" asp-for="ExcluirSeNaoPagar" id="excluirSeNaoPagar" />
                                         <label class="form-check-label small" for="excluirSeNaoPagar">
-                                            Quem não pagar até o prazo <strong>perde a vaga</strong>
+                                            @Padelizou.Services.DecisaoSobreQuemNaoPagou.RotuloDaCaixinha
                                         </label>
                                         <div class="small text-muted">
-                                            Desmarcado, a inscrição fica só como "não paga" e você resolve na mão.
+                                            @Padelizou.Services.DecisaoSobreQuemNaoPagou.ExplicacaoDaCaixinha
                                         </div>
                                     </div>
                                 </div>

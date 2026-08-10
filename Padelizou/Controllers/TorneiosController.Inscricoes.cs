@@ -277,7 +277,27 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            await TirarDuplaDoTorneioAsync(dupla, torneio,
+                $"O organizador removeu sua inscrição em {torneio.Nome}. Se foi engano, fale com ele.");
+
+            TempData["Sucesso"] = "Inscrito removido do torneio.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // O MIOLO da remoção de um inscrito, sem tela: apagar, avisar quem saiu e chamar a
+        // lista de espera.
+        //
+        // ⚠️ Existe separado porque DOIS botões removem inscrito — este, um por um, e o
+        // "remover quem não pagou" do fechamento, em lote. Duas cópias significariam,
+        // inevitavelmente, uma delas esquecendo de avisar a pessoa ou de promover a fila; e a
+        // pessoa que não é avisada descobre no clube, no dia do jogo.
+        //
+        // A `mensagem` é do chamador: "o organizador removeu" e "não foi pago até o prazo" são
+        // motivos diferentes, e quem recebe merece o motivo certo.
+        private async Task TirarDuplaDoTorneioAsync(Dupla dupla, Torneio torneio, string mensagem)
+        {
             bool eraConfirmada = !dupla.EmListaDeEspera;
+            int categoriaId = dupla.CategoriaId;
             var removidos = new[] { dupla.Jogador1Id, dupla.Jogador2Id }
                 .Where(i => i != null).Select(i => i!.Value).ToList();
 
@@ -286,14 +306,9 @@ namespace Padelizou.Controllers
 
             // Quem foi tirado precisa saber ANTES do dia do jogo. Sem isso a pessoa aparecia
             // no clube e descobria na hora que não estava mais no torneio.
-            await AvisarAsync(removidos, "Você saiu do torneio",
-                $"O organizador removeu sua inscrição em {torneio.Nome}. Se foi engano, fale com ele.",
-                torneioId);
+            await AvisarAsync(removidos, "Você saiu do torneio", mensagem, torneio.Id);
 
-            if (eraConfirmada) await PromoverDaListaDeEsperaAsync(dupla.CategoriaId, torneio);
-
-            TempData["Sucesso"] = "Inscrito removido do torneio.";
-            return RedirectToAction("Details", new { id = torneioId });
+            if (eraConfirmada) await PromoverDaListaDeEsperaAsync(categoriaId, torneio);
         }
 
         // ── O próprio inscrito desiste ────────────────────────────────────────────────────

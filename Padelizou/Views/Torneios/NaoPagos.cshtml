@@ -1,0 +1,119 @@
+@model Padelizou.ViewModels.NaoPagosVM
+@using Padelizou.Services
+@{
+    ViewData["Title"] = "Quem não pagou";
+    var podeRemover = ViewBag.PodeRemover as bool? == true;
+}
+
+@* A DECISÃO DO ORGANIZADOR sobre quem ficou devendo no fechamento.
+   O sistema não remove ninguém sozinho — ver Services/DecisaoSobreQuemNaoPagou. *@
+
+<div class="mb-4">
+    <a asp-action="Details" asp-route-id="@Model.Torneio.Id" class="btn btn-sm btn-link ps-0">
+        <i class="bi bi-arrow-left"></i> Voltar pro torneio
+    </a>
+    <h2 class="fw-bold" style="color: var(--pdz-ink);">Quem não pagou</h2>
+    <p class="text-muted mb-0">@Model.Torneio.Nome</p>
+</div>
+
+@if (Model.Total == 0)
+{
+    <div class="alert alert-success border-0 shadow-sm">
+        <p class="fw-bold mb-1"><i class="bi bi-check-circle"></i> Está tudo acertado.</p>
+        <p class="small mb-0">Nenhuma inscrição deste torneio está sem pagamento.</p>
+    </div>
+    return;
+}
+
+<div class="alert alert-warning border-0 shadow-sm">
+    <p class="fw-bold mb-1">
+        <i class="bi bi-hourglass-split"></i>
+        @Model.Total @(Model.Total == 1 ? "inscrição está" : "inscrições estão") sem pagamento
+        — @Model.ValorTotal.ToString("C") no total.
+    </p>
+    @* O recado que evita a decisão apressada: muita inscrição de clube se acerta em dinheiro na
+       quadra ou por Pix direto, e o site não tem como saber disso. *@
+    <p class="small mb-0">
+        O sistema <strong>não removeu ninguém</strong> — a decisão é sua. Se alguém acertou por
+        fora, marque como pago na aba <strong>Gerenciar</strong> antes de remover.
+    </p>
+</div>
+
+<form asp-action="RemoverNaoPagos" method="post">
+    <input type="hidden" name="id" value="@Model.Torneio.Id" />
+
+    @if (Model.Duplas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Inscrições em dupla</h6>
+                @foreach (var linha in Model.Duplas)
+                {
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <div class="fw-semibold">@linha.Nome</div>
+                            <div class="small text-muted">@CategoriaNaTela.Curto(linha.Categoria)</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold">@linha.Valor.ToString("C")</span>
+                        </div>
+                    </div>
+                    <input type="hidden" name="duplaIds" value="@linha.Id" />
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.Americanas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Inscrições individuais</h6>
+                @foreach (var linha in Model.Americanas)
+                {
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <div class="fw-semibold">@linha.Nome</div>
+                            <div class="small text-muted">@CategoriaNaTela.Curto(linha.Categoria)</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold">@linha.Valor.ToString("C")</span>
+                        </div>
+                    </div>
+                    <input type="hidden" name="americanaIds" value="@linha.Id" />
+                }
+            </div>
+        </div>
+    }
+
+    <div class="d-grid gap-2">
+        @if (podeRemover)
+        {
+            @* O botão destrutivo pergunta de novo, e a pergunta diz o número: "remover" sozinho
+               não deixa claro que são várias pessoas de uma vez. *@
+            <button type="submit" class="btn btn-outline-danger"
+                    onclick="return confirm('Remover @Model.Total @(Model.Total == 1 ? "inscrição" : "inscrições") e liberar @(Model.Total == 1 ? "a vaga" : "as vagas")? Quem sair será avisado.');">
+                <i class="bi bi-person-dash"></i>
+                Remover quem não pagou e liberar @(Model.Total == 1 ? "a vaga" : "as vagas")
+            </button>
+        }
+        else
+        {
+            <div class="alert alert-secondary small mb-0">
+                <i class="bi bi-lock"></i> @ViewBag.PorQueNaoPodeRemover
+            </div>
+        }
+    </div>
+</form>
+
+<form asp-action="ManterNaoPagos" method="post" class="d-grid mt-2">
+    <input type="hidden" name="id" value="@Model.Torneio.Id" />
+    <button type="submit" class="btn btn-padel">
+        <i class="bi bi-hand-thumbs-up"></i> Vou acertar pessoalmente — ninguém sai
+    </button>
+</form>
+
+<p class="small text-muted mt-3 mb-0">
+    Quem for removido recebe um aviso dizendo que a inscrição não foi paga até o prazo, e a vaga
+    aberta chama a próxima dupla da lista de espera.
+</p>
