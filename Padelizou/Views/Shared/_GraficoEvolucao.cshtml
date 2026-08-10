@@ -55,9 +55,10 @@
 else
 {
     <div class="pdz-evolucao">
-        <svg viewBox="0 0 @larg @alt" width="100%" height="auto" role="img"
+        @* height sai pelo CSS: como atributo do SVG, "auto" não é comprimento e o navegador reclama. *@
+        <svg viewBox="0 0 @larg @alt" width="100%" role="img"
              aria-label="Evolução de pontos nos últimos @meses.Count meses"
-             style="display:block; overflow:visible;">
+             style="display:block; height:auto; overflow:visible;">
 
             @* Linhas de referência: zero, metade e topo *@
             @for (int g = 0; g <= 2; g++)
@@ -95,7 +96,7 @@ else
             @for (int i = 0; i < meses.Count; i++)
             {
                 var m = meses[i];
-                <circle cx="@Num(X(i))" cy="@Num(YAcum(m.Acumulado))" r="@(m.Titulos > 0 ? 3.6 : 2.4)"
+                <circle cx="@Num(X(i))" cy="@Num(YAcum(m.Acumulado))" r="@Num(m.Titulos > 0 ? 3.6 : 2.4)"
                         class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto") @(m.NoFuturo ? "pdz-ev-futuro" : "")">
                     <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")@(m.NoFuturo ? " (torneio ainda por vir)" : "")</title>
                 </circle>
