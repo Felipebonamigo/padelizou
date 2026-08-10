@@ -137,15 +137,60 @@
                                    data-mascara="celular" inputmode="numeric" placeholder="(51) 99999-9999" value="@Model.Celular" />
                         </div>
 
-                        <div class="row mb-4">
+                        @* CEP primeiro, e cidade/UF logo abaixo já preenchidas: quem informa o
+                           CEP não digita mais nada, e a cidade chega escrita de um jeito só.
+                           Quem não quiser informar continua digitando a cidade à mão — o campo
+                           é opcional de verdade. *@
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">
+                                CEP <span class="fw-normal">(opcional)</span>
+                            </label>
+                            <input type="text" name="cep" data-cep data-mascara="cep" class="form-control bg-light"
+                                   inputmode="numeric" placeholder="00000-000" style="max-width: 12rem;"
+                                   value="@Model.Cep" />
+                            <small id="pdzCepRecado" class="d-block mt-1 small text-muted">
+                                Informe e a gente preenche cidade, estado, rua e bairro pra você.
+                            </small>
+                        </div>
+
+                        <div class="row mb-3">
                             <div class="col-md-8">
                                 <label class="form-label fw-bold text-muted small">Cidade</label>
-                                <input type="text" name="cidade" class="form-control bg-light" value="@Model.Cidade" />
+                                <input type="text" id="pdzCidade" name="cidade" class="form-control bg-light" value="@Model.Cidade" />
                             </div>
                             <div class="col-md-4 mt-3 mt-md-0">
                                 <label class="form-label fw-bold text-muted small">Estado (UF)</label>
-                                <input type="text" name="estado" class="form-control bg-light" maxlength="2" style="text-transform: uppercase;" value="@Model.Estado" />
+                                <input type="text" id="pdzEstado" name="estado" class="form-control bg-light" maxlength="2" style="text-transform: uppercase;" value="@Model.Estado" />
                             </div>
+                        </div>
+
+                        @* Rua e bairro são só leitura: eles vêm do CEP, e campo editável ao
+                           lado de um preenchimento automático é convite pra divergirem. Nasce
+                           escondido quando não há endereço — bloco vazio na tela é ruído. *@
+                        <div id="pdzEnderecoAchado" class="row mb-3 @(string.IsNullOrWhiteSpace(Model.Cep) ? "d-none" : "")">
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold text-muted small">Rua</label>
+                                <input type="text" id="pdzLogradouro" class="form-control bg-light" value="@Model.Logradouro" readonly />
+                            </div>
+                            <div class="col-md-4 mt-3 mt-md-0">
+                                <label class="form-label fw-bold text-muted small">Bairro</label>
+                                <input type="text" id="pdzBairro" class="form-control bg-light" value="@Model.Bairro" readonly />
+                            </div>
+                        </div>
+
+                        <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="enderecoPublico" value="true"
+                                       id="switchEnderecoPublico" @(Model.EnderecoPublico ? "checked" : "") />
+                                <label class="form-check-label fw-bold" for="switchEnderecoPublico" style="color: var(--pdz-ink);">
+                                    Mostrar minha rua e meu bairro no perfil
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                Desligado, só você vê. <strong>Cidade e estado continuam aparecendo</strong> de qualquer
+                                jeito — é o que faz o ranking e a busca da sua região funcionarem. O CEP nunca aparece
+                                pra ninguém.
+                            </small>
                         </div>
 
                         @* SEXO — pedido a quem se cadastrou antes de o campo existir.

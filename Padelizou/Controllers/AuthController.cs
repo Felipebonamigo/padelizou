@@ -24,9 +24,11 @@ namespace padelizou.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly SuporteSettings _suporte;
         private readonly TravaDeEntrada _trava;
+        private readonly IConsultaDeCep _cep;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte, TravaDeEntrada trava)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte, TravaDeEntrada trava, IConsultaDeCep cep)
         {
+            _cep = cep;
             _context = context;
             _env = env;
             _passwordHasher = passwordHasher;
@@ -460,7 +462,15 @@ namespace padelizou.Controllers
             bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null,
             // Nulo = a aba veio de antes deste campo existir. Aí o que está gravado FICA: quem
             // já informou o sexo não pode perdê-lo por causa de um formulário em cache.
-            string? sexo = null)
+            string? sexo = null,
+            // CEP opcional. `enderecoPublico` é checkbox, e checkbox desmarcado não é enviado —
+            // então "não veio" e "desmarcou" chegam iguais aqui, e os dois viram false.
+            //
+            // ⚠️ Diferente do `sexo` logo acima, aqui o campo em branco NÃO preserva o que
+            // estava, e é de propósito: numa trava de privacidade, a ambiguidade tem que cair
+            // pro lado de mostrar menos. Uma aba velha reenviada volta o endereço pro privado —
+            // incômodo pequeno, e o contrário seria publicar a rua de alguém por acidente.
+            string? cep = null, bool enderecoPublico = false)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -567,7 +577,17 @@ namespace padelizou.Controllers
             jogador.Cidade = string.IsNullOrWhiteSpace(cidade)
                 ? null
                 : CidadesSemRepetir.EscritaComoAsOutras(cidade, await CidadesJaCadastradasAsync());
-            jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
+            jogador.Estado = NomeDeCidade.ArrumarEstado(estado);
+
+            // ⚠️ O CEP é reconsultado NO SERVIDOR, mesmo o formulário já tendo preenchido os
+            // campos pelo JavaScript. O preenchimento da tela é conveniência; a autoridade é
+            // esta consulta. Sem ela, bastaria mandar um CEP e uma cidade que não combinam —
+            // e voltaríamos a ter cidade digitada à mão, que é o que este campo veio resolver.
+            var consultaCep = await _cep.BuscarAsync(cep);
+            if (EnderecoPeloCep.Aplicar(jogador, cep, consultaCep, enderecoPublico) is { } avisoCep)
+            {
+                avisos.Add(avisoCep);
+            }
 
             // ⚠️ Só grava quando veio um valor RECONHECIDO. Campo em branco (aba antiga, ou
             // quem não quis responder) mantém o que já estava — apagar o sexo de quem já
@@ -868,6 +888,34 @@ namespace padelizou.Controllers
             return View();
         }
 
+        // Consulta de CEP pro formulário preencher cidade/UF/rua/bairro sem a pessoa digitar.
+        //
+        // ⚠️ Anônima de propósito: ela é usada na tela de CADASTRO, onde ainda não existe conta
+        // nenhuma. Por isso tem trava por IP — mas a própria (60 na janela), e não a das portas
+        // de entrada: quem corrige o CEP três vezes não é robô, e ser barrado no meio do
+        // primeiro cadastro é o pior momento possível pra isso acontecer.
+        //
+        // ⚠️ Ela NÃO é a autoridade do que vai pro banco: quem grava reconsulta no servidor
+        // (ver EnderecoPeloCep). Aqui é só o que a tela mostra enquanto se digita.
+        [HttpGet]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaConsulta)]
+        public async Task<IActionResult> BuscarCep(string? cep)
+        {
+            var consulta = await _cep.BuscarAsync(cep);
+
+            return Json(new
+            {
+                achou = consulta.Situacao == ResultadoDoCep.Achou,
+                // "Não consultado" é diferente de "não existe": a tela não pode dizer que o CEP
+                // está errado quando na verdade não deu pra perguntar.
+                consultou = consulta.Situacao != ResultadoDoCep.NaoConsultado,
+                cidade = consulta.Endereco?.Cidade,
+                uf = consulta.Endereco?.Uf,
+                logradouro = consulta.Endereco?.Logradouro,
+                bairro = consulta.Endereco?.Bairro,
+            });
+        }
+
         private async Task PopularCatalogosAsync()
         {
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
@@ -894,7 +942,11 @@ namespace padelizou.Controllers
             // logo abaixo, com a mensagem certa.
             string? sexo = null,
             // Pra onde voltar depois de criar a conta — o convite que trouxe a pessoa até aqui.
-            string? returnUrl = null)
+            string? returnUrl = null,
+            // CEP opcional: é ele que traz cidade e UF já escritas de um jeito só. Mesma régua
+            // de privacidade do perfil — checkbox ausente vira `false`, e endereço nasce
+            // privado.
+            string? cep = null, bool enderecoPublico = false)
         {
             // ⚠️ O destino tem que sobreviver às RECUSAS, igual no login: cada `return View()`
             // abaixo devolve o formulário, e sem isto o primeiro erro de digitação apagaria o
@@ -924,6 +976,8 @@ namespace padelizou.Controllers
             ViewBag.FormCelular = celular;
             ViewBag.FormIsProfessor = isProfessor;
             ViewBag.FormSexo = SexoDoJogador.Normalizar(sexo);
+            ViewBag.FormCep = cep;
+            ViewBag.FormEnderecoPublico = enderecoPublico;
 
             // A tela marca o rádio como `required`, mas POST montado à mão passa por cima —
             // e uma conta nova sem sexo já nasceria travada fora da Mista e da Casais, sem a
@@ -1061,6 +1115,17 @@ namespace padelizou.Controllers
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             jogador.NotificarEmail = notificarEmail;
             jogador.NotificarWhatsApp = notificarWhatsApp;
+
+            // O CEP é o único caminho pela qual a cidade entra AQUI: antes deste campo, o
+            // cadastro nunca preenchia `Jogador.Cidade` — ela só aparecia quando a pessoa
+            // passava por Editar Perfil ou se inscrevia num torneio, sempre digitada à mão.
+            // Vindo do CEP, ela nasce escrita de um jeito só.
+            //
+            // ⚠️ Reconsulta no servidor, igual ao perfil: o preenchimento pelo JavaScript é
+            // conveniência da tela, não autoridade do que vai pro banco.
+            var enderecoDoCadastro = await _cep.BuscarAsync(cep);
+            var avisoDoCep = EnderecoPeloCep.Aplicar(jogador, cep, enderecoDoCadastro, enderecoPublico);
+            if (avisoDoCep != null) TempData["AvisoCep"] = avisoDoCep;
 
             await _context.SaveChangesAsync();
             await AtualizarPreferenciasAsync(jogador.Id, categoriasSelecionadas, clubesSelecionados,

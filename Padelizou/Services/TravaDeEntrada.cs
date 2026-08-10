@@ -33,8 +33,16 @@ namespace Padelizou.Services
         // sistema, que é o pior momento possível pra isso acontecer.
         public const string PoliticaCadastro = "cadastro-por-ip";
 
+        // Consulta de CEP: janela própria e larga. Não é porta de entrada — é uma leitura,
+        // em cache, que só serve pra preencher campo de formulário. Com o limite do cadastro
+        // (20), quem corrige o CEP algumas vezes num Wi-Fi de clube encostaria no teto por
+        // causa de digitação. O que a trava evita aqui é robô usando o site pra varrer o
+        // ViaCEP, e pra isso 60 já é apertado o bastante.
+        public const string PoliticaConsulta = "consulta-por-ip";
+
         public const int TentativasPorJanela = 10;
         public const int TentativasDeCadastro = 20;
+        public const int ConsultasPorJanela = 60;
         public static readonly TimeSpan Janela = TimeSpan.FromMinutes(5);
 
         private sealed class Contagem

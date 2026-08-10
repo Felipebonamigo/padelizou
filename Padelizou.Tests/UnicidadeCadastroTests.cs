@@ -123,11 +123,15 @@ public class UnicidadeCadastroTests
 
         var controller = TestInfra.NovoAuthController(ctx);
 
-        // A ação vai até o fim e só então esbarra no SignInAsync, que precisa da pilha de
-        // autenticação de verdade. Chegar lá É a prova de que a unicidade não barrou: uma
-        // recusa teria voltado um ViewResult sem encostar no banco.
-        await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            ChamarCadastro(controller, cpf: "11144477735", login: "bona", email: "felipe@exemplo.com"));
+        // A ação vai até o fim e devolve o redirecionamento do cadastro concluído. Recusa
+        // teria voltado um ViewResult sem encostar no banco.
+        //
+        // (Este teste esperava a exceção do SignInAsync como prova de "chegou até o fim" —
+        // contorno de quando o TestInfra ainda não dublava a autenticação. Agora dá pra
+        // afirmar o final feliz de verdade.)
+        var resultado = await ChamarCadastro(controller, cpf: "11144477735", login: "bona", email: "felipe@exemplo.com");
+
+        Assert.IsNotType<ViewResult>(resultado);
 
         var salvo = await ctx.Jogadores.SingleAsync();
         Assert.NotNull(salvo.SenhaHash);          // reivindicou a conta: agora tem senha

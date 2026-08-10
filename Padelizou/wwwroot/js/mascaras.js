@@ -47,11 +47,18 @@
         return apenasDigitos(valor).length > 11 ? formatarCnpj(valor) : formatarCpf(valor);
     }
 
+    // 00000-000
+    function formatarCep(valor) {
+        var d = apenasDigitos(valor).slice(0, 8);
+        return d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d;
+    }
+
     var formatadores = {
         cpf: formatarCpf,
         cnpj: formatarCnpj,
         documento: formatarDocumento,
-        celular: formatarCelular
+        celular: formatarCelular,
+        cep: formatarCep
     };
 
     function aplicar(input) {

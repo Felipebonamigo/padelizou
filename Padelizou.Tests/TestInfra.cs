@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Padelizou.Controllers;
@@ -23,10 +24,29 @@ public static class TestInfra
         return new DbPadelContext(options);
     }
 
-    // AuthController pronto pra testar cadastro e edição de perfil. Serve pros caminhos de
-    // RECUSA: o final feliz das duas ações chama HttpContext.SignInAsync, que precisa da
-    // pilha de autenticação de verdade e não vale montar aqui.
-    public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0, TravaDeEntrada? trava = null)
+    // Autenticação dublada no HttpContext. Sem ela, `HttpContext.SignInAsync` estoura em
+    // `ArgumentNullException: provider` — e é ele que fecha o caminho FELIZ do cadastro e da
+    // edição de perfil, os dois lugares onde o dado realmente vai pro banco. Enquanto isto não
+    // existia, só dava pra testar as RECUSAS: metade do que importa ficava sem teste.
+    private static IServiceProvider ServicosDeAutenticacaoDublados()
+    {
+        var autenticacao = Substitute.For<Microsoft.AspNetCore.Authentication.IAuthenticationService>();
+        autenticacao.SignInAsync(Arg.Any<HttpContext>(), Arg.Any<string?>(), Arg.Any<ClaimsPrincipal>(),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties?>())
+            .Returns(Task.CompletedTask);
+        autenticacao.SignOutAsync(Arg.Any<HttpContext>(), Arg.Any<string?>(),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties?>())
+            .Returns(Task.CompletedTask);
+
+        var servicos = new ServiceCollection();
+        servicos.AddSingleton(autenticacao);
+        return servicos.BuildServiceProvider();
+    }
+
+    // AuthController pronto pra testar cadastro e edição de perfil, do começo ao fim — o
+    // SignInAsync do final feliz roda contra o dublê acima.
+    public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0,
+        TravaDeEntrada? trava = null, IConsultaDeCep? cep = null)
     {
         var controller = new AuthController(
             ctx,
@@ -36,7 +56,8 @@ public static class TestInfra
             Substitute.For<IEmailService>(),
             NullLogger<AuthController>.Instance,
             Microsoft.Extensions.Options.Options.Create(new SuporteSettings()),
-            trava ?? new TravaDeEntrada());
+            trava ?? new TravaDeEntrada(),
+            cep ?? CepQueNaoResponde());
 
         controller.ControllerContext = new ControllerContext
         {
@@ -44,11 +65,48 @@ public static class TestInfra
             {
                 User = new ClaimsPrincipal(new ClaimsIdentity(
                     new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+                RequestServices = ServicosDeAutenticacaoDublados(),
             },
         };
         controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
             controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        // Sem isto, `Url.Action` no meio da ação vai atrás do IUrlHelperFactory no provedor —
+        // que não existe aqui. Mesmo motivo do JogadoresController logo abaixo.
+        controller.Url = UrlDeTeste();
         return controller;
+    }
+
+    // Consulta de CEP que se comporta como o ViaCEP fora do ar. É o dublê PADRÃO de propósito:
+    // teste nenhum deste projeto deve sair batendo em serviço da internet, e "não consultado"
+    // é o desfecho que não muda nada no que estava sendo testado.
+    //
+    // ⚠️ Sem isto o `Substitute.For<IConsultaDeCep>()` cru devolveria null no lugar do
+    // resultado, e toda gravação de perfil estouraria em NullReference — a falha apareceria
+    // longe daqui, em testes que não têm nada a ver com CEP.
+    public static IConsultaDeCep CepQueNaoResponde()
+    {
+        var cep = Substitute.For<IConsultaDeCep>();
+        cep.BuscarAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ConsultaDeCepResultado.NaoConsultado));
+        return cep;
+    }
+
+    // Consulta de CEP que devolve sempre o mesmo endereço, pra testar o caminho feliz.
+    public static IConsultaDeCep CepQueResponde(EnderecoDoCep endereco)
+    {
+        var cep = Substitute.For<IConsultaDeCep>();
+        cep.BuscarAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ConsultaDeCepResultado.Achou(endereco)));
+        return cep;
+    }
+
+    // Consulta de CEP que diz "esse CEP não existe".
+    public static IConsultaDeCep CepInexistente()
+    {
+        var cep = Substitute.For<IConsultaDeCep>();
+        cep.BuscarAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ConsultaDeCepResultado.NaoExiste));
+        return cep;
     }
 
     // JogadoresController: perfil, elogio, comentário, seguir e a rede.

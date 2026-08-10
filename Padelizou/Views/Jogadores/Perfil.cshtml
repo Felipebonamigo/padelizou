@@ -51,6 +51,25 @@
         }
         else
         {
+            @* Cidade e UF sempre — elas já aparecem na busca e no ranking, e são o que
+               responde "esse joga por perto?". Rua e bairro SÓ com a chave ligada
+               (Jogador.EnderecoPublico), que nasce desligada. O CEP não aparece nunca:
+               ele é de onde o endereço veio, não é conteúdo de perfil de padel. *@
+            @if (!string.IsNullOrWhiteSpace(Model.jogador.Cidade))
+            {
+                <p class="text-muted mb-1">
+                    <i class="bi bi-geo-alt"></i> @Model.jogador.Cidade@(string.IsNullOrWhiteSpace(Model.jogador.Estado) ? "" : " - " + Model.jogador.Estado)
+                </p>
+            }
+            @if (Model.jogador.EnderecoPublico
+                 && (!string.IsNullOrWhiteSpace(Model.jogador.Logradouro) || !string.IsNullOrWhiteSpace(Model.jogador.Bairro)))
+            {
+                <p class="text-muted small mb-1">
+                    <i class="bi bi-house-door"></i>
+                    @(string.Join(" · ", new[] { Model.jogador.Logradouro, Model.jogador.Bairro }.Where(t => !string.IsNullOrWhiteSpace(t))))
+                </p>
+            }
+
             <p class="text-muted">Ranking: <strong>@ViewBag.Pontos pts</strong> <span class="small">· @ViewBag.TotalTorneios torneio(s)</span></p>
 
             @* Padelímetro: o nível 0–1000 (RANKING.md). Fase 1 = só mostrar; nada trava. *@

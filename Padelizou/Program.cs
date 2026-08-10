@@ -128,6 +128,15 @@ builder.Services.AddRateLimiter(options =>
                 Window = TravaDeEntrada.Janela,
                 QueueLimit = 0,
             }));
+
+    options.AddPolicy(TravaDeEntrada.PoliticaConsulta, http =>
+        RateLimitPartition.GetFixedWindowLimiter(Chave(http),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = TravaDeEntrada.ConsultasPorJanela,
+                Window = TravaDeEntrada.Janela,
+                QueueLimit = 0,
+            }));
 });
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
@@ -153,6 +162,12 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 // RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
 // "não consultado" e a inscrição segue.
 builder.Services.AddHttpClient<IRankingRsService, RankingRsService>();
+// Consulta de CEP (ViaCEP). Timeout curto pelo mesmo motivo do WhatsApp: ela roda DENTRO do
+// POST do cadastro e do perfil, e o CEP é campo opcional — serviço deles pendurado não pode
+// segurar quem está criando a conta. O cache é o que evita bater lá a cada gravação.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IConsultaDeCep, ConsultaDeCep>(http =>
+    http.Timeout = TimeSpan.FromSeconds(5));
 // A regra de inscrição que usa o ranking. Serviço (e não código no controller) porque DUAS
 // telas inscrevem gente — ver o comentário do arquivo.
 builder.Services.AddScoped<ValidacaoPeloRankingRs>();

@@ -85,6 +85,25 @@ public partial class Jogador
     public string? Celular { get; set; }
     public string? Cidade { get; set; }
     public string? Estado { get; set; }
+
+    // ---- Endereço (opcional, preenchido pelo CEP) ----
+    // O CEP existe aqui por causa da CIDADE: digitada à mão, ela vira "GRAVATAI", "Gravatai" e
+    // "gravatai" — três cidades no filtro do ranking. Vindo do CEP, ela vem escrita de um jeito
+    // só, e ainda por cima do jeito certo (ver Services/ConsultaDeCep).
+    //
+    // Só dígitos, como CPF e celular (Documentos.SomenteDigitosOuNulo). Nulo = não informou —
+    // o campo é opcional de verdade e o resto do cadastro nunca depende dele.
+    public string? Cep { get; set; }
+    public string? Logradouro { get; set; }
+    public string? Bairro { get; set; }
+
+    // Rua e bairro no perfil público. ⚠️ Nasce FALSO de propósito: endereço é dado pessoal, e
+    // quem já tem conta não pediu pra publicar o seu — ligar por padrão publicaria a rua de
+    // todo mundo sem ninguém ter tocado em nada.
+    //
+    // Não cobre cidade/UF: essas já aparecem hoje na busca e no ranking, e são o que faz o
+    // filtro por região funcionar. O que este campo decide é o que é NOVO aqui.
+    public bool EnderecoPublico { get; set; }
     public string? Email { get; set; }
     public string? SenhaHash { get; set; }
     public string? FotoPerfil { get; set; }

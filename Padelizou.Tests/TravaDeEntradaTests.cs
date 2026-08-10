@@ -164,6 +164,10 @@ public class TravaDeEntradaTests
         ["AuthController.Cadastro"] =
             "Cria conta; sem trava um robô enche o banco de conta falsa. Janela própria e " +
             "mais larga (PoliticaCadastro): formulário longo erra legitimamente várias vezes.",
+        ["AuthController.BuscarCep"] =
+            "Consulta anônima que sai pra internet (ViaCEP); sem trava, o site vira " +
+            "ferramenta de varredura do serviço dos outros. Janela LARGA (PoliticaConsulta): " +
+            "não é porta de entrada, é leitura em cache pra preencher formulário.",
     };
 
     private static List<(string Nome, EnableRateLimitingAttribute Attr)> AcoesComRateLimiting()
@@ -192,7 +196,12 @@ public class TravaDeEntradaTests
     {
         // Nome de política que não existe no Program.cs não protege: o middleware lança
         // exceção na primeira requisição — mas só em quem RODA o app, não no build.
-        var registradas = new[] { TravaDeEntrada.PoliticaPorIp, TravaDeEntrada.PoliticaCadastro };
+        var registradas = new[]
+        {
+            TravaDeEntrada.PoliticaPorIp,
+            TravaDeEntrada.PoliticaCadastro,
+            TravaDeEntrada.PoliticaConsulta,
+        };
 
         Assert.All(AcoesComRateLimiting(), x => Assert.Contains(x.Attr.PolicyName, registradas));
     }
