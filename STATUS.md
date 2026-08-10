@@ -1,7 +1,41 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. **AINDA NÃO PUBLICADO.**
+> Última atualização: **10/08/2026** — ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. Fecha os dois últimos itens da varredura de conformidade. **AINDA NÃO PUBLICADO.**
+>
+> ✍️ **O CADASTRO NÃO DIZIA UMA PALAVRA SOBRE OS TERMOS NEM SOBRE A POLÍTICA** — os dois só existiam num link do rodapé — **e não guardava nada**. O art. 8º §2 da LGPD põe o ônus de PROVAR o consentimento em quem controla os dados; a resposta a *"você concordou com isso?"* era encolher os ombros. Agora são duas metades, e uma sozinha não provaria nada: a **tela diz**, colada no botão, com link pros dois documentos; e a **linha da pessoa guarda** quando e qual versão (`Jogador.TermosAceitosEm` / `VersaoDosTermosAceita`).
+>
+> 🚫 **SEM CAIXA DE MARCAR, de propósito.** O que os Termos pedem é aceite de **contrato**; os consentimentos que a LGPD exige marcados um a um — WhatsApp, notificação, rua e bairro — **já são interruptores separados** na mesma tela. Uma caixa a mais barraria cadastro sem provar mais nada.
+>
+> ⚠️ **`CriadoEm` NÃO SERVIA COMO DATA DE ACEITE, e por pouco não foi usada assim.** A linha de um **pré-cadastro** nasce quando um TERCEIRO inscreve a dupla — aquela pessoa nunca viu tela nenhuma. Usar a data de criação dela como aceite seria **inventar um consentimento que não houve**, justamente na população que o trabalho de mais cedo protegeu. Por isso a coluna nova; e por isso o registro fica no caminho COMUM do cadastro, que é por onde passa também **quem assume um pré-cadastro** — gravar só no ramo do cadastro novo deixaria de fora exatamente quem entrou pela porta do parceiro. Tem teste pra esse caminho.
+>
+> 📅 **A DATA DA VERSÃO SAIU DE DENTRO DAS DUAS PÁGINAS.** Ela mora em `Services/VersaoDosDocumentos` e é a **mesma string** gravada na linha de quem se cadastra. Escrita à mão nos dois lugares, a página diria uma versão e o banco guardaria outra — e a prova viraria contradição. É a lição do preço cravado nos Termos, um degrau acima. Teste reprova `Em vigor desde <número>` em qualquer das duas.
+>
+> 🧾 **E a pessoa vê o próprio recibo** em Preferências: *"Você aceitou os Termos e a Política em 10/08/2026 (versão 2026-08-10)"*. Quem se cadastrou antes lê *"sua conta é anterior ao registro de aceite"* — **nulo é "não temos registro", não "não aceitou"**, e preencher as contas existentes com a data de hoje seria fabricar consentimento.
+>
+> 🤝 **O PARCEIRO DO RANKING ENTROU NA TABELA DO ITEM 5.** A linha que existia declarava só o que sai pela **API** deles (nome + categoria consultada) — mas há **gente de fora com login aqui dentro**, lendo uma tela nossa com nome e CPF mascarado de todo inscrito. Não sair por API nenhuma não faz disso não-compartilhamento; fazia disso compartilhamento **não declarado**.
+>
+> 🧪 **3.378 testes, 0 falhas** (9 novos). ✅ **Conferido no navegador**: a frase aparece **antes** do botão de finalizar, com os dois links; a tabela do item 5 agora tem 7 linhas, com a do parceiro entre "Mundo do Atleta" e "Google"; e os **dois** ramos do recibo renderizam. ✅ **A migration rodou de verdade contra o Postgres local** — as duas colunas nasceram `nullable`, e `20260810211014_AceiteDosTermosNoCadastro` entrou no `__EFMigrationsHistory` logo depois da `SeguirTorneio` da outra sessão.
+>
+> ⚠️ **Commit seletivo:** `Privacy.cshtml` e `Termos.cshtml` estavam com trabalho da outra sessão (a retirada do **boleto**) — só os meus trechos foram commitados, pela técnica do `git apply --cached`. A parte do boleto segue no worktree, pra quem a escreveu publicar junto com a mudança de verdade.
+>
+> Antes, no mesmo dia — 🧾 **A FATURA SAIU DA CASA DO GATEWAY** (o endereço de casa do Felipe estava em TODA cobrança do site) + 🚫 **BOLETO DESLIGADO**. **AINDA NÃO PUBLICADO.**
+>
+> 🧾 **TODA COBRANÇA MOSTRAVA O CADASTRO COMERCIAL DE QUEM OPERA** — nome, CNPJ, e-mail, telefone e o **endereço residencial completo, com número e apartamento**. Não era um torneio: como toda cobrança nasce na conta principal (o split é que manda a fatia do organizador pra carteira dele), a fatura hospedada do meio de pagamento estampava os MESMOS dados em toda inscrição de todo torneio, mais aula, quadra, mensalidade de professor e taxa de plataforma. O Felipe viu na fatura de R$ 125 do NATA PADEL TOUR: *"meus dados estão muito expostos"*.
+>
+> ✅ **Agora a fatura é NOSSA.** `/Pagamentos/Fatura/{id}` busca o Pix no gateway (`GET /v3/payments/{id}/pixQrCode`), **desenha o QR aqui dentro** (`Services/QrDoPix`, mesmo caminho do Pix direto) e mostra copia e cola, valor e prazo — sem uma linha do cadastro de ninguém. Todos os caminhos passaram a apontar pra ela: inscrição, "pagar depois", extrato, comprovante, o lembrete que sai por WhatsApp/e-mail e o link que o organizador copia na Mesa. Quem decide isso é `Services/LinkDoPagamento`, num lugar só.
+>
+> 💳 **Cartão continua no gateway, de propósito**: quando a cobrança não tem Pix, a tela redireciona pra fatura de lá — número de cartão não passa (e não deve passar) por aqui. A `InvoiceUrl` **continua gravada**: virou plano B, e é ela que várias consultas usam pra saber que a cobrança existe no gateway.
+>
+> ⏱️ **A tela espera o dinheiro cair**: `/Pagamentos/Situacao/{id}` lê o NOSSO banco a cada 5s (nunca o gateway) e recarrega sozinha quando o webhook confirma. Sem isso a pessoa paga e continua encarando o QR, sem saber se deu certo. Nada de botão "já paguei" — esse é do Pix direto, onde a confirmação é manual.
+>
+> 🚫 **BOLETO DESLIGADO** (*"se algum dia alguém pedir, a gente retorna"*): saiu da escolha do jogador, do plano do professor, da tabela de prazos e dos textos de tela e dos materiais de venda. Formulário antigo em cache que mandar "Boleto" cai na **escolha desconhecida** — forma aberta e taxa cheia, a regra que nunca cobra do organizador menos do que ele combinou. O roteiro pra devolver a opção está escrito em `CobrancaDoTorneio`. ⚠️ **Falta 1 clique fora do código**: desabilitar boleto na conta do meio de pagamento, senão a cobrança de forma ABERTA continua oferecendo boleto lá.
+>
+> 🧪 **3.369 testes, 0 falhas** (7 novos). **Zero migration.** ✅ **Conferido com o gateway DUBLADO no PostgreSQL local**: QR PNG de verdade na tela (570px, desenhado do copia e cola que "veio"), **zero menção a asaas.com no HTML**, polling em 200 — e, mudando o status no banco como o webhook faria, a tela virou sozinha pro "Pagamento confirmado!" em ~5s. Com o dublê derrubado, ela redireciona pro plano B e o erro sai no log em vez de quebrar a página.
+>
+> 🔧 **O que só o Felipe pode fazer** (e vale mesmo com a fatura nova, porque limpa a de CARTÃO, que continua sendo deles): o meio de pagamento deixa **remover endereço, CEP, telefone e e-mail da fatura** em *Minha conta → Informações → Dados comerciais*, com análise em até 2 dias úteis. **Nome e CNPJ não saem** — exigência do Banco Central.
+>
+> Antes — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. **AINDA NÃO PUBLICADO.**
 >
 > 🛡️ **O PRIMEIRO ADMINISTRADOR DE UM TIME SÓ ENTRAVA PELO SITE PÚBLICO.** O botão existia em `/Times/Detalhes`, mas dentro de `admin.padelizou.com.br` o middleware serve **só `/Admin` e `/Auth`** — de lá, qualquer `/Times` dá 404. Agora o painel tem a tela inteira: **criar** time (com clube sede opcional), **apagar**, e **incluir/remover administrador** pela mesma busca por nome/apelido/CPF das outras telas do painel.
 >

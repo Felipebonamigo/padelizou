@@ -120,6 +120,20 @@ public partial class Jogador
     // `!Excluido`: quem saiu não é gente esperando entrar, e quem decide por ela é `ExcluidoEm`.
     public bool EhPreCadastro => string.IsNullOrEmpty(SenhaHash) && !Excluido;
 
+    // Quando esta pessoa aceitou os Termos e a Política, e QUAL versão estava valendo (ver
+    // Services/VersaoDosDocumentos). O art. 8º §2 da LGPD põe em nós o ônus de PROVAR o
+    // consentimento, e até 10/08/2026 não havia registro nenhum.
+    //
+    // ⚠️ NÃO DÁ PRA DEDUZIR DE `CriadoEm`. A linha de um pré-cadastro nasce quando um TERCEIRO
+    // inscreve a dupla — aquela pessoa nunca viu tela nenhuma, e usar a data de criação dela
+    // como "aceite" seria inventar um consentimento que não houve. O aceite acontece no
+    // cadastro, quando alguém define a senha e assume a conta.
+    //
+    // Nulo em quem se cadastrou ANTES disto existir. Nulo é a resposta honesta: quer dizer
+    // "não temos registro", e não "não aceitou".
+    public DateTime? TermosAceitosEm { get; set; }
+    public string? VersaoDosTermosAceita { get; set; }
+
     public string? FotoPerfil { get; set; }
     public string? Instagram { get; set; }
     // CAMPO MORTO — não é o ranking. Nunca foi alimentado pelo sistema (os valores que

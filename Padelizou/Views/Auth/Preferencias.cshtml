@@ -47,6 +47,31 @@
                     </form>
                 </div>
             </div>
+
+            @* O RECIBO DO ACEITE. A prova de consentimento não serve de nada guardada só do
+               nosso lado: quem aceitou tem direito de saber O QUE aceitou e QUANDO (LGPD,
+               art. 9º). Quem se cadastrou antes de 10/08/2026 não tem registro, e a tela
+               diz isso em vez de inventar uma data — "não temos registro" é a verdade, e
+               "não aceitou" não seria. *@
+            @if (Model.TermosAceitosEm is DateTime aceitoEm)
+            {
+                <p class="small text-muted text-center mt-3 mb-0">
+                    <i class="bi bi-file-earmark-check"></i>
+                    Você aceitou os
+                    <a asp-controller="Home" asp-action="Termos">Termos de Uso</a> e a
+                    <a asp-controller="Home" asp-action="Privacy">Política de Privacidade</a>
+                    em @aceitoEm.ToString("dd/MM/yyyy")@(Model.VersaoDosTermosAceita is string versao ? $" (versão {versao})" : "").
+                </p>
+            }
+            else
+            {
+                <p class="small text-muted text-center mt-3 mb-0">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Sua conta é anterior ao registro de aceite, então não temos essa data guardada. Valem
+                    os <a asp-controller="Home" asp-action="Termos">Termos de Uso</a> e a
+                    <a asp-controller="Home" asp-action="Privacy">Política de Privacidade</a> em vigor.
+                </p>
+            }
         </div>
     </div>
 </div>

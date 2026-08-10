@@ -1102,6 +1102,21 @@ namespace padelizou.Controllers
                 _context.Jogadores.Add(jogador);
             }
 
+            // ACEITE DOS TERMOS E DA POLÍTICA. Fica no caminho COMUM aos dois ramos de
+            // propósito: quem reivindica um pré-cadastro está criando a conta dele agora,
+            // exatamente como quem chega do zero — e é agora que a tela mostra os dois
+            // documentos (ver Views/Auth/Cadastro). Gravar só no ramo do cadastro novo
+            // deixaria justamente quem entrou pela porta do parceiro sem registro nenhum.
+            //
+            // Não sobrescreve quem já tinha aceitado: o primeiro aceite é o que vale como
+            // prova, e este caminho não é reexecutado por conta com senha (o CPF com senha
+            // é recusado lá em cima).
+            if (jogador.TermosAceitosEm == null)
+            {
+                jogador.TermosAceitosEm = DateTime.Now;
+                jogador.VersaoDosTermosAceita = VersaoDosDocumentos.Atual;
+            }
+
             jogador.Login = login;
             jogador.LadoQuadra = ladoQuadra;
             jogador.Lateralidade = lateralidade;
