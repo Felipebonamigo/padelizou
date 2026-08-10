@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🎾 **O JOGO DA SEMANA VIROU ATALHO NA HOME, O JOGO GANHOU CLUBE E A AULA GANHOU DURAÇÃO** (⏳ ainda **não publicado**).
+> Última atualização: **10/08/2026** — 🎾 **O JOGO DA SEMANA VIROU ATALHO NA HOME, O JOGO GANHOU CLUBE E A AULA GANHOU DURAÇÃO** (`build-458-038a555` **no ar em prod**).
 >
 > 🎾 **QUATRO PEDIDOS DO FELIPE OLHANDO O APP DELE** (prints da panelinha "Sub 90", da tela de registrar jogo e do "Adicionar Aula").
 >
@@ -15,7 +15,9 @@
 >
 > ⚠️ **LIÇÃO DA MIGRATION, e ela quase passou:** o EF gerou a coluna nova com **`defaultValue: 0`** — e 0 é o valor que **TODA aula já marcada** receberia, virando aula que termina na hora em que começa. O `= 60` da propriedade em C# **só vale pra objeto novo**; quem preenche linha antiga é o DEFAULT da migration. Trocado à mão pra 60 (o snapshot não muda com isso, `has-pending-model-changes` seguiu limpo).
 >
-> 🧪 **18 testes novos** (`DuracaoDaAulaTests`, `AulaFixaSemPrazoTests`, `JogoDaSemanaEClubeTests`), suíte em **2.985, 0 falhas**. ✅ **Medido no app rodando**, não só em teste: o card do jogo da semana na Home (com o "Confirmar" virando "Confirmados (1)" depois do clique real), o **membro sem linha conseguindo confirmar**, jogo registrado em clube **diferente** do fixo aparecendo na coluna Local (e o clube do grupo intacto), e a aula fixa sem prazo criando **12 aulas de 1h30, 14/08 a 30/10, numa série só** — conferido no banco, com a agenda mostrando `17:00 / 18:30`. ⏳ **Falta publicar.**
+> 🧪 **18 testes novos** (`DuracaoDaAulaTests`, `AulaFixaSemPrazoTests`, `JogoDaSemanaEClubeTests`), suíte em **2.985, 0 falhas**. ✅ **Medido no app rodando**, não só em teste: o card do jogo da semana na Home (com o "Confirmar" virando "Confirmados (1)" depois do clique real), o **membro sem linha conseguindo confirmar**, jogo registrado em clube **diferente** do fixo aparecendo na coluna Local (e o clube do grupo intacto), e a aula fixa sem prazo criando **12 aulas de 1h30, 14/08 a 30/10, numa série só** — conferido no banco, com a agenda mostrando `17:00 / 18:30`.
+>
+> 🚀 **PUBLICADO EM PROD** (`build-458-038a555`) e conferido do jeito que a memória manda: **`cwd` do processo** na release nova (não só o symlink), `NRestarts=0`, e a rota nova **`POST /Aulas/EncerrarRepeticao` respondendo 302** (existe e é protegida) enquanto uma rota inventada dá **404**. ✅ **A migration entrou de verdade no `db_padel`** — `20260810114819_ClubeDoJogoEDuracaoDaAula` no `__EFMigrationsHistory`, e **as 93 aulas que já existiam ficaram com `DuracaoMinutos = 60`, nenhuma em 0**: era exatamente esse o estrago que o `defaultValue` do EF causaria. Dev **ainda não subiu**.
 >
 > Antes, no mesmo dia — 👥 **QUEM FALOU DE VOCÊ, E QUEM TE SEGUE** (`build-456-12ab7fb` no ar em prod e dev).
 >
