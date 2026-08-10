@@ -485,6 +485,14 @@ namespace Padelizou.Controllers
             return View();
         }
 
+        // Irmã da Privacy, e as duas andam juntas no rodapé: a política diz o que fazemos com
+        // os dados, os termos dizem as regras do serviço — quem responde pelo torneio, por que
+        // um aviso que não chegou não vale como desculpa, e quanto custa a taxa.
+        public IActionResult Termos()
+        {
+            return View();
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

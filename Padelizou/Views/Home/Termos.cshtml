@@ -1,0 +1,211 @@
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.PlanoProfessorSettings> PlanoOpcoes
+@{
+    ViewData["Title"] = "Termos de Uso";
+
+    var suporte = SuporteOpcoes.Value;
+    var taxas = TaxasOpcoes.Value;
+    var plano = PlanoOpcoes.Value;
+
+    var linkWhats = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+        suporte.WhatsApp, "Olá! Tenho uma dúvida sobre os termos de uso do Padelizou.");
+
+    // Mesma frase da política (ver Privacy.cshtml): quem opera sai de configuração, e o que
+    // não está preenchido não é inventado.
+    var razaoSocial = suporte.RazaoSocial?.Trim();
+    var cnpj = suporte.Cnpj?.Trim();
+    var quemOpera = string.IsNullOrWhiteSpace(razaoSocial)
+        ? "Felipe Bonamigo"
+        : string.IsNullOrWhiteSpace(cnpj)
+            ? razaoSocial
+            : $"{razaoSocial}, inscrita no CNPJ sob o nº {cnpj}";
+}
+
+@* ⚠️ OS NÚMEROS DESTA PÁGINA SAEM DA CONFIGURAÇÃO, NÃO DO TEXTO.
+   As taxas (TaxasExibicao) e o plano do professor (PlanoProfessorSettings) já existem pra
+   ser renegociados sem republicar o site — se os termos repetissem os valores à mão, bastava
+   uma renegociação pra a página passar a prometer um preço que o sistema não cobra. Contrato
+   que diverge do que a máquina faz é pior que contrato nenhum: ele vira prova contra quem
+   escreveu.
+
+   Regra pra quem editar: só entra aqui o que o sistema REALMENTE faz. *@
+
+<div class="container py-4" style="max-width: 820px;">
+
+    <h1 class="h3 fw-bold mb-1">Termos de Uso</h1>
+    <p class="text-muted small mb-4">Em vigor desde 10 de agosto de 2026.</p>
+
+    <div class="alert alert-light border">
+        <strong>O resumo, em três linhas.</strong>
+        <ul class="mb-0 mt-2 small">
+            <li>O Padelizou <strong>organiza a informação</strong> — quem organiza o torneio, dá a aula e opera a quadra são as pessoas e os clubes.</li>
+            <li>O dinheiro da inscrição e da aula é de <strong>quem organiza ou ensina</strong>; a gente cobra uma taxa sobre isso.</li>
+            <li>O que vale é o que está <strong>no site</strong>: aviso por WhatsApp, e-mail ou notificação é conveniência, não garantia.</li>
+        </ul>
+    </div>
+
+    <h2 class="h5 fw-bold mt-4">1. Quem somos e o que este documento é</h2>
+    <p>
+        O Padelizou (<a href="https://padelizou.com.br">padelizou.com.br</a>) é operado por
+        <strong>@quemOpera</strong>. Estes termos são o contrato entre você e a gente pelo uso do site
+        e do aplicativo. <strong>Ao criar uma conta ou se inscrever num torneio, você concorda com eles.</strong>
+        Se não concordar, é só não usar — e, se já usou, pode pedir a exclusão da conta a qualquer momento.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">2. O que o Padelizou é — e o que ele não é</h2>
+    <p>
+        Somos uma <strong>plataforma</strong>: inscrição em torneio, sorteio de chaves, placar, ranking,
+        marcação de aula e de quadra, e os avisos disso tudo.
+    </p>
+    <p class="mb-1"><strong>Não somos</strong>, e isso importa quando algo dá errado:</p>
+    <ul>
+        <li><strong>Não organizamos os torneios.</strong> Quem define regras, categorias, preço, local, data,
+            premiação e quem entra ou sai é o <strong>organizador</strong>. Ele responde pelo evento dele.</li>
+        <li><strong>Não damos as aulas.</strong> Quem ensina, cobra, remarca e define política de cancelamento
+            é o <strong>professor</strong>.</li>
+        <li><strong>Não operamos as quadras.</strong> Estrutura, segurança e condições do local são do <strong>clube</strong>.</li>
+    </ul>
+    <p>
+        Padel é esporte, e esporte tem risco físico. <strong>Lesão, acidente, dano a equipamento ou qualquer
+        coisa que aconteça na quadra são responsabilidade de quem está lá</strong> — jogador, organizador e
+        clube —, não do Padelizou.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">3. Sua conta</h2>
+    <ul>
+        <li>Os dados precisam ser <strong>verdadeiros</strong>, especialmente nome e CPF: é por eles que você é
+            identificado numa dupla, no ranking e numa cobrança.</li>
+        <li><strong>Uma conta por pessoa.</strong> A senha é sua responsabilidade; o que acontece pela sua conta
+            é tratado como feito por você.</li>
+        <li>Você pode inscrever um parceiro pelo CPF. Ao fazer isso, você declara que <strong>tem autorização
+            dele</strong> — a pessoa recebe uma conta que pode assumir depois, com o histórico dela.</li>
+        <li>Menor de 18 anos só deve usar o Padelizou com autorização de quem responde por ele.</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">4. Torneios e inscrições</h2>
+    <p>
+        Ao se inscrever, o contrato do evento é <strong>entre você e o organizador</strong>. O que o Padelizou
+        garante é o funcionamento da ferramenta — inscrição registrada, vaga contada, chave sorteada, placar
+        publicado.
+    </p>
+    <ul>
+        <li>O organizador pode <strong>encerrar inscrições, remover quem não pagou e alterar data ou local</strong>.
+            Mudanças aparecem na página do torneio.</li>
+        <li>Sem vaga, a inscrição entra em <strong>lista de espera</strong> e é chamada por ordem quando alguém desiste.</li>
+        <li>Depois do sorteio das chaves, remover inscrito deixa de ser possível — as partidas já dependem das duplas.</li>
+        <li>Torneio <strong>cancelado pelo organizador</strong>: a devolução é com ele, pelos mesmos meios em que recebeu.</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">5. Pagamentos e a taxa do Padelizou</h2>
+    <p>
+        Quando a cobrança sai pelo site, o dinheiro vai para <strong>quem organiza ou ensina</strong>, e a nossa
+        taxa é separada automaticamente. Cobramos <strong>pelo uso da plataforma</strong> — não pelo evento nem
+        pela aula.
+    </p>
+    <p class="mb-1"><strong>Torneios</strong> — a faixa é escolhida pelo organizador na criação, conforme como ele decide receber:</p>
+    <ul>
+        <li>Cobrança por fora do site: <strong>@taxas.ComissaoPercentualExterno.ToString("0.##")%</strong></li>
+        <li>Só Pix pelo site: <strong>@taxas.ComissaoPercentualSomentePix.ToString("0.##")%</strong></li>
+        <li>Todas as formas (inclui cartão parcelado): <strong>@taxas.ComissaoPercentualTodasFormas.ToString("0.##")%</strong></li>
+    </ul>
+    <p class="mb-1"><strong>Aulas</strong> — conforme o plano do professor:</p>
+    <ul>
+        <li>Sem assinatura: <strong>@plano.PercentualAvulso.ToString("0.##")%</strong> por aula.</li>
+        <li>Assinante: <strong>@plano.PercentualAssinantePix.ToString("0.##")%</strong> (Pix ou boleto) e
+            <strong>@plano.PercentualAssinanteCartao.ToString("0.##")%</strong> (cartão), com mensalidade de
+            <strong>@plano.MensalidadeAssinante.ToString("C")</strong> ou <strong>@plano.AnuidadeAssinante.ToString("C")</strong> por ano.</li>
+        <li>São <strong>@plano.DiasDeTeste dias</strong> de teste com as condições de assinante. ⚠️ <strong>A mensalidade
+            não é cobrada automaticamente:</strong> se você não voltar para gerar a cobrança, a assinatura vence e a
+            taxa por aula volta para a cheia, com <strong>@plano.DiasDeCarencia dias</strong> de tolerância.</li>
+    </ul>
+    <p class="small text-muted">
+        Quem decide se a taxa é somada ao valor do aluno ou descontada do recebimento é o professor ou o
+        organizador, na configuração dele. O processamento (Pix, boleto, cartão) é feito por um
+        <strong>meio de pagamento</strong> contratado, com regras e prazos próprios — cartão, por exemplo,
+        demora mais para ser repassado que Pix.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">6. Cancelamento, faltas e devolução</h2>
+    <ul>
+        <li><strong>Aula:</strong> cada professor define com quantas horas de antecedência dá para desmarcar sem
+            cobrança, e se cobra quem falta sem avisar. O prazo dele aparece na hora de marcar.</li>
+        <li><strong>Torneio:</strong> desistência e devolução seguem o que o organizador anunciou.</li>
+        <li><strong>Arrependimento (art. 49 do Código de Defesa do Consumidor):</strong> compra feita pelo site
+            pode ser desfeita em <strong>até 7 dias</strong>, desde que o torneio ou a aula ainda não tenham
+            acontecido. Fale com a gente que a gente encaminha.</li>
+        <li>Devolução volta pelo <strong>mesmo meio</strong> em que o pagamento entrou, e o prazo depende do meio
+            de pagamento (cartão costuma demorar mais que Pix).</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">7. Avisos não são garantia</h2>
+    <p>
+        Mandamos aviso por e-mail, WhatsApp e notificação no celular. <strong>Esses canais dependem de terceiros
+        e podem falhar</strong> — cota de envio, aparelho sem internet, número bloqueado, permissão negada.
+        Por isso: <strong>a informação oficial é a que está na página do torneio, da aula ou do jogo.</strong>
+        Não se planeje só pelo aviso, e confira o site quando algo for importante.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">8. O que você publica</h2>
+    <p>
+        Comentários, elogios, foto de perfil, nome de time e textos de apresentação são <strong>seus</strong>, e
+        continuam seus. Ao publicar no Padelizou, você nos autoriza a <strong>exibir esse conteúdo dentro do
+        serviço</strong> — no seu perfil, na página do professor, na lista do torneio.
+    </p>
+    <p class="mb-1">Você é responsável pelo que escreve. <strong>Não é permitido</strong>:</p>
+    <ul>
+        <li>ofender, ameaçar, discriminar ou expor a vida privada de alguém;</li>
+        <li>publicar conteúdo de terceiros sem direito, propaganda não solicitada ou golpe;</li>
+        <li>criar conta falsa, usar o CPF de outra pessoa sem autorização ou fraudar resultado, ranking ou pagamento;</li>
+        <li>coletar dados de outros usuários em massa, automatizar acesso ou tentar burlar limites do sistema.</li>
+    </ul>
+    <p class="small text-muted">
+        Comentários passam por um filtro automático de ofensas, que <strong>não é infalível</strong>: o dono do
+        perfil e quem escreveu podem apagar o comentário a qualquer momento, e a gente também remove quando
+        for avisado.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">9. Suspensão e encerramento</h2>
+    <p>
+        Podemos suspender ou encerrar uma conta que descumpra estes termos — em especial fraude, uso do
+        documento de outra pessoa e ofensa a outros usuários. Sempre que der, avisamos antes e explicamos o
+        motivo. Você também pode encerrar a sua conta quando quiser; o que acontece com seus dados nesse caso
+        está descrito na <a asp-controller="Home" asp-action="Privacy">Política de Privacidade</a>.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">10. Disponibilidade do serviço</h2>
+    <p>
+        Trabalhamos para o Padelizou ficar de pé o tempo todo, mas <strong>não prometemos funcionamento
+        ininterrupto</strong>: existe manutenção, falha de servidor e problema em serviço de terceiro. Também
+        podemos mudar, adicionar ou remover funcionalidades. Se alguma coisa que você paga for descontinuada,
+        avisamos com antecedência.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">11. Marca e conteúdo do site</h2>
+    <p>
+        O nome Padelizou, o logotipo, o layout e o código são nossos. Você pode usar o serviço; não pode
+        copiar, revender ou apresentar o Padelizou como se fosse seu.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">12. Privacidade</h2>
+    <p>
+        O tratamento dos seus dados pessoais está na
+        <a asp-controller="Home" asp-action="Privacy">Política de Privacidade</a>, que faz parte destes termos.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">13. Mudanças nestes termos</h2>
+    <p>
+        Se mudarmos algo relevante, atualizamos esta página e a data no topo. Mudança que afete preço ou
+        condição do que você já contratou <strong>não vale para trás</strong>.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">14. Lei aplicável e foro</h2>
+    <p class="mb-4">
+        Vale a lei brasileira, incluindo o Código de Defesa do Consumidor. Antes de qualquer disputa, fale com
+        a gente — quase tudo se resolve numa conversa:
+        <a href="@linkWhats" target="_blank" rel="noopener">@suporte.WhatsAppFormatado</a> ou
+        <a href="mailto:@suporte.Email">@suporte.Email</a>. Se mesmo assim for preciso ir à Justiça, o
+        consumidor pode processar no foro do próprio domicílio.
+    </p>
+
+</div>
