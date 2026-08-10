@@ -1,5 +1,11 @@
+@inject Microsoft.Extensions.Options.IOptions<EmailSettings> ConfigDeEmail
 @{
     ViewData["Title"] = "Esqueci minha senha - Padelizou";
+
+    // De onde o e-mail sai, lido da configuração e não escrito na mão: o remetente mora no
+    // systemd (ver EMAIL.md) e já mudou uma vez. Endereço cravado aqui viraria mentira na tela
+    // no dia da próxima troca — e mentira justamente na frase que manda a pessoa procurar.
+    var remetente = ConfigDeEmail.Value.RemetenteEmail;
 }
 
 <div class="container mt-5 mb-5">
@@ -17,9 +23,33 @@
                             Se existir uma conta com esse e-mail ou login, o link pra criar uma senha
                             nova já está a caminho. Ele vale por 1 hora.
                         </div>
+
+                        @* O aviso de spam era uma nota de rodapé em cinza claro, e nota de rodapé
+                           ninguém lê: quem não acha o e-mail na caixa de entrada conclui que
+                           falhou e vai embora ANTES de chegar aqui embaixo. Subiu pra caixa
+                           amarela porque, desde 10/08/2026, o remetente é um domínio NOVO — e
+                           domínio novo não tem reputação, então cair em spam é o caso comum, não
+                           a exceção. É a tela que segura a pessoa que veio justamente porque não
+                           consegue entrar. *@
+                        <div class="alert alert-warning d-flex gap-2 align-items-start">
+                            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                            <div>
+                                <strong>Não achou? Olhe na caixa de spam.</strong>
+                                @if (!string.IsNullOrWhiteSpace(remetente))
+                                {
+                                    @:O e-mail chega de <strong>@remetente</strong>, e às vezes ele para lá.
+                                }
+                                else
+                                {
+                                    @:Às vezes ele para lá.
+                                }
+                                Se estiver, marque como <em>“não é spam”</em> — assim os próximos
+                                chegam direto na sua caixa de entrada.
+                            </div>
+                        </div>
+
                         <p class="small text-muted">
-                            Não chegou? Confira a caixa de spam e confirme se digitou o mesmo e-mail
-                            do cadastro.
+                            Continua sem achar? Confirme se digitou o mesmo e-mail do cadastro.
                         </p>
                         <a asp-action="Login" class="btn btn-outline-secondary rounded-pill w-100">Voltar</a>
                     }
