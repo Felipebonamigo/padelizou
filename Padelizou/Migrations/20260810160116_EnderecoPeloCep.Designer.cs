@@ -12,7 +12,7 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    [Migration("20260810154256_EnderecoPeloCep")]
+    [Migration("20260810160116_EnderecoPeloCep")]
     partial class EnderecoPeloCep
     {
         /// <inheritdoc />
@@ -2620,6 +2620,9 @@ namespace Padelizou.Migrations
 
                     b.Property<bool>("PagamentoObrigatorioNaInscricao")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PerguntaDeNaoPagosEm")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<bool>("PermiteImpedimentoQuintaNoite")
                         .HasColumnType("boolean");
