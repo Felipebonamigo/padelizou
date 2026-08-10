@@ -166,4 +166,50 @@
         O WhatsApp fica desligado no ambiente de teste de propósito — lá, um teste viraria
         mensagem no celular de gente de verdade.
     </p>
+
+    @* ===== VARREDURA DE FANTASMAS =====================================================
+       Fica nesta tela porque é a mesma pergunta ("o aviso chega?"), vista do outro lado:
+       ali é uma pessoa que a gente escolhe, aqui é a tabela inteira mentindo sobre o
+       tamanho do canal. *@
+    <hr class="my-4" />
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h5 class="fw-bold mb-1"><i class="bi bi-eraser"></i> Varredura de fantasmas</h5>
+            <p class="text-muted small">
+                Um <strong>fantasma</strong> é um registro que o servidor de push continua
+                aceitando e que não entrega nada — acontece quando o app sai da tela de início
+                e o token demora a expirar. Um deles respondeu <strong>2xx por onze dias</strong>
+                sem entregar nada. Enquanto isso durar, ele conta como alcance e não é.
+            </p>
+
+            @if (Model.Varredura is { } v)
+            {
+                <div class="alert @(v.Apagados > 0 ? "alert-success" : "alert-secondary") border-0 small">
+                    <strong>@v.Suspeitos suspeito(s) sondado(s)</strong>, de @v.TotalDeRegistros registros no total.<br />
+                    <i class="bi bi-trash"></i> <strong>@v.Apagados</strong> apagado(s) — o servidor de push confirmou que morreram.<br />
+                    <i class="bi bi-question-circle"></i> <strong>@v.Inconclusivos</strong> ainda respondem 2xx: <em>não</em> quer dizer que estão vivos, quer dizer que o servidor de push ainda não admitiu.<br />
+                    @if (v.ComErro > 0)
+                    {
+                        <text><i class="bi bi-exclamation-triangle"></i> <strong>@v.ComErro</strong> com erro de envio — nada foi apagado por causa deles.</text>
+                    }
+                </div>
+            }
+
+            <div class="alert alert-warning border-0 small">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Ela só sonda suspeito</strong> — quem tem outro registro mais novo no
+                mesmo servidor de push. Varrer a tabela inteira faria cada aparelho vivo receber
+                uma notificação do nada, e é desse clique de "desligar" que ninguém volta.
+                Apagar só acontece com 410/404 na mão; suspeita sozinha nunca apaga.
+            </div>
+
+            <form asp-action="VarrerFantasmas" method="post">
+                <button type="submit" class="btn btn-outline-danger rounded-pill px-4 fw-bold"
+                        data-confirmar="Sondar os registros suspeitos? Quem o servidor de push confirmar que morreu vai ser apagado.">
+                    <i class="bi bi-eraser"></i> Rodar varredura
+                </button>
+            </form>
+        </div>
+    </div>
 </div>

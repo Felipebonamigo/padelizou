@@ -181,6 +181,10 @@ builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
+// Tira da tabela de push os registros que o servidor de push já não entrega — o número de
+// aparelhos é o que a gente usa pra medir o alcance do canal, e ele inflava sozinho.
+builder.Services.AddScoped<ISondaDePush, SondaDePushWebPush>();
+builder.Services.AddScoped<VarreduraDeFantasmas>();
 // Tira do WhatsApp quem nunca pediu pra estar lá — a causa raiz da restrição de 04/08.
 builder.Services.AddScoped<DesfazerOptInHerdado>();
 // Todo 500 vira registro em ErroDoSistema + aviso pros admins (com janela de silêncio).
@@ -198,9 +202,10 @@ builder.Services.AddHostedService<LembreteInscricaoNaoPagaBackgroundService>();
 // E, no fechamento, PERGUNTA ao organizador o que fazer com quem ficou devendo. Pergunta —
 // nunca remove sozinho: ver Services/DecisaoSobreQuemNaoPagou.
 builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
-// A mensalidade do professor não é recorrente: sem este aviso, a assinatura vence e a taxa das
-// aulas dele sobe de 3% pra 10% sem ninguém dizer nada. Ver LembreteDeAssinaturaVencendo.
-builder.Services.AddHostedService<LembreteAssinaturaVencendoBackgroundService>();
+// A taxa por aula do professor cai de 3% pra 10% sozinha em dois momentos — o fim do teste e o
+// vencimento da assinatura (que não é recorrente) — e nenhum dos dois avisava ninguém. Um
+// serviço só pros dois: ver Services/AvisosDoPlanoDoProfessor.
+builder.Services.AddHostedService<AvisosDoPlanoDoProfessorBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 // O gêmeo do de cima, pro outro canal. Nasceu de 09/08/2026: a cota de e-mail estourou e 130

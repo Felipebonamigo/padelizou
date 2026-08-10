@@ -28,6 +28,10 @@ public class TesteDeNotificacaoVM
     public Jogador? Alvo { get; set; }
     public ResultadoTesteNotificacao? Resultado { get; set; }
 
+    // O resultado da varredura de fantasmas, quando ela acabou de rodar. Mora nesta tela
+    // porque é a mesma pergunta do teste ("o aviso chega?") vista do outro lado.
+    public RelatorioDaVarredura? Varredura { get; set; }
+
     // Deu pra entregar em algum canal? É o que decide entre o aviso verde e o amarelo —
     // "mandei" sem dizer se chegou é a informação que menos serve numa tela de teste.
     public bool AlgumCanalDeuCerto =>

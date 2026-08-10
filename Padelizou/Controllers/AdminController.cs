@@ -785,6 +785,21 @@ namespace padelizou.Controllers
             return View(vm);
         }
 
+        // Sonda os registros de push suspeitos e apaga os que o servidor de push confirmar
+        // mortos. Ver Services/VarreduraDeFantasmas pro porquê de ela não varrer tudo.
+        //
+        // É [HttpPost] e fica atrás do botão do painel de propósito: manda notificação de
+        // verdade pra endpoint de verdade, e isso não pode acontecer por alguém abrir uma URL.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VarrerFantasmas([FromServices] VarreduraDeFantasmas varredura)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var vm = new TesteDeNotificacaoVM { Varredura = await varredura.RodarAsync() };
+            return View(nameof(NotificacaoTeste), vm);
+        }
+
         // Refaz as imagens antigas no padrão novo (o ImagemEnviada cuida das que chegam daqui
         // pra frente). Idempotente: rodar de novo pula tudo que já está no tamanho certo.
         [HttpPost]

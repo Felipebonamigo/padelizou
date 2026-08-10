@@ -103,6 +103,15 @@ self.addEventListener("push", (event) => {
     }
   }
 
+  // SONDA da varredura de fantasmas: não é aviso pra ninguém, é uma pergunta feita ao servidor
+  // de push ("este registro ainda existe?"). Quem responde é ele, com 2xx ou 410 — o aparelho
+  // não tem nada a ver com isso e não pode virar notificação.
+  //
+  // ⚠️ A inscrição nasce com `userVisibleOnly: true`, então o navegador PODE mostrar um aviso
+  // genérico dele quando a gente não mostra nenhum. Não é uma garantia de silêncio; é o que dá
+  // pra fazer do nosso lado. Quem limita o estrago é a varredura, que só sonda suspeito.
+  if (data.tipo === "sonda") return;
+
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
