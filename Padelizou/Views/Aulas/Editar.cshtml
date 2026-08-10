@@ -49,6 +49,19 @@
                             <i class="bi bi-arrow-repeat"></i>
                             Esta aula faz parte de uma série semanal. A mudança vale
                             <strong>só para esta data</strong> — as outras seguem como estão.
+                            @if (Model.RecorrenciaSemFim)
+                            {
+                                <div class="mt-2">
+                                    A série é <strong>sem prazo</strong>: novas semanas entram na agenda sozinhas.
+                                </div>
+                                <form asp-action="EncerrarRepeticao" method="post" class="mt-2"
+                                      onsubmit="return confirm('Parar de repetir essa aula fixa? As aulas já marcadas continuam na agenda.');">
+                                    <input type="hidden" name="aulaId" value="@Model.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                        <i class="bi bi-stop-circle"></i> Encerrar a repetição
+                                    </button>
+                                </form>
+                            }
                         </div>
                     }
 
@@ -74,6 +87,21 @@
                                inválido e abre o campo VAZIO, sem reclamar de nada. *@
                             <input type="datetime-local" name="dataHora" class="form-control bg-light"
                                    value="@Model.DataHora.ToString("yyyy-MM-ddTHH:mm")" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small" for="select-duracao">Duração</label>
+                            <select name="duracaoMinutos" id="select-duracao" class="form-select bg-light">
+                                @foreach (var minutos in Padelizou.Services.DuracaoDaAula.Opcoes)
+                                {
+                                    <option value="@minutos" selected="@(minutos == Model.DuracaoMinutos)">
+                                        @Padelizou.Services.DuracaoDaAula.Rotulo(minutos)
+                                    </option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                Hoje: @Padelizou.Services.DuracaoDaAula.Faixa(Model.DataHora, Model.DuracaoMinutos).
+                            </div>
                         </div>
 
                         <div class="mb-3">

@@ -2,6 +2,8 @@
     ViewData["Title"] = "Registrar Jogo - Padelizou";
     var membros = (List<Jogador>)ViewBag.Membros;
     int grupoId = ViewBag.GrupoId;
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
+    int? clubeDoGrupoId = ViewBag.ClubeDoGrupoId;
 }
 
 <div class="container mt-5">
@@ -29,6 +31,28 @@
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Data do jogo</label>
                                 <input type="date" name="dataJogo" class="form-control bg-light" required value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                            </div>
+
+                            @* Local já vem no clube do grupo; trocar aqui vale só pra ESTE jogo. *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Onde jogaram</label>
+                                <select name="clubeId" id="selectClube" class="form-select bg-light">
+                                    <option value="">-- Não informar --</option>
+                                    @foreach (var clube in catalogoClubes)
+                                    {
+                                        <option value="@clube.Id" selected="@(clubeDoGrupoId == clube.Id)">@clube.Nome</option>
+                                    }
+                                </select>
+                                <div class="mt-2 d-flex gap-2">
+                                    <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Jogaram em outro lugar? Cadastre aqui" />
+                                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" onclick="adicionarClubeSelect()">
+                                        <i class="bi bi-plus-circle"></i> Adicionar
+                                    </button>
+                                </div>
+                                @if (clubeDoGrupoId == null)
+                                {
+                                    <div class="form-text">O grupo ainda não tem local fixo — dá pra definir nas configurações.</div>
+                                }
                             </div>
 
                             <div class="row mb-3">
@@ -93,3 +117,29 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function adicionarClubeSelect() {
+            var input = document.getElementById('novoClubeNome');
+            var nome = input.value.trim();
+            if (!nome) return;
+
+            fetch('/Clubes/Criar', {
+                method: 'POST',
+                headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
+                body: 'nome=' + encodeURIComponent(nome)
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (clube) {
+                    var select = document.getElementById('selectClube');
+                    var option = document.createElement('option');
+                    option.value = clube.id;
+                    option.text = clube.nome;
+                    option.selected = true;
+                    select.appendChild(option);
+                    input.value = '';
+                });
+        }
+    </script>
+}

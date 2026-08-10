@@ -195,7 +195,7 @@ namespace padelizou.Controllers
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == id && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
 
-            var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == id);
+            var grupo = await _context.GruposPrivados.Include(g => g.Clube).FirstOrDefaultAsync(g => g.Id == id);
             if (grupo == null) return NotFound();
 
             var ranking = await _context.JogadoresGrupo
@@ -220,6 +220,7 @@ namespace padelizou.Controllers
             var jogosRecentes = await _context.JogosSemanais
                 .Include(j => j.Dupla1Jogador1).Include(j => j.Dupla1Jogador2)
                 .Include(j => j.Dupla2Jogador1).Include(j => j.Dupla2Jogador2)
+                .Include(j => j.Clube)
                 .Where(j => j.GrupoId == id)
                 .OrderByDescending(j => j.DataJogo)
                 .Take(15)
@@ -252,6 +253,12 @@ namespace padelizou.Controllers
                 .ToListAsync();
             ViewBag.GrupoId = grupoId;
 
+            // O local já vem escolhido no clube fixo do grupo — quem jogou fora do de sempre
+            // troca ali mesmo, sem precisar mexer nas configurações da panelinha.
+            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.ClubeDoGrupoId = await _context.GruposPrivados
+                .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
+
             return View();
         }
 
@@ -259,16 +266,22 @@ namespace padelizou.Controllers
         public async Task<IActionResult> RegistrarJogo(
             int grupoId, DateTime dataJogo,
             int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
-            int gamesDupla1, int gamesDupla2)
+            int gamesDupla1, int gamesDupla2, int? clubeId)
         {
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
 
+            // Sem escolha na tela, cai no clube fixo do grupo: o jogo da panelinha é quase
+            // sempre lá, e local vazio não vira ranking de clube nenhum.
+            clubeId ??= await _context.GruposPrivados
+                .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
+
             var jogo = new JogoSemanal
             {
                 GrupoId = grupoId,
                 DataJogo = dataJogo,
+                ClubeId = clubeId,
                 Dupla1Jogador1Id = dupla1Jogador1Id,
                 Dupla1Jogador2Id = dupla1Jogador2Id,
                 Dupla2Jogador1Id = dupla2Jogador1Id,

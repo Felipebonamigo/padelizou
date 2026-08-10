@@ -118,8 +118,6 @@ public class GoogleCalendarService : IGoogleCalendarService
     // deixa o local velho.
     private static Event EventoDa(Aula aula)
     {
-        const int duracaoMinutos = 60;
-
         return new Event
         {
             Summary = $"Aula de Padel - {aula.Aluno?.Nome ?? aula.NomeAlunoAvulso ?? "Aluno"}",
@@ -134,7 +132,7 @@ public class GoogleCalendarService : IGoogleCalendarService
             // o Google. Só trocar junto com um teste que prove o horário na agenda de verdade.
 #pragma warning disable CS0618
             Start = new EventDateTime { DateTime = aula.DataHora, TimeZone = "America/Sao_Paulo" },
-            End = new EventDateTime { DateTime = aula.DataHora.AddMinutes(duracaoMinutos), TimeZone = "America/Sao_Paulo" },
+            End = new EventDateTime { DateTime = DuracaoDaAula.Fim(aula), TimeZone = "America/Sao_Paulo" },
 #pragma warning restore CS0618
             Attendees = string.IsNullOrEmpty(aula.Aluno?.Email)
                 ? null

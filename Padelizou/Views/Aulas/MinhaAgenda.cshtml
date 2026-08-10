@@ -344,7 +344,14 @@
                         {
                             <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3"
                                     data-aula="@aula.Id">
-                                <span class="fw-bold" style="min-width:52px; color: var(--pdz-ink);">@aula.DataHora.ToString("HH:mm")</span>
+                                @* Hora de início em cima, fim embaixo: com aulas de 1h30 e 2h na
+                                   mesma coluna, só o começo não diz quando a quadra vaga. *@
+                                <span class="fw-bold text-center lh-1" style="min-width:52px; color: var(--pdz-ink);">
+                                    @aula.DataHora.ToString("HH:mm")
+                                    <small class="d-block fw-normal text-muted" style="font-size:.72rem;">
+                                        @DuracaoDaAula.Fim(aula).ToString("HH:mm")
+                                    </small>
+                                </span>
                                 <span class="rounded-circle flex-shrink-0" style="width:10px;height:10px;background:@CorDe(aula.Status);"></span>
                                 <span class="flex-grow-1 text-start">
                                     <strong style="color: var(--pdz-ink);">@NomeDoAluno(aula)</strong>
@@ -491,7 +498,9 @@
                     id = a.Id,
                     aluno = a.NomeCompletoAluno ?? (a.Aluno != null ? a.Aluno.Nome : (a.NomeAlunoAvulso ?? "Aluno avulso")),
                     acompanhantes = a.Acompanhantes,
-                    quando = a.DataHora.ToString("dd/MM/yyyy 'às' HH:mm"),
+                    // Com duração de verdade, a aula tem fim: "14/08/2026 às 17:00 às 19:00"
+                    // ficaria pior que dizer o intervalo de uma vez.
+                    quando = a.DataHora.ToString("dd/MM/yyyy") + " · " + DuracaoDaAula.Faixa(a.DataHora, a.DuracaoMinutos),
                     local = a.LocalAula.Nome,
                     preco = a.Preco.ToString("C"),
                     // "Individual"/"Em dupla"/"Em trio" — sem isto o professor via R$ 150 numa

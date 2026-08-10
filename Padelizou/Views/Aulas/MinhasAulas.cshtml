@@ -33,7 +33,12 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span class="badge @badgeClass text-uppercase shadow-sm">@aula.Status</span>
-                                <span class="text-muted fw-bold small"><i class="bi bi-clock-history"></i> @aula.DataHora.ToString("dd/MM/yyyy HH:mm")</span>
+                                @* Até quando o aluno tem que segurar a agenda: a aula pode ser
+                                   de 1h30 ou 2h, e só a hora de início não diz isso. *@
+                                <span class="text-muted fw-bold small">
+                                    <i class="bi bi-clock-history"></i>
+                                    @aula.DataHora.ToString("dd/MM/yyyy") · @Padelizou.Services.DuracaoDaAula.Faixa(aula.DataHora, aula.DuracaoMinutos)
+                                </span>
                             </div>
 
                             <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">

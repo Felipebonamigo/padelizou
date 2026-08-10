@@ -175,6 +175,8 @@ namespace Padelizou.Controllers
 
             vm.Compromissos = compromissos.OrderBy(c => c.Data).Take(3).ToList();
 
+            vm.JogosDaSemana = await ObterJogosDaSemanaAsync(jogadorId);
+
             // Torneios em que estou dentro (dupla ou americano) e que ainda não terminaram.
             // Cancelado sai daqui junto com o finalizado — não é compromisso. Quem estava
             // inscrito não fica sabendo por sumiço: o cancelamento avisa um a um, e por
@@ -214,6 +216,82 @@ namespace Padelizou.Controllers
             vm.Abertos = vm.Abertos.Where(t => !meusIds.Contains(t.Id)).ToList();
 
             await PreencherPapeisAsync(vm, jogador);
+        }
+
+        // Jogo fixo das panelinhas nos próximos 7 dias — o atalho que faltava pra confirmar
+        // presença sem passar por Grupos → grupo → Jogo da Semana.
+        //
+        // ⚠️ Aqui NÃO se cria sessão. A criação é sob demanda na tela da semana, e a Home é a
+        // página mais aberta do sistema: gerar linha a cada visita encheria o banco de sessões
+        // de gente que só passou pela porta. Grupo sem sessão ainda aparece — com o horário
+        // calculado do dia fixo — e a sessão nasce quando a pessoa clica.
+        private async Task<List<JogoDaSemanaVM>> ObterJogosDaSemanaAsync(int jogadorId)
+        {
+            var meusGrupos = await _context.JogadoresGrupo
+                .Where(jg => jg.JogadorId == jogadorId
+                          && jg.GrupoPrivado.DiaSemanaFixo != null && jg.GrupoPrivado.HorarioFixo != null)
+                .Select(jg => new
+                {
+                    jg.GrupoPrivado.Id,
+                    jg.GrupoPrivado.Nome,
+                    Clube = jg.GrupoPrivado.Clube != null ? jg.GrupoPrivado.Clube.Nome : null,
+                    Dia = jg.GrupoPrivado.DiaSemanaFixo!.Value,
+                    Hora = jg.GrupoPrivado.HorarioFixo!.Value,
+                    jg.GrupoPrivado.VagasMaximas,
+                })
+                .ToListAsync();
+
+            var jogos = meusGrupos
+                .Select(g => new JogoDaSemanaVM
+                {
+                    GrupoId = g.Id,
+                    Grupo = g.Nome,
+                    Clube = g.Clube,
+                    DataHora = SessaoGrupoService.ProximaOcorrencia(g.Dia, g.Hora),
+                    Vagas = g.VagasMaximas,
+                })
+                .ToDictionary(j => (j.GrupoId, j.DataHora));
+
+            // As sessões que já existem mandam no que aparece: elas trazem o meu RSVP, quantos
+            // já confirmaram e — no caso do convidado avulso — um jogo de grupo em que eu nem
+            // sou membro. Data fora do padrão (jogo remarcado) também só chega por aqui.
+            var limite = DateTime.Now.AddDays(7);
+            var minhasSessoes = await _context.ConfirmacoesSessao
+                .Where(c => c.JogadorId == jogadorId
+                         && c.Sessao.DataHora >= DateTime.Now && c.Sessao.DataHora <= limite)
+                .Select(c => new
+                {
+                    c.Sessao.Id,
+                    c.Sessao.GrupoId,
+                    Grupo = c.Sessao.Grupo.Nome,
+                    c.Sessao.DataHora,
+                    Clube = c.Sessao.Grupo.Clube != null ? c.Sessao.Grupo.Clube.Nome : null,
+                    c.Sessao.Grupo.VagasMaximas,
+                    MeuStatus = c.Status,
+                    c.Avulso,
+                    Confirmados = c.Sessao.Confirmacoes.Count(x => x.Status == "Confirmado"),
+                })
+                .ToListAsync();
+
+            foreach (var s in minhasSessoes)
+            {
+                jogos[(s.GrupoId, s.DataHora)] = new JogoDaSemanaVM
+                {
+                    GrupoId = s.GrupoId,
+                    Grupo = s.Grupo,
+                    DataHora = s.DataHora,
+                    Clube = s.Clube,
+                    MeuStatus = s.MeuStatus,
+                    Confirmados = s.Confirmados,
+                    Vagas = s.VagasMaximas,
+                    Convidado = s.Avulso,
+                };
+            }
+
+            return jogos.Values
+                .Where(j => j.DataHora <= limite)
+                .OrderBy(j => j.DataHora)
+                .ToList();
         }
 
         // Painéis de quem também trabalha com padel. São independentes: quem é professor E

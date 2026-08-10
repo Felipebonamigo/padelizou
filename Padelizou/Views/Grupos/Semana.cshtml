@@ -61,25 +61,33 @@
         <div class="alert alert-warning">@TempData["Erro"]</div>
     }
 
-    @if (minhaConfirmacao != null)
+    @* Membro do grupo SEMPRE vê os botões, mesmo sem linha de confirmação — o POST cria a dele
+       na hora. Amarrar a existência do bloco à confirmação já deixou membro sem como responder. *@
+    @if (minhaConfirmacao != null || souMembro)
     {
+        var meuStatus = minhaConfirmacao?.Status ?? "Pendente";
+        var meuLado = minhaConfirmacao?.Lado;
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
                 <h6 class="fw-bold mb-3">Sua presença</h6>
-                @if (minhaConfirmacao.Avulso && minhaConfirmacao.Status == "Pendente")
+                @if (meuStatus == "Pendente")
                 {
-                    <p class="small text-muted">Você foi convidado pra esse jogo — confirma se vai?</p>
+                    <p class="small text-muted">
+                        @(minhaConfirmacao?.Avulso == true
+                            ? "Você foi convidado pra esse jogo — confirma se vai?"
+                            : "Você ainda não respondeu esse jogo.")
+                    </p>
                 }
                 <form asp-controller="Grupos" asp-action="ConfirmarPresenca" method="post" class="d-flex gap-2 align-items-center flex-wrap">
                     <input type="hidden" name="sessaoId" value="@Model.Id" />
                     <select name="lado" class="form-select form-select-sm w-auto">
-                        <option value="Esquerda" selected="@(minhaConfirmacao.Lado == "Esquerda")">Esquerda</option>
-                        <option value="Direita" selected="@(minhaConfirmacao.Lado == "Direita")">Direita</option>
+                        <option value="Esquerda" selected="@(meuLado == "Esquerda")">Esquerda</option>
+                        <option value="Direita" selected="@(meuLado == "Direita")">Direita</option>
                     </select>
-                    <button type="submit" name="vou" value="true" class="btn btn-sm rounded-pill @(minhaConfirmacao.Status == "Confirmado" ? "btn-success" : "btn-outline-success")">
+                    <button type="submit" name="vou" value="true" class="btn btn-sm rounded-pill @(meuStatus == "Confirmado" ? "btn-success" : "btn-outline-success")">
                         <i class="bi bi-check-circle"></i> Vou jogar
                     </button>
-                    <button type="submit" name="vou" value="false" class="btn btn-sm rounded-pill @(minhaConfirmacao.Status == "NaoVai" ? "btn-danger" : "btn-outline-danger")">
+                    <button type="submit" name="vou" value="false" class="btn btn-sm rounded-pill @(meuStatus == "NaoVai" ? "btn-danger" : "btn-outline-danger")">
                         Não vou dessa vez
                     </button>
                 </form>

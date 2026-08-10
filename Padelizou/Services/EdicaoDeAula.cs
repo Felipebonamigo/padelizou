@@ -57,6 +57,9 @@ public static class EdicaoDeAula
         if (mudanca.MudouHorario)
             partes.Add($"o horário passou de {mudanca.QuandoAntes:dd/MM 'às' HH:mm} para {mudanca.QuandoDepois:dd/MM 'às' HH:mm}");
 
+        if (mudanca.MudouDuracao)
+            partes.Add($"a duração passou de {DuracaoDaAula.Rotulo(mudanca.DuracaoAntes)} para {DuracaoDaAula.Rotulo(mudanca.DuracaoDepois)}");
+
         if (mudanca.MudouLocal)
             partes.Add($"o local passou de {mudanca.LocalAntes} para {mudanca.LocalDepois}");
 
@@ -72,6 +75,7 @@ public static class EdicaoDeAula
     {
         var partes = new List<string>();
         if (mudanca.MudouHorario) partes.Add($"horário para {mudanca.QuandoDepois:dd/MM 'às' HH:mm}");
+        if (mudanca.MudouDuracao) partes.Add($"duração para {DuracaoDaAula.Rotulo(mudanca.DuracaoDepois)}");
         if (mudanca.MudouLocal) partes.Add($"local para {mudanca.LocalDepois}");
         if (mudanca.MudouPreco) partes.Add($"valor para {mudanca.PrecoDepois:C}");
 
@@ -91,16 +95,23 @@ public static class EdicaoDeAula
 // que o resto do código faz ("mudou o horário?", "avisa o aluno?", "o que escrevo pra ele?")
 // dependem das duas pontas ao mesmo tempo — com os campos soltos, cada chamador refazia a
 // comparação do seu jeito, e um deles ia esquecer o local.
+// A duração entra com padrão de 60 min pra não obrigar quem só compara horário/local/preço a
+// falar dela — era a duração implícita de toda aula antes de 10/08/2026.
 public readonly record struct MudancaDaAula(
     DateTime QuandoAntes, DateTime QuandoDepois,
     string LocalAntes, string LocalDepois,
-    decimal PrecoAntes, decimal PrecoDepois)
+    decimal PrecoAntes, decimal PrecoDepois,
+    int DuracaoAntes = 60, int DuracaoDepois = 60)
 {
     public bool MudouHorario => QuandoAntes != QuandoDepois;
     public bool MudouLocal => LocalAntes != LocalDepois;
     public bool MudouPreco => PrecoAntes != PrecoDepois;
-    public bool MudouAlgo => MudouHorario || MudouLocal || MudouPreco;
 
-    // O Google só precisa saber de horário e local — o preço não vai pro evento.
-    public bool MudouOQueVaiProGoogle => MudouHorario || MudouLocal;
+    // Aula que passou de 1h pra 2h mudou pro aluno tanto quanto se tivesse trocado de hora:
+    // ele precisa segurar a agenda até mais tarde.
+    public bool MudouDuracao => DuracaoAntes != DuracaoDepois;
+    public bool MudouAlgo => MudouHorario || MudouLocal || MudouPreco || MudouDuracao;
+
+    // O Google só precisa saber de horário, duração e local — o preço não vai pro evento.
+    public bool MudouOQueVaiProGoogle => MudouHorario || MudouLocal || MudouDuracao;
 }

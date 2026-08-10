@@ -10,6 +10,11 @@ public partial class JogoSemanal
     public int GrupoId { get; set; }
     public DateTime DataJogo { get; set; }
 
+    // Onde o jogo aconteceu. Nasce do clube fixo do grupo, mas fica gravado no JOGO porque a
+    // panelinha muda de quadra: sem isso, trocar o clube do grupo reescreveria o passado —
+    // e é este campo que permite ranking/estatística por clube.
+    public int? ClubeId { get; set; }
+
     public int Dupla1Jogador1Id { get; set; }
     public int Dupla1Jogador2Id { get; set; }
     public int Dupla2Jogador1Id { get; set; }
@@ -23,6 +28,9 @@ public partial class JogoSemanal
 
     [ForeignKey("GrupoId")]
     public virtual padelizou.Models.GrupoPrivado Grupo { get; set; } = null!;
+
+    [ForeignKey("ClubeId")]
+    public virtual Clube? Clube { get; set; }
 
     [ForeignKey("Dupla1Jogador1Id")]
     public virtual Jogador Dupla1Jogador1 { get; set; } = null!;

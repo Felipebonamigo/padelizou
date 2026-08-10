@@ -137,6 +137,22 @@
                                 <input type="datetime-local" name="dataHora" class="form-control bg-light" data-hora-sugerida required />
                             </div>
 
+                            @* Aula de padel raramente é de uma hora redonda: a quadra é alugada
+                               em bloco de 1h30 ou 2h. O sistema fingia que toda aula durava 60
+                               min — o evento na Google Agenda acabava no meio do treino. *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small" for="select-duracao">Duração</label>
+                                <select name="duracaoMinutos" id="select-duracao" class="form-select bg-light">
+                                    @foreach (var minutos in Padelizou.Services.DuracaoDaAula.Opcoes)
+                                    {
+                                        <option value="@minutos" selected="@(minutos == Padelizou.Services.DuracaoDaAula.Padrao)">
+                                            @Padelizou.Services.DuracaoDaAula.Rotulo(minutos)
+                                        </option>
+                                    }
+                                </select>
+                                <div class="form-text" id="aviso-fim-aula"></div>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Preço (deixe vazio pra usar o sugerido)</label>
                                 <input type="number" step="0.01" min="0" name="preco" id="input-preco" class="form-control bg-light" />
@@ -156,24 +172,51 @@
                             </div>
 
                             <div class="mb-4" id="grupo-semanas" style="display:none;">
-                                <label class="form-label fw-bold text-muted small">Repetir por quantas semanas (incluindo essa)?</label>
-                                <input type="number" min="2" max="26" value="4" name="semanasRecorrencia" id="input-semanas" class="form-control bg-light" />
-
-                                @* As datas geradas, uma a uma, pra ele desmarcar o que não vale.
-                                   "Repetir por N semanas" sozinho obrigava a adivinhar o N: mês
-                                   com 5 sextas, feriado no meio, a semana da viagem — nada disso
-                                   cabe num número, e o conserto era apagar aula por aula depois. *@
-                                <div class="mt-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <label class="form-label fw-bold text-muted small mb-0">
-                                            Datas que vão ser criadas
+                                @* O combinado com o aluno quase nunca tem data pra acabar. Antes
+                                   o professor tinha que inventar um N: marcava 26 e a série
+                                   morria calada no fim do semestre; marcava 4 e voltava aqui
+                                   todo mês. "Sem prazo" repõe as semanas sozinho. *@
+                                <div class="p-2 rounded mb-3" style="background: var(--pdz-surface-alt);">
+                                    <div class="form-check">
+                                        <input type="radio" class="form-check-input" name="semPrazo" id="prazo-contado" value="false" checked />
+                                        <label class="form-check-label" for="prazo-contado">Por um número de semanas</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" class="form-check-input" name="semPrazo" id="prazo-indeterminado" value="true" />
+                                        <label class="form-check-label" for="prazo-indeterminado">
+                                            Sem prazo definido — repete até você encerrar
                                         </label>
-                                        <span class="small text-muted" id="contador-datas"></span>
                                     </div>
-                                    <div class="border rounded p-2" id="lista-datas" style="max-height: 260px; overflow-y: auto;"></div>
-                                    <div class="form-text">
-                                        Desmarque as datas que não vão ter aula. Dá pra mudar a hora de cada uma.
+                                </div>
+
+                                <div id="bloco-prazo-contado">
+                                    <label class="form-label fw-bold text-muted small">Repetir por quantas semanas (incluindo essa)?</label>
+                                    <input type="number" min="2" max="26" value="4" name="semanasRecorrencia" id="input-semanas" class="form-control bg-light" />
+
+                                    @* As datas geradas, uma a uma, pra ele desmarcar o que não vale.
+                                       "Repetir por N semanas" sozinho obrigava a adivinhar o N: mês
+                                       com 5 sextas, feriado no meio, a semana da viagem — nada disso
+                                       cabe num número, e o conserto era apagar aula por aula depois. *@
+                                    <div class="mt-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold text-muted small mb-0">
+                                                Datas que vão ser criadas
+                                            </label>
+                                            <span class="small text-muted" id="contador-datas"></span>
+                                        </div>
+                                        <div class="border rounded p-2" id="lista-datas" style="max-height: 260px; overflow-y: auto;"></div>
+                                        <div class="form-text">
+                                            Desmarque as datas que não vão ter aula. Dá pra mudar a hora de cada uma.
+                                        </div>
                                     </div>
+                                </div>
+
+                                <div id="bloco-prazo-indeterminado" class="alert alert-light border small mb-0" style="display:none;">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    As próximas <strong>@Padelizou.Services.RenovacaoDaAulaFixa.HorizonteSemanas semanas</strong>
+                                    já entram na agenda, e o sistema vai repondo as seguintes sozinho.
+                                    Quando o aluno parar, é só abrir uma aula da série e
+                                    <strong>encerrar a repetição</strong> — as aulas já marcadas continuam lá.
                                 </div>
                             </div>
 
@@ -290,6 +333,40 @@
                 $grupoSemanas.toggle(this.checked);
                 if (this.checked) gerarDatas();
             });
+
+            // ── Prazo da série ───────────────────────────────────────────────────────────
+            // Sem prazo, a lista de datas some: não existe lista pra uma série que não acaba,
+            // e deixar os checkboxes na tela faria o professor achar que só aquelas valem.
+            var $blocoContado = $('#bloco-prazo-contado');
+            var $blocoIndeterminado = $('#bloco-prazo-indeterminado');
+
+            $('input[name="semPrazo"]').on('change', function () {
+                var indeterminado = $('#prazo-indeterminado').prop('checked');
+                $blocoContado.toggle(!indeterminado);
+                $blocoIndeterminado.toggle(indeterminado);
+                if (!indeterminado) gerarDatas();
+            });
+
+            // ── Quando a aula termina ────────────────────────────────────────────────────
+            // O professor escolhe o começo e a duração; quem erra o encaixe na quadra é quem
+            // não vê o fim. A conta é a mesma de Services/DuracaoDaAula.
+            var $selectDuracao = $('#select-duracao');
+            var $avisoFim = $('#aviso-fim-aula');
+
+            function mostrarFim() {
+                var base = $inputDataHora.val();
+                var minutos = parseInt($selectDuracao.val(), 10);
+                if (!base || !minutos) { $avisoFim.text(''); return; }
+
+                var inicio = new Date(base);
+                if (isNaN(inicio)) { $avisoFim.text(''); return; }
+
+                var fim = new Date(inicio.getTime() + minutos * 60000);
+                $avisoFim.text('Termina às ' + doisDigitos(fim.getHours()) + ':' + doisDigitos(fim.getMinutes()) + '.');
+            }
+
+            $selectDuracao.on('change', mostrarFim);
+            $inputDataHora.on('change', mostrarFim);
 
             // Regerar quando a base muda descarta o que ele já tinha desmarcado — é o certo:
             // mudou o dia da semana, as datas velhas não valem mais.

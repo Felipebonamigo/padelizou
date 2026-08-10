@@ -197,6 +197,9 @@ builder.Services.AddSingleton<FilaDeAvisos>();
 builder.Services.AddSingleton<PortaoDeAcesso>();
 builder.Services.AddHostedService<EntregadorDeAvisosBackgroundService>();
 builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
+// Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
+// semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
+builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

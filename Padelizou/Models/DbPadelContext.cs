@@ -984,6 +984,12 @@ public partial class DbPadelContext : DbContext
             // Restrict nos 5 FKs de Jogador: GrupoPrivado já faz cascade a partir de Jogador
             // (Administrador), então um caminho direto Jogador -> JogoSemanal causaria o mesmo
             // conflito de múltiplos caminhos de cascade já visto antes.
+            // Clube some do catálogo? O jogo continua no ranking do grupo, só perde o local.
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasOne(e => e.Dupla1Jogador1).WithMany().HasForeignKey(e => e.Dupla1Jogador1Id).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Dupla1Jogador2).WithMany().HasForeignKey(e => e.Dupla1Jogador2Id).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Dupla2Jogador1).WithMany().HasForeignKey(e => e.Dupla2Jogador1Id).OnDelete(DeleteBehavior.Restrict);

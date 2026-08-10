@@ -109,7 +109,8 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> AdicionarManual(int localId, string nomeAluno, string? telefoneAluno,
             DateTime dataHora, decimal? preco, bool recorrente, int semanasRecorrencia, int quantidadeAlunos = 1,
-            int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null)
+            int? alunoId = null, bool alunoPagaQuadra = false, List<string>? datas = null,
+            int? duracaoMinutos = null, bool semPrazo = false)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -146,9 +147,17 @@ namespace padelizou.Controllers
             // sextas, feriado no meio, a semana em que ele viaja — nada disso cabe num "repetir
             // por N semanas"); a contagem cega continua valendo como plano B, pro navegador
             // sem JS e pra quem mandou o formulário direto.
-            var escolhidas = recorrente ? DatasDaAulaFixa.Ler(datas, DateTime.Now) : new List<DateTime>();
+            //
+            // ⚠️ "Sem prazo definido" ignora a lista de datas: a série não tem fim pra caber
+            // numa lista. Cria o horizonte de uma vez e o renovador repõe daí pra frente
+            // (ver Services/RenovacaoDaAulaFixa) — o professor não precisa voltar aqui.
+            var semPrazoDeVerdade = recorrente && semPrazo;
 
-            if (recorrente && datas != null && datas.Count > 0 && escolhidas.Count == 0)
+            var escolhidas = recorrente && !semPrazoDeVerdade
+                ? DatasDaAulaFixa.Ler(datas, DateTime.Now)
+                : new List<DateTime>();
+
+            if (recorrente && !semPrazoDeVerdade && datas != null && datas.Count > 0 && escolhidas.Count == 0)
             {
                 TempData["Erro"] = "Escolha pelo menos uma data para a aula fixa.";
                 return RedirectToAction("AdicionarManual");
@@ -157,9 +166,15 @@ namespace padelizou.Controllers
             var horarios = escolhidas.Count > 0
                 ? escolhidas
                 : DatasDaAulaFixa.Semanais(dataHora,
-                    recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia) : 1);
+                    semPrazoDeVerdade ? RenovacaoDaAulaFixa.HorizonteSemanas
+                    : recorrente ? Math.Clamp(semanasRecorrencia, MinSemanasRecorrencia, MaxSemanasRecorrencia)
+                    : 1);
 
-            var recorrenciaId = horarios.Count > 1 ? Guid.NewGuid() : (Guid?)null;
+            var duracao = DuracaoDaAula.Valida(duracaoMinutos);
+
+            // Série sem prazo é série mesmo com uma aula só marcada até agora: sem o id, o
+            // renovador não teria como achar a repetição pra continuar.
+            var recorrenciaId = horarios.Count > 1 || semPrazoDeVerdade ? Guid.NewGuid() : (Guid?)null;
 
             // Aluno escolhido da lista TEM conta: a aula passa a apontar pra ela, e não pra um
             // nome solto. É o que faz o aluno enxergar a aula no próprio app, receber o aviso
@@ -187,12 +202,9 @@ namespace padelizou.Controllers
 
             foreach (var horario in horarios)
             {
-                var ocupado = await _context.Aulas.AnyAsync(a =>
-                    a.ProfessorId == professorId &&
-                    a.DataHora == horario &&
-                    (a.Status == "Pendente" || a.Status == "Confirmada"));
-
-                if (ocupado)
+                // Conflito é SOBREPOSIÇÃO, não igualdade de horário: com aula de 1h30 e 2h,
+                // comparar só o início deixava 17:00–19:00 conviver com 18:00–19:00.
+                if (await HorarioOcupadoAsync(professorId.Value, horario, duracao))
                 {
                     puladas++;
                     continue;
@@ -200,6 +212,8 @@ namespace padelizou.Controllers
 
                 novasAulas.Add(new Aula
                 {
+                    DuracaoMinutos = duracao,
+                    RecorrenciaSemFim = semPrazoDeVerdade,
                     ProfessorId = professorId.Value,
                     AlunoId = alunoVinculado?.Id,
                     // O nome escrito fica MESMO com conta vinculada: é como o professor chama
@@ -363,7 +377,8 @@ namespace padelizou.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco)
+        public async Task<IActionResult> Editar(int aulaId, int localId, DateTime dataHora, decimal preco,
+            int? duracaoMinutos = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -403,16 +418,15 @@ namespace padelizou.Controllers
                 return RedirectToAction(nameof(Editar), new { id = aulaId });
             }
 
-            // Mesma trava da marcação: dois alunos no mesmo horário é o erro que a agenda
-            // existe pra evitar. A própria aula sai da conta — senão ela bloquearia a si
-            // mesma quando o professor mudasse só o preço.
-            var ocupado = await _context.Aulas.AnyAsync(a =>
-                a.Id != aula.Id &&
-                a.ProfessorId == professorId &&
-                a.DataHora == dataHora &&
-                (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada));
+            // Duração ausente no formulário = a que a aula já tinha. Editar o preço numa aba
+            // antiga não pode encolher a aula de 2h pra 1h em silêncio.
+            var duracao = duracaoMinutos == null ? aula.DuracaoMinutos : DuracaoDaAula.Valida(duracaoMinutos);
 
-            if (ocupado)
+            // Mesma trava da marcação: dois alunos no mesmo horário é o erro que a agenda
+            // existe pra evitar — e desde que a aula tem duração, a conta é de SOBREPOSIÇÃO.
+            // A própria aula sai da conta: senão ela bloquearia a si mesma quando o professor
+            // mudasse só o preço.
+            if (await HorarioOcupadoAsync(professorId.Value, dataHora, duracao, aula.Id))
             {
                 TempData["Erro"] = $"Você já tem outra aula em {dataHora:dd/MM 'às' HH:mm}.";
                 return RedirectToAction(nameof(Editar), new { id = aulaId });
@@ -421,7 +435,8 @@ namespace padelizou.Controllers
             var mudanca = new MudancaDaAula(
                 aula.DataHora, dataHora,
                 aula.LocalAula.Nome, local.Nome,
-                aula.Preco, preco);
+                aula.Preco, preco,
+                aula.DuracaoMinutos, duracao);
 
             if (!mudanca.MudouAlgo)
             {
@@ -430,6 +445,7 @@ namespace padelizou.Controllers
             }
 
             aula.DataHora = dataHora;
+            aula.DuracaoMinutos = duracao;
             aula.LocalAulaId = local.Id;
             aula.LocalAula = local;
             aula.Preco = preco;
@@ -486,6 +502,38 @@ namespace padelizou.Controllers
             // Volta na semana da aula NOVA: remarcar pro mês que vem e cair na semana de onde
             // ela saiu deixa o professor achando que a mudança não pegou.
             return RedirectToAction("MinhaAgenda", new { data = dataHora.ToString("yyyy-MM-dd") });
+        }
+
+        // ENCERRA A REPETIÇÃO de uma aula fixa sem prazo.
+        //
+        // Não apaga nada: as aulas que já estão na agenda seguem valendo (o aluno já contou com
+        // elas, e algumas podem estar pagas). O que para é a REPOSIÇÃO — daqui pra frente o
+        // renovador não cria mais nenhuma. Apagar as futuras continua sendo aula por aula, que
+        // é o certo pra uma decisão dessas.
+        [HttpPost]
+        public async Task<IActionResult> EncerrarRepeticao(int aulaId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+
+            if (aula?.RecorrenciaId == null)
+            {
+                TempData["Erro"] = "Essa aula não faz parte de uma série sem prazo.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var daSerie = await _context.Aulas
+                .Where(a => a.RecorrenciaId == aula.RecorrenciaId && a.ProfessorId == professorId && a.RecorrenciaSemFim)
+                .ToListAsync();
+
+            foreach (var irma in daSerie) irma.RecorrenciaSemFim = false;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "A aula fixa não vai mais se repetir sozinha. As aulas já marcadas continuam na agenda.";
+            return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
         }
 
         // MANDA PRO GOOGLE AS AULAS QUE FICARAM PRA TRÁS.

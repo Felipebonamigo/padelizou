@@ -79,15 +79,18 @@ namespace padelizou.Controllers
                 return Json(Array.Empty<object>());
             }
 
+            // O que já está marcado, com a duração de cada um: aula de 2h ocupa DOIS slots de
+            // uma hora, e comparar só o horário de início oferecia ao aluno o segundo deles.
             var aulasOcupadas = (await _context.Aulas
                 .Where(a => a.ProfessorId == professorId &&
                             (a.Status == "Pendente" || a.Status == "Confirmada") &&
                             a.DataHora >= DateTime.Today)
-                .Select(a => a.DataHora)
+                .Select(a => new { a.DataHora, a.DuracaoMinutos })
                 .ToListAsync())
-                .ToHashSet();
+                .Select(a => (a.DataHora, a.DuracaoMinutos))
+                .ToList();
 
-            var slots = new List<DateTime>();
+            var slots = new List<(DateTime Quando, int Duracao)>();
             var hoje = DateTime.Today;
 
             for (var dia = 0; dia < DiasDeJanelaBusca; dia++)
@@ -102,17 +105,27 @@ namespace padelizou.Controllers
 
                     while (horario.AddMinutes(regra.DuracaoMinutos) <= fimJanela)
                     {
-                        if (horario > DateTime.Now && !aulasOcupadas.Contains(horario))
+                        var livre = !aulasOcupadas.Any(o =>
+                            DuracaoDaAula.Conflita(horario, regra.DuracaoMinutos, o.DataHora, o.DuracaoMinutos));
+
+                        if (horario > DateTime.Now && livre)
                         {
-                            slots.Add(horario);
+                            slots.Add((horario, regra.DuracaoMinutos));
                         }
                         horario = horario.AddMinutes(regra.DuracaoMinutos);
                     }
                 }
             }
 
-            slots.Sort();
-            return Json(slots.Select(s => new { valor = s.ToString("yyyy-MM-ddTHH:mm:ss") }));
+            return Json(slots
+                .OrderBy(s => s.Quando)
+                .Select(s => new
+                {
+                    valor = s.Quando.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    // A tela mostra a duração junto do horário: "sáb 15/08 09:00 (1h30)". O que
+                    // vale mesmo é o que o servidor recalcula no POST — isto é só o rótulo.
+                    duracao = DuracaoDaAula.Rotulo(s.Duracao),
+                }));
         }
 
         // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar) — pode gerar uma aula
@@ -188,6 +201,11 @@ namespace padelizou.Controllers
                 precoPorAula = precoAvulso;
             }
 
+            // Quanto dura a aula é a GRADE do professor que diz, não o formulário: o aluno
+            // escolheu um slot dela, e um campo de duração vindo do navegador viraria pedido de
+            // aula de 4 horas pelo preço de uma.
+            var duracao = await DuracaoDaGradeAsync(professorId, localId, dataHora);
+
             var recorrenciaId = quantidade > 1 ? Guid.NewGuid() : (Guid?)null;
             var novasAulas = new List<Aula>();
             var puladas = 0;
@@ -196,12 +214,9 @@ namespace padelizou.Controllers
             {
                 var horario = dataHora.AddDays(7 * i);
 
-                var ocupado = await _context.Aulas.AnyAsync(a =>
-                    a.ProfessorId == professorId &&
-                    a.DataHora == horario &&
-                    (a.Status == "Pendente" || a.Status == "Confirmada"));
-
-                if (ocupado)
+                // Sobreposição, e não igualdade: com aula de 1h30 e 2h na agenda, comparar só o
+                // início deixava o aluno pedir horário que já estava tomado pela metade.
+                if (await HorarioOcupadoAsync(professorId, horario, duracao))
                 {
                     puladas++;
                     continue;
@@ -219,6 +234,7 @@ namespace padelizou.Controllers
                     AlunoId = alunoId,
                     LocalAulaId = localId,
                     DataHora = horario,
+                    DuracaoMinutos = duracao,
                     Preco = preco,
                     Status = "Pendente",
                     QuantidadeAlunos = alunos,

@@ -33,6 +33,11 @@ public class HomeVM
     public List<CompromissoVM> Compromissos { get; set; } = new();
     public List<MeuTorneioVM> MeusTorneios { get; set; } = new();
 
+    // Jogo fixo das panelinhas dentro dos próximos 7 dias. Fica na Home porque confirmar
+    // presença é a ação que tem HORA pra acontecer — quem só entra pra ver o ranking do
+    // grupo descobria o jogo tarde demais.
+    public List<JogoDaSemanaVM> JogosDaSemana { get; set; } = new();
+
     // Painéis por papel. A mesma pessoa pode ser jogador, professor, organizador e dono de
     // clube ao mesmo tempo — quem acumula papéis vê os painéis empilhados, na ordem do que
     // pede ação mais urgente. Null = não exerce aquele papel.
@@ -137,6 +142,23 @@ public class CompromissoVM
     public string Controller { get; set; } = "";
     public string Action { get; set; } = "";
     public int? RotaId { get; set; }
+}
+
+// Jogo fixo de uma panelinha na semana corrente. A sessão é criada sob demanda (só quando
+// alguém abre a tela da semana), então aqui ela pode ainda não existir — daí SessaoId nulo,
+// status "Pendente" e contagem zerada: o atalho leva pra tela, que cria na hora.
+public class JogoDaSemanaVM
+{
+    public int GrupoId { get; set; }
+    public string Grupo { get; set; } = "";
+    public DateTime DataHora { get; set; }
+    public string? Clube { get; set; }
+    public string MeuStatus { get; set; } = "Pendente"; // Pendente / Confirmado / NaoVai
+    public int Confirmados { get; set; }
+    public int Vagas { get; set; }
+    public bool Convidado { get; set; } // não é membro da panelinha, foi chamado pra este jogo
+
+    public bool Respondi => MeuStatus != "Pendente";
 }
 
 public class MeuTorneioVM

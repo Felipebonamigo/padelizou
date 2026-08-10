@@ -21,19 +21,47 @@ public class SessaoGrupoService : ISessaoGrupoService
             .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
             .FirstOrDefaultAsync(s => s.GrupoId == grupo.Id && s.DataHora == dataHora);
 
-        if (sessao != null) return sessao;
+        if (sessao != null)
+        {
+            // ⚠️ A sessão nasce com os membros DAQUELE momento. Quem entra na panelinha depois
+            // ficava sem linha de confirmação — e sem linha a tela não mostra os botões de
+            // "Vou jogar / Não vou": a pessoa abria o jogo da semana e não tinha o que responder.
+            //
+            // Só mexe em sessão de hoje pra frente: reconciliar semana passada só sujaria o
+            // histórico com "pendentes" de gente que nem era do grupo naquele dia.
+            if (sessao.DataHora.Date >= DateTime.Today && await AdicionarMembrosQueFaltamAsync(sessao))
+            {
+                return await RecarregarAsync(sessao.Id);
+            }
+            return sessao;
+        }
 
         sessao = new SessaoGrupo { GrupoId = grupo.Id, DataHora = dataHora };
         _context.SessoesGrupo.Add(sessao);
         await _context.SaveChangesAsync();
 
-        var membros = await _context.JogadoresGrupo
-            .Include(jg => jg.Jogador)
-            .Where(jg => jg.GrupoId == grupo.Id)
+        await AdicionarMembrosQueFaltamAsync(sessao);
+
+        return await RecarregarAsync(sessao.Id);
+    }
+
+    // Cria como "Pendente" a confirmação dos membros do grupo que ainda não têm uma nesta sessão.
+    // Devolve true se criou alguma.
+    private async Task<bool> AdicionarMembrosQueFaltamAsync(SessaoGrupo sessao)
+    {
+        var jaTem = await _context.ConfirmacoesSessao
+            .Where(c => c.SessaoId == sessao.Id)
+            .Select(c => c.JogadorId)
+            .ToListAsync();
+
+        var faltando = await _context.JogadoresGrupo
+            .Where(jg => jg.GrupoId == sessao.GrupoId && !jaTem.Contains(jg.JogadorId))
             .Select(jg => jg.Jogador)
             .ToListAsync();
 
-        foreach (var membro in membros)
+        if (faltando.Count == 0) return false;
+
+        foreach (var membro in faltando)
         {
             _context.ConfirmacoesSessao.Add(new ConfirmacaoSessao
             {
@@ -45,13 +73,15 @@ public class SessaoGrupoService : ISessaoGrupoService
             });
         }
         await _context.SaveChangesAsync();
-
-        return await _context.SessoesGrupo
-            .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
-            .FirstAsync(s => s.Id == sessao.Id);
+        return true;
     }
 
-    private static DateTime ProximaOcorrencia(int diaSemanaFixo, TimeSpan horarioFixo)
+    private async Task<SessaoGrupo> RecarregarAsync(int sessaoId) =>
+        await _context.SessoesGrupo
+            .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
+            .FirstAsync(s => s.Id == sessaoId);
+
+    public static DateTime ProximaOcorrencia(int diaSemanaFixo, TimeSpan horarioFixo)
     {
         var hoje = DateTime.Today;
         var diasAteAlvo = (diaSemanaFixo - (int)hoje.DayOfWeek + 7) % 7;

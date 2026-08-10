@@ -15,6 +15,18 @@ public partial class Aula
     public decimal Preco { get; set; }
     public string Status { get; set; } = null!;
 
+    // Quanto tempo a aula dura. Até 10/08/2026 o sistema inteiro fingia que toda aula era de
+    // uma hora: a Google Agenda criava evento de 60 min e a trava de conflito só olhava o
+    // horário de INÍCIO — duas aulas de 1h30 encavaladas passavam sem um pio.
+    //
+    // Nasce em 60 porque era a duração implícita de tudo que já estava marcado.
+    public int DuracaoMinutos { get; set; } = 60;
+
+    // Série semanal SEM data pra acabar ("todo sábado às 9h, e pronto"). As aulas continuam
+    // nascendo em lote — o que muda é que o RenovadorDeAulaFixaBackgroundService repõe o
+    // horizonte enquanto isto estiver ligado. Desligar não apaga nada: só para de renovar.
+    public bool RecorrenciaSemFim { get; set; }
+
     // Preenchidos só quando o professor adiciona a aula manualmente para um aluno
     // sem conta no sistema (AlunoId fica null nesse caso).
     public string? NomeAlunoAvulso { get; set; }

@@ -151,6 +151,47 @@ namespace padelizou.Controllers
         }
 
 
+        // A agenda do professor já tem alguma coisa NESSE PEDAÇO DE TEMPO?
+        //
+        // A comparação é de intervalo, não de horário de início: desde que a aula tem duração
+        // (10/08/2026), marcar 18h numa quadra ocupada das 17h às 19h é conflito. A conta roda
+        // em memória de propósito — são as aulas de um dia, e a soma de DataHora + duração
+        // dentro do SQL depende de tradução de `AddMinutes` que muda com o provedor.
+        private async Task<bool> HorarioOcupadoAsync(int professorId, DateTime inicio, int duracaoMinutos,
+            int? ignorarAulaId = null)
+        {
+            // Janela de um dia pra cada lado: aula que começa 23h e dura 2h termina no dia seguinte.
+            var de = inicio.Date.AddDays(-1);
+            var ate = inicio.Date.AddDays(2);
+
+            var vizinhas = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId
+                         && a.DataHora >= de && a.DataHora < ate
+                         && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada)
+                         && (ignorarAulaId == null || a.Id != ignorarAulaId))
+                .Select(a => new { a.DataHora, a.DuracaoMinutos })
+                .ToListAsync();
+
+            return vizinhas.Any(v => DuracaoDaAula.Conflita(inicio, duracaoMinutos, v.DataHora, v.DuracaoMinutos));
+        }
+
+        // Quanto dura a aula naquele horário, segundo a GRADE do professor (a mesma regra que
+        // gerou o slot que o aluno escolheu). Sem regra que cubra o horário — professor que
+        // mudou a grade depois de publicar, ou pedido fora dela — vale a duração padrão.
+        private async Task<int> DuracaoDaGradeAsync(int professorId, int localId, DateTime quando)
+        {
+            var hora = quando.TimeOfDay;
+
+            var regra = await _context.HorariosDisponiveis
+                .Where(h => h.ProfessorId == professorId && h.LocalAulaId == localId && h.Ativo
+                         && h.DiaSemana == (int)quando.DayOfWeek
+                         && h.HoraInicio <= hora && h.HoraFim > hora)
+                .Select(h => (int?)h.DuracaoMinutos)
+                .FirstOrDefaultAsync();
+
+            return DuracaoDaAula.Valida(regra);
+        }
+
         private async Task<int?> ObterProfessorLogadoAsync()
         {
             var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
