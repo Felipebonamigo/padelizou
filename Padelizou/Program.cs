@@ -177,6 +177,9 @@ builder.Services.AddScoped<IPagamentoInscricaoService, PagamentoInscricaoService
 // que faz a rede de verdade e não pode ser chamado de dentro de uma requisição.
 // O que acontece quando um jogo acaba — as DUAS telas que finalizam partida chamam este.
 builder.Services.AddScoped<EncerramentoDaPartida>();
+// O "Apitouuuu!" de inscrição nova pra quem segue o torneio. Implementação única, chamada
+// das DUAS portas de inscrição (dupla e individual) — ver Services/AvisoDeInscricaoNoTorneio.
+builder.Services.AddScoped<AvisoDeInscricaoNoTorneio>();
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();

@@ -280,7 +280,8 @@ public static class TestInfra
             // Padelímetro de verdade (não dublê): finalizar partida nos testes deve mover
             // o nível igual à produção — é justamente o que os testes querem ver.
             new PadelimetroService(ctx),
-            NovoEncerramento(ctx, push));
+            NovoEncerramento(ctx, push),
+            new AvisoDeInscricaoNoTorneio(ctx, push));
 
         controller.ControllerContext = new ControllerContext
         {

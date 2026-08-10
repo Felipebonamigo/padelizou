@@ -61,6 +61,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<JogoAula> JogosAula { get; set; }
     public DbSet<InscricaoJogoAula> InscricoesJogoAula { get; set; }
     public DbSet<SeguidorJogador> SeguidoresJogador { get; set; }
+    public DbSet<SeguidorTorneio> SeguidoresTorneio { get; set; }
     public DbSet<QuadraClube> QuadrasClube { get; set; }
     public DbSet<HorarioMarcacaoDisponivel> HorariosMarcacaoDisponivel { get; set; }
     public DbSet<MarcacaoJogo> MarcacoesJogo { get; set; }
@@ -333,6 +334,26 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.SeguidoId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<SeguidorTorneio>(entity =>
+        {
+            // A chave composta é o que impede seguir duas vezes: clicar de novo não pode
+            // dobrar o aviso. Aqui isso pesa mais que no SeguidorJogador — um torneio grande
+            // dispara um aviso POR INSCRIÇÃO, e a linha repetida dobraria a rajada inteira.
+            entity.HasKey(e => new { e.TorneioId, e.JogadorId });
+
+            // Cascade nos dois: torneio apagado e conta apagada devem levar junto o pedido de
+            // ser avisado. São FKs pra tabelas DIFERENTES, então não existe aqui o conflito de
+            // múltiplos caminhos que obrigou o SeguidorJogador a usar Restrict num dos lados.
+            entity.HasOne(e => e.Torneio)
+                .WithMany()
+                .HasForeignKey(e => e.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Elogio>(entity =>
         {

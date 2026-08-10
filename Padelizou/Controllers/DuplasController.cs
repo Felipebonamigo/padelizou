@@ -17,11 +17,13 @@ namespace Padelizou.Controllers
         private readonly IPushNotificationService _pushService;
         private readonly IPagamentoInscricaoService _pagamentos;
         private readonly ValidacaoPeloRankingRs _rankingRs;
+        private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
         private readonly ILogger<DuplasController> _logger;
 
         public DuplasController(DbPadelContext context, IEstatisticasService estatisticas,
             IPushNotificationService pushService,
             IPagamentoInscricaoService pagamentos, ValidacaoPeloRankingRs rankingRs,
+            AvisoDeInscricaoNoTorneio avisoDeInscricao,
             ILogger<DuplasController> logger)
         {
             _context = context;
@@ -29,6 +31,7 @@ namespace Padelizou.Controllers
             _pushService = pushService;
             _pagamentos = pagamentos;
             _rankingRs = rankingRs;
+            _avisoDeInscricao = avisoDeInscricao;
             _logger = logger;
         }
 
@@ -470,6 +473,23 @@ namespace Padelizou.Controllers
 
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
             await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
+
+            // O "Apitouuuu!" pra quem SEGUE ESTE TORNEIO. Serviço único, chamado também da
+            // inscrição individual (TorneiosController.Inscricoes) — ⚠️ são as duas portas, e
+            // mexer só numa deixaria metade das inscrições passando calada.
+            //
+            // Lista de espera fica de fora: quem segue quer saber quem entrou na chave, e a
+            // lista de espera ainda não é vaga. Anunciar como inscrição faria o seguidor
+            // contar adversário que talvez nunca jogue.
+            if (!emListaDeEspera)
+            {
+                var nomes = jogador2 == null
+                    ? new[] { jogador1.Nome }
+                    : new[] { jogador1.Nome, jogador2.Nome };
+
+                await _avisoDeInscricao.NotificarAsync(torneioId, categoria.Nome, nomes, inscritos,
+                    Url.Action("Details", "Torneios", new { id = torneioId }));
+            }
 
             // ── "QUERO PAGAR AGORA" ──────────────────────────────────────────────────────────
             // A cobrança nasce AQUI, e não lá em cima: a inscrição já está gravada, então um

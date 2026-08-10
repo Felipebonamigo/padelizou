@@ -60,6 +60,7 @@ public class OrganizadorJuntaInscricoesTests
             // Ranking RS sem chave — ver AceitarConviteTests.
             new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
                 NullLogger<ValidacaoPeloRankingRs>.Instance),
+            new AvisoDeInscricaoNoTorneio(ctx, Substitute.For<IPushNotificationService>()),
             NullLogger<DuplasController>.Instance)
         {
             ControllerContext = new ControllerContext
