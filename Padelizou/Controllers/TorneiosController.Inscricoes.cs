@@ -180,6 +180,23 @@ namespace Padelizou.Controllers
 
                 await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador.Id });
 
+                // O "Apitouuuu!" pra quem SEGUE ESTE TORNEIO — a mesma chamada da inscrição em
+                // dupla (DuplasController), pelo mesmo serviço. ⚠️ São as duas portas: se um
+                // dia esta linha sumir, o americano inteiro para de apitar sem nenhum erro.
+                //
+                // Lista de espera fica de fora aqui também: ainda não é vaga na chave.
+                if (!emListaDeEspera)
+                {
+                    var categoriaDaInscricao = await _context.Categorias
+                        .Where(c => c.Id == categoriaId)
+                        .Select(c => c.Nome)
+                        .FirstOrDefaultAsync() ?? "";
+
+                    await _avisoDeInscricao.NotificarAsync(torneioId, categoriaDaInscricao,
+                        new[] { jogador.Nome }, new[] { jogador.Id },
+                        Url.Action("Details", "Torneios", new { id = torneioId }));
+                }
+
                 // Mesma escolha da inscrição em dupla: a cobrança só nasce se a pessoa disse
                 // que vai pagar agora, e só DEPOIS da inscrição estar gravada.
                 if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar) && !emListaDeEspera)

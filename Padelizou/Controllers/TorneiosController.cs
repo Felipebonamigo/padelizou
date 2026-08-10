@@ -26,6 +26,7 @@ namespace Padelizou.Controllers
         private readonly ILogger<TorneiosController> _logger;
         private readonly IPadelimetroService _padelimetro;
         private readonly EncerramentoDaPartida _encerramento;
+        private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
@@ -33,8 +34,9 @@ namespace Padelizou.Controllers
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
-            EncerramentoDaPartida encerramento)
+            EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao)
         {
+            _avisoDeInscricao = avisoDeInscricao;
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
@@ -636,6 +638,33 @@ namespace Padelizou.Controllers
                     .ToListAsync();
             }
 
+            // SEGUIR O TORNEIO: o botão só existe pra quem JÁ ESTÁ INSCRITO (pedido do Felipe,
+            // 10/08/2026). Quem se inscreveu é quem fica olhando a chave encher pra saber
+            // contra quem vai jogar; pra quem só passou na página, o mesmo aviso vira ruído —
+            // e cada seguidor a mais multiplica uma rajada que já é grande.
+            //
+            // ⚠️ Fica AQUI, no corpo do Details, e não dentro do CarregarViewBagJogosAsync:
+            // aquele só roda quando as inscrições já fecharam, e o botão sumiria justamente
+            // durante as inscrições — que é quando ele serve. (Foi onde nasceu, e o teste
+            // O_botao_de_seguir_aparece_pra_quem_esta_inscrito_por_qualquer_porta pegou.)
+            //
+            // Vale as DUAS portas de inscrição: dupla (Dupla.Jogador1/Jogador2) e
+            // individual/americano (InscricaoAmericana). Olhar só uma esconderia o botão de
+            // metade das pessoas, e justamente sem erro nenhum na tela.
+            if (ObterJogadorIdLogado() is int quemOlha)
+            {
+                var inscritoEmDupla = await _context.Duplas
+                    .AnyAsync(d => d.Categoria!.TorneioId == id
+                                && (d.Jogador1Id == quemOlha || d.Jogador2Id == quemOlha));
+
+                var inscritoNoAmericano = await _context.InscricoesAmericanas
+                    .AnyAsync(i => i.Categoria!.TorneioId == id && i.JogadorId == quemOlha);
+
+                ViewBag.EstouInscritoNesteTorneio = inscritoEmDupla || inscritoNoAmericano;
+                ViewBag.SigoEsteTorneio = await _context.SeguidoresTorneio
+                    .AnyAsync(s => s.TorneioId == id && s.JogadorId == quemOlha);
+            }
+
             return View(torneio);
         }
         public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false)
@@ -945,6 +974,7 @@ namespace Padelizou.Controllers
                 : null;
             ViewBag.MeuId = meuId;
             ViewBag.Palpites = await _palpites.ObterResumosAsync(partidas.Select(p => p.Id), meuId);
+
 
             // O NÚMERO de cada jogo dentro da fase dele ("Quartas de Final 2"). Os jogos que
             // ainda vão acontecer se descrevem citando esse número ("Vencedor Quartas de

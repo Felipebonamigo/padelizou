@@ -28,6 +28,7 @@ public class AceitarConviteTests
             // devolve null antes de tentar qualquer consulta. Estes testes são de outra regra.
             new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
                 NullLogger<ValidacaoPeloRankingRs>.Instance),
+            new AvisoDeInscricaoNoTorneio(ctx, Substitute.For<IPushNotificationService>()),
             NullLogger<DuplasController>.Instance);
 
         controller.ControllerContext = new ControllerContext
