@@ -19,4 +19,18 @@ public class SuporteSettings
     public string WhatsAppFormatado => WhatsAppLinkHelper.Formatar(WhatsApp);
 
     public string Email { get; set; } = "Padelizou@gmail.com";
+
+    // ---- Quem responde pelos dados (LGPD) ----
+    // A política de privacidade (Views/Home/Privacy.cshtml) precisa dizer QUEM é o controlador
+    // dos dados e como falar com ele — é o artigo 9º da LGPD, e é o que transforma a página
+    // de texto decorativo em compromisso de alguém.
+    //
+    // Fica em configuração pelo mesmo motivo da chave Pix: se a empresa mudar de nome ou de
+    // CNPJ, quem corrige é o Felipe pelo systemd, sem esperar deploy — e enquanto estiver
+    // errado, está errado numa página pública.
+    //
+    // Vazio = a política mostra só o nome de quem opera, sem número de documento. Ela não
+    // quebra e não inventa: o que não está preenchido simplesmente não aparece.
+    public string RazaoSocial { get; set; } = "";
+    public string Cnpj { get; set; } = "";
 }

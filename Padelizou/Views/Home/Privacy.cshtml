@@ -1,6 +1,242 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
-}
-<h1>@ViewData["Title"]</h1>
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
+@{
+    ViewData["Title"] = "Política de Privacidade";
 
-<p>Use this page to detail your site's privacy policy.</p>
+    var suporte = SuporteOpcoes.Value;
+    var linkWhats = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+        suporte.WhatsApp, "Olá! Tenho uma dúvida sobre privacidade / meus dados no Padelizou.");
+
+    // Vazio = não aparece. A política nunca inventa quem responde por ela: ou o dado está
+    // configurado, ou a frase sai sem ele (ver SuporteSettings).
+    //
+    // Montada aqui, e não no meio do HTML, porque intercalar `if` com texto deixava um espaço
+    // solto antes da vírgula — "Fulano (MEI) , inscrita no CNPJ" — que numa página jurídica
+    // parece descuido justamente onde a pessoa está avaliando se pode confiar.
+    var razaoSocial = suporte.RazaoSocial?.Trim();
+    var cnpj = suporte.Cnpj?.Trim();
+
+    var quemOpera = string.IsNullOrWhiteSpace(razaoSocial)
+        ? "Felipe Bonamigo"
+        : string.IsNullOrWhiteSpace(cnpj)
+            ? razaoSocial
+            : $"{razaoSocial}, inscrita no CNPJ sob o nº {cnpj}";
+}
+
+@* Esta página é um COMPROMISSO, não enfeite: até 10/08/2026 ela era o texto de exemplo do
+   ASP.NET ("Use this page to detail your site's privacy policy") e já estava linkada no rodapé
+   em produção, com CPF, e-mail, telefone e endereço de gente real no banco.
+
+   Regra pra quem for editar: só entra aqui o que o sistema REALMENTE faz. Cada terceiro citado
+   na tabela existe no código (Services/AsaasService, ConsultaDeCep, RankingRsService,
+   GoogleCalendarService, o envio por WhatsApp e o push). Prometer menos do que se faz é
+   mentira; prometer mais também. *@
+
+<div class="container py-4" style="max-width: 820px;">
+
+    <h1 class="h3 fw-bold mb-1">Política de Privacidade</h1>
+    <p class="text-muted small mb-4">Em vigor desde 10 de agosto de 2026.</p>
+
+    <div class="alert alert-light border">
+        <strong>O resumo, em três linhas.</strong>
+        <ul class="mb-0 mt-2 small">
+            <li>Usamos seus dados para você jogar: inscrição em torneio, aula, ranking e os avisos do seu jogo.</li>
+            <li><strong>Não vendemos seus dados</strong> e não mandamos propaganda de terceiros.</li>
+            <li>Parte do seu perfil é <strong>pública</strong> — é o que faz alguém te achar pra jogar. Você controla o quanto.</li>
+        </ul>
+    </div>
+
+    <h2 class="h5 fw-bold mt-4">1. Quem é responsável pelos seus dados</h2>
+    <p>
+        O Padelizou (<a href="https://padelizou.com.br">padelizou.com.br</a>) é operado por
+        <strong>@quemOpera</strong>, que é o <strong>controlador</strong> dos dados pessoais
+        tratados aqui, nos termos da Lei nº 13.709/2018 (LGPD).
+    </p>
+    <p>
+        Para qualquer assunto sobre seus dados — incluindo pedir cópia, correção ou exclusão —
+        fale com a gente:
+    </p>
+    <ul>
+        <li>WhatsApp: <a href="@linkWhats" target="_blank" rel="noopener">@suporte.WhatsAppFormatado</a></li>
+        <li>E-mail: <a href="mailto:@suporte.Email">@suporte.Email</a></li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">2. Que dados a gente guarda</h2>
+
+    <p class="mb-1"><strong>Que você informa ao criar a conta e usar o app:</strong></p>
+    <ul>
+        <li>Nome, apelido, <strong>CPF</strong>, e-mail, login e senha (guardada apenas <em>cifrada</em>, nunca em texto);</li>
+        <li>Celular, cidade e estado;</li>
+        <li><strong>Opcionais:</strong> CEP, rua e bairro, foto de perfil, Instagram, sexo, lado da quadra e lateralidade.</li>
+    </ul>
+
+    <p class="mb-1"><strong>Que nasce do uso:</strong></p>
+    <ul>
+        <li>Inscrições em torneios, duplas, partidas, placares, ranking e Padelímetro;</li>
+        <li>Aulas marcadas, jogos de panelinha, quadras reservadas e presenças confirmadas;</li>
+        <li>Comentários, elogios, avaliações de professor e quem você segue;</li>
+        <li>Pagamentos feitos pelo site (valor, situação e data — <strong>dados de cartão nunca passam por nós</strong>, ver item 5).</li>
+    </ul>
+
+    <p class="mb-1"><strong>Técnicos:</strong></p>
+    <ul>
+        <li>Cookies necessários para manter você conectado e proteger formulários (item 7);</li>
+        <li>Registro de erros do sistema e dados de acesso do servidor, como <strong>endereço IP</strong> e navegador,
+            usados para segurança, limite de tentativas e diagnóstico de falha;</li>
+        <li>Se você instalou o app no celular e, caso autorize, o endereço da sua inscrição de notificação.</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">3. Por que usamos cada coisa</h2>
+    <ul>
+        <li><strong>Executar o que você pediu</strong> (art. 7º, V da LGPD): criar sua conta, inscrever você num torneio,
+            marcar sua aula, montar as chaves, calcular o ranking e avisar do seu jogo.</li>
+        <li><strong>Cumprir obrigação legal</strong> (art. 7º, II): guardar registro das receitas, como exige a legislação fiscal.</li>
+        <li><strong>Interesse legítimo</strong> (art. 7º, IX): segurança do sistema, prevenção de abuso e melhoria do produto.</li>
+        <li><strong>Consentimento</strong> (art. 7º, I): avisos por WhatsApp, notificações no celular e a publicação
+            opcional da sua rua e bairro — cada um ligado por você, e desligável a qualquer momento.</li>
+    </ul>
+    <p class="small text-muted">
+        O CPF é obrigatório porque é ele que garante que você é você quando alguém te inscreve numa dupla —
+        e é o que o meio de pagamento exige para emitir uma cobrança em seu nome.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">4. O que é público no Padelizou</h2>
+    <p>
+        O Padelizou é uma rede de jogadores: parte do seu perfil aparece para outras pessoas, porque é
+        assim que alguém acha um parceiro de jogo. <strong>Ficam públicos:</strong> seu nome, apelido, foto,
+        cidade e estado, categorias, resultados de torneio, ranking, Padelímetro, elogios e comentários que
+        você recebeu, e quem você segue.
+    </p>
+    <p class="mb-1">O que você controla, no seu perfil:</p>
+    <ul>
+        <li><strong>Perfil privado</strong> — visitantes passam a ver só sua foto e seu nome;</li>
+        <li><strong>Rua e bairro</strong> — nascem escondidos e só aparecem se você ligar;</li>
+        <li><strong>Comentários na sua página de professor</strong> — você decide se aceita.</li>
+    </ul>
+    <p class="small text-muted mb-0">
+        <strong>Nunca são públicos:</strong> CPF, CEP, e-mail, celular e senha.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">5. Com quem compartilhamos</h2>
+    <p>Só o necessário, e só com quem faz parte do serviço funcionar:</p>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Quem</th><th>Para quê</th><th>O que recebe</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Meio de pagamento</strong></td>
+                    <td>Gerar e receber Pix, boleto e cartão</td>
+                    <td>Nome, CPF, e-mail, telefone e o valor da cobrança. <strong>Os dados do cartão são digitados direto no ambiente dele</strong> — o Padelizou não vê nem guarda número de cartão.</td>
+                </tr>
+                <tr>
+                    <td><strong>ViaCEP</strong></td>
+                    <td>Preencher cidade e endereço a partir do CEP</td>
+                    <td>Apenas o CEP digitado. Nenhum dado seu vai junto.</td>
+                </tr>
+                <tr>
+                    <td><strong>Mundo do Atleta (Ranking RS)</strong></td>
+                    <td>Conferir sua categoria no ranking estadual, quando o torneio exige</td>
+                    <td>Seu nome e a categoria consultada.</td>
+                </tr>
+                <tr>
+                    <td><strong>Google</strong></td>
+                    <td>Enviar os e-mails do sistema e, para professores que conectam, criar a aula na Google Agenda</td>
+                    <td>E-mail e conteúdo da mensagem; no caso da agenda, os dados da aula. <strong>Só o professor que conecta a própria conta.</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>WhatsApp (Meta)</strong></td>
+                    <td>Avisos urgentes, se você marcar essa opção</td>
+                    <td>Seu número e o texto do aviso. Nasce <strong>desmarcado</strong> no cadastro.</td>
+                </tr>
+                <tr>
+                    <td><strong>Apple e Google</strong></td>
+                    <td>Entregar a notificação no celular, se você autorizar</td>
+                    <td>O endereço de entrega gerado pelo seu navegador e o conteúdo do aviso.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="small text-muted">
+        Alguns desses serviços ficam fora do Brasil (é o caso da entrega de notificações pela Apple e pelo
+        Google), o que envolve transferência internacional dos dados estritamente necessários para o aviso chegar.
+        Fora isso: <strong>não vendemos, não alugamos e não cedemos seus dados para publicidade de ninguém.</strong>
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">6. Avisos: como ligar e desligar</h2>
+    <p>
+        Em <strong>Meu Perfil → Preferências</strong> você escolhe os canais (e-mail, WhatsApp, notificação no
+        celular) e também <em>quais</em> assuntos quer receber. Desligar um canal vale a partir da hora em que
+        você desliga; avisos que já saíram não voltam atrás. Mensagens que existem para operar o serviço —
+        recuperação de senha, por exemplo — continuam sendo enviadas.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">7. Cookies</h2>
+    <p>
+        Usamos apenas cookies <strong>necessários</strong>: o que mantém você conectado depois do login e o que
+        protege os formulários contra envio forjado. <strong>Não usamos cookie de publicidade nem de rastreamento
+        de terceiros</strong> — por isso o site não te enche com aquela caixa de consentimento. Apagar os cookies
+        do navegador desconecta você, e nada mais.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">8. Por quanto tempo guardamos</h2>
+    <ul>
+        <li><strong>Enquanto sua conta existir:</strong> cadastro e preferências.</li>
+        <li><strong>Enquanto o histórico esportivo fizer sentido:</strong> resultados, ranking e partidas — eles são
+            o histórico de um torneio inteiro, não só o seu.</li>
+        <li><strong>Registros de pagamento:</strong> pelo prazo que a legislação fiscal exige.</li>
+        <li><strong>Registros técnicos e de erro:</strong> por período curto, o suficiente para investigar problemas.</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">9. Seus direitos</h2>
+    <p>A LGPD te dá o direito de, a qualquer momento:</p>
+    <ul>
+        <li>saber que dados temos sobre você e pedir uma cópia;</li>
+        <li>corrigir o que estiver errado ou incompleto (boa parte você já muda sozinho em <strong>Meu Perfil</strong>);</li>
+        <li>pedir a exclusão da sua conta (item 10);</li>
+        <li>retirar consentimento dos avisos (item 6);</li>
+        <li>saber com quem compartilhamos seus dados (item 5) e reclamar à ANPD.</li>
+    </ul>
+    <p>
+        Para exercer qualquer um deles, escreva pelo
+        <a href="@linkWhats" target="_blank" rel="noopener">WhatsApp</a> ou por
+        <a href="mailto:@suporte.Email">@suporte.Email</a>. Respondemos em até 15 dias.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">10. Excluir sua conta — e o que acontece de verdade</h2>
+    <p>
+        Quando você pede a exclusão, <strong>seus dados pessoais são apagados</strong>: nome, CPF, e-mail,
+        telefone, endereço, foto e senha. Você deixa de ser identificável e de aparecer em busca, ranking
+        ou lista de jogadores.
+    </p>
+    <p class="mb-1">Duas coisas <strong>não</strong> desaparecem, e é justo você saber por quê:</p>
+    <ul>
+        <li><strong>Os jogos que você jogou.</strong> O resultado de uma partida é dado de quatro pessoas, e o
+            histórico de um torneio não pode ser reescrito porque um dos participantes saiu. Os placares
+            continuam, sem te identificar.</li>
+        <li><strong>Registros de pagamento.</strong> A legislação fiscal obriga a guardar o comprovante de receita.</li>
+    </ul>
+
+    <h2 class="h5 fw-bold mt-4">11. Segurança</h2>
+    <p>
+        Todo o acesso ao site é por conexão cifrada (HTTPS). Senhas são guardadas com algoritmo de hash —
+        nem nós conseguimos lê-las. O acesso administrativo é restrito e fica em endereço separado, e o
+        banco de dados tem cópia de segurança diária, guardada cifrada. Se algum dia acontecer um incidente
+        que possa te trazer risco, avisamos você e a ANPD, como manda a lei.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">12. Crianças e adolescentes</h2>
+    <p>
+        O Padelizou não é direcionado a crianças. Se um responsável identificar cadastro feito por menor
+        sob sua responsabilidade e quiser removê-lo, é só pedir pelos canais do item 1 — a gente resolve
+        sem burocracia.
+    </p>
+
+    <h2 class="h5 fw-bold mt-4">13. Mudanças nesta política</h2>
+    <p class="mb-4">
+        Se algo mudar de forma relevante — um dado novo, um serviço novo na tabela do item 5 — atualizamos
+        esta página e a data no topo. Mudança que dependa do seu consentimento vai ser pedida a você, e não
+        presumida.
+    </p>
+
+</div>

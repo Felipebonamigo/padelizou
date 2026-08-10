@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 📲 **O CONVITE PRA INSTALAR O APP DEIXAVA DE EXISTIR NO PRIMEIRO "ENTENDI" — E, PRA QUEM CHEGA PELO WHATSAPP, ENSINAVA UM CAMINHO QUE NÃO EXISTE.**
+> Última atualização: **10/08/2026** — 🔏 **A POLÍTICA DE PRIVACIDADE DEIXOU DE SER O TEXTO DE EXEMPLO DO ASP.NET.**
+>
+> 🔏 **"Use this page to detail your site's privacy policy"** era o que estava no ar, **linkado no rodapé de todas as páginas**, com CPF, e-mail, telefone e endereço de 154 pessoas no banco. Ninguém tinha percebido porque **nada quebra**: a página abre, o link funciona, e o defeito é o conteúdo. Agora são 13 seções escritas a partir do que o código **realmente faz** — os dados que o `Jogador` guarda, o que é público (nome, cidade, ranking, resultados) contra o que nunca é (CPF, CEP, e-mail, celular, senha), a base legal de cada uso, e a **tabela dos seis terceiros que recebem dado**: meio de pagamento, ViaCEP, Mundo do Atleta, Google (e-mail + Agenda do professor), WhatsApp e a entrega de push por Apple/Google.
+>
+> ⚠️ **A seção que mais me importou é a da EXCLUSÃO**, porque é onde política costuma mentir: a nossa diz que o cadastro é apagado **e** que duas coisas ficam — os placares (resultado de partida é dado de quatro pessoas, e o `Dupla.Jogador1Id` é `NO ACTION`: o banco RECUSA apagar quem jogou) e o registro de pagamento (obrigação fiscal do MEI). É exatamente o que o código faz desde que `ExcluidoEm` existe.
+>
+> ⚠️ **Quem responde pelos dados sai de CONFIGURAÇÃO** (`Suporte:RazaoSocial` / `Suporte:Cnpj`), mesmo raciocínio da chave Pix: mudou o CNPJ, quem corrige é o Felipe pelo systemd, sem esperar deploy — e enquanto estiver errado, está errado numa página pública. **Vazio não quebra e não inventa**: a frase sai sem o número.
+>
+> 🧪 **9 testes novos** (`PoliticaDePrivacidadeTests`), suíte em **3.182, 0 falhas**. Um deles é `[Theory]` com **um caso por terceiro**: plugou serviço externo novo e não declarou na política, o teste fica vermelho — é a única forma de a página não envelhecer sozinha. Outro guarda a regra velha da casa: **a política NÃO cita o gateway pelo nome** ("meio de pagamento"). ⚠️ E os dois primeiros testes **falharam de saída pelos meus próprios comentários Razor**, que citam o texto antigo e o `AsaasService` pra explicar por que os testes existem — corrigido cortando comentário Razor antes de comparar, do mesmo jeito que o `AvisoNoCelularTests` já fazia: o que vale é o que chega ao navegador.
+>
+> Antes, no mesmo dia — 📲 **O CONVITE PRA INSTALAR O APP DEIXAVA DE EXISTIR NO PRIMEIRO "ENTENDI" — E, PRA QUEM CHEGA PELO WHATSAPP, ENSINAVA UM CAMINHO QUE NÃO EXISTE.**
 >
 > 🎓 **A TELA DE PROFESSORES NO PAINEL** (`/Admin/Professores`, pedido do Felipe; **não publicado**). Faltava a visão de quem vende: o `/Admin/Financeiro` soma o caixa inteiro sem separar por frente, e a tela do plano mostra o plano de **um** professor — o dele. Agora tem cadastrados, ativos, quem já pagou, receita total e do mês, a **situação de cada um** e o **quanto entrou por mês** (professores distintos × cobranças × valor).
 >
