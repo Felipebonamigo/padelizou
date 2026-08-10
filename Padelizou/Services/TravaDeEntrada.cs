@@ -40,9 +40,20 @@ namespace Padelizou.Services
         // ViaCEP, e pra isso 60 já é apertado o bastante.
         public const string PoliticaConsulta = "consulta-por-ip";
 
+        // Consulta que EXIGE login (hoje: achar jogador pelo CPF na inscrição). A janela é
+        // POR CONTA, e é esse o ponto: por IP, o Wi-Fi do clube em dia de torneio põe 30
+        // pessoas atrás do mesmo endereço, cada uma consultando o CPF do parceiro — a trava
+        // prenderia gente legítima exatamente na hora errada, que é o erro que o resto deste
+        // arquivo já evita no login. E quem quisesse varrer a base precisaria de uma conta:
+        // a janela segue a conta pra onde ela for, inclusive trocando de IP.
+        public const string PoliticaConsultaLogada = "consulta-por-conta";
+
         public const int TentativasPorJanela = 10;
         public const int TentativasDeCadastro = 20;
         public const int ConsultasPorJanela = 60;
+        // Inscrever uma dupla gasta duas consultas, mais as correções e a troca de categoria.
+        // 60 sobra pra quem inscreve e ainda assim tira "ilimitado" de quem raspa.
+        public const int ConsultasLogadasPorJanela = 60;
         public static readonly TimeSpan Janela = TimeSpan.FromMinutes(5);
 
         private sealed class Contagem

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
 using Padelizou.Models;
@@ -630,8 +631,24 @@ namespace Padelizou.Controllers
         // Preenche sozinho os dados do jogador na tela de inscrição quando o CPF digitado já
         // existe. Exige CPF completo de propósito: com busca parcial daria pra varrer a base
         // e colher nome/celular/cidade de terceiros.
-        [HttpGet]
+        //
+        // ⚠️ TRÊS MUDANÇAS DE 10/08/2026, todas da mesma varredura de conformidade — porque
+        // "exigir o CPF inteiro" não é a defesa que parecia:
+        //
+        //  1. POST, não GET. Com CPF na query string, o documento ia parar no log de acesso do
+        //     Caddy, no histórico do navegador e no `Referer` de qualquer link clicado depois.
+        //     O corpo do POST não vai pra nenhum dos três.
+        //  2. Com trava por IP. CPF válido se GERA — o dígito verificador é uma conta, não um
+        //     segredo. Sem limite, uma sessão logada varria a base inteira colhendo nome e
+        //     telefone; com 60 por janela, varrer deixa de ser viável.
+        //  3. CONTATO SÓ DO PRÓPRIO DONO. Nome e apelido são públicos (estão no ranking e na
+        //     chave); celular e cidade não são. Quem digita o próprio CPF ("Sou eu") continua
+        //     recebendo tudo pra preencher o formulário; pro CPF de terceiro vai só um "já
+        //     está no cadastro dele", e quem completa é o servidor, na gravação. É a mesma
+        //     regra que a busca por NOME já seguia (ver Services/BuscaJogador) — faltava aqui.
+        [HttpPost]
         [Authorize]
+        [EnableRateLimiting(TravaDeEntrada.PoliticaConsultaLogada)]
         public async Task<IActionResult> BuscarJogadorPorCpf(string cpf, int? categoriaId = null)
         {
             cpf = Documentos.SomenteDigitos(cpf);
@@ -651,6 +668,9 @@ namespace Padelizou.Controllers
                 .FirstOrDefaultAsync();
 
             if (jogador == null) return Json(new { encontrado = false });
+
+            // O CPF digitado é o de quem está logado? Só nesse caso o contato volta pra tela.
+            bool souEu = jogador.Id == ObterJogadorIdLogado();
 
             // A categoria mais FORTE que a pessoa marcou no próprio cadastro (Preferências).
             // Serve pro aviso da inscrição: quem se diz 4ª e entra na 5ª ouve a pergunta antes
@@ -682,9 +702,16 @@ namespace Padelizou.Controllers
                 nome = jogador.Nome,
                 // A tela mostra "achamos: Fulano" — o apelido confirma que é quem se pensa.
                 apelido = jogador.Apelido ?? "",
-                celular = jogador.Celular ?? "",
-                cidade = jogador.Cidade ?? "",
-                estado = jogador.Estado ?? "",
+                // Contato de TERCEIRO não sai daqui (ver o aviso no topo da ação). O que a
+                // tela precisa saber é só se o campo já está preenchido no cadastro dele:
+                // com `tem*` ela tranca o campo e tira o `required`; sem, deixa digitar,
+                // porque cadastro antigo pode não ter celular e a inscrição não pode empacar.
+                celular = souEu ? jogador.Celular ?? "" : "",
+                cidade = souEu ? jogador.Cidade ?? "" : "",
+                estado = souEu ? jogador.Estado ?? "" : "",
+                temCelular = !string.IsNullOrWhiteSpace(jogador.Celular),
+                temCidade = !string.IsNullOrWhiteSpace(jogador.Cidade),
+                temEstado = !string.IsNullOrWhiteSpace(jogador.Estado),
                 categoriaDeclarada = maisForte ?? "",
                 forcaDeclarada = EstatisticasService.OrdemCategoria(maisForte),
                 jaInscritoSozinho = solo != null,

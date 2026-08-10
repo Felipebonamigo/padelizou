@@ -63,6 +63,36 @@ public class PoliticaDePrivacidadeTests
         Assert.Contains("mailto:", pagina);
     }
 
+    // ⚠️ A política dizia "nunca são públicos: CPF, CEP, e-mail, CELULAR e senha" enquanto o
+    // perfil publicava o `wa.me/55…` pra visitante DESLOGADO, numa página linkada do ranking
+    // e com `Allow: /` no robots.txt. A promessa era boa; o código é que não a cumpria (agora
+    // cumpre — ver Services/ContatoDoJogador). Este teste guarda os dois lados da frase: nem
+    // prometer o que não se faz, nem esconder que o contato aparece pra jogador logado.
+    [Fact]
+    public void Descreve_direito_quem_enxerga_o_contato_do_jogador()
+    {
+        var pagina = Pagina();
+
+        Assert.Contains("só para quem está com a conta aberta", pagina);
+        Assert.Contains("deslogado", pagina, StringComparison.OrdinalIgnoreCase);
+
+        Assert.False(pagina.Contains("CPF, CEP, e-mail, celular e senha", StringComparison.OrdinalIgnoreCase),
+            "A política voltou a prometer que o celular nunca aparece. Ele aparece pra quem "
+            + "está logado, se o dono deixar — dizer o contrário é a promessa vazia que estes "
+            + "testes existem pra evitar.");
+    }
+
+    // Nome, CPF, celular e cidade de quem NUNCA entrou aqui entram na base pela inscrição de
+    // dupla (o parceiro é informado por CPF). Um tratamento inteiro que a política não citava.
+    [Fact]
+    public void Conta_que_tem_gente_cadastrada_por_terceiro()
+    {
+        var pagina = Pagina();
+
+        Assert.Contains("pré-cadastro", pagina, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ainda não tem conta", pagina, StringComparison.OrdinalIgnoreCase);
+    }
+
     // O rodapé é o único caminho até ela em todo o site.
     [Fact]
     public void Continua_alcancavel_pelo_rodape()

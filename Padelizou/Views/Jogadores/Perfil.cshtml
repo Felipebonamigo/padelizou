@@ -141,7 +141,23 @@
             }
 
             @* É ISTO que o "perfil privado" esconde: os dois botões de contato. O dono
-               continua vendo os próprios — a chave é sobre quem VISITA. *@
+               continua vendo os próprios — a chave é sobre quem VISITA.
+
+               Desde 10/08/2026 quem está DESLOGADO também não vê, sempre: esta página é
+               pública, é linkada do ranking e o buscador a rastreia (ver
+               Services/ContatoDoJogador). O convite pra entrar fica no lugar do botão —
+               "sumiu sem explicação" faria a pessoa achar que o jogador não tem WhatsApp. *@
+            @if (contatoEscondido && meuId == null
+                 && (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular)))
+            {
+                <div class="small text-muted">
+                    <i class="bi bi-lock-fill"></i>
+                    <a asp-controller="Auth" asp-action="Login"
+                       asp-route-returnUrl="@Url.Action("Perfil", "Jogadores", new { id = Model.jogador.Id })"
+                       class="text-decoration-none fw-semibold">Entre na sua conta</a>
+                    para falar com @Padelizou.Services.NomeBonito.Curto(Model.jogador.Nome).
+                </div>
+            }
             @if (!contatoEscondido
                  && (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular)))
             {

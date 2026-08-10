@@ -11,6 +11,7 @@ using Padelizou.Models; // Garanta que o nome da pasta Models está certo
 using Padelizou.Services;
 using padelizou.Models;
 using System.Globalization;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 // No Windows o processo herda a cultura pt-BR do SO, mas no Linux (produção) não há esse
@@ -134,6 +135,18 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = TravaDeEntrada.ConsultasPorJanela,
+                Window = TravaDeEntrada.Janela,
+                QueueLimit = 0,
+            }));
+
+    // Aqui a partição é a CONTA, não o IP — ver o porquê em Services/TravaDeEntrada. O
+    // caminho continua junto pelo mesmo motivo das outras: uma janela por ação.
+    options.AddPolicy(TravaDeEntrada.PoliticaConsultaLogada, http =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? http.Connection.RemoteIpAddress?.ToString() ?? "sem-ip"}|{http.Request.Path}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = TravaDeEntrada.ConsultasLogadasPorJanela,
                 Window = TravaDeEntrada.Janela,
                 QueueLimit = 0,
             }));

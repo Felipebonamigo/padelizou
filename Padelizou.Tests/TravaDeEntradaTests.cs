@@ -11,6 +11,10 @@ namespace Padelizou.Tests;
 // - Login: janela POR CONTA, contando só falhas — o Wi-Fi lotado do clube no dia de
 //   torneio não pode trancar gente legítima, e ataque distribuído não pode escapar.
 // - Portão/recuperação/cadastro: janela POR IP, no rate limiter do ASP.NET.
+//
+// Desde 10/08/2026 o rate limiter também protege uma ação que NÃO é porta de entrada: a
+// consulta de CPF da inscrição, que diz quem é o dono de um documento. Como ela exige login,
+// a janela dela é por CONTA — e o mesmo raciocínio do Wi-Fi do clube vale ali.
 public class TravaDeEntradaTests
 {
     // ---------- A regra pura ----------
@@ -150,10 +154,13 @@ public class TravaDeEntradaTests
         Assert.Equal("Login ou senha incorretos.", recusa.ViewData["Erro"]);
     }
 
-    // ---------- O vigia da política por IP ----------
+    // ---------- O vigia das políticas do rate limiter ----------
 
-    // Quem carrega a janela por IP, e por quê. Mudar esta lista é decisão de segurança.
-    private static readonly Dictionary<string, string> AcoesComJanelaPorIp = new()
+    // Quem carrega janela do rate limiter, e por quê. Mudar esta lista é decisão de segurança.
+    //
+    // Quase todas são por IP: são ações ANÔNIMAS, e antes de alguém entrar não há conta pra
+    // particionar. A exceção é a consulta de CPF, que exige login — ver o porquê logo abaixo.
+    private static readonly Dictionary<string, string> AcoesComJanela = new()
     {
         ["AcessoAntecipadoController.Entrar"] =
             "O portão tem UMA senha compartilhada — sem trava seria o alvo mais barato do site.",
@@ -168,6 +175,11 @@ public class TravaDeEntradaTests
             "Consulta anônima que sai pra internet (ViaCEP); sem trava, o site vira " +
             "ferramenta de varredura do serviço dos outros. Janela LARGA (PoliticaConsulta): " +
             "não é porta de entrada, é leitura em cache pra preencher formulário.",
+        ["TorneiosController.BuscarJogadorPorCpf"] =
+            "Diz quem é o dono de um CPF. 'Exigir o CPF inteiro' não é defesa: CPF válido se " +
+            "GERA, e sem trava uma sessão logada varria a base. Janela por CONTA " +
+            "(PoliticaConsultaLogada), não por IP: em dia de torneio o clube inteiro consulta " +
+            "o CPF do parceiro pelo mesmo Wi-Fi, e por IP a trava prenderia gente legítima.",
     };
 
     private static List<(string Nome, EnableRateLimitingAttribute Attr)> AcoesComRateLimiting()
@@ -183,16 +195,16 @@ public class TravaDeEntradaTests
     }
 
     [Fact]
-    public void As_acoes_com_janela_por_ip_sao_exatamente_as_previstas()
+    public void As_acoes_com_janela_sao_exatamente_as_previstas()
     {
         var deVerdade = AcoesComRateLimiting().Select(x => x.Nome).Distinct().OrderBy(n => n).ToList();
-        var previstas = AcoesComJanelaPorIp.Keys.OrderBy(n => n).ToList();
+        var previstas = AcoesComJanela.Keys.OrderBy(n => n).ToList();
 
         Assert.Equal(previstas, deVerdade);
     }
 
     [Fact]
-    public void Toda_janela_por_ip_usa_uma_politica_registrada_no_Program()
+    public void Toda_janela_usa_uma_politica_registrada_no_Program()
     {
         // Nome de política que não existe no Program.cs não protege: o middleware lança
         // exceção na primeira requisição — mas só em quem RODA o app, não no build.
@@ -201,9 +213,23 @@ public class TravaDeEntradaTests
             TravaDeEntrada.PoliticaPorIp,
             TravaDeEntrada.PoliticaCadastro,
             TravaDeEntrada.PoliticaConsulta,
+            TravaDeEntrada.PoliticaConsultaLogada,
         };
 
         Assert.All(AcoesComRateLimiting(), x => Assert.Contains(x.Attr.PolicyName, registradas));
+    }
+
+    [Fact]
+    public void A_consulta_de_CPF_e_a_unica_com_janela_por_CONTA()
+    {
+        // As outras são anônimas: antes de a pessoa entrar não há conta pra particionar, e
+        // usar a política por conta ali cairia todo mundo no mesmo balde "sem-ip".
+        var porConta = AcoesComRateLimiting()
+            .Where(x => x.Attr.PolicyName == TravaDeEntrada.PoliticaConsultaLogada)
+            .Select(x => x.Nome)
+            .ToList();
+
+        Assert.Equal(new[] { "TorneiosController.BuscarJogadorPorCpf" }, porConta);
     }
 
     [Fact]
