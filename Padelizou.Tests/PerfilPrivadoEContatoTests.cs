@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Padelizou.Models;
+using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
@@ -98,5 +99,54 @@ public class PerfilPrivadoEContatoTests
 
         Assert.True(controller.ViewBag.ContatoEscondido);
         Assert.NotNull(controller.ViewBag.Pontos);
+    }
+
+    // ===================== A MESMA RÉGUA FORA DO PERFIL =====================
+    // Desde 10/08/2026 o aviso de jogo (Views/Avisos/Index) tem o botão "Chamar no WhatsApp":
+    // quem publica um aviso está pedindo que alguém o chame, e a tela mostrava o dono do
+    // horário sem dar jeito nenhum de falar com ele.
+    //
+    // O botão usa o MESMO ContatoDoJogador que o perfil. Estes testes existem pra que a
+    // segunda tela a mostrar telefone não nasça mais frouxa que a primeira.
+
+    [Fact]
+    public void Perfil_privado_tambem_nao_pode_ser_chamado_no_whatsapp()
+    {
+        var marina = new Jogador { Id = 2, Nome = "Marina Reservada", PerfilPrivado = true, Celular = "51999990000" };
+
+        Assert.False(ContatoDoJogador.PodeChamarNoWhatsApp(marina, quemOlhaId: 1));
+    }
+
+    [Fact]
+    public void Quem_deixou_o_perfil_aberto_pode_ser_chamado()
+    {
+        var gilberto = new Jogador { Id = 5, Nome = "Gilberto Gatti", Celular = "(51) 99239-5650" };
+
+        Assert.True(ContatoDoJogador.PodeChamarNoWhatsApp(gilberto, quemOlhaId: 1));
+    }
+
+    [Fact]
+    public void Sem_celular_cadastrado_nao_ha_botao()
+    {
+        // Celular é campo opcional no cadastro, e um `wa.me/55` sem número atrás abre o
+        // WhatsApp num contato que não existe.
+        var semNumero = new Jogador { Id = 6, Nome = "Sem Numero", Celular = "  " };
+
+        Assert.False(ContatoDoJogador.PodeChamarNoWhatsApp(semNumero, quemOlhaId: 1));
+    }
+
+    [Fact]
+    public void Conta_excluida_nao_pode_ser_chamada_nem_com_numero_gravado()
+    {
+        // A exclusão apaga o celular e liga o `PerfilPrivado` (ver ExclusaoDeConta) — o número
+        // aqui é de propósito: finge um registro em que ela não terminou o serviço. Quem decide
+        // é `ExcluidoEm`, não o resto ter dado certo.
+        var saiu = new Jogador
+        {
+            Id = 7, Nome = "Jogador removido", Celular = "51999990000",
+            ExcluidoEm = new DateTime(2026, 8, 1),
+        };
+
+        Assert.False(ContatoDoJogador.PodeChamarNoWhatsApp(saiu, quemOlhaId: 1));
     }
 }

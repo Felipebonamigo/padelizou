@@ -67,7 +67,9 @@ public class JogadoresController : Controller
             return View((jogador, new List<Dupla>()));
         }
 
-        ViewBag.ContatoEscondido = jogador.PerfilPrivado && !souEuMesmo;
+        // A regra mora em Services/ContatoDoJogador desde 10/08/2026, porque o aviso de jogo
+        // também mostra WhatsApp agora — e duas cópias dela discordariam um dia.
+        ViewBag.ContatoEscondido = !ContatoDoJogador.PodeVerContato(jogador, meuId);
 
         // Busca todas as duplas em que este jogador participou
         var historicoDuplas = await _context.Duplas

@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🤝 **DÁ PRA LIBERAR O RELATÓRIO DO RANKING PARA QUEM AINDA NÃO TEM CONTA.** ⚠️ **Não publicado ainda.**
+> Última atualização: **10/08/2026** — 📞 **O "BUSCAR JOGO" MOSTRAVA O DONO DO HORÁRIO E NENHUM JEITO DE FALAR COM ELE.** ⚠️ **Não publicado ainda.**
+>
+> 📞 **Pedido do Felipe, olhando o `/Avisos` em produção com o aviso do Gilberto na tela:** *"permita o jogador chamar o dono desse horário"*. O card dizia a categoria, o clube, a hora, o recado (*"Falta 1 esquerda ou direita"*) e **quem publicou** — e acabava ali. Um aviso de "falta um" **é** um pedido de contato: o único caminho era procurar a pessoa na busca, abrir o perfil e achar o WhatsApp lá. Agora o card tem **"Chamar no WhatsApp"**, com o texto pronto: *"Oi, Bruno Alves! Aqui é Diego Martins, do Padelizou. Vi seu aviso: 5ª Categoria Masculina em Arena Beira Rio, dia 12/08 às 16:27. Ainda tem vaga?"*
+>
+> ✍️ **A mensagem se apresenta de propósito.** Ela chega no WhatsApp de quem publicou como **número desconhecido**, e um "oi, tem vaga?" sem assinatura obriga o dono do horário a perguntar quem é antes de responder qualquer coisa. O nome sai pelo `NomeBonito.Curto`, o mesmo das listas. E o link só **ABRE** o WhatsApp com o texto digitado: quem manda é o jogador, não o Padelizou — nada passa pela Evolution API, então isso não gasta nem arrisca o chip (ver [WHATSAPP.md](WHATSAPP.md)).
+>
+> ⚠️ **A RÉGUA DE PRIVACIDADE SAIU DE DENTRO DO PERFIL PRA NÃO NASCER UMA SEGUNDA CÓPIA.** Quem decide se um telefone aparece é `Services/ContatoDoJogador` — antes disso a regra morava numa linha do `JogadoresController.Perfil`, e esta era a **segunda tela** do sistema a mostrar número de gente. É a lição da regra duplicada, que é A causa dos bugs graves deste projeto: a cópia nova é que costuma nascer mais frouxa, e aqui "mais frouxa" significa publicar o telefone de quem pediu privacidade. **Perfil privado** e **conta excluída (LGPD)** continuam sem contato exposto; o dono segue vendo o próprio. Quando não dá pra chamar, o card não fica sem saída: sobra **"Ver quem avisou"**, que leva ao perfil.
+>
+> ✅ **Os quatro galhos do card provados na MESMA tela, logado como Diego Martins** (jogador comum, não o admin): perfil público com celular → **botão com o `wa.me` certo**; **perfil privado** com celular gravado → **sem botão**, só o link do perfil; **sem celular** cadastrado → idem (`wa.me/55` sem número atrás abre um contato que não existe); **meu próprio aviso** → nem botão nem link, só "Cancelar meu aviso". Console limpo, **375px sem rolagem lateral**, botão de 295px de largura dentro do card.
+>
+> 🧪 **3.283 testes, 0 falhas** — 4 novos em `PerfilPrivadoEContatoTests`, que é o arquivo onde essa régua está documentada. O de conta excluída passa um celular gravado **de propósito**: a exclusão apaga o número, e o teste finge um registro em que ela não terminou o serviço, porque quem decide é o `ExcluidoEm` e não o resto ter dado certo. **Zero migration.**
+>
+> Antes, no mesmo dia — 🤝 **DÁ PRA LIBERAR O RELATÓRIO DO RANKING PARA QUEM AINDA NÃO TEM CONTA.** ⚠️ **Não publicado ainda.**
 >
 > 🤝 **O ACESSO DO PARCEIRO ERA UM IMPASSE DE OVO E GALINHA.** A busca do painel só acha `Jogador` que já existe — a própria mensagem de vazio dela manda *"peça para a pessoa criar uma conta primeiro"* —, e quem a gente quer liberar é gente de OUTRA empresa, que naturalmente não tem conta aqui. O Felipe teria que combinar o cadastro por fora, esperar, e lembrar de voltar na tela. Agora o bloco tem duas portas: **"Já tem conta no Padelizou"** (a busca de sempre) e **"Ainda não tem conta"** (nome + CPF).
 >

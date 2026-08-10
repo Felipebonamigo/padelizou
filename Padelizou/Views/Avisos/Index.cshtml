@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = "Buscar Jogo - Padelizou";
     var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
+    @* Quem está chamando, pro texto da mensagem: o aviso chega no WhatsApp do dono do horário
+       como um número desconhecido, e "Oi, tem vaga?" sem assinatura não diz quem é. *@
+    var meuNome = NomeBonito.Curto(User.FindFirstValue(ClaimTypes.Name));
 }
 
 <div class="container mt-4 mb-5">
@@ -45,6 +48,38 @@
                             @if (!string.IsNullOrWhiteSpace(aviso.Observacoes))
                             {
                                 <p class="small fst-italic">"@aviso.Observacoes"</p>
+                            }
+
+                            @* O aviso É um pedido de contato — a tela dizia de quem era o horário e
+                               não dava jeito nenhum de falar com a pessoa. O link só ABRE o WhatsApp
+                               com o texto pronto: quem manda é o jogador, não o Padelizou.
+
+                               A régua de privacidade é a mesma do perfil (Services/ContatoDoJogador):
+                               perfil privado e conta excluída não têm o número exposto aqui. Quando
+                               não dá pra chamar, sobra o perfil — melhor que um card sem saída. *@
+                            @if (aviso.CriadorId != userId)
+                            {
+                                if (ContatoDoJogador.PodeChamarNoWhatsApp(aviso.Criador, userId))
+                                {
+                                    var mensagem = (string.IsNullOrWhiteSpace(meuNome)
+                                            ? $"Oi, {aviso.Criador.ComoChamar}! Vi seu aviso no Padelizou: "
+                                            : $"Oi, {aviso.Criador.ComoChamar}! Aqui é {meuNome}, do Padelizou. Vi seu aviso: ")
+                                        + $"{aviso.CategoriaPadrao.Nome} em {aviso.Clube.Nome}, "
+                                        + $"dia {aviso.DataHora:dd/MM 'às' HH:mm}. Ainda tem vaga?";
+
+                                    <a href="@WhatsAppLinkHelper.GerarLink(aviso.Criador.Celular, mensagem)"
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-success rounded-pill w-100 fw-bold mt-2">
+                                        <i class="bi bi-whatsapp"></i> Chamar no WhatsApp
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@aviso.CriadorId"
+                                       class="btn btn-sm btn-outline-secondary rounded-pill w-100 mt-2">
+                                        <i class="bi bi-person-lines-fill"></i> Ver quem avisou
+                                    </a>
+                                }
                             }
 
                             @if (aviso.CriadorId == userId)
