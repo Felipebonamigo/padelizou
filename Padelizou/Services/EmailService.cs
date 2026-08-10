@@ -8,11 +8,13 @@ namespace Padelizou.Services;
 public class EmailService : IEmailService
 {
     private readonly EmailSettings _settings;
+    private readonly VolumeDoEmail _volume;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailSettings> settings, ILogger<EmailService> logger)
+    public EmailService(IOptions<EmailSettings> settings, VolumeDoEmail volume, ILogger<EmailService> logger)
     {
         _settings = settings.Value;
+        _volume = volume;
         _logger = logger;
     }
 
@@ -49,9 +51,15 @@ public class EmailService : IEmailService
             await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls);
             await client.AuthenticateAsync(_settings.UsuarioDeLogin, _settings.RemetenteSenhaApp);
             await client.SendAsync(mensagem);
+
+            // Contado DEPOIS do envio dar certo — este é o único ponto por onde todo e-mail do
+            // sistema passa, o do funil de avisos e os diretos (senha, aula, parceiro).
+            _volume.RegistrarEnvio(DateTime.Now);
         }
         catch (Exception ex)
         {
+            _volume.RegistrarFalha(DateTime.Now);
+
             // Falha de SMTP (provedor fora do ar, chave revogada, cota do dia estourada, timeout) NÃO pode quebrar
             // a ação do usuário que disparou o e-mail (inscrição, aula, etc.) — igual ao que já
             // fazem o WhatsApp e o push. Registra no log e segue; o e-mail simplesmente não sai.

@@ -200,6 +200,13 @@ builder.Services.AddHostedService<LembreteInscricaoNaoPagaBackgroundService>();
 builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
+// O gêmeo do de cima, pro outro canal. Nasceu de 09/08/2026: a cota de e-mail estourou e 130
+// e-mails morreram calados (o EmailService engole a falha de propósito). ⚠️ Este avisa pela
+// caixa de entrada e push, NUNCA por e-mail — ver VigiaDoEmailBackgroundService.
+builder.Services.AddHostedService<VigiaDoEmailBackgroundService>();
+// Quanto e-mail saiu no dia. Singleton pelo mesmo motivo do VolumeDoWhatsApp: a contagem é do
+// PROCESSO. ⚠️ Diferente dele, este NÃO barra envio — ver Services/VolumeDoEmail.
+builder.Services.AddSingleton<VolumeDoEmail>();
 builder.Services.AddSingleton<FilaDeWhatsApp>();
 // Quanto já saiu pelo canal, e o teto que ele respeita. Singleton porque a contagem é do
 // PROCESSO — ver Services/VolumeDoWhatsApp pro que o espaçamento da fila não resolve.
