@@ -3,6 +3,8 @@
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
 > Última atualização: **10/08/2026** — 📲 **O CONVITE PRA INSTALAR O APP DEIXAVA DE EXISTIR NO PRIMEIRO "ENTENDI" — E, PRA QUEM CHEGA PELO WHATSAPP, ENSINAVA UM CAMINHO QUE NÃO EXISTE.**
 >
+> 🚀 **`build-475-abbc4ec` NO AR EM PROD** desde 10/08, 14:33 (Brasília) — e leva **tudo daqui pra baixo**, das duas sessões deste diretório. O convite de instalar o app (logo abaixo) é o **único trabalho de hoje que ainda não subiu**: o commit `144f032` não foi pro remoto, então o CI nem chegou a empacotá-lo. ⚠️ **De novo o deploy do OUTRO publicou o meu**: fui empurrar o plano do professor e o `main` remoto já tinha tudo, com prod servindo a release nova. Conferido do jeito que a memória manda — **`cwd` do processo** em `/opt/padelizou-releases/prod/build-475-abbc4ec` (não só o symlink), `NRestarts=0`, a migration `20260810165222_AvisoDeAssinaturaVencendo` **gravada no `__EFMigrationsHistory` de prod** às 17:33:19 UTC, e os textos novos dentro do `Padelizou.dll` publicado (`AvisosDoPlanoDoProfessorBackgroundService`, `"plano anual (12 meses)"`, `"quem paga a taxa"`, `"sem escolher um plano"`). ✅ **E o aviso do plano não acordou ninguém**: o deploy caiu em hora civilizada, a varredura RODOU e não enfileirou nada — zero professores em prod dentro de alguma janela, zero e-mails. O serviço fica armado pro primeiro que chegar a 5 dias do fim do teste ou do vencimento.
+>
 > 📲 **DECISÃO DO FELIPE: LOJA NÃO, PWA SIM** — o alvo virou fazer mais gente usar pelo PWA, no Android e no iPhone. Levantado antes de escrever uma linha: a Play Store custa **US$ 25 uma vez e não existe caminho gratuito** (lojas grátis existem — Amazon, Galaxy, F-Droid — mas ninguém procura padel nelas); a App Store custa **US$ 99 por ANO**, sem isenção pro MEI, exige Mac ou build na nuvem e tem risco real de recusa por "site embrulhado" (regra 4.2). 💰 E uma dúvida de dinheiro que valia conferir: **o Google NÃO leva porcentagem das inscrições** — a política de pagamentos isenta serviço do mundo real e cita ingresso de evento ao vivo, então o Asaas segue como está. O que a loja daria é **ser achado** — e isso não conserta o funil que já existe: **154 contas → 58 abriram pelo ícone → 4 com aviso ligado**.
 >
 > 🔴 **O VAZAMENTO Nº 1 ERA UMA LINHA.** `fecharInstalarPwaModal()` gravava `pdzPwaInstallDismissed='1'` e `aparecerSozinho()` nunca mais abria. Só que **no iPhone os três toques acontecem FORA do modal** (Compartilhar → Adicionar à Tela de Início): fechar é exatamente o gesto de quem VAI instalar. O mesmo botão dizia "vou fazer agora" e "nunca mais me pergunte", e o convite morria justo em quem estava a caminho. Agora fechar **ADIA** (3, 10 e 21 dias, e depois para de perguntar) e encerrar virou botão próprio: **"Não quero instalar"**. ⚠️ **A marca antiga de quem já dispensou vale como UM adiamento, não como recusa** — a pessoa nunca teve como dizer "não quero"; quem decidiu por ela foi o botão. ⚠️ E a conversão é **GRAVADA na leitura**: devolvê-la sem persistir faria a data virar "agora" a cada carregamento de página, a espera nunca venceria e o reconvite não chegaria nunca — o mesmo defeito de antes, agora invisível.
@@ -15,7 +17,7 @@
 >
 > 🔎 **Achado de passagem, e NÃO foi mexido:** `Views/Home/Privacy.cshtml` ainda é o **texto de exemplo do ASP.NET** ("Use this page to detail your site's privacy policy") e está **linkado no rodapé em produção**. Isso reprova em qualquer loja e, com CPF, e-mail, telefone e agora CEP de 154 pessoas no banco, é exposição de LGPD **hoje**, sem loja nenhuma.
 >
-> Antes, no mesmo dia — ⏳ **O FIM DO TESTE TAMBÉM PAROU DE PASSAR EM SILÊNCIO** (não publicado).
+> Antes, no mesmo dia — ⏳ **O FIM DO TESTE TAMBÉM PAROU DE PASSAR EM SILÊNCIO** (`build-475-abbc4ec` **no ar em prod**).
 >
 > ⏳ **A TAXA DO PROFESSOR CAI DE 3% PRA 10% SOZINHA EM DOIS MOMENTOS, E AGORA OS DOIS AVISAM.** O vencimento da assinatura já falava; faltava o outro lado: **o teste de 15 dias acabando**. Quem não escolhia nada caía no Avulso calado, e — pior — **quem escolheu Assinante e nunca pagou a primeira mensalidade caía junto**, num vão que o aviso de vencimento não cobria (ele exigia `PagaAte` preenchido, e essa pessoa nunca teve).
 >
@@ -27,7 +29,7 @@
 >
 > 🧪 **8 testes novos** (`AvisosDoPlanoDoProfessorTests`, 19 no total do arquivo), suíte em **3.162, 0 falhas**. ✅ **Medido no app rodando com os três casos ao mesmo tempo**: o que nunca escolheu recebeu *"acaba em 5 dias (15/08) … sem escolher um plano"*; o que assinou sem pagar recebeu *"acaba em 3 dias (13/08) e sua primeira mensalidade ainda não entrou"*; e o de assinatura paga recebeu o texto da assinatura — cada um no seu estágio (10, 10, 20), com os dois professores fora de prazo **intocados**, e **reiniciar o processo não repetiu nenhum** (6 avisos antes, 6 depois).
 >
-> Antes, no mesmo dia — 🔓 **"PERFIL PRIVADO" ESCONDIA O PERFIL INTEIRO; ELE É SOBRE CONTATO** (não publicado).
+> Antes, no mesmo dia — 🔓 **"PERFIL PRIVADO" ESCONDIA O PERFIL INTEIRO; ELE É SOBRE CONTATO** (`build-475-abbc4ec` **no ar em prod**).
 >
 > 🔓 **A RÉGUA VEIO DO FELIPE, DEPOIS DE EU ERRAR PRA MAIS.** Eu tinha lido a frase da tela de preferências ("quem visitar seu perfil só vê sua foto e seu nome") como promessa de privacidade e **estendido a trava pra busca** — escondendo cidade, categorias, clubes e pontos, e tirando a pessoa dos filtros. Ele corrigiu: *"todos os dados públicos aparecem mesmo para quem tem perfil privado — se foi campeão, pontos do ranking, etc.; o perfil privado é para evitar ver o Instagram, o WhatsApp da pessoa"*. Resultado de padel **já está** no ranking, na chave do torneio e no histórico do parceiro: escondê-lo no perfil não esconde nada de ninguém, só quebra a tela de achar parceiro. A trava saiu da busca e no lugar dela ficou um **teste-guarda** (`Perfil_privado_nao_muda_a_busca`), pra que a "melhoria de privacidade" não volte pela mão do próximo que ler a tela como eu li.
 >
@@ -37,7 +39,7 @@
 >
 > 🧪 **3.158 testes**, 0 falhas, com uma classe nova (`PerfilPrivadoEContatoTests`) e os dois testes da rede reescritos — eles afirmavam a regra velha. ✅ **Medido no app rodando, com CONTRAPROVA**: a jogadora privada não mostra `instagram.com/…` nem `wa.me/…` dela, mas **um jogador público com o mesmo tipo de contato mostra os dois botões** — sem essa comparação, "0 links" também seria o resultado de eu ter apagado o contato de todo mundo. Ela segue aparecendo inteira na busca por cidade; a rede dela abre (200) e a de quem encerrou a conta redireciona (302), com a tela dizendo *"Esta conta foi encerrada"* em vez de *"Este perfil é privado"*. ⚠️ **Não publicado — e o que está em prod (`build-472`) ainda tem a trava errada na busca.**
 >
-> Antes, no mesmo dia — 🧮 **O CARD "NA PRÁTICA" DIZIA O NÚMERO CERTO COM O DONO ERRADO** (não publicado).
+> Antes, no mesmo dia — 🧮 **O CARD "NA PRÁTICA" DIZIA O NÚMERO CERTO COM O DONO ERRADO** (`build-475-abbc4ec` **no ar em prod**).
 >
 > 🧮 **"O AVULSO PAGA R$ 200,00 DE TAXA" — SEM DIZER QUEM PAGA.** O card que fecha a tela do plano comparava R$ 200 (Avulso) contra R$ 109,90 (Assinante) como se os dois saíssem do bolso do professor. ⚠️ **No modo padrão (`ModoComissao` = "Somada") quem paga a taxa é o ALUNO**: o preço da aula sobe e o professor recebe o valor cheio. Aqueles R$ 200 **nunca foram dinheiro dele** — quem lia achava que a mensalidade economizava R$ 90 do próprio bolso, quando economizava do bolso do aluno. A conta antiga só estava certa no "Descontada", que é a escolha minoritária.
 >
@@ -45,7 +47,7 @@
 >
 > ⚠️ **A conta saiu da Razor e virou `Services/ExemploDoPlanoNaTela`.** É uma **afirmação sobre dinheiro com dois caminhos** — o tipo de coisa que dentro da tela ninguém testa e que passa meses dizendo o número errado pra metade das pessoas. Foi exatamente o que aconteceu. 🧪 **4 testes novos**, suíte em **3.132, 0 falhas**, e eles guardam o que a conta *afirma*: que no padrão o custo do Avulso pro professor é **R$ 0** (e não R$ 200), que a escolha dele vence o padrão do gateway, que caixa diferente não vira outro modo, e que os números seguem a tabela de preços em vez de ficarem chumbados. ✅ Conferido na tela nos **dois** modos, com o link resolvendo 200 e sem rolagem lateral em 375px.
 >
-> Antes, no mesmo dia — ⏰ **A ASSINATURA DO PROFESSOR PAROU DE VENCER EM SILÊNCIO** (não publicado).
+> Antes, no mesmo dia — ⏰ **A ASSINATURA DO PROFESSOR PAROU DE VENCER EM SILÊNCIO** (`build-475-abbc4ec` **no ar em prod**).
 >
 > ⏰ **O PIOR DEFEITO DO PLANO DO PROFESSOR NÃO ERA UM BUG — ERA UM SILÊNCIO.** A mensalidade **não é recorrente**: quem paga tem que voltar na tela e gerar a cobrança de novo. Quem não voltava caía sozinho pra `AssinanteEmAtraso` depois da carência de 7 dias, e **a taxa das aulas dele subia de 3% pra 10% sem uma linha em lugar nenhum** — nem pra ele, nem pra nós. Ele descobriria no extrato, se descobrisse. A trava automática está certa (é ela que impede assinante inadimplente de pagar taxa de assinante); o que faltava era **contar**.
 >
@@ -111,7 +113,7 @@
 >
 > 🧪 **3.101 testes**, 5 novos, 0 falhas. ✅ **Medido no app rodando**: seguir na página 2 filtrada por Porto Alegre volta pra `?estado=RS&cidade=Porto+Alegre&pagina=2` com aquele card virado em **"Seguindo"** (e o clique seguinte desfaz, sem sair da lista); **visitante deslogado não recebe botão nenhum** — o HTML anônimo não tem uma ocorrência de `Jogadores/Seguir`, e a página segue 200 com os 30 cards; no celular de 375px o botão cabe dentro do card, sem rolagem lateral. ⚠️ **Não publicado ainda.**
 >
-> Antes, no mesmo dia — 🏟️ **O NOME DO CLUBE VIROU EDITÁVEL — E O CAMPO DE ACHAR O DONO VOLTOU A SUGERIR** (não publicado, e da sessão paralela deste diretório).
+> Antes, no mesmo dia — 🏟️ **O NOME DO CLUBE VIROU EDITÁVEL — E O CAMPO DE ACHAR O DONO VOLTOU A SUGERIR** (no ar desde o `build-470`, e da sessão paralela deste diretório).
 >
 > 🏟️ **"ME PERMITA EDITAR O NOME DOS CLUBES TAMBÉM"** (Felipe, print de `/Admin/Clubes` com *Batata*, *Rogérinho.* e *Ok center* na lista). Clube nasce do que o jogador **digitou** no próprio cadastro (`CatalogoLocais.AcharOuCriarClubeAsync`) — arrumar a grafia era `UPDATE` na mão. Agora tem lápis em cada linha, com o nome atual já no campo.
 >
