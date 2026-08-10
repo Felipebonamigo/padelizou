@@ -273,6 +273,50 @@ a:hover { color: var(--pdz-lime-600); }
     .pdz-voltar { width: 40px; height: 40px; margin-right: .25rem; }
 }
 
+/* O SINO NA BARRA (celular). Mesmo desenho da seta de voltar de propósito: são os dois
+   controles do APP que moram na barra, e desenhos diferentes fariam um parecer botão e o
+   outro enfeite. Fica ao lado do sanduíche, onde é visto sem precisar abrir nada. */
+.pdz-sino-barra {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    margin-right: .25rem;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(255, 255, 255, .10);
+    font-size: 1.15rem;
+    line-height: 1;
+    text-decoration: none;
+    transition: background-color .15s ease;
+}
+
+.pdz-sino-barra:hover,
+.pdz-sino-barra:focus-visible {
+    background: rgba(255, 255, 255, .22);
+    color: #fff;
+}
+
+/* A bolinha do número. Fica no canto de cima do sino, não do lado: do lado ela empurraria o
+   sanduíche e a barra dançaria conforme a pessoa tivesse ou não aviso novo. */
+.pdz-sino-bolinha {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--pdz-lime);
+    color: var(--pdz-navy-fixed);
+    font-size: .62rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
 /* Onde a barra não tem folga pra seta E nome, o nome sai — as raquetes já identificam.
    A faixa é essa e não outra: abaixo de 1200px o menu está recolhido no sanduíche e sobra
    espaço de sobra; acima de 1400px cabe tudo. No meio, os itens ficam todos abertos ao mesmo

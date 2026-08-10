@@ -415,7 +415,11 @@ namespace padelizou.Controllers
             return RedirectToAction("MinhasAulas");
         }
 
-        // 5. TELA DE HISTÓRICO DO ALUNO (Minhas Aulas)
+        // 5. AS AULAS DO ALUNO — a aba "Aulas marcadas", irmã de "Marcar aula".
+        //
+        // Chega de dois jeitos: pela aba, no alto da tela de marcar (que é onde a pessoa está
+        // quando se pergunta "quando mesmo é a minha próxima?"), e pelos links de sempre —
+        // perfil, Home e o aviso que o professor manda.
         [HttpGet]
         public async Task<IActionResult> MinhasAulas()
         {
@@ -429,10 +433,29 @@ namespace padelizou.Controllers
                 .Include(a => a.Professor)
                 .Include(a => a.LocalAula)
                 .Where(a => a.AlunoId == userId)
-                .OrderByDescending(a => a.DataHora)
+                .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
-            return View(minhasAulas);
+            // A separação é em memória de propósito: são poucas aulas por aluno, e a regra do
+            // que "ainda vai acontecer" olha o FIM da aula (início + duração), que o banco
+            // não sabe calcular sem espalhar a conta por aqui.
+            var agora = DateTime.Now;
+
+            var vm = new MinhasAulasVM
+            {
+                Proximas = minhasAulas
+                    .Where(a => PoliticaAula.AindaVaiAcontecer(a, agora))
+                    .ToList(),
+
+                // Tudo o mais, do mais recente pro mais antigo: o que já aconteceu, o que foi
+                // desmarcado e o pedido que o professor recusou.
+                Anteriores = minhasAulas
+                    .Where(a => !PoliticaAula.AindaVaiAcontecer(a, agora))
+                    .OrderByDescending(a => a.DataHora)
+                    .ToList(),
+            };
+
+            return View(vm);
         }
 
     }

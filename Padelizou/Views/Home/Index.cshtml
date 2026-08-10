@@ -77,6 +77,69 @@ else
 
     @if (logado)
     {
+        @*
+            O QUE CHEGOU PRA VOCÊ. Primeira coisa da tela, antes até dos primeiros passos: é
+            o único bloco aqui que a pessoa ainda NÃO viu e que tem HORA — convite pra jogo,
+            chave que saiu, aula confirmada. O resto (próximo jogo, compromissos, torneios)
+            ela já conhece e continua logo abaixo, e o guia de primeiros passos não perde
+            nada por vir depois — ele não vence.
+
+            A caixa de avisos é o único canal que não depende de entrega: o push alcança 5
+            aparelhos em 154, a cota do Gmail já estourou uma vez e o WhatsApp depende de um
+            chip. Mesmo assim, até aqui ela só era encontrada por quem abrisse o sanduíche e
+            reparasse na bolinha do sino.
+
+            Some inteiro quando não há nada não lido — "nenhum aviso novo" em toda visita
+            vira paisagem e empurra pra baixo o que interessa. E abrir a Home NÃO marca como
+            lido: quem lê é quem abre a caixa.
+        *@
+        @if (Model.AvisosNovos.Any())
+        {
+            <div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--pdz-lime) !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                            <i class="bi bi-bell-fill"></i> Avisos novos
+                            <span class="badge rounded-pill ms-1"
+                                  style="background: var(--pdz-lime); color: var(--pdz-navy-fixed);">@Model.TotalAvisosNovos</span>
+                        </h6>
+                        <a asp-controller="Notificacoes" asp-action="Index" class="small text-decoration-none fw-bold">Ver todos →</a>
+                    </div>
+
+                    @foreach (var a in Model.AvisosNovos)
+                    {
+                        @* Aviso sem destino continua aparecendo: o recado é a informação. O que
+                           muda é que ele não vira link — e um <a> sem para onde ir é um botão
+                           que não faz nada. *@
+                        <div class="position-relative d-flex align-items-start gap-3 py-2 border-top">
+                            <i class="bi bi-dot fs-4 lh-1" style="color: var(--padel-green);"></i>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <span class="d-block fw-bold" style="color: var(--pdz-ink);">
+                                    @if (!string.IsNullOrWhiteSpace(a.Url))
+                                    {
+                                        <a href="@a.Url" class="stretched-link text-decoration-none" style="color: inherit;">@a.Titulo</a>
+                                    }
+                                    else
+                                    {
+                                        @a.Titulo
+                                    }
+                                </span>
+                                <small class="text-muted d-block text-truncate">@a.Corpo</small>
+                            </div>
+                            <small class="text-muted text-nowrap">@TempoRelativo.Curto(a.CriadoEm)</small>
+                        </div>
+                    }
+
+                    @if (Model.TotalAvisosNovos > Model.AvisosNovos.Count)
+                    {
+                        <a asp-controller="Notificacoes" asp-action="Index" class="small text-decoration-none fw-bold d-block pt-2 border-top">
+                            e mais @(Model.TotalAvisosNovos - Model.AvisosNovos.Count) aviso(s) →
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+
         @* Jogador novo é guiado antes de qualquer outra coisa. Some quando completa. *@
         @if (Model.Onboarding != null)
         {

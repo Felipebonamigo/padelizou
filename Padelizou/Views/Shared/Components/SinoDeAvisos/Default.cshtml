@@ -6,8 +6,12 @@
 
 @* O sino fica no menu SEMPRE que a pessoa está logada, com ou sem aviso novo — quem só
    aparece quando tem novidade some da memória de todo mundo, e aí a caixa de entrada nunca
-   é encontrada nos dias em que ela importa. A bolinha é que muda. *@
-<li class="nav-item">
+   é encontrada nos dias em que ela importa. A bolinha é que muda.
+
+   d-none d-xl-block: abaixo de 1200px este item está DENTRO do sanduíche fechado, e quem vale
+   ali é o sino da barra (Barra.cshtml). Os dois ao mesmo tempo seriam duas portas pro mesmo
+   lugar na mesma tela. *@
+<li class="nav-item d-none d-xl-block">
     <a class="nav-link position-relative" asp-controller="Notificacoes" asp-action="Index"
        title="@(Model == 0 ? "Notificações" : $"{Model} aviso(s) não lido(s)")">
         <i class="bi @(Model > 0 ? "bi-bell-fill" : "bi-bell")"></i> Avisos

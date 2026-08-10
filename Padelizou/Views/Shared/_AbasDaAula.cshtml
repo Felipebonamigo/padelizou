@@ -1,0 +1,27 @@
+@*
+    As duas telas de aula do ALUNO viraram abas de uma coisa só.
+
+    Marcar aula e ver o que já está marcado são a mesma pergunta em dois momentos, e no menu
+    existe um item só: "Aula" — que caía sempre no formulário. "Minhas aulas" existia, mas só
+    era achada por quem passasse pelo perfil ou por um card da Home; quem terminava de marcar
+    ia parar numa tela de sucesso e não tinha de onde conferir o horário depois.
+
+    A aba ativa sai do ACTION da vez (mesmo caminho do _AbasBusca): assim o parcial não
+    precisa de parâmetro e não tem como uma das duas telas passar o valor errado.
+*@
+@{
+    var nasMarcadas = ViewContext.RouteData.Values["action"]?.ToString() == "MinhasAulas";
+}
+
+<ul class="nav nav-pills pdz-pills mb-3" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link @(nasMarcadas ? "" : "active")" asp-controller="Aulas" asp-action="Solicitar">
+            <i class="bi bi-calendar-plus me-1"></i> Marcar aula
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(nasMarcadas ? "active" : "")" asp-controller="Aulas" asp-action="MinhasAulas">
+            <i class="bi bi-calendar-check me-1"></i> Aulas marcadas
+        </a>
+    </li>
+</ul>

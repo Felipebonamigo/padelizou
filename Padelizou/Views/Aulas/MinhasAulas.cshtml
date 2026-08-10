@@ -1,89 +1,64 @@
-﻿@model IEnumerable<Aula>
+@model Padelizou.ViewModels.MinhasAulasVM
 @{
-    ViewData["Title"] = "Minhas Aulas - Padelizou";
+    ViewData["Title"] = "Aulas marcadas - Padelizou";
 }
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold" style="color: var(--pdz-ink);">Minhas Aulas</h2>
-            <p class="text-muted mb-0">Seu histórico de treinos e aulas futuras.</p>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Minhas aulas</h2>
+            <p class="text-muted mb-0">O que está marcado e o que já aconteceu.</p>
         </div>
         <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao Perfil</a>
     </div>
 
-    <div class="row">
-        @if (Model != null && Model.Any())
+    <partial name="_AbasDaAula" />
+
+    @* PRÓXIMAS PRIMEIRO, da mais perto pra mais longe. É a única pergunta que a pessoa leva
+       pra esta tela — o histórico ela olha por curiosidade, não com a agenda na mão. *@
+    <h5 class="fw-bold mt-4 mb-3" style="color: var(--pdz-ink);">
+        <i class="bi bi-calendar-check"></i> Próximas
+        @if (Model.Proximas.Any())
         {
-            @foreach (var aula in Model)
+            <span class="text-muted fw-normal">(@Model.Proximas.Count)</span>
+        }
+    </h5>
+
+    @if (Model.Proximas.Any())
+    {
+        <div class="row">
+            @foreach (var aula in Model.Proximas)
             {
-                var badgeClass = aula.Status switch
-                {
-                    "Pendente" => "bg-warning text-dark",
-                    "Confirmada" => "bg-primary",
-                    "Realizada" => "bg-success",
-                    _ => "bg-danger"
-                };
-
-                var mensagemWhats = $"Olá, Prof. {aula.Professor.Nome}! Tudo certo para o nosso treino dia {aula.DataHora:dd/MM}?";
-                var linkWhatsApp = WhatsAppLinkHelper.GerarLink(aula.Professor.Celular, mensagemWhats);
-
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card shadow-sm border-0 h-100" style="border-left: 5px solid var(--pdz-navy-fixed);">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="badge @badgeClass text-uppercase shadow-sm">@aula.Status</span>
-                                @* Até quando o aluno tem que segurar a agenda: a aula pode ser
-                                   de 1h30 ou 2h, e só a hora de início não diz isso. *@
-                                <span class="text-muted fw-bold small">
-                                    <i class="bi bi-clock-history"></i>
-                                    @aula.DataHora.ToString("dd/MM/yyyy") · @Padelizou.Services.DuracaoDaAula.Faixa(aula.DataHora, aula.DuracaoMinutos)
-                                </span>
-                            </div>
-
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                                @if (!string.IsNullOrEmpty(aula.Professor.FotoPerfil))
-                                {
-                                    <img src="@aula.Professor.FotoPerfil" alt="Prof" class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;" />
-                                }
-                                else
-                                {
-                                    <i class="bi bi-person-video3 text-muted me-1"></i>
-                                }
-                                Prof. @aula.Professor.Nome
-                            </h5>
-
-                            <p class="text-muted small mb-1">
-                                <i class="bi bi-geo-alt-fill text-danger"></i> @aula.LocalAula.Nome
-                            </p>
-                            <p class="text-muted small mb-3">
-                                <i class="bi bi-cash text-success"></i> @aula.Preco.ToString("C")
-                            </p>
-
-                            @if (aula.Status == "Pendente")
-                            {
-                                <p class="small text-warning-emphasis mb-2"><i class="bi bi-hourglass-split"></i> Aguardando confirmação do professor</p>
-                            }
-
-                            <a href="@linkWhatsApp" target="_blank" class="btn btn-sm btn-outline-success rounded-pill w-100 fw-bold">
-                                <i class="bi bi-whatsapp"></i> Falar com o Professor
-                            </a>
-                            <a asp-action="Anotacoes" asp-route-id="@aula.Id" class="btn btn-sm btn-outline-secondary rounded-pill w-100 fw-bold mt-1">
-                                <i class="bi bi-journal-text"></i> Anotações da aula
-                            </a>
-                        </div>
-                    </div>
-                </div>
+                <partial name="_CardDeAula" model="aula" />
             }
-        }
-        else
-        {
-            <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
-                <i class="bi bi-calendar2-minus display-4 text-muted mb-3"></i>
-                <h4 class="fw-bold text-secondary">Nenhuma aula encontrada</h4>
-                <p class="text-muted">Você ainda não agendou nenhum treino com nossos professores.</p>
-                <a asp-controller="Aulas" asp-action="Solicitar" class="btn btn-padel rounded-pill mt-2">Agendar Primeira Aula</a>
-            </div>
-        }
-    </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-4 rounded-3 mb-4" style="border: 2px dashed var(--pdz-border);">
+            <i class="bi bi-calendar2-minus display-6 text-muted"></i>
+            <p class="text-muted mb-1 mt-2">Nenhuma aula marcada.</p>
+            <a asp-controller="Aulas" asp-action="Solicitar" class="btn btn-sm btn-padel rounded-pill px-4 mt-2 fw-bold">
+                Marcar uma aula
+            </a>
+        </div>
+    }
+
+    @if (Model.Anteriores.Any())
+    {
+        @* "Histórico", e não "já aconteceram": aqui também cai a aula FUTURA que foi
+           desmarcada ou recusada — ela não aconteceu nem vai acontecer, e o título tem que
+           valer pras duas coisas. *@
+        <h5 class="fw-bold mt-4 mb-3" style="color: var(--pdz-ink);">
+            <i class="bi bi-clock-history"></i> Histórico
+            <span class="text-muted fw-normal">(@Model.Anteriores.Count)</span>
+        </h5>
+
+        <div class="row">
+            @foreach (var aula in Model.Anteriores)
+            {
+                <partial name="_CardDeAula" model="aula" />
+            }
+        </div>
+    }
 </div>

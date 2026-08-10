@@ -150,6 +150,22 @@
                     }
                 </a>
 
+                @* O SINO FICA FORA DO SANDUÍCHE NO CELULAR. Ele existia só como item do menu,
+                   e menu no celular nasce FECHADO: a bolinha de avisos novos ficava atrás do
+                   ícone de três linhas, invisível pra quem não abrisse o menu por conta
+                   própria. Como o push alcança 5 aparelhos em 154, esta caixa é o canal que
+                   de fato chega em todo mundo — e ela precisa ser vista ao entrar.
+
+                   d-xl-none porque acima disso o menu já está aberto com o item "Avisos"
+                   dentro, e a barra não tem folga pra mais um ícone entre 1200 e 1400px (ver
+                   o comentário de largura em .pdz-voltar, no site.css). *@
+                @if (User.Identity?.IsAuthenticated == true && !dentroDoPainel)
+                {
+                    <div class="ms-auto d-xl-none">
+                        @await Component.InvokeAsync("SinoDeAvisos", new { naBarra = true })
+                    </div>
+                }
+
                 <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#pdzNav"
                         aria-controls="pdzNav" aria-expanded="false" aria-label="Abrir menu">
                     <span class="navbar-toggler-icon"></span>

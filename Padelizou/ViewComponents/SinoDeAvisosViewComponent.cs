@@ -24,17 +24,37 @@ public class SinoDeAvisosViewComponent : ViewComponent
 
     private readonly DbPadelContext _context;
 
+    // Onde o número já foi contado nesta requisição. O sino aparece DUAS vezes na mesma
+    // página — na barra (celular) e dentro do menu (desktop) — e é o mesmo número: sem isto
+    // seriam dois COUNT em toda tela do site, só porque o CSS esconde um dos dois.
+    private const string ChaveDaContagem = "pdz.avisos.nao-lidos";
+
     public SinoDeAvisosViewComponent(DbPadelContext context) => _context = context;
 
-    public async Task<IViewComponentResult> InvokeAsync()
+    // `naBarra`: o sino de fora do sanduíche, que é o que o celular enxerga. Muda só o
+    // desenho — o número e a regra são os mesmos.
+    public async Task<IViewComponentResult> InvokeAsync(bool naBarra = false)
     {
         var claim = (User as ClaimsPrincipal)?.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(claim, out var jogadorId)) return View(0);
+        if (!int.TryParse(claim, out var jogadorId)) return View(naBarra ? "Barra" : "Default", 0);
+
+        int naoLidos = await ContarAsync(jogadorId);
+
+        ViewBag.Teto = Teto;
+        return View(naBarra ? "Barra" : "Default", naoLidos);
+    }
+
+    private async Task<int> ContarAsync(int jogadorId)
+    {
+        if (HttpContext.Items.TryGetValue(ChaveDaContagem, out var jaContado) && jaContado is int n)
+        {
+            return n;
+        }
 
         int naoLidos = await _context.AvisosDoJogador
             .CountAsync(a => a.JogadorId == jogadorId && a.LidaEm == null);
 
-        ViewBag.Teto = Teto;
-        return View(naoLidos);
+        HttpContext.Items[ChaveDaContagem] = naoLidos;
+        return naoLidos;
     }
 }

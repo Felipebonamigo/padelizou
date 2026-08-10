@@ -10,6 +10,10 @@ namespace Padelizou.Controllers
 {
     public class HomeController : Controller
     {
+        // Quantos avisos novos cabem no card da Home. Três é o que dá pra ler de relance sem
+        // empurrar o próximo jogo pra baixo da dobra — o resto está a um toque em "Ver todos".
+        private const int QuantosAvisosNaHome = 3;
+
         private readonly DbPadelContext _context;
         private readonly IEstatisticasService _estatisticas;
 
@@ -90,6 +94,27 @@ namespace Padelizou.Controllers
             //
             // Some sozinho quando ela preenche: aviso que não tem fim vira paisagem.
             vm.FaltaInformarSexo = !SexoDoJogador.Informou(jogador);
+
+            // O QUE CHEGOU DESDE A ÚLTIMA VISITA, na primeira tela. A caixa de avisos é o
+            // único canal que não depende de entrega nenhuma (push alcança 5 aparelhos em
+            // 154, o e-mail já teve a cota estourada, o WhatsApp depende de um chip) — mas
+            // até aqui ela só era encontrada por quem abrisse o menu e reparasse na bolinha.
+            //
+            // ⚠️ A Home NÃO marca como lido: quem marca é abrir /Notificacoes. Se marcasse,
+            // o card sumiria na visita seguinte com a pessoa nunca tendo lido o aviso — e o
+            // sino apagaria junto.
+            vm.TotalAvisosNovos = await _context.AvisosDoJogador
+                .CountAsync(a => a.JogadorId == jogadorId && a.LidaEm == null);
+
+            if (vm.TotalAvisosNovos > 0)
+            {
+                vm.AvisosNovos = await _context.AvisosDoJogador
+                    .Where(a => a.JogadorId == jogadorId && a.LidaEm == null)
+                    .OrderByDescending(a => a.CriadoEm)
+                    .ThenByDescending(a => a.Id)
+                    .Take(QuantosAvisosNaHome)
+                    .ToListAsync();
+            }
 
             // Próximo jogo de torneio com hora e quadra definidas. A margem de 2h pra trás
             // cobre o jogo atrasado do dia: ainda é "o próximo" até alguém finalizar.

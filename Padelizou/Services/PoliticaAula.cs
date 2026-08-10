@@ -20,6 +20,16 @@ public static class PoliticaAula
     public static bool ContaComoAtiva(string? status) =>
         status == Pendente || status == Confirmada;
 
+    // A aula AINDA VAI ACONTECER: continua de pé e não terminou. É o corte entre "aula
+    // marcada" e "histórico", e mora aqui porque vale em dois lugares que não podem
+    // discordar — a consulta que separa as duas listas e o card que desenha cada aula.
+    //
+    // ⚠️ Compara o FIM, não o início: uma aula de 1h30 que começou há 30 minutos ainda é a
+    // próxima da pessoa, e mandá-la pro histórico no minuto seguinte ao início faria a aula
+    // sumir da tela com o aluno ainda na quadra.
+    public static bool AindaVaiAcontecer(Aula aula, DateTime agora) =>
+        ContaComoAtiva(aula.Status) && aula.DataHora.AddMinutes(aula.DuracaoMinutos) > agora;
+
     // Cancelamento dentro do prazo que o professor definiu? Prazo 0 = sempre no prazo.
     public static bool DentroDoPrazo(Jogador professor, DateTime dataHoraAula, DateTime agora)
     {

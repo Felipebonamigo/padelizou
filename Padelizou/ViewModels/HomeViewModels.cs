@@ -27,6 +27,17 @@ public class HomeVM
     // e o convite some sozinho depois, porque aviso sem fim vira paisagem.
     public bool FaltaInformarSexo { get; set; }
 
+    // AVISOS NÃO LIDOS, na primeira tela. O sino é o caminho de sempre, mas ele mora na
+    // barra — e o que chegou só aparece depois de um toque. Quem entra no app e não toca em
+    // nada não descobre que a chave do torneio saiu.
+    //
+    // Vazio quando não há nada não lido: um card "nenhum aviso novo" em toda visita vira
+    // paisagem e empurra pra baixo o que a pessoa veio ver.
+    public List<AvisoDoJogador> AvisosNovos { get; set; } = new();
+
+    // Quantos existem ao todo — a lista mostra só os primeiros.
+    public int TotalAvisosNovos { get; set; }
+
     // A informação mais valiosa no dia de torneio: hora, quadra e adversário.
     public ProximoJogoVM? ProximoJogo { get; set; }
 
