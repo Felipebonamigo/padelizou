@@ -287,9 +287,11 @@ injustiça que este trabalho existe pra consertar.
   organizador) e fora quem `ForaDoSorteio` deixa de fora (lista de espera, sem parceiro).
   **É a MESMA régua que decide quem pontua** — se o peso contasse gente que a soma não
   conta, a categoria teria dois tamanhos ao mesmo tempo.
-- **Piso de 3 duplas pra valer campanha**: com 1 dupla o "campeão" não jogou nada e com 2
-  ganhou um jogo só — é fabricável em cinco minutos, a mesma porta que o piso de 8 fecha no
-  Americano. Abaixo de 3, a campanha desaba pra participação e **todo mundo da categoria sai
+- **Piso de 3 duplas pra valer campanha** (proposto por mim e **confirmado pelo Felipe em
+  10/08/2026**, quando ele perguntou o que era o piso — antes disso era escolha minha dentro
+  de um "pode fazer", que é coisa diferente de regra decidida): com 1 dupla o "campeão" não
+  jogou nada e com 2 ganhou um jogo só — é fabricável em cinco minutos, a mesma porta que o
+  piso de 8 fecha no Americano. Abaixo de 3, a campanha desaba pra participação e **todo mundo da categoria sai
   com a mesma pontuação** (com 2 duplas: 10 × 0,7 = 7 pra campeão e vice). O piso não apaga
   o ponto de quem jogou; ele só se recusa a pagar título fabricado.
 - **Arredondamento `AwayFromZero`**, nunca o `ToEven` padrão do .NET — com ToEven, dois
