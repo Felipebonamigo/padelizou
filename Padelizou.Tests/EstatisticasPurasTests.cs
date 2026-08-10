@@ -7,15 +7,8 @@ public class EstatisticasPurasTests
 {
     private static readonly EstatisticasService Svc = new(null!);
 
-    [Theory]
-    [InlineData("Campeao", 100)]
-    [InlineData("Final", 60)]
-    [InlineData("Semifinal", 35)]
-    [InlineData("Quartas de Final", 20)]
-    [InlineData("Grupos", 10)]
-    [InlineData(null, 10)]
-    public void Pontos_por_fase(string? fase, int esperado)
-        => Assert.Equal(esperado, Svc.PontosPorFase(fase));
+    // `Svc.PontosPorFase(fase)` morreu em 10/08/2026: o ponto passou a depender do TAMANHO
+    // da categoria e a conta mora em `PontosDoTorneio` — ver PontosDoTorneioTests.
 
     [Theory]
     [InlineData("Categoria Open Masculino", 8)]

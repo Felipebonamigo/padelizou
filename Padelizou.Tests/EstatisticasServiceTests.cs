@@ -8,8 +8,15 @@ namespace Padelizou.Tests;
 // torneio, nível comprovado (anti-sandbagging) e filtro regional multi-cidade.
 public class EstatisticasServiceTests
 {
-    // Cenário base: 1 torneio, 1 categoria "2ª Categoria Masculina", 2 duplas.
+    // Cenário base: 1 torneio, 1 categoria "2ª Categoria Masculina", 5 duplas.
     // Dupla A (J1/J2) campeã com 1 vitória sobre a Dupla B (J3/J4, vice).
+    //
+    // ⚠️ As 3 duplas de enchimento existem por causa do PESO POR TAMANHO (10/08/2026):
+    // 5 duplas é o ponto de calibração da régua (peso 1,0), onde campeão vale 100 e vice 60
+    // como sempre valeram. Com as 2 originais a categoria ficava ABAIXO do piso de 3 e todo
+    // mundo levava só os 10 da inscrição — o teste passaria a comparar 10 com 10 e deixaria
+    // de distinguir campeão de vice, que é o que ele existe pra provar.
+    // Elas ficam SEM cidade/estado de propósito: o teste do filtro regional conta jogadores.
     private static (DbPadelContext ctx, EstatisticasService svc, Torneio torneio,
         Jogador j1, Jogador j3) CenarioCampeaoEVice(DateTime? dataInicio = null)
     {
@@ -34,6 +41,16 @@ public class EstatisticasServiceTests
         var duplaA = new Dupla { Categoria = cat, Jogador1 = j1, Jogador2 = j2, UltimaFase = "Campeao" };
         var duplaB = new Dupla { Categoria = cat, Jogador1 = j3, Jogador2 = j4, UltimaFase = "Final" };
         ctx.Duplas.AddRange(duplaA, duplaB);
+
+        // Enchimento até 5 duplas — ver a nota do cabeçalho.
+        for (int i = 0; i < 3; i++)
+        {
+            var a = new Jogador { Nome = $"Enchimento {i}A", Cpf = $"9990000010{i}" };
+            var b = new Jogador { Nome = $"Enchimento {i}B", Cpf = $"9990000020{i}" };
+            ctx.Jogadores.AddRange(a, b);
+            ctx.Duplas.Add(new Dupla { Categoria = cat, Jogador1 = a, Jogador2 = b, UltimaFase = "Grupos" });
+        }
+
         ctx.SaveChanges();
 
         ctx.Partidas.Add(new Partida
@@ -62,9 +79,9 @@ public class EstatisticasServiceTests
 
         var ranking = await svc.ObterRankingDoTorneioAsync(torneio.Id);
 
-        Assert.Equal(4, ranking.Count); // 4 jogadores
+        Assert.Equal(10, ranking.Count); // 5 duplas × 2 jogadores
         var campeao = ranking.First();
-        Assert.Equal(100, campeao.Pontos);   // Campeao = 100
+        Assert.Equal(100, campeao.Pontos);   // Campeao × peso 1,0 (5 duplas) = 100
         Assert.Equal(1, campeao.Titulos);
         Assert.Equal(1, campeao.Jogos);
         Assert.Equal(1, campeao.Vitorias);
@@ -85,7 +102,7 @@ public class EstatisticasServiceTests
 
         var cat = Assert.Single(ranking);
         Assert.Equal("2ª Categoria Masculina", cat.Categoria);
-        Assert.Equal(4, cat.Linhas.Count);
+        Assert.Equal(10, cat.Linhas.Count);
         Assert.Equal(100, cat.Linhas[0].Pontos); // campeões na frente
         Assert.Equal(1, cat.Linhas[0].Titulos);
         Assert.Contains(cat.Linhas, l => l.Pontos == 60 && l.Finais == 1);

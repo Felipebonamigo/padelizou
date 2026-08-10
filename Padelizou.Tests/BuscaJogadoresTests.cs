@@ -221,12 +221,21 @@ public class BuscaJogadoresTests
         ctx.Categorias.Add(cat);
         ctx.SaveChanges();
         ctx.Duplas.Add(new Dupla { CategoriaId = cat.Id, Jogador1Id = j.Id, Jogador2Id = parceiro.Id, UltimaFase = "Campeao" });
+
+        // ⚠️ Enchimento até 5 duplas: 5 é o ponto de calibração do peso por tamanho
+        // (10/08/2026), onde o campeão vale os 100 de sempre. Ver RANKING.md, Trilha B.
+        for (int i = 0; i < 4; i++)
+        {
+            var a = NovoJogador(ctx, $"Enchimento {i}A", $"1{i}0");
+            var b = NovoJogador(ctx, $"Enchimento {i}B", $"2{i}0");
+            ctx.Duplas.Add(new Dupla { CategoriaId = cat.Id, Jogador1Id = a.Id, Jogador2Id = b.Id, UltimaFase = "Grupos" });
+        }
         ctx.SaveChanges();
 
         var vm = await Buscar(ctx, q: "Craque");
         var achado = vm.Resultados.Single();
 
-        Assert.Equal(100, achado.Pontos);          // campeão = 100
+        Assert.Equal(100, achado.Pontos);          // campeão × peso 1,0 (5 duplas) = 100
         Assert.Equal("Nata Padel", achado.Time);
         Assert.Contains("2ª Masculina", achado.Categorias);
     }

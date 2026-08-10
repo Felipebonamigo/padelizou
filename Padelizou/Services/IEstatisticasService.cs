@@ -5,7 +5,8 @@ namespace Padelizou.Services;
 public interface IEstatisticasService
 {
     // Pontos de ranking por categoria conforme a fase mais longe alcançada pela dupla.
-    int PontosPorFase(string? ultimaFase);
+    // `PontosPorFase` saiu daqui em 10/08/2026: a conta agora depende do TAMANHO da
+    // categoria e mora em `Services/PontosDoTorneio` (estático, sem banco). Ver RANKING.md.
 
     // Leaderboards por Categoria.Nome. Se categoriaNome != null, filtra só aquela.
     // ate != null => considera só torneios com DataInicio até essa data (ranking "de então").

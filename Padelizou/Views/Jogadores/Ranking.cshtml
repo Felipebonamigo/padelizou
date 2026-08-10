@@ -233,7 +233,38 @@
             }
             else
             {
-                <p class="text-muted small mb-2">Pontos por fase: Campeão 100 · Vice 60 · Semifinal 35 · Quartas 20 · Fase de grupos 10 (por torneio disputado).</p>
+                @* ⚠️ Esta explicação é a régua de PontosDoTorneio escrita pra gente. Mudou lá,
+                   muda aqui — até 10/08/2026 este parágrafo anunciava a tabela fixa antiga, e
+                   uma tela que explica errado a conta do próprio ranking é pior que uma tela
+                   calada. Espec em RANKING.md (Trilha B). *@
+                <details class="small mb-3 rounded-3 p-2" style="background: var(--pdz-surface, #f8f9fa);">
+                    <summary class="text-muted" style="cursor: pointer;">
+                        <i class="bi bi-info-circle"></i> Como os pontos são calculados
+                    </summary>
+                    <div class="mt-2">
+                        <p class="mb-2">
+                            Quem <strong>cai na fase de grupos</strong> leva <strong>10 pontos</strong> pela
+                            participação, em qualquer torneio. Quem <strong>passa pra chave</strong> leva os
+                            pontos da fase <strong>multiplicados pelo tamanho da categoria</strong> — chegar
+                            à semifinal enfrentando 20 duplas é mais difícil do que enfrentando 5, e o
+                            ranking passou a enxergar isso.
+                        </p>
+                        <p class="mb-2">
+                            <strong>Pontos por fase:</strong> Campeão 100 · Vice 60 · Semifinal 35 ·
+                            Quartas 20 · Oitavas 15 · 16-avos 12 · Fase de grupos 10.
+                        </p>
+                        <p class="mb-2">
+                            <strong>Multiplicador:</strong> 1,0× com 5 duplas na categoria, e
+                            <strong>+0,1× a cada dupla a mais</strong> — 10 duplas = 1,5×, 20 duplas = 2,5×,
+                            30 duplas = 3,5×, sem limite. Categoria com menos de 3 duplas não vale campanha
+                            (só os 10 da inscrição).
+                        </p>
+                        <p class="text-muted mb-0">
+                            Exemplo: campeão numa categoria de 16 duplas faz 100 × 2,1 = <strong>210</strong>.
+                            Numa de 5 duplas, faz <strong>100</strong>.
+                        </p>
+                    </div>
+                </details>
 
                 <!-- Dropdown de categorias: escolher uma vira chip ao lado e some do dropdown -->
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-3">

@@ -9,13 +9,34 @@ namespace Padelizou.Tests;
 public class JogadorExperienciaTests
 {
     // Cria um torneio com data e devolve a categoria, pra pendurar duplas nele.
-    private static Categoria NovaCategoria(DbPadelContext ctx, string nome, DateTime? data)
+    //
+    // ⚠️ `duplasDeEnchimento` existe por causa do PESO POR TAMANHO (10/08/2026, RANKING.md):
+    // o ponto depende de quantas duplas a categoria tem, e 5 é o ponto de calibração (peso
+    // 1,0), onde campeão vale 100 e semi vale 35 como sempre valeram. Cada teste enche até 5
+    // contando as duplas que ele mesmo vai pendurar — o padrão 4 serve a quem pendura uma.
+    // Sem isso, categoria de 1 dupla cai abaixo do piso de 3 e todo mundo leva 10.
+    private static Categoria NovaCategoria(
+        DbPadelContext ctx, string nome, DateTime? data, int duplasDeEnchimento = 4)
     {
         var torneio = new Torneio { Nome = nome, Codigo = nome, DataInicio = data };
         var cat = new Categoria { Nome = "2ª Masculina", Codigo = nome + "C", Torneio = torneio };
         ctx.Torneios.Add(torneio);
         ctx.Categorias.Add(cat);
         ctx.SaveChanges();
+
+        for (int i = 0; i < duplasDeEnchimento; i++)
+        {
+            var a = new Jogador { Nome = $"{nome} ench {i}A", Cpf = $"{nome}-ench-{i}A" };
+            var b = new Jogador { Nome = $"{nome} ench {i}B", Cpf = $"{nome}-ench-{i}B" };
+            ctx.Jogadores.AddRange(a, b);
+            ctx.SaveChanges();
+            ctx.Duplas.Add(new Dupla
+            {
+                CategoriaId = cat.Id, Jogador1Id = a.Id, Jogador2Id = b.Id, UltimaFase = "Grupos",
+            });
+        }
+        ctx.SaveChanges();
+
         return cat;
     }
 
@@ -30,7 +51,7 @@ public class JogadorExperienciaTests
         var forasteiro = new Jogador { Nome = "C", Cpf = "3" };
         ctx.Jogadores.AddRange(a, b, forasteiro);
 
-        var cat = NovaCategoria(ctx, "T1", new DateTime(2026, 3, 1));
+        var cat = NovaCategoria(ctx, "T1", new DateTime(2026, 3, 1), duplasDeEnchimento: 3); // + as 2 daqui = 5
         ctx.Duplas.Add(new Dupla { CategoriaId = cat.Id, Jogador1Id = a.Id, Jogador2Id = b.Id, UltimaFase = "Campeao" });
         ctx.Duplas.Add(new Dupla { CategoriaId = cat.Id, Jogador1Id = a.Id, Jogador2Id = forasteiro.Id, UltimaFase = "Semifinal" });
         ctx.SaveChanges();

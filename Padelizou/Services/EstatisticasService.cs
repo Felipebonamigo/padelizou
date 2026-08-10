@@ -13,14 +13,46 @@ public class EstatisticasService : IEstatisticasService
         _context = context;
     }
 
-    public int PontosPorFase(string? ultimaFase) => ultimaFase switch
+    // QUANTO VALE CADA CAMPANHA: `Services/PontosDoTorneio` (espec em RANKING.md).
+    //
+    // ⚠️ Aqui existia `PontosPorFase(fase)`, e ele foi REMOVIDO de propósito em 10/08/2026,
+    // quando o ponto passou a depender do TAMANHO da categoria. São OITO lugares deste
+    // arquivo somando ponto (ranking por categoria, times, times num torneio, ranking do
+    // torneio, resumo do perfil, pontos por jogador e duas somas da evolução); um método que
+    // ainda aceitasse só a fase deixaria qualquer um deles com a regra velha — compilando,
+    // passando nos testes e mostrando um total diferente do outro. Apagar o método quebrou a
+    // compilação nos oito, que é a única forma de nenhum ficar pra trás.
+    //
+    // Contagem de inscrições por categoria, pra alimentar o peso. Uma passada só.
+    //
+    // ⚠️ Conta a inscrição que VALE NO RANKING: dupla-TIME fica fora (o `Jogador1Id` dela é o
+    // organizador que cadastrou, não quem jogou) e lista de espera também (quem não entrou
+    // não fez parte do funil que o peso mede).
+    private async Task<Dictionary<int, int>> ContarDuplasPorCategoriaAsync(IEnumerable<int>? categoriaIds = null)
     {
-        "Campeao" => 100,
-        "Final" => 60,
-        "Semifinal" => 35,
-        "Quartas de Final" => 20,
-        _ => 10 // Fase de Grupos / participou
-    };
+        var q = _context.Duplas.Where(d => d.NomeTime == null && !d.EmListaDeEspera);
+
+        if (categoriaIds != null)
+        {
+            var ids = categoriaIds.Distinct().ToList();
+            if (ids.Count == 0) return new Dictionary<int, int>();
+            q = q.Where(d => ids.Contains(d.CategoriaId));
+        }
+
+        // Agrupa em memória depois de trazer UMA coluna: `GroupBy` traduzido muda de
+        // comportamento entre provedores, e este método é lido pelo InMemory dos testes e
+        // pelo Postgres de produção.
+        var categorias = await q.Select(d => d.CategoriaId).ToListAsync();
+        return categorias.GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    // A mesma contagem quando as duplas JÁ estão carregadas — evita uma segunda ida ao banco
+    // nos métodos que leem a tabela inteira de qualquer jeito.
+    private static Dictionary<int, int> ContarDuplasPorCategoria(IEnumerable<Dupla> duplas) =>
+        duplas
+            .Where(d => d.NomeTime == null && !d.EmListaDeEspera)
+            .GroupBy(d => d.CategoriaId)
+            .ToDictionary(g => g.Key, g => g.Count());
 
     // Torneio RESTRITO e AMERICANO não entram no ranking oficial.
     //
@@ -232,6 +264,10 @@ public class EstatisticasService : IEstatisticasService
             .Include(d => d.Jogador2)
             .ToListAsync();
 
+        // ⚠️ Conta ANTES dos filtros de período/categoria: o peso é o tamanho real da
+        // categoria em que se jogou, e não "quantas duplas sobraram no recorte da tela".
+        var duplasPorCategoria = ContarDuplasPorCategoria(duplas);
+
         var porCategoria = duplas
             .Where(d => d.Categoria != null
                      && ContaNoRanking(d.Categoria.Torneio)   // torneio restrito fica fora
@@ -263,7 +299,8 @@ public class EstatisticasService : IEstatisticasService
                         acc[jogador.Id] = linha;
                     }
 
-                    linha.Pontos += PontosPorFase(dupla.UltimaFase);
+                    linha.Pontos += PontosDoTorneio.Pontos(
+                        dupla.UltimaFase, duplasPorCategoria.GetValueOrDefault(dupla.CategoriaId));
                     linha.Torneios += 1;
                     if (dupla.UltimaFase == "Campeao") linha.Titulos += 1;
                     if (dupla.UltimaFase == "Final") linha.Finais += 1;
@@ -314,23 +351,28 @@ public class EstatisticasService : IEstatisticasService
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
                          || d.Categoria.Torneio.DataInicio <= ate))
-            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, d.CategoriaId })
             .ToListAsync();
 
-        // Pontos/títulos por jogador (mesma pontuação por fase do ranking individual).
+        // O peso vem do tamanho da categoria — e a contagem NÃO pode sair das duplas acima,
+        // que já vêm filtradas por "tem time". Numa categoria de 16 duplas com 3 jogadores de
+        // time, o peso viraria o de uma categoria de 3.
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(duplas.Select(d => d.CategoriaId));
+
+        // Pontos/títulos por jogador (mesma pontuação do ranking individual).
         var porJogador = new Dictionary<int, (int pontos, int titulos)>();
-        void Somar(int jogadorId, string? fase)
+        void Somar(int jogadorId, string? fase, int categoriaId)
         {
             if (!idsComTime.Contains(jogadorId)) return;
             var atual = porJogador.GetValueOrDefault(jogadorId);
-            atual.pontos += PontosPorFase(fase);
+            atual.pontos += PontosDoTorneio.Pontos(fase, duplasPorCategoria.GetValueOrDefault(categoriaId));
             if (fase == "Campeao") atual.titulos += 1;
             porJogador[jogadorId] = atual;
         }
         foreach (var d in duplas)
         {
-            Somar(d.Jogador1Id, d.UltimaFase);
-            if (d.Jogador2Id != null) Somar(d.Jogador2Id.Value, d.UltimaFase);
+            Somar(d.Jogador1Id, d.UltimaFase, d.CategoriaId);
+            if (d.Jogador2Id != null) Somar(d.Jogador2Id.Value, d.UltimaFase, d.CategoriaId);
         }
 
         return jogadores
@@ -377,10 +419,14 @@ public class EstatisticasService : IEstatisticasService
             .Include(d => d.Jogador2!).ThenInclude(j => j.Time)
             .ToListAsync();
 
+        // ⚠️ Não dá pra contar a partir de `duplas`: ela já vem sem as dupla-TIME, mas ainda
+        // traz lista de espera — e o peso tem uma definição só, que mora no contador.
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(duplas.Select(d => d.CategoriaId));
+
         var acc = new Dictionary<int, PontosTimeTorneioVM>();
         var membros = new Dictionary<int, HashSet<int>>();
 
-        void Somar(Jogador? j, string? fase)
+        void Somar(Jogador? j, string? fase, int categoriaId)
         {
             var time = j?.Time;
             if (j == null || time == null) return;
@@ -390,14 +436,14 @@ public class EstatisticasService : IEstatisticasService
                 acc[time.Id] = vm;
                 membros[time.Id] = new HashSet<int>();
             }
-            vm.Pontos += PontosPorFase(fase);
+            vm.Pontos += PontosDoTorneio.Pontos(fase, duplasPorCategoria.GetValueOrDefault(categoriaId));
             if (membros[time.Id].Add(j.Id)) vm.Jogadores++;
         }
 
         foreach (var d in duplas)
         {
-            Somar(d.Jogador1, d.UltimaFase);
-            Somar(d.Jogador2, d.UltimaFase);
+            Somar(d.Jogador1, d.UltimaFase, d.CategoriaId);
+            Somar(d.Jogador2, d.UltimaFase, d.CategoriaId);
         }
 
         return acc.Values.OrderByDescending(x => x.Pontos).ThenBy(x => x.Time).ToList();
@@ -707,9 +753,11 @@ public class EstatisticasService : IEstatisticasService
             return l;
         }
 
+        var duplasPorCategoria = ContarDuplasPorCategoria(duplas);
+
         foreach (var d in duplas)
         {
-            int pts = PontosPorFase(d.UltimaFase);
+            int pts = PontosDoTorneio.Pontos(d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId));
             bool campeao = d.UltimaFase == "Campeao";
             foreach (var j in new[] { d.Jogador1, d.Jogador2 })
             {
@@ -1121,12 +1169,14 @@ public class EstatisticasService : IEstatisticasService
             {
                 d.UltimaFase,
                 d.Categoria.TorneioId,
+                d.CategoriaId,
                 Restrito = d.Categoria.Torneio.Restrito,
                 Formato = d.Categoria.Torneio.Formato,
             })
             .ToListAsync();
 
         var fases = participacoes.Select(p => p.UltimaFase).ToList();
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(participacoes.Select(p => p.CategoriaId));
 
         int vitorias = 0, derrotas = 0;
         var partidas = (await CarregarPartidasFinalizadasAsync(incluirTorneio: true))
@@ -1145,7 +1195,8 @@ public class EstatisticasService : IEstatisticasService
         {
             Pontos = participacoes
                 .Where(p => ContaNoRanking(p.Restrito, p.Formato))
-                .Sum(p => PontosPorFase(p.UltimaFase)),
+                .Sum(p => PontosDoTorneio.Pontos(
+                    p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId))),
 
             // ⚠️ Torneios DISTINTOS, não linhas de dupla. No Americano cada RODADA cria uma
             // dupla nova, então um rodízio de uma noite se anunciava como "8 torneio(s)" no
@@ -1179,12 +1230,16 @@ public class EstatisticasService : IEstatisticasService
             .Where(d => d.NomeTime == null
                      && (ids.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
-            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase })
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, d.CategoriaId })
             .ToListAsync();
+
+        // ⚠️ De novo: a contagem NÃO sai de `duplas`, que aqui vem filtrada pelos jogadores
+        // pedidos. Uma busca por um nome só faria toda categoria dele parecer ter 1 dupla.
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(duplas.Select(d => d.CategoriaId));
 
         foreach (var d in duplas)
         {
-            int p = PontosPorFase(d.UltimaFase);
+            int p = PontosDoTorneio.Pontos(d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId));
             if (pontos.ContainsKey(d.Jogador1Id)) pontos[d.Jogador1Id] += p;
             if (d.Jogador2Id != null && pontos.ContainsKey(d.Jogador2Id.Value)) pontos[d.Jogador2Id.Value] += p;
         }
@@ -1206,8 +1261,12 @@ public class EstatisticasService : IEstatisticasService
             .Where(d => d.NomeTime == null
                      && !d.Categoria.Torneio.Restrito
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase })
+            .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase, d.CategoriaId })
             .ToListAsync();
+
+        // A linha do gráfico tem que terminar no MESMO total que o perfil mostra, então ela
+        // usa exatamente a mesma conta — inclusive o peso.
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(participacoes.Select(p => p.CategoriaId));
 
         // O ranking concede pontos de participação já na inscrição, então um torneio marcado
         // pra frente JÁ conta no total do perfil. Se a linha parasse no mês atual, o gráfico
@@ -1224,7 +1283,8 @@ public class EstatisticasService : IEstatisticasService
         // senão a linha começaria em zero e daria a impressão de que o jogador regrediu.
         int acumulado = participacoes
             .Where(p => p.Data != null && p.Data.Value < primeiroMes)
-            .Sum(p => PontosPorFase(p.UltimaFase));
+            .Sum(p => PontosDoTorneio.Pontos(
+                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId)));
 
         var naJanela = participacoes.Where(p => p.Data != null && p.Data.Value >= primeiroMes).ToList();
 
@@ -1235,7 +1295,8 @@ public class EstatisticasService : IEstatisticasService
             var fim = mes.AddMonths(1);
             var doMes = naJanela.Where(p => p.Data!.Value >= mes && p.Data.Value < fim).ToList();
 
-            int ganhos = doMes.Sum(p => PontosPorFase(p.UltimaFase));
+            int ganhos = doMes.Sum(p => PontosDoTorneio.Pontos(
+                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId)));
             acumulado += ganhos;
 
             vm.Meses.Add(new MesEvolucaoVM

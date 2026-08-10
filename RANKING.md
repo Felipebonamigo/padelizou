@@ -188,17 +188,142 @@ Quem for mexer nesse método: a ausência das duas checagens é para ficar como 
 
 ## Trilha B — o ranking anual (pontos)
 
-- Pontos por fase alcançada (tabela atual: Campeão 100, Vice 60, Semi 35, Quartas 20,
-  participou 10), somados **por categoria**.
+- Pontos por fase alcançada **multiplicados pelo tamanho da categoria** (a régua completa
+  está logo abaixo), somados **por categoria**.
 - **Validade de 12 meses móveis**: o ponto de um torneio expira 12 meses depois do
   `DataInicio`. O perfil mostra "pontos a defender" (estilo ATP) — urgência boa.
+  ⚠️ **ADIADO por decisão do Felipe (10/08/2026): por enquanto os pontos NÃO expiram.**
 - **Melhores do Ano**: corte em 31/12 por categoria, selo automático no perfil.
 - **Benefício de líder**: o organizador pode configurar "1º do ranking da categoria
   não paga inscrição" (ou desconto) — e como o pagamento passa por nós, o desconto
   aplica SOZINHO na inscrição. Regra no papel vira recurso do produto.
 - Torneio Restrito continua fora (já é assim hoje).
-- Status: ainda não implementada — hoje os pontos somam a vida toda e sem recorte por
-  categoria. Esta trilha é o próximo passo depois da fase 1 do Padelímetro.
+- Status: o **peso por tamanho** está feito (10/08/2026, abaixo). A validade de 12 meses,
+  os Melhores do Ano e o benefício de líder continuam por fazer.
+
+### O peso por tamanho da categoria (10/08/2026)
+
+Até aqui a tabela era fixa e **cega ao tamanho**: campeão de 4 duplas e campeão de 32
+levavam os mesmos 100 pontos, um tendo ganho 2 jogos e o outro 5 ou 6 contra um funil
+muito maior. E tudo abaixo de Quartas caía no mesmo "participou 10" — ou seja, quanto
+MAIOR o torneio, mais fases o ranking ignorava.
+
+**A régua nova, em duas frases:** quem cai na fase de grupos leva 10, sempre. Quem
+sobrevive à chave leva `pontos da fase × peso`, e o peso é **1,0 com 5 duplas, +0,1 por
+dupla**.
+
+#### A escada de fases
+
+| Fase alcançada | Base | Multiplica? |
+|---|---|---|
+| Campeão | 100 | sim |
+| Vice (perdeu a Final) | 60 | sim |
+| Semifinal | 35 | sim |
+| Quartas de Final | 20 | sim |
+| Oitavas de Final | 15 | sim |
+| 16-avos (`"Primeira Rodada"`, o quadro de 32) | 12 | sim |
+| Fase de grupos / participou | **10** | **NÃO** |
+
+⚠️ **As duas fases do meio (Oitavas e 16-avos) são NOVAS.** Elas já existiam no
+chaveamento (`ChaveamentoMataMata.NomeFase`) e não existiam na pontuação: quem sobrevivia
+aos grupos de uma categoria grande e caía nas oitavas pontuava igual a quem perdeu tudo no
+grupo. No código a primeira rodada do quadro de 32 se chama `"Primeira Rodada"`; **na tela
+ela é "16-avos"** — o nome interno ficou porque renomear constante que decide chaveamento
+não vale o risco.
+
+⚠️ **A participação NÃO multiplica, e isso é decisão do Felipe (10/08/2026).** Os 10 são o
+ponto **da inscrição** — é o que se ganha por estar lá. Multiplicá-los premiaria aparecer
+num torneio grande e perder tudo; do jeito que ficou, o peso só começa a valer quando a
+pessoa **sobrevive à chave**. O degrau fica nítido de propósito: numa categoria de 20
+duplas, cair no grupo vale 10 e passar pros 16-avos vale 30.
+
+#### O peso
+
+```
+peso = 0,5 + (duplas da categoria ÷ 10)
+```
+
+**Sem teto** (decisão do Felipe, 10/08/2026): 25 duplas = 3,0 · 26 = 3,1 · 30 = 3,5 ·
+40 = 4,5. Um teto criaria uma zona plana onde 25 e 40 duplas valem igual — exatamente a
+injustiça que este trabalho existe pra consertar.
+
+- **5 duplas = 1,0 é o ponto de calibração**: no torneio pequeno de sempre os números não
+  mudam, e o ranking que já existe quase não se mexe.
+- **Linear, +0,1 por dupla, sem degraus.** Degrau cria fronteira ("com 11 vale menos que
+  com 12"), e fronteira em régua de ponto vira briga e vira manipulação de inscrição.
+  Foi o pedido do Felipe: *"como muitas vezes não são múltiplos de 4"*.
+- **É o tamanho da CATEGORIA, não do torneio** — é contra o funil da SUA chave que se
+  jogou. Um torneio de 60 duplas com 6 categorias não é um torneio de 60 duplas pra
+  ninguém.
+- **Conta a inscrição que vale no ranking**: fora `NomeTime != null` (dupla-TIME, cujo
+  `Jogador1Id` é o organizador) e fora `EmListaDeEspera` (quem não entrou não fez funil).
+- **Piso de 3 duplas pra valer campanha**: com 1 dupla o "campeão" não jogou nada e com 2
+  ganhou um jogo só — é fabricável em cinco minutos, a mesma porta que o piso de 8 fecha no
+  Americano. Abaixo de 3, todo mundo da categoria leva os 10 da inscrição.
+- **Arredondamento `AwayFromZero`**, nunca o `ToEven` padrão do .NET — com ToEven, dois
+  jogadores com a mesma conta receberiam pontos diferentes conforme a paridade (é a mesma
+  armadilha já documentada na Trilha C).
+
+#### A tabela que sai disso
+
+| Duplas | Peso | Campeão | Vice | Semi | Quartas | Oitavas | 16-avos | Grupos |
+|---|---|---|---|---|---|---|---|---|
+| 3 | 0,8 | 80 | 48 | 28 | — | — | — | 10 |
+| **5** | **1,0** | **100** | **60** | **35** | **20** | — | — | **10** |
+| 8 | 1,3 | 130 | 78 | 46 | 26 | — | — | 10 |
+| 12 | 1,7 | 170 | 102 | 60 | 34 | — | — | 10 |
+| 16 | 2,1 | 210 | 126 | 74 | 42 | 32 | — | 10 |
+| 20 | 2,5 | 250 | 150 | 88 | 50 | 38 | 30 | 10 |
+| 26 | 3,1 | 310 | 186 | 109 | 62 | 47 | 37 | 10 |
+
+Leitura de justiça — chegar menos longe num funil maior pode valer mais, e é o ponto
+inteiro da mudança: **semifinal numa categoria de 20 duplas (88) vale mais que o TÍTULO de
+uma de 3 (80)**. E sair do grupo numa de 20 (30) vale mais que ser semifinalista numa de 3
+(28).
+
+#### É retroativo, e é de propósito
+
+Ponto de ranking **não é guardado**: é calculado na hora a partir de `Dupla.UltimaFase`.
+Mudar a fórmula reordena o ranking inteiro no mesmo segundo — inclusive a história. É a
+mesma filosofia do replay do Padelímetro: *mudou a régua, ela vale pra história toda*. A
+alternativa (versionar a regra por torneio) colocaria duas moedas no mesmo ranking, e aí
+ninguém entende o próprio número. Com a referência em 5 duplas = 1,0, o torneio típico de
+hoje quase não se move.
+
+#### O que NÃO entrou: bônus por adversário forte
+
+O Felipe perguntou se enfrentar dupla mais bem ranqueada não deveria pagar mais. **Não
+entra na trilha de pontos — porque a trilha A já é exatamente isso.** No Elo do
+Padelímetro, bater dupla forte paga muito e bater dupla fraca paga quase nada, e ele acerta
+essa conta porque parte da EXPECTATIVA do confronto. Repetir a ideia aqui traria três
+defeitos:
+
+1. **O passado se reescreveria sozinho.** O PDZ do adversário de março muda todo fim de
+   semana; o ponto de março flutuaria pra sempre junto. Congelar exigiria fotografar o
+   adversário partida a partida — coluna, migração e replay, pra duplicar o que a trilha A
+   faz de graça.
+2. **Premiaria o SORTEIO, não o mérito.** Duas duplas na mesma fase: a que pegou o futuro
+   campeão levaria mais que a que pegou chave leve. No Elo isso é justo (a expectativa
+   desconta); numa soma de pontos vira loteria de chaveamento.
+3. **O número deixaria de ser explicável.** "Quartas em 16 duplas = 42" qualquer um
+   confere; "43,7 porque o adversário tinha 612 PDZ" é discussão no grupo do WhatsApp.
+
+**Fica como fase 2**, com gatilho: quando ~70% dos jogadores de uma categoria tiverem PDZ
+fora da calibração, entra um multiplicador pequeno (até ~1,25×) pela **força do campo
+inteiro** — o PDZ médio da categoria, **fotografado na geração das chaves**. Isso premia
+"o torneio era forte" sem premiar sorteio, e uma fotografia por categoria é barata.
+
+#### Implementação
+
+- Motor puro em **`Services/PontosDoTorneio.cs`** (estático, sem banco, espelho do
+  `PontosDoAmericano`): `Peso(duplas)`, `ValeCampanha(fase)` e `Pontos(fase, duplas)`.
+- ⚠️ **`EstatisticasService.PontosPorFase(fase)` foi REMOVIDO de propósito.** Eram 8 lugares
+  somando ponto (perfil, busca, ranking por categoria, times, por torneio, evolução) e um
+  método que ainda aceitasse só a fase deixaria qualquer um deles com a regra velha, sem
+  erro nenhum aparecer. Apagar o método quebra a compilação nos 8 — é a lição da regra
+  duplicada, que é A causa dos bugs graves deste projeto.
+- A contagem de duplas por categoria sai numa passada só
+  (`ContarDuplasPorCategoriaAsync`), nunca uma consulta por linha.
 
 ## Trilha C — o Ranking Americano (07/08/2026)
 

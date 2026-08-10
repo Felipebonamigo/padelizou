@@ -35,6 +35,21 @@ public class TorneioRestritoNaoPontuaTests
             Id = 1, CategoriaId = 1, Jogador1Id = 1, Jogador2Id = 2, UltimaFase = ultimaFase,
         });
 
+        // ⚠️ Enchimento até 5 duplas por causa do PESO POR TAMANHO (10/08/2026): 5 é o ponto
+        // de calibração (peso 1,0), onde campeão vale os 100 de sempre. Com uma dupla só a
+        // categoria ficava abaixo do piso de 3 e o campeão levava 10 — o teste ainda passaria
+        // no caso do restrito (0 é 0) e mentiria no caso do torneio aberto.
+        for (int i = 0; i < 4; i++)
+        {
+            var a = new Jogador { Id = 10 + i, Nome = $"Enchimento {i}A", Cpf = $"9990001{i:00}1" };
+            var b = new Jogador { Id = 20 + i, Nome = $"Enchimento {i}B", Cpf = $"9990002{i:00}2" };
+            ctx.Jogadores.AddRange(a, b);
+            ctx.Duplas.Add(new Dupla
+            {
+                Id = 10 + i, CategoriaId = 1, Jogador1Id = a.Id, Jogador2Id = b.Id, UltimaFase = "Grupos",
+            });
+        }
+
         await ctx.SaveChangesAsync();
         return (ctx, jogador);
     }
