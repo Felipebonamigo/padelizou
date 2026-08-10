@@ -288,6 +288,58 @@ public class RelatorioDoRankingRsTests
     }
 
     [Fact]
+    public void Nao_consta_no_ranking_exige_ter_sido_PERGUNTADO()
+    {
+        // ⚠️ `EncontradoNoRanking` é `false` também em quem nunca foi consultado — ali ele
+        // significa "ninguém perguntou", não "não está no ranking". Sem a exigência de
+        // conferência, a lista encheria de gente sobre quem não se sabe nada, e o relatório
+        // afirmaria pro parceiro que esses atletas faltam na base DELE.
+        var perguntadoENaoAchado = JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.Aprovado, encontrado: false, categoriaId: 4) }, 4, 6);
+        Assert.True(Assert.Single(perguntadoENaoAchado).NaoConstaNoRanking);
+
+        var perguntadoEAchado = JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.Aprovado, encontrado: true, categoriaId: 4) }, 4, 6);
+        Assert.False(Assert.Single(perguntadoEAchado).NaoConstaNoRanking);
+
+        // Nunca perguntado — de três jeitos diferentes. Nenhum deles é "não consta".
+        Assert.False(Assert.Single(JuntarSilvano(Array.Empty<ConsultaAoRankingRs>(), 4, 6)).NaoConstaNoRanking);
+        Assert.False(Assert.Single(JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.SemDePara, encontrado: false, categoriaId: 4) }, 4, 6)).NaoConstaNoRanking);
+        Assert.False(Assert.Single(JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.SemResposta, encontrado: false, categoriaId: 4) }, 4, 6)).NaoConstaNoRanking);
+    }
+
+    [Fact]
+    public void Nao_constam_e_subconjunto_dos_CONFERIDOS_e_nao_um_balde_novo()
+    {
+        // Ele não entra na conta da falta de conferência: essas pessoas FORAM conferidas.
+        var totais = RelatorioDoRankingRs.Somar(new[]
+        {
+            LinhaComEncontro(new[] { (ResultadoDaConsulta.Aprovado, false), (ResultadoDaConsulta.Aprovado, false),
+                                     (ResultadoDaConsulta.Aprovado, true),  (ResultadoDaConsulta.SemDePara, false) }),
+        });
+
+        Assert.Equal(4, totais.Inscritos);
+        Assert.Equal(3, totais.Conferidos);
+        Assert.Equal(2, totais.NaoConstamNoRanking);
+        Assert.Equal(1, totais.SemConferencia);              // só o SemDePara
+        Assert.Equal(1, totais.SemCorrespondencia);
+    }
+
+    private static RelatorioDoRankingRs.LinhaDoTorneio LinhaComEncontro(
+        (string Resultado, bool Encontrado)[] pessoas)
+    {
+        var inscritos = pessoas.Select((p, i) => new RelatorioDoRankingRs.Inscrito(
+            i, $"Atleta {i}", $"cpfe{i}", new[] { "6ª Masc" },
+            Consulta(p.Resultado, $"cpfe{i}", encontrado: p.Encontrado))).ToList();
+
+        return new RelatorioDoRankingRs.LinhaDoTorneio(
+            new Torneio { Nome = "Torneio", Codigo = "T3", Status = "Encerrado" },
+            inscritos, Array.Empty<RelatorioDoRankingRs.Barrado>(), pessoas.Length, null);
+    }
+
+    [Fact]
     public void Os_tres_motivos_de_nao_conferencia_FECHAM_a_conta()
     {
         // ⚠️ Se os baldes não somarem exatamente `SemConferencia`, a tela explica só parte do

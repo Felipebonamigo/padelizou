@@ -256,6 +256,9 @@
                             <th class="text-center">Inscritos</th>
                             <th class="text-center">Conferidos</th>
                             <th class="text-center">Aprovados</th>
+                            @* Subconjunto dos conferidos, não mais um balde de "sem conferência":
+                               são os que a gente PERGUNTOU e o ranking não conhece. *@
+                            <th class="text-center">Não constam</th>
                             <th class="text-center">Barrados</th>
                             <th class="text-end">Valor</th>
                         </tr>
@@ -303,6 +306,19 @@
                                 </td>
                                 <td class="text-center text-success fw-bold">@linha.Aprovados</td>
                                 <td class="text-center">
+                                    @if (linha.NaoConstamNoRanking > 0)
+                                    {
+                                        <span class="fw-bold" style="color: var(--pdz-ink);">@linha.NaoConstamNoRanking</span>
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            de @linha.Conferidos conferido@(linha.Conferidos == 1 ? "" : "s")
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
                                     @if (linha.Barrados.Count > 0)
                                     {
                                         <span class="text-danger fw-bold">@linha.Barrados.Count</span>
@@ -337,6 +353,7 @@
                             <td class="text-center">@totais.Inscritos</td>
                             <td class="text-center">@totais.Conferidos</td>
                             <td class="text-center text-success">@totais.Aprovados</td>
+                            <td class="text-center">@totais.NaoConstamNoRanking</td>
                             <td class="text-center text-danger">@totais.Barrados</td>
                             <td class="text-end">@totais.ValorTotal.ToString("C")</td>
                         </tr>
@@ -434,6 +451,79 @@
                         }
                     </tbody>
                 </table>
+            </div>
+        </div>
+    }
+
+    @* ── ATLETAS QUE NÃO CONSTAM NO RANKING ───────────────────────────────────────────
+       Pedido do Felipe. Pra eles é a lista mais acionável da página: gente que jogou um
+       torneio e não está no ranking deles. Pra nós, é o que explica taxa de aprovação alta
+       sem ser "a integração deixou passar". *@
+    @{
+        var naoConstam = linhas
+            .SelectMany(l => l.Inscritos.Where(i => i.NaoConstaNoRanking).Select(i => (Linha: l, Pessoa: i)))
+            .OrderBy(x => x.Pessoa.Nome)
+            .ToList();
+    }
+    @if (naoConstam.Any())
+    {
+        <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+            <i class="bi bi-person-x"></i> Atletas que não constam no @MarcaDoRanking.Nome
+        </h5>
+        <p class="text-muted small">
+            Foram <strong>consultados</strong> e o ranking não devolveu pontuação para eles —
+            então passaram por <em>não ter o que provar</em>, e não por terem sido conferidos
+            contra pontos. É informação diferente de "aprovado", e por isso está separada.
+            <br />
+            ⚠️ O casamento do @MarcaDoRanking.Nome é <strong>pelo nome</strong>: quem estiver
+            cadastrado lá com o nome escrito de outro jeito aparece aqui como se não existisse.
+        </p>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Atleta</th>
+                            <th>Nome consultado</th>
+                            <th>Onde jogou</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in naoConstam)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@item.Pessoa.Nome</div>
+                                    <div class="text-muted" style="font-size: .75rem;">
+                                        @RelatorioDoRankingRs.CpfNaTela(item.Pessoa.Cpf, cpfInteiro)
+                                    </div>
+                                </td>
+                                <td class="small">
+                                    @* O texto EXATO que foi mandado — é ele que casa (ou não) no
+                                       ranking deles, e ver a grafia é o que explica um "não
+                                       consta" que na verdade é nome escrito diferente. *@
+                                    @item.Pessoa.Consulta!.NomeConsultado
+                                    @if (item.Pessoa.Consulta.CategoriaRsNome != null)
+                                    {
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            consultado em @item.Pessoa.Consulta.CategoriaRsNome
+                                        </div>
+                                    }
+                                </td>
+                                <td class="small">
+                                    <div>@string.Join(", ", item.Pessoa.Categorias)</div>
+                                    <div class="text-muted" style="font-size: .75rem;">@item.Linha.Torneio.Nome</div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                <i class="bi bi-people"></i>
+                <strong>@naoConstam.Count</strong> de @totais.Conferidos pessoa@(totais.Conferidos == 1 ? "" : "s")
+                conferida@(totais.Conferidos == 1 ? "" : "s") não @(naoConstam.Count == 1 ? "consta" : "constam") no @MarcaDoRanking.Nome.
             </div>
         </div>
     }
