@@ -1,4 +1,10 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using NSubstitute;
+using padelizou.Controllers;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -358,6 +364,130 @@ public class RelatorioDoRankingRsTests
         Assert.Contains("sem conferência", semComentarios);
         Assert.Contains("Barrado não é inscrito", semComentarios);
         Assert.Contains("pessoa, não inscrição", semComentarios);
+    }
+
+    // ── LIBERAR QUEM AINDA NÃO TEM CONTA ──────────────────────────────────────────────
+    //
+    // O impasse que isto resolve: a busca do painel só acha `Jogador` que já existe, e quem a
+    // gente quer liberar é gente de outra empresa, que não tem conta aqui. Reaproveita o
+    // pré-cadastro por CPF — `Jogador` sem senha, reivindicado por quem se cadastrar com ele.
+
+    private static AdminController Painel(DbPadelContext ctx, int logadoId)
+    {
+        var controller = new AdminController(
+            ctx,
+            Substitute.For<IPushNotificationService>(),
+            Substitute.For<Microsoft.Extensions.Configuration.IConfiguration>(),
+            Microsoft.Extensions.Options.Options.Create(new RegistroResultadosSettings()));
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, logadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new TempDataDictionary(controller.HttpContext, Substitute.For<ITempDataProvider>());
+        return controller;
+    }
+
+    private const string CpfDoParceiro = "52998224725";
+
+    private static DbPadelContext ComRaiz()
+    {
+        var ctx = TestInfra.NovoContexto();
+        ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Felipe", Cpf = "11144477735", IsAdminRaiz = true });
+        ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Comum", Cpf = "86412245561" });
+        ctx.SaveChanges();
+        return ctx;
+    }
+
+    [Fact]
+    public async Task Libera_por_CPF_quem_ainda_nao_tem_conta()
+    {
+        var ctx = ComRaiz();
+
+        await Painel(ctx, logadoId: 1)
+            .AdicionarParceiroDoRankingPorCpf("Fernanda Do Ranking", CpfDoParceiro);
+
+        var criado = ctx.Jogadores.Single(j => j.Cpf == CpfDoParceiro);
+        Assert.True(criado.IsParceiroRanking);
+        // ⚠️ SEM SENHA é o que faz a conta ser reivindicável: quem se cadastrar com este CPF
+        // assume esta linha, e a permissão vai junto. Com senha, o cadastro seria recusado e
+        // a pessoa nunca chegaria no relatório.
+        Assert.True(string.IsNullOrEmpty(criado.SenhaHash));
+    }
+
+    [Fact]
+    public async Task CPF_com_digito_errado_nao_pendura_permissao_em_ninguem()
+    {
+        // ⚠️ O risco real desta tela: CPF errado não é registro inútil, é uma permissão
+        // esperando num número de OUTRA pessoa, que ela destrava sozinha ao se cadastrar.
+        var ctx = ComRaiz();
+
+        await Painel(ctx, logadoId: 1).AdicionarParceiroDoRankingPorCpf("Fulano", "11111111111");
+
+        Assert.Empty(ctx.Jogadores.Where(j => j.IsParceiroRanking));
+        Assert.Equal(2, ctx.Jogadores.Count());
+    }
+
+    [Fact]
+    public async Task Nome_que_nao_parece_nome_nao_cria_ninguem()
+    {
+        var ctx = ComRaiz();
+
+        await Painel(ctx, logadoId: 1).AdicionarParceiroDoRankingPorCpf(".", CpfDoParceiro);
+
+        Assert.Equal(2, ctx.Jogadores.Count());
+    }
+
+    [Fact]
+    public async Task CPF_de_quem_JA_tem_conta_so_marca_a_flag_e_nao_duplica()
+    {
+        var ctx = ComRaiz();
+
+        await Painel(ctx, logadoId: 1).AdicionarParceiroDoRankingPorCpf("Nome Digitado Errado", "86412245561");
+
+        // Não nasce jogador novo, e a conta existente não é renomeada pelo que foi digitado —
+        // a confirmação da tela mostra o nome DO BANCO justamente pra o erro aparecer.
+        Assert.Equal(2, ctx.Jogadores.Count());
+        var existente = ctx.Jogadores.Single(j => j.Cpf == "86412245561");
+        Assert.True(existente.IsParceiroRanking);
+        Assert.Equal("Comum", existente.Nome);
+    }
+
+    [Fact]
+    public async Task CPF_pontuado_e_aceito_igual()
+    {
+        var ctx = ComRaiz();
+
+        await Painel(ctx, logadoId: 1).AdicionarParceiroDoRankingPorCpf("Fernanda Do Ranking", "529.982.247-25");
+
+        Assert.True(ctx.Jogadores.Single(j => j.Cpf == CpfDoParceiro).IsParceiroRanking);
+    }
+
+    [Fact]
+    public async Task Quem_NAO_e_raiz_nao_libera_ninguem()
+    {
+        // Mesma porta das outras concessões: quem entrega a chave da casa é só o dono.
+        var ctx = ComRaiz();
+
+        var resposta = await Painel(ctx, logadoId: 2)
+            .AdicionarParceiroDoRankingPorCpf("Fernanda Do Ranking", CpfDoParceiro);
+
+        Assert.IsType<ForbidResult>(resposta);
+        Assert.Empty(ctx.Jogadores.Where(j => j.IsParceiroRanking));
+    }
+
+    [Fact]
+    public void A_tela_de_administradores_mostra_a_recusa()
+    {
+        // ⚠️ Ela só exibia TempData["Sucesso"]. Um CPF inválido voltava em silêncio, e a
+        // leitura do Felipe seria "cliquei e não fez nada".
+        var view = File.ReadAllText(Path.Combine(
+            PastaDoProjeto(), "Views", "Admin", "Administradores.cshtml"));
+
+        Assert.Contains("TempData[\"Erro\"]", view);
     }
 
     private static string PastaDoProjeto()

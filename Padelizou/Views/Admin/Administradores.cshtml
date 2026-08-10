@@ -17,6 +17,13 @@
         <div class="alert alert-success">@TempData["Sucesso"]</div>
     }
 
+    @* A recusa precisa APARECER. Esta tela só mostrava o sucesso: um CPF inválido no bloco
+       do parceiro voltaria pra cá em silêncio, e a leitura seria "cliquei e não fez nada". *@
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Adicionar administrador</h6>
@@ -125,7 +132,8 @@
         <div class="alert alert-warning small">
             <i class="bi bi-person-badge"></i>
             <strong>Este é o único acesso do sistema dado a gente de fora da empresa.</strong>
-            A pessoa precisa ter conta no Padelizou, e entra com o login dela.
+            Cada pessoa entra com o próprio login. Não precisa ter conta ainda: dá pra liberar
+            pelo CPF agora e a conta ser criada depois.
         </div>
         <p class="text-muted small">
             <i class="bi bi-info-circle"></i>
@@ -135,7 +143,7 @@
 
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3">Liberar o relatório para alguém</h6>
+                <h6 class="fw-bold text-muted mb-2">Já tem conta no Padelizou</h6>
                 @{
                     ViewData["BuscaOrgActionUrl"] = Url.Action("AdicionarParceiroDoRanking", "Admin");
                 }
@@ -143,6 +151,44 @@
                 @{
                     ViewData["BuscaOrgActionUrl"] = null;
                 }
+
+                @* ── AINDA NÃO TEM CONTA ─────────────────────────────────────────────────
+                   A busca acima só acha quem já existe — e quem a gente libera aqui é gente
+                   de outra empresa, que normalmente não tem conta. Sem este bloco o acesso
+                   ficava esperando a pessoa se cadastrar primeiro. *@
+                <hr class="my-4" />
+                <h6 class="fw-bold text-muted mb-1">Ainda não tem conta</h6>
+                <p class="text-muted small">
+                    Libere agora pelo CPF. Quando essa pessoa criar a conta em
+                    <strong>Cadastre-se</strong> com <strong>esse mesmo CPF</strong>, o acesso
+                    ao relatório já vem junto — você não precisa voltar aqui.
+                </p>
+
+                <form asp-controller="Admin" asp-action="AdicionarParceiroDoRankingPorCpf" method="post"
+                      class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted mb-1" for="parceiroNome">Nome completo</label>
+                        <input type="text" class="form-control" id="parceiroNome" name="nome"
+                               placeholder="Nome e sobrenome" required maxlength="100" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted mb-1" for="parceiroCpf">CPF</label>
+                        @* inputmode numeric e não type=number: CPF tem zero à esquerda e não é
+                           número pra somar — o spinner do number só atrapalha. *@
+                        <input type="text" class="form-control" id="parceiroCpf" name="cpf"
+                               inputmode="numeric" placeholder="Só os números" required />
+                    </div>
+                    <div class="col-12 col-md-2 d-grid">
+                        <button type="submit" class="btn btn-outline-primary">Liberar</button>
+                    </div>
+                </form>
+
+                <div class="alert alert-warning small mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Confira o CPF antes de confirmar.</strong> Um dígito errado deixa o
+                    acesso pendurado no CPF de outra pessoa — e ela destrava sozinha ao se
+                    cadastrar. Quem ainda não criou a conta aparece marcado na lista abaixo.
+                </div>
             </div>
         </div>
 
@@ -151,8 +197,21 @@
             {
                 @foreach (var parceiro in parceiros)
                 {
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <span class="fw-bold">@parceiro.NomeComApelido</span>
+                    @* Sem senha = pré-cadastro: a permissão existe e ninguém a usou ainda.
+                       É aqui que um CPF digitado errado fica visível — e removível. *@
+                    var aindaSemConta = string.IsNullOrEmpty(parceiro.SenhaHash);
+                    <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <div>
+                            <span class="fw-bold">@parceiro.NomeComApelido</span>
+                            @if (aindaSemConta)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">ainda não criou a conta</span>
+                                <div class="text-muted" style="font-size: .75rem;">
+                                    Liberado pelo CPF @Padelizou.Services.RelatorioDoRankingRs.CpfNaTela(parceiro.Cpf, inteiro: true)
+                                    — o acesso vale a partir do cadastro feito com esse CPF.
+                                </div>
+                            }
+                        </div>
                         <form asp-controller="Admin" asp-action="RemoverParceiroDoRanking" method="post"
                               onsubmit="return confirm('Tirar o acesso de @parceiro.Nome ao relatório?');">
                             <input type="hidden" name="jogadorId" value="@parceiro.Id" />

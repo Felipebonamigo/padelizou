@@ -414,6 +414,72 @@ namespace padelizou.Controllers
             return RedirectToAction("Administradores");
         }
 
+        // Liberar o relatório para quem AINDA NÃO TEM CONTA no Padelizou.
+        //
+        // ⚠️ Sem isto o acesso do parceiro era um impasse de ovo e galinha: a busca ao lado só
+        // acha `Jogador` que já existe — a própria mensagem dela manda "peça para a pessoa
+        // criar uma conta primeiro" —, e quem a gente quer liberar é gente de OUTRA empresa,
+        // que naturalmente não tem conta aqui. O Felipe teria que combinar o cadastro por
+        // fora, esperar, e só então lembrar de voltar nesta tela.
+        //
+        // O mecanismo é o pré-cadastro que o projeto já usa pra parceiro de dupla (ver
+        // [[project_padelizou_pre_cadastro_por_cpf]]): nasce um `Jogador` COM CPF e SEM SENHA,
+        // e quem se cadastra com aquele CPF assume a própria conta — o `AuthController.Cadastro`
+        // preenche senha, e-mail e login sem tocar no resto, então a permissão sobrevive à
+        // reivindicação.
+        //
+        // ⚠️ O CPF é conferido pelo dígito verificador, e não só pelo tamanho. Um CPF digitado
+        // errado aqui não é um registro inútil: é uma permissão pendurada num número que
+        // pertence a OUTRA pessoa, e que ela destrava sozinha ao se cadastrar. Por isso, além
+        // da validação, a lista marca quem ainda não criou a conta — erro que se vê, se tira.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarParceiroDoRankingPorCpf(string? nome, string? cpf)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var digitos = Documentos.SomenteDigitos(cpf);
+            if (!Documentos.CpfEhValido(digitos))
+            {
+                TempData["Erro"] = "CPF inválido — confira os números.";
+                return RedirectToAction("Administradores");
+            }
+
+            nome = NomeDePessoa.Arrumar(nome);
+            var problemaNoNome = NomeDePessoa.Problema(nome, "O nome")
+                                 ?? LimitesDeTexto.Problema(nome, LimitesDeTexto.NomeDeJogador, "O nome");
+            if (problemaNoNome != null)
+            {
+                TempData["Erro"] = problemaNoNome;
+                return RedirectToAction("Administradores");
+            }
+
+            var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == digitos);
+            bool jaExistia = jogador != null;
+
+            if (jogador == null)
+            {
+                // Só nome e CPF: o resto a pessoa preenche quando criar a conta dela, e
+                // inventar e-mail ou celular aqui só criaria conflito de unicidade depois.
+                jogador = new Jogador { Nome = nome!, Cpf = digitos };
+                _context.Jogadores.Add(jogador);
+            }
+
+            jogador.IsParceiroRanking = true;
+            await _context.SaveChangesAsync();
+
+            // ⚠️ A confirmação diz o nome QUE ESTÁ NO BANCO, não o que foi digitado. Quando o
+            // CPF já pertence a alguém, é a única forma de o Felipe perceber que errou um
+            // dígito e acabou de liberar o relatório pra outra pessoa.
+            TempData["Sucesso"] = jaExistia
+                ? $"{NomeBonito.Formatar(jogador.Nome)} já tinha conta e agora vê o relatório do "
+                  + $"{MarcaDoRanking.Nome}. Confira se é quem você quis liberar."
+                : $"Acesso liberado para {NomeBonito.Formatar(jogador.Nome)}. Ainda não há conta "
+                  + "com esse CPF: peça para criar em \"Cadastre-se\" usando ESTE MESMO CPF, e o "
+                  + "acesso já vem junto.";
+            return RedirectToAction("Administradores");
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoverParceiroDoRanking(int jogadorId)
@@ -427,7 +493,7 @@ namespace padelizou.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            TempData["Sucesso"] = "Acesso ao relatório removido. Vale no próximo login dele.";
+            TempData["Sucesso"] = "Acesso ao relatório removido. Vale a partir do próximo login.";
             return RedirectToAction("Administradores");
         }
 

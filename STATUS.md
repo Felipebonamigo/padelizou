@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 💬 **O GRUPO DO TORNEIO NO WHATSAPP VIROU BOTÃO — E SÓ QUEM ESTÁ INSCRITO ENXERGA.** ⚠️ **Não publicado ainda.**
+> Última atualização: **10/08/2026** — 🤝 **DÁ PRA LIBERAR O RELATÓRIO DO RANKING PARA QUEM AINDA NÃO TEM CONTA.** ⚠️ **Não publicado ainda.**
+>
+> 🤝 **O ACESSO DO PARCEIRO ERA UM IMPASSE DE OVO E GALINHA.** A busca do painel só acha `Jogador` que já existe — a própria mensagem de vazio dela manda *"peça para a pessoa criar uma conta primeiro"* —, e quem a gente quer liberar é gente de OUTRA empresa, que naturalmente não tem conta aqui. O Felipe teria que combinar o cadastro por fora, esperar, e lembrar de voltar na tela. Agora o bloco tem duas portas: **"Já tem conta no Padelizou"** (a busca de sempre) e **"Ainda não tem conta"** (nome + CPF).
+>
+> 🔑 **Reaproveita o pré-cadastro por CPF que o projeto já usa pra parceiro de dupla**, sem tabela nova e sem migration: nasce um `Jogador` **com CPF e sem senha**, e quem se cadastrar com aquele CPF assume a própria conta. O `AuthController.Cadastro` preenche senha, e-mail e login **sem tocar no resto**, então a permissão sobrevive à reivindicação — e isso foi medido, não deduzido.
+>
+> ⚠️ **CPF ERRADO AQUI NÃO É REGISTRO INÚTIL — É PERMISSÃO PENDURADA NO NÚMERO DE OUTRA PESSOA**, que ela destrava sozinha ao se cadastrar. Três defesas: dígito verificador conferido (não só o tamanho), a confirmação mostra **o nome QUE ESTÁ NO BANCO** e não o digitado, e a lista marca **"ainda não criou a conta"** com o CPF à vista. ✅ A segunda defesa se provou sozinha na verificação: digitei *"Fernanda Do Ranking"* com um CPF que já era de outra pessoa e a tela respondeu **"Ana Beatriz já tinha conta..."** — é exatamente assim que um dígito trocado aparece.
+>
+> 🔴 **E a tela engolia a recusa**: `Views/Admin/Administradores.cshtml` só exibia `TempData["Sucesso"]`. CPF inválido voltava em silêncio e a leitura seria "cliquei e não fez nada". Tem teste guardando isso.
+>
+> 🧪 **3.283 testes, 0 falhas** (7 novos). ⚠️ **Um deles nasceu vermelho por um CPF de teste inválido que eu mesmo escrevi** (`40364135880`, dígito errado) — a validação estava certa e o teste é que mentia; nos seeds por SQL ele passava porque o banco não confere dígito. ✅ **Fluxo inteiro medido no app rodando**: liberei por CPF → a pessoa criou a conta pelo **formulário real** → `/Admin` **abre o relatório direto pra ela**, `/Admin/Financeiro` a manda embora, CPF mascarado e saudação com o nome dela. 🚨 **Armadilha de ambiente que quase me fez concluir "não tem permissão"**: cookie de `localhost` **ignora a porta**, então eu estava logado como outra pessoa vinda de outro preview — `fetch('/Auth/Logout')` na porta certa resolve.
+>
+> Antes, no mesmo dia — 💬 **O GRUPO DO TORNEIO NO WHATSAPP VIROU BOTÃO — E SÓ QUEM ESTÁ INSCRITO ENXERGA.** ⚠️ **Não publicado ainda.**
 >
 > 💬 **Pedido do Felipe, olhando o NATA PADEL TOUR em produção.** O organizador cola o convite do grupo (campo novo na criação e na aba Gerenciar) e a página do torneio passa a mostrar **"Entrar no grupo do torneio"**. Até aqui isso vivia no boca a boca — o convite ia no recado ou no particular, e **quem se inscrevia depois ficava de fora sem ninguém perceber**, justamente do lugar onde sai mudança de horário e chamada pra quadra.
 >
