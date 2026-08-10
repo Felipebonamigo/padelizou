@@ -476,6 +476,130 @@ public class ValidacaoPeloRankingRsTests
             ctx.ConsultasAoRankingRs.Single(c => c.Cpf == limpo.Cpf).Resultado);
     }
 
+    // ── RECONFERIR O TORNEIO DEPOIS DO FATO ───────────────────────────────────────────────
+    //
+    // Pergunta ao ranking sobre quem JÁ ESTÁ INSCRITO. Nasceu porque o 1º torneio real ficou
+    // com 20 de 22 pessoas sem resposta guardada (a validação sempre rodou, mas só passou a
+    // registrar em 10/08/2026) — e não havia como saber se elas foram aprovadas ou se
+    // simplesmente não estão no ranking.
+
+    private static Jogador Atleta(int id, string nome, string cpf) =>
+        new() { Id = id, Nome = nome, Cpf = cpf };
+
+    // Um torneio com gente DE VERDADE inscrita: duas duplas na categoria.
+    private static (DbPadelContext ctx, Torneio torneio, Categoria categoria) ComInscritos(
+        int? categoriaRs = 112, bool emListaDeEspera = false, string? nomeTime = null)
+    {
+        var (ctx, torneio, categoria) = Montar(categoriaRs: categoriaRs);
+        ctx.Jogadores.AddRange(
+            Atleta(1, "Silvano Hernandorena", "11144477735"),
+            Atleta(2, "Parceiro Limpo", "52998224725"));
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = categoria.Id, Jogador1Id = 1, Jogador2Id = 2,
+            EmListaDeEspera = emListaDeEspera, NomeTime = nomeTime,
+        });
+        ctx.SaveChanges();
+        return (ctx, torneio, categoria);
+    }
+
+    [Fact]
+    public async Task Reconferir_pergunta_por_quem_ja_esta_inscrito_e_guarda_a_resposta()
+    {
+        var (ctx, torneio, _) = ComInscritos();
+        var ranking = new RankingFalso { Responder = Aprovar };
+
+        var r = await Servico(ctx, ranking).ReconferirTorneioAsync(torneio);
+
+        Assert.Equal(2, r.Consultados);
+        Assert.Equal(2, r.Aprovados);
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count(c => c.Resultado == ResultadoDaConsulta.Aprovado));
+    }
+
+    [Fact]
+    public async Task Reconferir_separa_quem_NAO_ESTA_no_ranking_de_quem_foi_conferido()
+    {
+        // ⚠️ A PERGUNTA QUE MOTIVOU O BOTÃO. Quem não aparece no ranking passa por não ter o
+        // que provar; quem pontua só em categoria mais fraca passa tendo sido conferido de
+        // verdade. Os dois viram "Aprovado" — somá-los esconderia exatamente o que se quer saber.
+        var (ctx, torneio, _) = ComInscritos();
+        var ranking = new RankingFalso
+        {
+            Responder = a => a.Referencia == Silvano.Cpf
+                ? Aprovar(a)                                   // encontrado no ranking
+                : new ResultadoDoRanking(RespostaDoRanking.Aprovado, a.Nome, "6ª Masculina",
+                    EncontradoNoRanking: false, Array.Empty<CategoriaBloqueante>(), a.Referencia),
+        };
+
+        var r = await Servico(ctx, ranking).ReconferirTorneioAsync(torneio);
+
+        Assert.Equal(2, r.Aprovados);
+        Assert.Equal(1, r.SemPontuacaoNoRanking);
+    }
+
+    [Fact]
+    public async Task Reconferir_NAO_desinscreve_ninguem_nem_enche_a_fila_do_organizador()
+    {
+        // ⚠️ O TESTE MAIS IMPORTANTE DESTE BLOCO. A pessoa já está no torneio e a chave dela
+        // pode já ter saído. O resultado é INFORMAÇÃO; quem decide é o organizador. E não vira
+        // BloqueioDoRanking: aquela fila é de quem tentou entrar e foi barrado, e pôr ali quem
+        // ENTROU faria o organizador ler como inscrição recusada.
+        var (ctx, torneio, _) = ComInscritos();
+        var ranking = new RankingFalso { Responder = Reprovar };
+
+        var r = await Servico(ctx, ranking).ReconferirTorneioAsync(torneio);
+
+        Assert.Equal(2, r.Barrados);
+        Assert.Single(ctx.Duplas);                       // a dupla continua inscrita
+        Assert.Empty(ctx.BloqueiosDoRanking);            // e ninguém foi pra fila de recusa
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count(c => c.Resultado == ResultadoDaConsulta.Barrado));
+    }
+
+    [Fact]
+    public async Task Reconferir_pula_lista_de_espera_e_time()
+    {
+        // Mesma régua do dinheiro e do relatório (AcertoComORankingRs): quem não entrou não
+        // joga, e time não é atleta inscrito.
+        var (ctxEspera, torneioEspera, _) = ComInscritos(emListaDeEspera: true);
+        var esperaR = await Servico(ctxEspera, new RankingFalso()).ReconferirTorneioAsync(torneioEspera);
+
+        var (ctxTime, torneioTime, _) = ComInscritos(nomeTime: "Time da firma");
+        var timeR = await Servico(ctxTime, new RankingFalso()).ReconferirTorneioAsync(torneioTime);
+
+        Assert.Equal(0, esperaR.Consultados);
+        Assert.Equal(0, timeR.Consultados);
+        Assert.Empty(ctxEspera.ConsultasAoRankingRs);
+        Assert.Empty(ctxTime.ConsultasAoRankingRs);
+    }
+
+    [Fact]
+    public async Task Reconferir_categoria_sem_de_para_anota_o_motivo_certo()
+    {
+        var (ctx, torneio, _) = ComInscritos(categoriaRs: null);
+        var ranking = new RankingFalso { Responder = Reprovar };
+
+        var r = await Servico(ctx, ranking).ReconferirTorneioAsync(torneio);
+
+        Assert.Equal(0, r.Consultados);
+        Assert.Equal(2, r.SemCorrespondencia);
+        Assert.Empty(ranking.Perguntas);
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count(c => c.Resultado == ResultadoDaConsulta.SemDePara));
+    }
+
+    [Fact]
+    public async Task Reconferir_ATUALIZA_o_registro_velho_em_vez_de_empilhar()
+    {
+        // É pra isso que ela serve: preencher/corrigir o que já estava lá.
+        var (ctx, torneio, categoria) = ComInscritos();
+        var servico = Servico(ctx, new RankingFalso { Responder = NaoConsultar });
+        await servico.ReconferirTorneioAsync(torneio);
+
+        await Servico(ctx, new RankingFalso { Responder = Aprovar }).ReconferirTorneioAsync(torneio);
+
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count());
+        Assert.True(ctx.ConsultasAoRankingRs.All(c => c.Resultado == ResultadoDaConsulta.Aprovado));
+    }
+
     [Fact]
     public async Task Lote_devolvido_incompleto_nao_some_com_ninguem()
     {

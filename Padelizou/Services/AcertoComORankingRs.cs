@@ -36,9 +36,24 @@ public static class AcertoComORankingRs
         public bool SemNinguem => Acerto == null && Pessoas == 0;
     }
 
+    // A RÉGUA DE QUEM CONTA, em forma de filtro de consulta.
+    //
+    // Existe porque três lugares já precisam perguntar "quem está inscrito aqui pra efeito da
+    // parceria" — o acerto, o relatório e a reconferência no ranking — e regra de torneio
+    // escrita em três cópias é a origem documentada dos piores defeitos deste projeto: uma é
+    // corrigida, as outras não, e o sistema passa a dar respostas diferentes pra mesma
+    // pergunta. `Achatar`, logo abaixo, aplica exatamente estas duas exclusões em memória.
+    //
     // Lista de espera fica de fora: quem não entrou não joga, e não vai pro ranking deles.
     // TIME também: `Dupla.Jogador1Id` de um time é o ORGANIZADOR que o cadastrou, não um
     // atleta inscrito — contá-lo cobraria por quem não está jogando.
+    public static IQueryable<Dupla> DuplasQueContam(IQueryable<Dupla> duplas) =>
+        duplas.Where(d => !d.EmListaDeEspera && d.NomeTime == null);
+
+    public static IQueryable<InscricaoAmericana> AmericanasQueContam(IQueryable<InscricaoAmericana> inscricoes) =>
+        inscricoes.Where(i => !i.EmListaDeEspera);
+
+    // Mesmas duas exclusões, agora sobre a lista já carregada.
     public static List<Inscrito> Achatar(
         IEnumerable<Dupla> duplas,
         IEnumerable<InscricaoAmericana> americanas,

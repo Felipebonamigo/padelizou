@@ -22,10 +22,56 @@
                 Quem conta pro @MarcaDoRanking.Nome · @Model.Codigo@(Model.DataInicio != null ? $" · {Model.DataInicio.Value:dd/MM/yyyy}" : "")
             </p>
         </div>
-        <a asp-action="RankingRs" class="btn btn-outline-secondary rounded-pill">
-            <i class="bi bi-arrow-left"></i> Voltar
-        </a>
+        <div class="d-flex gap-2">
+            <a asp-action="RankingRsRelatorio" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-shield-check"></i> Relatório
+            </a>
+            <a asp-action="RankingRs" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+        </div>
     </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* ── CONFERIR AGORA NO RANKING ────────────────────────────────────────────────────
+       Fica AQUI e não no relatório de propósito: aquela tela é a que o parceiro abre, e a
+       trava dele é o verbo HTTP — ela não tem um formulário sequer, e tem teste guardando
+       isso. Aqui é a nossa página, só do raiz. *@
+    @if (Model.ValidarPeloRankingRs && cobradas.Count > 0)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                        <i class="bi bi-arrow-repeat"></i> Conferir estas pessoas no @MarcaDoRanking.Nome agora
+                    </h6>
+                    <p class="text-muted small mb-0">
+                        Pergunta de novo, pessoa por pessoa, e guarda a resposta — é o que preenche
+                        quem se inscreveu antes de existir registro de consulta. Serve pra saber se
+                        alguém passou <em>conferido</em> ou se apenas <strong>não está no ranking</strong>.
+                        <br />
+                        <strong>Ninguém é desinscrito por isso.</strong> Se aparecer alguém com pontos
+                        em categoria mais forte, a decisão continua sendo do organizador.
+                    </p>
+                </div>
+                <form asp-action="ReconferirNoRanking" method="post"
+                      onsubmit="return confirm('Consultar o @MarcaDoRanking.Nome sobre as @cobradas.Count pessoas inscritas? Ninguém sai do torneio — só grava a resposta.');">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-primary rounded-pill">
+                        Conferir @cobradas.Count pessoa@(cobradas.Count == 1 ? "" : "s")
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
 
     @if (acerto != null)
     {
