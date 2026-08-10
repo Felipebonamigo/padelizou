@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 📞 **O "BUSCAR JOGO" MOSTRAVA O DONO DO HORÁRIO E NENHUM JEITO DE FALAR COM ELE.** ⚠️ **Não publicado ainda.**
+> Última atualização: **10/08/2026** — 🚀 **`build-485-f6c4002` NO AR EM PROD** (19:42), com a correção do relatório do Ranking e tudo que veio antes.
+>
+> ✅ **NÃO PRECISEI PUBLICAR: o `build-485` já estava no ar** — a outra sessão publicou o topo do main às 19:42, e o topo era o meu commit. Terceira vez no dia em que o deploy (ou o push) de uma sessão carrega o trabalho da outra. Conferido do jeito que a memória manda: `cwd` do processo em `build-485-f6c4002`, `NRestarts=0`, `/healthz` 200, zero erro no journal, as duas migrations do dia aplicadas (`ParceiroDoRankingEConsultas` e `GrupoDoTorneioNoWhatsApp`), e a rota nova em **302** no host do painel × **404** de rota inventada × **404** no site público.
+>
+> 🔎 **A CONFERÊNCIA POR `strings -el` ME TRAIU DE NOVO, POR OUTRO MOTIVO — E AGORA ESTÁ NA MEMÓRIA.** De manhã foi controle que era nome de método (metadados, não literal). Agora foi **acento**: `strings -el` **corta a sequência no primeiro caractere não-ASCII**, então `"Barrado não é inscrito"` deu **0** estando lá, e só o único trecho sem acento foi achado. Com fragmentos sem acento a medição fechou: 2 controles presentes, 3 textos novos presentes, e a frase antiga em 0 — este último só significa alguma coisa **porque** os controles provaram que a busca funciona.
+>
+> Antes, no mesmo dia — 📞 **O "BUSCAR JOGO" MOSTRAVA O DONO DO HORÁRIO E NENHUM JEITO DE FALAR COM ELE.** ⚠️ **Não publicado ainda.**
 >
 > 📞 **Pedido do Felipe, olhando o `/Avisos` em produção com o aviso do Gilberto na tela:** *"permita o jogador chamar o dono desse horário"*. O card dizia a categoria, o clube, a hora, o recado (*"Falta 1 esquerda ou direita"*) e **quem publicou** — e acabava ali. Um aviso de "falta um" **é** um pedido de contato: o único caminho era procurar a pessoa na busca, abrir o perfil e achar o WhatsApp lá. Agora o card tem **"Chamar no WhatsApp"**, com o texto pronto: *"Oi, Bruno Alves! Aqui é Diego Martins, do Padelizou. Vi seu aviso: 5ª Categoria Masculina em Arena Beira Rio, dia 12/08 às 16:27. Ainda tem vaga?"*
 >
