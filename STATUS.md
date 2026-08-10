@@ -21,7 +21,7 @@
 >
 > ➕ A busca ganhou endereço dentro do painel (`/Admin/BuscarJogador`, mesma regra do `BuscaJogador`, só outra rota), o partial escolhe pelo host, e a falha agora **aparece na tela**. O placeholder também mentia: dizia "CPF ou login" desde antes de a busca por nome existir — quem lia aquilo nem tentava digitar o nome. ✅ **Medido nos dois lados**: no host admin em Release, a rota velha responde **404** e a nova é servida; e no app rodando, digitar "professor" no campo de dono lista *Professor Escada Teste*.
 >
-> 🧪 **3.087 testes**, 5 novos, 0 falhas. ⚠️ **Não publicado ainda** — e o `AdminController.cs` está compartilhado com uma sessão paralela neste diretório, então este trabalho segue **sem commit**.
+> 🧪 **3.101 testes** no conjunto (5 novos aqui), 0 falhas. ⚠️ **Não publicado ainda** (commit `e07fb94`, sem push). ⚠️ **O `AdminController.cs` estava compartilhado com a sessão paralela** e o pedaço dela depende do `PlanoDoProfessor.cs` — não havia recorte menor que compilasse, então o commit levou o **plano anual do professor** junto, com autorização do Felipe. E o `STATUS.md` foi pro commit `4056e24` **deles**, no caminho inverso: é a armadilha do índice compartilhado valendo pros dois lados.
 >
 > Antes, no mesmo dia — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (`build-467-ea43026` **no ar em prod**).
 >
