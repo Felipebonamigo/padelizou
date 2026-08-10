@@ -148,8 +148,8 @@
         <div class="card-body">
             <h5 class="fw-bold mb-1"><i class="bi bi-people"></i> Cada professor</h5>
             <p class="text-muted small mb-3">
-                Ordenado por quanto já pagou, depois por movimento de aulas — quem sustenta a
-                conta aparece primeiro.
+                Começa ordenado por quanto já pagou, depois por movimento de aulas — quem
+                sustenta a conta aparece primeiro. Clique em qualquer coluna pra reordenar.
             </p>
 
             @if (!Model.Any())
@@ -158,24 +158,55 @@
             }
             else
             {
+                @* ── Filtros ──────────────────────────────────────────────────────────── *@
+                <div class="row g-2 mb-3" id="pdz-filtros-professores">
+                    <div class="col-sm-5">
+                        <label class="form-label small fw-bold" for="filtro-nome">Procurar</label>
+                        <input type="search" id="filtro-nome" class="form-control form-control-sm"
+                               placeholder="Nome ou e-mail" autocomplete="off" />
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label small fw-bold" for="filtro-situacao">Situação</label>
+                        <select id="filtro-situacao" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            @foreach (var s in Model.Select(p => p.Situacao).Distinct().OrderBy(s => s))
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-3 d-flex align-items-end">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" id="filtro-pagantes">
+                            <label class="form-check-label small" for="filtro-pagantes">Só quem já pagou</label>
+                        </div>
+                    </div>
+                </div>
+
+                @* ⚠️ Cada `th` carrega o ÍNDICE da coluna e cada célula ordenável carrega
+                   `data-ordem` com o valor CRU — número invariante e data em `yyyy-MM-dd`.
+                   Deixar o JS ordenar o texto da tela colocaria "R$ 1.000,00" antes de
+                   "R$ 90,00" e 07/09/2027 antes de 15/08/2026. *@
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm align-middle mb-0" id="tabela-professores">
                         <thead>
                             <tr class="text-muted small">
-                                <th>Professor</th>
-                                <th>Situação</th>
-                                <th class="text-end">Pago até</th>
-                                <th class="text-end">Já pagou</th>
-                                <th class="text-end">Aulas</th>
-                                <th class="text-end">Última aula</th>
-                                <th class="text-end">Desde</th>
+                                <th role="button" data-coluna="0" data-tipo="texto">Professor <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="1" data-tipo="texto">Situação <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="2" data-tipo="numero" class="text-end">Pago até <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="3" data-tipo="numero" class="text-end">Já pagou <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="4" data-tipo="numero" class="text-end">Aulas <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="5" data-tipo="numero" class="text-end">Última aula <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="6" data-tipo="numero" class="text-end">Desde <span class="pdz-seta"></span></th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var p in Model)
                             {
-                                <tr>
-                                    <td>
+                                <tr data-procurar="@($"{p.Nome} {p.Email}".ToLowerInvariant())"
+                                    data-situacao="@p.Situacao"
+                                    data-pagante="@(p.QuantidadeDePagamentos > 0 ? "1" : "0")">
+                                    <td data-ordem="@p.Nome.ToLowerInvariant()">
                                         <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id"
                                            class="fw-bold text-decoration-none">@p.Nome</a>
                                         @if (!string.IsNullOrWhiteSpace(p.Email))
@@ -183,7 +214,7 @@
                                             <div class="text-muted" style="font-size: .75rem;">@p.Email</div>
                                         }
                                     </td>
-                                    <td>
+                                    <td data-ordem="@p.Situacao">
                                         <span class="badge @corDoSelo(p.Situacao)">@p.Situacao</span>
                                         @if (p.Situacao == "Em teste" && p.FimDoTeste != null)
                                         {
@@ -192,10 +223,10 @@
                                             </div>
                                         }
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-ordem="@(p.AssinaturaPagaAte?.ToString("yyyyMMdd") ?? "")">
                                         @(p.AssinaturaPagaAte?.ToString("dd/MM/yyyy") ?? "—")
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-ordem="@(p.QuantidadeDePagamentos > 0 ? p.TotalPago.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")">
                                         @if (p.QuantidadeDePagamentos > 0)
                                         {
                                             <span class="fw-bold">@p.TotalPago.ToString("C")</span>
@@ -209,7 +240,7 @@
                                             <span class="text-muted">—</span>
                                         }
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-ordem="@p.AulasNoTotal">
                                         @p.AulasNoTotal
                                         @if (p.AulasNosUltimos30Dias > 0)
                                         {
@@ -218,16 +249,23 @@
                                             </div>
                                         }
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-ordem="@(p.UltimaAulaEm?.ToString("yyyyMMdd") ?? "")">
                                         @(p.UltimaAulaEm?.ToString("dd/MM/yy") ?? "—")
                                     </td>
-                                    <td class="text-end text-muted">
+                                    <td class="text-end text-muted" data-ordem="@(p.Desde?.ToString("yyyyMMdd") ?? "")">
                                         @(p.Desde?.ToString("dd/MM/yy") ?? "—")
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
+                </div>
+
+                @* Sem esta linha, filtrar até sobrar zero deixa a tela parecendo quebrada —
+                   e filtrar até sobrar 3 esconde que existem 11. *@
+                <div class="text-muted small mt-2" id="conta-professores"></div>
+                <div class="text-muted small mt-2 d-none" id="nada-encontrado">
+                    Nenhum professor com esses filtros.
                 </div>
             }
         </div>
@@ -241,3 +279,7 @@
         <strong>Já pagou</strong> soma assinaturas confirmadas em qualquer forma de recebimento.
     </div>
 </div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/admin-professores.js"></script>
+}
