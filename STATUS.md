@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 📮 **O CEP ENTROU NO CADASTRO — E É ELE QUE FECHA A TORNEIRA DAS CIDADES DUPLICADAS** (`build-465-bbd73df` **no ar em prod**).
+> Última atualização: **10/08/2026** — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (não publicado).
+>
+> 👥 **"EU ACEITEI AQUI E NÃO APARECE QUANDO EU CLICO EM MEUS GRUPOS"** (Felipe, print da tela inicial com o card da *Pinel Gravataí* marcado **convidado / Você vai**). Quem é chamado de fora pra um jogo de panelinha entra como **avulso**: ele responde o RSVP daquele dia, mas **não vira membro do grupo** — e por isso a panelinha nunca aparece na lista de `/Grupos`, que é montada a partir de `JogadorGrupo`. O convite tinha um bloco só dele nessa tela… filtrado por `Status == "Pendente"`.
+>
+> ⚠️ **O gesto de aceitar era exatamente o que apagava o convite da tela.** Respondeu → saiu de "Pendente" → sumiu do único lugar onde ele existia. E a tela inicial continuava mostrando o card (ela lê a confirmação em **qualquer** status), então o sistema afirmava duas coisas diferentes na mesma sessão: "você vai neste jogo" numa tela, "você não está em grupo nenhum" na outra, a um clique de distância.
+>
+> ➕ Agora o convite fica até **o dia do jogo passar**, respondido ou não, com selo do que foi respondido (*Você vai / Você não vai / Falta responder*): quem confirmou ainda precisa da tela pra ver quem mais vai — e pra desmarcar quando não der. ⚠️ **O corte é por DIA, não por hora** — cortar em `DateTime.Now` apagaria o convite no meio do próprio jogo, que é justamente quando a pessoa abre a tela. E o vazio de baixo ("Você ainda não está em nenhum grupo") passou a explicar a diferença quando existe convite: **ser chamado pra um jogo não é entrar na panelinha**, e sem essa linha o vazio se lê como "minha resposta se perdeu".
+>
+> 🧪 **3.082 testes**, 5 novos, 0 falhas. ⚠️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia — 📮 **O CEP ENTROU NO CADASTRO — E É ELE QUE FECHA A TORNEIRA DAS CIDADES DUPLICADAS** (`build-465-bbd73df` **no ar em prod**).
 >
 > 🚀 **PUBLICADO** — e a publicação virou aula sozinha. O `main` local e o `origin` tinham **divergido em 5bf2c48**: a sessão paralela subiu dois commits (um deles com migration própria) e este diretório tinha quatro que nunca subiram. Rebase com rede de segurança; um dos meus era **duplicata byte a byte** do conserto do gráfico que eles já haviam publicado (só mudava o fim de linha) e foi pulado. ⚠️ **A parte perigosa foram as DUAS MIGRATIONS geradas no mesmo dia sem se ver:** depois do rebase a minha vinha DEPOIS na ordem, mas o snapshot gravado **dentro dela** não conhecia a coluna do outro lado — descrevia um modelo que nunca existiu. E ao regerar, o `dotnet ef migrations remove` **reverteu o snapshot pro ponto errado**: a migration regerada saiu com a coluna DELES e nenhuma das minhas. Isso **compila, e o CI fica verde** — só aparece abrindo o arquivo gerado. Refeita a partir do snapshot logo após a migration deles, com os quatro invariantes conferidos um a um. ✅ **Conferido em produção do jeito que a memória manda**: `cwd` do processo na release nova (não só o symlink), `NRestarts=0`, `TZ=America/Sao_Paulo`, as **duas** migrations no `__EFMigrationsHistory`, e os **163 jogadores existentes com `EnderecoPublico = false`** (nenhum endereço publicado sem alguém pedir). O `/Auth/BuscarCep` responde `{"achou":true,"cidade":"Gravataí"}` contra o ViaCEP real enquanto uma rota inventada dá 404 — e **o filtro do Ranking em produção caiu de ~19 entradas pra 5**, sem nenhuma duplicata, com "Gravataí" trazendo 26 dos 30 do ranking.
 >

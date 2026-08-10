@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Meus Grupos - Padelizou";
     var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
-    var convitesPendentes = (List<ConfirmacaoSessao>)ViewBag.ConvitesPendentes;
+    var convites = (List<ConfirmacaoSessao>)ViewBag.ConvitesDeJogo;
 }
 
 <div class="container mt-4 mb-5">
@@ -22,16 +22,35 @@
         </div>
     </div>
 
-    @if (convitesPendentes.Any())
+    @* Jogo de panelinha em que fui chamado de fora. Continua aqui DEPOIS de eu responder: o
+       grupo não é meu, então ele nunca entra na lista de baixo, e sem este bloco o jogo sumia
+       da tela no segundo em que eu clicava "eu vou". *@
+    @if (convites.Any())
     {
         <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--padel-green);">
             <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="bi bi-whatsapp text-success"></i> Convites pra jogos fixos</h6>
-                @foreach (var convite in convitesPendentes)
+                <h6 class="fw-bold mb-3"><i class="bi bi-person-plus text-success"></i> Jogos em que você foi convidado</h6>
+                @foreach (var convite in convites)
                 {
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                        <span>Você foi convidado pro jogo do grupo <strong>@convite.Sessao.Grupo.Nome</strong> dia @convite.Sessao.DataHora.ToString("dd/MM 'às' HH:mm")</span>
-                        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@convite.Sessao.GrupoId" asp-route-data="@convite.Sessao.DataHora.ToString("s")" class="btn btn-sm btn-padel rounded-pill">Ver e responder</a>
+                        <span>
+                            <strong>@convite.Sessao.Grupo.Nome</strong> · @convite.Sessao.DataHora.ToString("dd/MM 'às' HH:mm")
+                            @if (convite.Status == "Confirmado")
+                            {
+                                <span class="badge rounded-pill bg-success">Você vai</span>
+                            }
+                            else if (convite.Status == "NaoVai")
+                            {
+                                <span class="badge rounded-pill bg-secondary">Você não vai</span>
+                            }
+                            else
+                            {
+                                <span class="badge rounded-pill bg-warning text-dark">Falta responder</span>
+                            }
+                        </span>
+                        <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@convite.Sessao.GrupoId" asp-route-data="@convite.Sessao.DataHora.ToString("s")" class="btn btn-sm btn-padel rounded-pill">
+                            @(convite.Status == "Pendente" ? "Ver e responder" : "Ver o jogo")
+                        </a>
                     </div>
                 }
             </div>
@@ -68,7 +87,17 @@
             <div class="col-12 text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
                 <i class="bi bi-people display-4 text-muted mb-3"></i>
                 <h4 class="fw-bold text-secondary">Você ainda não está em nenhum grupo</h4>
-                <p class="text-muted">Crie um grupo com seus amigos ou entre em um com um código de convite.</p>
+                @if (convites.Any())
+                {
+                    @* Ser chamado pra um jogo não é entrar na panelinha — o convite acima vale
+                       só pra aquele dia. Sem esta linha, quem já respondeu "eu vou" lê o vazio
+                       daqui como se a resposta dele tivesse se perdido. *@
+                    <p class="text-muted">O convite lá em cima vale só pro jogo daquele dia. Pra entrar de vez na panelinha, peça o código de convite pra quem organiza.</p>
+                }
+                else
+                {
+                    <p class="text-muted">Crie um grupo com seus amigos ou entre em um com um código de convite.</p>
+                }
             </div>
         }
     </div>

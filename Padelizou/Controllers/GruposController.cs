@@ -40,13 +40,22 @@ namespace padelizou.Controllers
 
             // Sessões onde o jogador foi convidado (avulso) mas ainda não é membro do grupo — ele
             // precisa conseguir achar e responder esse convite mesmo sem aparecer em "Meus Grupos".
-            var convitesPendentes = await _context.ConfirmacoesSessao
+            //
+            // ⚠️ O convite fica aqui até o dia do jogo passar, RESPONDIDO OU NÃO. Filtrar por
+            // "Pendente" fazia o jogo sumir da tela no instante em que a pessoa aceitava: ela não
+            // é membro, então o grupo também não entra na lista de cima, e "Meus Grupos" ficava
+            // vazia logo depois do "eu vou". Quem confirmou ainda precisa da tela pra ver quem
+            // mais vai — e pra desmarcar quando não der.
+            var hoje = DateTime.Today;
+            var convites = await _context.ConfirmacoesSessao
                 .Include(c => c.Sessao).ThenInclude(s => s.Grupo)
-                .Where(c => c.JogadorId == userId && c.Avulso && c.Status == "Pendente"
+                .Where(c => c.JogadorId == userId && c.Avulso
+                         && c.Sessao.DataHora >= hoje
                          && !idsGruposMembro.Contains(c.Sessao.GrupoId))
+                .OrderBy(c => c.Sessao.DataHora)
                 .ToListAsync();
 
-            ViewBag.ConvitesPendentes = convitesPendentes;
+            ViewBag.ConvitesDeJogo = convites;
 
             return View(grupos);
         }
