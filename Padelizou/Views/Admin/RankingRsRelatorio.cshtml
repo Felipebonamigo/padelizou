@@ -1,0 +1,438 @@
+@using Padelizou.Services
+@{
+    ViewData["Title"] = $"Relatório {MarcaDoRanking.Nome} - Padelizou";
+
+    var linhas = (List<RelatorioDoRankingRs.LinhaDoTorneio>)ViewBag.Linhas;
+    var totais = (RelatorioDoRankingRs.Totais)ViewBag.Totais;
+    decimal custo = ViewBag.CustoPorInscrito;
+    var registroDesde = (DateTime?)ViewBag.RegistroDesde;
+    bool cpfInteiro = ViewBag.CpfInteiro ?? false;
+    bool soVeORelatorio = ViewBag.SoVeORelatorio ?? false;
+
+    var barrados = linhas.SelectMany(l => l.Barrados).OrderByDescending(b => b.Bloqueio.CriadoEm).ToList();
+
+    // O selo acompanha o que o resultado significa PRA PARCERIA: verde é o filtro tendo
+    // funcionado, vermelho é recusa, cinza é o buraco de cobertura — não são todos "avisos".
+    Func<string, string> corDoResultado = s => s switch
+    {
+        var x when x == RelatorioDoRankingRs.RotuloDoResultado(ResultadoDaConsulta.Aprovado) => "bg-success",
+        var x when x == RelatorioDoRankingRs.RotuloDoResultado(ResultadoDaConsulta.Barrado) => "bg-danger",
+        var x when x == RelatorioDoRankingRs.RotuloDoResultado(ResultadoDaConsulta.SemDePara) => "bg-light text-dark border",
+        _ => "bg-secondary",
+    };
+}
+
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-shield-check"></i> @MarcaDoRanking.Nome × Padelizou
+            </h2>
+            <div class="text-muted">
+                O retrato da parceria: quem aderiu, quem se inscreveu e o que o filtro fez.
+            </div>
+        </div>
+        @* Quem só enxerga esta tela não recebe botão de "voltar ao painel" — não há painel
+           do lado de lá, e um link que dá em redirecionamento é pior que nenhum link. *@
+        @if (!soVeORelatorio)
+        {
+            <div class="d-flex gap-2">
+                <a asp-action="RankingRs" class="btn btn-outline-secondary rounded-pill">
+                    <i class="bi bi-cash-coin"></i> Acerto
+                </a>
+                <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+                    <i class="bi bi-arrow-left"></i> Painel
+                </a>
+            </div>
+        }
+    </div>
+
+    @if (soVeORelatorio)
+    {
+        <div class="alert alert-light border small mb-3">
+            <i class="bi bi-person-badge"></i>
+            Olá, <strong>@ViewBag.NomeDeQuemOlha</strong>. Esta página é atualizada sozinha, a
+            cada vez que você abre — não há relatório a pedir nem exportação a esperar.
+        </div>
+    }
+
+    @* ── OS NÚMEROS DE CIMA ─────────────────────────────────────────────────────────── *@
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Torneios que aderiram</div>
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@totais.Torneios</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        @totais.TorneiosComInscricaoAberta com inscrição aberta agora
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Pessoas inscritas</div>
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@totais.Inscritos</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        pessoa, não inscrição — quem joga duas categorias conta uma vez
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Passaram pelo filtro</div>
+                    <div class="fs-3 fw-bold" style="color: var(--padel-green);">@totais.Aprovados</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        consultados e liberados pelo @MarcaDoRanking.Nome
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100 @(totais.RecusasQueFicaramDePe > 0 ? "border-danger border-2" : "")">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Barrados</div>
+                    <div class="fs-3 fw-bold text-danger">@totais.Barrados</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        @totais.RecusasQueFicaramDePe recusa@(totais.RecusasQueFicaramDePe == 1 ? "" : "s") de pé,
+                        @totais.LiberadosPeloOrganizador liberad@(totais.LiberadosPeloOrganizador == 1 ? "o" : "os") pelo organizador
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── A RÉGUA, ANTES DOS DETALHES ────────────────────────────────────────────────────
+       Este bloco é o mais importante da tela e por isso vem antes das tabelas. Sem ele,
+       "passaram pelo filtro" seria lido como "todo mundo foi conferido", e não é. *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+                <i class="bi bi-rulers"></i> Como ler estes números
+            </h6>
+
+            <div class="row g-3">
+                <div class="col-12 col-lg-5">
+                    <div class="d-flex align-items-baseline gap-2">
+                        <span class="fs-4 fw-bold" style="color: var(--pdz-ink);">
+                            @(totais.CoberturaEmPorcento?.ToString() ?? "—")@(totais.CoberturaEmPorcento == null ? "" : "%")
+                        </span>
+                        <span class="text-muted small">dos inscritos foram efetivamente consultados</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 8px;" role="progressbar"
+                         aria-valuenow="@(totais.CoberturaEmPorcento ?? 0)" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar bg-success" style="width: @(totais.CoberturaEmPorcento ?? 0)%;"></div>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: .75rem;">
+                        @totais.Conferidos de @totais.Inscritos
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <ul class="mb-0 small text-muted ps-3">
+                        <li>
+                            <strong>Passou pelo filtro</strong> é só quem foi <em>perguntado ao
+                            @MarcaDoRanking.Nome e liberado por ele</em> — não é "se inscreveu e
+                            não deu problema".
+                        </li>
+                        <li>
+                            <strong>@totais.SemConferencia pessoa@(totais.SemConferencia == 1 ? "" : "s") entr@(totais.SemConferencia == 1 ? "ou" : "aram") sem conferência.</strong>
+                            Quase sempre é categoria do torneio sem correspondência no ranking
+                            (a validação não chuta o sexo da categoria, de propósito); também
+                            entra aí quem se inscreveu com o servidor fora do ar — a inscrição
+                            nunca é recusada por falha de consulta.
+                        </li>
+                        <li>
+                            <strong>Barrado não é inscrito.</strong> A recusa acontece antes de a
+                            inscrição existir. Quem foi liberado pelo organizador e voltou
+                            aparece nas duas listas.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            @if (registroDesde is DateTime desde)
+            {
+                <div class="alert alert-light border small mt-3 mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    O registro de cada consulta começou em <strong>@desde.ToString("dd/MM/yyyy")</strong>.
+                    Quem se inscreveu antes disso aparece como <em>sem registro de consulta</em> —
+                    é falta de registro, não falha da validação.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border small mt-3 mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Ainda não há nenhuma consulta registrada. As inscrições anteriores a esta
+                    página aparecem como <em>sem registro de consulta</em>.
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── TORNEIOS QUE ADERIRAM ──────────────────────────────────────────────────────── *@
+    <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+        <i class="bi bi-trophy"></i> Torneios que aderiram
+    </h5>
+
+    @if (!linhas.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Nenhum torneio usa o @MarcaDoRanking.Nome ainda.<br />
+                <span class="small">A validação é escolha do organizador, torneio a torneio.</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Torneio</th>
+                            <th class="text-center">Inscritos</th>
+                            <th class="text-center">Conferidos</th>
+                            <th class="text-center">Aprovados</th>
+                            <th class="text-center">Barrados</th>
+                            <th class="text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var linha in linhas)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@linha.Torneio.Nome</div>
+                                    <div class="text-muted" style="font-size: .8rem;">
+                                        @(linha.Torneio.DataInicio?.ToString("dd/MM/yyyy") ?? "sem data")
+                                        · @linha.Torneio.Status
+                                        @if (linha.InscricoesAbertas)
+                                        {
+                                            <span class="badge bg-info text-dark ms-1">números ainda se mexem</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-center fw-bold">@linha.Inscritos.Count</td>
+                                <td class="text-center">
+                                    @linha.Conferidos
+                                    @if (linha.SemConferencia > 0)
+                                    {
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            @linha.SemConferencia sem conferência
+                                        </div>
+                                    }
+                                </td>
+                                <td class="text-center text-success fw-bold">@linha.Aprovados</td>
+                                <td class="text-center">
+                                    @if (linha.Barrados.Count > 0)
+                                    {
+                                        <span class="text-danger fw-bold">@linha.Barrados.Count</span>
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            @linha.RecusasQueFicaramDePe de pé
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold">@linha.Valor.ToString("C")</div>
+                                    @if (linha.Acertado)
+                                    {
+                                        <span class="badge bg-success">
+                                            acertado em @linha.Acerto!.AcertadoEm.ToString("dd/MM/yyyy")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted" style="font-size: .75rem;">em aberto</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold">
+                            <td>Total</td>
+                            <td class="text-center">@totais.Inscritos</td>
+                            <td class="text-center">@totais.Conferidos</td>
+                            <td class="text-center text-success">@totais.Aprovados</td>
+                            <td class="text-center text-danger">@totais.Barrados</td>
+                            <td class="text-end">@totais.ValorTotal.ToString("C")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                <i class="bi bi-cash-coin"></i>
+                <strong>@custo.ToString("C") por pessoa inscrita</strong> —
+                @totais.ValorEmAberto.ToString("C") em aberto e
+                @totais.ValorJaAcertado.ToString("C") já acertado.
+                O valor de torneio com inscrição aberta ainda pode subir.
+            </div>
+        </div>
+    }
+
+    @* ── PESSOAS BARRADAS ───────────────────────────────────────────────────────────── *@
+    <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+        <i class="bi bi-slash-circle"></i> Pessoas barradas
+    </h5>
+    <p class="text-muted small">
+        Tentaram se inscrever e o @MarcaDoRanking.Nome apontou pontos em categoria mais forte.
+        A recusa <strong>não é a palavra final</strong>: o organizador do torneio decide se ela
+        fica de pé, e a decisão dele aparece aqui do lado.
+    </p>
+
+    @if (!barrados.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center text-muted py-4">
+                Ninguém foi barrado até agora.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Atleta</th>
+                            <th>Onde tentou</th>
+                            <th>Motivo apontado pelo ranking</th>
+                            <th>Decisão do organizador</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var barrado in barrados)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@barrado.Bloqueio.NomeConsultado</div>
+                                    <div class="text-muted" style="font-size: .75rem;">
+                                        @RelatorioDoRankingRs.CpfNaTela(barrado.Bloqueio.Cpf, cpfInteiro)
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>@barrado.CategoriaNome</div>
+                                    <div class="text-muted" style="font-size: .75rem;">
+                                        @barrado.TorneioNome
+                                        @if (barrado.Bloqueio.CategoriaRsNome != null)
+                                        {
+                                            <text>· consultado como @barrado.Bloqueio.CategoriaRsNome</text>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="small">
+                                    @barrado.Bloqueio.Motivo
+                                    <div class="text-muted" style="font-size: .75rem;">
+                                        em @barrado.Bloqueio.CriadoEm.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (barrado.Bloqueio.Situacao == SituacaoDoBloqueio.Liberado)
+                                    {
+                                        <span class="badge bg-warning text-dark">@barrado.Decisao</span>
+                                    }
+                                    else if (barrado.Bloqueio.Situacao == SituacaoDoBloqueio.Mantido)
+                                    {
+                                        <span class="badge bg-danger">@barrado.Decisao</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@barrado.Decisao</span>
+                                    }
+                                    @if (barrado.Bloqueio.DecididoEm is DateTime quando)
+                                    {
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            @quando.ToString("dd/MM/yyyy")
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @* ── QUEM SE INSCREVEU ──────────────────────────────────────────────────────────── *@
+    <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">
+        <i class="bi bi-people"></i> Quem se inscreveu, torneio a torneio
+    </h5>
+    <p class="text-muted small">
+        Todo mundo que <strong>conseguiu</strong> entrar num torneio da parceria, com o que o
+        ranking disse a respeito de cada um. Lista de espera e times ficam de fora — quem não
+        entrou não joga.
+    </p>
+
+    @foreach (var linha in linhas.Where(l => l.Inscritos.Any()))
+    {
+        <details class="card border-0 shadow-sm mb-2">
+            <summary class="card-body py-3" style="cursor: pointer; list-style: revert;">
+                <span class="fw-bold">@linha.Torneio.Nome</span>
+                <span class="text-muted small">
+                    — @linha.Inscritos.Count pessoa@(linha.Inscritos.Count == 1 ? "" : "s"),
+                    @linha.Aprovados aprovada@(linha.Aprovados == 1 ? "" : "s") pelo ranking
+                </span>
+            </summary>
+            <div class="table-responsive border-top">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Atleta</th>
+                            <th>Categoria@(linha.Inscritos.Any(i => i.Categorias.Count > 1) ? "s" : "")</th>
+                            <th>O que o ranking disse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var inscrito in linha.Inscritos)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@inscrito.Nome</div>
+                                    <div class="text-muted" style="font-size: .75rem;">
+                                        @RelatorioDoRankingRs.CpfNaTela(inscrito.Cpf, cpfInteiro)
+                                    </div>
+                                </td>
+                                <td class="small">@string.Join(", ", inscrito.Categorias)</td>
+                                <td>
+                                    <span class="badge @corDoResultado(inscrito.Situacao)">@inscrito.Situacao</span>
+                                    @if (inscrito.Aprovado && !inscrito.Consulta!.EncontradoNoRanking)
+                                    {
+                                        @* Diferença que importa pra eles: passou por não ter
+                                           pontuação nenhuma, e não por ter sido conferido
+                                           contra pontos numa categoria mais fraca. *@
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            sem pontuação no ranking
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+
+    @if (!linhas.Any(l => l.Inscritos.Any()))
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center text-muted py-4">
+                Nenhuma inscrição nos torneios da parceria ainda.
+            </div>
+        </div>
+    }
+</div>

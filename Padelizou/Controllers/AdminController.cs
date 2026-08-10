@@ -68,6 +68,15 @@ namespace padelizou.Controllers
             return sóLendo && PoderesNoSistema.PodeOlharTudo(jogador) ? jogador : null;
         }
 
+        // Quem está logado, sem julgar poder nenhum. Existe pra decidir PRA ONDE mandar quem
+        // não é admin — hoje, o parceiro do Ranking, que tem uma tela e não o painel.
+        private async Task<Jogador?> QuemEstaLogadoAsync()
+        {
+            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdValue, out var userId)) return null;
+            return await _context.Jogadores.FindAsync(userId);
+        }
+
         // Só o administrador raiz — usado só pra gerenciar quem é IsAdminGeral.
         private async Task<Jogador?> ObterJogadorAdminRaizAsync()
         {
@@ -84,6 +93,17 @@ namespace padelizou.Controllers
             [FromServices] Microsoft.Extensions.Options.IOptions<AcessoAntecipadoSettings> acessoAntecipado)
         {
             var admin = await ObterJogadorAdminAsync();
+
+            // O PARCEIRO DO RANKING NÃO TEM PAINEL — tem uma tela. Ele entra em
+            // admin.padelizou.com.br, cai aqui (o host manda "/" pra cá) e é levado direto pro
+            // relatório da parceria.
+            //
+            // ⚠️ Sem este desvio o efeito seria pior do que "não pode entrar": ele seria
+            // mandado pro /Auth/Perfil, que no subdomínio do painel é um beco — e a conclusão
+            // dele seria que o acesso não funciona. Ver Services/PoderesNoSistema.
+            if (admin == null && PoderesNoSistema.SoVeORelatorioDoRanking(await QuemEstaLogadoAsync()))
+                return RedirectToAction(nameof(RankingRsRelatorio));
+
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             ViewBag.EhRaiz = admin.IsAdminRaiz;
@@ -324,6 +344,14 @@ namespace padelizou.Controllers
                 .OrderBy(j => j.Nome)
                 .ToListAsync();
 
+            // Parceiros do Ranking: gente de FORA da casa, com uma tela só. Terceira lista, e
+            // não uma coluna nas outras duas, porque a diferença não é de grau — é de natureza:
+            // as duas de cima são pessoas de dentro olhando o sistema inteiro.
+            ViewBag.ParceirosDoRanking = await _context.Jogadores
+                .Where(j => j.IsParceiroRanking)
+                .OrderBy(j => j.Nome)
+                .ToListAsync();
+
             return View(administradores);
         }
 
@@ -363,6 +391,43 @@ namespace padelizou.Controllers
             }
 
             TempData["Sucesso"] = "Assistente removido. Ele sai do painel no próximo login.";
+            return RedirectToAction("Administradores");
+        }
+
+        // ── Parceiro do Ranking ────────────────────────────────────────────────────────────
+        // Só o RAIZ concede, como as outras duas — e aqui pesa mais, porque é a única flag do
+        // sistema que se dá a alguém de fora da empresa. Ver Services/PoderesNoSistema.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarParceiroDoRanking(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            jogador.IsParceiroRanking = true;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"{NomeBonito.Formatar(jogador.Nome)} agora vê o relatório do "
+                + $"{MarcaDoRanking.Nome} — e só ele. Precisa sair e entrar de novo pra valer.";
+            return RedirectToAction("Administradores");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverParceiroDoRanking(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador != null)
+            {
+                jogador.IsParceiroRanking = false;
+                await _context.SaveChangesAsync();
+            }
+
+            TempData["Sucesso"] = "Acesso ao relatório removido. Vale no próximo login dele.";
             return RedirectToAction("Administradores");
         }
 

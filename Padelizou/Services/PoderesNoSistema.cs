@@ -11,6 +11,10 @@ namespace Padelizou.Services;
 // O ASSISTENTE é essa terceira resposta (pedido do Felipe: o Foka acompanha tudo, só o Felipe
 // edita). Ele entra apenas do lado da leitura.
 //
+// O PARCEIRO DO RANKING (10/08/2026) é a quarta, e ela não é "menos poder" — é OUTRO EIXO: não
+// é quanto se pode mexer, é quanto se enxerga. Ele vê UMA tela do painel, a da nossa parceria
+// com eles, e o resto do sistema simplesmente não existe do lado de lá.
+//
 // ⚠️ A REGRA DE OURO DESTE ARQUIVO: `PodeEditarTudo` é EXATAMENTE o que `IsAdmin` sempre foi,
 // e o assistente não aparece nela. A flag nova nunca é somada à credencial de escrita — é o
 // que garante que, se eu esquecer um lugar, o efeito seja "o assistente não vê essa tela" e
@@ -38,4 +42,27 @@ public static class PoderesNoSistema
     public const string AvisoDeSoLeitura =
         "Você está vendo como assistente do sistema: enxerga tudo, mas não altera nada. "
         + "Nos torneios que você organiza, seus botões continuam funcionando normalmente.";
+
+    // ── O PARCEIRO DO RANKING: UMA TELA, E NADA MAIS ───────────────────────────────────
+    //
+    // O assistente é "vê TUDO e não edita nada". Este é o oposto no eixo do que se enxerga:
+    // vê UMA página — o relatório da parceria — e nem o resto do painel existe pra ele.
+    //
+    // ⚠️ Ele NÃO entra em `PodeOlharTudo`. É a mesma disciplina da flag do assistente, um
+    // degrau mais estreita: `PodeOlharTudo` destrava o painel inteiro, o financeiro e a
+    // gestão de qualquer torneio, e nada disso é da conta de uma empresa de fora. Somar aqui
+    // seria dar a chave da casa pra quem foi convidado a ver uma prateleira.
+    //
+    // Quem pode LER o relatório: os dois admins, o assistente e o parceiro. Escrever, ninguém
+    // — a tela não tem um único formulário.
+    public static bool PodeVerRelatorioDoRanking(Jogador? jogador) =>
+        PodeOlharTudo(jogador) || jogador is { IsParceiroRanking: true };
+
+    // Está aqui SÓ por causa do relatório: o painel não existe pra ele. É o que decide se a
+    // pessoa cai direto na tela da parceria ao entrar em /Admin, em vez de ser mandada embora.
+    //
+    // ⚠️ Parceiro que também seja admin (o Felipe testando com a própria conta, por exemplo)
+    // NÃO cai nisto — a flag soma, não substitui, igual à do assistente.
+    public static bool SoVeORelatorioDoRanking(Jogador? jogador) =>
+        jogador is { IsParceiroRanking: true } && !PodeOlharTudo(jogador);
 }

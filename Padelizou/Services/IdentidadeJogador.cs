@@ -79,7 +79,11 @@ public static class IdentidadeJogador
             new Claim("IsAdminRaiz", jogador.IsAdminRaiz ? "true" : "false"),
             // Credencial separada, só de leitura: destrava o painel e a gestão do torneio em
             // modo "olhar", e é ela que acende a faixa de só-leitura na tela.
-            new Claim("Assistente", jogador.IsAssistente ? "true" : "false")
+            new Claim("Assistente", jogador.IsAssistente ? "true" : "false"),
+            // Parceiro do Ranking: destrava UMA tela do painel e mais nada. Separada das
+            // outras três pelo mesmo motivo — credencial que abre pouco não pode ser
+            // confundida com credencial que abre tudo.
+            new Claim("ParceiroRanking", jogador.IsParceiroRanking ? "true" : "false")
         };
     }
 }

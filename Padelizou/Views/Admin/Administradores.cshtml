@@ -105,4 +105,66 @@
             }
         </div>
     </div>
+
+    @* ── PARCEIROS DO RANKING ─────────────────────────────────────────────────────────
+       Terceiro bloco, e o único que dá acesso a alguém de FORA da empresa. Separado dos
+       outros dois de propósito: as duas listas acima são pessoas de dentro olhando o
+       sistema inteiro, esta é uma empresa parceira olhando uma prateleira. *@
+    @{
+        var parceiros = ViewBag.ParceirosDoRanking as List<Jogador> ?? new List<Jogador>();
+    }
+    <div class="mt-5">
+        <h4 class="fw-bold" style="color: var(--pdz-ink);">
+            Parceiros do @Padelizou.Services.MarcaDoRanking.Nome
+        </h4>
+        <p class="text-muted">
+            Enxergam <strong>uma única tela</strong> — o relatório da nossa parceria com eles —
+            e mais nada do painel. Não editam nada, não veem o financeiro, não veem torneio que
+            não aderiu à validação.
+        </p>
+        <div class="alert alert-warning small">
+            <i class="bi bi-person-badge"></i>
+            <strong>Este é o único acesso do sistema dado a gente de fora da empresa.</strong>
+            A pessoa precisa ter conta no Padelizou, e entra com o login dela.
+        </div>
+        <p class="text-muted small">
+            <i class="bi bi-info-circle"></i>
+            O crachá é reescrito no login: quem já está logado só passa a ver o relatório depois
+            de sair e entrar de novo.
+        </p>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-3">Liberar o relatório para alguém</h6>
+                @{
+                    ViewData["BuscaOrgActionUrl"] = Url.Action("AdicionarParceiroDoRanking", "Admin");
+                }
+                <partial name="_BuscaOrganizador" />
+                @{
+                    ViewData["BuscaOrgActionUrl"] = null;
+                }
+            </div>
+        </div>
+
+        <div class="list-group shadow-sm">
+            @if (parceiros.Any())
+            {
+                @foreach (var parceiro in parceiros)
+                {
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">@parceiro.NomeComApelido</span>
+                        <form asp-controller="Admin" asp-action="RemoverParceiroDoRanking" method="post"
+                              onsubmit="return confirm('Tirar o acesso de @parceiro.Nome ao relatório?');">
+                            <input type="hidden" name="jogadorId" value="@parceiro.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="list-group-item text-muted">Ninguém de fora tem acesso.</div>
+            }
+        </div>
+    </div>
 </div>

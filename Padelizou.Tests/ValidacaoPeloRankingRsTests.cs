@@ -20,6 +20,10 @@ public class ValidacaoPeloRankingRsTests
         public List<AtletaParaValidar> Perguntas { get; } = new();
         public Func<AtletaParaValidar, ResultadoDoRanking> Responder { get; set; } = Aprovar;
 
+        // Pro caso em que a resposta do LOTE não bate com a pergunta — a API devolvendo menos
+        // linhas do que recebeu. Nulo = responde uma por atleta, que é o normal.
+        public Func<IReadOnlyList<AtletaParaValidar>, IReadOnlyList<ResultadoDoRanking>>? RespostaDoLote { get; set; }
+
         public Task<ResultadoDoRanking> ValidarAsync(string nome, int categoriaRsId, CancellationToken ct = default)
             => Task.FromResult(Responder(new AtletaParaValidar(nome, categoriaRsId)));
 
@@ -27,8 +31,9 @@ public class ValidacaoPeloRankingRsTests
             IReadOnlyList<AtletaParaValidar> atletas, CancellationToken ct = default)
         {
             Perguntas.AddRange(atletas);
-            return Task.FromResult<IReadOnlyList<ResultadoDoRanking>>(
-                atletas.Select(Responder).ToList());
+            return Task.FromResult(RespostaDoLote != null
+                ? RespostaDoLote(atletas)
+                : (IReadOnlyList<ResultadoDoRanking>)atletas.Select(Responder).ToList());
         }
     }
 
@@ -317,5 +322,177 @@ public class ValidacaoPeloRankingRsTests
 
         Assert.Null(recusa);
         Assert.Empty(ranking.Perguntas);
+    }
+
+    // ── O REGISTRO DA CONSULTA ────────────────────────────────────────────────────────────
+    //
+    // Até 10/08/2026 só a RECUSA virava linha. Quem era consultado e passava não deixava
+    // rastro nenhum — e sem rastro, "passou pelo filtro" só podia ser calculado por subtração,
+    // que conta junto quem nunca foi perguntado. Ver Models/ConsultaAoRankingRs.
+    //
+    // ⚠️ Estes testes protegem uma coisa que não se vê: cada caminho de saída do
+    // MotivoDeRecusaAsync tem que deixar sua marca. O caminho que ESQUECER de anotar não
+    // quebra nada — só some silenciosamente do relatório do parceiro.
+
+    [Fact]
+    public async Task Aprovado_pelo_ranking_vira_registro_de_consulta()
+    {
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Responder = Aprovar };
+
+        var recusa = await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Null(recusa);
+        var consulta = Assert.Single(ctx.ConsultasAoRankingRs);
+        Assert.Equal(ResultadoDaConsulta.Aprovado, consulta.Resultado);
+        Assert.Equal(Silvano.Cpf, consulta.Cpf);
+        Assert.Equal(112, consulta.CategoriaRsId);
+        Assert.True(RelatorioDoRankingRs.PassouPeloFiltro(consulta));
+    }
+
+    [Fact]
+    public async Task Barrado_pelo_ranking_vira_registro_E_bloqueio()
+    {
+        // Os dois, e cada um pro seu uso: o bloqueio é a fila do organizador, a consulta é a
+        // contagem da parceria. Guardar só um dos dois deixaria uma das duas telas mentindo.
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Responder = Reprovar };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Equal(ResultadoDaConsulta.Barrado, Assert.Single(ctx.ConsultasAoRankingRs).Resultado);
+        Assert.Single(ctx.BloqueiosDoRanking);
+    }
+
+    [Fact]
+    public async Task Categoria_sem_par_no_ranking_anota_que_NINGUEM_foi_perguntado()
+    {
+        // ⚠️ É o caso mais comum de todos, e o mais fácil de ler errado: a inscrição passa
+        // igualzinho a de quem foi aprovado. Sem esta linha, os dois ficam idênticos no banco.
+        var (ctx, torneio, categoria) = Montar(categoriaRs: null);
+        var ranking = new RankingFalso { Responder = Reprovar };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        var consulta = Assert.Single(ctx.ConsultasAoRankingRs);
+        Assert.Equal(ResultadoDaConsulta.SemDePara, consulta.Resultado);
+        Assert.Null(consulta.CategoriaRsId);
+        Assert.False(RelatorioDoRankingRs.PassouPeloFiltro(consulta));
+        Assert.Empty(ranking.Perguntas);
+    }
+
+    [Fact]
+    public async Task Ranking_fora_do_ar_anota_que_nao_deu_pra_consultar()
+    {
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Responder = NaoConsultar };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Equal(ResultadoDaConsulta.SemResposta, Assert.Single(ctx.ConsultasAoRankingRs).Resultado);
+    }
+
+    [Fact]
+    public async Task Integracao_sem_chave_anota_que_o_filtro_nao_rodou()
+    {
+        // ⚠️ O cenário que assusta: a chave sair do ar não muda NADA que se veja — as
+        // inscrições passam todas e o site não reclama. Esta linha é a única testemunha.
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Configurado = false };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Equal(ResultadoDaConsulta.SemResposta, Assert.Single(ctx.ConsultasAoRankingRs).Resultado);
+    }
+
+    [Fact]
+    public async Task Torneio_que_NAO_aderiu_nao_gera_registro_nenhum()
+    {
+        // A tabela é da parceria. Anotar "não consultei" pra todo inscrito do site inteiro
+        // encheria o banco de linha que não responde pergunta nenhuma.
+        var (ctx, torneio, categoria) = Montar(validacaoLigada: false);
+
+        await Servico(ctx, new RankingFalso()).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Empty(ctx.ConsultasAoRankingRs);
+    }
+
+    [Fact]
+    public async Task Tentar_de_novo_ATUALIZA_a_mesma_linha_em_vez_de_empilhar()
+    {
+        // Quem insiste no formulário é uma pessoa consultada, não cinco — senão o relatório do
+        // parceiro contaria a teimosia dela como volume da parceria.
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Responder = NaoConsultar };
+        var servico = Servico(ctx, ranking);
+
+        await servico.MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+        ranking.Responder = Aprovar;
+        await servico.MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        var consulta = Assert.Single(ctx.ConsultasAoRankingRs);
+        Assert.Equal(ResultadoDaConsulta.Aprovado, consulta.Resultado);
+    }
+
+    [Fact]
+    public async Task Liberado_pelo_organizador_NAO_e_reescrito_como_aprovado()
+    {
+        // ⚠️ O ranking barrou mesmo; quem passou por cima foi o organizador. Reescrever a
+        // linha pra "Aprovado" apagaria do relatório exatamente o caso em que a nossa decisão
+        // discordou da deles — que é o que eles mais têm interesse em ver.
+        var (ctx, torneio, categoria) = Montar();
+        var ranking = new RankingFalso { Responder = Reprovar };
+        var servico = Servico(ctx, ranking);
+
+        await servico.MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        var bloqueio = ctx.BloqueiosDoRanking.Single();
+        bloqueio.Situacao = SituacaoDoBloqueio.Liberado;
+        await ctx.SaveChangesAsync();
+
+        // A pessoa volta e se inscreve — agora ela passa, mas pela decisão do organizador.
+        var recusa = await servico.MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano });
+
+        Assert.Null(recusa);
+        Assert.Equal(ResultadoDaConsulta.Barrado, Assert.Single(ctx.ConsultasAoRankingRs).Resultado);
+    }
+
+    [Fact]
+    public async Task Cada_pessoa_do_lote_ganha_a_sua_linha()
+    {
+        var (ctx, torneio, categoria) = Montar();
+        var limpo = new ValidacaoPeloRankingRs.Pessoa("Parceiro Limpo", "52998224725");
+        var ranking = new RankingFalso
+        {
+            Responder = a => a.Referencia == Silvano.Cpf ? Reprovar(a) : Aprovar(a),
+        };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano, limpo });
+
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count());
+        Assert.Equal(ResultadoDaConsulta.Barrado,
+            ctx.ConsultasAoRankingRs.Single(c => c.Cpf == Silvano.Cpf).Resultado);
+        Assert.Equal(ResultadoDaConsulta.Aprovado,
+            ctx.ConsultasAoRankingRs.Single(c => c.Cpf == limpo.Cpf).Resultado);
+    }
+
+    [Fact]
+    public async Task Lote_devolvido_incompleto_nao_some_com_ninguem()
+    {
+        // Se a API deixar alguém de fora da resposta, essa pessoa não pode desaparecer do
+        // relatório como se nunca tivesse tentado se inscrever.
+        var (ctx, torneio, categoria) = Montar();
+        var esquecido = new ValidacaoPeloRankingRs.Pessoa("Esquecido", "52998224725");
+        var ranking = new RankingFalso
+        {
+            // Devolve só o primeiro do lote.
+            RespostaDoLote = atletas => atletas.Take(1).Select(Aprovar).ToList(),
+        };
+
+        await Servico(ctx, ranking).MotivoDeRecusaAsync(torneio, categoria, new[] { Silvano, esquecido });
+
+        Assert.Equal(2, ctx.ConsultasAoRankingRs.Count());
+        Assert.Equal(ResultadoDaConsulta.SemResposta,
+            ctx.ConsultasAoRankingRs.Single(c => c.Cpf == esquecido.Cpf).Resultado);
     }
 }

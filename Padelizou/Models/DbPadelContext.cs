@@ -83,6 +83,10 @@ public partial class DbPadelContext : DbContext
 
     // Inscrições que o Ranking RS reprovou e que esperam a decisão do organizador.
     public DbSet<BloqueioDoRanking> BloqueiosDoRanking { get; set; }
+
+    // Toda consulta ao Ranking, e não só as que barraram — inclusive as que nem chegaram a
+    // ser feitas. É o que permite dizer quantas pessoas passaram pelo filtro sem chutar.
+    public DbSet<ConsultaAoRankingRs> ConsultasAoRankingRs { get; set; }
     public DbSet<AvaliacaoProfessor> AvaliacoesProfessor { get; set; }
     public DbSet<AnotacaoAula> AnotacoesAula { get; set; }
 
@@ -509,6 +513,29 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DecididoPorId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<ConsultaAoRankingRs>(entity =>
+        {
+            // UMA linha por pessoa em cada categoria, igual ao BloqueioDoRanking: quem tenta
+            // se inscrever cinco vezes é uma pessoa consultada, não cinco.
+            entity.HasIndex(e => new { e.CategoriaId, e.Cpf }).IsUnique();
+
+            // A tela lê "as consultas deste torneio" o tempo todo — sem isto, todo carregamento
+            // do relatório varre a tabela inteira.
+            entity.HasIndex(e => e.TorneioId);
+
+            // Cascade nos dois pelo mesmo motivo do BloqueioDoRanking: o caminho
+            // Torneio → Categoria → Consulta já existe, e Restrict aqui travaria a exclusão
+            // do torneio. O Postgres aceita caminho múltiplo de cascade sem reclamar.
+            entity.HasOne(e => e.Torneio)
+                .WithMany()
+                .HasForeignKey(e => e.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Categoria)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Clube>(entity =>
         {

@@ -199,6 +199,17 @@ public partial class Jogador
     // tira poder de ninguém. Ver Services/PoderesNoSistema.
     public bool IsAssistente { get; set; }
 
+    // PARCEIRO DO RANKING: vê UMA tela do painel — o relatório da parceria — e mais nada.
+    //
+    // ⚠️ Esta é a única flag do sistema dada a gente de FORA da casa (hoje, o pessoal do
+    // Ranking Brasil). Por isso ela não é uma versão mais fraca do assistente: o assistente
+    // enxerga o painel inteiro, incluindo o financeiro de todas as frentes, e nada disso é da
+    // conta de um parceiro comercial. Ela não entra em `PodeOlharTudo` nem em `PodeEditarTudo`
+    // — abre uma porta só, e essa porta é um GET sem formulário nenhum.
+    //
+    // Ver Services/PoderesNoSistema e Services/RelatorioDoRankingRs.
+    public bool IsParceiroRanking { get; set; }
+
     // Pode CRIAR torneio. Nasce desligado: desde 07/08/2026 criar torneio é liberado pessoa a
     // pessoa, no painel admin (ver Services/PermissaoDeOrganizador).
     //
