@@ -106,6 +106,20 @@ public partial class Jogador
     public bool EnderecoPublico { get; set; }
     public string? Email { get; set; }
     public string? SenhaHash { get; set; }
+
+    // NUNCA ENTROU AQUI: a linha nasceu de um TERCEIRO (parceiro de dupla inscrito por CPF,
+    // parceiro do Ranking liberado pelo painel) e a pessoa ainda não assumiu a conta. Sem
+    // senha não há login, e sem login ela não tem como mexer em preferência nenhuma — nem
+    // pra esconder o próprio telefone, que outra pessoa digitou por ela.
+    //
+    // É por isso que a régua de contato (Services/ContatoDoJogador) olha para cá: enquanto
+    // for pré-cadastro, o contato fica fechado. Quem se cadastra com aquele CPF define a
+    // senha, assume a conta (ver AuthController) e a partir daí manda na própria escolha.
+    //
+    // Conta EXCLUÍDA também fica sem SenhaHash (ver Services/ExclusaoDeConta) — por isso o
+    // `!Excluido`: quem saiu não é gente esperando entrar, e quem decide por ela é `ExcluidoEm`.
+    public bool EhPreCadastro => string.IsNullOrEmpty(SenhaHash) && !Excluido;
+
     public string? FotoPerfil { get; set; }
     public string? Instagram { get; set; }
     // CAMPO MORTO — não é o ranking. Nunca foi alimentado pelo sistema (os valores que

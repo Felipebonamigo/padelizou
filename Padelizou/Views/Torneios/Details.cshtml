@@ -3323,12 +3323,31 @@
                 .filter(Boolean);
         }
 
+        // Campo travado é campo que VEM DO CADASTRO de quem o CPF achou. Ele também sai da
+        // validação do navegador, e isso passou a importar em 10/08/2026: desde a varredura
+        // de conformidade o servidor não devolve mais celular e cidade de TERCEIRO (ver
+        // BuscarJogadorPorCpf), então o campo do parceiro fica travado e VAZIO. Com o
+        // `required` valendo, o envio morreria num campo que a pessoa nem pode preencher.
+        function trancar(el, travado) {
+            if (el.dataset.placeholderOriginal === undefined) el.dataset.placeholderOriginal = el.placeholder || '';
+            el.readOnly = travado;
+            el.required = !travado;
+            el.placeholder = travado && !el.value ? 'Já está no cadastro dele' : el.dataset.placeholderOriginal;
+            el.style.backgroundColor = travado ? 'var(--pdz-surface-alt)' : '';
+            el.title = travado ? 'Vem do cadastro do jogador. Para mudar, é no perfil dele.' : '';
+        }
+
         function travar(alvo, travado) {
-            camposDe(alvo).forEach(function (el) {
-                el.readOnly = travado;
-                el.style.backgroundColor = travado ? 'var(--pdz-surface-alt)' : '';
-                el.title = travado ? 'Vem do cadastro do jogador. Para mudar, é no perfil dele.' : '';
-            });
+            camposDe(alvo).forEach(function (el) { trancar(el, travado); });
+        }
+
+        // Um campo depois de o CPF achar alguém: ou já veio preenchido (é o SEU CPF, e o
+        // servidor devolve o seu contato), ou o servidor disse que o cadastro dele já tem
+        // aquilo. Nos dois casos tranca. O que falta no cadastro segue editável — cadastro
+        // antigo pode não ter celular, e a inscrição não pode empacar por causa disso.
+        function ajustar(alvo, nome, jaNoCadastro) {
+            var el = campo(nome, alvo);
+            if (el) trancar(el, !!el.value || jaNoCadastro === true);
         }
 
         // "Esse CPF já está inscrito nesta categoria." Só olha o campo do PARCEIRO (alvo 2):
@@ -3399,7 +3418,14 @@
                 var qsCategoria = categoriaEscolhida && categoriaEscolhida.value
                     ? '&categoriaId=' + encodeURIComponent(categoriaEscolhida.value) : '';
 
-                fetch(urlBusca + '?cpf=' + cpf + qsCategoria)
+                // POST, e não mais GET com o CPF na barra de endereço: em 10/08/2026 a
+                // varredura de conformidade mostrou o documento indo parar no log de acesso
+                // do servidor, no histórico do navegador e no `Referer`. No corpo, não vai.
+                fetch(urlBusca, {
+                    method: 'POST',
+                    headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
+                    body: 'cpf=' + cpf + qsCategoria
+                })
                     .then(function (r) { return r.json(); })
                     .then(function (dados) {
                         var nome = campo('nome', alvo);
@@ -3409,24 +3435,26 @@
                                 + '<i class="bi bi-check-circle-fill"></i> ' + dados.nome + ' — já cadastrado</span>';
                             if (nome) nome.value = dados.nome;
 
+                            // Celular, cidade e estado só voltam preenchidos quando o CPF é o
+                            // de quem está logado ("Sou eu"). Pro CPF de terceiro vem só o
+                            // `tem*`, dizendo que o cadastro dele já tem aquilo — e quem
+                            // completa é o servidor, na gravação.
                             var celular = campo('celular', alvo);
-                            var cidade = campo('cidade', alvo);
-                            var estado = campo('estado', alvo);
                             if (celular && dados.celular) {
                                 celular.value = dados.celular;
                                 // O celular vem cru do banco e atribuir .value não dispara
                                 // 'input', então a máscara não formataria sozinha.
                                 celular.dispatchEvent(new Event('input', { bubbles: true }));
                             }
+                            var cidade = campo('cidade', alvo);
+                            var estado = campo('estado', alvo);
                             if (cidade && dados.cidade) cidade.value = dados.cidade;
                             if (estado && dados.estado) estado.value = dados.estado;
 
-                            // Cadastro antigo pode não ter celular/cidade; o que veio vazio
-                            // segue editável pra inscrição não empacar num campo obrigatório.
-                            travar(alvo, true);
-                            camposDe(alvo).forEach(function (el) {
-                                if (!el.value) { el.readOnly = false; el.style.backgroundColor = ''; el.title = ''; }
-                            });
+                            ajustar(alvo, 'nome', true);
+                            ajustar(alvo, 'celular', dados.temCelular);
+                            ajustar(alvo, 'cidade', dados.temCidade);
+                            ajustar(alvo, 'estado', dados.temEstado);
 
                             window.pdzJogadores[alvo] = dados;
                             if (window.pdzAvaliarCategoria) window.pdzAvaliarCategoria();
@@ -3545,7 +3573,13 @@
                 if (inputCpf.dataset.ultimo === cpf) return;
                 inputCpf.dataset.ultimo = cpf;
 
-                fetch(urlBusca + '?cpf=' + cpf + '&categoriaId=' + form.dataset.categoria)
+                // POST pelo mesmo motivo do bloco de inscrição: CPF não anda na barra de
+                // endereço (ver o comentário lá em cima e BuscarJogadorPorCpf).
+                fetch(urlBusca, {
+                    method: 'POST',
+                    headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
+                    body: 'cpf=' + cpf + '&categoriaId=' + form.dataset.categoria
+                })
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
                         // Nome preenchido sozinho pra quem já tem cadastro: o campo de nome
