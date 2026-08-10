@@ -15,11 +15,34 @@ de graça, então:
 
 | | Serviço | Custo | Teto |
 |---|---|---|---|
-| **Receber** (`contato@`) | Cloudflare Email Routing | R$ 0 | sem limite de volume; 200 apelidos |
+| **Receber** (`contato@`) | ImprovMX | R$ 0 | 25 apelidos, 500 encaminhamentos/dia |
 | **Enviar** (app e você) | Resend, plano grátis | R$ 0 | **100/dia**, 3.000/mês, 1 domínio |
 
-É a mesma planta que o **atomatiza.com.br** já roda em produção — dá pra conferir a qualquer
-momento com `nslookup -type=MX atomatiza.com.br`.
+**O DNS FICA NO REGISTRO.BR.** Nenhum dos dois exige mexer em nameserver: são 2 registros MX pro
+ImprovMX e 4 pro Resend, todos no editor de zona que já existe.
+
+### ⚠️ Por que o Cloudflare foi descartado NA HORA H
+
+O plano original era Cloudflare Email Routing (grátis, sem limite de volume), copiando o
+`atomatiza.com.br`, que roda exatamente isso. Ele exige o DNS na Cloudflare, e o
+`padelizou.com.br` tem **DNSSEC ligado** — então o roteiro era: desligar o DNSSEC, esperar o DS
+sair do cache, e só então trocar o nameserver.
+
+**No painel do Registro.br esse primeiro passo não existe.** Não há chave de desligar DNSSEC:
+o que há é um botão `+ DNSSEC` **dentro do formulário de trocar servidores DNS**. Ou seja, a
+remoção do DS e a troca de delegação acontecem **no mesmo salvamento**, e não dá pra separar.
+
+O estrago disso, medido: o **TTL do DS é 3600 segundos**. Durante até uma hora, todo resolver
+que tivesse o DS antigo em cache tentaria validar uma zona que a Cloudflare serve sem
+assinatura — e o resultado, pra essas pessoas, é **SERVFAIL: o domínio não existe**. Não é o
+site fora do ar, é o domínio sumindo, com inscrição paga aberta.
+
+Como o Cloudflare só resolvia a metade de RECEBER — e os registros do Resend cabem no
+Registro.br do mesmo jeito —, era arriscar o domínio inteiro por uma metade. Trocado pelo
+ImprovMX, que faz o mesmo com 2 registros MX e zero downtime.
+
+Se um dia o DNS for pra Cloudflare por outro motivo, o roteiro é: fazer **de madrugada**,
+preencher os dois nameservers e **não tocar no `+ DNSSEC`**.
 
 ### Por que não os outros
 
@@ -30,10 +53,6 @@ liberação leva de 1 a 3 dias úteis. Só passa a valer a pena acima de 3.000/m
 
 **Brevo**: 300/dia, melhor teto, mas carimba o logo deles em todo e-mail que sai. Inaceitável
 pra um produto que cobra do cliente.
-
-**ImprovMX**: encaminha sem exigir troca de nameserver (seria mais fácil que o Cloudflare), mas
-tem 25 apelidos e 500 encaminhamentos/dia, e é mais um fornecedor pra manter. Fica como plano B
-se a troca de nameserver der errado.
 
 ---
 
@@ -58,63 +77,52 @@ subindo a cada cadastro novo) que obrigava a pensar em plano pago.
 
 Cada conta é criada por você — não dá pra terceirizar cadastro nem senha.
 
-### 0. Desligar o DNSSEC no Registro.br ⚠️
+### Como funciona o editor de zona do Registro.br
 
-**Este é o único passo perigoso do roteiro, e ele vem primeiro.** O `padelizou.com.br` tem
-DNSSEC ligado (registro DS publicado). Trocar os nameservers com o DS no ar derruba o **domínio
-inteiro de uma vez** — site, `admin.` e `dev.` —, e o erro é de validação de DNS, que quase não
-parece erro de DNS.
+Vale ler antes, porque três detalhes dele confundem:
 
-No painel do Registro.br, desligar o DNSSEC do domínio e **esperar o DS sumir** antes de seguir:
+- O campo **Nome** recebe só o PREFIXO — o `.padelizou.com.br` é colado automaticamente do lado.
+  Pra um registro na raiz do domínio, o Nome vai **vazio**. Ele não aceita `@` nem `*`.
+- **Prioridade de MX é campo separado** do nome do servidor.
+- Entrada nova aparece com **bolinha VERDE** e ainda não existe: só passa a valer depois do
+  **SALVAR ALTERAÇÕES** no fim da lista. Fechar a tela antes disso descarta tudo.
+
+⚠️ **Nunca apague nem edite os 4 registros A** (`padelizou.com.br`, `www`, `admin`, `dev` →
+179.197.233.184). São o site, e nada neste documento encosta neles.
+
+### 1. Receber: ImprovMX (feito em 10/08/2026)
+
+Em improvmx.com, conta grátis, adicionar `padelizou.com.br` e criar os apelidos, todos
+encaminhando pra `padelizou@gmail.com`:
+
+- `contato@` — o endereço público, o que vai no site
+- `suporte@`
+- `financeiro@` — pro meio de pagamento, nota fiscal, MEI
+
+⚠️ **APAGUE o apelido `*` (catch-all), que o ImprovMX cria sozinho.** Ele encaminha qualquer
+endereço inventado do domínio, e o plano grátis **pausa o encaminhamento do domínio inteiro** ao
+estourar 500/dia — um spammer descobrindo o catch-all derrubaria o `contato@` junto. Com
+apelidos nomeados, e-mail pra endereço inexistente é recusado, que é o certo.
+
+O banner de Upgrade ("Send Emails via SMTP, $9/m") **não serve pra nós**: quem envia é o Resend.
+
+Depois, no Registro.br → Configurar zona DNS → NOVA ENTRADA, duas vezes:
+
+| Tipo | Nome | Prioridade | Servidor |
+|---|---|---|---|
+| MX | (vazio) | 10 | `mx1.improvmx.com.` |
+| MX | (vazio) | 20 | `mx2.improvmx.com.` |
+
+**Salvar** e conferir. O cache negativo desta zona é de 15 minutos, então o Google DNS demora um
+pouco a mostrar — o autoritativo responde na hora e é ele que diz a verdade:
 
 ```bash
-nslookup -type=DS padelizou.com.br 8.8.8.8
+nslookup -type=MX padelizou.com.br d.sec.dns.br
 ```
 
-Só continue quando não voltar mais registro DS. Pode levar algumas horas.
+O selo vermelho *Setup* do ImprovMX vira verde sozinho quando ele enxergar os dois.
 
-### 1. Criar o domínio no Cloudflare e conferir os registros A
-
-Criar conta grátis no Cloudflare, adicionar `padelizou.com.br`. Ele importa a zona atual
-sozinho — **confira antes de seguir** que estes quatro existem, todos apontando pra
-`179.197.233.184`:
-
-| Nome | Tipo | Valor |
-|---|---|---|
-| `@` | A | 179.197.233.184 |
-| `www` | A | 179.197.233.184 |
-| `admin` | A | 179.197.233.184 |
-| `dev` | A | 179.197.233.184 |
-
-⚠️ **Os quatro têm que ficar com a nuvem CINZA (DNS only), não laranja.** Com o proxy ligado, o
-Cloudflare intercepta o tráfego e o Caddy perde o desafio HTTP-01 que ele usa pra renovar o
-certificado sozinho — o site continua no ar até o certificado atual vencer, e então cai. É o
-tipo de defeito que aparece 60 dias depois, quando ninguém lembra mais desta mudança.
-
-### 2. Trocar os nameservers no Registro.br
-
-O Cloudflare mostra dois nameservers dele. Trocar no Registro.br e esperar propagar:
-
-```bash
-nslookup -type=NS padelizou.com.br 8.8.8.8
-```
-
-Enquanto não aparecerem os do Cloudflare, não siga. Confira que o site continua abrindo.
-
-### 3. Ligar o Email Routing (receber)
-
-No painel do Cloudflare → Email → Email Routing. Ele cria os MX e o SPF sozinho.
-
-Criar os endereços, todos encaminhando pra `padelizou@gmail.com`:
-
-- `contato@padelizou.com.br` — o endereço público, o que vai no site
-- `suporte@padelizou.com.br`
-- `financeiro@padelizou.com.br` — pro meio de pagamento, nota fiscal, MEI
-
-Não crie `nao-responda@` — esse só envia, nunca recebe.
-
-**Teste agora**: mande um e-mail de fora pro `contato@` e veja chegar no Gmail. Só siga depois
-que isso funcionar.
+**Teste antes de seguir**: mande um e-mail de fora pro `contato@` e veja chegar no Gmail.
 
 ### 4. Criar a conta no Resend e verificar o domínio
 
@@ -131,17 +139,19 @@ O painel gera três registros — **copie os valores de lá**, são gerados por 
 | `send` | MX | retorno de bounces (`feedback-smtp.sa-east-1.amazonses.com`) |
 | `send` | TXT | SPF do subdomínio de envio (`v=spf1 include:amazonses.com ~all`) |
 
-O MX do Resend fica em `send.`, e o do Email Routing na raiz — **não brigam**.
+Todos vão no mesmo editor de zona do Registro.br, no campo **Nome** só com o prefixo (`send`,
+`resend._domainkey`) — o domínio é colado sozinho.
 
-⚠️ Deixe todos com a nuvem **cinza**. MX e TXT o Cloudflare nunca proxia, mas se algum vier como
-CNAME ele liga o proxy por padrão e a verificação falha sem dizer por quê.
+⚠️ **O MX do Resend fica em `send.` e o do ImprovMX na RAIZ — eles não brigam**, e é justamente
+por isso que dá pra receber por um e enviar pelo outro sem conflito. Não mexa nos MX da raiz ao
+adicionar os do `send`.
 
 ### 5. Publicar o DMARC
 
-Um TXT a mais, na mão:
+Um TXT a mais, na mão, com o Nome `_dmarc`:
 
 ```
-_dmarc    TXT    "v=DMARC1; p=none; rua=mailto:contato@padelizou.com.br"
+v=DMARC1; p=none; rua=mailto:contato@padelizou.com.br
 ```
 
 ⚠️ **`p=none` de propósito**: ele só pede relatório, não manda ninguém rejeitar nada. Depois de
@@ -180,7 +190,7 @@ recuperação de senha e vendo o e-mail chegar. **Só então** repetir em produ�
 
 No Gmail: Configurações → Contas → *Enviar e-mail como* → adicionar `contato@padelizou.com.br`
 com o SMTP do Resend (`smtp.resend.com`, porta 587, usuário `resend`, senha = a mesma API key).
-O código de confirmação chega na própria caixa, via Email Routing.
+O código de confirmação chega na própria caixa, encaminhado pelo ImprovMX.
 
 A partir daí você lê e responde tudo de dentro do Gmail de sempre, e quem está do outro lado só
 vê `contato@padelizou.com.br`.
