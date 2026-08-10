@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🏆 **SER ELIMINADO NUM TORNEIO GRANDE PASSA A VALER MAIS QUE NUM PEQUENO — e no caminho caiu um buraco: a INSCRIÇÃO sozinha já pagava ponto.** ⚠️ **Commitado (`d364c83`), NÃO publicado.**
+> Última atualização: **10/08/2026** — 🚀 **`build-487-606390c` NO AR EM PROD** (20:12), com o botão de conferir o torneio no Ranking. ⚠️ **E leva junto o peso da participação (`d364c83`), que o bloco abaixo dava como não publicado** — agora está.
+>
+> 🔁 **DÁ PRA PERGUNTAR AO RANKING SOBRE QUEM JÁ ESTÁ INSCRITO.** Botão em `/Admin/RankingRsTorneio/{id}`, só do raiz. Nasceu da pergunta do Felipe olhando o 1º torneio real: *"por que tem tantos sem conferência? acho que eles só não têm cadastro no Ranking"*. Sem isto não havia como responder — a validação sempre rodou na inscrição, mas só passou a deixar registro em 10/08.
+>
+> 🎯 **E a resposta separa as duas coisas que viravam a mesma palavra**: *aprovado porque foi conferido contra pontos* × *aprovado porque **não está no ranking***. Os dois são "Aprovado" na API deles; somá-los esconderia exatamente o que se quer descobrir. A frase de retorno diz: *"12 consultada(s); 12 liberada(s) — sendo 12 que nem aparece(m) no ranking"*.
+>
+> ⚠️ **TRÊS COISAS QUE ELE NUNCA FAZ, e são o que o tornam seguro de apertar:** não **desinscreve** ninguém (a pessoa já está no torneio e a chave dela pode ter saído — o resultado é informação, e quem decide é o organizador); não cria **`BloqueioDoRanking`** (aquela fila é de quem tentou entrar e foi barrado, e pôr ali quem ENTROU faria o organizador ler como inscrição recusada); e **sem chave configurada ele se recusa a rodar**, em vez de gravar "não deu pra consultar" pra todo mundo — em ação que alguém apertou de propósito, silêncio disfarçado de resultado é o pior desfecho. O teste mais importante do bloco reprova todo mundo e confere que a dupla continua inscrita e a fila continua vazia.
+>
+> 🚪 **O botão NÃO fica no relatório**, de propósito: aquela é a tela que o parceiro abre, a trava dele é o verbo HTTP, e há teste garantindo que ela não tem um formulário sequer. ♻️ E a régua de quem conta (lista de espera e time de fora) virou **filtro reutilizável** em `AcertoComORankingRs` — agora são três lugares fazendo a mesma pergunta, e regra de torneio em três cópias é a origem documentada dos piores defeitos daqui.
+>
+> ✅ **Conferido**: `cwd` do processo em `build-487-606390c`, `NRestarts=0`, `/healthz` 200, zero erro no journal, `.historico` **sem duas linhas na mesma hora**, e os textos novos dentro do `.dll` publicado **com controles válidos** (fragmentos SEM acento — ver a armadilha de hoje). Rotas: `/Admin/RankingRsTorneio/22` e `/Admin/RankingRsRelatorio` em **302** contra **404** de rota inventada. 🧪 **3.309 testes, 0 falhas** no topo do main antes de publicar — o meu commit e o do peso da participação juntos, em worktree isolado (o worktree principal estava com WIP que não compilava).
+>
+> ⏳ **O botão ainda NÃO foi apertado em produção.** Ele gasta cota da chave deles e escreve no banco de prod — é decisão do Felipe, em `/Admin` → Ranking Brasil → NATA PADEL TOUR → **Conferir 22 pessoas**.
+>
+> Antes, no mesmo dia — 🏆 **SER ELIMINADO NUM TORNEIO GRANDE PASSA A VALER MAIS QUE NUM PEQUENO — e no caminho caiu um buraco: a INSCRIÇÃO sozinha já pagava ponto.**
 >
 > 🏆 **Dois pedidos do Felipe em cima da régua de peso que subiu no `build-483`.** O primeiro: *"tem q dar mais pontos tambem para quem é eliminado na chave de um torneio mais forte"*. Os 10 da participação eram fixos — eu tinha defendido que multiplicá-los "premiaria aparecer num torneio grande e perder tudo", e ele reviu. **Agora cair na fase de grupos de uma categoria de 20 duplas vale 25, e numa de 5 vale 10.** É a lógica do circuito profissional: perder na estreia de um Slam paga mais que vencer rodada de torneio pequeno, porque **entrar naquele campo já é mais difícil**. E o degrau que eu defendia continua de pé — 25 no grupo contra 30 nos 16-avos.
 >
