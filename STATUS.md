@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 📧 **O E-MAIL PRÓPRIO FOI DECIDIDO, O VOLUME FOI CORTADO PELA METADE E O CANAL GANHOU VIGIA** (nada publicado).
+> Última atualização: **10/08/2026** — 🔒 **A BUSCA ERA A PORTA LATERAL DO PERFIL PRIVADO** (não publicado).
+>
+> 🔒 **"ARRUMA O PERFIL PRIVADO NA BUSCA TAMBÉM"** (Felipe, na sequência do botão de seguir). A régua não precisou ser inventada — **está escrita na tela de preferências**, na frase que a pessoa lê antes de ligar a chave: *"quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos"*. O perfil cumpria; a **busca publicava tudo**: cidade, lado da quadra, categorias, clubes, pontos e time, no card, pra qualquer visitante deslogado. Mesma família do que já havia sido fechado na rede.
+>
+> ⚠️ **Esconder no card não bastava — o FILTRO respondia o que o card calou.** Enquanto a pessoa aparecesse num resultado filtrado, marcar "3ª masculina + Arena" e vê-la na lista **É** a preferência dela; idem cidade e estado. Por isso quem é privado fica de fora de **qualquer busca por atributo** (os quatro filtros) e continua achável **pelo nome** — quem digita "Marina" já sabe quem procura, e sumir da busca seria virar fantasma pra quem quer marcar um jogo. Fechar o perfil esconde **dado**, não a existência.
+>
+> ➕ E o card de quem é privado sai do controller **já vazio** (`Pontos = 0`, `Time = null`, listas vazias) em vez de a view lembrar de esconder campo por campo: assim a próxima linha que alguém acrescentar ao card não nasce vazando. Fica foto, nome e o cadeado *"Perfil privado"* — e **sem botão de seguir**, que é o que o perfil dela também não oferece.
+>
+> 🧪 **3.117 testes**, 3 novos, 0 falhas. ✅ **Medido no app rodando**, com uma jogadora local marcada como privada: buscar pelo nome traz o card **só com o cadeado** (nenhuma cidade, categoria, clube, pts ou time no HTML); filtrar por `cidade=Porto Alegre` e por `estado=RS` **não a traz** — e o contador acompanha, senão a tela diria "1 encontrado" mostrando zero cards, o que denuncia igual; sem filtro nenhum ela aparece; e os cards dos demais seguem completos, com botão. ⚠️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia — 📧 **O E-MAIL PRÓPRIO FOI DECIDIDO, O VOLUME FOI CORTADO PELA METADE E O CANAL GANHOU VIGIA** (nada publicado).
 >
 > 📧 **`@padelizou.com.br`: plano fechado em CLOUDFLARE (receber) + RESEND GRÁTIS (enviar), R$ 0** — roteiro completo em `EMAIL.md`. O domínio **não tinha um único registro MX** (não recebia e-mail) nem SPF nem DMARC, e o `padelizou.com` puro não é nosso. ⚠️ **O DNS vai pro Cloudflare, mas o DNSSEC tem que ser DESLIGADO no Registro.br ANTES de trocar o nameserver** — com o DS no ar, a troca derruba site, `admin.` e `dev.` de uma vez, com erro de validação que quase não parece erro de DNS. E os registros A ficam na **nuvem cinza**: proxy ligado faz o Caddy perder a renovação do certificado, e o site só cai 60 dias depois. ⚠️ **A conta do Resend tem que ser NOVA** — o plano grátis dá 1 domínio e a conta atual está ocupada pelo `atomatiza.com.br`. 💡 **O Atomatiza foi a chave da decisão**: lendo o DNS dele descobri que ele já roda exatamente essa planta, e que **o Resend roda em cima do Amazon SES** (`feedback-smtp.sa-east-1.amazonses.com`) — ou seja, "Resend ou SES" nunca foi escolha de tecnologia, o SES é o mesmo motor sem o intermediário. 🔢 Números conferidos na fonte oficial (as secundárias estavam erradas): Resend grátis = **100/dia, 3.000/mês, 1 domínio**; SES = **US$ 0,16/1.000** com **US$ 200 de crédito por 6 meses**, sandbox de 200/dia. 🔧 No código nasceram `EmailSettings.SmtpUsuario` (o Gmail autentica com o endereço do remetente, o Resend com a palavra fixa `resend`) e **`ResponderPara`** — saindo de `nao-responda@`, sem ele a resposta de quem recebeu se perde. ✅ E o alarme falso do dia: a memória dizia que o `appsettings.json` estava versionado com segredo vivo — **é FALSO**, o arquivo é gitignored e `git log -S` dos valores volta vazio. O repo é público mesmo, mas nada vazou.
 >
@@ -25,7 +35,7 @@
 >
 > ⚠️ **LIÇÃO DE DIRETÓRIO COMPARTILHADO, a mesma de sempre e de novo:** na hora de commitar, o `git status` estava **limpo** — a sessão paralela tinha commitado, e o commit dela (`e07fb94`, "O nome do clube vira editavel") **levou os 13 arquivos deste trabalho junto**. Nada se perdeu e o commit ainda não foi pro remoto, mas reescrever histórico com a outra sessão trabalhando em cima seria pior que o problema. Fica registrado aqui onde o código caiu.
 >
-> Antes, no mesmo dia — 👣 **A BUSCA GANHOU O BOTÃO DE SEGUIR — SEM PERDER A BUSCA** (não publicado).
+> Antes, no mesmo dia — 👣 **A BUSCA GANHOU O BOTÃO DE SEGUIR — SEM PERDER A BUSCA** (`build-469-4056e24` **no ar em prod**, conferido no `cwd` do processo e nos strings do assembly).
 >
 > 👣 **"NA TELA DE BUSCAR, TER A OPÇÃO DE SEGUIR JOGADOR, NÃO PRECISA SER GRANDE"** (Felipe, print de `/Jogadores/Buscar` com os 163 jogadores de produção). Seguir existe desde o começo do sistema e tinha **um lugar só**: o perfil. Quem varria a lista atrás de parceiro precisava entrar em cada um, seguir e voltar — e a volta caía na busca **sem filtro nenhum**. Agora cada card tem o botão, pequeno, ao lado do nome, com "Seguir" e "Seguindo" trocando de lugar como no perfil.
 >

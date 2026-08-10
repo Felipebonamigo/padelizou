@@ -206,7 +206,9 @@
                 // agora é o NOME, com stretched-link: o botão de seguir é um <form>, e
                 // formulário dentro de <a> não existe em HTML — o clique no botão viraria
                 // navegação pro perfil.
-                var podeSeguir = Model.MeuId != null && Model.MeuId != r.Jogador.Id;
+                // Perfil privado não recebe botão: o perfil dele também não oferece seguir
+                // (a tela para antes disso), e a busca não é o lugar de abrir exceção.
+                var podeSeguir = Model.MeuId != null && Model.MeuId != r.Jogador.Id && !r.Privado;
 
                 <div class="col">
                     <div class="card border-0 shadow-sm h-100 p-3 pdz-porta position-relative">
@@ -238,11 +240,21 @@
                                         }
                                     </strong>
                                 </a>
+                                @* Pontos são estatística, e é isso que o perfil privado
+                                   esconde. O cadeado ocupa o lugar pra linha não sumir e o
+                                   card não parecer meio carregado. *@
                                 <small class="text-muted">
-                                    @r.Pontos pts
-                                    @if (r.Time != null)
+                                    @if (r.Privado)
                                     {
-                                        <span>· <i class="bi bi-shield-fill"></i> @r.Time</span>
+                                        <span><i class="bi bi-lock-fill"></i> Perfil privado</span>
+                                    }
+                                    else
+                                    {
+                                        <text>@r.Pontos pts</text>
+                                        @if (r.Time != null)
+                                        {
+                                            <span>· <i class="bi bi-shield-fill"></i> @r.Time</span>
+                                        }
                                     }
                                 </small>
                             </div>
@@ -267,26 +279,32 @@
                             }
                         </div>
 
-                        <div class="small text-muted">
-                            @if (!string.IsNullOrWhiteSpace(r.Jogador.Cidade))
-                            {
-                                <div class="text-truncate">
-                                    <i class="bi bi-geo-alt"></i> @r.Jogador.Cidade@(r.Jogador.Estado != null ? $" - {r.Jogador.Estado}" : "")
-                                </div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(r.Jogador.LadoQuadra))
-                            {
-                                <div><i class="bi bi-arrow-left-right"></i> Joga do lado @r.Jogador.LadoQuadra.ToLower()</div>
-                            }
-                            @if (r.Categorias.Any())
-                            {
-                                <div class="text-truncate"><i class="bi bi-bar-chart-steps"></i> @string.Join(", ", r.Categorias)</div>
-                            }
-                            @if (r.Clubes.Any())
-                            {
-                                <div class="text-truncate"><i class="bi bi-shop"></i> @string.Join(", ", r.Clubes)</div>
-                            }
-                        </div>
+                        @* Cidade e lado da quadra saem direto do Jogador (categorias e clubes
+                           o controller já devolve vazios pra quem é privado) — sem esta
+                           guarda, o card continuaria publicando o que o perfil fechou. *@
+                        @if (!r.Privado)
+                        {
+                            <div class="small text-muted">
+                                @if (!string.IsNullOrWhiteSpace(r.Jogador.Cidade))
+                                {
+                                    <div class="text-truncate">
+                                        <i class="bi bi-geo-alt"></i> @r.Jogador.Cidade@(r.Jogador.Estado != null ? $" - {r.Jogador.Estado}" : "")
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(r.Jogador.LadoQuadra))
+                                {
+                                    <div><i class="bi bi-arrow-left-right"></i> Joga do lado @r.Jogador.LadoQuadra.ToLower()</div>
+                                }
+                                @if (r.Categorias.Any())
+                                {
+                                    <div class="text-truncate"><i class="bi bi-bar-chart-steps"></i> @string.Join(", ", r.Categorias)</div>
+                                }
+                                @if (r.Clubes.Any())
+                                {
+                                    <div class="text-truncate"><i class="bi bi-shop"></i> @string.Join(", ", r.Clubes)</div>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             }

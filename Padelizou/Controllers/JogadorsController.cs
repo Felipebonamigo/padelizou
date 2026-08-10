@@ -547,6 +547,22 @@ public class JogadoresController : Controller
         // Nome, apelido ou CPF — mesma regra do resto do sistema (Services/BuscaJogador).
         query = BuscaJogador.Filtrar(query, vm.Termo);
 
+        // PERFIL PRIVADO: quem liga a chave lê na tela de preferências que "quem visitar seu
+        // perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos
+        // ficam escondidos". A busca era a porta lateral disso: o card publicava cidade, lado
+        // da quadra, categorias, clubes, pontos e time de quem tinha acabado de fechar o
+        // perfil (o mesmo raciocínio que tirou a rede do ar pros outros, ver Rede).
+        //
+        // ⚠️ Esconder no card não basta: enquanto a pessoa APARECE num resultado filtrado, o
+        // filtro responde o que o card se recusou a dizer — "marquei 3ª masculina + Arena e
+        // ela apareceu" É a preferência dela. Por isso quem é privado fica de fora de
+        // qualquer busca POR ATRIBUTO, e continua achável pelo NOME (o caso "quero achar o
+        // Fulano", que não pergunta nada sobre ele: quem digita o nome já sabe quem procura).
+        bool filtraPorAtributo = vm.Estado != null || vm.Cidade != null
+            || vm.CategoriaId != null || vm.ClubeId != null;
+        if (filtraPorAtributo)
+            query = query.Where(j => !j.PerfilPrivado);
+
         if (vm.Estado != null)
             query = query.Where(j => j.Estado != null && j.Estado.ToUpper() == vm.Estado);
 
@@ -638,14 +654,18 @@ public class JogadoresController : Controller
                 .Where(s => s.SeguidorId == vm.MeuId.Value && ids.Contains(s.SeguidoId))
                 .Select(s => s.SeguidoId).ToListAsync()).ToHashSet();
 
+        // O card de quem é privado sai daqui já VAZIO — nem pontos, que são estatística. A
+        // view podia se lembrar de esconder cada campo, mas aí a próxima linha que alguém
+        // acrescentar ao card nasce vazando; não mandar o dado é a versão que não esquece.
         vm.Resultados = jogadores.Select(j => new JogadorEncontradoVM
         {
             Jogador = j,
+            Privado = j.PerfilPrivado,
             EuSigo = jaSigo.Contains(j.Id),
-            Pontos = pontos.GetValueOrDefault(j.Id),
-            Time = j.Time?.Nome,
-            Categorias = catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
-            Clubes = clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+            Pontos = j.PerfilPrivado ? 0 : pontos.GetValueOrDefault(j.Id),
+            Time = j.PerfilPrivado ? null : j.Time?.Nome,
+            Categorias = j.PerfilPrivado ? new List<string>() : catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+            Clubes = j.PerfilPrivado ? new List<string>() : clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
             Declarou = filtraPreferencia
                 && (vm.CategoriaId == null || declararamCategoria.Contains(j.Id))
                 && (vm.ClubeId == null || declararamClube.Contains(j.Id)),

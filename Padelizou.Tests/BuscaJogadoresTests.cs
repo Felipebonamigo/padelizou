@@ -318,6 +318,81 @@ public class BuscaJogadoresTests
         Assert.False(ctx.SeguidoresJogador.Any(s => s.SeguidorId == eu.Id && s.SeguidoId == alvo.Id));
     }
 
+    // ---------- PERFIL PRIVADO ----------
+    // A tela de preferências promete: "quem visitar seu perfil só vê sua foto e seu nome —
+    // estatísticas, conquistas, clubes e confrontos ficam escondidos". A busca publicava
+    // tudo isso no card, e ainda respondia pelos filtros o que o card não diria.
+
+    [Fact]
+    public async Task Card_de_perfil_privado_nao_leva_estatistica_nem_preferencia()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var time = new Time { Nome = "Nata Padel" };
+        var clube = new Clube { Nome = "Arena", Contato = "x", Endereco = "y" };
+        ctx.Times.Add(time);
+        ctx.Clubes.Add(clube);
+        ctx.CategoriasPadrao.Add(new CategoriaPadrao { Nome = "2ª Masculina", Codigo = "2M", Tipo = "Masculina" });
+        ctx.SaveChanges();
+
+        var reservado = NovoJogador(ctx, "Reservado", "1", "Caxias do Sul", "RS");
+        reservado.PerfilPrivado = true;
+        reservado.TimeId = time.Id;
+        ctx.JogadorCategorias.Add(new JogadorCategoria { JogadorId = reservado.Id, CategoriaPadraoId = ctx.CategoriasPadrao.First().Id });
+        ctx.JogadorClubes.Add(new JogadorClube { JogadorId = reservado.Id, ClubeId = clube.Id });
+        ctx.SaveChanges();
+
+        var achado = (await Buscar(ctx, q: "Reservado")).Resultados.Single();
+
+        Assert.True(achado.Privado);
+        // Nem os pontos: o número é estatística, e é a view inteira que se apoia nisto.
+        Assert.Equal(0, achado.Pontos);
+        Assert.Null(achado.Time);
+        Assert.Empty(achado.Categorias);
+        Assert.Empty(achado.Clubes);
+    }
+
+    [Fact]
+    public async Task Perfil_privado_fica_de_fora_de_QUALQUER_busca_por_atributo()
+    {
+        // ⚠️ Esconder só no card deixaria o FILTRO respondendo o que o card calou: se marcar
+        // "Arena" e a pessoa aparecer, o clube dela está dito. Vale pros quatro filtros.
+        using var ctx = TestInfra.NovoContexto();
+        var clube = new Clube { Nome = "Arena", Contato = "x", Endereco = "y" };
+        ctx.Clubes.Add(clube);
+        ctx.CategoriasPadrao.Add(new CategoriaPadrao { Nome = "2ª Masculina", Codigo = "2M", Tipo = "Masculina" });
+        ctx.SaveChanges();
+        var categoria = ctx.CategoriasPadrao.First();
+
+        var reservado = NovoJogador(ctx, "Reservado", "1", "Caxias do Sul", "RS");
+        reservado.PerfilPrivado = true;
+        ctx.JogadorCategorias.Add(new JogadorCategoria { JogadorId = reservado.Id, CategoriaPadraoId = categoria.Id });
+        ctx.JogadorClubes.Add(new JogadorClube { JogadorId = reservado.Id, ClubeId = clube.Id });
+        ctx.SaveChanges();
+
+        Assert.Empty((await Buscar(ctx, estado: "RS")).Resultados);
+        Assert.Empty((await Buscar(ctx, cidade: "Caxias do Sul")).Resultados);
+        Assert.Empty((await Buscar(ctx, categoriaId: categoria.Id)).Resultados);
+        Assert.Empty((await Buscar(ctx, clubeId: clube.Id)).Resultados);
+
+        // E o contador tem que acompanhar, senão a tela anuncia "1 jogador encontrado" e
+        // mostra zero cards — o que denuncia a pessoa do mesmo jeito.
+        Assert.Equal(0, (await Buscar(ctx, estado: "RS")).TotalEncontrado);
+    }
+
+    [Fact]
+    public async Task Perfil_privado_continua_achavel_pelo_nome_e_na_lista_sem_filtro()
+    {
+        // Fechar o perfil esconde DADO, não a existência: quem digita o nome já sabe quem
+        // procura, e some da busca seria virar fantasma pra quem quer marcar um jogo.
+        using var ctx = TestInfra.NovoContexto();
+        var reservado = NovoJogador(ctx, "Marina Reservada", "1", "Caxias do Sul", "RS");
+        reservado.PerfilPrivado = true;
+        ctx.SaveChanges();
+
+        Assert.Single((await Buscar(ctx, q: "Marina")).Resultados);
+        Assert.Single((await Buscar(ctx)).Resultados);
+    }
+
     // UrlHelper de verdade, não dublê: quem decide se o destino é de fora é o IsLocalUrl
     // dele, e é exatamente isso que estes testes precisam exercitar.
     private static JogadoresController ControllerComUrlDeVerdade(DbPadelContext ctx, int logadoComo)
