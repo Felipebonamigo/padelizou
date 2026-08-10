@@ -419,7 +419,13 @@
     <script src="~/js/confirmar.js" asp-append-version="true"></script>
     @if (User.Identity?.IsAuthenticated == true)
     {
+        @* O push.js religa sozinho a inscrição de quem já autorizou os avisos, e pra isso
+           precisa saber que tem alguém logado — o POST de um visitante anônimo cairia no
+           login. É o único jeito: a permissão vive no navegador, a conta vive aqui. *@
+        <script>window.pdzJogadorLogado = true;</script>
         <partial name="_InstalarPwaModal" />
+        @* Irmão do de cima e o passo seguinte dele: instalou, agora liga o aviso. *@
+        <partial name="_AtivarAvisosModal" />
     }
     <script>
         if ('serviceWorker' in navigator) {

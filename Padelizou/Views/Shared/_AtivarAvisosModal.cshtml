@@ -1,0 +1,97 @@
+@* Convite pra LIGAR os avisos — o passo seguinte do _InstalarPwaModal, e o que faltava.
+   O convite de instalar acabava no ícone na tela de início; dali em diante o único lugar que
+   inscrevia no push era um botão dentro de Preferências, que ninguém abre. Em 09/08/2026 isso
+   valia 58 pessoas com o app instalado e 4 com aviso ligado.
+
+   Só aparece DENTRO do app instalado, e a permissão é pedida pelo toque na pessoa — no iPhone
+   não existe outro jeito: `Notification.requestPermission()` exige gesto e é recusado de saída
+   se disparado sozinho no carregamento.
+
+   ⚠️ Usa as classes .pdz-pwa-* declaradas no _InstalarPwaModal. Os dois são renderizados
+   juntos no _Layout, pro mesmo usuário logado — se um dia um sair, o estilo do outro vai junto. *@
+<div id="pdzAvisosOverlay" class="pdz-pwa-overlay" style="display:none;">
+    <div class="pdz-pwa-card">
+        <button type="button" class="pdz-pwa-close" onclick="fecharAtivarAvisosModal()" aria-label="Fechar">&times;</button>
+        <div class="pdz-pwa-eyebrow"><i class="bi bi-bell-fill"></i> FALTA UM TOQUE</div>
+        <h3 class="pdz-pwa-title">Ligue os avisos no seu celular</h3>
+        <p class="pdz-pwa-subtitle">O app já está instalado, mas ainda não te avisa de nada. Ligando, o aviso chega na hora — mesmo com o Padelizou fechado.</p>
+
+        <div class="pdz-pwa-steps">
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-icon"><i class="bi bi-hourglass-split"></i></span>
+                <span><strong>Seu jogo é o próximo</strong> — disparado pelo fim do jogo anterior na sua quadra, não pelo relógio.</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-icon"><i class="bi bi-diagram-3"></i></span>
+                <span><strong>As chaves saíram</strong> — com o horário do seu primeiro jogo, sem precisar ir procurar.</span>
+            </div>
+            <div class="pdz-pwa-step">
+                <span class="pdz-pwa-icon"><i class="bi bi-calendar-check"></i></span>
+                <span><strong>Aula e quadra</strong> — marcada, remarcada ou desmarcada.</span>
+            </div>
+        </div>
+
+        <button type="button" class="pdz-pwa-instalar" onclick="ativarAvisosPeloModal()">
+            <i class="bi bi-bell"></i> <span id="pdzAvisosBotaoTexto">Ativar avisos</span>
+        </button>
+
+        @* Permissão negada é definitiva pro navegador: não dá pra perguntar de novo por
+           código. O que resta é dizer onde a pessoa desfaz isso pela mão dela. *@
+        <div class="pdz-pwa-note" id="pdzAvisosRecusado" style="display:none;">
+            Os avisos ficaram bloqueados neste aparelho. Pra liberar, ajuste as notificações do Padelizou nos ajustes do celular — o botão continua no seu perfil, em Preferências.
+        </div>
+
+        <button type="button" class="pdz-pwa-cta" onclick="fecharAtivarAvisosModal()">Agora não</button>
+    </div>
+</div>
+
+<script>
+    var CHAVE_AVISOS_DISPENSADO = 'pdzAvisosDispensado';
+
+    function abrirAtivarAvisosModal() {
+        document.getElementById('pdzAvisosOverlay').style.display = 'flex';
+    }
+
+    function fecharAtivarAvisosModal() {
+        try { localStorage.setItem(CHAVE_AVISOS_DISPENSADO, '1'); } catch (e) { }
+        document.getElementById('pdzAvisosOverlay').style.display = 'none';
+    }
+
+    async function ativarAvisosPeloModal() {
+        var texto = document.getElementById('pdzAvisosBotaoTexto');
+        texto.textContent = 'Aguardando...';
+        var ligou = await ativarNotificacoesPush();
+        texto.textContent = 'Ativar avisos';
+
+        if (ligou) {
+            // Se a pessoa estava justamente em Preferências, o botão de lá tem que acompanhar
+            // — senão ele continua dizendo "Ativar notificações" logo depois de ativar.
+            if (typeof atualizarBotaoPush === 'function') atualizarBotaoPush();
+            fecharAtivarAvisosModal();
+            return;
+        }
+
+        // Recusou (ou fechou a caixa sem responder): o convite não insiste. Fica o recado de
+        // onde voltar, e o "Agora não" logo abaixo continua sendo a saída.
+        document.getElementById('pdzAvisosRecusado').style.display = 'block';
+    }
+
+    (function () {
+        function aparecerSozinho() {
+            // Só pra quem JÁ instalou. Fora do app instalado quem convida é o modal de
+            // instalação — e no iPhone o push nem existe antes desse passo.
+            if (!pdzAppInstalado()) return;
+            if (motivoSemPush()) return;
+
+            // 'granted' já é resolvido calado pela reinscrição do push.js, e 'denied' é
+            // decisão tomada: o navegador não deixa perguntar duas vezes.
+            if (Notification.permission !== 'default') return;
+
+            try { if (localStorage.getItem(CHAVE_AVISOS_DISPENSADO) === '1') return; } catch (e) { }
+
+            abrirAtivarAvisosModal();
+        }
+
+        document.addEventListener('DOMContentLoaded', aparecerSozinho);
+    })();
+</script>
