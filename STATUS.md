@@ -1,7 +1,9 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔏 **A POLÍTICA DE PRIVACIDADE DEIXOU DE SER O TEXTO DE EXEMPLO DO ASP.NET.**
+> Última atualização: **10/08/2026** — 🔏 **A POLÍTICA DE PRIVACIDADE DEIXOU DE SER O TEXTO DE EXEMPLO DO ASP.NET** (`build-476-2e49997` **no ar em prod**, junto com o trabalho do PWA logo abaixo).
+>
+> 🚀 **PUBLICADO E CONFERIDO** do jeito que a memória manda: **`cwd` do processo** na release nova (`/opt/padelizou-releases/prod/build-476-2e49997+180232`, não só o symlink), **`NRestarts=0`**, `TZ=America/Sao_Paulo` no `/proc/<pid>/environ` e `/healthz` 200. No ar, a política responde com "controlador", "ViaCEP", "Mundo do Atleta" e "meio de pagamento", e **sem** nenhuma ocorrência de "Use this page to detail" nem do nome do gateway. O `instalar-app.js` servido em produção traz as três funções novas (`pdzNavegadorParaTrocar`, `pdzPodeConvidar`, `pdzConviteRecusado`). ⚠️ **Falta preencher `Suporte__RazaoSocial` e `Suporte__Cnpj` no systemd** — sem eles a página diz apenas "operado por Felipe Bonamigo", sem o número do CNPJ. É drop-in + `systemctl restart`, **sem republicar**.
 >
 > 🔏 **"Use this page to detail your site's privacy policy"** era o que estava no ar, **linkado no rodapé de todas as páginas**, com CPF, e-mail, telefone e endereço de 154 pessoas no banco. Ninguém tinha percebido porque **nada quebra**: a página abre, o link funciona, e o defeito é o conteúdo. Agora são 13 seções escritas a partir do que o código **realmente faz** — os dados que o `Jogador` guarda, o que é público (nome, cidade, ranking, resultados) contra o que nunca é (CPF, CEP, e-mail, celular, senha), a base legal de cada uso, e a **tabela dos seis terceiros que recebem dado**: meio de pagamento, ViaCEP, Mundo do Atleta, Google (e-mail + Agenda do professor), WhatsApp e a entrega de push por Apple/Google.
 >
