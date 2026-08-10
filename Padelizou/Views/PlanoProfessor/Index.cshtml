@@ -17,6 +17,10 @@
     decimal exemploAulas = 20, exemploPreco = 100m;
     decimal custoAvulso = exemploAulas * exemploPreco * cfg.PercentualAvulso / 100m;
     decimal custoAssinante = cfg.MensalidadeAssinante + exemploAulas * exemploPreco * cfg.PercentualAssinantePix / 100m;
+
+    // Quanto o anual poupa contra 12 mensalidades. Vem do serviço, não de conta na tela: os
+    // dois preços saem de configuração e podem mudar sem passar por aqui.
+    decimal economiaAnual = PlanoDoProfessor.EconomiaDoAnual(cfg);
 }
 
 <div class="container mt-4 mb-5">
@@ -126,6 +130,15 @@
                             <div class="fs-3 fw-bold" style="color: var(--padel-green);">
                                 @cfg.MensalidadeAssinante.ToString("C")<span class="fs-6 text-muted fw-normal">/mês</span>
                             </div>
+                            <div class="small text-muted">
+                                ou <strong>@cfg.AnuidadeAssinante.ToString("C")</strong> por 12 meses
+                                @if (economiaAnual > 0)
+                                {
+                                    <span class="badge rounded-pill bg-success-subtle text-success-emphasis border border-success-subtle">
+                                        economize @economiaAnual.ToString("C")
+                                    </span>
+                                }
+                            </div>
                             <ul class="list-unstyled small mt-2 mb-3">
                                 <li class="mb-1"><i class="bi bi-check-circle-fill text-success"></i>
                                     <strong>@cfg.PercentualAssinantePix.ToString("0.#")%</strong> por aula paga no app, no Pix e boleto</li>
@@ -146,28 +159,39 @@
                                 else if (pixPendente != null)
                                 {
                                     @* O Pix aberto vem antes da fatura de gateway: se os dois
-                                       existem, pagar os dois cobraria a mensalidade em dobro. *@
+                                       existem, pagar os dois cobraria a assinatura em dobro.
+                                       O VALOR vai no botão porque com dois ciclos "a cobrança
+                                       em aberto" não diz mais qual das duas é. *@
                                     <a asp-controller="Pagamentos" asp-action="Pix" asp-route-id="@pixPendente.Id"
                                        class="btn btn-padel w-100 rounded-pill fw-bold">
                                         <i class="bi bi-qr-code"></i>
                                         @(pixPendente.Status == PixDireto.AguardandoConfirmacao
                                             ? "Pix enviado — acompanhar"
-                                            : "Pagar a mensalidade com Pix")
+                                            : $"Pagar com Pix ({pixPendente.Valor:C})")
                                     </a>
                                 }
                                 else if (cobrancaPendente != null)
                                 {
                                     <a href="@cobrancaPendente.InvoiceUrl" target="_blank" rel="noopener"
                                        class="btn btn-padel w-100 rounded-pill fw-bold">
-                                        <i class="bi bi-credit-card"></i> Pagar a mensalidade em aberto
+                                        <i class="bi bi-credit-card"></i>
+                                        Pagar a cobrança em aberto (@cobrancaPendente.Valor.ToString("C"))
                                     </a>
                                 }
                                 else
                                 {
-                                    <form asp-action="PagarMensalidade" method="post">
+                                    @* Os dois ciclos no MESMO form, cada botão mandando o seu
+                                       `ciclo`: dois formulários separados dariam duas chances
+                                       de clique e é assim que nascem duas cobranças abertas. *@
+                                    <form asp-action="PagarMensalidade" method="post" class="d-grid gap-2">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-padel w-100 rounded-pill fw-bold">
-                                            <i class="bi bi-credit-card"></i> Pagar mensalidade (@cfg.MensalidadeAssinante.ToString("C"))
+                                        <button type="submit" name="ciclo" value="@PlanoDoProfessor.CicloMensal"
+                                                class="btn btn-padel rounded-pill fw-bold">
+                                            <i class="bi bi-credit-card"></i> Pagar 1 mês (@cfg.MensalidadeAssinante.ToString("C"))
+                                        </button>
+                                        <button type="submit" name="ciclo" value="@PlanoDoProfessor.CicloAnual"
+                                                class="btn btn-outline-success rounded-pill fw-bold">
+                                            <i class="bi bi-calendar-check"></i> Pagar 12 meses (@cfg.AnuidadeAssinante.ToString("C"))
                                         </button>
                                     </form>
                                 }

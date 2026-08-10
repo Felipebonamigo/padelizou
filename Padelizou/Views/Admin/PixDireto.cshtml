@@ -103,7 +103,7 @@
                         <span class="fw-bold">@p.Valor.ToString("C")</span>
                         <span class="font-monospace small text-muted ms-1">@RegrasDoPix.TxId(p.Id)</span><br />
                         <span class="small">
-                            @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Mensalidade" : "Taxa de torneio")
+                            @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Plano Assinante" : "Taxa de torneio")
                             — @p.Jogador.Nome
                             @if (p.TorneioId != null && torneios.TryGetValue(p.TorneioId.Value, out var nomeTorneio))
                             {
@@ -149,7 +149,7 @@
                     <div class="small">
                         <span class="fw-bold">@p.Valor.ToString("C")</span>
                         <span class="font-monospace text-muted ms-1">@RegrasDoPix.TxId(p.Id)</span>
-                        — @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Mensalidade" : "Taxa de torneio"),
+                        — @(p.Tipo == RegrasDoPix.TipoAssinatura ? "Plano Assinante" : "Taxa de torneio"),
                         @p.Jogador.Nome, @p.CriadoEm.ToString("dd/MM")
                     </div>
                     <div class="d-flex gap-2">

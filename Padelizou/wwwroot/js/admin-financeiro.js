@@ -4,12 +4,15 @@
     var tipo = document.getElementById('reg-tipo');
     var campoPagador = document.getElementById('campo-pagador');
     var campoTorneio = document.getElementById('campo-torneio');
+    var campoCiclo = document.getElementById('campo-ciclo');
     if (!tipo || !campoPagador || !campoTorneio) return;
 
     function ajustar() {
         var ehTaxa = tipo.value === 'TaxaTorneio';
         campoPagador.classList.toggle('d-none', ehTaxa);
         campoTorneio.classList.toggle('d-none', !ehTaxa);
+        // Mensal/anual só faz sentido na assinatura — taxa de torneio não tem ciclo.
+        if (campoCiclo) campoCiclo.classList.toggle('d-none', ehTaxa);
         // required acompanha a visibilidade — campo escondido e obrigatório trava o envio
         // com um erro que ninguém vê.
         document.getElementById('reg-pagador').required = !ehTaxa;

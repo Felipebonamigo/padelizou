@@ -52,18 +52,27 @@ public class PlanoProfessorController : Controller
         ViewBag.Cfg = _cfg;
         ViewBag.Situacao = PlanoDoProfessor.SituacaoDe(eu, DateTime.Now, _cfg);
         ViewBag.FimDoTeste = PlanoDoProfessor.FimDoTeste(eu, _cfg);
-        ViewBag.CobrancaPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
-            p.Tipo == "AssinaturaProfessor" && p.JogadorId == eu.Id
-            && p.Status == "Pendente" && p.InvoiceUrl != null);
+        ViewBag.CobrancaPendente = await FaturaAbertaAsync(eu.Id);
 
         // A cobrança Pix aberta, se houver — o botão vira "ver o Pix" em vez de gerar outra.
-        ViewBag.PixPendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
-            p.Tipo == PixDireto.TipoAssinatura && p.JogadorId == eu.Id
-            && p.MetodoPagamento == PixDireto.Metodo
-            && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
+        ViewBag.PixPendente = await PixAbertoAsync(eu.Id);
 
         return View(eu);
     }
+
+    // As duas cobranças de assinatura que podem estar abertas. Ficam aqui, e não repetidas na
+    // Index e no PagarMensalidade, porque as duas telas TÊM que enxergar a mesma cobrança:
+    // uma achar aberto o que a outra não acha é como nasceriam dois códigos de pagamento.
+    private Task<Pagamento?> FaturaAbertaAsync(int professorId) =>
+        _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == "AssinaturaProfessor" && p.JogadorId == professorId
+            && p.Status == "Pendente" && p.InvoiceUrl != null);
+
+    private Task<Pagamento?> PixAbertoAsync(int professorId) =>
+        _context.Pagamentos.FirstOrDefaultAsync(p =>
+            p.Tipo == PixDireto.TipoAssinatura && p.JogadorId == professorId
+            && p.MetodoPagamento == PixDireto.Metodo
+            && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao));
 
     [HttpPost]
     public async Task<IActionResult> Escolher(string plano)
@@ -82,8 +91,11 @@ public class PlanoProfessorController : Controller
         return RedirectToAction("Index");
     }
 
+    // Gera a cobrança da assinatura no ciclo escolhido — mensal ou anual (12 meses).
+    // ⚠️ O nome da rota ficou de quando só existia mensalidade. Vale pros dois ciclos; renomear
+    // só faria a tela em cache de quem está com a página aberta postar num 404.
     [HttpPost]
-    public async Task<IActionResult> PagarMensalidade()
+    public async Task<IActionResult> PagarMensalidade(string? ciclo)
     {
         var eu = await ProfessorLogadoAsync();
         if (eu == null) return Forbid();
@@ -94,12 +106,37 @@ public class PlanoProfessorController : Controller
             return RedirectToAction("Index");
         }
 
+        var cicloEscolhido = PlanoDoProfessor.CicloValido(ciclo);
+        var valorPedido = PlanoDoProfessor.ValorDo(cicloEscolhido, _cfg);
+
+        // Uma cobrança de assinatura aberta por vez. A tela já esconde os botões quando existe
+        // uma, mas a trava mora aqui: sem ela, a página aberta em outra aba (ou o botão de
+        // voltar) geraria a segunda, e pagar as duas é o erro que o professor não desfaz
+        // sozinho. Quando a aberta é do MESMO valor, isto não é erro nenhum — é o segundo
+        // clique de sempre, e ele volta pra cobrança que já existe.
+        var pixAberto = await PixAbertoAsync(eu.Id);
+        var faturaAberta = pixAberto == null ? await FaturaAbertaAsync(eu.Id) : null;
+        var aberta = pixAberto ?? faturaAberta;
+
+        if (aberta != null)
+        {
+            if (aberta.Valor != valorPedido)
+            {
+                TempData["Erro"] = $"Você já tem uma cobrança de {aberta.Valor:C} em aberto. "
+                    + "Pague ou espere ela vencer antes de trocar de ciclo.";
+            }
+
+            return pixAberto != null
+                ? RedirectToAction("Pix", "Pagamentos", new { id = pixAberto.Id })
+                : Redirect(faturaAberta!.InvoiceUrl!);
+        }
+
         // Pix direto primeiro: cai na nossa conta sem taxa de gateway. Só quando a chave não
-        // está configurada é que a mensalidade vai pro caminho antigo, com fatura do gateway.
-        var pix = await _pagamentos.IniciarPixDiretoAssinaturaAsync(eu);
+        // está configurada é que a cobrança vai pro caminho antigo, com fatura do gateway.
+        var pix = await _pagamentos.IniciarPixDiretoAssinaturaAsync(eu, cicloEscolhido);
         if (pix != null) return RedirectToAction("Pix", "Pagamentos", new { id = pix.Id });
 
-        var url = await _pagamentos.IniciarCobrancaAssinaturaAsync(eu);
+        var url = await _pagamentos.IniciarCobrancaAssinaturaAsync(eu, cicloEscolhido);
         if (url == null)
         {
             TempData["Erro"] = "Não foi possível gerar a cobrança agora. Tente de novo em instantes.";

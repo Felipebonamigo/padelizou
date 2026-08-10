@@ -10,8 +10,10 @@
     bool confirmado = Model.Status == "Confirmado";
     bool aberto = Model.Status == "Pendente";
 
+    // "Plano Assinante" e não "Mensalidade": a mesma tela serve o ciclo anual, e o valor logo
+    // ao lado já diz qual dos dois é.
     var descricao = Model.Tipo == PixDireto.TipoAssinatura
-        ? "Mensalidade do plano Assinante"
+        ? "Plano Assinante"
         : "Taxa do Padelizou";
 }
 

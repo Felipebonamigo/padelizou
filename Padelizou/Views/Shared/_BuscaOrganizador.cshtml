@@ -10,8 +10,14 @@
      ViewData["BuscaOrgExtraFieldName"]/["BuscaOrgExtraFieldValue"] como 2º campo do form
      (além de jogadorId). Ex: AdminController.AtribuirDono, ClubesController.
      AdicionarAdministrador. *@
+@inject IWebHostEnvironment Ambiente
 @{
     var uid = Guid.NewGuid().ToString("N").Substring(0, 8);
+    // De dentro de admin.padelizou.com.br, /Torneios/... não existe (AdminHostMiddleware serve
+    // só /Admin e /Auth). Mesma busca, endereço que aquele host entrega.
+    var urlBusca = Padelizou.Middleware.AdminHostMiddleware.ServeSoOPainel(Context, Ambiente.IsDevelopment())
+        ? "/Admin/BuscarJogador"
+        : "/Torneios/BuscarJogadorParaOrganizador";
     var hiddenName = ViewData["BuscaOrgHiddenName"] as string;
     var torneioIdDireto = ViewData["BuscaOrgTorneioId"] as int?;
     var actionUrlDireto = ViewData["BuscaOrgActionUrl"] as string;
@@ -21,7 +27,9 @@
 }
 
 <div class="mb-2">
-    <input type="text" id="buscaOrg_@uid" class="form-control" placeholder="Digite o CPF ou o login do organizador..." autocomplete="off" />
+    @* O placeholder dizia "CPF ou login" e a busca já era por nome/apelido/CPF há tempos —
+       quem lia isso nem tentava digitar o nome. *@
+    <input type="text" id="buscaOrg_@uid" class="form-control" placeholder="Digite o nome, o apelido ou o CPF..." autocomplete="off" />
     <div id="buscaOrgResultado_@uid" class="list-group shadow-sm mt-1"></div>
     @if (!string.IsNullOrEmpty(hiddenName))
     {
@@ -41,6 +49,7 @@
         var selecionadosDiv = document.getElementById('buscaOrgSelecionados_@uid');
         var hiddenName = @Html.Raw(string.IsNullOrEmpty(hiddenName) ? "null" : System.Text.Json.JsonSerializer.Serialize(hiddenName));
         var modoDireto = @Html.Raw(modoDireto ? "true" : "false");
+        var urlBusca = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(urlBusca));
         var actionUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(actionUrlDireto ?? "/Torneios/AdicionarOrganizador"));
         var extraFieldName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(extraFieldNameDireto ?? (torneioIdDireto.HasValue ? "torneioId" : null)));
         var extraFieldValue = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(extraFieldValueDireto != null ? extraFieldValueDireto.ToString() : (torneioIdDireto.HasValue ? torneioIdDireto.Value.ToString() : "")));
@@ -53,11 +62,17 @@
             var termo = input.value.trim();
             if (termo.length < 3) { limparResultado(); return; }
             timer = setTimeout(function () {
-                fetch('/Torneios/BuscarJogadorParaOrganizador?termo=' + encodeURIComponent(termo))
-                    .then(function (r) { return r.json(); })
+                fetch(urlBusca + '?termo=' + encodeURIComponent(termo))
+                    // A busca que falha tem que APARECER. Antes um 404 (era o caso dentro do
+                    // painel admin) estourava no .json() e morria como promise rejeitada:
+                    // a lista ficava vazia, igualzinho a "não achei ninguém".
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
                     .then(function (lista) {
                         if (lista.length === 0) {
-                            resultadoDiv.innerHTML = '<div class="list-group-item text-muted small">Nenhum jogador encontrado com esse CPF/login — peça para a pessoa criar uma conta primeiro.</div>';
+                            resultadoDiv.innerHTML = '<div class="list-group-item text-muted small">Nenhum jogador com esse nome, apelido ou CPF — peça para a pessoa criar uma conta primeiro.</div>';
                             return;
                         }
                         resultadoDiv.innerHTML = lista.map(function (j) {
@@ -67,6 +82,9 @@
                                    '<img src="' + foto + '" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">' +
                                    '<span>' + nomeSeguro + '</span></button>';
                         }).join('');
+                    })
+                    .catch(function () {
+                        resultadoDiv.innerHTML = '<div class="list-group-item text-danger small">Não deu pra buscar agora. Tente de novo em instantes.</div>';
                     });
             }, 300);
         });

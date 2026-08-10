@@ -214,6 +214,31 @@ public static class TestInfra
         return controller;
     }
 
+    // O plano do professor: o serviço de pagamento entra de fora porque é ele que decide se a
+    // cobrança nasce por Pix direto ou por fatura de gateway.
+    public static PlanoProfessorController NovoPlanoProfessorController(
+        DbPadelContext ctx, int usuarioLogadoId,
+        IPagamentoInscricaoService? pagamentos = null, PlanoProfessorSettings? plano = null)
+    {
+        var controller = new PlanoProfessorController(
+            ctx,
+            pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
+            Microsoft.Extensions.Options.Options.Create(plano ?? new PlanoProfessorSettings()));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
     public static TimesController NovoTimesController(DbPadelContext ctx, int usuarioLogadoId)
     {
         var controller = new TimesController(ctx, new EstatisticasService(ctx));

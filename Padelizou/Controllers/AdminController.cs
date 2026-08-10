@@ -234,6 +234,78 @@ namespace padelizou.Controllers
             return RedirectToAction("Clubes");
         }
 
+        // Clube nasce do que o jogador digitou no cadastro (CatalogoLocais.AcharOuCriarClubeAsync),
+        // então a lista junta o nome certo com "Batata" e "Rogérinho." — arrumar era coisa de
+        // SQL na mão até aqui.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RenomearClube(int clubeId, string nome)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var clube = await _context.Clubes.FindAsync(clubeId);
+            if (clube == null) return NotFound();
+
+            nome = (nome ?? "").Trim();
+
+            if (nome.Length == 0)
+            {
+                TempData["Erro"] = "O nome do clube não pode ficar vazio.";
+                return RedirectToAction("Clubes");
+            }
+
+            if (nome.Length > CatalogoLocais.TamanhoMaximoNome)
+            {
+                TempData["Erro"] = $"O nome do clube tem no máximo {CatalogoLocais.TamanhoMaximoNome} caracteres.";
+                return RedirectToAction("Clubes");
+            }
+
+            // Nome repetido não pode: o catálogo casa clube POR NOME, sem diferenciar
+            // maiúsculas (CatalogoLocais). Com dois "Nata Padel" na base, quem digitar esse
+            // nome no cadastro cai num dos dois pelo acaso da consulta — e metade dos
+            // jogadores fica pendurada no clube errado, em silêncio.
+            var alvo = nome.ToLower();
+            var jaExiste = await _context.Clubes
+                .AnyAsync(c => c.Id != clubeId && c.Nome.ToLower() == alvo);
+
+            if (jaExiste)
+            {
+                TempData["Erro"] = $"Já existe outro clube chamado \"{nome}\". Renomear não junta os dois — quem estiver em cada um continua onde está.";
+                return RedirectToAction("Clubes");
+            }
+
+            var anterior = clube.Nome;
+            clube.Nome = nome;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"\"{anterior}\" agora se chama \"{nome}\".";
+            return RedirectToAction("Clubes");
+        }
+
+        // Autocomplete de "achar jogador" DENTRO do painel. Não é uma segunda regra de busca —
+        // é a mesma (BuscaJogador), só que noutro endereço: em admin.padelizou.com.br o
+        // AdminHostMiddleware serve só /Admin e /Auth, então o fetch que o _BuscaOrganizador
+        // fazia pra /Torneios/BuscarJogadorParaOrganizador voltava 404 e a lista de sugestões
+        // ficava MUDA — sem erro na tela, parecendo que ninguém tinha aquele nome.
+        [HttpGet]
+        public async Task<IActionResult> BuscarJogador(string termo)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+            if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 3) return Json(Array.Empty<object>());
+
+            var achados = await BuscaJogador.BuscarAsync(_context, termo, limite: 8);
+
+            return Json(achados.Select(j => new
+            {
+                j.Id,
+                j.Nome,
+                j.FotoPerfil,
+                j.Login,
+                apelido = j.Apelido ?? "",
+                exibicao = j.ComoChamar,
+            }));
+        }
+
         [HttpGet]
         public async Task<IActionResult> Administradores()
         {
@@ -970,7 +1042,7 @@ namespace padelizou.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RegistrarPagamento(string? tipo, string? pagador,
-            int? torneioId, decimal valor, DateTime? data,
+            int? torneioId, decimal valor, DateTime? data, string? ciclo,
             [FromServices] IPagamentoInscricaoService pagamentos)
         {
             var admin = await ObterJogadorAdminRaizAsync();
@@ -1004,8 +1076,14 @@ namespace padelizou.Controllers
                     return RedirectToAction("Financeiro");
                 }
 
-                dados = new DadosAssinaturaProfessor(quemPagou!.Id);
-                descricaoDoSucesso = $"mensalidade de {quemPagou.Nome}";
+                // O ciclo é do formulário e não do valor: o registro à mão é justamente onde
+                // o preço foi negociado por fora, e adivinhar "499,90 = anual" creditaria um
+                // mês só pra quem fechou 12 por 450.
+                var cicloEscolhido = PlanoDoProfessor.CicloValido(ciclo);
+                dados = new DadosAssinaturaProfessor(quemPagou!.Id, cicloEscolhido);
+                descricaoDoSucesso = cicloEscolhido == PlanoDoProfessor.CicloAnual
+                    ? $"plano anual de {quemPagou.Nome}"
+                    : $"mensalidade de {quemPagou.Nome}";
             }
             else
             {

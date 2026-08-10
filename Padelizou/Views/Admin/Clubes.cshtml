@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="fw-bold" style="color: var(--pdz-ink);">Clubes</h2>
-            <p class="text-muted mb-0">Atribua o dono de cada clube. Só o dono e quem ele adicionar como administrador conseguem gerenciar o clube.</p>
+            <p class="text-muted mb-0">Arrume o nome e atribua o dono de cada clube. Só o dono e quem ele adicionar como administrador conseguem gerenciar o clube.</p>
         </div>
         <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
     </div>
@@ -15,6 +15,10 @@
     @if (TempData["Sucesso"] != null)
     {
         <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
     }
 
     <div class="table-responsive">
@@ -30,7 +34,14 @@
                 @foreach (var clube in Model)
                 {
                     <tr>
-                        <td class="fw-bold">@clube.Nome</td>
+                        <td class="fw-bold">
+                            @clube.Nome
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-2 text-decoration-none"
+                                    data-bs-toggle="collapse" data-bs-target="#renomear_@clube.Id"
+                                    title="Editar o nome" aria-label="Editar o nome de @clube.Nome">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </td>
                         <td>
                             @if (clube.Dono != null)
                             {
@@ -52,6 +63,20 @@
                             </button>
                         </td>
                     </tr>
+                    <tr class="collapse" id="renomear_@clube.Id">
+                        <td colspan="3">
+                            <form asp-controller="Admin" asp-action="RenomearClube" method="post" class="d-flex gap-2 flex-wrap align-items-center">
+                                <input type="hidden" name="clubeId" value="@clube.Id" />
+                                @* O list mostra os clubes que já existem enquanto se digita: o nome
+                                   repetido é recusado no POST, e é melhor ver isso ANTES de salvar. *@
+                                <input type="text" name="nome" value="@clube.Nome" class="form-control" style="max-width: 24rem;"
+                                       list="nomesDeClube" maxlength="@Padelizou.Services.CatalogoLocais.TamanhoMaximoNome"
+                                       required autocomplete="off" aria-label="Novo nome do clube" />
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar nome</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#renomear_@clube.Id">Cancelar</button>
+                            </form>
+                        </td>
+                    </tr>
                     <tr class="collapse" id="atribuir_@clube.Id">
                         <td colspan="3">
                             @{
@@ -71,4 +96,12 @@
             </tbody>
         </table>
     </div>
+
+    @* Um datalist só pra tabela inteira — 17 clubes repetidos 17 vezes seria puro peso. *@
+    <datalist id="nomesDeClube">
+        @foreach (var nome in Model.Select(c => c.Nome).Distinct().OrderBy(n => n))
+        {
+            <option value="@nome"></option>
+        }
+    </datalist>
 </div>

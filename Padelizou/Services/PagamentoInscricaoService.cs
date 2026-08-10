@@ -44,8 +44,12 @@ public record DadosInscricaoAula(int JogoAulaId, int JogadorId);
 // chaves (ver Services/TaxaDoTorneioExterno).
 public record DadosTaxaExterno(int TorneioId);
 
-// Mensalidade do professor assinante (ver Services/PlanoDoProfessor).
-public record DadosAssinaturaProfessor(int ProfessorId);
+// Mensalidade (ou anuidade) do professor assinante — ver Services/PlanoDoProfessor.
+//
+// ⚠️ `Ciclo` é opcional porque as cobranças criadas ANTES do plano anual existir têm só o
+// ProfessorId gravado no banco. Sem o default, elas parariam de desserializar e a confirmação
+// de quem tem cobrança em aberto morreria calada; com ele, valem um mês — que é o que foram.
+public record DadosAssinaturaProfessor(int ProfessorId, string? Ciclo = null);
 
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
@@ -89,14 +93,15 @@ public interface IPagamentoInscricaoService
     // com o Padelizou (sem split). Devolve a URL da fatura, ou null se o gateway falhou.
     Task<string?> IniciarCobrancaTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
 
-    // Mensalidade do professor assinante — também fica inteira com o Padelizou.
-    Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor);
+    // Mensalidade (ou anuidade) do professor assinante — também fica inteira com o Padelizou.
+    // `ciclo` vem de PlanoDoProfessor.CicloMensal/CicloAnual; null é mensal.
+    Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor, string? ciclo = null);
 
     // As mesmas duas cobranças acima, mas por Pix DIRETO na conta do Padelizou, sem gateway
     // (ver Services/PixDireto). Devolvem o Pagamento — a URL é a nossa tela do QR, não uma
     // fatura de terceiro. Null = já existe cobrança de gateway pendente, ou o Pix não está
     // configurado no painel.
-    Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor);
+    Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor, string? ciclo = null);
     Task<Pagamento?> IniciarPixDiretoTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
 
     // Quem recebe a quadra é o dono do clube. Null = clube sem dono definido, então não há
@@ -475,13 +480,16 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             billingType: cobranca.BillingType);
     }
 
-    // A mensalidade do assinante. Sem split (é receita do Padelizou) e sem ExpiraEm — quem
-    // decide quando pagar é o professor; enquanto não paga, a taxa por aula volta pra cheia
-    // sozinha (PlanoDoProfessor).
-    public async Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor)
+    // A mensalidade (ou a anuidade) do assinante. Sem split (é receita do Padelizou) e sem
+    // ExpiraEm — quem decide quando pagar é o professor; enquanto não paga, a taxa por aula
+    // volta pra cheia sozinha (PlanoDoProfessor).
+    public async Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor, string? ciclo = null)
     {
         if (!_asaas.Configurado) return null;
 
+        // Uma cobrança de assinatura aberta por vez, qualquer que seja o ciclo pedido: duas
+        // faturas vivas ao mesmo tempo é como o professor paga duas vezes sem perceber. Quem
+        // dá o recado de "você já tem uma em aberto" é o controller, que sabe o valor dela.
         var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
             p.Tipo == "AssinaturaProfessor" && p.JogadorId == professor.Id
             && p.Status == "Pendente" && p.InvoiceUrl != null);
@@ -491,7 +499,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             professor.Nome, professor.Cpf, professor.Email, professor.Celular);
         if (clienteId == null) return null;
 
-        var valor = _plano.MensalidadeAssinante;
+        var cicloEscolhido = PlanoDoProfessor.CicloValido(ciclo);
+        var valor = PlanoDoProfessor.ValorDo(cicloEscolhido, _plano);
         var pagamento = new Pagamento
         {
             Tipo = "AssinaturaProfessor",
@@ -501,7 +510,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             ValorRepasse = 0m,
             Comissao = valor,
             AsaasCustomerId = clienteId,
-            DadosInscricao = JsonSerializer.Serialize(new DadosAssinaturaProfessor(professor.Id)),
+            DadosInscricao = JsonSerializer.Serialize(
+                new DadosAssinaturaProfessor(professor.Id, cicloEscolhido)),
             Status = "Pendente"
         };
         _context.Pagamentos.Add(pagamento);
@@ -510,7 +520,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         var cobranca = await _asaas.CriarCobrancaAsync(
             clienteId,
             new RateioComissao(valor, 0m, valor),
-            $"Padelizou Professor — mensalidade",
+            cicloEscolhido == PlanoDoProfessor.CicloAnual
+                ? "Padelizou Professor — plano anual (12 meses)"
+                : "Padelizou Professor — mensalidade",
             pagamento.Id.ToString(),
             DateTime.Today.AddDays(3),
             walletIdRecebedor: null,
@@ -535,12 +547,15 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // cliente Asaas, não há fatura: o Pagamento nasce com o método "PixDireto" e a tela do QR
     // é nossa. A confirmação vem do admin, não de webhook.
 
-    public Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor) =>
-        IniciarPixDiretoAsync(
+    public Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor, string? ciclo = null)
+    {
+        var cicloEscolhido = PlanoDoProfessor.CicloValido(ciclo);
+        return IniciarPixDiretoAsync(
             PixDireto.TipoAssinatura, professor,
-            _plano.MensalidadeAssinante,
-            new DadosAssinaturaProfessor(professor.Id),
+            PlanoDoProfessor.ValorDo(cicloEscolhido, _plano),
+            new DadosAssinaturaProfessor(professor.Id, cicloEscolhido),
             torneioId: null);
+    }
 
     public Task<Pagamento?> IniciarPixDiretoTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor) =>
         IniciarPixDiretoAsync(
@@ -980,7 +995,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         _logger.LogInformation("Pagamento {Id} confirmado — inscrição marcada como paga.", pagamento.Id);
     }
 
-    // A mensalidade entrou: estende a assinatura em 1 mês a partir de onde ela estiver.
+    // O dinheiro da assinatura entrou: estende a partir de onde ela estiver — 1 mês no ciclo
+    // mensal, 12 no anual.
     private async Task EfetivarAssinaturaAsync(Pagamento pagamento)
     {
         var dados = Desserializar<DadosAssinaturaProfessor>(pagamento);
@@ -993,19 +1009,22 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             return;
         }
 
+        var ehAnual = dados.Ciclo == PlanoDoProfessor.CicloAnual;
         professor.AssinaturaProfessorPagaAte =
-            PlanoDoProfessor.NovaDataPagaAte(professor.AssinaturaProfessorPagaAte, DateTime.Now);
+            PlanoDoProfessor.NovaDataPagaAte(professor.AssinaturaProfessorPagaAte, DateTime.Now, dados.Ciclo);
         pagamento.ReferenciaId = professor.Id;
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Pagamento {Id} efetivado — assinatura do professor {ProfessorId} paga até {PagaAte}.",
-            pagamento.Id, professor.Id, professor.AssinaturaProfessorPagaAte);
+        _logger.LogInformation("Pagamento {Id} efetivado — assinatura ({Ciclo}) do professor {ProfessorId} "
+            + "paga até {PagaAte}.",
+            pagamento.Id, dados.Ciclo ?? PlanoDoProfessor.CicloMensal, professor.Id,
+            professor.AssinaturaProfessorPagaAte);
 
         try
         {
             await _push.EnviarParaJogadorAsync(professor.Id,
-                "Mensalidade recebida!",
-                $"Seu plano Assinante está em dia até {professor.AssinaturaProfessorPagaAte:dd/MM}. Boas aulas!",
+                ehAnual ? "Plano anual confirmado!" : "Mensalidade recebida!",
+                $"Seu plano Assinante está em dia até {professor.AssinaturaProfessorPagaAte:dd/MM/yyyy}. Boas aulas!",
                 "/PlanoProfessor");
         }
         catch (Exception ex)

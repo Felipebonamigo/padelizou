@@ -140,6 +140,15 @@
                             <input type="text" name="pagador" id="reg-pagador" class="form-control"
                                    placeholder="Ex.: joao@email.com" />
                         </div>
+                        @* O ciclo tem que ser DITO: o valor não serve de pista, porque anual
+                           negociado ("fechei em 450") existe e creditaria 1 mês calado. *@
+                        <div class="col-12" id="campo-ciclo">
+                            <label class="form-label small fw-bold" for="reg-ciclo">O que ele comprou</label>
+                            <select name="ciclo" id="reg-ciclo" class="form-select">
+                                <option value="@PlanoDoProfessor.CicloMensal">1 mês</option>
+                                <option value="@PlanoDoProfessor.CicloAnual">12 meses (plano anual)</option>
+                            </select>
+                        </div>
                         <div class="col-12 d-none" id="campo-torneio">
                             <label class="form-label small fw-bold" for="reg-torneio">Torneio</label>
                             <select name="torneioId" id="reg-torneio" class="form-select">
