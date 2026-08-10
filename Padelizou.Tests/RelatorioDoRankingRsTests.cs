@@ -107,13 +107,18 @@ public class RelatorioDoRankingRsTests
     public void A_tela_do_relatorio_nao_tem_nenhum_formulario()
     {
         // ⚠️ A trava do parceiro é o verbo HTTP, igual à do assistente — e ela só é honesta
-        // enquanto esta tela não oferecer nada pra clicar. Um <form> aqui seria um POST que a
-        // porta do relatório não cobre.
+        // enquanto esta tela não oferecer nada pra POSTAR. Link é livre; formulário, não.
+        //
+        // ⚠️ O QUE VALE É O QUE CHEGA AO NAVEGADOR, então o comentário Razor sai antes da
+        // comparação. Sem isso o teste cai por explicar a si mesmo: o comentário que justifica
+        // a regra precisa citar a tag que a regra proíbe. Mesmo tropeço do
+        // PoliticaDePrivacidadeTests e do AvisoNoCelularTests.
         var view = File.ReadAllText(Path.Combine(
             PastaDoProjeto(), "Views", "Admin", "RankingRsRelatorio.cshtml"));
+        var semComentarios = Regex.Replace(view, @"@\*.*?\*@", "", RegexOptions.Singleline);
 
-        Assert.DoesNotContain("<form", view, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("method=\"post\"", view, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<form", semComentarios, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("method=\"post\"", semComentarios, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -280,6 +285,58 @@ public class RelatorioDoRankingRsTests
         Assert.Equal(2, totais.Conferidos);
         Assert.Equal(2, totais.SemConferencia);
         Assert.Equal(50, totais.CoberturaEmPorcento);
+    }
+
+    [Fact]
+    public void Nao_consta_no_ranking_exige_ter_sido_PERGUNTADO()
+    {
+        // ⚠️ `EncontradoNoRanking` é `false` também em quem nunca foi consultado — ali ele
+        // significa "ninguém perguntou", não "não está no ranking". Sem a exigência de
+        // conferência, a lista encheria de gente sobre quem não se sabe nada, e o relatório
+        // afirmaria pro parceiro que esses atletas faltam na base DELE.
+        var perguntadoENaoAchado = JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.Aprovado, encontrado: false, categoriaId: 4) }, 4, 6);
+        Assert.True(Assert.Single(perguntadoENaoAchado).NaoConstaNoRanking);
+
+        var perguntadoEAchado = JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.Aprovado, encontrado: true, categoriaId: 4) }, 4, 6);
+        Assert.False(Assert.Single(perguntadoEAchado).NaoConstaNoRanking);
+
+        // Nunca perguntado — de três jeitos diferentes. Nenhum deles é "não consta".
+        Assert.False(Assert.Single(JuntarSilvano(Array.Empty<ConsultaAoRankingRs>(), 4, 6)).NaoConstaNoRanking);
+        Assert.False(Assert.Single(JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.SemDePara, encontrado: false, categoriaId: 4) }, 4, 6)).NaoConstaNoRanking);
+        Assert.False(Assert.Single(JuntarSilvano(
+            new[] { Consulta(ResultadoDaConsulta.SemResposta, encontrado: false, categoriaId: 4) }, 4, 6)).NaoConstaNoRanking);
+    }
+
+    [Fact]
+    public void Nao_constam_e_subconjunto_dos_CONFERIDOS_e_nao_um_balde_novo()
+    {
+        // Ele não entra na conta da falta de conferência: essas pessoas FORAM conferidas.
+        var totais = RelatorioDoRankingRs.Somar(new[]
+        {
+            LinhaComEncontro(new[] { (ResultadoDaConsulta.Aprovado, false), (ResultadoDaConsulta.Aprovado, false),
+                                     (ResultadoDaConsulta.Aprovado, true),  (ResultadoDaConsulta.SemDePara, false) }),
+        });
+
+        Assert.Equal(4, totais.Inscritos);
+        Assert.Equal(3, totais.Conferidos);
+        Assert.Equal(2, totais.NaoConstamNoRanking);
+        Assert.Equal(1, totais.SemConferencia);              // só o SemDePara
+        Assert.Equal(1, totais.SemCorrespondencia);
+    }
+
+    private static RelatorioDoRankingRs.LinhaDoTorneio LinhaComEncontro(
+        (string Resultado, bool Encontrado)[] pessoas)
+    {
+        var inscritos = pessoas.Select((p, i) => new RelatorioDoRankingRs.Inscrito(
+            i, $"Atleta {i}", $"cpfe{i}", new[] { "6ª Masc" },
+            Consulta(p.Resultado, $"cpfe{i}", encontrado: p.Encontrado))).ToList();
+
+        return new RelatorioDoRankingRs.LinhaDoTorneio(
+            new Torneio { Nome = "Torneio", Codigo = "T3", Status = "Encerrado" },
+            inscritos, Array.Empty<RelatorioDoRankingRs.Barrado>(), pessoas.Length, null);
     }
 
     [Fact]

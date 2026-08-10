@@ -22,6 +22,23 @@ public static class ForaDoSorteio
     public static List<Dupla> Listar(IEnumerable<Dupla> duplas) =>
         duplas.Where(FicaDeFora).ToList();
 
+    // A MESMA pergunta ao contrário ("quem ESTÁ na chave") e escrita pra rodar NO BANCO.
+    //
+    // Existe porque o ranking passou a exigir isto (10/08/2026, RANKING.md → "O ponto só
+    // nasce quando a bola rola"): quem ficou na lista de espera ou sem parceiro se
+    // inscreveu, mas não jogou — e estava levando ponto de participação.
+    //
+    // ⚠️ Não dá pra reusar `FicaDeFora` numa consulta: ela recebe a entidade e lê `Completa`,
+    // que é propriedade CALCULADA (`Jogador2Id != null`). O EF não sabe traduzir nenhum dos
+    // dois e a consulta ou explode, ou — pior — vira avaliação em memória depois de trazer a
+    // tabela inteira. Por isso aqui as colunas estão escritas na mão.
+    //
+    // ⚠️ Há teste comparando as duas formas linha a linha. É o mesmo par
+    // `ContaNoRanking`/`DuplaContaNoRanking` do EstatisticasService, e lá a versão escrita à
+    // mão já divergiu em silêncio uma vez — foi como o Americano continuou pontuando.
+    public static readonly System.Linq.Expressions.Expression<Func<Dupla, bool>> EstaNaChave =
+        d => d.NomeTime != null || (d.Jogador2Id != null && !d.EmListaDeEspera);
+
     // Por que essa dupla ficou de fora — o organizador precisa saber se é coisa que ele
     // resolve (chamar da espera) ou coisa que o jogador resolve (achar parceiro).
     public static string Motivo(Dupla dupla) =>

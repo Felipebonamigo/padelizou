@@ -97,12 +97,15 @@ public class EvolucaoJogadorVM
     public bool TemDados => Meses.Any(m => m.Pontos > 0);
 
     // Quanto ganhou no mês corrente (o "+X pts neste mês" ao lado do total).
-    public int PontosNoUltimoMes => Meses.LastOrDefault(m => !m.NoFuturo)?.Pontos ?? 0;
+    //
+    // ⚠️ Antes havia um `TemMesFuturo` aqui e um `NoFuturo` no mês, e a janela do gráfico se
+    // esticava até o torneio mais distante em que a pessoa estivesse inscrita. Os três caíram
+    // em 10/08/2026 junto com a causa: o ranking pagava participação já na INSCRIÇÃO, então o
+    // total do perfil incluía torneio que ainda não aconteceu e a linha precisava alcançá-lo.
+    // Agora ponto só nasce com o torneio começado — o último mês é sempre o mês corrente.
+    public int PontosNoUltimoMes => Meses.LastOrDefault()?.Pontos ?? 0;
 
     public int Total => Meses.Count == 0 ? 0 : Meses[^1].Acumulado;
-
-    // Verdadeiro quando o jogador já está inscrito em torneio que ainda vai acontecer.
-    public bool TemMesFuturo => Meses.Any(m => m.NoFuturo);
 }
 
 public class MesEvolucaoVM
@@ -114,10 +117,6 @@ public class MesEvolucaoVM
     public int Titulos { get; set; }
 
     public string Rotulo => Mes.ToString("MMM/yy");
-
-    // Mês que ainda não chegou: o jogador já está inscrito e a inscrição já pontua,
-    // mas o torneio não aconteceu. A view desenha esse trecho tracejado.
-    public bool NoFuturo => Mes > new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
 }
 
 // Parceiro de dupla mais frequente ("joga sempre com")

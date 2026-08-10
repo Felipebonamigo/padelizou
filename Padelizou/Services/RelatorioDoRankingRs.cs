@@ -105,6 +105,16 @@ public static class RelatorioDoRankingRs
 
         // Perguntamos e não veio resposta útil — servidor fora do ar, ou integração sem chave.
         public bool SemRespostaDoRanking => Consulta?.Resultado == ResultadoDaConsulta.SemResposta;
+
+        // ⚠️ PERGUNTAMOS E O RANKING NÃO CONHECE ESTA PESSOA. Ela passa por não ter o que
+        // provar — o que é MUITO diferente de ter sido conferida contra pontos e liberada.
+        //
+        // Exige `Conferido` de propósito: `EncontradoNoRanking` também é `false` em quem nunca
+        // foi consultado (sem registro, sem de-para, sem resposta), e ali o campo não significa
+        // "não está no ranking", significa "ninguém perguntou". Sem esta condição, a lista
+        // encheria de gente sobre quem não se sabe nada — e num relatório lido pelo parceiro
+        // isso vira uma lista de atletas que a gente afirma que faltam no ranking DELES.
+        public bool NaoConstaNoRanking => Conferido && Consulta!.EncontradoNoRanking == false;
     }
 
     // Alguém que o ranking barrou. ⚠️ Barrado NÃO é inscrito: a recusa acontece antes de a
@@ -140,6 +150,10 @@ public static class RelatorioDoRankingRs
         public int SemCorrespondencia => Inscritos.Count(i => i.SemCorrespondencia);
         public int SemRespostaDoRanking => Inscritos.Count(i => i.SemRespostaDoRanking);
 
+        // Conferidos que o ranking não conhece. É subconjunto de `Conferidos`, não mais um
+        // balde da falta de conferência — some com quem nunca foi perguntado.
+        public int NaoConstamNoRanking => Inscritos.Count(i => i.NaoConstaNoRanking);
+
         // Barrado que o organizador manteve: a recusa produziu efeito de verdade. É o número
         // que prova que a integração fez alguma coisa neste torneio.
         public int RecusasQueFicaramDePe => Barrados.Count(b => b.AindaBarrado);
@@ -157,6 +171,7 @@ public static class RelatorioDoRankingRs
         int SemRegistro,
         int SemCorrespondencia,
         int SemRespostaDoRanking,
+        int NaoConstamNoRanking,
         int Barrados,
         int RecusasQueFicaramDePe,
         int LiberadosPeloOrganizador,
@@ -190,6 +205,7 @@ public static class RelatorioDoRankingRs
             SemRegistro: lista.Sum(l => l.SemRegistro),
             SemCorrespondencia: lista.Sum(l => l.SemCorrespondencia),
             SemRespostaDoRanking: lista.Sum(l => l.SemRespostaDoRanking),
+            NaoConstamNoRanking: lista.Sum(l => l.NaoConstamNoRanking),
             Barrados: barrados.Count,
             RecusasQueFicaramDePe: barrados.Count(b => b.AindaBarrado),
             LiberadosPeloOrganizador: barrados.Count(b => !b.AindaBarrado),

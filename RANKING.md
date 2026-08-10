@@ -208,9 +208,8 @@ levavam os mesmos 100 pontos, um tendo ganho 2 jogos e o outro 5 ou 6 contra um 
 muito maior. E tudo abaixo de Quartas caía no mesmo "participou 10" — ou seja, quanto
 MAIOR o torneio, mais fases o ranking ignorava.
 
-**A régua nova, em duas frases:** quem cai na fase de grupos leva 10, sempre. Quem
-sobrevive à chave leva `pontos da fase × peso`, e o peso é **1,0 com 5 duplas, +0,1 por
-dupla**.
+**A régua nova, em uma frase:** todo mundo leva `pontos da fase × peso`, e o peso é
+**1,0 com 5 duplas, +0,1 por dupla**.
 
 #### A escada de fases
 
@@ -222,7 +221,7 @@ dupla**.
 | Quartas de Final | 20 | sim |
 | Oitavas de Final | 15 | sim |
 | 16-avos (`"Primeira Rodada"`, o quadro de 32) | 12 | sim |
-| Fase de grupos / participou | **10** | **NÃO** |
+| Fase de grupos / participou | 10 | sim |
 
 ⚠️ **As duas fases do meio (Oitavas e 16-avos) são NOVAS.** Elas já existiam no
 chaveamento (`ChaveamentoMataMata.NomeFase`) e não existiam na pontuação: quem sobrevivia
@@ -231,11 +230,40 @@ grupo. No código a primeira rodada do quadro de 32 se chama `"Primeira Rodada"`
 ela é "16-avos"** — o nome interno ficou porque renomear constante que decide chaveamento
 não vale o risco.
 
-⚠️ **A participação NÃO multiplica, e isso é decisão do Felipe (10/08/2026).** Os 10 são o
-ponto **da inscrição** — é o que se ganha por estar lá. Multiplicá-los premiaria aparecer
-num torneio grande e perder tudo; do jeito que ficou, o peso só começa a valer quando a
-pessoa **sobrevive à chave**. O degrau fica nítido de propósito: numa categoria de 20
-duplas, cair no grupo vale 10 e passar pros 16-avos vale 30.
+⚠️ **A participação TAMBÉM multiplica** (decisão do Felipe, 10/08/2026 — ele reviu a
+primeira versão desta espec, em que os 10 eram fixos). Cair no grupo de uma categoria de 20
+duplas vale 25; na de 5, vale 10. **É a lógica do circuito profissional**: perder na
+estreia de um Slam paga mais que vencer uma rodada de torneio pequeno, porque entrar
+naquele campo já é mais difícil.
+
+O que eu tinha argumentado contra — "premiaria aparecer num torneio grande e perder tudo" —
+**deixa de valer junto com a regra do parágrafo seguinte**: agora não se ganha nada por
+aparecer. Ganha-se por ter jogado, e o degrau pra quem sobrevive à chave continua existindo
+(numa de 20 duplas: 25 no grupo contra 30 nos 16-avos).
+
+#### O ponto só nasce quando a bola rola (10/08/2026)
+
+⚠️ **Pedido do Felipe, e era um buraco de verdade:** *"só dê esses pontos quando o torneio
+começar e a pessoa tiver inscrita"*. Até aqui, **a inscrição sozinha já valia ponto** —
+`Dupla.UltimaFase` nasce com `"Grupos"`, então quem se inscrevesse num torneio marcado pra
+dezembro subia no ranking **hoje**, sem ter tocado numa bola. Com a participação passando a
+multiplicar, isso deixaria de ser um detalhe e viraria a maneira mais barata de subir:
+inscrever-se na categoria mais cheia que existir.
+
+Duas condições, as duas obrigatórias:
+
+1. **O torneio COMEÇOU** — o sorteio aconteceu e os jogos existem. Em status: **não**
+   `"Inscrições Abertas"` (`PortaDaInscricao.Aberta`), **não** `"Chaves em Sorteio"`
+   (`PortaDaInscricao.Fechada` — inscrição encerrada, chave ainda não sorteada) e **não**
+   `"Cancelado"`. Sobram "Fase de Grupos" e "Finalizado", que só se alcança tendo sorteado.
+2. **A pessoa estava NA CHAVE** — a régua é `ForaDoSorteio`, que já existe e já é a dona da
+   pergunta "quem não entra no sorteio": fora quem está em **lista de espera** e fora quem
+   ficou **sem parceiro**. Os dois se inscreveram; nenhum dos dois jogou.
+
+⚠️ **Torneio cancelado não paga nada, nem a participação.** O torneio pode ser cancelado
+depois de sorteado, e nesse caso os pontos que existiam **somem** — é o comportamento certo
+(o evento não aconteceu), e é o único caminho em que o total de alguém diminui sem ninguém
+ter mexido na regra.
 
 #### O peso
 
@@ -255,11 +283,17 @@ injustiça que este trabalho existe pra consertar.
 - **É o tamanho da CATEGORIA, não do torneio** — é contra o funil da SUA chave que se
   jogou. Um torneio de 60 duplas com 6 categorias não é um torneio de 60 duplas pra
   ninguém.
-- **Conta a inscrição que vale no ranking**: fora `NomeTime != null` (dupla-TIME, cujo
-  `Jogador1Id` é o organizador) e fora `EmListaDeEspera` (quem não entrou não fez funil).
-- **Piso de 3 duplas pra valer campanha**: com 1 dupla o "campeão" não jogou nada e com 2
-  ganhou um jogo só — é fabricável em cinco minutos, a mesma porta que o piso de 8 fecha no
-  Americano. Abaixo de 3, todo mundo da categoria leva os 10 da inscrição.
+- **Conta quem entrou na chave**: fora `NomeTime != null` (dupla-TIME, cujo `Jogador1Id` é o
+  organizador) e fora quem `ForaDoSorteio` deixa de fora (lista de espera, sem parceiro).
+  **É a MESMA régua que decide quem pontua** — se o peso contasse gente que a soma não
+  conta, a categoria teria dois tamanhos ao mesmo tempo.
+- **Piso de 3 duplas pra valer campanha** (proposto por mim e **confirmado pelo Felipe em
+  10/08/2026**, quando ele perguntou o que era o piso — antes disso era escolha minha dentro
+  de um "pode fazer", que é coisa diferente de regra decidida): com 1 dupla o "campeão" não
+  jogou nada e com 2 ganhou um jogo só — é fabricável em cinco minutos, a mesma porta que o
+  piso de 8 fecha no Americano. Abaixo de 3, a campanha desaba pra participação e **todo mundo da categoria sai
+  com a mesma pontuação** (com 2 duplas: 10 × 0,7 = 7 pra campeão e vice). O piso não apaga
+  o ponto de quem jogou; ele só se recusa a pagar título fabricado.
 - **Arredondamento `AwayFromZero`**, nunca o `ToEven` padrão do .NET — com ToEven, dois
   jogadores com a mesma conta receberiam pontos diferentes conforme a paridade (é a mesma
   armadilha já documentada na Trilha C).
@@ -268,18 +302,20 @@ injustiça que este trabalho existe pra consertar.
 
 | Duplas | Peso | Campeão | Vice | Semi | Quartas | Oitavas | 16-avos | Grupos |
 |---|---|---|---|---|---|---|---|---|
-| 3 | 0,8 | 80 | 48 | 28 | — | — | — | 10 |
+| 2 | 0,7 | 7 | 7 | — | — | — | — | 7 |
+| 3 | 0,8 | 80 | 48 | 28 | — | — | — | 8 |
 | **5** | **1,0** | **100** | **60** | **35** | **20** | — | — | **10** |
-| 8 | 1,3 | 130 | 78 | 46 | 26 | — | — | 10 |
-| 12 | 1,7 | 170 | 102 | 60 | 34 | — | — | 10 |
-| 16 | 2,1 | 210 | 126 | 74 | 42 | 32 | — | 10 |
-| 20 | 2,5 | 250 | 150 | 88 | 50 | 38 | 30 | 10 |
-| 26 | 3,1 | 310 | 186 | 109 | 62 | 47 | 37 | 10 |
+| 8 | 1,3 | 130 | 78 | 46 | 26 | — | — | 13 |
+| 12 | 1,7 | 170 | 102 | 60 | 34 | — | — | 17 |
+| 16 | 2,1 | 210 | 126 | 74 | 42 | 32 | — | 21 |
+| 20 | 2,5 | 250 | 150 | 88 | 50 | 38 | 30 | 25 |
+| 26 | 3,1 | 310 | 186 | 109 | 62 | 47 | 37 | 31 |
 
 Leitura de justiça — chegar menos longe num funil maior pode valer mais, e é o ponto
 inteiro da mudança: **semifinal numa categoria de 20 duplas (88) vale mais que o TÍTULO de
-uma de 3 (80)**. E sair do grupo numa de 20 (30) vale mais que ser semifinalista numa de 3
-(28).
+uma de 3 (80)**. E **cair no grupo de uma categoria de 26 duplas (31) vale mais que ser
+semifinalista numa de 3 (28)** — o campo de 26 duplas era mais difícil de atravessar do que
+o de 3 inteiro.
 
 #### É retroativo, e é de propósito
 
@@ -316,7 +352,17 @@ inteiro** — o PDZ médio da categoria, **fotografado na geração das chaves**
 #### Implementação
 
 - Motor puro em **`Services/PontosDoTorneio.cs`** (estático, sem banco, espelho do
-  `PontosDoAmericano`): `Peso(duplas)`, `ValeCampanha(fase)` e `Pontos(fase, duplas)`.
+  `PontosDoAmericano`): `Peso(duplas)`, `ValeCampanha(fase)`, `TorneioJaComecou(status)` e
+  `Pontos(fase, duplas, status)`.
+- ⚠️ **O status do torneio é PARÂMETRO da conta, não um filtro de quem chama.** Toda soma
+  de ponto passa por `Pontos(...)`, e um torneio que não começou devolve **0** ali dentro.
+  Deixar isso como `.Where(...)` na consulta exigiria oito lugares lembrarem — e o nono,
+  escrito daqui a três meses, não lembraria.
+- ⚠️ **Quem entra na soma é `ForaDoSorteio`**, com um gêmeo `EstaNaChave` escrito como
+  `Expression` pro EF traduzir (o método recebe a entidade e o `Completa` é propriedade
+  calculada, que o provedor não sabe ler). Mesmo padrão do par
+  `ContaNoRanking`/`DuplaContaNoRanking`, **com teste comparando os dois lado a lado** —
+  foi exatamente assim que o Americano escapou por uma consulta escrita à mão.
 - ⚠️ **`EstatisticasService.PontosPorFase(fase)` foi REMOVIDO de propósito.** Eram 8 lugares
   somando ponto (perfil, busca, ranking por categoria, times, por torneio, evolução) e um
   método que ainda aceitasse só a fase deixaria qualquer um deles com a regra velha, sem

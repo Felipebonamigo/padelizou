@@ -32,16 +32,13 @@
 
     string Ponto(int i) => $"{Num(X(i))},{Num(YAcum(meses[i].Acumulado))}";
 
-    // A linha é partida em duas: o que já aconteceu (sólida) e o que está por vir
-    // (tracejada). O trecho futuro começa no último mês real, pra não haver buraco.
-    int ultimoReal = meses.FindLastIndex(m => !m.NoFuturo);
-    if (ultimoReal < 0) { ultimoReal = 0; }
-
-    var linhaReal = string.Join(" ", Enumerable.Range(0, ultimoReal + 1).Select(Ponto));
-    var linhaFutura = meses.Count - 1 > ultimoReal
-        ? string.Join(" ", Enumerable.Range(ultimoReal, meses.Count - ultimoReal).Select(Ponto))
-        : "";
-    var areaFechada = $"{Num(X(0))},{Num(margemTopo + plotA)} {linhaReal} {Num(X(ultimoReal))},{Num(margemTopo + plotA)}";
+    // ⚠️ O TRECHO TRACEJADO "do futuro" saiu em 10/08/2026. Ele desenhava os meses de
+    // torneios em que a pessoa estava inscrita e que ainda não tinham acontecido — porque o
+    // ranking pagava participação já na inscrição. Agora ponto só nasce com o torneio
+    // começado: o gráfico termina no mês corrente e a linha é uma só.
+    int ultimo = meses.Count - 1;
+    var linhaReal = string.Join(" ", Enumerable.Range(0, meses.Count).Select(Ponto));
+    var areaFechada = $"{Num(X(0))},{Num(margemTopo + plotA)} {linhaReal} {Num(X(ultimo))},{Num(margemTopo + plotA)}";
 }
 
 @if (!Model.TemDados)
@@ -80,25 +77,21 @@ else
                 double larguraBarra = Math.Max(4, passo * 0.5);
                 <rect x="@Num(X(i) - larguraBarra / 2)" y="@Num(margemTopo + plotA - h)"
                       width="@Num(larguraBarra)" height="@Num(h)" rx="2"
-                      class="pdz-ev-barra @(m.NoFuturo ? "pdz-ev-futuro" : "")">
-                    <title>@m.Rotulo: +@m.Pontos pts@(m.Torneios > 0 ? $" em {m.Torneios} torneio(s)" : "")@(m.NoFuturo ? " — inscrito, ainda não jogou" : "")</title>
+                      class="pdz-ev-barra">
+                    <title>@m.Rotulo: +@m.Pontos pts@(m.Torneios > 0 ? $" em {m.Torneios} torneio(s)" : "")</title>
                 </rect>
             }
 
-            @* Área + linha do acumulado (o trecho ainda por acontecer vai tracejado) *@
+            @* Área + linha do acumulado *@
             <polygon points="@areaFechada" class="pdz-ev-area" />
             <polyline points="@linhaReal" class="pdz-ev-linha" />
-            @if (linhaFutura != "")
-            {
-                <polyline points="@linhaFutura" class="pdz-ev-linha pdz-ev-linha-futura" />
-            }
 
             @for (int i = 0; i < meses.Count; i++)
             {
                 var m = meses[i];
                 <circle cx="@Num(X(i))" cy="@Num(YAcum(m.Acumulado))" r="@Num(m.Titulos > 0 ? 3.6 : 2.4)"
-                        class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto") @(m.NoFuturo ? "pdz-ev-futuro" : "")">
-                    <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")@(m.NoFuturo ? " (torneio ainda por vir)" : "")</title>
+                        class="@(m.Titulos > 0 ? "pdz-ev-ponto-titulo" : "pdz-ev-ponto")">
+                    <title>@m.Rotulo: @m.Acumulado pts no total@(m.Titulos > 0 ? $" · {m.Titulos} título(s)!" : "")</title>
                 </circle>
             }
 
@@ -115,14 +108,10 @@ else
             <span><span class="pdz-ev-chip pdz-ev-chip-linha"></span> total acumulado</span>
             <span><span class="pdz-ev-chip pdz-ev-chip-titulo"></span> mês com título</span>
         </div>
-
-        @if (Model.TemMesFuturo)
-        {
-            <p class="small text-muted text-center mt-2 mb-0">
-                O trecho claro no fim é torneio em que você já está inscrito e ainda vai acontecer —
-                a inscrição já conta pontos de participação.
-            </p>
-        }
+        @* ⚠️ Aqui havia a frase "a inscrição já conta pontos de participação". Ela era
+           VERDADE e virou MENTIRA em 10/08/2026, quando o ponto passou a nascer só com o
+           torneio começado — tela que explica errado a própria regra é pior que tela calada.
+           Ver RANKING.md, Trilha B. *@
     </div>
 
     <style>
@@ -140,7 +129,5 @@ else
         .pdz-evolucao .pdz-ev-chip-linha { background: var(--padel-green, #8bc34a); }
         .pdz-evolucao .pdz-ev-chip-titulo { background: #ffc107; border-radius: 50%; }
         /* Mês que ainda não chegou: mesma cor, mas apagado e tracejado. */
-        .pdz-evolucao .pdz-ev-linha-futura { stroke-dasharray: 4 3; opacity: .55; }
-        .pdz-evolucao .pdz-ev-futuro { opacity: .35; }
     </style>
 }

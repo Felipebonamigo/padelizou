@@ -5,8 +5,8 @@ namespace Padelizou.Services;
 // Espec completa em RANKING.md (Trilha B → "O peso por tamanho da categoria"). Mudou a
 // régua? Muda LÁ primeiro, depois aqui.
 //
-// A régua em duas frases: quem cai na fase de grupos leva 10, sempre. Quem sobrevive à
-// chave leva `pontos da fase × peso`, e o peso é 1,0 com 5 duplas, +0,1 por dupla.
+// A régua em uma frase: todo mundo leva `pontos da fase × peso`, e o peso é 1,0 com 5
+// duplas, +0,1 por dupla — mas o ponto só existe DEPOIS que o torneio começou.
 //
 // ── Por que o peso existe (10/08/2026) ────────────────────────────────────────────────
 // A tabela antiga era fixa e CEGA AO TAMANHO: campeão de 4 duplas e campeão de 32 levavam
@@ -18,12 +18,14 @@ namespace Padelizou.Services;
 // Um torneio de 60 duplas em 6 categorias não é um torneio de 60 duplas pra ninguém.
 public static class PontosDoTorneio
 {
-    // O ponto DA INSCRIÇÃO: é o que se ganha por estar lá, e ele NÃO multiplica.
+    // O ponto de quem JOGOU e caiu na fase de grupos. Multiplica igual às outras fases.
     //
-    // ⚠️ Decisão do Felipe (10/08/2026). Multiplicar a participação premiaria aparecer num
-    // torneio grande e perder tudo; do jeito que ficou, o peso só começa a valer quando a
-    // pessoa SOBREVIVE À CHAVE. O degrau é nítido de propósito: numa categoria de 20
-    // duplas, cair no grupo vale 10 e passar pros 16-avos vale 30.
+    // ⚠️ Decisão do Felipe (10/08/2026), revendo a primeira versão desta régua, em que os 10
+    // eram fixos: "tem q dar mais pontos tambem para quem é eliminado na chave de um torneio
+    // mais forte". É a lógica do circuito profissional — perder na estreia de um Slam paga
+    // mais que vencer uma rodada de torneio pequeno, porque entrar naquele campo já é mais
+    // difícil. O degrau pra quem sobrevive à chave continua: numa categoria de 20 duplas,
+    // cair no grupo vale 25 e passar pros 16-avos vale 30.
     public const int PontosDeParticipacao = 10;
 
     // Abaixo disto a categoria não gera ponto de campanha — todo mundo leva os 10.
@@ -74,15 +76,48 @@ public static class PontosDoTorneio
     public static decimal Peso(int duplasNaCategoria) =>
         0.5m + (duplasNaCategoria / 10m);
 
-    // A conta inteira: fase + tamanho da categoria → pontos de ranking.
-    public static int Pontos(string? fase, int duplasNaCategoria)
+    // O TORNEIO JÁ COMEÇOU? Enquanto não começou, ninguém tem ponto nenhum dele.
+    //
+    // ⚠️ Pedido do Felipe (10/08/2026): "só dê esses pontos quando o torneio começar e a
+    // pessoa tiver inscrita". Era um buraco de verdade — `Dupla.UltimaFase` NASCE valendo
+    // "Grupos", então a inscrição sozinha já valia ponto: quem se inscrevesse num torneio
+    // marcado pra dezembro subia no ranking hoje, sem ter tocado numa bola. Com a
+    // participação passando a multiplicar pelo tamanho, isso viraria a maneira mais barata
+    // de subir — bastava entrar na categoria mais cheia que existisse.
+    //
+    // ⚠️ Lista de NEGAÇÃO, e não uma lista de status "bons": "começou" é o normal e é o que
+    // vale pro resto da vida do torneio (Fase de Grupos, Finalizado). Escrito ao contrário,
+    // um status novo qualquer nasceria SEM ponto e o defeito seria mudo — pontos que somem.
+    // Assim, um status novo nasce pontuando, que é o comportamento óbvio; e os três que não
+    // pontuam estão cada um com o seu motivo escrito.
+    public static bool TorneioJaComecou(string? status) =>
+        // Inscrição aberta: ninguém jogou ainda, o sorteio nem aconteceu.
+        status != PortaDaInscricao.Aberta
+        // "Chaves em Sorteio" = inscrição ENCERRADA, chave ainda não sorteada. O nome engana
+        // (parece que está sorteando); é o torneio parado esperando o organizador.
+        && status != PortaDaInscricao.Fechada
+        // ⚠️ Cancelado não paga nem participação, mesmo tendo sorteado antes de cancelar: o
+        // evento não aconteceu. É o único caminho em que o total de alguém DIMINUI sozinho.
+        && !CancelamentoDoTorneio.EstaCancelado(status);
+
+    // A conta inteira: fase + tamanho da categoria + status do torneio → pontos de ranking.
+    //
+    // ⚠️ O status é PARÂMETRO, e não filtro de quem chama, de propósito. São oito lugares
+    // somando ponto; um deles esquecer o filtro não daria erro nenhum, daria ranking errado.
+    // Aqui é impossível esquecer — a assinatura obriga.
+    public static int Pontos(string? fase, int duplasNaCategoria, string? statusDoTorneio)
     {
-        if (!ValeCampanha(fase)) return PontosDeParticipacao;
-        if (duplasNaCategoria < DuplasParaValerCampanha) return PontosDeParticipacao;
+        if (!TorneioJaComecou(statusDoTorneio)) return 0;
+
+        // Abaixo do piso a campanha desaba pra participação: todo mundo da categoria sai com
+        // a mesma pontuação, em vez de o "campeão" de 2 duplas levar 100.
+        int baseDaFase = ValeCampanha(fase) && duplasNaCategoria >= DuplasParaValerCampanha
+            ? PontosBase(fase)
+            : PontosDeParticipacao;
 
         // ⚠️ AwayFromZero, nunca o ToEven padrão do .NET: com ToEven, 12,5 vira 12 e 15,5
         // vira 16, e dois jogadores com a MESMA conta receberiam pontos diferentes conforme
         // a paridade. É a mesma armadilha já documentada no PontosDoAmericano.
-        return (int)Math.Round(PontosBase(fase) * Peso(duplasNaCategoria), MidpointRounding.AwayFromZero);
+        return (int)Math.Round(baseDaFase * Peso(duplasNaCategoria), MidpointRounding.AwayFromZero);
     }
 }

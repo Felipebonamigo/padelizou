@@ -178,6 +178,135 @@ public class ValidacaoPeloRankingRs
         await _context.SaveChangesAsync(ct);
     }
 
+    // ── RECONFERIR UM TORNEIO INTEIRO, DEPOIS DO FATO ─────────────────────────────────────
+    //
+    // Pergunta ao ranking sobre quem JÁ ESTÁ INSCRITO. Existe porque a validação sempre rodou
+    // no instante da inscrição e só passou a deixar registro em 10/08/2026 — então o primeiro
+    // torneio real ficou com 20 de 22 pessoas sem resposta guardada, e não havia como saber se
+    // elas foram aprovadas ou se simplesmente não estão no ranking.
+    //
+    // ⚠️ TRÊS COISAS QUE ELA NUNCA FAZ, e são o que a tornam segura de apertar:
+    //
+    //  1. **Não desinscreve ninguém, nunca.** A pessoa já está no torneio; a chave dela já pode
+    //     ter sido sorteada. O resultado vira INFORMAÇÃO na tela, e quem decide o que fazer com
+    //     ela é o organizador — do mesmo jeito que a recusa na inscrição nunca é palavra final.
+    //  2. **Não cria `BloqueioDoRanking`.** Aquela tabela é a fila de "tentou entrar e foi
+    //     barrado"; pôr aqui alguém que ENTROU faria o organizador ler como inscrição recusada.
+    //  3. **Não inventa resposta quando não dá pra perguntar.** Sem chave configurada ela se
+    //     recusa a rodar, em vez de gravar um monte de "não deu pra consultar" — numa ação que
+    //     alguém apertou de propósito, silêncio disfarçado de resultado é o pior desfecho.
+    public record Reconferencia(
+        int Consultados,
+        int Aprovados,
+        int Barrados,
+        int SemPontuacaoNoRanking,
+        int SemCorrespondencia,
+        int SemResposta)
+    {
+        public static readonly Reconferencia Nenhuma = new(0, 0, 0, 0, 0, 0);
+    }
+
+    public async Task<Reconferencia> ReconferirTorneioAsync(Torneio torneio, CancellationToken ct = default)
+    {
+        var categorias = await _context.Categorias
+            .Where(c => c.TorneioId == torneio.Id)
+            .ToListAsync(ct);
+
+        int consultados = 0, aprovados = 0, barrados = 0, semPontuacao = 0, semCorrespondencia = 0, semResposta = 0;
+
+        foreach (var categoria in categorias)
+        {
+            var pessoas = await InscritosDaCategoriaAsync(categoria.Id, ct);
+            if (pessoas.Count == 0) continue;
+
+            // Categoria sem par no ranking: ninguém a consultar, mas o relatório precisa saber
+            // POR QUE essa gente ficou sem conferência — senão ela cai no balde errado.
+            if (categoria.RankingRsCategoriaId is not int categoriaRsId)
+            {
+                await AnotarAsync(torneio, categoria, null, pessoas
+                    .Select(p => new Anotacao(p.Cpf, p.Nome, ResultadoDaConsulta.SemDePara, false)), ct);
+                semCorrespondencia += pessoas.Count;
+                continue;
+            }
+
+            var resultados = await _ranking.ValidarLoteAsync(
+                pessoas.Select(p => new AtletaParaValidar(p.Nome, categoriaRsId, p.Cpf)).ToList(), ct);
+
+            var porCpf = resultados.Where(r => r.Referencia != null)
+                .GroupBy(r => r.Referencia!).ToDictionary(g => g.Key, g => g.First());
+
+            var anotacoes = new List<Anotacao>();
+            foreach (var pessoa in pessoas)
+            {
+                if (!porCpf.TryGetValue(pessoa.Cpf, out var r))
+                {
+                    anotacoes.Add(new Anotacao(pessoa.Cpf, pessoa.Nome, ResultadoDaConsulta.SemResposta, false));
+                    semResposta++;
+                    continue;
+                }
+
+                switch (r.Resposta)
+                {
+                    case RespostaDoRanking.Aprovado:
+                        anotacoes.Add(new Anotacao(pessoa.Cpf, pessoa.Nome, ResultadoDaConsulta.Aprovado, r.EncontradoNoRanking));
+                        aprovados++;
+                        // ⚠️ A distinção que motivou este botão: quem não aparece no ranking
+                        // passa por NÃO TER O QUE PROVAR, e não por ter sido conferido contra
+                        // pontos. Somar os dois esconderia justamente o que se quer descobrir.
+                        if (!r.EncontradoNoRanking) semPontuacao++;
+                        consultados++;
+                        break;
+
+                    case RespostaDoRanking.ForaDeCategoria:
+                        anotacoes.Add(new Anotacao(pessoa.Cpf, pessoa.Nome, ResultadoDaConsulta.Barrado, r.EncontradoNoRanking));
+                        barrados++;
+                        consultados++;
+                        break;
+
+                    default:
+                        anotacoes.Add(new Anotacao(pessoa.Cpf, pessoa.Nome, ResultadoDaConsulta.SemResposta, false));
+                        semResposta++;
+                        break;
+                }
+            }
+
+            await AnotarAsync(torneio, categoria, categoriaRsId, anotacoes, ct);
+        }
+
+        _logger.LogInformation(
+            "Reconferência do torneio {Torneio} no ranking: {Consultados} consultados, {Barrados} fora de categoria.",
+            torneio.Id, consultados, barrados);
+
+        return new Reconferencia(consultados, aprovados, barrados, semPontuacao, semCorrespondencia, semResposta);
+    }
+
+    // Quem está inscrito numa categoria, com nome e CPF. As exclusões (lista de espera, time)
+    // vêm de AcertoComORankingRs — a mesma régua do dinheiro e do relatório, num lugar só.
+    private async Task<List<Pessoa>> InscritosDaCategoriaAsync(int categoriaId, CancellationToken ct)
+    {
+        var duplas = await AcertoComORankingRs
+            .DuplasQueContam(_context.Duplas.Where(d => d.CategoriaId == categoriaId))
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id })
+            .ToListAsync(ct);
+
+        var americanas = await AcertoComORankingRs
+            .AmericanasQueContam(_context.InscricoesAmericanas.Where(i => i.CategoriaId == categoriaId))
+            .Select(i => i.JogadorId)
+            .ToListAsync(ct);
+
+        var ids = duplas.SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id })
+            .Where(i => i != null).Select(i => i!.Value)
+            .Concat(americanas)
+            .Distinct()
+            .ToList();
+        if (ids.Count == 0) return new List<Pessoa>();
+
+        return await _context.Jogadores
+            .Where(j => ids.Contains(j.Id) && j.Cpf != null && j.Cpf != "" && j.Nome != "")
+            .Select(j => new Pessoa(j.Nome, j.Cpf))
+            .ToListAsync(ct);
+    }
+
     // Uma linha por pessoa em cada categoria — tentar de novo ATUALIZA, não empilha.
     private async Task RegistrarAsync(Torneio torneio, Categoria categoria, int categoriaRsId,
         ResultadoDoRanking resultado, CancellationToken ct)

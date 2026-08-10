@@ -57,8 +57,12 @@ public class InscricaoFlexivelTests
         var pontos = await svc.ObterPontosPorJogadorAsync(new[] { solo.Id });
         var resumo = await svc.ObterResumoJogadorAsync(solo.Id);
 
-        Assert.Equal(10, pontos[solo.Id]);
-        Assert.Equal(10, resumo.Pontos);
+        // ⚠️ Até 10/08/2026 isto valia 10 (o ponto da inscrição). Agora vale ZERO, e por dois
+        // motivos independentes — cada um bastaria: quem está SEM PARCEIRO fica fora do
+        // sorteio (`ForaDoSorteio`), e o torneio nem começou. Quem não jogou não pontua.
+        // O que este teste guarda continua sendo o mesmo: parceiro nulo não pode ESTOURAR.
+        Assert.Equal(0, pontos[solo.Id]);
+        Assert.Equal(0, resumo.Pontos);
     }
 
     // ---------- Uma categoria por jogador ----------

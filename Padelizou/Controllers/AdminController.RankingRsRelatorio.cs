@@ -47,6 +47,71 @@ namespace padelizou.Controllers
             return sóLendo && PoderesNoSistema.PodeVerRelatorioDoRanking(jogador) ? jogador : null;
         }
 
+        // ── RECONFERIR UM TORNEIO NO RANKING, DEPOIS DO FATO ──────────────────────────────
+        //
+        // Pergunta ao ranking sobre quem JÁ ESTÁ INSCRITO, e guarda a resposta. Serve pra
+        // responder a pergunta que o primeiro torneio real deixou em aberto: aquelas 20 pessoas
+        // sem registro passaram pelo filtro, ou simplesmente não estão no ranking?
+        //
+        // ⚠️ SÓ O RAIZ, e não porque mexe em torneio — ela não mexe em nada. É porque **gasta
+        // cota da chave da integração**, que é estrangulada, e o número de chamadas cresce com
+        // o tamanho do torneio. Botão que consome recurso de terceiro não é de qualquer um.
+        //
+        // ⚠️ E ela NÃO tira ninguém do torneio. A pessoa já está inscrita, a chave dela pode já
+        // ter saído; o resultado é informação pro organizador decidir. Ver
+        // Services/ValidacaoPeloRankingRs.ReconferirTorneioAsync, onde a regra mora.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReconferirNoRanking(
+            int id, [FromServices] ValidacaoPeloRankingRs validacao, [FromServices] IRankingRsService ranking)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            if (!torneio.ValidarPeloRankingRs)
+            {
+                TempData["Erro"] = $"Este torneio não usa o {MarcaDoRanking.Nome} — não há o que conferir.";
+                return RedirectToAction(nameof(RankingRsTorneio), new { id });
+            }
+
+            // Sem chave, gravar "não deu pra consultar" pra todo mundo seria transformar uma
+            // falha nossa de configuração em resultado de conferência.
+            if (!ranking.Configurado)
+            {
+                TempData["Erro"] = $"A integração com o {MarcaDoRanking.Nome} está sem chave configurada — "
+                    + "não dá pra conferir agora.";
+                return RedirectToAction(nameof(RankingRsTorneio), new { id });
+            }
+
+            var r = await validacao.ReconferirTorneioAsync(torneio);
+
+            if (r.Consultados == 0 && r.SemCorrespondencia == 0 && r.SemResposta == 0)
+            {
+                TempData["Erro"] = "Nenhuma pessoa inscrita para conferir.";
+                return RedirectToAction(nameof(RankingRsTorneio), new { id });
+            }
+
+            // A frase responde a pergunta que motivou o botão, e não só "pronto, conferido".
+            var partes = new List<string> { $"{r.Consultados} pessoa(s) consultada(s)" };
+            if (r.Aprovados > 0)
+            {
+                partes.Add(r.SemPontuacaoNoRanking > 0
+                    ? $"{r.Aprovados} liberada(s) — sendo {r.SemPontuacaoNoRanking} que nem aparece(m) no ranking"
+                    : $"{r.Aprovados} liberada(s)");
+            }
+            if (r.Barrados > 0)
+                partes.Add($"⚠️ {r.Barrados} com pontos em categoria mais forte (elas continuam inscritas — a decisão é do organizador)");
+            if (r.SemCorrespondencia > 0)
+                partes.Add($"{r.SemCorrespondencia} em categoria sem correspondência no ranking");
+            if (r.SemResposta > 0)
+                partes.Add($"{r.SemResposta} sem resposta do servidor deles");
+
+            TempData["Sucesso"] = "Conferência feita: " + string.Join("; ", partes) + ".";
+            return RedirectToAction(nameof(RankingRsTorneio), new { id });
+        }
+
         // Em que categorias cada pessoa ENTROU de verdade neste torneio.
         //
         // ⚠️ Sem este mapa o relatório afirma coisa que não aconteceu. A consulta ao ranking

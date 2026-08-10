@@ -15,10 +15,16 @@ public class JogadorExperienciaTests
     // 1,0), onde campeão vale 100 e semi vale 35 como sempre valeram. Cada teste enche até 5
     // contando as duplas que ele mesmo vai pendurar — o padrão 4 serve a quem pendura uma.
     // Sem isso, categoria de 1 dupla cai abaixo do piso de 3 e todo mundo leva 10.
+    //
+    // ⚠️ `Status = "Finalizado"` é obrigatório desde 10/08/2026: ponto só nasce com o torneio
+    // COMEÇADO. O `Torneio` nasce com "Inscrições Abertas", e um torneio com campeão e
+    // inscrição aberta é um mundo que não existe — sem esta linha, os fixtures descreviam
+    // esse mundo e todos os testes de ponto passavam a somar zero.
     private static Categoria NovaCategoria(
-        DbPadelContext ctx, string nome, DateTime? data, int duplasDeEnchimento = 4)
+        DbPadelContext ctx, string nome, DateTime? data, int duplasDeEnchimento = 4,
+        string status = "Finalizado")
     {
-        var torneio = new Torneio { Nome = nome, Codigo = nome, DataInicio = data };
+        var torneio = new Torneio { Nome = nome, Codigo = nome, DataInicio = data, Status = status };
         var cat = new Categoria { Nome = "2ª Masculina", Codigo = nome + "C", Torneio = torneio };
         ctx.Torneios.Add(torneio);
         ctx.Categorias.Add(cat);
@@ -137,33 +143,42 @@ public class JogadorExperienciaTests
     }
 
     [Fact]
-    public async Task Evolucao_alcanca_o_mesmo_total_do_perfil_com_torneio_futuro()
+    public async Task Torneio_que_ainda_nao_comecou_nao_pontua_em_lugar_nenhum()
     {
+        // ⚠️ ESTE TESTE AFIRMAVA O CONTRÁRIO até 10/08/2026, e o contrário era o defeito:
+        // "torneio marcado pra daqui a 1 mês: a inscrição já pontua (10 de participação)".
+        // O Felipe pediu que o ponto só nascesse com o torneio começado — e o que era um
+        // detalhe virou porta escancarada quando a participação passou a multiplicar pelo
+        // tamanho: bastaria se inscrever na categoria mais cheia que existisse.
         using var ctx = TestInfra.NovoContexto();
         var j = new Jogador { Nome = "J", Cpf = "1" };
         var p = new Jogador { Nome = "P", Cpf = "2" };
         ctx.Jogadores.AddRange(j, p);
 
         var passado = NovaCategoria(ctx, "TP", DateTime.Now.AddMonths(-2));
-        // Torneio marcado pra daqui a 1 mês: a inscrição já pontua (10 de participação).
-        var futuro = NovaCategoria(ctx, "TF", DateTime.Now.AddMonths(1));
+        // Torneio de daqui a 1 mês: inscrição aberta, ninguém jogou, ninguém pontua.
+        var futuro = NovaCategoria(ctx, "TF", DateTime.Now.AddMonths(1),
+            status: PortaDaInscricao.Aberta);
         ctx.Duplas.Add(new Dupla { CategoriaId = passado.Id, Jogador1Id = j.Id, Jogador2Id = p.Id, UltimaFase = "Final" }); // 60
-        ctx.Duplas.Add(new Dupla { CategoriaId = futuro.Id, Jogador1Id = j.Id, Jogador2Id = p.Id, UltimaFase = "Grupos" }); // 10
+        ctx.Duplas.Add(new Dupla { CategoriaId = futuro.Id, Jogador1Id = j.Id, Jogador2Id = p.Id, UltimaFase = "Grupos" }); // 0
         ctx.SaveChanges();
 
         var svc = new EstatisticasService(ctx);
         var vm = await svc.ObterEvolucaoJogadorAsync(j.Id);
         var resumo = await svc.ObterResumoJogadorAsync(j.Id);
 
-        // O gráfico não pode terminar abaixo do total do perfil — seriam dois números
-        // diferentes na mesma tela.
-        Assert.Equal(resumo.Pontos, vm.Total);
-        Assert.Equal(70, vm.Total);
-        Assert.True(vm.TemMesFuturo);
-        Assert.True(vm.Meses[^1].NoFuturo);
+        // Só o vice do torneio que aconteceu.
+        Assert.Equal(60, resumo.Pontos);
 
-        // "+X neste mês" olha o mês corrente, não o futuro.
-        Assert.Equal(0, vm.PontosNoUltimoMes);
+        // O gráfico continua tendo que terminar no MESMO total do perfil — era essa promessa
+        // que obrigava a janela a se esticar pro futuro. Agora ela vale sem gambiarra.
+        Assert.Equal(resumo.Pontos, vm.Total);
+        Assert.Equal(60, vm.Total);
+
+        // E a linha termina no mês corrente, que é onde um gráfico de evolução termina.
+        var mesAtual = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        Assert.Equal(mesAtual, vm.Meses[^1].Mes);
+        Assert.DoesNotContain(vm.Meses, m => m.Mes > mesAtual);
     }
 
     [Fact]

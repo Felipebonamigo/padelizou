@@ -65,4 +65,41 @@ public class ForaDoSorteioTests
 
         Assert.Equal(new[] { 2, 3 }, fora.Select(d => d.Id));
     }
+
+    // ── As duas escritas da mesma régua ───────────────────────────────────────────────
+    [Fact]
+    public void A_versao_que_roda_no_banco_concorda_com_a_que_roda_em_memoria()
+    {
+        // ⚠️ ESTE É O TESTE QUE IMPEDE O DEFEITO CLÁSSICO DESTA CASA. `EstaNaChave` existe
+        // porque o EF não traduz `FicaDeFora` (recebe entidade e lê `Completa`, propriedade
+        // calculada), então a régua está escrita DUAS vezes — e no par irmão
+        // `ContaNoRanking`/`DuplaContaNoRanking` a cópia escrita à mão já divergiu em
+        // silêncio: foi assim que o Americano continuou pontuando no ranking oficial.
+        //
+        // Desde 10/08/2026 esta régua decide PONTO DE RANKING (RANKING.md, Trilha B), então
+        // uma divergência aqui não some só do sorteio — ela paga, ou deixa de pagar, ponto.
+        var naChave = ForaDoSorteio.EstaNaChave.Compile();
+
+        var time = Inscricao(9, comParceiro: false);
+        time.NomeTime = "Nata Padel";
+
+        var timeNaEspera = Inscricao(10, comParceiro: false, naEspera: true);
+        timeNaEspera.NomeTime = "Clube dos Feras";
+
+        var todosOsCasos = new[]
+        {
+            Inscricao(1, comParceiro: true),                   // joga
+            Inscricao(2, comParceiro: false),                  // sem parceiro
+            Inscricao(3, comParceiro: true, naEspera: true),   // espera
+            Inscricao(4, comParceiro: false, naEspera: true),  // os dois defeitos juntos
+            time,                                              // time entra sem parceiro
+            timeNaEspera,                                      // time, mesmo marcado na espera
+        };
+
+        foreach (var d in todosOsCasos)
+            Assert.True(ForaDoSorteio.FicaDeFora(d) != naChave(d),
+                $"As duas escritas discordam sobre a dupla {d.Id} "
+                + $"(NomeTime={d.NomeTime ?? "null"}, Jogador2Id={d.Jogador2Id?.ToString() ?? "null"}, "
+                + $"EmListaDeEspera={d.EmListaDeEspera}).");
+    }
 }

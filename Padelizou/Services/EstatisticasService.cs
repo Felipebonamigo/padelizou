@@ -30,7 +30,11 @@ public class EstatisticasService : IEstatisticasService
     // não fez parte do funil que o peso mede).
     private async Task<Dictionary<int, int>> ContarDuplasPorCategoriaAsync(IEnumerable<int>? categoriaIds = null)
     {
-        var q = _context.Duplas.Where(d => d.NomeTime == null && !d.EmListaDeEspera);
+        // ⚠️ `EstaNaChave` e não só `!EmListaDeEspera`: quem se inscreveu SEM PARCEIRO também
+        // fica fora do sorteio, e contá-lo aqui daria à categoria um tamanho que ela não teve.
+        // É a MESMA régua que decide quem pontua — se as duas discordassem, a categoria teria
+        // dois tamanhos ao mesmo tempo: um pra dividir o peso, outro pra somar o ponto.
+        var q = _context.Duplas.Where(d => d.NomeTime == null).Where(ForaDoSorteio.EstaNaChave);
 
         if (categoriaIds != null)
         {
@@ -50,7 +54,7 @@ public class EstatisticasService : IEstatisticasService
     // nos métodos que leem a tabela inteira de qualquer jeito.
     private static Dictionary<int, int> ContarDuplasPorCategoria(IEnumerable<Dupla> duplas) =>
         duplas
-            .Where(d => d.NomeTime == null && !d.EmListaDeEspera)
+            .Where(d => d.NomeTime == null && !ForaDoSorteio.FicaDeFora(d))
             .GroupBy(d => d.CategoriaId)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -271,6 +275,9 @@ public class EstatisticasService : IEstatisticasService
         var porCategoria = duplas
             .Where(d => d.Categoria != null
                      && ContaNoRanking(d.Categoria.Torneio)   // torneio restrito fica fora
+                     // Quem não entrou no sorteio (lista de espera, sem parceiro) se
+                     // inscreveu mas não jogou — e estava levando ponto de participação.
+                     && !ForaDoSorteio.FicaDeFora(d)
                      && (categoriaNome == null || d.Categoria.Nome == categoriaNome)
                      && (ate == null || d.Categoria.Torneio == null
                          || d.Categoria.Torneio.DataInicio == null
@@ -300,7 +307,8 @@ public class EstatisticasService : IEstatisticasService
                     }
 
                     linha.Pontos += PontosDoTorneio.Pontos(
-                        dupla.UltimaFase, duplasPorCategoria.GetValueOrDefault(dupla.CategoriaId));
+                        dupla.UltimaFase, duplasPorCategoria.GetValueOrDefault(dupla.CategoriaId),
+                        dupla.Categoria.Torneio?.Status);
                     linha.Torneios += 1;
                     if (dupla.UltimaFase == "Campeao") linha.Titulos += 1;
                     if (dupla.UltimaFase == "Final") linha.Finais += 1;
@@ -346,12 +354,20 @@ public class EstatisticasService : IEstatisticasService
             // pessoas despejava 4 linhas de "participou" (40 pontos) por jogador no ranking de
             // times, sem ninguém ter chegado a final nenhuma.
             .Where(EstatisticasService.DuplaContaNoRanking)
+            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null   // dupla-TIME não pontua jogador nenhum
                      && (idsComTime.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && idsComTime.Contains(d.Jogador2Id.Value)))
                      && (ate == null || d.Categoria.Torneio.DataInicio == null
                          || d.Categoria.Torneio.DataInicio <= ate))
-            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, d.CategoriaId })
+            .Select(d => new
+            {
+                d.Jogador1Id,
+                d.Jogador2Id,
+                d.UltimaFase,
+                d.CategoriaId,
+                Status = d.Categoria.Torneio.Status,
+            })
             .ToListAsync();
 
         // O peso vem do tamanho da categoria — e a contagem NÃO pode sair das duplas acima,
@@ -361,18 +377,18 @@ public class EstatisticasService : IEstatisticasService
 
         // Pontos/títulos por jogador (mesma pontuação do ranking individual).
         var porJogador = new Dictionary<int, (int pontos, int titulos)>();
-        void Somar(int jogadorId, string? fase, int categoriaId)
+        void Somar(int jogadorId, string? fase, int categoriaId, string? status)
         {
             if (!idsComTime.Contains(jogadorId)) return;
             var atual = porJogador.GetValueOrDefault(jogadorId);
-            atual.pontos += PontosDoTorneio.Pontos(fase, duplasPorCategoria.GetValueOrDefault(categoriaId));
+            atual.pontos += PontosDoTorneio.Pontos(fase, duplasPorCategoria.GetValueOrDefault(categoriaId), status);
             if (fase == "Campeao") atual.titulos += 1;
             porJogador[jogadorId] = atual;
         }
         foreach (var d in duplas)
         {
-            Somar(d.Jogador1Id, d.UltimaFase, d.CategoriaId);
-            if (d.Jogador2Id != null) Somar(d.Jogador2Id.Value, d.UltimaFase, d.CategoriaId);
+            Somar(d.Jogador1Id, d.UltimaFase, d.CategoriaId, d.Status);
+            if (d.Jogador2Id != null) Somar(d.Jogador2Id.Value, d.UltimaFase, d.CategoriaId, d.Status);
         }
 
         return jogadores
@@ -412,6 +428,7 @@ public class EstatisticasService : IEstatisticasService
             // Dupla-TIME fora: o Jogador1 dela é o organizador, e a campanha do time
             // inflaria os pontos do TIME DO ORGANIZADOR neste placar.
             .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null)
+            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .Include(d => d.Jogador1).ThenInclude(j => j.Time)
             // `Jogador2!` porque a dupla pode não ter parceiro (inscrição sozinho). O `!` é seguro
             // aqui: o EF lê a expressão pra montar o JOIN, não executa o acesso — quem não tem
@@ -436,7 +453,10 @@ public class EstatisticasService : IEstatisticasService
                 acc[time.Id] = vm;
                 membros[time.Id] = new HashSet<int>();
             }
-            vm.Pontos += PontosDoTorneio.Pontos(fase, duplasPorCategoria.GetValueOrDefault(categoriaId));
+            vm.Pontos += PontosDoTorneio.Pontos(
+                // `?.` e não `!.`: `ContaNoRanking(null)` devolve TRUE de propósito (ver lá),
+                // então um torneioId inexistente chega vivo até aqui.
+                fase, duplasPorCategoria.GetValueOrDefault(categoriaId), torneio?.Status);
             if (membros[time.Id].Add(j.Id)) vm.Jogadores++;
         }
 
@@ -742,7 +762,15 @@ public class EstatisticasService : IEstatisticasService
             .Include(d => d.Jogador1)
             .Include(d => d.Jogador2)
             .Where(d => d.Categoria.TorneioId == torneioId)
+            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .ToListAsync();
+
+        // O status decide se este torneio já paga ponto. Vem numa consulta própria porque as
+        // duplas acima não trazem o torneio, e um Include só pra ler uma string custaria mais.
+        var statusDoTorneio = await _context.Torneios
+            .Where(t => t.Id == torneioId)
+            .Select(t => t.Status)
+            .FirstOrDefaultAsync();
 
         var acc = new Dictionary<int, RankingTorneioLinhaVM>();
 
@@ -757,7 +785,8 @@ public class EstatisticasService : IEstatisticasService
 
         foreach (var d in duplas)
         {
-            int pts = PontosDoTorneio.Pontos(d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId));
+            int pts = PontosDoTorneio.Pontos(
+                d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId), statusDoTorneio);
             bool campeao = d.UltimaFase == "Campeao";
             foreach (var j in new[] { d.Jogador1, d.Jogador2 })
             {
@@ -1163,6 +1192,12 @@ public class EstatisticasService : IEstatisticasService
         // ⚠️ Aqui estava escrito só `!Restrito`, e o Americano pontuava: a campeã do
         // "Americano das Gurias" aparecia com 170 pts no perfil por um rodízio de uma noite.
         var participacoes = await _context.Duplas
+            // ⚠️ Quem ficou na LISTA DE ESPERA ou SEM PARCEIRO sai daqui inteiro — não só dos
+            // pontos, também da conta de torneios. Os dois se inscreveram e nenhum dos dois
+            // jogou; contá-los como "torneio disputado" no perfil seria a mesma mentira que
+            // pagar ponto por eles. A régua tem UM dono (ForaDoSorteio), e reescrevê-la como
+            // flag nesta projeção seria a terceira cópia da mesma frase.
+            .Where(ForaDoSorteio.EstaNaChave)
             .Where(d => d.NomeTime == null   // time não é participação do organizador
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
             .Select(d => new
@@ -1172,6 +1207,7 @@ public class EstatisticasService : IEstatisticasService
                 d.CategoriaId,
                 Restrito = d.Categoria.Torneio.Restrito,
                 Formato = d.Categoria.Torneio.Formato,
+                Status = d.Categoria.Torneio.Status,
             })
             .ToListAsync();
 
@@ -1196,7 +1232,7 @@ public class EstatisticasService : IEstatisticasService
             Pontos = participacoes
                 .Where(p => ContaNoRanking(p.Restrito, p.Formato))
                 .Sum(p => PontosDoTorneio.Pontos(
-                    p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId))),
+                    p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status)),
 
             // ⚠️ Torneios DISTINTOS, não linhas de dupla. No Americano cada RODADA cria uma
             // dupla nova, então um rodízio de uma noite se anunciava como "8 torneio(s)" no
@@ -1227,10 +1263,18 @@ public class EstatisticasService : IEstatisticasService
             // chaves, então o rodízio inflava o número que o organizador usa pra montar as
             // chaves e pra julgar se alguém está se inscrevendo numa categoria fraca demais.
             .Where(EstatisticasService.DuplaContaNoRanking)
+            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null
                      && (ids.Contains(d.Jogador1Id)
                          || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
-            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.UltimaFase, d.CategoriaId })
+            .Select(d => new
+            {
+                d.Jogador1Id,
+                d.Jogador2Id,
+                d.UltimaFase,
+                d.CategoriaId,
+                Status = d.Categoria.Torneio.Status,
+            })
             .ToListAsync();
 
         // ⚠️ De novo: a contagem NÃO sai de `duplas`, que aqui vem filtrada pelos jogadores
@@ -1239,7 +1283,8 @@ public class EstatisticasService : IEstatisticasService
 
         foreach (var d in duplas)
         {
-            int p = PontosDoTorneio.Pontos(d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId));
+            int p = PontosDoTorneio.Pontos(
+                d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId), d.Status);
             if (pontos.ContainsKey(d.Jogador1Id)) pontos[d.Jogador1Id] += p;
             if (d.Jogador2Id != null && pontos.ContainsKey(d.Jogador2Id.Value)) pontos[d.Jogador2Id.Value] += p;
         }
@@ -1258,33 +1303,37 @@ public class EstatisticasService : IEstatisticasService
         // Torneio restrito fora: o gráfico desenha a linha do RANKING, e ela precisa
         // terminar no mesmo total que o perfil mostra.
         var participacoes = await _context.Duplas
+            .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .Where(d => d.NomeTime == null
                      && !d.Categoria.Torneio.Restrito
                      && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
-            .Select(d => new { Data = d.Categoria.Torneio.DataInicio, d.UltimaFase, d.CategoriaId })
+            .Select(d => new
+            {
+                Data = d.Categoria.Torneio.DataInicio,
+                d.UltimaFase,
+                d.CategoriaId,
+                Status = d.Categoria.Torneio.Status,
+            })
             .ToListAsync();
 
         // A linha do gráfico tem que terminar no MESMO total que o perfil mostra, então ela
         // usa exatamente a mesma conta — inclusive o peso.
         var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(participacoes.Select(p => p.CategoriaId));
 
-        // O ranking concede pontos de participação já na inscrição, então um torneio marcado
-        // pra frente JÁ conta no total do perfil. Se a linha parasse no mês atual, o gráfico
-        // terminaria abaixo do total exibido — o jogador veria dois números diferentes.
-        // Por isso a janela se estica até o torneio mais distante (teto de 1 ano).
-        var ultimoTorneio = participacoes.Where(p => p.Data != null).Select(p => p.Data!.Value).DefaultIfEmpty(mesAtual).Max();
-        var ultimoMes = new DateTime(ultimoTorneio.Year, ultimoTorneio.Month, 1);
-        if (ultimoMes < mesAtual) ultimoMes = mesAtual;
-        if (ultimoMes > mesAtual.AddMonths(12)) ultimoMes = mesAtual.AddMonths(12);
-
-        int totalMeses = ((ultimoMes.Year - primeiroMes.Year) * 12) + ultimoMes.Month - primeiroMes.Month + 1;
+        // ⚠️ A janela ESTICADA PRO FUTURO foi removida em 10/08/2026, e a remoção é a prova de
+        // que o defeito era real. Ela existia porque o ranking pagava participação já na
+        // INSCRIÇÃO: um torneio marcado pra dezembro entrava no total do perfil hoje, e o
+        // gráfico precisava correr atrás até o torneio mais distante pra não terminar abaixo
+        // do total exibido. Agora ponto só nasce com o torneio começado — nada no futuro
+        // soma, e a linha termina no mês atual, que é onde um gráfico de evolução termina.
+        int totalMeses = meses;
 
         // Tudo que aconteceu antes da janela já entra como saldo inicial do acumulado,
         // senão a linha começaria em zero e daria a impressão de que o jogador regrediu.
         int acumulado = participacoes
             .Where(p => p.Data != null && p.Data.Value < primeiroMes)
             .Sum(p => PontosDoTorneio.Pontos(
-                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId)));
+                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status));
 
         var naJanela = participacoes.Where(p => p.Data != null && p.Data.Value >= primeiroMes).ToList();
 
@@ -1296,7 +1345,7 @@ public class EstatisticasService : IEstatisticasService
             var doMes = naJanela.Where(p => p.Data!.Value >= mes && p.Data.Value < fim).ToList();
 
             int ganhos = doMes.Sum(p => PontosDoTorneio.Pontos(
-                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId)));
+                p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status));
             acumulado += ganhos;
 
             vm.Meses.Add(new MesEvolucaoVM
