@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🚀 **`build-491-81084e6` NO AR** (20:49). 📵 **O FIX DO TELEFONE PÚBLICO SUBIU** — o bloco lá embaixo dizia "AINDA NÃO PUBLICADO" e isso deixou de valer.
+> Última atualização: **10/08/2026** — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. **AINDA NÃO PUBLICADO.**
+>
+> 🛡️ **O PRIMEIRO ADMINISTRADOR DE UM TIME SÓ ENTRAVA PELO SITE PÚBLICO.** O botão existia em `/Times/Detalhes`, mas dentro de `admin.padelizou.com.br` o middleware serve **só `/Admin` e `/Auth`** — de lá, qualquer `/Times` dá 404. Agora o painel tem a tela inteira: **criar** time (com clube sede opcional), **apagar**, e **incluir/remover administrador** pela mesma busca por nome/apelido/CPF das outras telas do painel.
+>
+> ⚠️ **Nome de time repetido é recusado, pela mesma razão do clube**: no cadastro, quem digita o nome de um time que já existe **entra nele** (`AuthController.DefinirTimeAsync` casa por nome, sem diferenciar maiúsculas). Dois "SINDAQUA" na base fariam cada pessoa cair num dos dois pelo acaso da consulta — e metade do time ficaria pendurada no cadastro errado, em silêncio.
+>
+> 🗑️ **O aviso do "Apagar" carrega os números reais** — *"7 jogador(es) ficam sem time e 1 dupla(s) de torneio perdem o escudo"* —, porque "tem certeza?" é um susto e um número é uma decisão. **Nada morre junto**: `Jogador.TimeId` e `Dupla.TimeId` são `SetNull` (a conta, os jogos e o resultado do torneio ficam inteiros; some o escudo), e só o cargo de administrador cai em cascata. Conferido no **PostgreSQL local**, apagando um time de verdade: o jogador continuou lá, com `TimeId` nulo.
+>
+> 🔁 **Zero regra nova**: quem decide se pode conceder/remover continua sendo `Services/AdministracaoTime`, o mesmo que a vitrine usa — e o "conceder também veste a camisa" saiu de dentro do `TimesController` pra lá, senão nasceria a segunda cópia. Diferença do painel: **admin do sistema pode deixar o time sem nenhum administrador** (é o estado dos 44 importados do ranking, e é ele quem destrava de volta). **Zero migration.** 3.378 testes, 0 falhas (16 novos).
+>
+> 🐛 **Um bug pego na verificação, não nos testes**: `\n\n@linha.Membros` dentro do `onsubmit` foi renderizado **literal** — o Razor tem uma regra de e-mail (`algo@algo`) e o `@` colado no caractere anterior deixa de ser código. O aviso do apagar foi pra tela com o nome da variável no lugar do número. As confirmações agora saem de `data-confirmar` + um listener, o que também resolve o time chamado "Rafa's" fechando a aspa do JS.
+>
+> Antes — 🚀 **`build-491-81084e6` NO AR** (20:49). 📵 **O FIX DO TELEFONE PÚBLICO SUBIU** — o bloco lá embaixo dizia "AINDA NÃO PUBLICADO" e isso deixou de valer.
 >
 > 📵 **PROVADO EM PRODUÇÃO, COMO VISITANTE ANÔNIMO** (que é justamente quem o defeito expunha): nos perfis 10 e 12, o **celular do atleta não aparece** e **não há nenhum link de instagram.com** — o único `wa.me` da página é o **suporte do próprio site**, no rodapé. ⚠️ **Duas vezes quase gritei vazamento por erro meu de medição**: primeiro o número do rodapé (o mesmo em todos os perfis, e é nosso, não do atleta); depois um `grep` em que o **ponto do handle `anderson.virgili` casou com o espaço de "Anderson Virgili"** — regex onde eu queria texto literal. **Busca literal (`grep -F`) e uma string de CONTROLE são obrigatórias**, senão a conferência inventa defeito ou esconde um.
 >
