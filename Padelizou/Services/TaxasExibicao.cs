@@ -16,8 +16,13 @@ public class TaxasExibicao
 {
     public FormaRecebimento Pix { get; set; } =
         new("Pix", 0m, 0.99m, 0, "os 100 primeiros do mês são sem taxa");
+
+    // Boleto DESLIGADO em 10/08/2026 (Felipe): ele continua aqui porque o custo é real e vem
+    // de configuração, mas saiu de `Todas` — que é a lista que as telas mostram. Enquanto o
+    // sistema não emitir boleto, anunciá-lo ao organizador seria prometer o que não existe.
     public FormaRecebimento Boleto { get; set; } =
         new("Boleto", 0m, 0.99m, 1);
+
     public FormaRecebimento CartaoDebito { get; set; } =
         new("Cartão de débito", 1.89m, 0.35m, 3);
     public FormaRecebimento CreditoAVista { get; set; } =
@@ -56,9 +61,10 @@ public class TaxasExibicao
         _ => ComissaoPercentualTodasFormas,
     };
 
+    // O que as telas listam. Sem boleto desde 10/08/2026 — ver a propriedade lá em cima.
     public IEnumerable<FormaRecebimento> Todas => new[]
     {
-        Pix, Boleto, CartaoDebito, CreditoAVista, CreditoAte6x, CreditoAte12x, CreditoAte21x
+        Pix, CartaoDebito, CreditoAVista, CreditoAte6x, CreditoAte12x, CreditoAte21x
     };
 
     public record FormaRecebimento(

@@ -56,7 +56,11 @@ public class PlanoDoProfessorTests
         Assert.Equal(PlanoDoProfessor.Situacao.AssinanteEmDia, PlanoDoProfessor.SituacaoDe(prof, Agora, Cfg));
 
         Assert.Equal(3m, PlanoDoProfessor.CobrancaDaAula(prof, CobrancaDoTorneio.EscolhaPix, Agora, Cfg).Percentual);
-        Assert.Equal(3m, PlanoDoProfessor.CobrancaDaAula(prof, CobrancaDoTorneio.EscolhaBoleto, Agora, Cfg).Percentual);
+
+        // "Boleto" (formulário em cache, depois de 10/08/2026) não trava mais em boleto: cai
+        // na escolha desconhecida, que é forma aberta com a taxa de cartão.
+        var boletoVelho = PlanoDoProfessor.CobrancaDaAula(prof, "Boleto", Agora, Cfg);
+        Assert.Equal("UNDEFINED", boletoVelho.BillingType);
 
         var cartao = PlanoDoProfessor.CobrancaDaAula(prof, CobrancaDoTorneio.EscolhaCartao, Agora, Cfg);
         Assert.Equal("CREDIT_CARD", cartao.BillingType);

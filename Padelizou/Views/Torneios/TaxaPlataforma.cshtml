@@ -128,7 +128,7 @@
                         (@cobrancaPendente.Valor.ToString("C"), gerada em @cobrancaPendente.CriadoEm.ToString("dd/MM 'às' HH:mm")).
                         Assim que o pagamento confirmar, as chaves liberam sozinhas.
                     </div>
-                    <a href="@cobrancaPendente.InvoiceUrl" target="_blank" rel="noopener"
+                    <a href="@Padelizou.Services.LinkDoPagamento.Para(cobrancaPendente)"
                        class="btn btn-padel btn-lg w-100 rounded-pill fw-bold">
                         <i class="bi bi-credit-card"></i> Abrir a cobrança e pagar
                     </a>

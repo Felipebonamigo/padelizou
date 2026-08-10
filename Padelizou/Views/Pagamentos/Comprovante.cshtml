@@ -74,7 +74,7 @@
             @if (Model.Status == "Pendente" && !string.IsNullOrEmpty(Model.InvoiceUrl))
             {
                 <div class="d-grid mt-3">
-                    <a href="@Model.InvoiceUrl" target="_blank" rel="noopener" class="btn btn-padel rounded-pill">Pagar agora</a>
+                    <a asp-action="Fatura" asp-route-id="@Model.Id" class="btn btn-padel rounded-pill">Pagar agora</a>
                 </div>
             }
             else if (Model.MetodoPagamento == Padelizou.Services.PixDireto.Metodo

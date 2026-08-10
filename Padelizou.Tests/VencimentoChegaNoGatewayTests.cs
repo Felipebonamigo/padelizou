@@ -110,7 +110,9 @@ public class VencimentoChegaNoGatewayTests
 
         await servico.IniciarCobrancaDeInscricaoAsync(
             torneio, Apto(), pagador, inscricaoDeDupla: true, impedimentos: 0,
-            new DadosPagamentoDeInscricao(torneio.Id, dupla.Id, null), CobrancaDoTorneio.EscolhaBoleto);
+            // Escolha ausente = forma aberta ("UNDEFINED"), que é quem herda o prazo longo
+            // desde que o boleto saiu (10/08/2026). Era `EscolhaBoleto` até então.
+            new DadosPagamentoDeInscricao(torneio.Id, dupla.Id, null), null);
 
         var (vencimento, _) = OQueFoiProGateway(asaas);
         var gravado = ctx.Pagamentos.Single(p => p.Tipo == "TorneioPagarDepois");

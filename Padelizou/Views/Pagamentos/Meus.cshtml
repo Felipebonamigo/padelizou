@@ -152,7 +152,9 @@
                                     <td class="text-end">
                                         @if (!string.IsNullOrEmpty(p.InvoiceUrl))
                                         {
-                                            <a href="@p.InvoiceUrl" target="_blank" rel="noopener"
+                                            @* A fatura é a NOSSA (Services/LinkDoPagamento); `InvoiceUrl` aqui
+                                               só responde "esta cobrança existe no gateway". *@
+                                            <a asp-action="Fatura" asp-route-id="@p.Id"
                                                class="btn btn-sm btn-outline-primary rounded-pill px-3">Link de pagamento</a>
                                         }
                                         <form asp-action="Estornar" asp-route-id="@p.Id" method="post" class="d-inline"
@@ -308,7 +310,7 @@
                                 </a>
                                 @if (p.Status == "Pendente" && !string.IsNullOrEmpty(p.InvoiceUrl))
                                 {
-                                    <a href="@p.InvoiceUrl" target="_blank" rel="noopener"
+                                    <a asp-action="Fatura" asp-route-id="@p.Id"
                                        class="btn btn-sm btn-padel rounded-pill px-3">Pagar</a>
                                 }
                                 else if (p.MetodoPagamento == Padelizou.Services.PixDireto.Metodo

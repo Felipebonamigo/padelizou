@@ -115,7 +115,6 @@ public static class PlanoDoProfessor
         return (escolhaDoAluno ?? "") switch
         {
             CobrancaDoTorneio.EscolhaPix => new CobrancaDoTorneio.Cobranca("PIX", cfg.PercentualAssinantePix),
-            CobrancaDoTorneio.EscolhaBoleto => new CobrancaDoTorneio.Cobranca("BOLETO", cfg.PercentualAssinantePix),
             CobrancaDoTorneio.EscolhaCartao => new CobrancaDoTorneio.Cobranca("CREDIT_CARD", cfg.PercentualAssinanteCartao),
 
             // Escolha ausente: forma aberta com a taxa de cartão — errar pra cá nunca dá

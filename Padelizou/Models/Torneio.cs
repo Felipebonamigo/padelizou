@@ -78,8 +78,8 @@ public partial class Torneio
     // nasce, muito antes de alguém pagar.
     //
     // "OnlinePix"   — cobrança travada em Pix. Cai na hora, custo baixo → taxa menor.
-    // "OnlineTodas" — Pix, boleto, débito e crédito à escolha do jogador. Crédito custa
-    //                 caro e só cai em 32 dias → taxa maior.
+    // "OnlineTodas" — Pix ou cartão, à escolha do jogador. Crédito custa caro e só cai em
+    //                 32 dias → taxa maior. (Boleto era a terceira opção até 10/08/2026.)
     // "Externo"     — o Padelizou não toca no dinheiro, só organiza. Sem custo de gateway
     //                 nem risco → taxa menor de todas, cobrada do organizador depois.
     //

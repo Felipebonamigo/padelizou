@@ -67,7 +67,9 @@ public class PagamentoExpiradoBackgroundService : BackgroundService
                 await push.EnviarParaJogadorAsync(pagamento.JogadorId,
                     // Tem hora pra vencer e custa a vaga. Aviso que chega tarde aqui é o mesmo
                     // que não ter chegado.
-                    "Pagamento pendente", texto, pagamento.InvoiceUrl, AlcanceDoAviso.AppEWhatsApp);
+                    // Caminho relativo: os avisos por e-mail e WhatsApp já sabem colar o
+                    // domínio na frente (AvisoPorEmail.LinkAbsoluto).
+                    "Pagamento pendente", texto, LinkDoPagamento.Para(pagamento), AlcanceDoAviso.AppEWhatsApp);
 
                 pagamento.LembreteEnviadoEm = agora;
             }
