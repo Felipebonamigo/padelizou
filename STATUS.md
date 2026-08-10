@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — ⏰ **A ASSINATURA DO PROFESSOR PAROU DE VENCER EM SILÊNCIO** (não publicado).
+> Última atualização: **10/08/2026** — 🧮 **O CARD "NA PRÁTICA" DIZIA O NÚMERO CERTO COM O DONO ERRADO** (não publicado).
+>
+> 🧮 **"O AVULSO PAGA R$ 200,00 DE TAXA" — SEM DIZER QUEM PAGA.** O card que fecha a tela do plano comparava R$ 200 (Avulso) contra R$ 109,90 (Assinante) como se os dois saíssem do bolso do professor. ⚠️ **No modo padrão (`ModoComissao` = "Somada") quem paga a taxa é o ALUNO**: o preço da aula sobe e o professor recebe o valor cheio. Aqueles R$ 200 **nunca foram dinheiro dele** — quem lia achava que a mensalidade economizava R$ 90 do próprio bolso, quando economizava do bolso do aluno. A conta antiga só estava certa no "Descontada", que é a escolha minoritária.
+>
+> Agora o card tem **duas leituras**, e diz o dono em cada uma. Em "Somada": *"quem paga a taxa é o seu aluno, e você recebe os R$ 100 cheios nos dois planos; o que muda é o preço final pra ele — R$ 110 no Avulso contra R$ 103 no Assinante; do SEU bolso sai só a mensalidade"*. Em "Descontada": a conta de sempre, agora dita como *"a taxa sai da SUA parte"*. E fecha com o link pra trocar a escolha em Meus Pagamentos — sem ele, o professor lê uma regra que não sabe que pode mudar.
+>
+> ⚠️ **A conta saiu da Razor e virou `Services/ExemploDoPlanoNaTela`.** É uma **afirmação sobre dinheiro com dois caminhos** — o tipo de coisa que dentro da tela ninguém testa e que passa meses dizendo o número errado pra metade das pessoas. Foi exatamente o que aconteceu. 🧪 **4 testes novos**, suíte em **3.132, 0 falhas**, e eles guardam o que a conta *afirma*: que no padrão o custo do Avulso pro professor é **R$ 0** (e não R$ 200), que a escolha dele vence o padrão do gateway, que caixa diferente não vira outro modo, e que os números seguem a tabela de preços em vez de ficarem chumbados. ✅ Conferido na tela nos **dois** modos, com o link resolvendo 200 e sem rolagem lateral em 375px.
+>
+> Antes, no mesmo dia — ⏰ **A ASSINATURA DO PROFESSOR PAROU DE VENCER EM SILÊNCIO** (não publicado).
 >
 > ⏰ **O PIOR DEFEITO DO PLANO DO PROFESSOR NÃO ERA UM BUG — ERA UM SILÊNCIO.** A mensalidade **não é recorrente**: quem paga tem que voltar na tela e gerar a cobrança de novo. Quem não voltava caía sozinho pra `AssinanteEmAtraso` depois da carência de 7 dias, e **a taxa das aulas dele subia de 3% pra 10% sem uma linha em lugar nenhum** — nem pra ele, nem pra nós. Ele descobriria no extrato, se descobrisse. A trava automática está certa (é ela que impede assinante inadimplente de pagar taxa de assinante); o que faltava era **contar**.
 >

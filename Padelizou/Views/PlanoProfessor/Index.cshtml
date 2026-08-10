@@ -12,11 +12,10 @@
     int diasRestantes = fimDoTeste.HasValue
         ? Math.Max(0, (int)Math.Ceiling((fimDoTeste.Value - DateTime.Now).TotalDays)) : 0;
 
-    // Exemplo com números redondos pra comparação ser conta de padaria, não planilha:
-    // 20 aulas de R$ 100 no mês.
-    decimal exemploAulas = 20, exemploPreco = 100m;
-    decimal custoAvulso = exemploAulas * exemploPreco * cfg.PercentualAvulso / 100m;
-    decimal custoAssinante = cfg.MensalidadeAssinante + exemploAulas * exemploPreco * cfg.PercentualAssinantePix / 100m;
+    // O exemplo de 20 aulas de R$ 100 no mês. ⚠️ Quem PAGA a taxa depende do ModoComissao,
+    // então a conta vem pronta de ExemploDoPlanoNaTela — fazê-la aqui foi o que deixou o card
+    // anos dizendo "o Avulso paga R$ 200" sem dizer que, no modo padrão, quem paga é o aluno.
+    var exemplo = (ExemploDoPlanoNaTela.Conta)ViewBag.Exemplo;
 
     // Quanto o anual poupa contra 12 mensalidades. Vem do serviço, não de conta na tela: os
     // dois preços saem de configuração e podem mudar sem passar por aqui.
@@ -240,16 +239,43 @@
                 </div>
             </div>
 
-            @* A conta que decide: no exemplo de 20 aulas de R$ 100, o assinante paga quase
-               a metade. Mostrar o número pronto evita que a mensalidade pareça "mais um custo". *@
+            @* A conta que decide — e ela é DUAS contas, porque quem paga a taxa muda com o
+               ModoComissao. Dizer só o valor, sem o dono, é o que fazia o professor no modo
+               padrão achar que economizava do próprio bolso um dinheiro que era do aluno. *@
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-body small">
                     <strong><i class="bi bi-calculator"></i> Na prática:</strong>
-                    com @exemploAulas.ToString("0") aulas de @exemploPreco.ToString("C") no mês <strong>pagas pelo app</strong> (todas no Pix),
-                    o Avulso paga <strong>@custoAvulso.ToString("C")</strong> de taxa;
-                    o Assinante paga <strong>@custoAssinante.ToString("C")</strong>
-                    (@cfg.MensalidadeAssinante.ToString("C") + @cfg.PercentualAssinantePix.ToString("0.#")%).
-                    Quanto mais aulas, maior a diferença.
+                    com @exemplo.Aulas.ToString("0") aulas de @exemplo.PrecoDaAula.ToString("C") no mês
+                    <strong>pagas pelo app</strong> (todas no Pix)&nbsp;—
+
+                    @if (exemplo.TaxaSaiDoAluno)
+                    {
+                        <text>
+                            quem paga a taxa é o <strong>seu aluno</strong>, e você recebe os
+                            @exemplo.PrecoDaAula.ToString("C") cheios nos dois planos. O que muda é o
+                            preço final pra ele: <strong>@exemplo.AlunoPagaAvulso.ToString("C")</strong> por
+                            aula no Avulso contra <strong>@exemplo.AlunoPagaAssinante.ToString("C")</strong>
+                            no Assinante. Do <strong>seu</strong> bolso sai só a mensalidade
+                            (@exemplo.CustoMensalAssinante.ToString("C") no Assinante, nada no Avulso) —
+                            o que ela compra é a sua aula ficar mais barata pra quem contrata.
+                        </text>
+                    }
+                    else
+                    {
+                        <text>
+                            a taxa sai da <strong>sua parte</strong> (seu aluno paga os
+                            @exemplo.PrecoDaAula.ToString("C") anunciados). No mês, o Avulso te custa
+                            <strong>@exemplo.CustoMensalAvulso.ToString("C")</strong>; o Assinante,
+                            <strong>@exemplo.CustoMensalAssinante.ToString("C")</strong>
+                            (@cfg.MensalidadeAssinante.ToString("C") + @cfg.PercentualAssinantePix.ToString("0.#")%).
+                            Quanto mais aulas, maior a diferença.
+                        </text>
+                    }
+
+                    <div class="text-muted mt-2">
+                        Quem paga a taxa é escolha sua, em
+                        <a asp-controller="Pagamentos" asp-action="Configurar">Meus Pagamentos</a>.
+                    </div>
                 </div>
             </div>
         </div>

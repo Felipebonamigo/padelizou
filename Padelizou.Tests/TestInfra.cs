@@ -218,12 +218,14 @@ public static class TestInfra
     // cobrança nasce por Pix direto ou por fatura de gateway.
     public static PlanoProfessorController NovoPlanoProfessorController(
         DbPadelContext ctx, int usuarioLogadoId,
-        IPagamentoInscricaoService? pagamentos = null, PlanoProfessorSettings? plano = null)
+        IPagamentoInscricaoService? pagamentos = null, PlanoProfessorSettings? plano = null,
+        AsaasSettings? asaas = null)
     {
         var controller = new PlanoProfessorController(
             ctx,
             pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
-            Microsoft.Extensions.Options.Options.Create(plano ?? new PlanoProfessorSettings()));
+            Microsoft.Extensions.Options.Options.Create(plano ?? new PlanoProfessorSettings()),
+            Microsoft.Extensions.Options.Options.Create(asaas ?? new AsaasSettings()));
 
         controller.ControllerContext = new ControllerContext
         {

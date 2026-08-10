@@ -18,13 +18,15 @@ public class PlanoProfessorController : Controller
     private readonly DbPadelContext _context;
     private readonly IPagamentoInscricaoService _pagamentos;
     private readonly PlanoProfessorSettings _cfg;
+    private readonly AsaasSettings _asaas;
 
     public PlanoProfessorController(DbPadelContext context, IPagamentoInscricaoService pagamentos,
-        IOptions<PlanoProfessorSettings> cfg)
+        IOptions<PlanoProfessorSettings> cfg, IOptions<AsaasSettings> asaas)
     {
         _context = context;
         _pagamentos = pagamentos;
         _cfg = cfg.Value;
+        _asaas = asaas.Value;
     }
 
     private int MeuId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -52,6 +54,10 @@ public class PlanoProfessorController : Controller
         ViewBag.Cfg = _cfg;
         ViewBag.Situacao = PlanoDoProfessor.SituacaoDe(eu, DateTime.Now, _cfg);
         ViewBag.FimDoTeste = PlanoDoProfessor.FimDoTeste(eu, _cfg);
+        // A conta do card "Na prática" — quem paga a taxa depende do ModoComissao dele, e o
+        // padrão do gateway vale pra quem nunca escolheu (ver ExemploDoPlanoNaTela).
+        ViewBag.Exemplo = ExemploDoPlanoNaTela.Montar(eu.ModoComissao, _asaas.ModoComissaoPadrao, _cfg);
+
         ViewBag.CobrancaPendente = await FaturaAbertaAsync(eu.Id);
 
         // A cobrança Pix aberta, se houver — o botão vira "ver o Pix" em vez de gerar outra.
