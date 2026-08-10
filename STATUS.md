@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (`build-467-ea43026` **no ar em prod**).
+> Última atualização: **10/08/2026** — 👣 **A BUSCA GANHOU O BOTÃO DE SEGUIR — SEM PERDER A BUSCA** (não publicado).
+>
+> 👣 **"NA TELA DE BUSCAR, TER A OPÇÃO DE SEGUIR JOGADOR, NÃO PRECISA SER GRANDE"** (Felipe, print de `/Jogadores/Buscar` com os 163 jogadores de produção). Seguir existe desde o começo do sistema e tinha **um lugar só**: o perfil. Quem varria a lista atrás de parceiro precisava entrar em cada um, seguir e voltar — e a volta caía na busca **sem filtro nenhum**. Agora cada card tem o botão, pequeno, ao lado do nome, com "Seguir" e "Seguindo" trocando de lugar como no perfil.
+>
+> ⚠️ **O botão obrigou a desmontar o card:** ele inteiro era um `<a>` pro perfil, e **`<form>` dentro de link não existe em HTML** — o clique no botão viraria navegação. Quem carrega o link agora é o **nome**, com `stretched-link`, e o formulário sobe por cima com `z-index`. Medido no navegador: três cantos diferentes do card continuam devolvendo `/Jogadores/Perfil/N`, e o `elementFromPoint` no meio do botão devolve o **botão**.
+>
+> ⚠️ **E o retorno é a metade que faria isto nascer inútil:** sem levar a URL junto, seguir alguém na página 2 de "Porto Alegre" jogaria a pessoa no **perfil de quem ela acabou de seguir**, e ela refaria o filtro a cada nome — exatamente o vaivém que o botão veio eliminar. O `voltarPara` devolve pra lista exata (filtros + página), e passa por **`IsLocalUrl`**: o campo é do formulário, quem quiser edita, e sem isso o botão viraria trampolim pra fora do site. As três telas com o mesmo botão agora se resolvem num lugar só (`VoltarDoSeguir`): a busca manda URL, a rede manda o id do dono da lista, o perfil não manda nada.
+>
+> 🧪 **3.101 testes**, 5 novos, 0 falhas. ✅ **Medido no app rodando**: seguir na página 2 filtrada por Porto Alegre volta pra `?estado=RS&cidade=Porto+Alegre&pagina=2` com aquele card virado em **"Seguindo"** (e o clique seguinte desfaz, sem sair da lista); **visitante deslogado não recebe botão nenhum** — o HTML anônimo não tem uma ocorrência de `Jogadores/Seguir`, e a página segue 200 com os 30 cards; no celular de 375px o botão cabe dentro do card, sem rolagem lateral. ⚠️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia — 🏟️ **O NOME DO CLUBE VIROU EDITÁVEL — E O CAMPO DE ACHAR O DONO VOLTOU A SUGERIR** (não publicado, e da sessão paralela deste diretório).
+>
+> 🏟️ **"ME PERMITA EDITAR O NOME DOS CLUBES TAMBÉM"** (Felipe, print de `/Admin/Clubes` com *Batata*, *Rogérinho.* e *Ok center* na lista). Clube nasce do que o jogador **digitou** no próprio cadastro (`CatalogoLocais.AcharOuCriarClubeAsync`) — arrumar a grafia era `UPDATE` na mão. Agora tem lápis em cada linha, com o nome atual já no campo.
+>
+> ⚠️ **Renomear NÃO junta dois clubes, e o botão diz isso.** O catálogo casa clube **por nome**, sem diferenciar maiúsculas: deixar dois "Nata Padel" na base faria o próximo cadastro cair num dos dois pelo **acaso da consulta**, e metade dos jogadores ficaria pendurada no clube errado, em silêncio. Nome que já é de outro clube é recusado (medido com `padel garden` contra `Padel Garden`) e o recado explica o limite em vez de só dizer "não". O campo tem `datalist` com os nomes existentes — a colisão aparece **enquanto se digita**, não só depois de salvar.
+>
+> 🔎 **E o print mostrava um segundo defeito, que não era o pedido:** o Felipe digitou **"amadeu"** no campo de atribuir dono e **nada apareceu**. A busca por nome funcionava — o que não funcionava era o **endereço**. O `_BuscaOrganizador` chamava `/Torneios/BuscarJogadorParaOrganizador`, e dentro de `admin.padelizou.com.br` o `AdminHostMiddleware` só serve `/Admin` e `/Auth`: **404**. ⚠️ **E o 404 morria calado** — estourava no `.json()` como promise rejeitada, deixando a lista vazia, **idêntica a "não achei ninguém"**. Campo que erra parecendo campo que respondeu é pior que campo quebrado. Vale pra `/Admin/Administradores` também, que usa o mesmo partial.
+>
+> ➕ A busca ganhou endereço dentro do painel (`/Admin/BuscarJogador`, mesma regra do `BuscaJogador`, só outra rota), o partial escolhe pelo host, e a falha agora **aparece na tela**. O placeholder também mentia: dizia "CPF ou login" desde antes de a busca por nome existir — quem lia aquilo nem tentava digitar o nome. ✅ **Medido nos dois lados**: no host admin em Release, a rota velha responde **404** e a nova é servida; e no app rodando, digitar "professor" no campo de dono lista *Professor Escada Teste*.
+>
+> 🧪 **3.087 testes**, 5 novos, 0 falhas. ⚠️ **Não publicado ainda** — e o `AdminController.cs` está compartilhado com uma sessão paralela neste diretório, então este trabalho segue **sem commit**.
+>
+> Antes, no mesmo dia — 👥 **ACEITAR O CONVITE DO JOGO FAZIA O JOGO SUMIR DE "MEUS GRUPOS"** (`build-467-ea43026` **no ar em prod**).
 >
 > 👥 **"EU ACEITEI AQUI E NÃO APARECE QUANDO EU CLICO EM MEUS GRUPOS"** (Felipe, print da tela inicial com o card da *Pinel Gravataí* marcado **convidado / Você vai**). Quem é chamado de fora pra um jogo de panelinha entra como **avulso**: ele responde o RSVP daquele dia, mas **não vira membro do grupo** — e por isso a panelinha nunca aparece na lista de `/Grupos`, que é montada a partir de `JogadorGrupo`. O convite tinha um bloco só dele nessa tela… filtrado por `Status == "Pendente"`.
 >

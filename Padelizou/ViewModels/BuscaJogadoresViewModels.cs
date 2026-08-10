@@ -36,6 +36,10 @@ public class BuscaJogadoresVM
     public bool FiltraPreferencia { get; set; }
     public int QtdDeclarou { get; set; }
 
+    // Quem está olhando a lista (null = visitante deslogado). É o que decide se o card ganha
+    // botão de seguir — e o que tira o botão do próprio card de quem busca.
+    public int? MeuId { get; set; }
+
     // Nenhum filtro preenchido: a tela mostra o convite em vez de "nada encontrado".
     public bool TemFiltro =>
         !string.IsNullOrWhiteSpace(Termo) || CategoriaId != null
@@ -54,4 +58,8 @@ public class JogadorEncontradoVM
     // Quem declarou aparece primeiro e ganha selo — sem isso o filtro seria inócuo,
     // porque quase ninguém preenche preferência e todo mundo entraria no resultado.
     public bool Declarou { get; set; }
+
+    // Eu já sigo esta pessoa. Escolhe qual dos dois botões o card mostra — oferecer "Seguir"
+    // pra quem eu já sigo seria um clique que não muda nada.
+    public bool EuSigo { get; set; }
 }

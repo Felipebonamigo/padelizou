@@ -25,6 +25,11 @@
 
     var nomeCategoria = Model.Categorias.FirstOrDefault(c => c.Id == Model.CategoriaId)?.Nome;
     var nomeClube = Model.Clubes.FirstOrDefault(c => c.Id == Model.ClubeId)?.Nome;
+
+    // Depois de seguir, a pessoa volta pra ESTA lista — com os mesmos filtros e na mesma
+    // página. Sem isso o clique a jogaria no perfil de quem ela acabou de seguir e o
+    // resultado que ela montou (categoria + cidade + clube) se perderia a cada botão.
+    var urlDeVolta = $"{Context.Request.Path}{Context.Request.QueryString}";
 }
 
 <div class="container mt-4 mb-5">
@@ -197,20 +202,26 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
             @foreach (var r in Model.Resultados)
             {
+                // O card inteiro continua sendo a porta do perfil, mas quem carrega o link
+                // agora é o NOME, com stretched-link: o botão de seguir é um <form>, e
+                // formulário dentro de <a> não existe em HTML — o clique no botão viraria
+                // navegação pro perfil.
+                var podeSeguir = Model.MeuId != null && Model.MeuId != r.Jogador.Id;
+
                 <div class="col">
-                    <a asp-action="Perfil" asp-route-id="@r.Jogador.Id" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm h-100 p-3 pdz-porta">
-                            <div class="d-flex align-items-center gap-3 mb-2">
-                                @if (!string.IsNullOrWhiteSpace(r.Jogador.FotoPerfil))
-                                {
-                                    <img src="@r.Jogador.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
-                                         style="width: 48px; height: 48px; object-fit: cover;" />
-                                }
-                                else
-                                {
-                                    <i class="bi bi-person-circle fs-1 flex-shrink-0" style="color: var(--pdz-ink); opacity:.45;"></i>
-                                }
-                                <div class="flex-grow-1 overflow-hidden">
+                    <div class="card border-0 shadow-sm h-100 p-3 pdz-porta position-relative">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            @if (!string.IsNullOrWhiteSpace(r.Jogador.FotoPerfil))
+                            {
+                                <img src="@r.Jogador.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
+                                     style="width: 48px; height: 48px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle fs-1 flex-shrink-0" style="color: var(--pdz-ink); opacity:.45;"></i>
+                            }
+                            <div class="flex-grow-1 overflow-hidden">
+                                <a asp-action="Perfil" asp-route-id="@r.Jogador.Id" class="stretched-link text-decoration-none d-block">
                                     <strong class="d-block text-truncate" style="color: var(--pdz-ink);">
                                         @r.Jogador.ComoChamar
                                         @if (!string.IsNullOrWhiteSpace(r.Jogador.Apelido))
@@ -226,38 +237,57 @@
                                             </span>
                                         }
                                     </strong>
-                                    <small class="text-muted">
-                                        @r.Pontos pts
-                                        @if (r.Time != null)
-                                        {
-                                            <span>· <i class="bi bi-shield-fill"></i> @r.Time</span>
-                                        }
-                                    </small>
-                                </div>
+                                </a>
+                                <small class="text-muted">
+                                    @r.Pontos pts
+                                    @if (r.Time != null)
+                                    {
+                                        <span>· <i class="bi bi-shield-fill"></i> @r.Time</span>
+                                    }
+                                </small>
                             </div>
 
-                            <div class="small text-muted">
-                                @if (!string.IsNullOrWhiteSpace(r.Jogador.Cidade))
-                                {
-                                    <div class="text-truncate">
-                                        <i class="bi bi-geo-alt"></i> @r.Jogador.Cidade@(r.Jogador.Estado != null ? $" - {r.Jogador.Estado}" : "")
-                                    </div>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(r.Jogador.LadoQuadra))
-                                {
-                                    <div><i class="bi bi-arrow-left-right"></i> Joga do lado @r.Jogador.LadoQuadra.ToLower()</div>
-                                }
-                                @if (r.Categorias.Any())
-                                {
-                                    <div class="text-truncate"><i class="bi bi-bar-chart-steps"></i> @string.Join(", ", r.Categorias)</div>
-                                }
-                                @if (r.Clubes.Any())
-                                {
-                                    <div class="text-truncate"><i class="bi bi-shop"></i> @string.Join(", ", r.Clubes)</div>
-                                }
-                            </div>
+                            @* Seguir sem sair da busca. Deslogado não vê botão (a ação exige
+                               login) e ninguém segue a si mesmo. z-index passa por cima do
+                               stretched-link, senão o clique cairia no link do card. *@
+                            @if (podeSeguir)
+                            {
+                                <form asp-action="@(r.EuSigo ? "DeixarDeSeguir" : "Seguir")" method="post"
+                                      class="flex-shrink-0 position-relative" style="z-index: 2;">
+                                    <input type="hidden" name="id" value="@r.Jogador.Id" />
+                                    <input type="hidden" name="voltarPara" value="@urlDeVolta" />
+                                    <button type="submit"
+                                            class="btn btn-sm @(r.EuSigo ? "btn-outline-secondary" : "btn-padel") rounded-pill px-2 py-1"
+                                            style="font-size: .78rem;"
+                                            title="@(r.EuSigo ? $"Deixar de seguir {r.Jogador.ComoChamar}" : $"Seguir {r.Jogador.ComoChamar}")">
+                                        <i class="bi @(r.EuSigo ? "bi-person-check-fill" : "bi-person-plus")"></i>
+                                        @(r.EuSigo ? "Seguindo" : "Seguir")
+                                    </button>
+                                </form>
+                            }
                         </div>
-                    </a>
+
+                        <div class="small text-muted">
+                            @if (!string.IsNullOrWhiteSpace(r.Jogador.Cidade))
+                            {
+                                <div class="text-truncate">
+                                    <i class="bi bi-geo-alt"></i> @r.Jogador.Cidade@(r.Jogador.Estado != null ? $" - {r.Jogador.Estado}" : "")
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(r.Jogador.LadoQuadra))
+                            {
+                                <div><i class="bi bi-arrow-left-right"></i> Joga do lado @r.Jogador.LadoQuadra.ToLower()</div>
+                            }
+                            @if (r.Categorias.Any())
+                            {
+                                <div class="text-truncate"><i class="bi bi-bar-chart-steps"></i> @string.Join(", ", r.Categorias)</div>
+                            }
+                            @if (r.Clubes.Any())
+                            {
+                                <div class="text-truncate"><i class="bi bi-shop"></i> @string.Join(", ", r.Clubes)</div>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
         </div>

@@ -13,9 +13,9 @@ public class BuscaJogadoresTests
 {
     private static async Task<BuscaJogadoresVM> Buscar(DbPadelContext ctx,
         string? q = null, int? categoriaId = null, string? estado = null, string? cidade = null, int? clubeId = null,
-        int pagina = 1)
+        int pagina = 1, int? logadoComo = null)
     {
-        var controller = TestInfra.NovoJogadoresController(ctx);
+        var controller = TestInfra.NovoJogadoresController(ctx, logadoComo);
         var result = (ViewResult)await controller.Buscar(q, categoriaId, estado, cidade, clubeId, pagina);
         return (BuscaJogadoresVM)result.Model!;
     }
@@ -229,5 +229,109 @@ public class BuscaJogadoresTests
         Assert.Equal(100, achado.Pontos);          // campeão = 100
         Assert.Equal("Nata Padel", achado.Time);
         Assert.Contains("2ª Masculina", achado.Categorias);
+    }
+
+    // ---------- SEGUIR SEM SAIR DA BUSCA ----------
+    // Achar parceiro e seguir eram duas telas: a busca só levava ao perfil, e era lá que o
+    // botão morava. Quem varria a lista tinha que entrar e voltar pessoa por pessoa.
+
+    [Fact]
+    public async Task Quem_eu_ja_sigo_vem_marcado_no_resultado()
+    {
+        // É o que separa o botão "Seguir" do "Seguindo" — sem isso o card ofereceria seguir
+        // de novo quem eu já sigo, e o clique não faria nada.
+        using var ctx = TestInfra.NovoContexto();
+        var eu = NovoJogador(ctx, "Eu Mesmo", "1");
+        var seguido = NovoJogador(ctx, "Ja Sigo", "2");
+        var estranho = NovoJogador(ctx, "Nao Sigo", "3");
+        ctx.SeguidoresJogador.Add(new SeguidorJogador { SeguidorId = eu.Id, SeguidoId = seguido.Id });
+        ctx.SaveChanges();
+
+        var vm = await Buscar(ctx, logadoComo: eu.Id);
+
+        Assert.Equal(eu.Id, vm.MeuId);
+        Assert.True(vm.Resultados.Single(r => r.Jogador.Id == seguido.Id).EuSigo);
+        Assert.False(vm.Resultados.Single(r => r.Jogador.Id == estranho.Id).EuSigo);
+    }
+
+    [Fact]
+    public async Task Visitante_deslogado_nao_leva_botao_de_seguir()
+    {
+        // A tela é pública. Sem o `MeuId` nulo aqui, um `int.Parse` num claim inexistente
+        // derrubaria a busca inteira pra quem chegou pelo link compartilhado.
+        using var ctx = TestInfra.NovoContexto();
+        NovoJogador(ctx, "Ana", "1");
+
+        var vm = await Buscar(ctx);
+
+        Assert.Null(vm.MeuId);
+        Assert.All(vm.Resultados, r => Assert.False(r.EuSigo));
+    }
+
+    [Fact]
+    public async Task Seguir_pela_busca_volta_pra_busca_com_os_filtros()
+    {
+        // O que a busca precisa preservar são os FILTROS: cair no perfil de quem foi seguido
+        // apagaria o resultado que a pessoa montou, e ela teria que refazer a busca a cada
+        // pessoa que seguisse.
+        using var ctx = TestInfra.NovoContexto();
+        var eu = NovoJogador(ctx, "Eu Mesmo", "1");
+        var alvo = NovoJogador(ctx, "Parceiro", "2");
+        var controller = ControllerComUrlDeVerdade(ctx, eu.Id);
+
+        var destino = "/Jogadores/Buscar?cidade=Gravata%C3%AD&pagina=2";
+        var resultado = await controller.Seguir(alvo.Id, voltarParaRede: null, voltarPara: destino);
+
+        Assert.Equal(destino, Assert.IsType<LocalRedirectResult>(resultado).Url);
+        Assert.True(ctx.SeguidoresJogador.Any(s => s.SeguidorId == eu.Id && s.SeguidoId == alvo.Id));
+    }
+
+    [Fact]
+    public async Task Destino_de_fora_do_site_e_ignorado_no_botao_de_seguir()
+    {
+        // ⚠️ O campo do formulário é editável por quem quiser: sem o IsLocalUrl, o botão de
+        // seguir viraria trampolim pra jogar quem clica em site de fora.
+        using var ctx = TestInfra.NovoContexto();
+        var eu = NovoJogador(ctx, "Eu Mesmo", "1");
+        var alvo = NovoJogador(ctx, "Parceiro", "2");
+        var controller = ControllerComUrlDeVerdade(ctx, eu.Id);
+
+        var resultado = await controller.Seguir(alvo.Id, voltarParaRede: null, voltarPara: "https://site-de-fora.com");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(resultado);
+        Assert.Equal("Perfil", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Deixar_de_seguir_pela_busca_tambem_volta_pra_busca()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var eu = NovoJogador(ctx, "Eu Mesmo", "1");
+        var alvo = NovoJogador(ctx, "Parceiro", "2");
+        ctx.SeguidoresJogador.Add(new SeguidorJogador { SeguidorId = eu.Id, SeguidoId = alvo.Id });
+        ctx.SaveChanges();
+        var controller = ControllerComUrlDeVerdade(ctx, eu.Id);
+
+        var resultado = await controller.DeixarDeSeguir(alvo.Id, voltarParaRede: null, voltarPara: "/Jogadores/Buscar?q=Ana");
+
+        Assert.Equal("/Jogadores/Buscar?q=Ana", Assert.IsType<LocalRedirectResult>(resultado).Url);
+        Assert.False(ctx.SeguidoresJogador.Any(s => s.SeguidorId == eu.Id && s.SeguidoId == alvo.Id));
+    }
+
+    // UrlHelper de verdade, não dublê: quem decide se o destino é de fora é o IsLocalUrl
+    // dele, e é exatamente isso que estes testes precisam exercitar.
+    private static JogadoresController ControllerComUrlDeVerdade(DbPadelContext ctx, int logadoComo)
+    {
+        var controller = TestInfra.NovoJogadoresController(ctx, logadoComo);
+
+        // O rota dublada é só pra não estourar: seguir alguém monta o link do aviso com
+        // `Url.Action`, e o UrlHelper de verdade vai buscar o roteador na lista — vazia, ele
+        // quebraria antes de chegar no redirecionamento, que é o que se mede aqui.
+        var rotas = new Microsoft.AspNetCore.Routing.RouteData();
+        rotas.Routers.Add(Substitute.For<Microsoft.AspNetCore.Routing.IRouter>());
+
+        controller.Url = new Microsoft.AspNetCore.Mvc.Routing.UrlHelper(new ActionContext(
+            controller.HttpContext, rotas, new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor()));
+        return controller;
     }
 }

@@ -188,10 +188,29 @@ public class JogadoresController : Controller
         return View((jogador, historicoDuplas));
     }
 
+    // Pra onde volta quem apertou o botão de seguir. São três telas com o mesmo botão e
+    // nenhuma delas deveria "sumir" depois do clique:
+    // - a busca manda a URL inteira (`voltarPara`), porque o que ela precisa preservar são os
+    //   filtros e a página — cair no perfil de quem foi seguido apagaria o resultado montado;
+    // - a rede manda só o id do dono da lista;
+    // - o perfil não manda nada e volta pra si mesmo.
+    //
+    // ⚠️ `IsLocalUrl` não é ornamento: sem ele o formulário viraria trampolim pra jogar quem
+    // clica em site de fora.
+    private IActionResult VoltarDoSeguir(int id, int? voltarParaRede, string? voltarPara)
+    {
+        if (!string.IsNullOrWhiteSpace(voltarPara) && Url.IsLocalUrl(voltarPara))
+            return LocalRedirect(voltarPara);
+
+        return voltarParaRede is int redeDe
+            ? RedirectToAction(nameof(Rede), new { id = redeDe })
+            : RedirectToAction("Perfil", new { id });
+    }
+
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Seguir(int id, int? voltarParaRede = null)
+    public async Task<IActionResult> Seguir(int id, int? voltarParaRede = null, string? voltarPara = null)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         if (meuId != id)
@@ -215,15 +234,13 @@ public class JogadoresController : Controller
             }
         }
 
-        return voltarParaRede is int redeDe
-            ? RedirectToAction(nameof(Rede), new { id = redeDe })
-            : RedirectToAction("Perfil", new { id });
+        return VoltarDoSeguir(id, voltarParaRede, voltarPara);
     }
 
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeixarDeSeguir(int id, int? voltarParaRede = null)
+    public async Task<IActionResult> DeixarDeSeguir(int id, int? voltarParaRede = null, string? voltarPara = null)
     {
         var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var vinculo = await _context.SeguidoresJogador
@@ -237,9 +254,7 @@ public class JogadoresController : Controller
         // Deixar de seguir NÃO avisa ninguém, de propósito: é a única das quatro ações do
         // perfil que a outra pessoa preferia não saber, e avisar transformaria um botão
         // discreto num recado constrangedor.
-        return voltarParaRede is int redeDe
-            ? RedirectToAction(nameof(Rede), new { id = redeDe })
-            : RedirectToAction("Perfil", new { id });
+        return VoltarDoSeguir(id, voltarParaRede, voltarPara);
     }
 
     // QUEM TE SEGUE e QUEM VOCÊ SEGUE, as duas listas na mesma tela.
@@ -510,6 +525,9 @@ public class JogadoresController : Controller
             Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim().ToUpper(),
             Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim(),
             ClubeId = clubeId,
+            MeuId = User.Identity?.IsAuthenticated == true
+                ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
+                : null,
         };
 
         // Opções dos selects. As cidades já saem filtradas pelo estado escolhido.
@@ -612,9 +630,18 @@ public class JogadoresController : Controller
 
         bool filtraPreferencia = vm.CategoriaId != null || vm.ClubeId != null;
 
+        // Quem EU já sigo, entre os desta página. Uma consulta só, restrita aos 30 da página:
+        // é o que decide o botão do card sem carregar a minha lista de seguidos inteira.
+        var jaSigo = vm.MeuId == null
+            ? new HashSet<int>()
+            : (await _context.SeguidoresJogador
+                .Where(s => s.SeguidorId == vm.MeuId.Value && ids.Contains(s.SeguidoId))
+                .Select(s => s.SeguidoId).ToListAsync()).ToHashSet();
+
         vm.Resultados = jogadores.Select(j => new JogadorEncontradoVM
         {
             Jogador = j,
+            EuSigo = jaSigo.Contains(j.Id),
             Pontos = pontos.GetValueOrDefault(j.Id),
             Time = j.Time?.Nome,
             Categorias = catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
