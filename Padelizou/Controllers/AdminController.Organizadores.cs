@@ -185,10 +185,31 @@ namespace padelizou.Controllers
             // não quer um push pra base inteira anunciando o evento dele.
             if (!torneio.Oculto)
             {
-                var elegiveis = await _context.Jogadores
+                // MIRA POR ESTADO (decisão do Felipe, 10/08/2026). Este é o único aviso do
+                // sistema proporcional ao TAMANHO DA BASE, e anunciar em Porto Alegre um
+                // torneio de São Paulo não serve pra ninguém dos dois lados.
+                //
+                // ⚠️ DUAS PORTAS DE ESCAPE, e as duas existem pra NÃO encolher alcance por
+                // falta de dado — que seria um defeito mudo, do tipo que ninguém reclama
+                // porque ninguém sabe do que deixou de saber:
+                //   • torneio sem UF conhecida (ver UfDoTorneio) → vai pra base inteira;
+                //   • jogador com o estado EM BRANCO → continua recebendo. São 44 das 172
+                //     contas ativas hoje, e o campo nunca foi obrigatório.
+                var ufDoTorneio = await UfDoTorneio.DescobrirAsync(_context, torneio.Id);
+
+                var candidatos = await _context.Jogadores
                     .Where(j => j.NotificarTorneiosAbertos && j.ExcluidoEm == null)
-                    .Select(j => j.Id)
+                    .Select(j => new { j.Id, j.Estado })
                     .ToListAsync();
+
+                // ⚠️ O filtro roda EM MEMÓRIA de propósito: `Jogador.Estado` é texto livre
+                // ("RS", "Rs", "rs", "Rio Grande do Sul (RS)") e quem casa isso é o
+                // UnidadeFederativa, que o banco não sabe executar. Comparar direto no SQL
+                // deixaria 39 pessoas do RS de fora — conferido em produção.
+                var elegiveis = candidatos
+                    .Where(j => ufDoTorneio == null || UnidadeFederativa.Combina(j.Estado, ufDoTorneio))
+                    .Select(j => j.Id)
+                    .ToList();
 
                 var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
                 foreach (var jogadorId in elegiveis)
