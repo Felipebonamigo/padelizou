@@ -34,14 +34,20 @@ public static class CatalogoLocais
     {
         nome = Normalizar(nome);
         if (nome == null) return null;
+        nome = NomeDeCidade.Arrumar(nome);   // "Porto    Alegre" e "Porto Alegre" são a mesma linha
 
         // UF sempre em maiúsculas, pra não existir "rs" e "RS" na lista.
         estado = Normalizar(estado)?.ToUpperInvariant();
         if (estado is { Length: > 2 }) estado = estado[..2];
 
-        var alvo = nome.ToLower();
-        var existente = await db.Cidades.FirstOrDefaultAsync(c =>
-            c.Nome.ToLower() == alvo && (estado == null || c.Estado == null || c.Estado == estado));
+        // ⚠️ Compara por `NomeDeCidade.Chave` e não por `ToLower()`: minúscula sozinha resolve
+        // "GRAVATAI" e deixa passar "Gravatai" — foi assim que grafia sem acento virou uma
+        // SEGUNDA linha de catálogo ao lado da certa, com metade dos professores em cada uma.
+        // A conta roda na memória porque `Chave` não vira SQL; Cidades é catálogo, tem dezenas
+        // de linhas (mesma escolha já feita em AulasController.MinhasCidades).
+        var chave = NomeDeCidade.Chave(nome);
+        var existente = (await db.Cidades.ToListAsync()).FirstOrDefault(c =>
+            NomeDeCidade.Chave(c.Nome) == chave && (estado == null || c.Estado == null || c.Estado == estado));
         if (existente != null) return existente;
 
         var cidade = new Cidade { Nome = nome, Estado = estado };

@@ -19,8 +19,15 @@ public interface IEstatisticasService
     // Filtro regional: ids dos jogadores de um estado + uma ou VÁRIAS cidades. null = sem filtro (país todo).
     Task<HashSet<int>?> ObterJogadoresDoLocalAsync(IEnumerable<string>? cidades, string? estado);
 
-    // Estados/cidades existentes no cadastro de jogadores, para montar os selects do filtro.
-    Task<(List<string> Estados, List<string> Cidades)> ObterLocaisDisponiveisAsync(string? estado);
+    // Estados/cidades existentes no cadastro de jogadores, para montar os selects do filtro —
+    // já sem repetir grafia da mesma cidade. `somenteQuemJogouTorneio` é a régua do RANKING:
+    // ali só faz sentido oferecer cidade que tem alguém com resultado de torneio.
+    Task<(List<string> Estados, List<string> Cidades)> ObterLocaisDisponiveisAsync(
+        string? estado, bool somenteQuemJogouTorneio = false);
+
+    // Todas as grafias de uma cidade escolhida na tela ("Gravataí" também é "GRAVATAI"), pra
+    // consulta feita fora deste serviço continuar achando todo mundo.
+    Task<List<string>> ObterGrafiasDasCidadesAsync(IEnumerable<string> escolhidas);
 
     // Pontos que cada time somou dentro de UM torneio (pontos das duplas atribuídos ao
     // time que cada jogador representa). Ordenado por pontos.

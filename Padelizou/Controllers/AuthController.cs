@@ -438,6 +438,15 @@ namespace padelizou.Controllers
                 .Select(a => a.Time)
                 .FirstOrDefaultAsync();
 
+        // As grafias de cidade que já existem no cadastro, pra quem digitar agora escrever
+        // igual a quem digitou antes. Sem `Distinct`: a repetição É o dado — entre duas
+        // grafias empatadas, ganha a que mais gente escreveu.
+        private Task<List<string>> CidadesJaCadastradasAsync() =>
+            _context.Jogadores
+                .Where(j => j.Cidade != null && j.Cidade != "")
+                .Select(j => j.Cidade!)
+                .ToListAsync();
+
         // Salva o logo do time em wwwroot/uploads/logos-time e devolve o caminho relativo,
         // ou null se a imagem não pôde ser processada.
         private Task<ResultadoDaImagem> SalvarLogoTimeAsync(IFormFile arquivo) =>
@@ -550,9 +559,14 @@ namespace padelizou.Controllers
             jogador.Email = email;
             jogador.Celular = Documentos.SomenteDigitosOuNulo(celular);
             // A cidade do perfil é texto livre e alimenta o filtro do ranking. Sem arrumar na
-            // entrada, "Gravataí ", "Gravataí" e "gravataí " viram três opções na lista. Isto
-            // resolve espaço sobrando e duplicado; acento continua por conta de quem digita.
-            jogador.Cidade = string.IsNullOrWhiteSpace(cidade) ? null : NomeDeCidade.Arrumar(cidade);
+            // entrada, "Gravataí ", "Gravataí" e "gravataí " viram três opções na lista.
+            //
+            // ⚠️ Além de tirar espaço sobrando, grava a cidade do jeito que o cadastro JÁ a
+            // escreve: quem digita "gravatai" fica com "Gravataí" se ela já existe assim. Sem
+            // isto, cada pessoa nova acrescenta mais uma grafia e a lista só cresce.
+            jogador.Cidade = string.IsNullOrWhiteSpace(cidade)
+                ? null
+                : CidadesSemRepetir.EscritaComoAsOutras(cidade, await CidadesJaCadastradasAsync());
             jogador.Estado = string.IsNullOrWhiteSpace(estado) ? null : estado.Trim();
 
             // ⚠️ Só grava quando veio um valor RECONHECIDO. Campo em branco (aba antiga, ou
@@ -858,7 +872,9 @@ namespace padelizou.Controllers
         {
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+            // Agrupado: catálogo com "Gravataí" e "Gravatai" mostrava duas caixinhas com o
+            // mesmo nome, e marcar uma ou outra decidia se o aviso de quadra vaga chegava.
+            ViewBag.CatalogoCidades = CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync());
             ViewBag.CatalogoTimes = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
         }
 
@@ -1091,7 +1107,9 @@ namespace padelizou.Controllers
 
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.CatalogoCidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+            // Agrupado: catálogo com "Gravataí" e "Gravatai" mostrava duas caixinhas com o
+            // mesmo nome, e marcar uma ou outra decidia se o aviso de quadra vaga chegava.
+            ViewBag.CatalogoCidades = CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync());
             // A lista de cidades é nacional e só cresce. Abrir já filtrada pelo estado de quem
             // está na tela deixa à vista as poucas que interessam — o resto continua a um
             // clique no seletor de UF.

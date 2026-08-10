@@ -32,6 +32,14 @@ namespace Padelizou.Controllers
             _logger = logger;
         }
 
+        // Cidade em branco continua nula: campo vazio não pode virar cidade de nome vazio,
+        // que todo mundo depois passaria a reusar.
+        private static string? CidadeDigitada(string? digitada, IEnumerable<string> conhecidas)
+        {
+            var nome = CidadesSemRepetir.EscritaComoAsOutras(digitada, conhecidas);
+            return nome.Length == 0 ? null : nome;
+        }
+
         // Notifica quem segue algum dos dois jogadores recém-inscritos e tem
         // NotificarSeguidosTorneio marcado — mesma lógica do gancho equivalente em
         // TorneiosController.InscreverIndividual, duplicada aqui de propósito (mesmo padrão
@@ -337,8 +345,16 @@ namespace Padelizou.Controllers
                 jogador1 = new Jogador { Nome = nome1, Cpf = cpf1 };
                 _context.Jogadores.Add(jogador1);
             }
+            // A cidade digitada aqui vira opção do filtro do ranking, e este formulário é
+            // PÚBLICO e preenchido às pressas no dia da inscrição — é dele que saem
+            // "GRAVATAI" e "porto alegre". Grava do jeito que o cadastro já escreve.
+            var cidadesConhecidas = await _context.Jogadores
+                .Where(j => j.Cidade != null && j.Cidade != "")
+                .Select(j => j.Cidade!)
+                .ToListAsync();
+
             jogador1.Celular = string.IsNullOrWhiteSpace(jogador1.Celular) ? celular1?.Trim() : jogador1.Celular;
-            jogador1.Cidade = string.IsNullOrWhiteSpace(jogador1.Cidade) ? cidade1?.Trim() : jogador1.Cidade;
+            jogador1.Cidade = string.IsNullOrWhiteSpace(jogador1.Cidade) ? CidadeDigitada(cidade1, cidadesConhecidas) : jogador1.Cidade;
             jogador1.Estado = string.IsNullOrWhiteSpace(jogador1.Estado) ? estado1?.Trim() : jogador1.Estado;
 
             if (!semParceiro)
@@ -349,7 +365,7 @@ namespace Padelizou.Controllers
                     _context.Jogadores.Add(jogador2);
                 }
                 jogador2.Celular = string.IsNullOrWhiteSpace(jogador2.Celular) ? celular2?.Trim() : jogador2.Celular;
-                jogador2.Cidade = string.IsNullOrWhiteSpace(jogador2.Cidade) ? cidade2?.Trim() : jogador2.Cidade;
+                jogador2.Cidade = string.IsNullOrWhiteSpace(jogador2.Cidade) ? CidadeDigitada(cidade2, cidadesConhecidas) : jogador2.Cidade;
                 jogador2.Estado = string.IsNullOrWhiteSpace(jogador2.Estado) ? estado2?.Trim() : jogador2.Estado;
             }
 

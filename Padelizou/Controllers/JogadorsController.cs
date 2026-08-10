@@ -516,6 +516,8 @@ public class JogadoresController : Controller
         var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(vm.Estado);
         vm.Estados = estados;
         vm.Cidades = cidades;
+        // Escrita igual à da lista, senão a cidade escolhida não fica marcada no select.
+        vm.Cidade = CidadesSemRepetir.Canonizar(new[] { vm.Cidade }, cidades).FirstOrDefault();
         vm.Categorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
         vm.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
 
@@ -530,8 +532,15 @@ public class JogadoresController : Controller
         if (vm.Estado != null)
             query = query.Where(j => j.Estado != null && j.Estado.ToUpper() == vm.Estado);
 
+        // ⚠️ Casa com TODAS as grafias da cidade escolhida, não com o texto exato: a opção do
+        // select virou uma só ("Gravataí"), e comparar por igualdade esconderia da busca quem
+        // digitou "GRAVATAI" no cadastro — exatamente quem esta tela existe pra achar.
         if (vm.Cidade != null)
-            query = query.Where(j => j.Cidade != null && j.Cidade.ToUpper() == vm.Cidade.ToUpper());
+        {
+            var grafias = (await _estatisticas.ObterGrafiasDasCidadesAsync(new[] { vm.Cidade }))
+                .Select(g => g.ToUpper()).ToList();
+            query = query.Where(j => j.Cidade != null && grafias.Contains(j.Cidade.ToUpper()));
+        }
 
         // Categoria e clube vivem em tabelas de ligação, e "sem nenhuma linha" significa
         // "aceita qualquer uma" (ver JogadorCategoria/JogadorClube) — quem não declarou
@@ -674,9 +683,18 @@ public class JogadoresController : Controller
         var hub = await _estatisticas.ObterRankingHubAsync(cidade, estado, periodo);
 
         // Opções dos selects de cidade/estado (cidades já filtradas pelo estado escolhido).
-        var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(estado);
+        // ⚠️ `somenteQuemJogouTorneio`: esta página é ranking, e ranking aqui só existe a
+        // partir de resultado de torneio. Cidade sem ninguém que jogou é opção que só sabe
+        // devolver tabela vazia — e era por essa porta que entravam na lista os apelidos e as
+        // grafias soltas que cada um digita no cadastro.
+        var (estados, cidades) = await _estatisticas.ObterLocaisDisponiveisAsync(estado, somenteQuemJogouTorneio: true);
         hub.EstadosDisponiveis = estados;
         hub.CidadesDisponiveis = cidades;
+
+        // O que veio na URL passa a ser escrito como a lista escreve: link antigo com
+        // `?cidade=GRAVATAI` mostraria o chip "GRAVATAI" e o select ofereceria "Gravataí" ao
+        // lado — a mesma cidade duas vezes na mesma linha.
+        hub.Cidades = CidadesSemRepetir.Canonizar(hub.Cidades, cidades);
 
         // Abas Padelímetro e Ranking Americano (RANKING.md): as duas respeitam o mesmo filtro
         // regional do hub. O Americano é ranking PRÓPRIO — não soma com o oficial, e por isso

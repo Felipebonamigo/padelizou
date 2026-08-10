@@ -28,7 +28,7 @@
                                 <option value="">-- Escolha uma cidade --</option>
                                 @foreach (var cidade in Model.Cidades)
                                 {
-                                    <option value="@cidade.Id">@cidade.Nome@(string.IsNullOrEmpty(cidade.Estado) ? "" : $" - {cidade.Estado}")</option>
+                                    <option value="@cidade.Id">@cidade.Rotulo</option>
                                 }
                             </select>
                             @if (!Model.Cidades.Any())

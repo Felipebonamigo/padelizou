@@ -5,7 +5,7 @@
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
     var medias = ViewBag.Medias as Dictionary<int, (double Media, int Total)> ?? new();
     var precos = ViewBag.Precos as Dictionary<int, decimal> ?? new();
-    var cidades = ViewBag.Cidades as List<Padelizou.Models.Cidade> ?? new();
+    var cidades = ViewBag.Cidades as List<Padelizou.Services.CidadeNaLista> ?? new();
     var cidadeId = ViewBag.CidadeId as int?;
 }
 
@@ -20,9 +20,11 @@
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-geo-alt"></i></span>
             <select name="cidadeId" class="form-select border-start-0" onchange="this.form.submit()">
                 <option value="">Todas as cidades</option>
+            @* `Ids.Contains` e não `== c.Id`: link antigo pode trazer a OUTRA linha de catálogo
+               da mesma cidade, e a opção precisa aparecer marcada do mesmo jeito. *@
                 @foreach (var c in cidades)
                 {
-                    <option value="@c.Id" selected="@(cidadeId == c.Id)">@c.Nome</option>
+                    <option value="@c.Id" selected="@(cidadeId != null && c.Ids.Contains(cidadeId.Value))">@c.Rotulo</option>
                 }
             </select>
         </div>

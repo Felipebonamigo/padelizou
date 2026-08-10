@@ -244,7 +244,15 @@ namespace padelizou.Controllers
 
             ViewBag.Marcacao = marcacao;
             ViewBag.Categorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Nome).ToListAsync();
-            ViewBag.Cidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+
+            // Só cidade onde tem alguém marcado: esta tela existe pra ACHAR jogador, e cidade
+            // sem ninguém é opção que só sabe devolver lista vazia.
+            var cidadesComJogador = await _context.JogadorCidades
+                .Select(jc => jc.Cidade)
+                .Distinct()
+                .ToListAsync();
+
+            ViewBag.Cidades = CidadesSemRepetir.Agrupar(cidadesComJogador);
             ViewBag.CategoriaId = categoriaId;
             ViewBag.CidadeId = cidadeId;
 
@@ -257,8 +265,12 @@ namespace padelizou.Controllers
                 if (categoriaId.HasValue)
                     query = query.Where(j => _context.JogadorCategorias.Any(c => c.JogadorId == j.Id && c.CategoriaPadraoId == categoriaId));
 
+                // Todos os ids da mesma cidade — ver CidadesSemRepetir.IdsDaMesma.
                 if (cidadeId.HasValue)
-                    query = query.Where(j => _context.JogadorCidades.Any(c => c.JogadorId == j.Id && c.CidadeId == cidadeId));
+                {
+                    var ids = CidadesSemRepetir.IdsDaMesma(cidadeId.Value, cidadesComJogador);
+                    query = query.Where(j => _context.JogadorCidades.Any(c => c.JogadorId == j.Id && ids.Contains(c.CidadeId)));
+                }
 
                 jogadores = await query.OrderBy(j => j.Nome).ToListAsync();
             }

@@ -22,17 +22,22 @@ namespace padelizou.Controllers
                 .Where(pc => pc.Professor.IsProfessor)
                 .Select(pc => pc.Cidade)
                 .Distinct()
-                .OrderBy(c => c.Nome)
                 .ToListAsync();
 
-            return View(new SolicitarViewModel { Cidades = cidadesComProfessor });
+            // Esta tela já mostrava só cidade COM professor; o que faltava era não mostrar a
+            // mesma cidade duas vezes quando o catálogo tem duas linhas pra ela.
+            return View(new SolicitarViewModel { Cidades = CidadesSemRepetir.Agrupar(cidadesComProfessor) });
         }
 
         [HttpGet]
         public async Task<IActionResult> ObterProfessoresPorCidade(int cidadeId)
         {
+            // ⚠️ Todos os ids da mesma cidade: com duas linhas de catálogo pra "Gravataí", o
+            // aluno escolhia uma e metade dos professores não aparecia — sem erro nenhum.
+            var idsDaCidade = CidadesSemRepetir.IdsDaMesma(cidadeId, await _context.Cidades.ToListAsync());
+
             var professores = await _context.ProfessorCidades
-                .Where(pc => pc.CidadeId == cidadeId && pc.Professor.IsProfessor)
+                .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
                 .Select(pc => new { pc.Professor.Id, pc.Professor.Nome })
                 .OrderBy(p => p.Nome)
                 .ToListAsync();

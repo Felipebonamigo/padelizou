@@ -31,9 +31,21 @@ public class ProfessoresController : Controller
     {
         var query = _context.Jogadores.Where(j => j.IsProfessor);
 
+        // O filtro só oferece cidade que TEM professor: a vitrine listava o catálogo inteiro,
+        // então dava pra escolher uma cidade e receber de volta uma tela vazia — e o catálogo
+        // é alimentado por quem digita a própria cidade nas preferências, não por quem dá aula.
+        var cidadesComProfessor = await _context.ProfessorCidades
+            .Where(pc => pc.Professor.IsProfessor)
+            .Select(pc => pc.Cidade)
+            .Distinct()
+            .ToListAsync();
+
         if (cidadeId != null)
         {
-            query = query.Where(j => _context.ProfessorCidades.Any(pc => pc.ProfessorId == j.Id && pc.CidadeId == cidadeId));
+            // ⚠️ Todos os ids da MESMA cidade, não só o escolhido: com "Gravataí" e "Gravatai"
+            // como duas linhas do catálogo, filtrar por uma escondia os professores da outra.
+            var idsDaCidade = CidadesSemRepetir.IdsDaMesma(cidadeId.Value, cidadesComProfessor);
+            query = query.Where(j => _context.ProfessorCidades.Any(pc => pc.ProfessorId == j.Id && idsDaCidade.Contains(pc.CidadeId)));
         }
 
         var professores = await query.OrderBy(j => j.Nome).ToListAsync();
@@ -56,7 +68,7 @@ public class ProfessoresController : Controller
 
         ViewBag.Medias = medias;
         ViewBag.Precos = precos;
-        ViewBag.Cidades = await _context.Cidades.OrderBy(c => c.Nome).ToListAsync();
+        ViewBag.Cidades = CidadesSemRepetir.Agrupar(cidadesComProfessor);
         ViewBag.CidadeId = cidadeId;
 
         return View(professores);

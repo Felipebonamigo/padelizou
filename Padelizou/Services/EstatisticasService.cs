@@ -119,16 +119,29 @@ public class EstatisticasService : IEstatisticasService
         return 0;
     }
 
+    // Todas as grafias que uma cidade escolhida na tela tem no cadastro. Quem escolhe
+    // "Gravataí" está escolhendo também quem digitou "GRAVATAI" e "gravatai" — o filtro
+    // compara do jeito que uma PESSOA compara, senão a opção única do <select> traria só uma
+    // fatia dos jogadores e ninguém teria como perceber.
+    public async Task<List<string>> ObterGrafiasDasCidadesAsync(IEnumerable<string> escolhidas)
+    {
+        var conhecidas = await _context.Jogadores
+            .Where(j => j.Cidade != null && j.Cidade != "")
+            .Select(j => j.Cidade!)
+            .Distinct().ToListAsync();
+
+        return CidadesSemRepetir.GrafiasDe(escolhidas, conhecidas);
+    }
+
     // Ids dos jogadores que batem com o filtro de estado + cidades. null = sem filtro (país todo).
     // Pode receber VÁRIAS cidades (jogador entra se estiver em qualquer uma delas).
     // Cidade/Estado são texto livre no cadastro, então compara sem diferenciar maiúsculas.
     public async Task<HashSet<int>?> ObterJogadoresDoLocalAsync(IEnumerable<string>? cidades, string? estado)
     {
-        var listaCidades = (cidades ?? Enumerable.Empty<string>())
+        var escolhidas = (cidades ?? Enumerable.Empty<string>())
             .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Select(c => c.Trim().ToUpper())
             .Distinct().ToList();
-        bool temCidade = listaCidades.Count > 0;
+        bool temCidade = escolhidas.Count > 0;
         bool temEstado = !string.IsNullOrWhiteSpace(estado);
         if (!temCidade && !temEstado) return null;
 
@@ -140,29 +153,62 @@ public class EstatisticasService : IEstatisticasService
         }
         if (temCidade)
         {
-            q = q.Where(j => j.Cidade != null && listaCidades.Contains(j.Cidade.ToUpper()));
+            var grafias = (await ObterGrafiasDasCidadesAsync(escolhidas))
+                .Select(g => g.ToUpper()).ToList();
+            q = q.Where(j => j.Cidade != null && grafias.Contains(j.Cidade.ToUpper()));
         }
         return (await q.Select(j => j.Id).ToListAsync()).ToHashSet();
     }
 
-    // Estados e cidades que existem no cadastro de jogadores (para os selects do filtro).
-    // Se estado != null, as cidades saem só daquele estado.
-    public async Task<(List<string> Estados, List<string> Cidades)> ObterLocaisDisponiveisAsync(string? estado)
+    // Estados e cidades para os selects do filtro, já SEM REPETIR: as grafias da mesma cidade
+    // viram uma opção só (ver `CidadesSemRepetir`).
+    //
+    // `somenteQuemJogouTorneio` é o filtro do RANKING, e ele nasce do que a própria página diz
+    // na primeira linha: tudo ali é calculado só a partir de resultados de torneio. Cidade sem
+    // nenhum jogador com resultado é opção que só sabe devolver tabela vazia — e era por essa
+    // porta que entrava na lista todo apelido de cidade digitado no cadastro.
+    public async Task<(List<string> Estados, List<string> Cidades)> ObterLocaisDisponiveisAsync(
+        string? estado, bool somenteQuemJogouTorneio = false)
     {
-        var estados = await _context.Jogadores
+        var q = _context.Jogadores.AsQueryable();
+
+        if (somenteQuemJogouTorneio)
+        {
+            // ⚠️ `DuplaContaNoRanking` e `NomeTime == null`, a mesma régua das outras consultas
+            // daqui: torneio restrito e Americano não entram no ranking oficial, e linha de
+            // TIME tem o organizador no `Jogador1Id` sem ele ter jogado nada. Sem os dois, a
+            // lista de cidades prometeria ranking onde a tabela vem vazia.
+            var inscricoes = await _context.Duplas
+                .Where(DuplaContaNoRanking)
+                .Where(d => d.NomeTime == null)
+                .Select(d => new { d.Jogador1Id, d.Jogador2Id })
+                .Distinct()
+                .ToListAsync();
+
+            var ids = inscricoes
+                .SelectMany(d => new int?[] { d.Jogador1Id, d.Jogador2Id })
+                .Where(id => id != null)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            q = q.Where(j => ids.Contains(j.Id));
+        }
+
+        var estados = await q
             .Where(j => j.Estado != null && j.Estado != "")
             .Select(j => j.Estado!.ToUpper())
             .Distinct().OrderBy(e => e).ToListAsync();
 
-        var qc = _context.Jogadores.Where(j => j.Cidade != null && j.Cidade != "");
+        var qc = q.Where(j => j.Cidade != null && j.Cidade != "");
         if (!string.IsNullOrWhiteSpace(estado))
         {
             var uf = estado.Trim().ToUpper();
             qc = qc.Where(j => j.Estado != null && j.Estado.ToUpper() == uf);
         }
-        var cidades = await qc.Select(j => j.Cidade!).Distinct().OrderBy(c => c).ToListAsync();
+        var grafias = await qc.Select(j => j.Cidade!).Distinct().ToListAsync();
 
-        return (estados, cidades);
+        return (estados, CidadesSemRepetir.Nomes(grafias));
     }
 
     public async Task<List<RankingCategoriaVM>> ObterRankingPorCategoriaAsync(

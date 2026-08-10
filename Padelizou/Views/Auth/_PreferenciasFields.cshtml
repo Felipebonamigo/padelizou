@@ -2,7 +2,7 @@
 @{
     var catalogoCategorias = (List<CategoriaPadrao>)ViewBag.CatalogoCategorias;
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
-    var catalogoCidades = (List<Cidade>)ViewBag.CatalogoCidades;
+    var catalogoCidades = (List<Padelizou.Services.CidadeNaLista>)ViewBag.CatalogoCidades;
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
     string[] periodos = { "Manhã", "Tarde", "Noite" };
 }
@@ -290,8 +290,10 @@
         @foreach (var cidade in cidadesOrdenadas)
         {
             <div class="form-check form-check-inline pdz-cidade" data-uf="@((cidade.Estado ?? "").Trim().ToUpperInvariant())">
-                <input class="form-check-input" type="checkbox" name="cidadesSelecionadas" value="@cidade.Id" id="cidade_@cidade.Id" @(Model.CidadesSelecionadas.Contains(cidade.Id) ? "checked" : "") />
-                <label class="form-check-label small" for="cidade_@cidade.Id">@cidade.Nome@(cidade.Estado != null ? $" - {cidade.Estado}" : "")</label>
+                @* `Ids.Any` e não `Contains(Id)`: quem já estava marcado na OUTRA linha de
+                   catálogo da mesma cidade tem que continuar aparecendo marcado. *@
+                <input class="form-check-input" type="checkbox" name="cidadesSelecionadas" value="@cidade.Id" id="cidade_@cidade.Id" @(cidade.Ids.Any(id => Model.CidadesSelecionadas.Contains(id)) ? "checked" : "") />
+                <label class="form-check-label small" for="cidade_@cidade.Id">@cidade.Rotulo</label>
             </div>
         }
         @if (!catalogoCidades.Any())

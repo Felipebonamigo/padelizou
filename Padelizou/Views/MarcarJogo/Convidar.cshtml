@@ -3,7 +3,7 @@
     ViewData["Title"] = "Convidar Jogadores - Padelizou";
     var marcacao = (MarcacaoJogo)ViewBag.Marcacao;
     var categorias = (List<CategoriaPadrao>)ViewBag.Categorias;
-    var cidades = (List<Cidade>)ViewBag.Cidades;
+    var cidades = (List<Padelizou.Services.CidadeNaLista>)ViewBag.Cidades;
     int? categoriaId = ViewBag.CategoriaId;
     int? cidadeId = ViewBag.CidadeId;
     string? linkGerado = TempData["WhatsAppLink"] as string;
@@ -49,7 +49,7 @@
                         <option value="">Todas</option>
                         @foreach (var cid in cidades)
                         {
-                            <option value="@cid.Id" selected="@(cidadeId == cid.Id)">@cid.Nome</option>
+                            <option value="@cid.Id" selected="@(cidadeId != null && cid.Ids.Contains(cidadeId.Value))">@cid.Rotulo</option>
                         }
                     </select>
                 </div>

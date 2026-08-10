@@ -378,16 +378,19 @@ namespace padelizou.Controllers
                 .ToListAsync())
                 .ToHashSet();
 
-            var itens = await _context.Cidades
-                .OrderBy(c => c.Nome)
+            // Aqui a lista é o catálogo INTEIRO de propósito — o professor precisa poder marcar
+            // qualquer cidade, inclusive uma onde ainda não há ninguém. O que não pode é a
+            // mesma cidade aparecer duas vezes, com o professor marcando uma e o aluno
+            // procurando na outra.
+            var itens = CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync())
                 .Select(c => new MinhaCidadeItem
                 {
                     CidadeId = c.Id,
                     Nome = c.Nome,
                     Estado = c.Estado,
-                    Vinculada = vinculadas.Contains(c.Id)
+                    Vinculada = c.Ids.Any(vinculadas.Contains)
                 })
-                .ToListAsync();
+                .ToList();
 
             return View(itens);
         }
