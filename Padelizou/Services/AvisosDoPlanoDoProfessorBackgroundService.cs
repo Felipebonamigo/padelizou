@@ -4,13 +4,14 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// Manda o "sua assinatura vai vencer" pro professor assinante — a regra de QUEM e QUANDO mora
-// em Services/LembreteDeAssinaturaVencendo; aqui só se varre o banco e se enfileira o aviso.
+// Avisa o professor quando ele está prestes a perder (ou já perdeu) a taxa menor por aula —
+// tanto pelo fim do teste quanto pelo vencimento da assinatura. A regra de QUEM e QUANDO mora
+// em Services/AvisosDoPlanoDoProfessor; aqui só se varre o banco e se enfileira o aviso.
 //
 // Irmão do LembreteInscricaoNaoPagaBackgroundService, e de propósito: mesmo formato de tick,
 // mesma hora civilizada, mesma coluna decidindo se já avisou. O que muda é de onde parte a
-// pergunta — lá é a inscrição de alguém, aqui é a mensalidade que sustenta a taxa menor.
-public class LembreteAssinaturaVencendoBackgroundService : BackgroundService
+// pergunta — lá é a inscrição de alguém, aqui é o que sustenta a taxa menor do professor.
+public class AvisosDoPlanoDoProfessorBackgroundService : BackgroundService
 {
     // De hora em hora, como o irmão: os marcos são em DIAS e quem decide se já avisou é a
     // coluna. O tick curto só garante pegar a primeira hora civilizada do dia sem depender de
@@ -18,10 +19,10 @@ public class LembreteAssinaturaVencendoBackgroundService : BackgroundService
     private static readonly TimeSpan IntervaloTick = TimeSpan.FromHours(1);
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<LembreteAssinaturaVencendoBackgroundService> _logger;
+    private readonly ILogger<AvisosDoPlanoDoProfessorBackgroundService> _logger;
 
-    public LembreteAssinaturaVencendoBackgroundService(IServiceScopeFactory scopeFactory,
-        ILogger<LembreteAssinaturaVencendoBackgroundService> logger)
+    public AvisosDoPlanoDoProfessorBackgroundService(IServiceScopeFactory scopeFactory,
+        ILogger<AvisosDoPlanoDoProfessorBackgroundService> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
@@ -54,12 +55,12 @@ public class LembreteAssinaturaVencendoBackgroundService : BackgroundService
             var enviados = await VarrerAsync(context, push, cfg, DateTime.Now, stoppingToken);
 
             if (enviados > 0)
-                _logger.LogInformation("{Total} aviso(s) de assinatura vencendo enfileirado(s).", enviados);
+                _logger.LogInformation("{Total} aviso(s) do plano do professor enfileirado(s).", enviados);
         }
         catch (Exception ex)
         {
             // Falhar aqui não pode derrubar o host — na próxima hora tenta de novo.
-            _logger.LogError(ex, "Falha ao avisar assinaturas vencendo.");
+            _logger.LogError(ex, "Falha ao avisar sobre o plano dos professores.");
         }
     }
 
@@ -73,27 +74,31 @@ public class LembreteAssinaturaVencendoBackgroundService : BackgroundService
         // discorda da primeira.
         if (!LembreteDeInscricaoNaoPaga.HoraCivilizada(agora)) return 0;
 
-        // O filtro que o banco sabe fazer: só assinante com mensalidade já paga alguma vez.
-        // O resto da régua (estágio, janela, o que já foi enviado) roda em memória, sobre um
-        // punhado de linhas — são os professores que pagam, não a base inteira.
-        var assinantes = await context.Jogadores
+        // O filtro que o banco sabe fazer: professor que JÁ ENTROU no plano de algum jeito —
+        // abriu a tela (e o relógio do teste começou) ou tem mensalidade paga alguma vez.
+        //
+        // ⚠️ As duas pontas do OU são necessárias. Sem `TesteProfessorInicio` some quem está no
+        // teste, que é metade do serviço; e sem `AssinaturaProfessorPagaAte` some quem foi pago
+        // à MÃO pelo admin sem nunca ter aberto a tela — o RegistrarPagamento grava o "pago
+        // até" e não encosta no relógio do teste.
+        //
+        // O resto da régua (qual mundo, estágio, janela, o que já foi enviado) roda em memória,
+        // sobre um punhado de linhas — são os professores, não a base inteira.
+        var professores = await context.Jogadores
             .Where(j => j.IsProfessor
-                     && j.PlanoProfessor == PlanoDoProfessor.Assinante
-                     && j.AssinaturaProfessorPagaAte != null)
+                     && (j.TesteProfessorInicio != null || j.AssinaturaProfessorPagaAte != null))
             .ToListAsync(stoppingToken);
 
         int avisados = 0;
 
-        foreach (var professor in assinantes)
+        foreach (var professor in professores)
         {
-            var estagio = LembreteDeAssinaturaVencendo.EstagioDevido(professor, agora, cfg);
+            var estagio = AvisosDoPlanoDoProfessor.EstagioDevido(professor, agora, cfg);
             if (estagio == null) continue;
 
-            var pagaAte = professor.AssinaturaProfessorPagaAte!.Value;
-
             await push.EnviarParaJogadorAsync(professor.Id,
-                LembreteDeAssinaturaVencendo.Titulo(estagio.Value),
-                LembreteDeAssinaturaVencendo.Frase(estagio.Value, pagaAte, agora, cfg),
+                AvisosDoPlanoDoProfessor.Titulo(estagio.Value),
+                AvisosDoPlanoDoProfessor.Frase(estagio.Value, professor, agora, cfg),
                 "/PlanoProfessor");
 
             professor.UltimoLembreteDeAssinatura = estagio;

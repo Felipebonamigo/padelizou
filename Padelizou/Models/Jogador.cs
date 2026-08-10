@@ -290,9 +290,14 @@ public partial class Jogador
     // Até quando a mensalidade de assinante está quitada. Nulo = nunca pagou.
     public DateTime? AssinaturaProfessorPagaAte { get; set; }
 
-    // Último estágio de aviso de vencimento já enviado (ver LembreteDeAssinaturaVencendo).
+    // Último estágio de aviso do plano já enviado (ver Services/AvisosDoPlanoDoProfessor).
+    // Guarda os DOIS mundos: a faixa 1x é o fim do teste, a 2x é o vencimento da assinatura.
+    //
     // ⚠️ VOLTA PRA NULO a cada pagamento confirmado, e é isso que faz o ciclo seguinte avisar
     // de novo — sem o zeramento, o professor seria lembrado uma vez na vida.
+    //
+    // O nome ficou de quando só existia o aviso de assinatura; renomear a coluna custaria uma
+    // migration só pra trocar palavra, e o comentário aqui é mais barato que o downtime.
     public int? UltimoLembreteDeAssinatura { get; set; }
 
     // ---- Padelímetro (Services/Padelimetro + RANKING.md) ----

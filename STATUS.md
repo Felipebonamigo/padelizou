@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔓 **"PERFIL PRIVADO" ESCONDIA O PERFIL INTEIRO; ELE É SOBRE CONTATO** (não publicado).
+> Última atualização: **10/08/2026** — ⏳ **O FIM DO TESTE TAMBÉM PAROU DE PASSAR EM SILÊNCIO** (não publicado).
+>
+> ⏳ **A TAXA DO PROFESSOR CAI DE 3% PRA 10% SOZINHA EM DOIS MOMENTOS, E AGORA OS DOIS AVISAM.** O vencimento da assinatura já falava; faltava o outro lado: **o teste de 15 dias acabando**. Quem não escolhia nada caía no Avulso calado, e — pior — **quem escolheu Assinante e nunca pagou a primeira mensalidade caía junto**, num vão que o aviso de vencimento não cobria (ele exigia `PagaAte` preenchido, e essa pessoa nunca teve).
+>
+> ⚠️ **UM SERVIÇO SÓ, E NÃO UM QUASE-CLONE.** É a mesma pergunta feita duas vezes na vida do mesmo professor, e dois varredores olhando a mesma pessoa na mesma hora é como nascem dois avisos no mesmo tick. `LembreteDeAssinaturaVencendo` virou **`Services/AvisosDoPlanoDoProfessor`**, e a costura entre os mundos é uma linha: **enquanto `AssinaturaProfessorPagaAte` é nulo quem manda é o TESTE; a partir do primeiro pagamento, a ASSINATURA**. Nunca se sobrepõem. Zero migration nova — a coluna que já existia passou a guardar **duas faixas**: `1x` é o mundo do teste, `2x` o da assinatura, e o número no banco diz de qual dos dois veio.
+>
+> ⚠️ **O TESTE NÃO TEM CARÊNCIA — a assinatura tem.** Os 7 dias de tolerância em que a taxa menor ainda vale são do plano pago; no teste, no dia seguinte ao 15º já é taxa cheia. A régua das datas é a mesma nos dois; o que muda é esse parâmetro e o vocabulário (assinatura **vence**, teste **acaba**).
+>
+> ⚠️ **E DUAS PESSOAS BEM DIFERENTES CAEM NO MESMO ESTÁGIO.** Quem **não escolheu** ouve *"sem escolher um plano, a taxa passa pros 10%"* — o que ele precisa saber é que existe uma escolha. Quem **escolheu Assinante e não pagou** ouve *"sua primeira mensalidade ainda não entrou"*: mandar "escolha um plano" pra essa pessoa é ignorar que ela já escolheu, e ela ficaria procurando na tela um botão que não é o dela.
+>
+> 🧪 **8 testes novos** (`AvisosDoPlanoDoProfessorTests`, 19 no total do arquivo), suíte em **3.162, 0 falhas**. ✅ **Medido no app rodando com os três casos ao mesmo tempo**: o que nunca escolheu recebeu *"acaba em 5 dias (15/08) … sem escolher um plano"*; o que assinou sem pagar recebeu *"acaba em 3 dias (13/08) e sua primeira mensalidade ainda não entrou"*; e o de assinatura paga recebeu o texto da assinatura — cada um no seu estágio (10, 10, 20), com os dois professores fora de prazo **intocados**, e **reiniciar o processo não repetiu nenhum** (6 avisos antes, 6 depois).
+>
+> Antes, no mesmo dia — 🔓 **"PERFIL PRIVADO" ESCONDIA O PERFIL INTEIRO; ELE É SOBRE CONTATO** (não publicado).
 >
 > 🔓 **A RÉGUA VEIO DO FELIPE, DEPOIS DE EU ERRAR PRA MAIS.** Eu tinha lido a frase da tela de preferências ("quem visitar seu perfil só vê sua foto e seu nome") como promessa de privacidade e **estendido a trava pra busca** — escondendo cidade, categorias, clubes e pontos, e tirando a pessoa dos filtros. Ele corrigiu: *"todos os dados públicos aparecem mesmo para quem tem perfil privado — se foi campeão, pontos do ranking, etc.; o perfil privado é para evitar ver o Instagram, o WhatsApp da pessoa"*. Resultado de padel **já está** no ranking, na chave do torneio e no histórico do parceiro: escondê-lo no perfil não esconde nada de ninguém, só quebra a tela de achar parceiro. A trava saiu da busca e no lugar dela ficou um **teste-guarda** (`Perfil_privado_nao_muda_a_busca`), pra que a "melhoria de privacidade" não volte pela mão do próximo que ler a tela como eu li.
 >

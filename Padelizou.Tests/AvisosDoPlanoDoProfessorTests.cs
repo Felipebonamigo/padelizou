@@ -6,15 +6,15 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// O aviso de assinatura vencendo — a régua E a varredura, no mesmo arquivo porque a régua aqui
-// é pequena e o que importa é o percurso: achar o assinante certo, dizer a coisa certa no
-// momento certo e não repetir.
+// Os avisos do plano do professor — a régua E a varredura, no mesmo arquivo porque o que
+// importa é o percurso: achar o professor certo, dizer a coisa certa no momento certo e não
+// repetir.
 //
-// ⚠️ O defeito que isto cobre é MUDO: sem aviso, a assinatura vence, a carência passa e a taxa
-// das aulas sobe de 3% pra 10% sem uma linha em lugar nenhum. Teste que passa sem testar nada
-// aqui é pior que teste nenhum — por isso quase tudo abaixo confere o TEXTO que sai, não só a
-// contagem.
-public class LembreteDeAssinaturaVencendoTests
+// ⚠️ O defeito que isto cobre é MUDO, nos DOIS mundos: a taxa por aula sobe de 3% pra 10%
+// sozinha quando o teste de 15 dias acaba sem escolha, e de novo quando a assinatura vence e a
+// carência passa. Teste que passa sem testar nada aqui é pior que teste nenhum — por isso
+// quase tudo abaixo confere o TEXTO que sai, não só a contagem.
+public class AvisosDoPlanoDoProfessorTests
 {
     private static readonly PlanoProfessorSettings Cfg = new(); // 3% × 10%, carência de 7 dias
 
@@ -38,6 +38,26 @@ public class LembreteDeAssinaturaVencendoTests
         return professor;
     }
 
+    // Professor no TESTE: o relógio começou e ninguém pagou nada. `plano` nulo é quem ainda não
+    // escolheu — o caso mais comum, e o que cai no Avulso calado quando o prazo passa.
+    // O teste padrão do sistema tem 15 dias, então começar em 05/09 faz ele acabar em 20/09 —
+    // a mesma data do `Vencimento`, pra as duas famílias de teste lerem o mesmo calendário.
+    private static Jogador NoTeste(DbPadelContext ctx, string? plano = null)
+    {
+        var professor = new Jogador
+        {
+            Nome = "Prof em Teste",
+            Cpf = "11144477735",
+            IsProfessor = true,
+            PlanoProfessor = plano,
+            TesteProfessorInicio = new DateTime(2026, 9, 5),
+            AssinaturaProfessorPagaAte = null,
+        };
+        ctx.Jogadores.Add(professor);
+        ctx.SaveChanges();
+        return professor;
+    }
+
     // O texto que saiu na última chamada — é o que prova que o aviso diz a coisa certa.
     private static string CorpoEnviado(IPushNotificationService push)
     {
@@ -54,7 +74,7 @@ public class LembreteDeAssinaturaVencendoTests
     }
 
     private static Task<int> Varrer(DbPadelContext ctx, IPushNotificationService push, DateTime agora) =>
-        LembreteAssinaturaVencendoBackgroundService.VarrerAsync(ctx, push, Cfg, agora);
+        AvisosDoPlanoDoProfessorBackgroundService.VarrerAsync(ctx, push, Cfg, agora);
 
     // ── Os três momentos ──────────────────────────────────────────────────────────────────
 
@@ -67,7 +87,7 @@ public class LembreteDeAssinaturaVencendoTests
 
         Assert.Equal(1, await Varrer(ctx, push, AsDez(15)));
 
-        Assert.Equal(LembreteDeAssinaturaVencendo.VaiVencer,
+        Assert.Equal(AvisosDoPlanoDoProfessor.VaiVencer,
             ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
 
         var corpo = CorpoEnviado(push);
@@ -101,7 +121,7 @@ public class LembreteDeAssinaturaVencendoTests
 
         await Varrer(ctx, push, AsDez(20));
 
-        Assert.Equal(LembreteDeAssinaturaVencendo.VaiVencer,
+        Assert.Equal(AvisosDoPlanoDoProfessor.VaiVencer,
             ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
         Assert.Contains("vence hoje", CorpoEnviado(push));
     }
@@ -116,7 +136,7 @@ public class LembreteDeAssinaturaVencendoTests
         // Venceu dia 20, carência de 7 dias: no dia 23 ele ainda paga 3%.
         await Varrer(ctx, push, AsDez(23));
 
-        Assert.Equal(LembreteDeAssinaturaVencendo.VenceuNaCarencia,
+        Assert.Equal(AvisosDoPlanoDoProfessor.VenceuNaCarencia,
             ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
 
         var corpo = CorpoEnviado(push);
@@ -135,7 +155,7 @@ public class LembreteDeAssinaturaVencendoTests
         // existe pra dar: sem ele, essa subida acontece sem uma linha em lugar nenhum.
         await Varrer(ctx, push, AsDez(28));
 
-        Assert.Equal(LembreteDeAssinaturaVencendo.TaxaVoltouAoCheio,
+        Assert.Equal(AvisosDoPlanoDoProfessor.TaxaVoltouAoCheio,
             ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
 
         Assert.Contains("voltou ao cheio", TituloEnviado(push));
@@ -204,18 +224,144 @@ public class LembreteDeAssinaturaVencendoTests
         await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!);
     }
 
+    // ── O outro mundo: o teste de 15 dias ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cinco_dias_antes_do_fim_do_teste_avisa_que_ha_uma_escolha_a_fazer()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var prof = NoTeste(ctx);   // nunca escolheu plano nenhum
+        var push = Substitute.For<IPushNotificationService>();
+
+        Assert.Equal(1, await Varrer(ctx, push, AsDez(15)));
+
+        Assert.Equal(AvisosDoPlanoDoProfessor.TesteAcabando,
+            ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
+
+        var corpo = CorpoEnviado(push);
+        Assert.Contains("acaba em 5 dias", corpo);
+        Assert.Contains("20/09", corpo);
+        Assert.Contains("sem escolher um plano", corpo);
+        Assert.Contains("10%", corpo);
+    }
+
+    [Fact]
+    public async Task Quem_escolheu_assinante_e_nao_pagou_ouve_falar_da_MENSALIDADE_nao_da_escolha()
+    {
+        // ⚠️ Duas situações bem diferentes caem no mesmo estágio. Esta pessoa **já escolheu**:
+        // mandar "escolha um plano" a faria procurar na tela um botão que não é o dela — o que
+        // falta é a primeira mensalidade.
+        using var ctx = TestInfra.NovoContexto();
+        NoTeste(ctx, PlanoDoProfessor.Assinante);
+        var push = Substitute.For<IPushNotificationService>();
+
+        await Varrer(ctx, push, AsDez(15));
+
+        var corpo = CorpoEnviado(push);
+        Assert.Contains("primeira mensalidade ainda não entrou", corpo);
+        Assert.DoesNotContain("escolher um plano", corpo);
+    }
+
+    [Fact]
+    public async Task Quando_o_teste_acaba_o_aviso_diz_em_que_plano_a_pessoa_caiu()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var prof = NoTeste(ctx);
+        var push = Substitute.For<IPushNotificationService>();
+
+        // Teste acaba em 20/09; no dia 21 já é taxa cheia. ⚠️ Sem carência: essa tolerância de
+        // 7 dias é da assinatura, não do teste.
+        await Varrer(ctx, push, AsDez(21));
+
+        Assert.Equal(AvisosDoPlanoDoProfessor.TesteAcabou,
+            ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
+
+        var corpo = CorpoEnviado(push);
+        Assert.Contains("você está no Avulso", corpo);
+        Assert.Contains("Vire Assinante", corpo);
+    }
+
+    [Fact]
+    public async Task No_ultimo_dia_o_teste_ainda_esta_ACABANDO_e_nao_acabou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var prof = NoTeste(ctx);
+        var push = Substitute.For<IPushNotificationService>();
+
+        await Varrer(ctx, push, AsDez(20));
+
+        Assert.Equal(AvisosDoPlanoDoProfessor.TesteAcabando,
+            ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
+        Assert.Contains("acaba hoje", CorpoEnviado(push));
+    }
+
+    [Fact]
+    public async Task Teste_que_acabou_ha_muito_tempo_nao_avisa_ninguem()
+    {
+        // A mesma janela do outro mundo, pelo mesmo motivo: no dia do deploy, todo professor
+        // que abandonou o teste meses atrás está tecnicamente vencido.
+        using var ctx = TestInfra.NovoContexto();
+        NoTeste(ctx);
+        var push = Substitute.For<IPushNotificationService>();
+
+        Assert.Equal(0, await Varrer(ctx, push, new DateTime(2026, 10, 6, 10, 0, 0)));
+        await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Pagar_durante_o_teste_passa_a_bola_pro_mundo_da_ASSINATURA()
+    {
+        // ⚠️ A costura entre os dois mundos: enquanto `PagaAte` é nulo manda o teste; a partir
+        // do primeiro pagamento manda a assinatura. Com os dois falando ao mesmo tempo, o
+        // professor levaria dois avisos no mesmo tick.
+        using var ctx = TestInfra.NovoContexto();
+        var prof = NoTeste(ctx, PlanoDoProfessor.Assinante);
+        var push = Substitute.For<IPushNotificationService>();
+
+        // Ele paga: a vigência vai pra bem longe do fim do teste.
+        prof.AssinaturaProfessorPagaAte = new DateTime(2026, 10, 20);
+        await ctx.SaveChangesAsync();
+
+        // O teste acabaria em 20/09 — e no dia 21 ninguém é avisado de nada, porque quem manda
+        // agora é a assinatura, que só vence em outubro.
+        Assert.Equal(0, await Varrer(ctx, push, AsDez(21)));
+        await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!);
+
+        // E cinco dias antes do vencimento DELA o aviso volta, já com o texto da assinatura.
+        Assert.Equal(1, await Varrer(ctx, push, new DateTime(2026, 10, 15, 10, 0, 0)));
+        Assert.Contains("Seu plano Assinante vence em 5 dias", CorpoEnviado(push));
+    }
+
     // ── Quem NÃO entra ────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Quem_esta_no_teste_ou_escolheu_avulso_nao_recebe_nada()
+    public async Task Quem_escolheu_AVULSO_nao_recebe_nada_nos_dois_mundos()
     {
         using var ctx = TestInfra.NovoContexto();
 
-        // Em teste: escolheu Assinante mas nunca pagou — não há vencimento a lembrar, e o
-        // fim do teste é outro aviso, com outro texto.
-        Assinante(ctx, pagaAte: null);
-        // Avulso: não tem assinatura nenhuma.
+        // ⚠️ O teste acabando não tira nada de quem já decidiu pagar a taxa cheia. Avisá-lo
+        // seria cutucar quem resolveu — e cada aviso a mais é um motivo pra desligar o canal.
+        NoTeste(ctx, PlanoDoProfessor.Avulso);
         Assinante(ctx, Vencimento, plano: PlanoDoProfessor.Avulso);
+
+        var push = Substitute.For<IPushNotificationService>();
+
+        Assert.Equal(0, await Varrer(ctx, push, AsDez(15)));
+        Assert.Equal(0, await Varrer(ctx, push, AsDez(21)));
+        await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Quem_nunca_abriu_a_tela_do_plano_nao_tem_relogio_correndo()
+    {
+        // Sem `TesteProfessorInicio` não há teste: o relógio só começa na primeira visita —
+        // e avisar quem nunca soube que existe um plano é falar de um prazo que não correu.
+        using var ctx = TestInfra.NovoContexto();
+        ctx.Jogadores.Add(new Jogador
+        {
+            Nome = "Prof Novo", Cpf = "11144477735", IsProfessor = true,
+        });
+        await ctx.SaveChangesAsync();
 
         var push = Substitute.For<IPushNotificationService>();
 
