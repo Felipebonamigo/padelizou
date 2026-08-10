@@ -18,7 +18,9 @@ public class RedeDoJogadorTests
             new Jogador { Id = 1, Nome = "Dono da Rede", Cpf = "1" },
             new Jogador { Id = 2, Nome = "Quem Me Segue", Cpf = "2" },
             new Jogador { Id = 3, Nome = "Quem Eu Sigo", Cpf = "3" },
-            new Jogador { Id = 4, Nome = "Reservado", Cpf = "4", PerfilPrivado = true });
+            new Jogador { Id = 4, Nome = "Reservado", Cpf = "4", PerfilPrivado = true },
+            // Quem pediu pra sair (LGPD): é ESTE que fecha o perfil e, com ele, a rede.
+            new Jogador { Id = 5, Nome = "Jogador removido", Cpf = "5", PerfilPrivado = true, ExcluidoEm = new DateTime(2026, 8, 1) });
 
         // 2 me segue; eu sigo 3. Ninguém aqui é recíproco de propósito — é o caso que separa
         // "seguir de volta" de "vocês se seguem".
@@ -86,20 +88,32 @@ public class RedeDoJogadorTests
     }
 
     [Fact]
-    public async Task Perfil_privado_nao_expoe_a_rede_pros_outros()
+    public async Task Conta_excluida_nao_expoe_a_rede_pros_outros()
     {
-        // ⚠️ A rede seria uma porta lateral pro que o perfil privado acabou de fechar.
-        var resultado = await TestInfra.NovoJogadoresController(Cenario(), 1).Rede(4, null);
+        // ⚠️ A rede seria uma porta lateral pro que o perfil de quem saiu acabou de fechar.
+        var resultado = await TestInfra.NovoJogadoresController(Cenario(), 1).Rede(5, null);
 
         var redirect = Assert.IsType<RedirectToActionResult>(resultado);
         Assert.Equal("Perfil", redirect.ActionName);
     }
 
     [Fact]
-    public async Task O_DONO_do_perfil_privado_ve_a_propria_rede()
+    public async Task Perfil_privado_NAO_fecha_a_rede()
+    {
+        // A trava daqui já foi o `PerfilPrivado`, e estava errada: quem esconde Instagram e
+        // WhatsApp não sumiu do site — seguidores são a mesma coisa pública que os pontos.
+        // Quem fecha o perfil é a conta EXCLUÍDA (teste acima).
+        var view = Assert.IsType<ViewResult>(
+            await TestInfra.NovoJogadoresController(Cenario(), 1).Rede(4, null));
+
+        Assert.False(Assert.IsType<RedeDoJogadorVM>(view.Model).SouEu);
+    }
+
+    [Fact]
+    public async Task O_DONO_da_conta_encerrada_ve_a_propria_rede()
     {
         var view = Assert.IsType<ViewResult>(
-            await TestInfra.NovoJogadoresController(Cenario(), 4).Rede(4, null));
+            await TestInfra.NovoJogadoresController(Cenario(), 5).Rede(5, null));
 
         Assert.True(Assert.IsType<RedeDoJogadorVM>(view.Model).SouEu);
     }

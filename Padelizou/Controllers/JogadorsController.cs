@@ -49,12 +49,25 @@ public class JogadoresController : Controller
 
         bool souEuMesmo = meuId.HasValue && meuId.Value == id;
 
-        // Perfil privado: visitantes (que não são o dono) só veem foto e nome — pula todo o resto.
-        if (jogador.PerfilPrivado && !souEuMesmo)
+        // ⚠️ DUAS COISAS DIFERENTES MORAVAM NA MESMA CHAVE, e por isso o perfil inteiro
+        // sumia pra quem só queria esconder o telefone (decisão do Felipe, 10/08/2026):
+        //
+        // · CONTA EXCLUÍDA (LGPD) — aqui o perfil FECHA MESMO. Quem pediu pra sair deixou de
+        //   ser identificável; o que sobra dela são os resultados dos jogos, que são dado de
+        //   quatro pessoas e seguem nas chaves (ver Services/ExclusaoDeConta).
+        // · PERFIL PRIVADO — é sobre CONTATO: esconde Instagram e WhatsApp, e mais nada.
+        //   Título, pontos, ranking e clube continuam públicos, porque já estão no ranking e
+        //   na chave do torneio; escondê-los aqui não esconderia nada de ninguém.
+        //
+        // A exclusão liga `PerfilPrivado` junto (o contato tem que sumir também), então o
+        // que decide o bloqueio total é o `ExcluidoEm` — não a chave que a pessoa aperta.
+        if (jogador.Excluido && !souEuMesmo)
         {
             ViewBag.PerfilBloqueado = true;
             return View((jogador, new List<Dupla>()));
         }
+
+        ViewBag.ContatoEscondido = jogador.PerfilPrivado && !souEuMesmo;
 
         // Busca todas as duplas em que este jogador participou
         var historicoDuplas = await _context.Duplas
@@ -268,7 +281,7 @@ public class JogadoresController : Controller
     {
         var jogador = await _context.Jogadores
             .Where(j => j.Id == id)
-            .Select(j => new { j.Id, j.Nome, j.Apelido, j.PerfilPrivado })
+            .Select(j => new { j.Id, j.Nome, j.Apelido, j.ExcluidoEm })
             .FirstOrDefaultAsync();
         if (jogador == null) return NotFound();
 
@@ -277,9 +290,10 @@ public class JogadoresController : Controller
             : null;
         bool souEuMesmo = meuId.HasValue && meuId.Value == id;
 
-        // Perfil privado esconde tudo menos foto e nome — a rede seria uma porta lateral pro
-        // que o perfil acabou de fechar. Volta pro perfil, que é onde a recusa está explicada.
-        if (jogador.PerfilPrivado && !souEuMesmo) return RedirectToAction(nameof(Perfil), new { id });
+        // A trava aqui é a MESMA do perfil, e por isso é o `ExcluidoEm`: conta excluída tem o
+        // perfil fechado, e a rede seria uma porta lateral pro que ele acabou de fechar.
+        // Perfil privado NÃO entra nessa conta — quem esconde o telefone não some do site.
+        if (jogador.ExcluidoEm != null && !souEuMesmo) return RedirectToAction(nameof(Perfil), new { id });
 
         // Quem EU sigo, pra saber onde cabe o "Seguir de volta". Vazio pra visitante deslogado
         // — ele não segue ninguém, e nenhum botão faz sentido pra ele.
@@ -547,21 +561,15 @@ public class JogadoresController : Controller
         // Nome, apelido ou CPF — mesma regra do resto do sistema (Services/BuscaJogador).
         query = BuscaJogador.Filtrar(query, vm.Termo);
 
-        // PERFIL PRIVADO: quem liga a chave lê na tela de preferências que "quem visitar seu
-        // perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos
-        // ficam escondidos". A busca era a porta lateral disso: o card publicava cidade, lado
-        // da quadra, categorias, clubes, pontos e time de quem tinha acabado de fechar o
-        // perfil (o mesmo raciocínio que tirou a rede do ar pros outros, ver Rede).
+        // ⚠️ PERFIL PRIVADO NÃO FILTRA NADA AQUI, e isso é decisão do Felipe (10/08/2026):
+        // "todos os dados públicos aparecem mesmo para quem tem perfil privado — se foi
+        // campeão, pontos do ranking, etc.; o perfil privado é pra evitar ver o Instagram, o
+        // WhatsApp da pessoa". Resultado de padel é resultado de padel: ele já está no
+        // ranking, na chave do torneio e no histórico do parceiro. A chave é sobre CONTATO.
         //
-        // ⚠️ Esconder no card não basta: enquanto a pessoa APARECE num resultado filtrado, o
-        // filtro responde o que o card se recusou a dizer — "marquei 3ª masculina + Arena e
-        // ela apareceu" É a preferência dela. Por isso quem é privado fica de fora de
-        // qualquer busca POR ATRIBUTO, e continua achável pelo NOME (o caso "quero achar o
-        // Fulano", que não pergunta nada sobre ele: quem digita o nome já sabe quem procura).
-        bool filtraPorAtributo = vm.Estado != null || vm.Cidade != null
-            || vm.CategoriaId != null || vm.ClubeId != null;
-        if (filtraPorAtributo)
-            query = query.Where(j => !j.PerfilPrivado);
+        // Já saiu daqui uma vez uma trava que escondia cidade/categoria/clube de quem é
+        // privado e tirava a pessoa dos filtros — é o engano fácil de cometer de novo, e o
+        // teste `Perfil_privado_nao_muda_a_busca` existe pra barrar a volta dele.
 
         if (vm.Estado != null)
             query = query.Where(j => j.Estado != null && j.Estado.ToUpper() == vm.Estado);
@@ -654,18 +662,14 @@ public class JogadoresController : Controller
                 .Where(s => s.SeguidorId == vm.MeuId.Value && ids.Contains(s.SeguidoId))
                 .Select(s => s.SeguidoId).ToListAsync()).ToHashSet();
 
-        // O card de quem é privado sai daqui já VAZIO — nem pontos, que são estatística. A
-        // view podia se lembrar de esconder cada campo, mas aí a próxima linha que alguém
-        // acrescentar ao card nasce vazando; não mandar o dado é a versão que não esquece.
         vm.Resultados = jogadores.Select(j => new JogadorEncontradoVM
         {
             Jogador = j,
-            Privado = j.PerfilPrivado,
             EuSigo = jaSigo.Contains(j.Id),
-            Pontos = j.PerfilPrivado ? 0 : pontos.GetValueOrDefault(j.Id),
-            Time = j.PerfilPrivado ? null : j.Time?.Nome,
-            Categorias = j.PerfilPrivado ? new List<string>() : catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
-            Clubes = j.PerfilPrivado ? new List<string>() : clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+            Pontos = pontos.GetValueOrDefault(j.Id),
+            Time = j.Time?.Nome,
+            Categorias = catsPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+            Clubes = clubesPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
             Declarou = filtraPreferencia
                 && (vm.CategoriaId == null || declararamCategoria.Contains(j.Id))
                 && (vm.ClubeId == null || declararamClube.Contains(j.Id)),

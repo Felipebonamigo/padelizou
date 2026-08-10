@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🧮 **O CARD "NA PRÁTICA" DIZIA O NÚMERO CERTO COM O DONO ERRADO** (não publicado).
+> Última atualização: **10/08/2026** — 🔓 **"PERFIL PRIVADO" ESCONDIA O PERFIL INTEIRO; ELE É SOBRE CONTATO** (não publicado).
+>
+> 🔓 **A RÉGUA VEIO DO FELIPE, DEPOIS DE EU ERRAR PRA MAIS.** Eu tinha lido a frase da tela de preferências ("quem visitar seu perfil só vê sua foto e seu nome") como promessa de privacidade e **estendido a trava pra busca** — escondendo cidade, categorias, clubes e pontos, e tirando a pessoa dos filtros. Ele corrigiu: *"todos os dados públicos aparecem mesmo para quem tem perfil privado — se foi campeão, pontos do ranking, etc.; o perfil privado é para evitar ver o Instagram, o WhatsApp da pessoa"*. Resultado de padel **já está** no ranking, na chave do torneio e no histórico do parceiro: escondê-lo no perfil não esconde nada de ninguém, só quebra a tela de achar parceiro. A trava saiu da busca e no lugar dela ficou um **teste-guarda** (`Perfil_privado_nao_muda_a_busca`), pra que a "melhoria de privacidade" não volte pela mão do próximo que ler a tela como eu li.
+>
+> 🔎 **E aí apareceu a razão de tudo estar embolado: DUAS REGRAS moravam na mesma chave.** `Services/ExclusaoDeConta` liga `PerfilPrivado = true` quando alguém pede pra sair (LGPD) — era **isso** que o bloqueio total do perfil servia. Quem só queria esconder o telefone herdava o tratamento de conta encerrada. Agora quem fecha o perfil é o **`ExcluidoEm`**, e `PerfilPrivado` esconde **Instagram e WhatsApp**, e mais nada. ⚠️ Sem essa separação, afrouxar a chave teria **reaberto o perfil de quem exerceu o direito de sair** — o oposto do pedido, e o único jeito de essa mudança causar dano de verdade.
+>
+> ➕ A rede (`/Jogadores/Rede`) acompanhou pelo mesmo motivo: ela travava por `PerfilPrivado` e agora trava por conta encerrada — seguidores são tão públicos quanto os pontos. E a frase da tela de preferências foi reescrita, porque a antiga **descrevia o sistema errado com precisão**: virou *"seu Instagram e seu WhatsApp não aparecem pra quem visita… seus resultados continuam à vista"*.
+>
+> 🧪 **3.158 testes**, 0 falhas, com uma classe nova (`PerfilPrivadoEContatoTests`) e os dois testes da rede reescritos — eles afirmavam a regra velha. ✅ **Medido no app rodando, com CONTRAPROVA**: a jogadora privada não mostra `instagram.com/…` nem `wa.me/…` dela, mas **um jogador público com o mesmo tipo de contato mostra os dois botões** — sem essa comparação, "0 links" também seria o resultado de eu ter apagado o contato de todo mundo. Ela segue aparecendo inteira na busca por cidade; a rede dela abre (200) e a de quem encerrou a conta redireciona (302), com a tela dizendo *"Esta conta foi encerrada"* em vez de *"Este perfil é privado"*. ⚠️ **Não publicado — e o que está em prod (`build-472`) ainda tem a trava errada na busca.**
+>
+> Antes, no mesmo dia — 🧮 **O CARD "NA PRÁTICA" DIZIA O NÚMERO CERTO COM O DONO ERRADO** (não publicado).
 >
 > 🧮 **"O AVULSO PAGA R$ 200,00 DE TAXA" — SEM DIZER QUEM PAGA.** O card que fecha a tela do plano comparava R$ 200 (Avulso) contra R$ 109,90 (Assinante) como se os dois saíssem do bolso do professor. ⚠️ **No modo padrão (`ModoComissao` = "Somada") quem paga a taxa é o ALUNO**: o preço da aula sobe e o professor recebe o valor cheio. Aqueles R$ 200 **nunca foram dinheiro dele** — quem lia achava que a mensalidade economizava R$ 90 do próprio bolso, quando economizava do bolso do aluno. A conta antiga só estava certa no "Descontada", que é a escolha minoritária.
 >

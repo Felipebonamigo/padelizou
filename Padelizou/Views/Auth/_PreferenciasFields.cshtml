@@ -48,9 +48,12 @@
 <div class="mb-4 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" name="perfilPrivado" value="true" id="perfilPrivado" style="transform: scale(1.2);" @(Model.PerfilPrivado ? "checked" : "") />
-        <label class="form-check-label fw-bold" for="perfilPrivado">Perfil privado</label>
+        <label class="form-check-label fw-bold" for="perfilPrivado">Perfil privado (esconder contato)</label>
     </div>
-    <small class="text-muted d-block mt-2">Se ativado, quem visitar seu perfil só vê sua foto e seu nome — estatísticas, conquistas, clubes e confrontos ficam escondidos.</small>
+    @* ⚠️ Esta frase já prometeu "só vê sua foto e seu nome", e o sistema cumpria: o perfil
+       inteiro sumia. A régua é outra (Felipe, 10/08/2026) — resultado de padel é público,
+       porque já está no ranking e na chave do torneio; o que a chave protege é o CONTATO. *@
+    <small class="text-muted d-block mt-2">Se ativado, seu Instagram e seu WhatsApp não aparecem pra quem visita seu perfil. Seus resultados — títulos, pontos e clubes — continuam à vista: eles já aparecem no ranking e nas chaves dos torneios.</small>
 </div>
 
 <!-- Notificações -->

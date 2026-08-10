@@ -10,7 +10,11 @@
     var elogiosRecebidos = ViewBag.Elogios as List<ElogioResumoVM> ?? new();
     var catalogoElogios = ViewBag.CatalogoElogios as List<Padelizou.Services.TipoElogio> ?? new();
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+    @* Perfil FECHADO é conta excluída (LGPD). "Contato escondido" é a chave de perfil
+       privado, que esconde Instagram e WhatsApp e mais nada — o resto do perfil é resultado
+       de padel, que já está no ranking e nas chaves. Ver o comentário em JogadoresController. *@
     bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
+    bool contatoEscondido = ViewBag.ContatoEscondido == true;
     int? meuId = ViewBag.MeuId;
     bool podeElogiar = meuId.HasValue && meuId.Value != Model.jogador.Id && !perfilBloqueado;
     @* É um elogio por pessoa: no máximo um código volta como "eu dei". *@
@@ -47,7 +51,9 @@
 
         @if (perfilBloqueado)
         {
-            <p class="text-muted small"><i class="bi bi-lock-fill"></i> Este perfil é privado.</p>
+            @* Chega aqui só quem foi excluído: a pessoa pediu pra sair e deixou de ser
+               identificável — o que resta dela são os jogos, que são dado de quatro. *@
+            <p class="text-muted small"><i class="bi bi-lock-fill"></i> Esta conta foi encerrada.</p>
         }
         else
         {
@@ -134,7 +140,10 @@
                 </form>
             }
 
-            @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular))
+            @* É ISTO que o "perfil privado" esconde: os dois botões de contato. O dono
+               continua vendo os próprios — a chave é sobre quem VISITA. *@
+            @if (!contatoEscondido
+                 && (!string.IsNullOrWhiteSpace(Model.jogador.Instagram) || !string.IsNullOrWhiteSpace(Model.jogador.Celular)))
             {
                 <div class="d-flex justify-content-center gap-2 flex-wrap">
                     @if (!string.IsNullOrWhiteSpace(Model.jogador.Instagram))

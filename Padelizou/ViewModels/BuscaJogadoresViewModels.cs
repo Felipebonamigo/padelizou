@@ -62,9 +62,4 @@ public class JogadorEncontradoVM
     // Eu já sigo esta pessoa. Escolhe qual dos dois botões o card mostra — oferecer "Seguir"
     // pra quem eu já sigo seria um clique que não muda nada.
     public bool EuSigo { get; set; }
-
-    // A pessoa fechou o perfil. O card fica com foto, nome e o cadeado: cidade, lado da
-    // quadra, categorias, clubes, pontos e time são exatamente o que a tela de preferências
-    // promete esconder — e o controller nem manda esses campos preenchidos.
-    public bool Privado { get; set; }
 }
