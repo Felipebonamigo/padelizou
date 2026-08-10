@@ -215,7 +215,9 @@ public class BuscaJogadoresTests
             CategoriaPadraoId = ctx.CategoriasPadrao.First().Id,
         });
 
-        var torneio = new Torneio { Nome = "T", Codigo = "T", DataInicio = DateTime.Now };
+        // `Status` explícito: desde 10/08/2026 ponto só nasce com o torneio COMEÇADO, e o
+        // padrão do model é "Inscrições Abertas" (RANKING.md, Trilha B).
+        var torneio = new Torneio { Nome = "T", Codigo = "T", DataInicio = DateTime.Now, Status = "Finalizado" };
         var cat = new Categoria { Nome = "2ª Masculina", Codigo = "TC", Torneio = torneio };
         ctx.Torneios.Add(torneio);
         ctx.Categorias.Add(cat);

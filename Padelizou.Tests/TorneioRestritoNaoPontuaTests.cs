@@ -24,6 +24,10 @@ public class TorneioRestritoNaoPontuaTests
             Id = 1, Nome = "Interno", Codigo = "INT1",
             Restrito = restrito, ChaveAcesso = restrito ? "virgili10" : null,
             DataInicio = new DateTime(2026, 7, 1),
+            // ⚠️ Sem isto o torneio nasce em "Inscrições Abertas" e, desde 10/08/2026, não
+            // paga ponto nenhum — o teste do restrito passaria por acidente (0 é 0) e o do
+            // torneio aberto ficaria vermelho. Torneio com campeão está finalizado.
+            Status = "Finalizado",
         };
         ctx.Torneios.Add(torneio);
 
