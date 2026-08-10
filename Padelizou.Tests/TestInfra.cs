@@ -59,10 +59,11 @@ public static class TestInfra
     public static JogadoresController NovoJogadoresController(
         DbPadelContext ctx, int? usuarioLogadoId = null, IPushNotificationService? push = null)
     {
+        // O ranking do parceiro saiu daqui em 08/08/2026 (o perfil não mostra mais a posição
+        // da pessoa lá), então esta tela não depende mais daquele serviço.
         var controller = new JogadoresController(
             ctx,
             new EstatisticasService(ctx),
-            Substitute.For<IRankingRsService>(),
             push ?? Substitute.For<IPushNotificationService>());
 
         var user = usuarioLogadoId == null

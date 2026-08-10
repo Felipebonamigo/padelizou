@@ -12,15 +12,15 @@ public class JogadoresController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly IEstatisticasService _estatisticas;
-    private readonly IRankingRsService _rankingRs;
     private readonly IPushNotificationService _push;
 
+    // O ranking do parceiro saiu daqui em 08/08/2026, a pedido dele: o perfil não mostra mais
+    // a posição da pessoa lá, então esta tela não fala mais com aquela API (ver Perfil).
     public JogadoresController(DbPadelContext context, IEstatisticasService estatisticas,
-        IRankingRsService rankingRs, IPushNotificationService push)
+        IPushNotificationService push)
     {
         _context = context;
         _estatisticas = estatisticas;
-        _rankingRs = rankingRs;
         _push = push;
     }
 
@@ -175,14 +175,15 @@ public class JogadoresController : Controller
                 .AnyAsync(s => s.SeguidorId == meuId.Value && s.SeguidoId == id);
         }
 
-        // Onde a pessoa está no Ranking RS. Vitrine, não trava nada: se o ranking não
-        // responder, ou o nome dela não estiver lá, a lista vem vazia e a seção nem aparece.
-        // A consulta fica guardada por horas — o perfil é das telas mais visitadas do site e a
-        // chave tem cota (ver RankingRsService.PosicoesAsync).
+        // ⚠️ AQUI SE CONSULTAVA A POSIÇÃO DA PESSOA NO RANKING DO PARCEIRO, pra um selo no
+        // cabeçalho do perfil. Saiu em 08/08/2026 A PEDIDO DELES (ver Services/MarcaDoRanking):
+        // o dado é deles, e num perfil ele não presta serviço a ninguém além de publicar o
+        // ranking do parceiro de graça. Onde continua valendo é na inscrição do torneio que
+        // contratou a conferência — lá o dado decide alguma coisa.
         //
-        // Fica DEPOIS da saída do perfil privado de propósito: quem não pode ver o perfil não
-        // dispara consulta nenhuma com o nome de quem quer que seja.
-        ViewBag.PosicoesNoRanking = await _rankingRs.PosicoesAsync(jogador.Nome);
+        // A CHAMADA saiu junto, e não só a tela: o perfil é das páginas mais visitadas do
+        // site, então esconder o selo e seguir consultando gastaria a cota deles pra jogar a
+        // resposta no lixo.
 
         return View((jogador, historicoDuplas));
     }

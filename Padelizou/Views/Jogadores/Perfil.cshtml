@@ -9,7 +9,6 @@
     var conquistas = ViewBag.Conquistas as List<ConquistaVM> ?? new();
     var elogiosRecebidos = ViewBag.Elogios as List<ElogioResumoVM> ?? new();
     var catalogoElogios = ViewBag.CatalogoElogios as List<Padelizou.Services.TipoElogio> ?? new();
-    var posicoesRs = ViewBag.PosicoesNoRanking as IReadOnlyList<Padelizou.Services.PosicaoNoRanking>;
     string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
     bool perfilBloqueado = ViewBag.PerfilBloqueado == true;
     int? meuId = ViewBag.MeuId;
@@ -78,50 +77,14 @@
                 </p>
             }
 
-            @* Ranking RS: onde a pessoa está no ranking gaúcho oficial. Vitrine — não trava
-               nada, e é um número que o Padelizou não calcula nem controla, então vem com o
-               nome da fonte colado. Sem pontuação (ou com o ranking fora do ar) a seção
-               simplesmente não existe: um "sem ranking" na cara de quem nunca jogou torneio
-               federado seria uma cobrança sem motivo. *@
-            @if (posicoesRs is { Count: > 0 })
-            {
-                <div class="mb-2">
-                    @foreach (var pos in posicoesRs)
-                    {
-                        @* O NOME DA FONTE VAI DENTRO DO SELO. Ele morava numa linha cinza
-                           embaixo, e ali sumia: o selo ficava parecendo mais um número do
-                           Padelizou, ao lado do Padelímetro e dos pontos de ranking nosso.
-                           São TRÊS números diferentes empilhados no mesmo cabeçalho — quem
-                           lê precisa saber de quem é cada um sem ter que procurar a legenda. *@
-                        <span class="badge rounded-pill me-1 mb-1"
-                              style="background:#1b3a5c;color:#a8d4ff;font-size:.85rem;"
-                              title="Posição no Ranking RS (mundodoatleta.com.br) — atualizado por eles, não pelo Padelizou.">
-                            <i class="bi bi-graph-up-arrow"></i>
-                            <strong>Ranking RS</strong> ·
-                            @pos.Categoria ·
-                            @if (pos.TemColocacao)
-                            {
-                                @:@(pos.Posicao)º · @(pos.Pontos) pts
-                            }
-                            else
-                            {
-                                @* Posição 0 = promovido: o ranking tira a colocação mas mantém
-                                   os pontos. Mostrar "0º" seria pior do que não mostrar. *@
-                                @:@(pos.Pontos) pts
-                            }
-                        </span>
-                        @if (pos.Promovido)
-                        {
-                            <span class="badge rounded-pill bg-secondary mb-1" style="font-size:.75rem;">promovido</span>
-                        }
-                    }
-                    @* A linha de baixo deixa de repetir o nome e passa a dizer a PROCEDÊNCIA:
-                       este número não é nosso, e quem quiser conferir sabe onde. *@
-                    <span class="small text-muted d-block mt-1">
-                        Ranking oficial do RS — quem calcula e atualiza é o mundodoatleta.com.br.
-                    </span>
-                </div>
-            }
+            @* ⚠️ O selo com a posição no @Padelizou.Services.MarcaDoRanking.Nome MORAVA AQUI e
+               saiu em 08/08/2026, A PEDIDO DELES: o dado é deles, e fora de um torneio que usa a
+               conferência não traz retorno nenhum pra quem o publica — vira o ranking deles
+               distribuído de graça em cada perfil do nosso site. Agora ele só aparece onde
+               presta serviço: na inscrição do torneio que contratou a validação.
+               A consulta de posição saiu junto (não era só esconder a tela: cada perfil aberto
+               batia na API deles, e o perfil é das telas mais visitadas do site).
+               Se um dia voltar, está no commit desta mudança. *@
 
             @* Os dois números são LINK: até aqui dava pra seguir e deixar de seguir, e nunca
                pra ver quem estava dos dois lados. *@

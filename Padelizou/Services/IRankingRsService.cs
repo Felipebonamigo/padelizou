@@ -34,22 +34,20 @@ public record ResultadoDoRanking(
             ? "numa categoria mais forte"
             : string.Join(" e ", Bloqueantes.Select(b => $"{b.Categoria} ({b.Pontos} pts)"));
 
-        return $"{Nome} não pode jogar {categoriaNoPadelizou}: o Ranking RS aponta pontos em {onde}.";
+        return $"{Nome} não pode jogar {categoriaNoPadelizou}: o {MarcaDoRanking.Nome} aponta pontos em {onde}.";
     }
 }
 
 public record AtletaParaValidar(string Nome, int CategoriaRsId, string? Referencia = null);
 
-// Onde a pessoa está no Ranking RS hoje. Vitrine — não trava nada.
+// ⚠️ EXISTIA AQUI UM `PosicoesAsync` — "em que categorias esta pessoa pontua e em que posição"
+// —, que alimentava um selo no perfil de cada jogador. Saiu em 08/08/2026 A PEDIDO DELES: o
+// dado é deles, e fora de um torneio que contratou a conferência ele não presta serviço nenhum,
+// só publica o ranking do parceiro de graça em cada perfil do nosso site.
 //
-// `Posicao` vem 0 pra quem foi PROMOVIDO: o ranking tira a pessoa da colocação da categoria
-// antiga mas mantém os pontos dela ali. Zero não é "primeiro lugar", é "sem colocação" — e
-// mostrar "0º" na cara do jogador seria pior do que não mostrar nada.
-public record PosicaoNoRanking(string Categoria, int Posicao, int Pontos, bool Promovido)
-{
-    public bool TemColocacao => Posicao > 0;
-}
-
+// A interface ficou com UMA pergunta só, e é a que a parceria existe pra responder: **esta
+// pessoa pode jogar esta categoria?**. Se um dia a vitrine voltar, ela está no commit desta
+// mudança — inteira, com os testes contra servidor de mentira.
 public interface IRankingRsService
 {
     bool Configurado { get; }
@@ -60,8 +58,4 @@ public interface IRankingRsService
     // sem disparar uma requisição por inscrito.
     Task<IReadOnlyList<ResultadoDoRanking>> ValidarLoteAsync(
         IReadOnlyList<AtletaParaValidar> atletas, CancellationToken ct = default);
-
-    // Em que categorias esta pessoa pontua, e em que posição. Lista vazia = não está no
-    // ranking, ou não deu pra perguntar — pro perfil dá no mesmo: não se mostra nada.
-    Task<IReadOnlyList<PosicaoNoRanking>> PosicoesAsync(string nome, CancellationToken ct = default);
 }

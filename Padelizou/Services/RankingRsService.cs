@@ -27,18 +27,16 @@ public class RankingRsService : IRankingRsService
 {
     private readonly HttpClient _http;
     private readonly RankingRsSettings _settings;
-    private readonly IMemoryCache _cache;
     private readonly ILogger<RankingRsService> _logger;
 
     // Ver o item 3 acima: constante de propósito.
     private const string Esporte = "PADEL";
 
     public RankingRsService(HttpClient http, IOptions<RankingRsSettings> settings,
-        IMemoryCache cache, ILogger<RankingRsService> logger)
+        ILogger<RankingRsService> logger)
     {
         _http = http;
         _settings = settings.Value;
-        _cache = cache;
         _logger = logger;
         _http.Timeout = TimeSpan.FromSeconds(Math.Clamp(_settings.TimeoutSegundos, 2, 30));
     }
@@ -141,95 +139,10 @@ public class RankingRsService : IRankingRsService
         }
     }
 
-    // ── Vitrine: onde a pessoa está no ranking ────────────────────────────────────────────
-
-    public async Task<IReadOnlyList<PosicaoNoRanking>> PosicoesAsync(string nome,
-        CancellationToken ct = default)
-    {
-        if (!_settings.Configurado || string.IsNullOrWhiteSpace(nome)) return Vazio;
-
-        var procurado = Achatar(nome);
-        if (procurado.Length == 0) return Vazio;
-
-        // Cache de horas, e não de minutos: isto abre num PERFIL, que é das telas mais
-        // visitadas do site, e a chave tem cota. O ranking não muda de hora em hora.
-        if (_cache.TryGetValue(ChaveDeCache(procurado), out IReadOnlyList<PosicaoNoRanking>? guardado)
-            && guardado != null)
-        {
-            return guardado;
-        }
-
-        var posicoes = await BuscarPosicoesAsync(nome, procurado, ct);
-
-        // Guarda inclusive a lista VAZIA: quem não está no ranking é a maioria das pessoas, e
-        // sem isso todo perfil de quem não pontua viraria uma consulta a cada visita.
-        _cache.Set(ChaveDeCache(procurado), posicoes, TimeSpan.FromHours(6));
-        return posicoes;
-    }
-
-    private async Task<IReadOnlyList<PosicaoNoRanking>> BuscarPosicoesAsync(
-        string nome, string procurado, CancellationToken ct)
-    {
-        try
-        {
-            var url = $"{_settings.BaseUrl.TrimEnd('/')}/external/ranking"
-                    + $"?sport={Esporte}&name={Uri.EscapeDataString(nome.Trim())}";
-
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            // ⚠️ A documentação diz que este endpoint é público. NÃO É: sem a chave ele
-            // responde {"error":"Chave de API inválida ou ausente"}.
-            req.Headers.Add("x-api-key", _settings.ApiKey);
-
-            var resp = await _http.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Ranking RS devolveu {Status} ao buscar a posição de {Nome}.",
-                    resp.StatusCode, nome);
-                return Vazio;
-            }
-
-            var lista = await resp.Content.ReadFromJsonAsync<RankingResposta>(cancellationToken: ct);
-            if (lista?.Atletas == null) return Vazio;
-
-            // O `name` da API é busca PARCIAL — procurar "Silva" devolve 129 pessoas. Num
-            // perfil isso viraria a lista de homônimos de outra gente, então só entra quem
-            // bate o nome inteiro.
-            return lista.Atletas
-                .Where(a => Achatar(a.Nome) == procurado)
-                .Select(a => new PosicaoNoRanking(a.Categoria ?? "", a.Posicao, a.Pontos, a.Promovido))
-                .OrderByDescending(p => p.Pontos)
-                .ToList();
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
-        {
-            // Perfil não pode quebrar porque o ranking caiu. Sem posição, a seção some.
-            _logger.LogWarning(ex, "Não deu pra buscar a posição de {Nome} no Ranking RS.", nome);
-            return Vazio;
-        }
-    }
-
-    private static readonly IReadOnlyList<PosicaoNoRanking> Vazio = Array.Empty<PosicaoNoRanking>();
-
-    private static string ChaveDeCache(string nomeAchatado) => $"rankingrs:pos:{nomeAchatado}";
-
-    // Minúsculo, sem acento e sem espaço sobrando — a mesma tolerância que a API deles usa
-    // pra casar nome (conferido: "SILVANO  HERNANDORENA" acha "Silvano Hernandorena").
-    private static string Achatar(string? texto)
-    {
-        if (string.IsNullOrWhiteSpace(texto)) return "";
-        var sb = new System.Text.StringBuilder();
-        foreach (var c in texto.Normalize(System.Text.NormalizationForm.FormD))
-        {
-            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                != System.Globalization.UnicodeCategory.NonSpacingMark)
-            {
-                sb.Append(c);
-            }
-        }
-        var semAcento = sb.ToString().Normalize(System.Text.NormalizationForm.FormC).ToLowerInvariant();
-        return string.Join(' ', semAcento.Split(' ', StringSplitOptions.RemoveEmptyEntries
-                                                    | StringSplitOptions.TrimEntries));
-    }
+    // ⚠️ A VITRINE ("em que categorias esta pessoa pontua") SAIU EM 08/08/2026, a pedido deles
+    // — junto foram o `GET /external/ranking`, o cache de 6 horas que existia só pra ela e o
+    // `Achatar` que casava o nome inteiro. Este arquivo voltou a fazer uma coisa só: perguntar
+    // se um atleta pode disputar uma categoria. Ver Services/MarcaDoRanking.
 
     private IReadOnlyList<ResultadoDoRanking> TodosSemResposta(IReadOnlyList<AtletaParaValidar> atletas) =>
         atletas.Select(a => NaoConsultado(a.Nome, a.CategoriaRsId, a.Referencia)).ToList();
@@ -289,18 +202,4 @@ public class RankingRsService : IRankingRsService
         [JsonPropertyName("posicao")] public int Posicao { get; set; }
     }
 
-    // ⚠️ O /external/ranking responde em INGLÊS, ao contrário do /validar-categoria.
-    private class RankingResposta
-    {
-        [JsonPropertyName("athletes")] public List<AtletaNoRanking>? Atletas { get; set; }
-    }
-
-    private class AtletaNoRanking
-    {
-        [JsonPropertyName("name")] public string? Nome { get; set; }
-        [JsonPropertyName("category")] public string? Categoria { get; set; }
-        [JsonPropertyName("position")] public int Posicao { get; set; }
-        [JsonPropertyName("points")] public int Pontos { get; set; }
-        [JsonPropertyName("isPromoted")] public bool Promovido { get; set; }
-    }
 }

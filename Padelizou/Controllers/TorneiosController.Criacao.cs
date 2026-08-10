@@ -543,7 +543,7 @@ namespace Padelizou.Controllers
             // pacote de registro de resultados, que é sobre dinheiro e vale mais.
             if (torneio.ValidarPeloRankingRs && TempData["Sucesso"] == null && TempData["Erro"] == null)
             {
-                var recado = $"Torneio criado! As inscrições vão ser conferidas no Ranking RS em "
+                var recado = $"Torneio criado! As inscrições vão ser conferidas no {MarcaDoRanking.Nome} em "
                            + $"{comParNoRanking} categoria(s).";
 
                 if (semParNoRanking.Count > 0)

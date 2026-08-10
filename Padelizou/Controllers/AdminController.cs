@@ -1207,7 +1207,7 @@ namespace padelizou.Controllers
 
             var despesa = new DespesaRegistrada
             {
-                Descricao = $"Ranking RS — {torneio!.Nome} ({cobradas.Count} inscritos)",
+                Descricao = $"{MarcaDoRanking.Nome} — {torneio!.Nome} ({cobradas.Count} inscritos)",
                 Valor = valor,
                 Data = DateTime.Now,
                 RegistradoPorJogadorId = admin.Id,

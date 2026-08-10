@@ -1051,7 +1051,7 @@
                 <div class="alert alert-secondary mt-3 mb-0 small d-flex gap-2 align-items-start">
                     <i class="bi bi-shield-lock"></i>
                     <div>
-                        As inscrições deste torneio são <strong>conferidas no Ranking RS</strong>: quem já pontuou numa categoria mais forte não entra numa mais fraca sem o organizador liberar.
+                        As inscrições deste torneio são <strong>conferidas no @Padelizou.Services.MarcaDoRanking.Nome</strong>: quem já pontuou numa categoria mais forte não entra numa mais fraca sem o organizador liberar.
                     </div>
                 </div>
                 @if (ViewBag.PodeGerenciar == true)
@@ -1539,7 +1539,7 @@
                 <div class="card bg-light border-0 shadow-sm mb-3">
                     <div class="card-body">
                         <h6 class="fw-bold text-muted text-uppercase mb-1">
-                            <i class="bi bi-graph-up-arrow"></i> Barrados pelo Ranking RS
+                            <i class="bi bi-graph-up-arrow"></i> Barrados pelo @Padelizou.Services.MarcaDoRanking.Nome
                             @if (pendentesRanking.Count > 0)
                             {
                                 <span class="badge bg-warning text-dark ms-1">@pendentesRanking.Count pra decidir</span>
@@ -2057,13 +2057,13 @@
                                     <input class="form-check-input" type="checkbox" name="validarPeloRankingRs" value="true"
                                            id="editRankingRs" @(Model.ValidarPeloRankingRs ? "checked" : "")>
                                     <label class="form-check-label fw-bold" for="editRankingRs">
-                                        <i class="bi bi-graph-up-arrow"></i> Conferir as inscrições no Ranking RS
+                                        <i class="bi bi-graph-up-arrow"></i> Conferir as inscrições no @Padelizou.Services.MarcaDoRanking.Nome
                                     </label>
                                 </div>
                                 <div class="small text-muted mt-2">
-                                    Consulta o ranking gaúcho (mundodoatleta.com.br) na hora da inscrição e barra quem
+                                    Consulta o ranking oficial (@Padelizou.Services.MarcaDoRanking.Site) na hora da inscrição e barra quem
                                     já pontuou numa categoria <strong>mais forte</strong> do que a escolhida.
-                                    Quem for barrado aparece aqui embaixo em <strong>"Barrados pelo Ranking RS"</strong>,
+                                    Quem for barrado aparece aqui embaixo em <strong>"Barrados pelo @Padelizou.Services.MarcaDoRanking.Nome"</strong>,
                                     e <strong>você decide</strong> se mantém ou libera.
                                     Se o ranking estiver fora do ar, a inscrição passa normalmente — ninguém fica travado por isso.
                                 </div>

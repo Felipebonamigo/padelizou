@@ -92,7 +92,7 @@ public static class AcertoComORankingRs
     {
         if (torneio == null) return "Torneio não encontrado.";
         if (!torneio.ValidarPeloRankingRs)
-            return "Este torneio não usa o Ranking RS — não há o que acertar com eles.";
+            return $"Este torneio não usa o {MarcaDoRanking.Nome} — não há o que acertar com eles.";
         if (jaAcertado != null)
             return $"Este torneio já foi acertado em {jaAcertado.AcertadoEm:dd/MM/yyyy}.";
         if (pessoas <= 0)

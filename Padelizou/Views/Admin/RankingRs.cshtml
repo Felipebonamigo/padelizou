@@ -1,6 +1,6 @@
 @using Padelizou.Services
 @{
-    ViewData["Title"] = "Ranking RS - Padelizou";
+    ViewData["Title"] = $"{MarcaDoRanking.Nome} - Padelizou";
 
     var itens = (List<AcertoComORankingRs.LinhaDoTorneio>)ViewBag.Linhas;
     decimal custo = ViewBag.CustoPorInscrito;
@@ -16,7 +16,7 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
-            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Ranking RS</h2>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">@MarcaDoRanking.Nome</h2>
             <p class="text-muted mb-0">O que devemos a eles: @custo.ToString("C") por inscrito.</p>
         </div>
         <div class="d-flex gap-2">
@@ -72,7 +72,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-body text-center text-muted py-5">
                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                Nenhum torneio usa o Ranking RS ainda.<br />
+                Nenhum torneio usa o @MarcaDoRanking.Nome ainda.<br />
                 <span class="small">A validação é escolha do organizador, torneio a torneio.</span>
             </div>
         </div>
@@ -109,7 +109,7 @@
                     <div class="d-flex align-items-center gap-3">
                         <span class="fs-5 fw-bold" style="color: var(--padel-green);">@i.Valor.ToString("C")</span>
                         <form asp-action="RegistrarAcertoRankingRs" method="post"
-                              onsubmit="return confirm('Registrar que você já pagou @i.Valor.ToString("C") ao Ranking RS por @i.Torneio.Nome? Isso lança a despesa no caixa.');">
+                              onsubmit="return confirm('Registrar que você já pagou @i.Valor.ToString("C") ao @MarcaDoRanking.Nome por @i.Torneio.Nome? Isso lança a despesa no caixa.');">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@i.Torneio.Id" />
                             <button type="submit" class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
