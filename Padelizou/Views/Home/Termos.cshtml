@@ -115,7 +115,7 @@
     <p class="mb-1"><strong>Aulas</strong> — conforme o plano do professor:</p>
     <ul>
         <li>Sem assinatura: <strong>@plano.PercentualAvulso.ToString("0.##")%</strong> por aula.</li>
-        <li>Assinante: <strong>@plano.PercentualAssinantePix.ToString("0.##")%</strong> (Pix ou boleto) e
+        <li>Assinante: <strong>@plano.PercentualAssinantePix.ToString("0.##")%</strong> (Pix) e
             <strong>@plano.PercentualAssinanteCartao.ToString("0.##")%</strong> (cartão), com mensalidade de
             <strong>@plano.MensalidadeAssinante.ToString("C")</strong> ou <strong>@plano.AnuidadeAssinante.ToString("C")</strong> por ano.</li>
         <li>São <strong>@plano.DiasDeTeste dias</strong> de teste com as condições de assinante. ⚠️ <strong>A mensalidade
@@ -124,7 +124,7 @@
     </ul>
     <p class="small text-muted">
         Quem decide se a taxa é somada ao valor do aluno ou descontada do recebimento é o professor ou o
-        organizador, na configuração dele. O processamento (Pix, boleto, cartão) é feito por um
+        organizador, na configuração dele. O processamento (Pix, cartão) é feito por um
         <strong>meio de pagamento</strong> contratado, com regras e prazos próprios — cartão, por exemplo,
         demora mais para ser repassado que Pix.
     </p>
