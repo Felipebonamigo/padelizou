@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **09/08/2026** — ✏️ **AULA MARCADA AGORA SE EDITA, E A QUE FICOU FORA DO GOOGLE APARECE** (commitado, **ainda não publicado**).
+> Última atualização: **10/08/2026** — ✏️ **AULA MARCADA AGORA SE EDITA, E A QUE FICOU FORA DO GOOGLE APARECE** (no ar em prod, `build-454-87e1026`). ⚠️ **Dev ficou pra trás em `build-447-00e72ca`** — estas quatro coisas só existem em produção.
 >
 > ✏️ **QUATRO PEDIDOS DO PROFESSOR, OLHANDO A AGENDA DELE DE VERDADE** (prints do Felipe: o modal da aula, a Google Agenda dele, o Meu Financeiro e o "Adicionar Aula").
 >
@@ -13,7 +13,7 @@
 >
 > **4. AULA FIXA: ESCOLHER AS DATAS.** "Repetir por N semanas" obrigava a **adivinhar o N** — mês com **5 sextas**, feriado no meio, a semana da viagem. A tela agora **gera as datas** (com dia da semana) e ele **desmarca o que não vale**, podendo trocar a **hora de cada uma** (a semana em que a quadra só tem 9h não obriga a remarcar a série inteira). O servidor **não confia na lista que volta** (`Services/DatasDaAulaFixa`): passado fora, repetida fora, teto de 26 — e a **contagem cega continua valendo como plano B**, pro navegador sem JS.
 >
-> 🧪 **31 testes novos; 2.959 no total, 0 falhas.** ✅ **Conferido no app rodando, ponta a ponta**: preço com centavos (**R$ 150,50 chegou 150,50, não 15.050**), o aviso do Google contando exatamente as 3 aulas sem evento, e a aula fixa criando **4 datas de 5** com a hora trocada em uma delas.
+> 🧪 **31 testes novos; 2.959 no total, 0 falhas.** ✅ **Conferido no app rodando, ponta a ponta**: preço com centavos (**R$ 150,50 chegou 150,50, não 15.050**), o aviso do Google contando exatamente as 3 aulas sem evento, e a aula fixa criando **4 datas de 5** com a hora trocada em uma delas. 🚀 **Publicado em prod** e conferido do jeito que a memória manda — **`cwd` do processo** em `build-454-87e1026` (o `readlink` de `/opt/padelizou` sozinho engana: aquilo É a pasta do app, não um diretório de symlinks por ambiente), `NRestarts=0`, e `/Aulas/Editar/1` respondendo **302** (não 404) sem login — rota nova no ar e protegida.
 >
 > Antes, no mesmo dia — ✂️ **RESULTADO DE PARTIDA E AVISO DE SEGUIDOR SAÍRAM DO E-MAIL** (no ar, `build-453-ef8ebda`).
 >
