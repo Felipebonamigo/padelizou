@@ -1,10 +1,21 @@
 # E-mail próprio: `@padelizou.com.br`
 
+✅ **NO AR EM PRODUÇÃO DESDE 10/08/2026.** Recebe em `contato@`, `suporte@` e `financeiro@`
+(ImprovMX → Gmail), e envia como `nao-responda@padelizou.com.br` pelo Resend. Provado nos dois
+sentidos: e-mail de fora chegou no Gmail, e a **recuperação de senha de produção chegou na
+CAIXA DE ENTRADA** — não no spam — num domínio que tinha nascido no mesmo dia.
+
 Como sair do `padelizou@gmail.com` e passar a receber **e** enviar pelo domínio, de graça.
 
 Escrito em 09/08/2026, no dia em que a cota do Gmail estourou: o disparo de "Novo torneio
 aberto" (87 e-mails) queimou o limite e **130 e-mails morreram calados**, duas recuperações de
 senha entre eles — um jogador ficou sem conseguir entrar e ninguém soube até horas depois.
+
+⚠️ **A configuração de produção mora num DROP-IN**, não na unidade principal:
+`/etc/systemd/system/padelizou.service.d/email.conf`. As linhas antigas do Gmail continuam no
+`padelizou.service` e são vencidas pelo drop-in (ele é lido depois). Quem editar só o arquivo
+principal vai mexer em linhas mortas e não vai entender por que nada muda. Reverter tudo é
+apagar esse arquivo e reiniciar. ⏳ **O dev continua no Gmail** — só produção foi migrada.
 
 ---
 
