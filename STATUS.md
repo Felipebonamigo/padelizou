@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔒 **O PAINEL ADMIN VOLTOU A SER DE UMA PESSOA SÓ** + 🚀 **`build-489-fba0289` no ar** com a coluna "Não constam" no relatório do Ranking.
+> Última atualização: **10/08/2026** — 🚀 **`build-491-81084e6` NO AR** (20:49). 📵 **O FIX DO TELEFONE PÚBLICO SUBIU** — o bloco lá embaixo dizia "AINDA NÃO PUBLICADO" e isso deixou de valer.
+>
+> 📵 **PROVADO EM PRODUÇÃO, COMO VISITANTE ANÔNIMO** (que é justamente quem o defeito expunha): nos perfis 10 e 12, o **celular do atleta não aparece** e **não há nenhum link de instagram.com** — o único `wa.me` da página é o **suporte do próprio site**, no rodapé. ⚠️ **Duas vezes quase gritei vazamento por erro meu de medição**: primeiro o número do rodapé (o mesmo em todos os perfis, e é nosso, não do atleta); depois um `grep` em que o **ponto do handle `anderson.virgili` casou com o espaço de "Anderson Virgili"** — regex onde eu queria texto literal. **Busca literal (`grep -F`) e uma string de CONTROLE são obrigatórias**, senão a conferência inventa defeito ou esconde um.
+>
+> 🔀 **DUAS MIGRATIONS DO MESMO DIA SE ENCONTRARAM NO MERGE** (`SeguirTorneio` da outra sessão × `ParceiroDoRankingEConsultas` minha) — a situação que a memória marca como perigosa, porque o rebase acerta a ordem e **não** o snapshot de dentro. Conferido antes de publicar: `has-pending-model-changes` **limpo** e **3.345 testes, 0 falhas** no merge; e depois, as três migrations do dia no `__EFMigrationsHistory` de prod.
+>
+> ✅ Conferido: `cwd` em `build-491-81084e6`, `NRestarts=0`, `/healthz` 200, zero erro no journal.
+>
+> Antes — 🔒 **O PAINEL ADMIN VOLTOU A SER DE UMA PESSOA SÓ** + **`build-489-fba0289`** com a coluna "Não constam" no relatório do Ranking.
 >
 > 🔒 **HOJE SÓ O FELIPE (Id 9) ALCANÇA `/Admin`.** A pedido dele — *"por enquanto somente eu terei acesso ao painel admin"* —, a flag de **assistente do sistema** saiu do **Lucas "Foka" (Id 10)**, que a tinha desde 08/08 e enxergava o painel inteiro (financeiro incluído) em só-leitura. ⚠️ **A conta dele ficou INTEIRA**: login `Foka`, senha e pagamento intocados — foi só a flag, e religar é um clique em `/Admin/Administradores`. ⚡ **Tirar vale na hora** (as travas leem do BANCO), ao contrário de conceder, que espera o próximo login; o que demora é só o **item de menu**, que vem do crachá — clicar nele já devolve pro perfil. 🤝 E o perfil de **parceiro do Ranking** segue em **zero**: ninguém de fora vê nada até ser designado.
 >
@@ -11,7 +19,7 @@
 >
 > 🧭 **De quebra, o painel tinha DOIS cards dizendo "Ranking Brasil"** e o Felipe procurou o botão de conferir no errado. Agora um é **"Relatório — só leitura (é a tela que eles enxergam, sem botão nenhum)"** e o outro **"acerto e conferência"**; e do relatório o nome do torneio virou **link** pra página dele. ⚠️ Link, e nunca formulário: a trava do parceiro é o verbo HTTP. O teste-guarda chegou a reprovar o **próprio comentário** que escrevi pra explicar a regra — ele cita a tag que a regra proíbe —, e agora ele descarta comentário Razor antes de comparar.
 >
-> Antes, no mesmo dia — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ⚠️ **AINDA NÃO PUBLICADO** — corrigido no código, com testes, esperando deploy.
+> Antes, no mesmo dia — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ✅ **PUBLICADO no `build-491-81084e6`** (20:49) e conferido em produção como visitante anônimo — ver o topo deste documento.
 >
 > 🔎 **Varredura de conformidade pedida pelo Felipe** (*"verifique se tem coisas que ferem as leis de uso, divulgação de CPF ou coisas assim"*). O sistema estava bem acima da média — política de verdade, exclusão de conta com anonimização, busca que exige CPF inteiro, CPF fora dos logs. Mas **`GET /Jogadores/Perfil/169` em produção, SEM LOGIN, devolvia 200 com um `wa.me/55…` no HTML**: telefone de jogador real, numa página linkada do ranking público, com `Allow: /` no robots.txt. E o item 4 da política dizia, com todas as letras, *"Nunca são públicos: CPF, CEP, e-mail, celular e senha"*.
 >
