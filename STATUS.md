@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ⚠️ **AINDA NÃO PUBLICADO** — corrigido no código, com testes, esperando deploy.
+> Última atualização: **10/08/2026** — 🔒 **O PAINEL ADMIN VOLTOU A SER DE UMA PESSOA SÓ** + 🚀 **`build-489-fba0289` no ar** com a coluna "Não constam" no relatório do Ranking.
+>
+> 🔒 **HOJE SÓ O FELIPE (Id 9) ALCANÇA `/Admin`.** A pedido dele — *"por enquanto somente eu terei acesso ao painel admin"* —, a flag de **assistente do sistema** saiu do **Lucas "Foka" (Id 10)**, que a tinha desde 08/08 e enxergava o painel inteiro (financeiro incluído) em só-leitura. ⚠️ **A conta dele ficou INTEIRA**: login `Foka`, senha e pagamento intocados — foi só a flag, e religar é um clique em `/Admin/Administradores`. ⚡ **Tirar vale na hora** (as travas leem do BANCO), ao contrário de conceder, que espera o próximo login; o que demora é só o **item de menu**, que vem do crachá — clicar nele já devolve pro perfil. 🤝 E o perfil de **parceiro do Ranking** segue em **zero**: ninguém de fora vê nada até ser designado.
+>
+> 🔢 **O RELATÓRIO PASSOU A DIZER QUANTOS NÃO ESTÃO NO RANKING** — coluna "Não constam" na tabela e uma seção listando essas pessoas, com o **nome exatamente como foi consultado** (o casamento deles é POR NOME, então "não consta" às vezes é grafia diferente, e só vendo o texto dá pra separar os dois casos). ⚠️ A regra exige ter sido **PERGUNTADO**: `EncontradoNoRanking` também é `false` em quem nunca foi consultado, e ali significa "ninguém perguntou" — sem essa condição o relatório afirmaria ao parceiro que atletas faltam na base DELE sem base nenhuma.
+>
+> 📊 **E o primeiro número real da parceria, depois de o Felipe apertar "Conferir" no NATA PADEL TOUR**: 22 de 22 conferidos (cobertura foi de 9% a **100%**), **14 não constam** no Ranking Brasil e **8 constam** — ou seja, o filtro conferiu 8 pessoas de verdade contra pontos, além de barrar o Gabriel reis. A leitura de que "eles simplesmente não têm cadastro" estava certa em 14 dos 22, não em todos.
+>
+> 🧭 **De quebra, o painel tinha DOIS cards dizendo "Ranking Brasil"** e o Felipe procurou o botão de conferir no errado. Agora um é **"Relatório — só leitura (é a tela que eles enxergam, sem botão nenhum)"** e o outro **"acerto e conferência"**; e do relatório o nome do torneio virou **link** pra página dele. ⚠️ Link, e nunca formulário: a trava do parceiro é o verbo HTTP. O teste-guarda chegou a reprovar o **próprio comentário** que escrevi pra explicar a regra — ele cita a tag que a regra proíbe —, e agora ele descarta comentário Razor antes de comparar.
+>
+> Antes, no mesmo dia — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ⚠️ **AINDA NÃO PUBLICADO** — corrigido no código, com testes, esperando deploy.
 >
 > 🔎 **Varredura de conformidade pedida pelo Felipe** (*"verifique se tem coisas que ferem as leis de uso, divulgação de CPF ou coisas assim"*). O sistema estava bem acima da média — política de verdade, exclusão de conta com anonimização, busca que exige CPF inteiro, CPF fora dos logs. Mas **`GET /Jogadores/Perfil/169` em produção, SEM LOGIN, devolvia 200 com um `wa.me/55…` no HTML**: telefone de jogador real, numa página linkada do ranking público, com `Allow: /` no robots.txt. E o item 4 da política dizia, com todas as letras, *"Nunca são públicos: CPF, CEP, e-mail, celular e senha"*.
 >
