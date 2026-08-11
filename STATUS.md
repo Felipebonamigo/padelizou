@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🖼️ **A IMAGEM DA MARCA, O ÍCONE DA BUSCA, O REMENDO DO `www` — E A CIDADE DO CLUBE, QUE ERA O QUE TRAVAVA TUDO.** ⏳ **NÃO PUBLICADO** (commitado, sem deploy).
+> Última atualização: **11/08/2026** — 🚀 **`build-517-7f5e975` NO AR EM PRODUÇÃO** (21:09). A imagem da marca, o ícone da busca, o remendo do `www` e a cidade do clube.
+>
+> ✅ **E O DEPLOY PELO GITHUB FUNCIONOU PELA PRIMEIRA VEZ.** Ele **nunca tinha rodado**: os secrets não existiam — `SSH_KEY`, `KNOWN_HOSTS` e `VPS_HOST` chegavam **vazios** no job, e ele saía com exit 1 no "Preparar o acesso ao VPS" (a proteção fazendo o trabalho dela). Todos os deploys anteriores saíram por SSH direto. Agora o `gh` CLI está instalado e autenticado (escopo `workflow`), e `VPS_HOST`/`VPS_SSH_KEY` estão no environment `prod`. Publicar virou um comando. ⚠️ **O environment `dev` não existe** (404), e **a "aprovação obrigatória do prod" que o comentário do `deploy.yml` descreve NÃO está configurada** — a API devolve `prod` sem protection rule nenhuma, então disparar publica direto.
+>
+> ✅ **Conferido no ar, pelo conteúdo servido**: `og:image` = a arte 1200×630 nova com `summary_large_image`; os dois `<link rel="icon">` (64 versionado, 192 estável); 2 blocos JSON-LD na home; `robots.txt` apontando o sitemap; e a ficha do **NATA PADEL TOUR** saindo como `SportsEvent`, `startDate` 2026-10-10, R$ 125,00 e a capa. 🔗 **O canonical servido pelo `www` agora aponta para a raiz** — era ele confirmando os dois endereços.
+>
+> ⏭️ **O que o Google mostra ainda é o de ANTES, e isso é esperado**: ele não re-rastreia em tempo real. Acelerar = *Inspeção de URL → Solicitar indexação* no Search Console. O **favicon é o mais lento** dos itens.
+>
+> 🚨 **AS PÁGINAS DE CIDADE SEGUEM EM 404 EM PRODUÇÃO, e é falta de DADO, não de código**: nenhum clube de prod tem cidade (o `location` do NATA sai sem `address`). O conserto está no ar — `/Admin/Clubes`, botão de pin.
 >
 > 🕳️ **AS PÁGINAS DE CIDADE SUBIRAM NO `build-515` E ESTAVAM INERTES.** Conferido em produção: `/torneios-de-padel-em-porto-alegre-rs` respondia **404 em todas** — e **corretamente**, porque **nenhum clube de produção tem cidade**. O JSON-LD do torneio 25 provou: `"location":{"name":"Chakra Padel"}`, **sem `address`**. `Clube.CidadeId` só era preenchido na criação, e não havia como editar depois: o recurso estava pronto e morto por falta de um campo, **sem nada na tela dizendo isso**.
 >
