@@ -1,0 +1,181 @@
+@model Padelizou.Services.VotacaoDeMvp
+@{
+    ViewData["Title"] = $"MVP — {Model.Torneio} - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-action="Details" asp-route-id="@Model.TorneioId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-star-fill text-warning"></i> MVP do torneio
+    </h2>
+    <p class="text-muted">@Model.Torneio</p>
+
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger rounded-4">@TempData["Erro"]</div>
+    }
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success rounded-4">@TempData["Sucesso"]</div>
+    }
+
+    @* ── O RESULTADO ────────────────────────────────────────────────────────────────────
+       Só existe depois que a votação fecha. Placar parcial em votação aberta vira efeito
+       manada: quem abre a tela depois vota no que já está ganhando. *@
+    @if (Model.Encerrada)
+    {
+        if (Model.TemVencedor)
+        {
+            <div class="card border-0 shadow-sm rounded-4 mb-4"
+                 style="background: var(--pdz-navy-fixed);">
+                <div class="card-body text-center py-4 text-white">
+                    <div class="small text-uppercase mb-3" style="letter-spacing:.12em; color: var(--padel-green);">
+                        @(Model.Empatou ? "Empate na votação" : "Melhor jogador do torneio")
+                    </div>
+
+                    @foreach (var vencedor in Model.Vencedores)
+                    {
+                        <div class="mb-3">
+                            <img src="@(string.IsNullOrEmpty(vencedor.Foto) ? "/img/default-avatar.png" : vencedor.Foto)"
+                                 alt="" class="rounded-circle mb-2"
+                                 style="width:96px;height:96px;object-fit:cover;border:3px solid var(--padel-green);" />
+                            <div class="fs-4 fw-bold">@vencedor.Nome</div>
+                            <div class="small" style="color: var(--padel-green);">
+                                @vencedor.Votos @(vencedor.Votos == 1 ? "voto" : "votos")
+                                · campeã(o) em @string.Join(", ", vencedor.Categorias.Select(Padelizou.Services.CategoriaNaTela.Curto))
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            @* ⚠️ Estado vazio que AVISA, em vez de proclamar um MVP de um voto só. Mesma régua
+               do "1º lugar com 0 pontos" que saiu do ranking. *@
+            <div class="alert alert-light border rounded-4">
+                <strong>Este torneio não elegeu um MVP.</strong>
+                <div class="small text-muted">
+                    A votação encerrou com menos de @Padelizou.Services.MvpDoTorneio.VotosMinimos votos —
+                    poucos pra dizer que alguém foi o melhor do torneio.
+                </div>
+            </div>
+        }
+    }
+
+    @* ── A CÉDULA ───────────────────────────────────────────────────────────────────────
+       A lista aparece nos dois estados: aberta (pra votar) e encerrada (pra conferir o
+       apanhado). O que muda é o botão. *@
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body">
+
+            @if (Model.Aberta)
+            {
+                <p class="mb-1 fw-semibold" style="color: var(--pdz-ink);">
+                    Quem foi o melhor jogador deste torneio?
+                </p>
+                <p class="text-muted small">
+                    Vote em um dos campeões. Você pode trocar enquanto a votação estiver aberta,
+                    e o resultado só aparece quando ela fechar.
+                    @if (Model.FechaEm != null)
+                    {
+                        <text>Encerra em <strong>@Model.FechaEm.Value.ToString("dd/MM 'às' HH'h'mm")</strong>.</text>
+                    }
+                </p>
+
+                @if (!Model.SouEleitor)
+                {
+                    <div class="alert alert-light border rounded-4 small mb-3">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <text>Só quem esteve na chave deste torneio vota. Você pode acompanhar o resultado por aqui.</text>
+                        }
+                        else
+                        {
+                            <text>
+                                <a asp-controller="Auth" asp-action="Login">Entre na sua conta</a>
+                                pra votar — a votação é de quem jogou este torneio.
+                            </text>
+                        }
+                    </div>
+                }
+            }
+
+            @if (Model.Candidatos.Count == 0)
+            {
+                <div class="text-muted small">
+                    Nenhuma categoria deste torneio tem campeão registrado, então não há cédula.
+                </div>
+            }
+
+            <div class="list-group list-group-flush">
+                @foreach (var candidato in Model.Candidatos)
+                {
+                    var euVoteiNele = Model.MeuVoto == candidato.JogadorId;
+                    var souEu = Model.EuId == candidato.JogadorId;
+
+                    <div class="list-group-item px-0 d-flex align-items-center gap-3 flex-wrap">
+                        <img src="@(string.IsNullOrEmpty(candidato.Foto) ? "/img/default-avatar.png" : candidato.Foto)"
+                             alt="" class="rounded-circle"
+                             style="width:52px;height:52px;object-fit:cover;" />
+
+                        <div class="flex-grow-1" style="min-width: 140px;">
+                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@candidato.JogadorId"
+                               class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
+                                @candidato.Nome
+                            </a>
+                            <div class="small text-muted">
+                                Campeã(o) em @string.Join(", ", candidato.Categorias.Select(Padelizou.Services.CategoriaNaTela.Curto))
+                            </div>
+                        </div>
+
+                        @if (Model.Encerrada)
+                        {
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                @candidato.Votos @(candidato.Votos == 1 ? "voto" : "votos")
+                            </span>
+                        }
+                        else if (Model.Aberta && Model.SouEleitor && !souEu)
+                        {
+                            <form asp-action="VotarMvp" asp-route-id="@Model.TorneioId" method="post" class="m-0">
+                                <input type="hidden" name="candidatoId" value="@candidato.JogadorId" />
+                                <button type="submit"
+                                        class="btn btn-sm rounded-pill px-3 @(euVoteiNele ? "btn-success" : "btn-outline-primary")">
+                                    @if (euVoteiNele)
+                                    {
+                                        <text><i class="bi bi-check-lg"></i> Seu voto</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Votar</text>
+                                    }
+                                </button>
+                            </form>
+                        }
+                        else if (souEu)
+                        {
+                            @* Ninguém vota em si mesmo — e a tela diz por quê, em vez de só
+                               esconder o botão e parecer defeito. *@
+                            <span class="small text-muted fst-italic">é você</span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <hr />
+            <div class="small text-muted">
+                <i class="bi bi-people"></i>
+                @Model.TotalDeVotos de @Model.Eleitores @(Model.Eleitores == 1 ? "jogador votou" : "jogadores votaram")
+                @if (Model.Aberta)
+                {
+                    <text>até agora.</text>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -126,6 +126,9 @@ public partial class DbPadelContext : DbContext
     // O cinturão de cada categoria: o dono de hoje é a linha com TerminouEm nulo, e as demais
     // são o histórico. Ver o comentário do modelo.
     public DbSet<ReinadoNoCinturao> ReinadosNoCinturao { get; set; }
+    // O voto pro melhor jogador do torneio, um por pessoa. A apuração é contagem de linhas
+    // daqui — nunca um contador numa coluna, que não dá pra auditar nem pra desfazer.
+    public DbSet<VotoDeMvp> VotosDeMvp { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -434,6 +437,40 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.ParaJogador)
                 .WithMany()
                 .HasForeignKey(e => e.ParaJogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<VotoDeMvp>(entity =>
+        {
+            // UM VOTO POR PESSOA POR TORNEIO, garantido pelo BANCO.
+            //
+            // ⚠️ A checagem em C# ("já votou?") não basta e não é redundância: dois POSTs
+            // simultâneos — o clique duplo no celular lento é o caso comum — passam os dois
+            // pela consulta antes de qualquer um gravar, e a pessoa vota duas vezes sem
+            // trapacear de propósito. Aqui a segunda gravação simplesmente não acontece.
+            //
+            // Mesma régua do Elogio: quem já votou pode TROCAR a escolha (o serviço atualiza a
+            // linha), nunca somar outra.
+            entity.HasIndex(v => new { v.TorneioId, v.VotanteId }).IsUnique();
+
+            // Torneio apagado leva os votos junto: a votação não existe fora dele.
+            entity.HasOne(v => v.Torneio)
+                .WithMany()
+                .HasForeignKey(v => v.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ⚠️ Os DOIS lados de Jogador em Restrict, e não um Cascade como no Elogio: aqui já
+            // existe um caminho de cascade pelo Torneio, e um segundo por Jogador criaria os
+            // "múltiplos caminhos" que o Postgres recusa. Restrict é a resposta certa de
+            // qualquer forma — apagar conta é bloqueado pelo banco desde sempre (ver
+            // Jogador.ExcluidoEm: a exclusão raspa os dados, não remove a linha).
+            entity.HasOne(v => v.Votante)
+                .WithMany()
+                .HasForeignKey(v => v.VotanteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(v => v.Candidato)
+                .WithMany()
+                .HasForeignKey(v => v.CandidatoId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<ConfiguracaoDoSistema>(entity =>
