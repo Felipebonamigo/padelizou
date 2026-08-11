@@ -1,7 +1,8 @@
 # Programa de Parceiros: quem traz cliente ganha % da comissão
 
-🟡 **PLANEJADO, NADA CONSTRUÍDO (11/08/2026).** Não existe nenhuma noção de indicação, lead ou
-parceiro comercial no código. Este documento é a regra fechada — o que falta é a tela.
+🟢 **CONSTRUÍDO EM 11/08/2026, AINDA NÃO PUBLICADO.** A regra está escrita aqui e implementada em
+`/Admin/Leads` (o registro da indicação) e `/Admin/Comissoes` (a conta). Falta o botão de "paguei"
+e o deploy.
 
 O problema que ele resolve: o Felipe faz o sistema, mas vender não é o forte dele. O pipeline
 atual (6 grupos de torneio, 3 clubes, 2 professores) veio todo de relação pessoal, e relação
@@ -96,12 +97,13 @@ Essa é a parte que quebra amizade. Fechada **antes** de convidar a primeira pes
 - **Piso de R$ 50 pra sacar.** Abaixo disso acumula pro mês seguinte — ninguém quer fazer Pix de
   R$ 7 e o parceiro não quer receber R$ 7.
 
-⚠️ **BURACO CONHECIDO: o "externo 5%" não gera `Pagamento`.** No torneio externo o dinheiro nunca
-passa pelo sistema; a taxa vive como `Torneio.TaxaExternoPagaEm`, cobrada **à mão** pelo admin, e
-a trava é o sorteio das chaves (`Services/TaxaDoTorneioExterno`). Torneio externo trazido por
-parceiro **não aparece em relatório nenhum**. Duas saídas: o admin registra um `Pagamento` na mão
-ao receber, ou o cálculo ganha um caso especial lendo `TaxaExternoPagaEm`. Decidir **antes** de o
-primeiro parceiro vender um externo, não depois.
+⚠️ **BURACO CONHECIDO, e ele é mais estreito do que parecia.** Conferido no código em 11/08: o
+"externo 5%" **gera `Pagamento` sim** quando o organizador paga pelo site — é o tipo `TaxaTorneio`,
+com `RecebedorId` nulo e o organizador como pagador, e a conta enxerga isso normalmente. O que
+**não** aparece é o externo que o admin marca como **pago ou negociado na mão** em
+`/Admin/Financeiro` (`Torneio.TaxaExternoPagaEm` / `TaxaExternoNegociadaEm`): aí não nasce
+pagamento nenhum, e o acerto com o parceiro é manual. O aviso está escrito na própria tela de
+comissões.
 
 ---
 
@@ -157,23 +159,28 @@ RPA ou nota do parceiro) é pergunta pro contador** — este documento não deci
 
 ---
 
-## O que precisa ser construído
+## O que já existe (11/08/2026)
 
-O `Pagamento` já carrega `Comissao`, `RecebedorId`, `Status`, `ConfirmadoEm` e `ValorEstornado` —
-o cálculo inteiro sai do que já existe. Falta só saber **quem trouxe cada recebedor**.
+✅ **`/Admin/Leads`** — o registro da indicação, com a regra do "quem registra primeiro leva".
+✅ **`/Admin/Comissoes`** — a conta: o já fechado, o que ainda corre no mês, e quanto falta pro fim
+dos 12 meses de cada cliente. Regras em `Services/ComissaoDoParceiro`.
+✅ **Perfil `IsParceiroComercial`** — o parceiro entra em `admin.padelizou.com.br`, cai direto no
+extrato dele e **não alcança mais nada do painel**. Liberado em `/Admin/Administradores`.
 
-1. **`Jogador.IndicadoPorId` + `IndicadoEm`** — duas colunas anuláveis, uma migration. ⚠️ Migration
-   só em worktree limpo ([[feedback_padelizou_migration_worktree_limpo]]).
-2. **Flag `EhParceiroComercial`** no `Jogador`. ⚠️ Ela **não** entra em `IsAdmin` nem em
-   `PodeOlharTudo` — mesma regra do Parceiro do Ranking e do Assistente do Sistema.
-3. **Tela de leads** (`/Parceiros/Leads`) — cadastrar antes do contato, com data. É o mecanismo de
-   atribuição inteiro; sem ela a regra nº 1 não existe.
-4. **Tela "minhas comissões"** (`/Parceiros/Meus`) — soma `Comissao` dos pagamentos confirmados
-   cujo `RecebedorId` foi indicado por ele, com o mês fechado e o que ainda está em carência.
-5. **Registro de repasse** — o Felipe marca "pago" e a linha sai do aberto. 💸 O Pix quem aperta é
-   ele; o sistema só monta o relatório e o botão.
+⚠️ **De quem é o cliente num pagamento tem DUAS respostas**, e o cálculo depende disso: em
+inscrição, aula e quadra o cliente é o **`RecebedorId`** (o organizador, o professor, o dono do
+clube); em mensalidade e taxa do externo o `RecebedorId` é **nulo** (o valor inteiro é nosso) e o
+cliente é **quem pagou**. Buscar só por um dos dois perderia frentes inteiras em silêncio.
 
-Estimativa: 1 a 2 dias. Nada disso toca em cobrança existente.
+### O que ainda falta
+
+1. **Registro de repasse** — hoje a tela diz quanto, mas ninguém marca "paguei". Sem isso o
+   controle do que já saiu é o extrato bancário. 💸 O Pix quem aperta é o Felipe; o sistema só
+   monta o relatório e o botão.
+2. **A "1ª mensalidade cheia" do clube** nunca dispara, porque **não existe plano de clube no
+   código**. Quando existir, basta o tipo dela entrar em `ComissaoDoParceiro.TiposDeMensalidade`.
+3. **A tela do parceiro é só leitura e só dele** — não há como ele registrar o próprio lead. Com
+   dois ou três parceiros o registro chega por WhatsApp e o Felipe lança; com cinco, não dá.
 
 ---
 

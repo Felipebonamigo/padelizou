@@ -65,4 +65,24 @@ public static class PoderesNoSistema
     // NÃO cai nisto — a flag soma, não substitui, igual à do assistente.
     public static bool SoVeORelatorioDoRanking(Jogador? jogador) =>
         jogador is { IsParceiroRanking: true } && !PodeOlharTudo(jogador);
+
+    // ── O PARCEIRO COMERCIAL: UMA TELA, E SÓ AS LINHAS DELE ────────────────────────────
+    //
+    // Quinto perfil (11/08/2026), e o mais estreito de todos. O parceiro do Ranking vê UMA
+    // tela inteira; este vê uma tela FILTRADA NELE. A diferença é o que está em jogo: dois
+    // parceiros comerciais disputam os mesmos contatos, e a tela mostra quem cada um trouxe,
+    // quanto rendeu e quanto vai receber. Um enxergar o outro é vazamento entre concorrentes.
+    //
+    // ⚠️ ESTAS DUAS FUNÇÕES NÃO SÃO A TRAVA — elas só dizem quem entra na tela. Quem garante
+    // que o parceiro vê apenas as próprias linhas é AdminController.Comissoes, que IMPÕE o id
+    // da sessão e ignora a query string. Uma checagem de "pode ver a tela" nunca responde
+    // "pode ver ESTA linha", e confundir as duas é como se vaza dado em painel filtrado.
+    public static bool PodeVerComissoesDeParceiro(Jogador? jogador) =>
+        PodeOlharTudo(jogador) || jogador is { IsParceiroComercial: true };
+
+    // Está aqui SÓ por causa do extrato dele: o resto do painel não existe do lado de lá.
+    // Parceiro que também seja admin (o Felipe indicando alguém) NÃO cai nisto — a flag soma,
+    // não substitui, igual às outras duas.
+    public static bool SoVeAsPropriasComissoes(Jogador? jogador) =>
+        jogador is { IsParceiroComercial: true } && !PodeOlharTudo(jogador);
 }

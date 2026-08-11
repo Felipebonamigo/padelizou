@@ -104,6 +104,12 @@ namespace padelizou.Controllers
             if (admin == null && PoderesNoSistema.SoVeORelatorioDoRanking(await QuemEstaLogadoAsync()))
                 return RedirectToAction(nameof(RankingRsRelatorio));
 
+            // Mesmo desvio pro PARCEIRO COMERCIAL, e pela mesma razão: ele tem uma tela, não um
+            // painel. Sem isto ele cairia no /Auth/Perfil, que no subdomínio do painel é um beco,
+            // e concluiria que o acesso não funciona.
+            if (admin == null && PoderesNoSistema.SoVeAsPropriasComissoes(await QuemEstaLogadoAsync()))
+                return RedirectToAction(nameof(Comissoes));
+
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             ViewBag.EhRaiz = admin.IsAdminRaiz;
@@ -352,6 +358,14 @@ namespace padelizou.Controllers
                 .OrderBy(j => j.Nome)
                 .ToListAsync();
 
+            // Parceiros comerciais: quarta lista. Também gente de fora, mas com um vínculo
+            // diferente do parceiro do Ranking — estes ganham dinheiro do que trazem, e a tela
+            // deles é filtrada neles. Ver Services/ComissaoDoParceiro.
+            ViewBag.ParceirosComerciais = await _context.Jogadores
+                .Where(j => j.IsParceiroComercial)
+                .OrderBy(j => j.Nome)
+                .ToListAsync();
+
             return View(administradores);
         }
 
@@ -494,6 +508,50 @@ namespace padelizou.Controllers
             }
 
             TempData["Sucesso"] = "Acesso ao relatório removido. Vale a partir do próximo login.";
+            return RedirectToAction("Administradores");
+        }
+
+        // ── Parceiro comercial ─────────────────────────────────────────────────────────────
+        // Quem traz cliente e ganha percentual (PARCEIROS.md). Só o RAIZ concede, como as
+        // outras — e esta abre a porta mais estreita do sistema: UMA tela, filtrada na pessoa.
+        //
+        // ⚠️ Conceder a flag NÃO cria indicação nenhuma: quem decide de quem é cada cliente é
+        // o registro em /Admin/Leads. São duas coisas separadas de propósito — a flag é "pode
+        // ver o extrato", o lead é "este cliente é seu". Um parceiro sem lead vê uma tela
+        // vazia, que é a verdade.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarParceiroComercial(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador == null) return NotFound();
+
+            jogador.IsParceiroComercial = true;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"{NomeBonito.Formatar(jogador.Nome)} agora vê o extrato de comissão "
+                + "— só as indicações dele, e mais nada do painel. Precisa sair e entrar de novo pra valer.";
+            return RedirectToAction("Administradores");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverParceiroComercial(int jogadorId)
+        {
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
+
+            var jogador = await _context.Jogadores.FindAsync(jogadorId);
+            if (jogador != null)
+            {
+                jogador.IsParceiroComercial = false;
+                await _context.SaveChangesAsync();
+            }
+
+            // Tirar o acesso não apaga as indicações dele nem o que já rendeu: a comissão é
+            // combinada, não é um efeito da flag. O que ele perde é a tela.
+            TempData["Sucesso"] = "Acesso ao extrato removido. As indicações e o que já rendeu continuam registrados.";
             return RedirectToAction("Administradores");
         }
 

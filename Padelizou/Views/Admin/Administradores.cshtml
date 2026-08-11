@@ -226,4 +226,71 @@
             }
         </div>
     </div>
+
+    @* ── PARCEIROS COMERCIAIS ─────────────────────────────────────────────────────────
+       Quarto bloco. Também é gente de fora, mas o vínculo é outro: estes GANHAM dinheiro do
+       que trazem, e a tela deles é filtrada neles — um parceiro não pode ver a carteira do
+       outro. Ver PARCEIROS.md e Services/ComissaoDoParceiro. *@
+    @{
+        var comerciais = ViewBag.ParceirosComerciais as List<Jogador> ?? new List<Jogador>();
+    }
+    <div class="mt-5">
+        <h4 class="fw-bold" style="color: var(--pdz-ink);">Parceiros comerciais</h4>
+        <p class="text-muted">
+            Quem traz cliente e ganha percentual. Enxergam <strong>uma única tela</strong> — o
+            extrato da comissão deles, com <strong>apenas os clientes que cada um trouxe</strong>
+            — e mais nada do painel.
+        </p>
+        <p class="text-muted small">
+            <i class="bi bi-info-circle"></i>
+            Liberar o acesso <strong>não cria indicação nenhuma</strong>: quem decide de quem é
+            cada cliente é o registro em
+            <a asp-controller="Admin" asp-action="Leads">Indicações dos parceiros</a>. Parceiro
+            sem indicação fechada vê uma tela vazia. O crachá é reescrito no login.
+        </p>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted mb-2">Liberar o extrato para alguém</h6>
+                @{
+                    ViewData["BuscaOrgActionUrl"] = Url.Action("AdicionarParceiroComercial", "Admin");
+                }
+                <partial name="_BuscaOrganizador" />
+                @{
+                    ViewData["BuscaOrgActionUrl"] = null;
+                }
+            </div>
+        </div>
+
+        <div class="list-group shadow-sm">
+            @if (comerciais.Any())
+            {
+                @foreach (var parceiro in comerciais)
+                {
+                    <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <span class="fw-bold">@parceiro.NomeComApelido</span>
+                        @* A confirmação vem de data-confirmar, e não de um confirm() inline com
+                           @@variavel dentro: um nome com apóstrofo ("Rafa's") fecharia a aspa do
+                           JS e quebraria o botão. *@
+                        <form asp-controller="Admin" asp-action="RemoverParceiroComercial" method="post"
+                              data-confirmar="Tirar o acesso de @parceiro.Nome ao extrato de comissão? As indicações dele e o que já rendeu continuam registrados.">
+                            <input type="hidden" name="jogadorId" value="@parceiro.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="list-group-item text-muted">Nenhum parceiro comercial ainda.</div>
+            }
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('submit', function (e) {
+        var texto = e.target.dataset ? e.target.dataset.confirmar : null;
+        if (texto && !confirm(texto)) e.preventDefault();
+    });
+</script>

@@ -238,6 +238,18 @@ public partial class Jogador
     // Ver Services/PoderesNoSistema e Services/RelatorioDoRankingRs.
     public bool IsParceiroRanking { get; set; }
 
+    // PARCEIRO COMERCIAL: quem traz cliente e ganha percentual (PARCEIROS.md). Vê UMA tela do
+    // painel — o extrato da comissão dele.
+    //
+    // ⚠️ É a flag MAIS ESTREITA do sistema, e por um motivo que as outras não têm: o parceiro
+    // do Ranking vê uma tela inteira, mas o parceiro comercial só pode ver AS LINHAS DELE. Dois
+    // parceiros na mesma tela não podem se enxergar — quem eu trouxe, quanto rendeu e quanto vou
+    // receber é informação minha, e os parceiros concorrem entre si pelo mesmo contato.
+    //
+    // Por isso a trava não mora só aqui: em AdminController.Comissoes o id do parceiro é
+    // IMPOSTO pela sessão e a query string é ignorada. Ver Services/PoderesNoSistema.
+    public bool IsParceiroComercial { get; set; }
+
     // Pode CRIAR torneio. Nasce desligado: desde 07/08/2026 criar torneio é liberado pessoa a
     // pessoa, no painel admin (ver Services/PermissaoDeOrganizador).
     //

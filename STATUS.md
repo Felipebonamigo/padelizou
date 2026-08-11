@@ -15,7 +15,23 @@
 >
 > 🐛 **Um defeito pego pelo próprio teste, e ele estava no teste**: `P(cidade, estado, em = null)` com `em ?? Hoje` engolia o `null` que o caso "conta anterior a 25/07/2026, sem data" precisa. Virou sobrecarga — parâmetro opcional que "conserta" o valor é como um teste passa verde sem nunca exercitar o que diz exercitar.
 >
-> Antes, no mesmo dia — 🤝 **PROGRAMA DE PARCEIROS: a régua está escrita e a tela de indicação está no painel.**
+> Antes, no mesmo dia — 🤝 **PROGRAMA DE PARCEIROS INTEIRO: a régua, o registro da indicação, a conta da comissão e o 5º perfil de acesso.**
+>
+> 💰 **`/Admin/Comissoes` — a conta que transforma o programa numa promessa cumprível.** Mostra por parceiro o **já fechado** (entra no Pix do dia 10), o **mês corrente** (separado porque ainda pode crescer) e quantos dias faltam pro fim dos 12 meses de cada cliente, com o detalhe pagamento a pagamento. Regras em `Services/ComissaoDoParceiro`.
+>
+> 🔑 **DE QUEM É O CLIENTE NUM PAGAMENTO TEM DUAS RESPOSTAS** — e o cálculo inteiro depende de acertar as duas. Em inscrição, aula e quadra o cliente é o **`RecebedorId`** (organizador/professor/dono do clube); em **mensalidade e taxa do externo** o `RecebedorId` é **nulo** de propósito (o valor inteiro é nosso) e o cliente é **quem pagou**. Buscar só por recebedor perderia essas duas frentes em silêncio; buscar só por pagador daria a comissão do parceiro por causa de um cliente do cliente — cada jogador inscrito viraria uma "indicação".
+>
+> 🧮 **Um torneio é UMA edição, não uma cobrança.** 32 duplas são 32 pagamentos e uma edição só: contar por pagamento pagaria 30% da primeira dupla e 10% das outras 31, **20% a menos do combinado**. Tem teste com as 32 cobranças.
+>
+> 👤 **5º PERFIL: `IsParceiroComercial` — o acesso MAIS ESTREITO do sistema.** O parceiro do Ranking vê uma tela inteira; este vê uma tela **filtrada nele**. A diferença é o que está em jogo: os parceiros disputam os mesmos contatos, e quem o outro trouxe e quanto vai receber é informação de concorrente. Liberado em `/Admin/Administradores`, como 4ª lista.
+>
+> 🔒 **A TRAVA É IMPOR, NÃO VALIDAR.** Quem não é da casa **não escolhe o filtro — ele É o filtro**: o id vem da sessão e a query string é ignorada. Um `parceiroId ?? quem.Id` pareceria idêntico e deixaria `?parceiroId=3` ler a carteira do colega, sem erro e sem log. A lista de nomes dos outros parceiros também não é montada pra ele — seria entregá-la dentro do HTML dele, sem link pra clicar. **Conferido no navegador com dois parceiros de verdade**: `?parceiroId=8` e `?parceiroId=1` devolveram só o cliente dele, sem uma menção ao outro no HTML, e `/Admin/Leads`, `/Admin/Financeiro` e `/Admin/Administradores` responderam 302.
+>
+> 🕳️ **O buraco do externo era MAIS ESTREITO do que eu tinha registrado.** Conferido no código: o "externo 5%" **gera `Pagamento` sim** quando o organizador paga pelo site (tipo `TaxaTorneio`), e a conta enxerga. O que não aparece é o externo que o admin marca como pago/negociado **na mão** — aí não nasce pagamento nenhum. O aviso está escrito na própria tela de comissões.
+>
+> 🧪 **3.457 testes, 0 falhas** (24 novos). **1 migration** (`IsParceiroComercial`, boolean `default false` — aqui o default zero do EF é justamente o certo: permissão não se ganha por acidente). ✅ **Conferido no navegador**, com dois parceiros e dois clientes: o admin somou R$ 105 fechado + R$ 10 do mês corrente, o parceiro viu R$ 45 + R$ 10 (só o dele), e o pagamento **pendente ficou de fora**. ⚠️ **O cookie de autenticação no localhost ignora a porta** — sem `fetch('/Auth/Logout')` na porta nova a verificação sai com a pessoa errada, calada (aconteceu no meio desta).
+>
+> Antes, no mesmo dia — 🤝 **A régua e a tela de indicação.**
 >
 > 🤝 **O Felipe faz o sistema, mas vender não é o forte dele** — e o pipeline inteiro (6 grupos de torneio, 3 clubes, 2 professores) veio de relação pessoal, que não escala. A saída desenhada hoje: pagar quem sabe vender, **só quando a venda vira dinheiro na conta**.
 >

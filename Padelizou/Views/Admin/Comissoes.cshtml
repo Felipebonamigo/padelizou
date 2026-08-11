@@ -1,0 +1,243 @@
+@using Padelizou.Services
+@model List<Padelizou.ViewModels.ComissaoDeClienteVM>
+@{
+    var soVeAsProprias = ViewBag.SoVeAsProprias as bool? ?? false;
+    ViewData["Title"] = (soVeAsProprias ? "Minhas comissões" : "Comissões dos parceiros") + " - Padelizou";
+
+    var agora = ViewBag.Agora as DateTime? ?? DateTime.Now;
+    var parceiros = ViewBag.Parceiros as List<Padelizou.Models.Jogador> ?? new List<Padelizou.Models.Jogador>();
+    var filtro = ViewBag.Filtro as int?;
+
+    var fechado = Model.Sum(l => l.Fechado);
+    var mesCorrente = Model.Sum(l => l.DoMesCorrente);
+    var ativos = Model.Count(l => l.Conta.AindaRende(agora));
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">
+                @(soVeAsProprias ? "Minhas comissões" : "Comissões dos parceiros")
+            </h2>
+            <p class="text-muted mb-0">
+                @if (soVeAsProprias)
+                {
+                    <text>
+                        O que os clientes que você trouxe já renderam. A conta é sobre a comissão
+                        que o Padelizou recebeu — <strong>30% da primeira venda, 10% do que vier
+                        depois, por 12 meses</strong>.
+                    </text>
+                }
+                else
+                {
+                    <text>
+                        O que cada parceiro tem a receber. Fecha no dia 30, sai no dia 10 do mês
+                        seguinte — o mês corrente aparece separado porque ainda pode crescer.
+                    </text>
+                }
+            </p>
+        </div>
+        @if (!soVeAsProprias)
+        {
+            <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+        }
+    </div>
+
+    @* Quem é de fora precisa saber que está numa tela sua, e não no painel da casa — a mesma
+       cortesia que o relatório do Ranking faz com o parceiro dele. *@
+    @if (soVeAsProprias)
+    {
+        <div class="alert alert-light border small">
+            <i class="bi bi-person-badge"></i>
+            Olá, <strong>@ViewBag.NomeDeQuemOlha</strong>. Esta é a sua tela — você vê apenas os
+            clientes que trouxe. Dúvida sobre algum valor? Fale com o Padelizou.
+        </div>
+    }
+
+    @if (!soVeAsProprias && parceiros.Any())
+    {
+        <form method="get" asp-controller="Admin" asp-action="Comissoes" class="row g-2 align-items-end mb-4">
+            <div class="col-12 col-md-5">
+                <label class="form-label small text-muted mb-1" for="filtroParceiro">Parceiro</label>
+                <select class="form-select" id="filtroParceiro" name="parceiroId" onchange="this.form.submit()">
+                    <option value="">Todos os parceiros</option>
+                    @foreach (var p in parceiros)
+                    {
+                        <option value="@p.Id" selected="@(filtro == p.Id)">@p.ComoChamar</option>
+                    }
+                </select>
+            </div>
+        </form>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4 text-success">R$ @fechado.ToString("N2")</div>
+                    <div class="text-muted small">fechado — entra no próximo dia 10</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">R$ @mesCorrente.ToString("N2")</div>
+                    <div class="text-muted small">@agora.ToString("MMMM") — ainda correndo</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@ativos</div>
+                    <div class="text-muted small">@(ativos == 1 ? "cliente ainda rendendo" : "clientes ainda rendendo")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    @if (!soVeAsProprias)
+                    {
+                        <th>Parceiro</th>
+                    }
+                    <th>Janela dos 12 meses</th>
+                    <th class="text-end">Mês corrente</th>
+                    <th class="text-end">Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var linha in Model)
+                {
+                    var conta = linha.Conta;
+                    var rende = conta.AindaRende(agora);
+                    <tr>
+                        <td>
+                            <span class="fw-bold">@linha.Lead.Cliente!.ComoChamar</span>
+                            <span class="badge text-bg-light border ms-1">@linha.Lead.Tipo</span>
+                            <div class="text-muted" style="font-size: .75rem;">
+                                indicado como "@linha.Lead.Contato"
+                            </div>
+                        </td>
+                        @if (!soVeAsProprias)
+                        {
+                            <td>@linha.Lead.Parceiro.ComoChamar</td>
+                        }
+                        <td class="text-nowrap">
+                            @if (conta.PrimeiroPagamento == null)
+                            {
+                                <span class="text-muted fst-italic">ainda não pagou nada</span>
+                            }
+                            else if (rende)
+                            {
+                                <span>até @conta.FimDaJanela!.Value.ToString("dd/MM/yyyy")</span>
+                                <div class="text-muted" style="font-size: .75rem;">
+                                    faltam @conta.DiasQueRestam(agora) dias
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-secondary">Encerrada</span>
+                                <div class="text-muted" style="font-size: .75rem;">
+                                    em @conta.FimDaJanela!.Value.ToString("dd/MM/yyyy")
+                                </div>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (linha.DoMesCorrente > 0)
+                            {
+                                <span>R$ @linha.DoMesCorrente.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="text-end fw-bold">R$ @conta.Total.ToString("N2")</td>
+                        <td class="text-end">
+                            @if (conta.Parcelas.Any())
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="collapse" data-bs-target="#parcelas_@linha.Lead.Id">
+                                    Detalhe
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                    @if (conta.Parcelas.Any())
+                    {
+                        <tr class="collapse" id="parcelas_@linha.Lead.Id">
+                            <td colspan="@(soVeAsProprias ? 5 : 6)">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr class="text-muted" style="font-size: .75rem;">
+                                            <th>Pago em</th>
+                                            <th>O quê</th>
+                                            <th class="text-end">Comissão do Padelizou</th>
+                                            <th class="text-end">Sua parte</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var parcela in conta.Parcelas.OrderByDescending(p => p.Pagamento.ConfirmadoEm))
+                                        {
+                                            <tr>
+                                                <td class="text-nowrap">@parcela.Pagamento.ConfirmadoEm!.Value.ToString("dd/MM/yyyy")</td>
+                                                <td>
+                                                    @parcela.Motivo
+                                                    <span class="text-muted" style="font-size: .75rem;">· @parcela.Pagamento.Tipo</span>
+                                                </td>
+                                                <td class="text-end">R$ @ComissaoDoParceiro.ComissaoLiquida(parcela.Pagamento).ToString("N2")</td>
+                                                <td class="text-end fw-bold">R$ @parcela.Valor.ToString("N2")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    }
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="@(soVeAsProprias ? 5 : 6)" class="text-muted">
+                            @if (soVeAsProprias)
+                            {
+                                <text>
+                                    Nenhum cliente seu fechou ainda. A comissão começa a contar no
+                                    primeiro pagamento que o cliente fizer pelo site.
+                                </text>
+                            }
+                            else
+                            {
+                                <text>
+                                    Nenhuma indicação fechada ainda. As indicações são registradas
+                                    em <a asp-controller="Admin" asp-action="Leads">Indicações dos parceiros</a>,
+                                    e viram linha aqui quando você marca "Fechou".
+                                </text>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* O buraco tem que estar escrito na tela do Felipe, e não só no PARCEIROS.md: é o tipo de
+       coisa que só se descobre quando um parceiro reclama que faltou dinheiro. *@
+    @if (!soVeAsProprias)
+    {
+        <div class="alert alert-warning small mt-3">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>O que esta conta NÃO enxerga:</strong> taxa de torneio externo que você
+            registrou <em>na mão</em> em /Admin/Financeiro (sem cobrança pelo site) não gera
+            pagamento nenhum, então não aparece aqui. Se o torneio foi trazido por parceiro,
+            o acerto dele é manual.
+        </div>
+    }
+</div>
