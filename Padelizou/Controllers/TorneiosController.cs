@@ -245,7 +245,32 @@ namespace Padelizou.Controllers
             ViewBag.EstadoDoPedido = PermissaoDeOrganizador.EstadoDe(euMesmo);
             ViewBag.EstouLogado = euMesmo != null;
 
+            // As cidades que têm torneio, pro bloco de links no rodapé da listagem. Não é
+            // enfeite: é por esses links que o buscador (e o visitante) chega às páginas de
+            // cidade. Página que ninguém aponta é página que ninguém acha.
+            ViewBag.CidadesComTorneio = await TorneiosPorCidade.ListarAsync(_context);
+
             return View();
+        }
+
+        // "Torneios de padel em Porto Alegre" — a página que responde à busca que as pessoas
+        // realmente fazem. Ver Services/TorneiosPorCidade pro desenho e pro porquê.
+        //
+        // A rota é escrita por extenso, e não /Torneios/Cidade/porto-alegre, porque o endereço
+        // é a primeira coisa que o buscador e a pessoa leem sobre a página — e este responde a
+        // pergunta antes mesmo de abrir.
+        [HttpGet("/torneios-de-padel-em-{slug}")]
+        public async Task<IActionResult> Cidade(string slug)
+        {
+            var pagina = await TorneiosPorCidade.AbrirAsync(_context, slug);
+
+            // 404 quando a cidade não tem torneio, de propósito: responder 200 com uma tela
+            // vazia ensina o buscador a indexar endereço que não leva a nada, e some com a
+            // confiança nas páginas que TÊM conteúdo.
+            if (pagina == null) return NotFound();
+
+            ViewBag.Lugar = pagina.Value.Lugar;
+            return View(pagina.Value.Torneios);
         }
 
         // Exemplo de como deve ficar o seu método Details

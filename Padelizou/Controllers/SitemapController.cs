@@ -42,16 +42,21 @@ public class SitemapController : Controller
             "/Professores",
         };
 
-        // ⚠️ A régua de quem aparece é a MESMA da vitrine (PermissaoDeOrganizador) e a do
-        // cancelado é a MESMA da listagem — copiar a condição aqui faria o torneio oculto
-        // continuar entrando no Google no dia em que uma das duas mudasse, e ninguém liga um
+        // ⚠️ A régua de quem aparece é a MESMA das telas públicas
+        // (PermissaoDeOrganizador.ApareceParaOPublico) — copiar a condição aqui faria o torneio
+        // oculto continuar entrando no Google no dia em que ela mudasse, e ninguém liga um
         // resultado de busca a um `if` esquecido num sitemap.
         var torneios = await _context.Torneios.AsNoTracking().ToListAsync();
         enderecos.AddRange(torneios
-            .Where(t => PermissaoDeOrganizador.ApareceNaVitrine(t)
-                        && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Where(PermissaoDeOrganizador.ApareceParaOPublico)
             .OrderByDescending(t => t.DataInicio)
             .Select(t => $"/Torneios/Details/{t.Id}"));
+
+        // As páginas de cidade ("torneios de padel em porto alegre"). Vêm logo depois da
+        // listagem geral porque são elas que respondem à busca de quem ainda não conhece o
+        // site — e o buscador só as encontra se alguém as apontar.
+        enderecos.AddRange((await TorneiosPorCidade.ListarAsync(_context))
+            .Select(lugar => $"/torneios-de-padel-em-{lugar.Slug}"));
 
         // Professor é quem tem interesse próprio em ser achado no Google — é a página que
         // vende a aula dele. O perfil de JOGADOR fica de fora: é página de pessoa física, e

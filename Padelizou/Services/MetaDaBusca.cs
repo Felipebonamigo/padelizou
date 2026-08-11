@@ -26,7 +26,7 @@ public static class MetaDaBusca
     private static readonly HashSet<string> NoIndice = new(StringComparer.OrdinalIgnoreCase)
     {
         "Home/Index", "Home/Privacy", "Home/Termos",
-        "Torneios/Index", "Torneios/Details", "Torneios/Jogos",
+        "Torneios/Index", "Torneios/Details", "Torneios/Jogos", "Torneios/Cidade",
         "Jogadors/Ranking", "Jogadors/Perfil",
         "Professores/Index", "Professores/Perfil",
     };

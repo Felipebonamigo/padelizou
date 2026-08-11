@@ -187,6 +187,36 @@
             }
         </div>
     </div>
+
+    @* ── Torneios por cidade ────────────────────────────────────────────────────────────────
+       Não é enfeite de rodapé: é por estes links que o buscador CHEGA nas páginas de cidade,
+       e página que ninguém aponta o Google trata como página que não importa. Vale pra quem
+       está lendo também — "tem torneio na minha cidade?" é a primeira pergunta de quem cai
+       aqui pela primeira vez.
+
+       Só aparecem cidades que TÊM torneio (ver Services/TorneiosPorCidade), então este bloco
+       some sozinho num sistema vazio em vez de virar uma fileira de links pra lugar nenhum. *@
+    @{
+        var cidadesComTorneio = ViewBag.CidadesComTorneio as List<Padelizou.Services.TorneiosPorCidade.Lugar>;
+    }
+    @if (cidadesComTorneio != null && cidadesComTorneio.Any())
+    {
+        <div class="mt-5 pt-4 border-top">
+            <h2 class="h6 fw-bold text-muted mb-3">
+                <i class="bi bi-geo-alt"></i> Torneios de padel por cidade
+            </h2>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var cidade in cidadesComTorneio)
+                {
+                    <a asp-action="Cidade" asp-route-slug="@cidade.Slug"
+                       class="btn btn-sm btn-outline-secondary rounded-pill">
+                        @cidade.Nome
+                        <span class="badge rounded-pill text-bg-light ms-1">@cidade.Torneios</span>
+                    </a>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 <script>

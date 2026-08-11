@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🚀 **`build-510-d4cbf08` NO AR EM PRODUÇÃO** (19:20): os cards compartilháveis, a retrospectiva do ano e o MVP do torneio saíram do repo e estão no site.
+> Última atualização: **11/08/2026** — 🗺️ **UMA PÁGINA POR CIDADE: "Torneios de padel em Porto Alegre".** ⏳ **NÃO PUBLICADO** (commitado, sem deploy).
+>
+> 🗺️ **O MOTIVO É O QUE AS PESSOAS DIGITAM.** Ninguém procura "padelizou" sem já conhecer o site — quem ainda não conhece procura **o esporte mais o lugar**. A listagem em `/Torneios` não responde a isso: ela não fala de cidade nenhuma. Agora `/torneios-de-padel-em-porto-alegre-rs` responde, com `<h1>`, título e descrição na mesma ordem da pergunta. O endereço é escrito por extenso de propósito: é a primeira coisa que o buscador e a pessoa leem sobre a página.
+>
+> 🚫 **SÓ NASCE PÁGINA DE CIDADE QUE TEM TORNEIO, e endereço sem torneio responde 404** — não uma tela dizendo "nada por aqui". 200 com tela vazia ensina o buscador a indexar endereço que não leva a nada e derruba a confiança nas páginas que TÊM conteúdo. Conferido: `/torneios-de-padel-em-brusque` (cidade cadastrada, zero torneios) e `.../narnia` dão 404.
+>
+> 🔤 **"porto alegre" MINÚSCULO ERA O QUE O GOOGLE IA MOSTRAR.** É assim que está no catálogo, e `MelhorGrafia` só escolhe entre as grafias que **existem** — não inventa uma melhor. `NomeDeCidade.ComoTitulo` conserta **na tela** (o cadastro é outra conversa): "porto alegre" → "Porto Alegre", "GRAVATAI" → "Gravatai", "são josé dos campos" → "São José dos Campos" com o conectivo minúsculo.
+>
+> 🔗 **AS DUAS GRAFIAS DA MESMA CIDADE SOMAM NUMA LINHA SÓ**, e a ordem importa: agrupar **depois** de contar mostraria "Gravataí (1)" e "GRAVATAI (2)" como dois lugares, nenhum com o número certo. A UF entra sempre no endereço porque "São Francisco" existe em meia dúzia de estados — dois lugares disputando a mesma página fariam um deles não abrir.
+>
+> 🕳️ **A REGRA DE VISIBILIDADE IA PRO TERCEIRO LUGAR.** `ApareceNaVitrine(t) && !EstaCancelado(t.Status)` já estava escrita no sitemap e ia se repetir aqui. Virou `PermissaoDeOrganizador.ApareceParaOPublico`. Regra de visibilidade copiada é como o torneio oculto reaparece: a pessoa esconde, uma cópia é atualizada, a outra não, e ele segue no Google — sem erro em lugar nenhum ligando as duas coisas. O `Index` do controller **não** usa o método novo, de propósito: lá a régua tem escapes (organizador e admin seguem vendo o que esconderam).
+>
+> 🔎 **O BLOCO DE LINKS NO FIM DE `/Torneios` NÃO É ENFEITE**: é por ele que o buscador **chega** nas páginas de cidade. Página que ninguém aponta o Google trata como página que não importa. Ele some sozinho num sistema sem torneio nenhum.
+>
+> 🧪 **3.746 testes, 0 falhas** (30 novos). **Zero migration.** ✅ **Conferido no navegador contra o Postgres local**: `/torneios-de-padel-em-porto-alegre-rs` com **13 cards**, título "Torneios de padel em Porto Alegre", descrição própria e canônica certa; as 3 cidades no `sitemap.xml`; e o bloco de links saindo *Porto Alegre 13 · Bento Gonçalves 4 · Gravataí 1*. Zero erro no log do servidor.
+>
+> 📌 **A cidade dos clubes REAIS está preenchida** (o que a memória antiga dizia não valer mais): dos 8 clubes locais, os 4 sem cidade são todos de teste. ⚠️ Mas `Clube.CidadeId` **só é atribuído na CRIAÇÃO** (`CatalogoLocais`) — **não existe tela pra dar cidade a um clube que já existe**. Clube antigo sem cidade não entra em página nenhuma, e nada avisa.
+>
+> ⏭️ **Falta**: publicar, e no Search Console enviar o sitemap. ⚠️ **E o site responde em DOIS endereços** — `www.padelizou.com.br` serve tudo, idêntico, **sem redirecionar**. Pro Google são dois sites duplicados. O canonical não resolve sozinho (ele usa o host da requisição); a correção é um **301 de `www` pra raiz no Caddy**, que não está no repo.
+>
+> Antes, no mesmo dia: 🚀 **`build-510-d4cbf08` NO AR EM PRODUÇÃO** (19:20): os cards compartilháveis, a retrospectiva do ano e o MVP do torneio saíram do repo e estão no site.
 >
 > 📸 **A PROVA QUE IMPORTAVA: o card renderizou COM TEXTO no Linux.** Baixado de `padelizou.com.br` depois do deploy, o card do **Americano das Gurias do Padel** saiu com **"CAMPEÃ"** (feminino singular — campeão de Americano é UMA pessoa e a categoria é Feminina), a pílula **"6ª Feminina"**, a foto real da **Caroline Tedesco (Carol Tedesco)**, "Paladino · 08/08/2026" e o endereço no rodapé. Era exatamente aqui que o `NoDependencies` do SkiaSharp entregaria um card com fundo, moldura e foto e **todos os textos invisíveis** — as três Poppins estão no publish (`wwwroot/fonts/`), conferidas no servidor. ⚠️ E o nome do arquivo saiu `campeoes-6-categoria-feminina.png`: é a categoria com **`ª`**, a mesma que dava **500** antes da peneira ASCII.
 >

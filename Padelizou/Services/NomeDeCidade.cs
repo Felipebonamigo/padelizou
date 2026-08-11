@@ -48,6 +48,38 @@ public static class NomeDeCidade
         return chaveA.Length > 0 && chaveA == Chave(b);
     }
 
+    // A cidade escrita como se escreve num título: "porto alegre" vira "Porto Alegre".
+    //
+    // Existe porque MelhorGrafia escolhe entre as grafias QUE EXISTEM no catálogo, e lá existe
+    // "porto alegre" em minúsculo — sem isto o <h1> e o <title> da página da cidade sairiam
+    // "Torneios de padel em porto alegre", que é como o Google mostraria pra todo mundo.
+    //
+    // ⚠️ Camada de TELA: não vai pro banco e não substitui MelhorGrafia. Arrumar o cadastro é
+    // outra conversa — esta função só evita que o dado torto apareça torto na busca.
+    //
+    // Conectivo fica minúsculo, menos na primeira palavra ("São José dos Campos", mas
+    // "Dos Santos" se a cidade começar assim).
+    private static readonly HashSet<string> Conectivos =
+        new(StringComparer.OrdinalIgnoreCase) { "de", "da", "do", "das", "dos", "e", "em" };
+
+    public static string ComoTitulo(string? nome)
+    {
+        var partes = Arrumar(nome).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length == 0) return string.Empty;
+
+        for (var i = 0; i < partes.Length; i++)
+        {
+            // Minúsculo primeiro, senão "GRAVATAI" sobreviveria inteiro ao gritar.
+            var palavra = partes[i].ToLowerInvariant();
+
+            partes[i] = i > 0 && Conectivos.Contains(palavra)
+                ? palavra
+                : char.ToUpperInvariant(palavra[0]) + palavra[1..];
+        }
+
+        return string.Join(' ', partes);
+    }
+
     // UF sempre em maiúscula, e só se realmente parecer uma UF — "rs" vira "RS", mas lixo não
     // vira UF só porque tem duas letras... isso quem valida é a tela; aqui só padronizamos.
     public static string? ArrumarEstado(string? uf)

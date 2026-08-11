@@ -104,6 +104,20 @@ public static class PermissaoDeOrganizador
     // da vitrine torneio que já estava anunciado e com gente inscrita.
     public static bool ApareceNaVitrine(Torneio torneio) =>
         torneio.AprovadoEm != null && !torneio.Oculto;
+
+    // "Um visitante deslogado, sem link direto, chega a este torneio?" — vitrine E não
+    // cancelado, que é o par que as telas públicas sempre pedem junto.
+    //
+    // Existe porque a condição já estava escrita em dois lugares (sitemap e páginas de cidade)
+    // e ia pro terceiro. Regra de visibilidade copiada é como o torneio oculto reaparece: a
+    // pessoa esconde o torneio, uma das cópias é atualizada, a outra não, e ele segue saindo
+    // no Google — sem erro em lugar nenhum pra ligar uma coisa à outra.
+    //
+    // O Index do controller NÃO usa este método de propósito: lá a mesma régua tem escapes
+    // (o organizador e o admin continuam vendo o que escondeu), e é justamente essa diferença
+    // que ele precisa expressar.
+    public static bool ApareceParaOPublico(Torneio torneio) =>
+        ApareceNaVitrine(torneio) && !CancelamentoDoTorneio.EstaCancelado(torneio.Status);
 }
 
 // Separado da regra de propósito: isto aqui é TEXTO DE TELA, e muda por razão diferente da
