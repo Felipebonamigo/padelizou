@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🗺️ **JOGADORES POR REGIÃO: o painel passou a saber DE ONDE vem quem se cadastra.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy).
+> Última atualização: **11/08/2026** — 🚀 **`build-496-c030ae7` NO AR EM PROD** (12:37). 🗺️ **JOGADORES POR REGIÃO: o painel passou a saber DE ONDE vem quem se cadastra.**
+>
+> 🚀 **O QUE FOI JUNTO NESTE BUILD, por escolha do Felipe** (a pergunta foi feita porque não era só código meu): a tela de regiões **mais o Programa de Parceiros inteiro** da sessão paralela — `/Admin/Leads`, a conta de comissão, `/Admin/Comissoes` e o 5º perfil de acesso —, mais o "cadastro de clube pergunta a cidade" que já estava no `origin`. O `main` tinha **divergido**: 3 commits meus/da paralela contra 2 do remoto. Merge (não rebase), e **build + suíte + `has-pending-model-changes` rodados de novo NO RESULTADO DO MERGE** — é ali que o snapshot de migration se contamina sem ninguém ver.
+>
+> ✅ **Conferido em produção, e não pelo "Feito" do script**: `readlink -f /opt/padelizou` **e** o `cwd` do processo em `build-496-c030ae7`, `NRestarts=0`, `active/running`, `/healthz` 200, journal **sem uma exceção** desde o restart, `.historico` com uma linha por deploy. **Símbolo NOVO dentro do `.dll` publicado**: `Regioes` 25×, `JogadoresPorRegiao` 1×, `ComissaoDoParceiro` 1× — é este o teste que desmente o "já subiu" falso. `/Admin/Regioes` e `/Admin/Comissoes` respondem **302** (login), nunca 500.
+>
+> 🗄️ **AS DUAS MIGRATIONS FORAM CONFERIDAS DENTRO DO BANCO DE PROD.** `Migrate()` roda no startup **dentro de um try/catch**: falhando, o app sobe igual e o defeito fica mudo até a primeira gravação. `20260811114651_LeadsComerciais` e `20260811120324_ParceiroComercial` estão no `__EFMigrationsHistory`, **e o schema físico bate**: a tabela `LeadsComerciais` existe com as 12 colunas (0 linhas, certo — ninguém registrou lead ainda) e `Jogador."IsParceiroComercial"` existe (174 contas, 0 parceiros). ⚠️ A primeira consulta deu *relation does not exist* e **era chute meu no nome** (`LeadComercial` singular; a tabela é `LeadsComerciais`) — conferir o nome NA MIGRATION antes de concluir que o deploy quebrou.
 >
 > 🗺️ **A tela de métricas dizia QUANTOS entraram e nunca DE ONDE.** Agora `/Admin/Regioes` mostra a base por **estado** e por **cidade**, e o cadastro de cada região **dia a dia, semana a semana ou mês a mês** — as mesmas fatias da tela de métricas, que é a mesma pergunta com um recorte a mais. Clicando numa região, a série dela abre por inteiro. Entra pelo painel (card novo) e pelo botão "Por região" dentro de Métricas, que leva o agrupamento junto.
 >
