@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🔔 **"O TORNEIO ACABOU — VOTE NO MVP" agora sai sozinho pra todo mundo que jogou** (pedido do Felipe). ⏳ **NÃO PUBLICADO** ainda.
+> Última atualização: **11/08/2026** — 🚀 **`build-521-fd9f856` NO AR** e 🔔 **O PRIMEIRO AVISO DE MVP JÁ SAIU EM PRODUÇÃO, DE VERDADE**: às **19:25:15** (Brasília), 5 minutos depois do restart, **10 jogadoras do Americano das Gurias do Padel** receberam "Vote no MVP do torneio" com link pra `/Torneios/Mvp/23`. O torneio ficou carimbado no mesmo instante.
+>
+> ⏰ **O carimbo saiu em 19:25 com o servidor em 22:25 UTC** — de quebra, é a prova de que o drop-in `TZ=America/Sao_Paulo` está de pé neste serviço novo (o histórico diz que *serviço novo nasce sem isso*).
+>
+> ✅ **Conferido em produção**: symlink **e** `cwd` em `build-521-fd9f856`, `NRestarts=0`, `/healthz` 200, **zero exceções**, símbolo `AvisoDoMvpBackgroundService` **4×** dentro do `.dll`, e a migration `20260811220409_AvisoDeMvpEnviado` no `__EFMigrationsHistory` com a coluna `timestamp` anulável no schema físico. `pg_dump` antes (98 KB).
+>
+> 🧪 **E o ensaio geral tinha sido feito no PostgreSQL LOCAL, com 6 torneios finalizados**: os **4** dentro da janela avisaram **8, 8, 10 e 6** pessoas (exatamente os eleitores de cada um), os **2 sem jogo nenhum** foram **carimbados SEM aviso** — é o caso que impede a varredura de voltar neles pra sempre — e a consulta de duplicados devolveu **zero**.
+>
+> Antes, no mesmo dia: 🔔 **"O TORNEIO ACABOU — VOTE NO MVP" agora sai sozinho pra todo mundo que jogou** (pedido do Felipe).
 >
 > 🔔 **É VARREDOR, e não gancho no fim da última partida** — e essa é a decisão que importa. `Status = "Finalizado"` é carimbado em **SEIS lugares** (dois no `EncerramentoDaPartida`, quatro no `RoboDoChaveamento`: mata-mata, Americano individual, Americano de duplas e a coroação na mão do organizador). Pendurar o aviso em cada um seria a mesma regra escrita seis vezes — e o sétimo caminho que alguém escrevesse amanhã nasceria **sem aviso, calado**. `AvisoDoMvpBackgroundService` passa a cada **5 minutos**, cobre qualquer caminho que leve o torneio a acabar, e tem **um dono só**.
 >
