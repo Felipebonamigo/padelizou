@@ -73,6 +73,54 @@
             : $"{tituloPagina} - Padelizou";
     }
     <title>@tituloAba</title>
+    @* ── O que o Google e a prévia de link do WhatsApp leem ──────────────────────────────
+       A régua de quem entra no índice e a frase de cada seção moram num lugar só
+       (Services/MetaDaBusca) — o comentário de lá conta o caso que motivou isto.
+       Uma view escreve a frase dela em ViewData["Descricao"] quando o texto depende do
+       registro (nome do torneio, do professor). *@
+    @{
+        var descricaoPagina = Padelizou.Services.MetaDaBusca.Encurtar(
+            ViewData["Descricao"] as string
+            ?? Padelizou.Services.MetaDaBusca.Descricao(currentController, currentAction));
+
+        @* Fora do índice por duas vias: a régua da seção e o pedido da própria view — os
+           cartões existem pra virar prévia de link no grupo, não pra ranquear. *@
+        var foraDoIndice = (ViewData["ForaDoIndice"] as bool?)
+            ?? Padelizou.Services.MetaDaBusca.ForaDoIndice(currentController, currentAction);
+
+        @* Endereço canônico SEM a query string: o mesmo torneio filtrado por categoria, por
+           time e por "só meus jogos" são quatro endereços com o MESMO conteúdo, e sem esta
+           linha o buscador os trata como páginas concorrentes — nenhuma das quatro ranqueia
+           bem, e a que ele escolhe mostrar é a que ele quiser. *@
+        var pedido = ViewContext.HttpContext.Request;
+        var urlCanonica = $"{pedido.Scheme}://{pedido.Host}{pedido.Path}";
+
+        @* Sem imagem própria vai a logo, que é quadrada — então o cartão do compartilhamento
+           também é o pequeno. Capa de torneio e arte de campeão entram por aqui e viram o
+           cartão grande, que é o que ocupa espaço no grupo do WhatsApp. *@
+        var ogImagem = ViewData["OgImagem"] as string;
+        var ogImagemGrande = ogImagem != null;
+        ogImagem ??= $"{pedido.Scheme}://{pedido.Host}/image/icon-512.png";
+    }
+    <meta name="description" content="@descricaoPagina" />
+    @if (foraDoIndice)
+    {
+        @* "follow", e não "nofollow": a tela de login não deve APARECER na busca, mas os
+           links que saem dela continuam valendo pra quem indexa o resto do site. *@
+        <meta name="robots" content="noindex, follow" />
+    }
+    else
+    {
+        <link rel="canonical" href="@urlCanonica" />
+    }
+    <meta property="og:site_name" content="Padelizou" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:type" content="@(ViewData["OgTipo"] as string ?? "website")" />
+    <meta property="og:title" content="@(ViewData["OgTitulo"] as string ?? tituloAba)" />
+    <meta property="og:description" content="@descricaoPagina" />
+    <meta property="og:url" content="@urlCanonica" />
+    <meta property="og:image" content="@ogImagem" />
+    <meta name="twitter:card" content="@(ogImagemGrande ? "summary_large_image" : "summary")" />
     <meta name="theme-color" content="#141d33" />
     @* iOS antigo (antes do 16.4) ignora o manifest e só obedece estas três. Sem elas, quem
        adiciona à tela de início nesses aparelhos abre o site DENTRO do Safari, com barra de

@@ -38,6 +38,10 @@ public class AcessoAntecipadoMiddleware
     {
         "/AcessoAntecipado", "/lib", "/css", "/js", "/image", "/uploads", "/favicon", "/Agenda/Feed",
         "/manifest.json", "/sw.js", "/Pagamentos/Webhook", "/healthz", "/.well-known",
+        // Mesma razão do robots.txt: com o portão religado, o sitemap viraria um redirect pra
+        // tela de senha, e o buscador leria isso como "a lista de endereços do site é a tela
+        // de login". O conteúdo dele já é público — são os endereços que qualquer visitante vê.
+        "/sitemap.xml",
         "/Auth/Login", "/Auth/Logout", "/Auth/EsqueciSenha", "/Auth/RedefinirSenha"
     };
 

@@ -37,9 +37,15 @@ public class RobotsMiddleware
         if (context.Request.Path == "/robots.txt")
         {
             context.Response.ContentType = "text/plain; charset=utf-8";
+
+            // O ponteiro pro sitemap sai daqui porque é onde o buscador olha primeiro, antes
+            // de rastrear qualquer coisa. No host não indexável ele não vai junto: seria
+            // entregar a lista de endereços logo a quem acabamos de mandar não entrar.
+            var sitemap = $"Sitemap: {context.Request.Scheme}://{context.Request.Host}/sitemap.xml\n";
+
             await context.Response.WriteAsync(naoIndexavel
                 ? "User-agent: *\nDisallow: /\n"
-                : "User-agent: *\nAllow: /\n");
+                : "User-agent: *\nAllow: /\n\n" + sitemap);
             return;
         }
 

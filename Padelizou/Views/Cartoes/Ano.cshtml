@@ -12,16 +12,15 @@
     var imagemAbsoluta = Url.Action("AnoImagem", "Cartoes",
         new { id = Model.Jogador.Id, ano = Model.Ano }, Context.Request.Scheme);
     var arquivo = $"meu-ano-{Model.Ano}.png";
-}
 
-@if (Model.TemCard)
-{
-    @section Head {
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="@Model.Jogador.ComoChamar — @Model.Ano no padel" />
-        <meta property="og:description" content="@Model.Jogos jogos, @Model.Vitorias vitórias. Veja o seu no Padelizou." />
-        <meta property="og:image" content="@imagemAbsoluta" />
-        <meta name="twitter:card" content="summary_large_image" />
+    @* A prévia do link é montada pelo _Layout a partir daqui. Escrever as <meta property="og:">
+       aqui dentro faria a página ter DUAS de cada uma (a do layout e a desta view), e qual das
+       duas o servidor da Meta lê não é escolha nossa. *@
+    if (Model.TemCard)
+    {
+        ViewData["OgTitulo"] = $"{Model.Jogador.ComoChamar} — {Model.Ano} no padel";
+        ViewData["Descricao"] = $"{Model.Jogos} jogos, {Model.Vitorias} vitórias. Veja o seu no Padelizou.";
+        ViewData["OgImagem"] = imagemAbsoluta;
     }
 }
 

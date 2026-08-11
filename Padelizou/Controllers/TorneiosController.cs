@@ -274,12 +274,39 @@ namespace Padelizou.Controllers
 
             if (torneio == null) return NotFound();
 
+            // O clube e a cidade dele alimentam a descrição que o Google mostra e a ficha de
+            // evento (Services/DadosEstruturados) — é o "em Arena Beira Rio, Porto Alegre" que
+            // faz este torneio responder a "torneio de padel em <cidade>".
+            //
+            // ⚠️ Consulta à PARTE, e não `.Include(t => t.Clube)`: Clube é navegação
+            // OBRIGATÓRIA, e Include de navegação obrigatória vira INNER JOIN — um torneio
+            // cujo clube faltasse sumiria da consulta e a página inteira viraria 404. Foi
+            // exatamente o que os 8 testes pegaram na primeira tentativa. Aqui a falta do
+            // clube custa no máximo o nome do local na descrição.
+            ViewBag.ClubeDoTorneio = await _context.Clubes
+                .AsNoTracking()
+                .Include(c => c.Cidade)
+                .FirstOrDefaultAsync(c => c.Id == torneio.ClubeId);
 
             // MOTOR MATEMÁTICO DE CLASSIFICAÇÃO
             // 1. Puxa todas as partidas já finalizadas deste torneio
             var partidasFinalizadas = await _context.Partidas
                 .Where(p => p.TorneioId == id && p.Status == "Finalizada")
                 .ToListAsync();
+
+            // A votação do MVP abre 7 dias depois do ÚLTIMO JOGO (ver Services/MvpDoTorneio).
+            //
+            // ⚠️ Calculado AQUI e não na view: a view não tem as partidas em mãos — o Include
+            // do torneio traz categorias, duplas e grupos, e `Categoria.Partidas` chegaria
+            // VAZIA. O botão simplesmente não apareceria, sem erro nenhum, em todo torneio do
+            // sistema. Aqui a lista já está carregada e a conta sai de graça.
+            ViewBag.TemVotacaoDeMvp = MvpDoTorneio.TemVotacao(
+                torneio.UsaVotacaoDeMvp,
+                torneio.Status,
+                MvpDoTorneio.UltimoJogo(partidasFinalizadas
+                    .Where(p => p.VencedorId != null)
+                    .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto)),
+                DateTime.Now);
 
             // 2. Roda a contabilidade grupo por grupo
             foreach (var categoria in torneio.Categorias)

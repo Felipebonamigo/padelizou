@@ -3,6 +3,44 @@
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.TaxasExibicao> TaxasOpcoes
 @{
     ViewData["Title"] = Model.Nome;
+
+    @* ── O que sai na busca e na prévia do link no WhatsApp ──────────────────────────────
+       Esta é a página do site com mais a ganhar numa busca: quem procura "torneio de padel
+       em Porto Alegre" está procurando exatamente isto. Sem a frase própria, todo torneio
+       herdaria a mesma descrição genérica da seção e concorreria consigo mesmo. *@
+    {
+        @* O clube vem por ViewBag e não por Model.Clube: aquela navegação não é carregada aqui
+           de propósito (ver o Details do controller — Include dela vira INNER JOIN e some com
+           a página). *@
+        var clubeDoTorneio = ViewBag.ClubeDoTorneio as Padelizou.Models.Clube;
+        var localDoTorneio = clubeDoTorneio?.Nome ?? Model.LocalTorneio;
+        var quando = Model.DataInicio?.ToString("dd/MM/yyyy");
+        var pedacos = new List<string> { "Torneio de padel" };
+        if (localDoTorneio != null) pedacos.Add($"em {localDoTorneio}");
+        if (quando != null) pedacos.Add($"· {quando}");
+        var quantasCategorias = Model.Categorias.Count;
+        ViewData["Descricao"] = string.Join(" ", pedacos)
+            + (quantasCategorias > 0 ? $" · {quantasCategorias} categoria{(quantasCategorias == 1 ? "" : "s")}" : "")
+            + ". Inscrição, chaves, jogos e classificação ao vivo no Padelizou.";
+
+        @* Torneio oculto, ainda não aprovado ou cancelado sai do índice pela MESMA régua que
+           o tira da vitrine — senão o link direto continuaria entrando no Google, e o
+           organizador veria no buscador o torneio que ele escondeu do site. *@
+        ViewData["ForaDoIndice"] =
+            !Padelizou.Services.PermissaoDeOrganizador.ApareceNaVitrine(Model)
+            || Padelizou.Services.CancelamentoDoTorneio.EstaCancelado(Model.Status);
+
+        @* A capa é gravada como caminho relativo (/uploads/…) e a prévia do link é montada de
+           fora, por um servidor que não sabe qual é o nosso domínio: relativo aqui não vira
+           imagem nenhuma. *@
+        if (!string.IsNullOrEmpty(Model.ImagemCapa))
+        {
+            ViewData["OgImagem"] = Model.ImagemCapa.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? Model.ImagemCapa
+                : $"{Context.Request.Scheme}://{Context.Request.Host}{Model.ImagemCapa}";
+        }
+    }
+
     var historico = ViewBag.HistoricoJogadores as Dictionary<int, Dictionary<string, HistoricoCategoriaVM>> ?? new Dictionary<int, Dictionary<string, HistoricoCategoriaVM>>();
     ViewData["Historico"] = historico;
     var pontosTimes = ViewBag.PontosTimes as List<PontosTimeTorneioVM> ?? new List<PontosTimeTorneioVM>();
@@ -65,6 +103,27 @@
             </small>
         </div>
     </div>
+}
+
+@* A ficha de EVENTO que o buscador lê: nome, data, local, cidade e valor da inscrição. É o
+   que permite este torneio sair na busca com a data e o endereço embaixo do link, em vez de
+   três linhas de texto solto. Volta nulo quando o torneio não tem data marcada — ver o porquê
+   em Services/DadosEstruturados. *@
+@if (ViewData["ForaDoIndice"] as bool? != true)
+{
+    var fichaDoEvento = Padelizou.Services.DadosEstruturados.Torneio(
+        Model,
+        ViewBag.ClubeDoTorneio as Padelizou.Models.Clube,
+        $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}",
+        ViewData["OgImagem"] as string,
+        ViewData["Descricao"] as string ?? "");
+
+    if (fichaDoEvento != null)
+    {
+        @section Head {
+            <script type="application/ld+json">@Html.Raw(fichaDoEvento)</script>
+        }
+    }
 }
 
 <!-- Cabeçalho do Torneio -->
@@ -223,6 +282,29 @@
         </a>
         <small class="text-muted">
             Uma arte por categoria, pronta pra postar.
+        </small>
+    </div>
+}
+
+@* ── O MVP DO TORNEIO ─────────────────────────────────────────────────────────────────
+   Quem jogou elege o melhor entre os campeões, na semana seguinte ao fim do torneio. É a
+   única coisa que traz de volta o inscrito COMUM — o que perdeu na segunda rodada e não
+   tem mais nada pra fazer aqui até o próximo torneio.
+
+   ⚠️ A janela é LIDA DO RELÓGIO (7 dias depois do último jogo), nunca gravada. É o que faz
+   isto valer "pros próximos torneios" sem data de corte no código: torneio que acabou mês
+   passado já nasce com a votação fechada. Ver Services/MvpDoTorneio. *@
+@* ⚠️ Quem responde "já tem votação?" é o CONTROLLER (ViewBag), e não uma conta aqui: a
+   view não tem as partidas do torneio em mãos — `Categoria.Partidas` chega vazia porque o
+   Include não a traz — e a conta feita aqui esconderia o botão em silêncio, sempre. *@
+@if (ViewBag.TemVotacaoDeMvp == true)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a asp-action="Mvp" asp-route-id="@Model.Id" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-star-fill"></i> MVP do torneio
+        </a>
+        <small class="text-muted">
+            Quem jogou vota no melhor entre os campeões.
         </small>
     </div>
 }

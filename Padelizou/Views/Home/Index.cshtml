@@ -20,6 +20,18 @@
     }
 }
 
+@* Diz ao buscador que este site é uma organização com nome, logo e perfil oficial — é o que
+   liga o padelizou.com.br ao @@padelizou do Instagram como a MESMA marca, em vez de dois
+   resultados soltos. Sai nas duas versões da home (visitante e logado): quem indexa é o robô,
+   que nunca está logado, mas o bloco não depende de quem olha. *@
+@section Head {
+    @{
+        var enderecoBase = $"{Context.Request.Scheme}://{Context.Request.Host}";
+    }
+    <script type="application/ld+json">@Html.Raw(Padelizou.Services.DadosEstruturados.Organizacao(enderecoBase))</script>
+    <script type="application/ld+json">@Html.Raw(Padelizou.Services.DadosEstruturados.Site(enderecoBase))</script>
+}
+
 @if (!logado)
 {
     <!-- ============ VISITANTE: o mapa da plataforma ============ -->

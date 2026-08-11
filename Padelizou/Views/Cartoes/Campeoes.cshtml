@@ -9,16 +9,15 @@
     var primeiro = Model.FirstOrDefault();
     var capa = primeiro == null ? null : Url.Action("Campeao", "Cartoes",
         new { id = torneio.Id, categoriaId = primeiro.CategoriaId }, Context.Request.Scheme);
-}
 
-@if (capa != null)
-{
-    @section Head {
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="Campeões — @torneio.Nome" />
-        <meta property="og:description" content="Os campeões de cada categoria, no Padelizou." />
-        <meta property="og:image" content="@capa" />
-        <meta name="twitter:card" content="summary_large_image" />
+    @* A prévia do link é montada pelo _Layout a partir daqui. Escrever as <meta property="og:">
+       aqui dentro faria a página ter DUAS de cada uma (a do layout e a desta view), e qual das
+       duas o servidor da Meta lê não é escolha nossa. *@
+    ViewData["OgTitulo"] = $"Campeões — {torneio.Nome}";
+    ViewData["Descricao"] = $"Os campeões de cada categoria do {torneio.Nome}, no Padelizou.";
+    if (capa != null)
+    {
+        ViewData["OgImagem"] = capa;
     }
 }
 
