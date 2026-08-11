@@ -54,9 +54,44 @@ provavelmente está registrado no endereço de casa, os dois caminhos podem term
 lugar. Confira o endereço do CNPJ antes de escolher — é o mesmo problema que a gente corrigiu na
 tela de fatura, e aqui ele fica numa página pública que o Google indexa.
 
-**Recomendação:** conta de **organização** com o CNPJ 68.185.754/0001-05, e pedir o D-U-N-S no
-primeiro dia. Você espera ~28 dias, mas escapa dos 12 testadores por 14 dias — que na prática
-também custam semanas, e ainda dependem de 12 pessoas se cadastrarem e continuarem instaladas.
+### ✅ Decidido em 11/08/2026: conta de ORGANIZAÇÃO
+
+Conta Google: **`padelizou@gmail.com`** (dedicada, não a pessoal do Felipe).
+
+A alternativa — conta pessoal, que começaria no mesmo dia — foi recusada: o app ficaria no CPF
+em vez do CNPJ, e tirá-lo de lá depois exige transferência pelo suporte do Google. Os dois
+caminhos terminavam em prazo parecido (~4 semanas contra ~6), então o que decidiu foi de quem é
+o app, não a pressa.
+
+**Consequência aceita:** o cadastro fica **parado na tela "Perfil de pagamentos"** até o D-U-N-S
+chegar. Não dá pra pagar, criar o app nem subir pacote antes disso.
+
+### O nome legal não é "Bonamigo Systems"
+
+Conferido no Redesim em 11/08/2026:
+
+| | |
+|---|---|
+| **Razão social** (vai no Google e na D&B) | `68.185.754 FELIPE CARBONI BONAMIGO` |
+| Nome fantasia | Bonamigo Systems |
+| Situação | ATIVA · RS |
+
+É o padrão do MEI: os dígitos do CNPJ seguidos do nome. **Procurar ou cadastrar como "Bonamigo
+Systems" não acha nada** — foi por isso que a busca no Dunsguide voltou vazia até usarmos o nome
+certo. O nome público na loja pode ser "Padelizou"; isso é outro campo.
+
+### O D-U-N-S
+
+Não existe (confirmado no Dunsguide em 11/08 — MEI aberto em 23/07, novo demais pra estar na
+base). **Não existe fila especial do Google**, como existe pra Apple: o pedido é o padrão da
+Dun & Bradstreet, que no Brasil é a **CIAL** (`pt.cialdnb.com`).
+
+⚠️ **A CIAL oferece duas velocidades e não mostra preço em nenhuma**: "24 a 48 horas" é serviço
+**pago**; **"até 30 dias úteis" é a gratuita** — ~6 semanas. Escolher errado aqui custa dinheiro
+sem necessidade.
+
+⚠️ **Se for mudar o endereço do MEI, mude ANTES de pedir.** Depois cria divergência com o que a
+D&B já gravou, e a verificação recomeça.
 
 ---
 
