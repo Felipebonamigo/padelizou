@@ -1,7 +1,13 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. Fecha os dois últimos itens da varredura de conformidade. **AINDA NÃO PUBLICADO.**
+> Última atualização: **10/08/2026** — 🚀 **`build-493-d765d76` NO AR EM PROD** (21:32). ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. **Fecha os cinco itens da varredura de conformidade.**
+>
+> 🚀 **O QUE FOI JUNTO NESTE BUILD, por escolha do Felipe** (a pergunta foi feita porque não era só código meu): o aceite dos Termos + a linha do parceiro na política, **o desligamento do boleto**, a fatura sem o endereço residencial e o `/Admin/Times` — os três últimos da sessão paralela, que ainda os marcava como não publicados.
+>
+> ✅ **Conferido em produção**: `readlink -f /opt/padelizou` **e** o `cwd` do processo em `build-493-d765d76`, `NRestarts=0`, `active/running`, `/healthz` 200, journal sem exceção e `.historico` com **uma linha por deploy** (21:17 o 492, 21:32 o 493). A tela de cadastro traz a frase do aceite com os dois links; a tabela do item 5 traz a linha "Equipe do Ranking". **Sem regressão do que subiu mais cedo**: perfil anônimo segue com **zero** telefone de jogador e o `GET` na consulta de CPF segue **405**.
+>
+> 🗄️ **A MIGRATION FOI CONFERIDA DENTRO DO BANCO DE PROD, e não pelo "Feito" do deploy.** `Migrate()` roda no startup **dentro de um try/catch**: falhando, o app sobe do mesmo jeito e o defeito é mudo até a primeira gravação estourar. As duas colunas existem em `db_padel`, `nullable`, e `20260810211014_AceiteDosTermosNoCadastro` está no `__EFMigrationsHistory`. `jogadores_com_aceite = 0` — certo: ninguém se cadastrou depois da subida, e conta antiga fica nula de propósito.
 >
 > ✍️ **O CADASTRO NÃO DIZIA UMA PALAVRA SOBRE OS TERMOS NEM SOBRE A POLÍTICA** — os dois só existiam num link do rodapé — **e não guardava nada**. O art. 8º §2 da LGPD põe o ônus de PROVAR o consentimento em quem controla os dados; a resposta a *"você concordou com isso?"* era encolher os ombros. Agora são duas metades, e uma sozinha não provaria nada: a **tela diz**, colada no botão, com link pros dois documentos; e a **linha da pessoa guarda** quando e qual versão (`Jogador.TermosAceitosEm` / `VersaoDosTermosAceita`).
 >
@@ -17,9 +23,9 @@
 >
 > 🧪 **3.378 testes, 0 falhas** (9 novos). ✅ **Conferido no navegador**: a frase aparece **antes** do botão de finalizar, com os dois links; a tabela do item 5 agora tem 7 linhas, com a do parceiro entre "Mundo do Atleta" e "Google"; e os **dois** ramos do recibo renderizam. ✅ **A migration rodou de verdade contra o Postgres local** — as duas colunas nasceram `nullable`, e `20260810211014_AceiteDosTermosNoCadastro` entrou no `__EFMigrationsHistory` logo depois da `SeguirTorneio` da outra sessão.
 >
-> ⚠️ **Commit seletivo:** `Privacy.cshtml` e `Termos.cshtml` estavam com trabalho da outra sessão (a retirada do **boleto**) — só os meus trechos foram commitados, pela técnica do `git apply --cached`. A parte do boleto segue no worktree, pra quem a escreveu publicar junto com a mudança de verdade.
+> ⚠️ **Commit seletivo:** `Privacy.cshtml` e `Termos.cshtml` estavam com trabalho da outra sessão (a retirada do **boleto**) — só os meus trechos entraram no meu commit, pela técnica do `git apply --cached`, pra não publicar a promessa nova antes da mudança de verdade. A outra sessão commitou a parte dela em seguida (`Termos e politica param de prometer boleto`), e as duas foram juntas no `build-493`.
 >
-> Antes, no mesmo dia — 🧾 **A FATURA SAIU DA CASA DO GATEWAY** (o endereço de casa do Felipe estava em TODA cobrança do site) + 🚫 **BOLETO DESLIGADO**. **AINDA NÃO PUBLICADO.**
+> Antes, no mesmo dia — 🧾 **A FATURA SAIU DA CASA DO GATEWAY** (o endereço de casa do Felipe estava em TODA cobrança do site) + 🚫 **BOLETO DESLIGADO**. ✅ **PUBLICADO no `build-493-d765d76`** (21:32) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
 >
 > 🧾 **TODA COBRANÇA MOSTRAVA O CADASTRO COMERCIAL DE QUEM OPERA** — nome, CNPJ, e-mail, telefone e o **endereço residencial completo, com número e apartamento**. Não era um torneio: como toda cobrança nasce na conta principal (o split é que manda a fatia do organizador pra carteira dele), a fatura hospedada do meio de pagamento estampava os MESMOS dados em toda inscrição de todo torneio, mais aula, quadra, mensalidade de professor e taxa de plataforma. O Felipe viu na fatura de R$ 125 do NATA PADEL TOUR: *"meus dados estão muito expostos"*.
 >
@@ -35,7 +41,7 @@
 >
 > 🔧 **O que só o Felipe pode fazer** (e vale mesmo com a fatura nova, porque limpa a de CARTÃO, que continua sendo deles): o meio de pagamento deixa **remover endereço, CEP, telefone e e-mail da fatura** em *Minha conta → Informações → Dados comerciais*, com análise em até 2 dias úteis. **Nome e CNPJ não saem** — exigência do Banco Central.
 >
-> Antes — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. **AINDA NÃO PUBLICADO.**
+> Antes — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. ✅ **PUBLICADO no `build-493-d765d76`** (21:32).
 >
 > 🛡️ **O PRIMEIRO ADMINISTRADOR DE UM TIME SÓ ENTRAVA PELO SITE PÚBLICO.** O botão existia em `/Times/Detalhes`, mas dentro de `admin.padelizou.com.br` o middleware serve **só `/Admin` e `/Auth`** — de lá, qualquer `/Times` dá 404. Agora o painel tem a tela inteira: **criar** time (com clube sede opcional), **apagar**, e **incluir/remover administrador** pela mesma busca por nome/apelido/CPF das outras telas do painel.
 >
