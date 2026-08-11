@@ -106,7 +106,9 @@ namespace Padelizou.Controllers
                     Valor = p.Valor,
                     CriadoEm = p.CriadoEm,
                     ExpiraEm = p.ExpiraEm,
-                    LinkCobranca = p.InvoiceUrl,
+                    // O link que o organizador copia e manda pro jogador é o da NOSSA fatura:
+                    // o do gateway estampa o cadastro de quem emite (Services/LinkDoPagamento).
+                    LinkCobranca = LinkDoPagamento.Para(p),
                 })
                 .ToList();
 

@@ -218,6 +218,49 @@ public class AsaasService : IAsaasService
         }
     }
 
+    // O Pix da cobrança, pra desenhar a fatura AQUI DENTRO em vez de mandar o pagador pra
+    // página do gateway — que estampa o cadastro inteiro de quem emite (nome, CNPJ, e-mail,
+    // telefone e ENDEREÇO). Ver Services/LinkDoPagamento.
+    public async Task<PixDaCobranca?> ObterPixAsync(string asaasPaymentId)
+    {
+        try
+        {
+            // ⚠️ GET com corpo o Asaas responde 403. `Requisicao` só anexa Content quando
+            // recebe um corpo, então é obrigatório não passar nenhum aqui.
+            using var request = Requisicao(HttpMethod.Get, $"payments/{asaasPaymentId}/pixQrCode");
+            var resposta = await _httpClient.SendAsync(request);
+            var conteudo = await resposta.Content.ReadAsStringAsync();
+
+            if (!resposta.IsSuccessStatusCode)
+            {
+                // Information, não Warning: cobrança de cartão cair aqui é o esperado, e um
+                // aviso por pagamento de cartão só ensinaria a ignorar o log.
+                _logger.LogInformation("Asaas não devolveu Pix para {PaymentId} ({Status}) — "
+                    + "o pagador vai pra fatura hospedada.", asaasPaymentId, resposta.StatusCode);
+                return null;
+            }
+
+            using var json = JsonDocument.Parse(conteudo);
+            var copiaECola = json.RootElement.TryGetProperty("payload", out var p) ? p.GetString() : null;
+
+            // O `encodedImage` que vem junto é ignorado de propósito — ver PixDaCobranca. Sem
+            // o copia e cola, porém, não há fatura nenhuma: o QR sozinho não serve pra quem
+            // está pagando no MESMO celular que mostra a tela.
+            if (string.IsNullOrWhiteSpace(copiaECola))
+            {
+                _logger.LogWarning("Pix de {PaymentId} veio sem o copia e cola.", asaasPaymentId);
+                return null;
+            }
+
+            return new PixDaCobranca(copiaECola);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao buscar o Pix da cobrança {PaymentId}.", asaasPaymentId);
+            return null;
+        }
+    }
+
     public async Task<bool> EstornarAsync(string asaasPaymentId, bool jaFoiPaga, DevolucaoParcial? parcial = null)
     {
         try

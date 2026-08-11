@@ -1,8 +1,20 @@
 ﻿namespace Padelizou.Services;
 
 // Cobrança criada no Asaas: o Id serve pra casar o webhook com o Pagamento no nosso banco,
-// e a InvoiceUrl é a página hospedada onde o jogador escolhe Pix, cartão ou boleto.
+// e a InvoiceUrl é a página hospedada do gateway.
+//
+// ⚠️ A InvoiceUrl deixou de ser o destino de quem vai pagar (10/08/2026) — hoje ela é o
+// PLANO B, pra cobrança que não tem Pix. Ver Services/LinkDoPagamento.
 public record CobrancaAsaas(string PaymentId, string InvoiceUrl);
+
+// O Pix de uma cobrança que já existe lá: o mesmo código que a fatura hospedada mostraria,
+// pra ser desenhado dentro do Padelizou.
+//
+// Só o copia e cola. O gateway manda uma imagem do QR junto, mas ela é DESCARTADA de
+// propósito: quem desenha é Services/QrDoPix, a partir desta string — assim o QR da tela e o
+// código do botão "copiar" não têm como divergir, e a tela não fica sem QR se a imagem vier
+// vazia um dia.
+public record PixDaCobranca(string CopiaECola);
 
 // Quanto o jogador paga, quanto vai pro dono do torneio/aula e quanto fica de comissão.
 public record RateioComissao(decimal ValorTotal, decimal ValorRepasse, decimal Comissao);
@@ -83,6 +95,13 @@ public interface IAsaasService
         DateTime vencimento,
         string? walletIdRecebedor,
         string billingType = "UNDEFINED");
+
+    // O QR e o copia e cola de uma cobrança já criada, pra fatura que mora no Padelizou.
+    //
+    // Null quando o gateway não tem Pix pra ela — o caso normal é a cobrança travada em CARTÃO
+    // — e aí o pagador é mandado pra fatura de lá. Não é erro: é a resposta "essa aqui não é
+    // de Pix".
+    Task<PixDaCobranca?> ObterPixAsync(string asaasPaymentId);
 
     // Devolve o dinheiro ao jogador. Cobrança ainda não paga é cancelada em vez de estornada —
     // são endpoints diferentes no Asaas.

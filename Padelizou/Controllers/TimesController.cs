@@ -167,17 +167,9 @@ public class TimesController : Controller
             return RedirectToAction("Detalhes", new { id = timeId });
         }
 
-        _context.TimeAdministradores.Add(new TimeAdministrador
-        {
-            TimeId = timeId,
-            JogadorId = jogadorId,
-            ConcedidoPorId = meuId,
-            ConcedidoEm = DateTime.Now,
-        });
-
-        // Quem administra o time veste a camisa dele. Sem isto o administrador ficaria de
-        // fora da própria lista de membros, e a tela diria "não tem ninguém" com ele lá.
-        if (novo.TimeId != timeId) novo.TimeId = timeId;
+        // Concede o cargo e veste a camisa — a regra inteira mora em AdministracaoTime,
+        // porque o painel /Admin/Times faz a mesma coisa e não pode fazer diferente.
+        AdministracaoTime.Conceder(_context, timeId, novo, meuId);
 
         await _context.SaveChangesAsync();
 

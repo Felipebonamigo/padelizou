@@ -15,7 +15,8 @@ Três consequências que valem escrever, porque não são óbvias:
 
 - **O organizador recebe o mesmo valor em qualquer forma de pagamento.** O split é por valor
   fixo, então o custo do meio de pagamento sai do NOSSO lado. Muda só o prazo.
-- **No Pix o dinheiro cai na hora.** Boleto 1 dia útil, débito 3 dias, crédito **32 dias**.
+- **No Pix o dinheiro cai na hora.** Débito 3 dias, crédito **32 dias**. (Boleto foi desligado
+  em 10/08/2026 — o sistema não emite mais.)
 - **O dinheiro cai na carteira dele dentro do meio de pagamento, não na conta do banco.**
   Passar pro banco é um saque — dá pra configurar transferência automática diária, e vale
   dizer isso pra ele, senão vê "recebido" no nosso extrato e não vê nada no banco.
@@ -36,7 +37,7 @@ quem organiza padel — e é o motivo do item 3 deste documento.
 |---|---|
 | Por fora (não tocamos no dinheiro) | 5% |
 | Pelo site, só Pix | 10% |
-| Pelo site, todas as formas | 15% (mas quem pagar por Pix ou boleto custa 10%) |
+| Pelo site, todas as formas | 15% (mas quem pagar por Pix custa 10%) |
 
 Aula e jogo: 10%, mínimo R$ 1. Torneio tem mínimo de R$ 4.
 

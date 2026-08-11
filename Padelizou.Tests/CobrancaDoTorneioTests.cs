@@ -45,15 +45,18 @@ public class CobrancaDoTorneioTests
     }
 
     [Fact]
-    public void Boleto_paga_a_taxa_do_Pix()
+    public void Boleto_esta_desligado_e_nao_nasce_mais_nenhuma_cobranca_nele()
     {
-        // Decisão do Felipe (29/07/2026): pro meio de pagamento, boleto e Pix custam o mesmo
-        // valor fixo em centavos — quem encarece é o cartão. Então o boleto não pode carregar
-        // a taxa do cartão.
-        var c = CobrancaDoTorneio.Montar("OnlineTodas", CobrancaDoTorneio.EscolhaBoleto, Taxas);
+        // Felipe, 10/08/2026: boleto sai do sistema inteiro ("se algum dia alguém pedir, a
+        // gente retorna"). A tela não oferece mais — mas quem tem o formulário ANTIGO em
+        // cache ainda manda "Boleto" no POST, e é esse o caminho que este teste tranca.
+        //
+        // Ele cai na escolha desconhecida: forma aberta e taxa cheia, que é a regra de nunca
+        // cobrar do organizador menos do que ele combinou.
+        var c = CobrancaDoTorneio.Montar("OnlineTodas", "Boleto", Taxas);
 
-        Assert.Equal("BOLETO", c.BillingType);
-        Assert.Equal(10m, c.Percentual);
+        Assert.NotEqual("BOLETO", c.BillingType);
+        Assert.Equal("UNDEFINED", c.BillingType);
     }
 
     [Theory]
@@ -74,16 +77,19 @@ public class CobrancaDoTorneioTests
     [Fact]
     public void A_forma_travada_e_a_taxa_cobrada_nunca_se_contradizem()
     {
-        // O teste que justifica o serviço existir: forma barata (Pix/boleto) tem que vir com
-        // a taxa menor, e a taxa menor só pode vir com forma barata — em qualquer combinação.
+        // O teste que justifica o serviço existir: forma barata (Pix) tem que vir com a taxa
+        // menor, e a taxa menor só pode vir com forma barata — em qualquer combinação.
+        //
+        // "Boleto" segue na lista de entradas de propósito: é o que um formulário em cache
+        // manda, e o invariante tem que continuar valendo pra ele também.
         var entradas = new[] { CobrancaDoTorneio.EscolhaPix, CobrancaDoTorneio.EscolhaCartao,
-                               CobrancaDoTorneio.EscolhaBoleto, "", "lixo", null };
+                               "Boleto", "", "lixo", null };
 
         foreach (var forma in new[] { "OnlinePix", "OnlineTodas" })
             foreach (var escolha in entradas)
             {
                 var c = CobrancaDoTorneio.Montar(forma, escolha, Taxas);
-                Assert.Equal(c.BillingType is "PIX" or "BOLETO",
+                Assert.Equal(c.BillingType is "PIX",
                              c.Percentual == Taxas.ComissaoPercentualSomentePix);
             }
     }
@@ -181,10 +187,14 @@ public class CobrancaDoTorneioTests
         Assert.DoesNotContain("taxa menor", texto);
         Assert.DoesNotContain("ComissaoPercentual", texto);
 
-        // O que TEM que estar lá: o convite do Pix e o prazo do boleto (que é sobre quando o
-        // pagamento conta, não sobre quanto custa).
+        // O que TEM que estar lá: o convite do Pix.
         Assert.Contains("favorece o sistema e o organizador", texto);
-        Assert.Contains("VencimentoDaCobranca.DiasParaBoleto", texto);
+
+        // E o que NÃO pode voltar sem decisão: o boleto saiu em 10/08/2026. A conferência é
+        // no texto que chega ao navegador — o comentário Razor que explica a saída (e cita a
+        // palavra) já foi cortado acima.
+        Assert.DoesNotContain("Boleto", texto);
+        Assert.DoesNotContain("DiasParaBoleto", texto);
     }
 
     private static string PastaDoProjeto()

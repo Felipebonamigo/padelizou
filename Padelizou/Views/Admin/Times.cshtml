@@ -1,0 +1,222 @@
+@model List<Padelizou.ViewModels.TimeNoAdminVM>
+@{
+    ViewData["Title"] = "Times - Painel Admin - Padelizou";
+    var clubes = ViewBag.Clubes as List<Padelizou.Models.Clube> ?? new List<Padelizou.Models.Clube>();
+    var semAdministrador = Model.Count(t => t.Administradores.Count == 0);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Times</h2>
+            <p class="text-muted mb-0">
+                Criar, apagar e dizer quem manda em cada time. Quem administra o time edita o
+                nome, o escudo e inclui o próximo administrador sozinho — daqui em diante você
+                não precisa voltar aqui.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* ── CRIAR ────────────────────────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-3">Criar time</h6>
+            <form asp-controller="Admin" asp-action="CriarTime" method="post" class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                    <label class="form-label small text-muted mb-1" for="nomeDoTime">Nome do time</label>
+                    @* O list mostra os times que já existem enquanto se digita: nome repetido é
+                       recusado no POST, e é melhor ver isso ANTES de salvar. *@
+                    <input type="text" class="form-control" id="nomeDoTime" name="nome"
+                           list="nomesDeTime" maxlength="@Padelizou.Services.CatalogoLocais.TamanhoMaximoNome"
+                           placeholder="Ex.: Nata Padel" required autocomplete="off" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small text-muted mb-1" for="clubeSede">Clube sede <span class="fw-normal">(opcional)</span></label>
+                    <select class="form-select" id="clubeSede" name="clubeId">
+                        <option value="">Sem clube sede</option>
+                        @foreach (var clube in clubes)
+                        {
+                            <option value="@clube.Id">@clube.Nome</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">Criar</button>
+                </div>
+            </form>
+
+            <p class="text-muted small mb-0 mt-3">
+                <i class="bi bi-info-circle"></i>
+                O time nasce <strong>sem administrador</strong> — criar não faz de você o dono
+                dele. Escolha quem manda na lista abaixo, pelo botão <strong>Administrador</strong>.
+            </p>
+        </div>
+    </div>
+
+    @* Aviso, e não alarme vermelho: time sem administrador é o estado normal dos importados do
+       ranking, não um defeito. Some sozinho quando todos tiverem alguém no comando. *@
+    @if (semAdministrador > 0)
+    {
+        <div class="alert alert-warning small">
+            <i class="bi bi-shield-exclamation"></i>
+            <strong>@semAdministrador @(semAdministrador == 1 ? "time está" : "times estão") sem administrador.</strong>
+            Ninguém consegue editar o nome nem o escudo desses times até você designar o primeiro
+            — entrar no time pelo cadastro <em>não</em> dá cargo nenhum.
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Quem administra</th>
+                    <th class="text-end">Membros</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var linha in Model)
+                {
+                    var time = linha.Time;
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (!string.IsNullOrWhiteSpace(time.Logo))
+                                {
+                                    <img src="@time.Logo" alt="" class="rounded flex-shrink-0"
+                                         style="width: 36px; height: 36px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                                         style="width: 36px; height: 36px; background: var(--pdz-navy-fixed);">
+                                        <i class="bi bi-shield-fill" style="color: var(--padel-green);"></i>
+                                    </div>
+                                }
+                                <div>
+                                    <span class="fw-bold">@time.Nome</span>
+                                    @if (time.Clube != null)
+                                    {
+                                        <div class="text-muted" style="font-size: .75rem;">
+                                            <i class="bi bi-shop"></i> @time.Clube.Nome
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            @if (linha.Administradores.Any())
+                            {
+                                foreach (var adm in linha.Administradores)
+                                {
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <span>@adm.Jogador.ComoChamar</span>
+                                        <form asp-controller="Admin" asp-action="RemoverAdministradorDoTime" method="post" class="d-inline"
+                                              data-confirmar="Tirar @adm.Jogador.Nome da administração do @time.Nome? A pessoa continua no time.">
+                                            <input type="hidden" name="timeId" value="@time.Id" />
+                                            <input type="hidden" name="jogadorId" value="@adm.Jogador.Id" />
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">remover</button>
+                                        </form>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic">Ninguém</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <span class="fw-bold">@linha.Membros</span>
+                            @if (linha.DuplasEmTorneios > 0)
+                            {
+                                <div class="text-muted" style="font-size: .75rem;">
+                                    @linha.DuplasEmTorneios em torneio
+                                </div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    data-bs-toggle="collapse" data-bs-target="#admDoTime_@time.Id">
+                                Administrador
+                            </button>
+                            @* O aviso do apagar carrega os NÚMEROS reais: "12 jogadores ficam sem
+                               time" é uma decisão, "tem certeza?" é um susto. *@
+                            @{
+                                var avisoDoApagar =
+                                    $"Apagar o time {time.Nome}?\n\n" +
+                                    $"{linha.Membros} jogador(es) ficam sem time e {linha.DuplasEmTorneios} dupla(s) de torneio perdem o escudo.\n\n" +
+                                    "Nenhuma conta, jogo ou resultado é apagado — mas o time não volta.";
+                            }
+                            <form asp-controller="Admin" asp-action="ExcluirTime" method="post" class="d-inline"
+                                  data-confirmar="@avisoDoApagar">
+                                <input type="hidden" name="timeId" value="@time.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Apagar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="admDoTime_@time.Id">
+                        <td colspan="4">
+                            <p class="text-muted small mb-2">
+                                Quem você escolher passa a administrar o <strong>@time.Nome</strong>
+                                e <strong>veste a camisa</strong> dele — sem isso, administraria um
+                                time do qual não faz parte.
+                            </p>
+                            @{
+                                ViewData["BuscaOrgActionUrl"] = Url.Action("IncluirAdministradorDoTime", "Admin");
+                                ViewData["BuscaOrgExtraFieldName"] = "timeId";
+                                ViewData["BuscaOrgExtraFieldValue"] = time.Id;
+                            }
+                            <partial name="_BuscaOrganizador" />
+                            @{
+                                ViewData["BuscaOrgActionUrl"] = null;
+                                ViewData["BuscaOrgExtraFieldName"] = null;
+                                ViewData["BuscaOrgExtraFieldValue"] = null;
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-muted">Nenhum time cadastrado ainda.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Um datalist só pra tela inteira — repetir a lista em cada linha seria puro peso. *@
+    <datalist id="nomesDeTime">
+        @foreach (var nome in Model.Select(t => t.Time.Nome).Distinct().OrderBy(n => n))
+        {
+            <option value="@nome"></option>
+        }
+    </datalist>
+</div>
+
+@* ⚠️ A confirmação sai de `data-confirmar`, e NÃO de um `confirm('...@variavel...')` escrito
+   dentro do onsubmit. Dois motivos, os dois descobertos aqui na marra:
+
+   1. `\n\n@linha.Membros` foi renderizado LITERAL — o Razor tem uma regra de e-mail (algo@algo)
+      e o `@` colado num caractere anterior deixa de ser código. O aviso saiu para a tela com o
+      nome da variável no lugar do número, e ninguém teria notado sem ler o texto do diálogo.
+   2. Um time (ou uma pessoa) chamado "Rafa's" fecharia a aspa do JS e quebraria o botão.
+
+   No atributo, o Razor faz o encode de HTML normalmente e o dataset devolve o texto original. *@
+<script>
+    document.addEventListener('submit', function (e) {
+        var texto = e.target.dataset ? e.target.dataset.confirmar : null;
+        if (texto && !confirm(texto)) e.preventDefault();
+    });
+</script>

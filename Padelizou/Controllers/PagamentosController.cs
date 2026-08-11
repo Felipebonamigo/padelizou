@@ -106,6 +106,87 @@ public class PagamentosController : Controller
         return RedirectToAction("Pix", new { id });
     }
 
+    // ── A fatura do gateway, mas dentro de casa ───────────────────────────────────────────
+    // O Pix vem do meio de pagamento; a TELA é nossa. O porquê está em Services/LinkDoPagamento.
+
+    [HttpGet]
+    public async Task<IActionResult> Fatura(int id)
+    {
+        var pagamento = await _context.Pagamentos.FindAsync(id);
+        if (pagamento == null) return NotFound();
+
+        // Mesma régua do Comprovante: quem pagou, quem recebe e o admin raiz.
+        var meuId = ObterJogadorIdLogado();
+        var eu = await _context.Jogadores.FindAsync(meuId);
+        if (pagamento.JogadorId != meuId && pagamento.RecebedorId != meuId && eu?.IsAdminRaiz != true)
+            return Forbid();
+
+        // Pix direto nunca passou pelo gateway: ele tem tela própria, com o QR da nossa chave
+        // e o botão de "já fiz o Pix" (a confirmação lá é manual).
+        if (pagamento.MetodoPagamento == PixDireto.Metodo)
+            return RedirectToAction(nameof(Pix), new { id });
+
+        if (string.IsNullOrWhiteSpace(pagamento.AsaasPaymentId))
+            return RedirectToAction(nameof(Comprovante), new { id });
+
+        // Cobrança já resolvida não precisa de QR nenhum — e pedir Pix de algo pago só gasta
+        // uma chamada pra receber um código que ninguém deve usar.
+        if (pagamento.Status == "Pendente")
+        {
+            var pix = await _asaas.ObterPixAsync(pagamento.AsaasPaymentId);
+            if (pix == null)
+            {
+                // Sem Pix é cobrança de cartão: quem sabe cobrar isso é o gateway, no ambiente
+                // dele — o número do cartão não passa (e não deve passar) por aqui.
+                if (!string.IsNullOrWhiteSpace(pagamento.InvoiceUrl)) return Redirect(pagamento.InvoiceUrl);
+
+                TempData["Erro"] = "Não conseguimos abrir esta cobrança agora. Tente de novo em instantes.";
+                return RedirectToAction(nameof(Meus));
+            }
+
+            ViewBag.CopiaECola = pix.CopiaECola;
+            // O desenho é nosso, a partir do código que veio — ver Services/QrDoPix.
+            ViewBag.QrBase64 = QrDoPix.Base64(pix.CopiaECola);
+        }
+
+        ViewBag.Origem = await DescricaoDaOrigemAsync(pagamento);
+        return View(pagamento);
+    }
+
+    // O relógio da tela de pagamento: o webhook confirma sozinho, e sem isto a pessoa fica
+    // olhando um QR já pago sem saber que deu certo. Só lê o banco — nada de bater no gateway
+    // a cada poucos segundos.
+    [HttpGet]
+    public async Task<IActionResult> Situacao(int id)
+    {
+        var pagamento = await _context.Pagamentos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (pagamento == null) return NotFound();
+
+        var meuId = ObterJogadorIdLogado();
+        if (pagamento.JogadorId != meuId && pagamento.RecebedorId != meuId) return Forbid();
+
+        return Json(new { status = pagamento.Status, confirmado = pagamento.Status == "Confirmado" });
+    }
+
+    // "Inscrição — Copa X", "Aula", "Aluguel de quadra": o que a pessoa está pagando, escrito
+    // do jeito que ela reconhece. Mesma régua do Comprovante.
+    private async Task<string> DescricaoDaOrigemAsync(Pagamento pagamento)
+    {
+        if (pagamento.TorneioId != null)
+            return (await _context.Torneios.FindAsync(pagamento.TorneioId.Value))?.Nome ?? "Torneio";
+
+        return pagamento.Tipo switch
+        {
+            "Aula" => "Aula",
+            "Jogo" or "JogoVarios" => "Aluguel de quadra",
+            PixDireto.TipoAssinatura => "Plano Assinante",
+            PixDireto.TipoTaxaTorneio => "Taxa do Padelizou",
+            _ => "Pagamento",
+        };
+    }
+
     // Tela onde quem organiza torneio ou dá aula liga o recebimento pelo app, informa a wallet
     // do Asaas e escolhe quem paga a comissão.
     [HttpGet]

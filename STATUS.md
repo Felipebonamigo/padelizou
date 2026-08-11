@@ -1,7 +1,67 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🔒 **O PAINEL ADMIN VOLTOU A SER DE UMA PESSOA SÓ** + 🚀 **`build-489-fba0289` no ar** com a coluna "Não constam" no relatório do Ranking.
+> Última atualização: **10/08/2026** — 🚀 **`build-493-d765d76` NO AR EM PROD** (21:32). ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. **Fecha os cinco itens da varredura de conformidade.**
+>
+> 🚀 **O QUE FOI JUNTO NESTE BUILD, por escolha do Felipe** (a pergunta foi feita porque não era só código meu): o aceite dos Termos + a linha do parceiro na política, **o desligamento do boleto**, a fatura sem o endereço residencial e o `/Admin/Times` — os três últimos da sessão paralela, que ainda os marcava como não publicados.
+>
+> ✅ **Conferido em produção**: `readlink -f /opt/padelizou` **e** o `cwd` do processo em `build-493-d765d76`, `NRestarts=0`, `active/running`, `/healthz` 200, journal sem exceção e `.historico` com **uma linha por deploy** (21:17 o 492, 21:32 o 493). A tela de cadastro traz a frase do aceite com os dois links; a tabela do item 5 traz a linha "Equipe do Ranking". **Sem regressão do que subiu mais cedo**: perfil anônimo segue com **zero** telefone de jogador e o `GET` na consulta de CPF segue **405**.
+>
+> 🗄️ **A MIGRATION FOI CONFERIDA DENTRO DO BANCO DE PROD, e não pelo "Feito" do deploy.** `Migrate()` roda no startup **dentro de um try/catch**: falhando, o app sobe do mesmo jeito e o defeito é mudo até a primeira gravação estourar. As duas colunas existem em `db_padel`, `nullable`, e `20260810211014_AceiteDosTermosNoCadastro` está no `__EFMigrationsHistory`. `jogadores_com_aceite = 0` — certo: ninguém se cadastrou depois da subida, e conta antiga fica nula de propósito.
+>
+> ✍️ **O CADASTRO NÃO DIZIA UMA PALAVRA SOBRE OS TERMOS NEM SOBRE A POLÍTICA** — os dois só existiam num link do rodapé — **e não guardava nada**. O art. 8º §2 da LGPD põe o ônus de PROVAR o consentimento em quem controla os dados; a resposta a *"você concordou com isso?"* era encolher os ombros. Agora são duas metades, e uma sozinha não provaria nada: a **tela diz**, colada no botão, com link pros dois documentos; e a **linha da pessoa guarda** quando e qual versão (`Jogador.TermosAceitosEm` / `VersaoDosTermosAceita`).
+>
+> 🚫 **SEM CAIXA DE MARCAR, de propósito.** O que os Termos pedem é aceite de **contrato**; os consentimentos que a LGPD exige marcados um a um — WhatsApp, notificação, rua e bairro — **já são interruptores separados** na mesma tela. Uma caixa a mais barraria cadastro sem provar mais nada.
+>
+> ⚠️ **`CriadoEm` NÃO SERVIA COMO DATA DE ACEITE, e por pouco não foi usada assim.** A linha de um **pré-cadastro** nasce quando um TERCEIRO inscreve a dupla — aquela pessoa nunca viu tela nenhuma. Usar a data de criação dela como aceite seria **inventar um consentimento que não houve**, justamente na população que o trabalho de mais cedo protegeu. Por isso a coluna nova; e por isso o registro fica no caminho COMUM do cadastro, que é por onde passa também **quem assume um pré-cadastro** — gravar só no ramo do cadastro novo deixaria de fora exatamente quem entrou pela porta do parceiro. Tem teste pra esse caminho.
+>
+> 📅 **A DATA DA VERSÃO SAIU DE DENTRO DAS DUAS PÁGINAS.** Ela mora em `Services/VersaoDosDocumentos` e é a **mesma string** gravada na linha de quem se cadastra. Escrita à mão nos dois lugares, a página diria uma versão e o banco guardaria outra — e a prova viraria contradição. É a lição do preço cravado nos Termos, um degrau acima. Teste reprova `Em vigor desde <número>` em qualquer das duas.
+>
+> 🧾 **E a pessoa vê o próprio recibo** em Preferências: *"Você aceitou os Termos e a Política em 10/08/2026 (versão 2026-08-10)"*. Quem se cadastrou antes lê *"sua conta é anterior ao registro de aceite"* — **nulo é "não temos registro", não "não aceitou"**, e preencher as contas existentes com a data de hoje seria fabricar consentimento.
+>
+> 🤝 **O PARCEIRO DO RANKING ENTROU NA TABELA DO ITEM 5.** A linha que existia declarava só o que sai pela **API** deles (nome + categoria consultada) — mas há **gente de fora com login aqui dentro**, lendo uma tela nossa com nome e CPF mascarado de todo inscrito. Não sair por API nenhuma não faz disso não-compartilhamento; fazia disso compartilhamento **não declarado**.
+>
+> 🧪 **3.378 testes, 0 falhas** (9 novos). ✅ **Conferido no navegador**: a frase aparece **antes** do botão de finalizar, com os dois links; a tabela do item 5 agora tem 7 linhas, com a do parceiro entre "Mundo do Atleta" e "Google"; e os **dois** ramos do recibo renderizam. ✅ **A migration rodou de verdade contra o Postgres local** — as duas colunas nasceram `nullable`, e `20260810211014_AceiteDosTermosNoCadastro` entrou no `__EFMigrationsHistory` logo depois da `SeguirTorneio` da outra sessão.
+>
+> ⚠️ **Commit seletivo:** `Privacy.cshtml` e `Termos.cshtml` estavam com trabalho da outra sessão (a retirada do **boleto**) — só os meus trechos entraram no meu commit, pela técnica do `git apply --cached`, pra não publicar a promessa nova antes da mudança de verdade. A outra sessão commitou a parte dela em seguida (`Termos e politica param de prometer boleto`), e as duas foram juntas no `build-493`.
+>
+> Antes, no mesmo dia — 🧾 **A FATURA SAIU DA CASA DO GATEWAY** (o endereço de casa do Felipe estava em TODA cobrança do site) + 🚫 **BOLETO DESLIGADO**. ✅ **PUBLICADO no `build-493-d765d76`** (21:32) — este bloco dizia "AINDA NÃO PUBLICADO" e deixou de valer.
+>
+> 🧾 **TODA COBRANÇA MOSTRAVA O CADASTRO COMERCIAL DE QUEM OPERA** — nome, CNPJ, e-mail, telefone e o **endereço residencial completo, com número e apartamento**. Não era um torneio: como toda cobrança nasce na conta principal (o split é que manda a fatia do organizador pra carteira dele), a fatura hospedada do meio de pagamento estampava os MESMOS dados em toda inscrição de todo torneio, mais aula, quadra, mensalidade de professor e taxa de plataforma. O Felipe viu na fatura de R$ 125 do NATA PADEL TOUR: *"meus dados estão muito expostos"*.
+>
+> ✅ **Agora a fatura é NOSSA.** `/Pagamentos/Fatura/{id}` busca o Pix no gateway (`GET /v3/payments/{id}/pixQrCode`), **desenha o QR aqui dentro** (`Services/QrDoPix`, mesmo caminho do Pix direto) e mostra copia e cola, valor e prazo — sem uma linha do cadastro de ninguém. Todos os caminhos passaram a apontar pra ela: inscrição, "pagar depois", extrato, comprovante, o lembrete que sai por WhatsApp/e-mail e o link que o organizador copia na Mesa. Quem decide isso é `Services/LinkDoPagamento`, num lugar só.
+>
+> 💳 **Cartão continua no gateway, de propósito**: quando a cobrança não tem Pix, a tela redireciona pra fatura de lá — número de cartão não passa (e não deve passar) por aqui. A `InvoiceUrl` **continua gravada**: virou plano B, e é ela que várias consultas usam pra saber que a cobrança existe no gateway.
+>
+> ⏱️ **A tela espera o dinheiro cair**: `/Pagamentos/Situacao/{id}` lê o NOSSO banco a cada 5s (nunca o gateway) e recarrega sozinha quando o webhook confirma. Sem isso a pessoa paga e continua encarando o QR, sem saber se deu certo. Nada de botão "já paguei" — esse é do Pix direto, onde a confirmação é manual.
+>
+> 🚫 **BOLETO DESLIGADO** (*"se algum dia alguém pedir, a gente retorna"*): saiu da escolha do jogador, do plano do professor, da tabela de prazos e dos textos de tela e dos materiais de venda. Formulário antigo em cache que mandar "Boleto" cai na **escolha desconhecida** — forma aberta e taxa cheia, a regra que nunca cobra do organizador menos do que ele combinou. O roteiro pra devolver a opção está escrito em `CobrancaDoTorneio`. ⚠️ **Falta 1 clique fora do código**: desabilitar boleto na conta do meio de pagamento, senão a cobrança de forma ABERTA continua oferecendo boleto lá.
+>
+> 🧪 **3.369 testes, 0 falhas** (7 novos). **Zero migration.** ✅ **Conferido com o gateway DUBLADO no PostgreSQL local**: QR PNG de verdade na tela (570px, desenhado do copia e cola que "veio"), **zero menção a asaas.com no HTML**, polling em 200 — e, mudando o status no banco como o webhook faria, a tela virou sozinha pro "Pagamento confirmado!" em ~5s. Com o dublê derrubado, ela redireciona pro plano B e o erro sai no log em vez de quebrar a página.
+>
+> 🔧 **O que só o Felipe pode fazer** (e vale mesmo com a fatura nova, porque limpa a de CARTÃO, que continua sendo deles): o meio de pagamento deixa **remover endereço, CEP, telefone e e-mail da fatura** em *Minha conta → Informações → Dados comerciais*, com análise em até 2 dias úteis. **Nome e CNPJ não saem** — exigência do Banco Central.
+>
+> Antes — 🛡️ **`/Admin/Times` EXISTE**: criar, apagar e designar quem manda em cada time, de dentro do painel. ✅ **PUBLICADO no `build-493-d765d76`** (21:32).
+>
+> 🛡️ **O PRIMEIRO ADMINISTRADOR DE UM TIME SÓ ENTRAVA PELO SITE PÚBLICO.** O botão existia em `/Times/Detalhes`, mas dentro de `admin.padelizou.com.br` o middleware serve **só `/Admin` e `/Auth`** — de lá, qualquer `/Times` dá 404. Agora o painel tem a tela inteira: **criar** time (com clube sede opcional), **apagar**, e **incluir/remover administrador** pela mesma busca por nome/apelido/CPF das outras telas do painel.
+>
+> ⚠️ **Nome de time repetido é recusado, pela mesma razão do clube**: no cadastro, quem digita o nome de um time que já existe **entra nele** (`AuthController.DefinirTimeAsync` casa por nome, sem diferenciar maiúsculas). Dois "SINDAQUA" na base fariam cada pessoa cair num dos dois pelo acaso da consulta — e metade do time ficaria pendurada no cadastro errado, em silêncio.
+>
+> 🗑️ **O aviso do "Apagar" carrega os números reais** — *"7 jogador(es) ficam sem time e 1 dupla(s) de torneio perdem o escudo"* —, porque "tem certeza?" é um susto e um número é uma decisão. **Nada morre junto**: `Jogador.TimeId` e `Dupla.TimeId` são `SetNull` (a conta, os jogos e o resultado do torneio ficam inteiros; some o escudo), e só o cargo de administrador cai em cascata. Conferido no **PostgreSQL local**, apagando um time de verdade: o jogador continuou lá, com `TimeId` nulo.
+>
+> 🔁 **Zero regra nova**: quem decide se pode conceder/remover continua sendo `Services/AdministracaoTime`, o mesmo que a vitrine usa — e o "conceder também veste a camisa" saiu de dentro do `TimesController` pra lá, senão nasceria a segunda cópia. Diferença do painel: **admin do sistema pode deixar o time sem nenhum administrador** (é o estado dos 44 importados do ranking, e é ele quem destrava de volta). **Zero migration.** 3.378 testes, 0 falhas (16 novos).
+>
+> 🐛 **Um bug pego na verificação, não nos testes**: `\n\n@linha.Membros` dentro do `onsubmit` foi renderizado **literal** — o Razor tem uma regra de e-mail (`algo@algo`) e o `@` colado no caractere anterior deixa de ser código. O aviso do apagar foi pra tela com o nome da variável no lugar do número. As confirmações agora saem de `data-confirmar` + um listener, o que também resolve o time chamado "Rafa's" fechando a aspa do JS.
+>
+> Antes — 🚀 **`build-491-81084e6` NO AR** (20:49). 📵 **O FIX DO TELEFONE PÚBLICO SUBIU** — o bloco lá embaixo dizia "AINDA NÃO PUBLICADO" e isso deixou de valer.
+>
+> 📵 **PROVADO EM PRODUÇÃO, COMO VISITANTE ANÔNIMO** (que é justamente quem o defeito expunha): nos perfis 10 e 12, o **celular do atleta não aparece** e **não há nenhum link de instagram.com** — o único `wa.me` da página é o **suporte do próprio site**, no rodapé. ⚠️ **Duas vezes quase gritei vazamento por erro meu de medição**: primeiro o número do rodapé (o mesmo em todos os perfis, e é nosso, não do atleta); depois um `grep` em que o **ponto do handle `anderson.virgili` casou com o espaço de "Anderson Virgili"** — regex onde eu queria texto literal. **Busca literal (`grep -F`) e uma string de CONTROLE são obrigatórias**, senão a conferência inventa defeito ou esconde um.
+>
+> 🔀 **DUAS MIGRATIONS DO MESMO DIA SE ENCONTRARAM NO MERGE** (`SeguirTorneio` da outra sessão × `ParceiroDoRankingEConsultas` minha) — a situação que a memória marca como perigosa, porque o rebase acerta a ordem e **não** o snapshot de dentro. Conferido antes de publicar: `has-pending-model-changes` **limpo** e **3.345 testes, 0 falhas** no merge; e depois, as três migrations do dia no `__EFMigrationsHistory` de prod.
+>
+> ✅ Conferido: `cwd` em `build-491-81084e6`, `NRestarts=0`, `/healthz` 200, zero erro no journal.
+>
+> Antes — 🔒 **O PAINEL ADMIN VOLTOU A SER DE UMA PESSOA SÓ** + **`build-489-fba0289`** com a coluna "Não constam" no relatório do Ranking.
 >
 > 🔒 **HOJE SÓ O FELIPE (Id 9) ALCANÇA `/Admin`.** A pedido dele — *"por enquanto somente eu terei acesso ao painel admin"* —, a flag de **assistente do sistema** saiu do **Lucas "Foka" (Id 10)**, que a tinha desde 08/08 e enxergava o painel inteiro (financeiro incluído) em só-leitura. ⚠️ **A conta dele ficou INTEIRA**: login `Foka`, senha e pagamento intocados — foi só a flag, e religar é um clique em `/Admin/Administradores`. ⚡ **Tirar vale na hora** (as travas leem do BANCO), ao contrário de conceder, que espera o próximo login; o que demora é só o **item de menu**, que vem do crachá — clicar nele já devolve pro perfil. 🤝 E o perfil de **parceiro do Ranking** segue em **zero**: ninguém de fora vê nada até ser designado.
 >
@@ -11,7 +71,7 @@
 >
 > 🧭 **De quebra, o painel tinha DOIS cards dizendo "Ranking Brasil"** e o Felipe procurou o botão de conferir no errado. Agora um é **"Relatório — só leitura (é a tela que eles enxergam, sem botão nenhum)"** e o outro **"acerto e conferência"**; e do relatório o nome do torneio virou **link** pra página dele. ⚠️ Link, e nunca formulário: a trava do parceiro é o verbo HTTP. O teste-guarda chegou a reprovar o **próprio comentário** que escrevi pra explicar a regra — ele cita a tag que a regra proíbe —, e agora ele descarta comentário Razor antes de comparar.
 >
-> Antes, no mesmo dia — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ⚠️ **AINDA NÃO PUBLICADO** — corrigido no código, com testes, esperando deploy.
+> Antes, no mesmo dia — 📵 **O TELEFONE DOS JOGADORES ESTAVA PÚBLICO, E A NOSSA POLÍTICA DE PRIVACIDADE PROMETIA O CONTRÁRIO.** ✅ **PUBLICADO no `build-491-81084e6`** (20:49) e conferido em produção como visitante anônimo — ver o topo deste documento.
 >
 > 🔎 **Varredura de conformidade pedida pelo Felipe** (*"verifique se tem coisas que ferem as leis de uso, divulgação de CPF ou coisas assim"*). O sistema estava bem acima da média — política de verdade, exclusão de conta com anonimização, busca que exige CPF inteiro, CPF fora dos logs. Mas **`GET /Jogadores/Perfil/169` em produção, SEM LOGIN, devolvia 200 com um `wa.me/55…` no HTML**: telefone de jogador real, numa página linkada do ranking público, com `Allow: /` no robots.txt. E o item 4 da política dizia, com todas as letras, *"Nunca são públicos: CPF, CEP, e-mail, celular e senha"*.
 >

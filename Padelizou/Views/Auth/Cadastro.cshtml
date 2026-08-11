@@ -217,7 +217,27 @@
 
                         <partial name="_PreferenciasFields" model="@(new Padelizou.ViewModels.PreferenciasViewModel())" />
 
-                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">Finalizar Cadastro</button>
+                        @* ACEITE DOS TERMOS — colado no botão, que é onde a pessoa está olhando
+                           na hora de decidir. Até 10/08/2026 o cadastro não dizia uma palavra
+                           sobre os dois documentos (eles só existiam no rodapé) e nada ficava
+                           gravado: não havia prova nenhuma de consentimento, e o ônus dessa
+                           prova é de quem controla os dados (LGPD, art. 8º §2).
+
+                           Sem caixa de marcar, de propósito: o que os Termos pedem é aceite de
+                           CONTRATO, e os consentimentos que a LGPD exige marcados um a um
+                           (WhatsApp, notificação, rua e bairro) já são interruptores separados
+                           aqui na tela. Uma caixa a mais barraria cadastro sem provar mais
+                           nada — o que prova é a frase estar aqui, a versão estar gravada na
+                           linha da pessoa (Jogador.TermosAceitosEm) e o texto daquela versão
+                           estar no histórico do repositório. *@
+                        <p class="small text-muted mt-4 mb-0 text-center">
+                            Ao finalizar, você aceita os
+                            <a asp-controller="Home" asp-action="Termos" target="_blank" rel="noopener">Termos de Uso</a>
+                            e a
+                            <a asp-controller="Home" asp-action="Privacy" target="_blank" rel="noopener">Política de Privacidade</a>
+                            (versão de @Padelizou.Services.VersaoDosDocumentos.EmVigorDesdeNaTela).
+                        </p>
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-2">Finalizar Cadastro</button>
                     </form>
 
                     <div class="text-center mt-4">

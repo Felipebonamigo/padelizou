@@ -307,7 +307,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 && alvo.Jogador2Id == dados.Jogador2Id
                 && alvo.SemParceiro == dados.SemParceiro)
             {
-                return pagamento.InvoiceUrl;
+                return LinkDoPagamento.Para(pagamento);
             }
         }
 
@@ -340,7 +340,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             if (alvo.DuplaId == dados.DuplaId
                 && alvo.InscricaoAmericanaId == dados.InscricaoAmericanaId)
             {
-                return pagamento.InvoiceUrl;
+                return LinkDoPagamento.Para(pagamento);
             }
         }
 
@@ -418,7 +418,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
             p.Tipo == "TaxaTorneio" && p.TorneioId == torneio.Id
             && p.Status == "Pendente" && p.InvoiceUrl != null);
-        if (pendente != null) return pendente.InvoiceUrl;
+        if (pendente != null) return LinkDoPagamento.Para(pendente);
 
         var clienteId = await _asaas.ObterOuCriarClienteAsync(
             organizador.Nome, organizador.Cpf, organizador.Email, organizador.Celular);
@@ -462,7 +462,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         pagamento.InvoiceUrl = cobranca.InvoiceUrl;
         await _context.SaveChangesAsync();
 
-        return cobranca.InvoiceUrl;
+        // A fatura do gateway fica GRAVADA (é o plano B da tela e o marcador de "existe
+        // cobrança lá"), mas quem vai pagar vai pra NOSSA — ver Services/LinkDoPagamento.
+        return LinkDoPagamento.Para(pagamento);
     }
 
     // A taxa da aula depende do plano do professor: assinante em dia (ou em teste) paga a
@@ -493,7 +495,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         var pendente = await _context.Pagamentos.FirstOrDefaultAsync(p =>
             p.Tipo == "AssinaturaProfessor" && p.JogadorId == professor.Id
             && p.Status == "Pendente" && p.InvoiceUrl != null);
-        if (pendente != null) return pendente.InvoiceUrl;
+        if (pendente != null) return LinkDoPagamento.Para(pendente);
 
         var clienteId = await _asaas.ObterOuCriarClienteAsync(
             professor.Nome, professor.Cpf, professor.Email, professor.Celular);
@@ -539,7 +541,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         pagamento.InvoiceUrl = cobranca.InvoiceUrl;
         await _context.SaveChangesAsync();
 
-        return cobranca.InvoiceUrl;
+        // A fatura do gateway fica GRAVADA (é o plano B da tela e o marcador de "existe
+        // cobrança lá"), mas quem vai pagar vai pra NOSSA — ver Services/LinkDoPagamento.
+        return LinkDoPagamento.Para(pagamento);
     }
 
     // ── Pix direto, sem gateway ───────────────────────────────────────────────────────────
@@ -679,7 +683,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         pagamento.InvoiceUrl = cobranca.InvoiceUrl;
         await _context.SaveChangesAsync();
 
-        return cobranca.InvoiceUrl;
+        // A fatura do gateway fica GRAVADA (é o plano B da tela e o marcador de "existe
+        // cobrança lá"), mas quem vai pagar vai pra NOSSA — ver Services/LinkDoPagamento.
+        return LinkDoPagamento.Para(pagamento);
     }
 
     // Chamado pelo webhook: o dinheiro entrou, então agora a inscrição existe de fato.

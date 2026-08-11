@@ -1,0 +1,128 @@
+@model Padelizou.Models.Pagamento
+@{
+    ViewData["Title"] = "Pagamento - Padelizou";
+
+    // Só existem quando a cobrança está pendente: o controller nem pede o Pix pro que já foi
+    // pago (ver PagamentosController.Fatura).
+    string? copiaECola = ViewBag.CopiaECola;
+    string? qrBase64 = ViewBag.QrBase64;
+    string origem = ViewBag.Origem ?? "Pagamento";
+
+    bool confirmado = Model.Status == "Confirmado";
+    bool aberto = Model.Status == "Pendente" && !string.IsNullOrEmpty(copiaECola);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+
+            <div class="mb-4">
+                <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Pagar com Pix</h2>
+                <div class="text-muted">@origem — @Model.Valor.ToString("C")</div>
+            </div>
+
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Erro"]</div>
+            }
+
+            @if (confirmado)
+            {
+                <div class="alert alert-success d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill fs-4"></i>
+                    <div><strong>Pagamento confirmado!</strong> Tudo certo por aqui.</div>
+                </div>
+                <a asp-action="Comprovante" asp-route-id="@Model.Id"
+                   class="btn btn-padel rounded-pill fw-bold">Ver o comprovante</a>
+            }
+            else if (!aberto)
+            {
+                @* Cancelada, estornada ou expirada: não há QR pra mostrar, e insistir num
+                   código que o gateway não aceita mais é pior do que dizer a verdade. *@
+                <div class="alert alert-secondary">
+                    Esta cobrança não está mais aberta (@Model.Status.ToLower()).
+                </div>
+                <a asp-action="Meus" class="btn btn-outline-secondary rounded-pill">Meus pagamentos</a>
+            }
+            else
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body p-4 text-center">
+                        @* O QR é desenhado a partir do copia e cola logo abaixo — os dois são o
+                           MESMO código (Services/QrDoPix). Quem está pagando pelo celular não
+                           consegue apontar a câmera pra própria tela, daí os dois virem juntos. *@
+                        @if (!string.IsNullOrEmpty(qrBase64))
+                        {
+                            <img src="data:image/png;base64,@qrBase64" alt="QR Code do Pix"
+                                 class="img-fluid rounded" style="max-width: 260px;" />
+                        }
+
+                        <div class="small text-muted mt-2 mb-3">
+                            Abra o app do seu banco, escolha <strong>pagar com Pix</strong> e aponte pro código —
+                            ou copie e cole:
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace small" readonly
+                                   value="@copiaECola" id="pix-copia-e-cola" />
+                            <button type="button" class="btn btn-outline-secondary" id="botao-copiar"
+                                    aria-label="Copiar o código Pix">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3 small text-muted">
+                            <span>Valor</span>
+                            <strong>@Model.Valor.ToString("C")</strong>
+                        </div>
+                        @if (Model.ExpiraEm != null)
+                        {
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>Pague até</span>
+                                <span>@Model.ExpiraEm.Value.ToString("dd/MM/yyyy 'às' HH:mm")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* Diferente do Pix direto, aqui NÃO existe botão de "já paguei": o webhook do
+                   meio de pagamento confirma sozinho, em segundos. O que a tela faz é ficar de
+                   olho — sem isso a pessoa paga e continua encarando o QR, sem saber se deu
+                   certo. Ver PagamentosController.Situacao. *@
+                <div class="text-center small text-muted" id="pdz-esperando">
+                    <span class="spinner-border spinner-border-sm align-middle me-1"></span>
+                    Esperando o pagamento cair — pode deixar esta tela aberta.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/pix-copiar.js"></script>
+    @if (aberto)
+    {
+        @* Inline de propósito: é curto e depende do id deste pagamento. Sem `src`, não há
+           arquivo pro service worker cachear — daí não levar `asp-append-version`. *@
+        <script>
+            // Pergunta ao NOSSO banco (o webhook já gravou lá), nunca ao meio de pagamento:
+            // uma consulta a cada 5s no gateway seria abuso, aqui é uma leitura barata.
+            (function () {
+                var url = '@Url.Action("Situacao", new { id = Model.Id })';
+                var tentativas = 0;
+                var relogio = setInterval(function () {
+                    // ~10 minutos de espera. Depois disso quem paga já fechou a tela, e um
+                    // timer eterno numa aba esquecida bate no servidor pra sempre.
+                    if (++tentativas > 120) { clearInterval(relogio); return; }
+
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (d) {
+                            if (d && d.confirmado) { clearInterval(relogio); location.reload(); }
+                        })
+                        .catch(function () { /* rede oscilando: tenta de novo no próximo tique */ });
+                }, 5000);
+            })();
+        </script>
+    }
+}

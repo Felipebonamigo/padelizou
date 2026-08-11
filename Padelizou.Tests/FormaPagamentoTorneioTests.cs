@@ -156,9 +156,9 @@ public class FormaPagamentoTorneioTests
 
         Assert.True(taxas.CreditoAVista.Demora);
         Assert.True(taxas.CreditoAte21x.Demora);
-        Assert.False(taxas.Boleto.Demora);
+        Assert.False(taxas.CartaoDebito.Demora);
         Assert.False(taxas.Pix.Demora);
-        Assert.Equal("1 dia útil", taxas.Boleto.PrazoEscrito);
+        Assert.Equal("3 dias", taxas.CartaoDebito.PrazoEscrito);
         Assert.Equal("na hora", taxas.Pix.PrazoEscrito);
     }
 
@@ -189,7 +189,7 @@ public class FormaPagamentoTorneioTests
     {
         var t = new TaxasExibicao();
 
-        Assert.Equal("R$ 0,99", t.Boleto.TaxaEscrita);            // só valor fixo
+        Assert.Equal("R$ 0,99", t.Pix.TaxaEscrita);               // só valor fixo
         Assert.Equal("1,99% + R$ 0,49", t.CreditoAVista.TaxaEscrita); // percentual + fixo
     }
 }

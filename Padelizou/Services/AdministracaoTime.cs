@@ -51,6 +51,28 @@ public static class AdministracaoTime
         return null;
     }
 
+    // Concede o cargo — e veste a camisa junto, porque as duas coisas andam juntas: sem isto
+    // o administrador ficaria de fora da própria lista de membros, e a tela do time diria
+    // "não tem ninguém" com ele lá dentro.
+    //
+    // Mora aqui, e não copiado nas duas telas que concedem (a vitrine /Times e o painel
+    // /Admin/Times), porque é UMA regra. Regra duplicada é o que já produziu os piores bugs
+    // deste projeto: a segunda cópia é corrigida meses depois da primeira, ou nunca.
+    //
+    // Não chama SaveChanges — quem chama decide quando gravar.
+    public static void Conceder(DbPadelContext context, int timeId, Jogador novo, int? concedidoPorId)
+    {
+        context.Set<TimeAdministrador>().Add(new TimeAdministrador
+        {
+            TimeId = timeId,
+            JogadorId = novo.Id,
+            ConcedidoPorId = concedidoPorId,
+            ConcedidoEm = DateTime.Now,
+        });
+
+        if (novo.TimeId != timeId) novo.TimeId = timeId;
+    }
+
     public static Task<bool> EhAdministradorAsync(DbPadelContext context, int timeId, int jogadorId) =>
         context.Set<TimeAdministrador>().AnyAsync(a => a.TimeId == timeId && a.JogadorId == jogadorId);
 

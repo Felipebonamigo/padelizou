@@ -23,7 +23,14 @@ public static class CobrancaDoTorneio
     // pagamento é o `BillingType`.
     public const string EscolhaPix = "Pix";
     public const string EscolhaCartao = "Cartao";
-    public const string EscolhaBoleto = "Boleto";
+
+    // ⚠️ AQUI MORAVA `EscolhaBoleto` (Felipe, 10/08/2026): boleto está DESLIGADO. Nenhuma
+    // cobrança do sistema nasce mais como "BOLETO" — a tela oferece só Pix e cartão.
+    //
+    // Se um dia alguém pedir, voltar é: a constante aqui, o case abaixo (taxa do Pix, porque
+    // pro gateway os dois custam o mesmo valor fixo em centavos), o mesmo case em
+    // PlanoDoProfessor.CobrancaDaAula, e a opção em _EscolhaFormaPagamento.cshtml. O
+    // vencimento mais longo do boleto continua de pé em VencimentoDaCobranca, intocado.
 
     public sealed record Cobranca(string BillingType, decimal Percentual);
 
@@ -67,10 +74,6 @@ public static class CobrancaDoTorneio
             {
                 EscolhaPix => new Cobranca("PIX", taxas.ComissaoPercentualSomentePix),
                 EscolhaCartao => new Cobranca("CREDIT_CARD", taxas.ComissaoPercentualTodasFormas),
-
-                // Boleto paga a taxa do Pix (Felipe, 29/07/2026): pro meio de pagamento os dois
-                // custam o mesmo valor fixo em centavos — o que encarece é o cartão.
-                EscolhaBoleto => new Cobranca("BOLETO", taxas.ComissaoPercentualSomentePix),
 
                 // Escolha ausente ou desconhecida (formulário antigo em cache, requisição
                 // montada à mão): cai no comportamento de sempre — todas as formas liberadas,

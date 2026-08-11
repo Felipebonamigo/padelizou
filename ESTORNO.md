@@ -46,6 +46,7 @@ próxima pessoa da fila não entra.
 - **Cartão:** volta na fatura, e o prazo é do banco do jogador — pode levar até duas faturas.
   Não há como acelerar por aqui.
 - **Boleto pago:** a devolução vai pra conta bancária do pagador e depende dos dados dele.
+  Vale só pras cobranças antigas — boleto foi desligado em 10/08/2026 e não nasce mais nenhuma.
 - **A taxa do Padelizou volta junto?** O estorno é do valor **cheio** que o jogador pagou.
   O custo fixo da transação (centavos) não é devolvido pelo meio de pagamento — na prática é
   o nosso prejuízo no cancelamento, não do organizador.

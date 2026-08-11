@@ -34,7 +34,10 @@
 <div class="container py-4" style="max-width: 820px;">
 
     <h1 class="h3 fw-bold mb-1">Política de Privacidade</h1>
-    <p class="text-muted small mb-4">Em vigor desde 10 de agosto de 2026.</p>
+    @* A data sai de Services/VersaoDosDocumentos, e não escrita à mão: é a MESMA string que
+       vai gravada na linha de quem se cadastra (Jogador.VersaoDosTermosAceita). Divergindo,
+       a página diria uma versão e o banco guardaria outra — e a prova viraria contradição. *@
+    <p class="text-muted small mb-4">Em vigor desde @Padelizou.Services.VersaoDosDocumentos.EmVigorDesdeNaTela.</p>
 
     <div class="alert alert-light border">
         <strong>O resumo, em três linhas.</strong>
@@ -149,7 +152,7 @@
             <tbody>
                 <tr>
                     <td><strong>Meio de pagamento</strong></td>
-                    <td>Gerar e receber Pix, boleto e cartão</td>
+                    <td>Gerar e receber Pix e cartão</td>
                     <td>Nome, CPF, e-mail, telefone e o valor da cobrança. <strong>Os dados do cartão são digitados direto no ambiente dele</strong> — o Padelizou não vê nem guarda número de cartão.</td>
                 </tr>
                 <tr>
@@ -161,6 +164,20 @@
                     <td><strong>Mundo do Atleta (Ranking RS)</strong></td>
                     <td>Conferir sua categoria no ranking estadual, quando o torneio exige</td>
                     <td>Seu nome e a categoria consultada.</td>
+                </tr>
+                @* ⚠️ Linha acrescentada em 10/08/2026, na varredura de conformidade: a de cima
+                   declara só o que sai pela API deles, e ISTO é outra coisa — gente de fora com
+                   login aqui dentro, lendo uma tela nossa. Ficar de fora da tabela porque "não
+                   é integração" seria a definição de compartilhamento não declarado. *@
+                <tr>
+                    <td><strong>Equipe do Ranking (parceria)</strong></td>
+                    <td>Acompanhar a parceria: quantos atletas entraram por ela em cada torneio</td>
+                    <td>
+                        Numa <strong>única tela</strong>, só de leitura: nome e <strong>CPF parcialmente
+                        escondido</strong> de quem se inscreveu em torneio que usa o ranking, a categoria e
+                        o que o ranking respondeu. <strong>Não veem</strong> seu contato, seu pagamento, nem
+                        torneio que não é da parceria.
+                    </td>
                 </tr>
                 <tr>
                     <td><strong>Google</strong></td>

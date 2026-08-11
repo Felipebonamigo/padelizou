@@ -134,7 +134,7 @@ public class PlanoProfessorController : Controller
 
             return pixAberto != null
                 ? RedirectToAction("Pix", "Pagamentos", new { id = pixAberto.Id })
-                : Redirect(faturaAberta!.InvoiceUrl!);
+                : Redirect(LinkDoPagamento.Para(faturaAberta!));
         }
 
         // Pix direto primeiro: cai na nossa conta sem taxa de gateway. Só quando a chave não

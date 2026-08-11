@@ -82,6 +82,19 @@ public class PoliticaDePrivacidadeTests
             + "testes existem pra evitar.");
     }
 
+    // Gente de FORA com login aqui dentro: o parceiro do Ranking abre uma tela nossa e lê nome
+    // e CPF mascarado de quem se inscreveu (ver AdminController.RankingRsRelatorio). A linha da
+    // tabela do item 5 sobre o "Mundo do Atleta" declarava só o que sai pela API deles — e esse
+    // acesso não sai por API nenhuma, então ficava sem declaração.
+    [Fact]
+    public void Declara_o_acesso_de_leitura_do_parceiro_do_ranking()
+    {
+        var pagina = Pagina();
+
+        Assert.Contains("Equipe do Ranking", pagina);
+        Assert.Contains("CPF parcialmente", pagina, StringComparison.OrdinalIgnoreCase);
+    }
+
     // Nome, CPF, celular e cidade de quem NUNCA entrou aqui entram na base pela inscrição de
     // dupla (o parceiro é informado por CPF). Um tratamento inteiro que a política não citava.
     [Fact]
