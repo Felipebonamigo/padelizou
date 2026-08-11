@@ -1,7 +1,11 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🎛️ **O INTERRUPTOR DO MVP CHEGOU NA GESTÃO DO TORNEIO**, fechando o que faltava do MVP. O botão "MVP do torneio" na página do torneio já tinha entrado de carona no commit `ff433da` da sessão paralela.
+> Última atualização: **11/08/2026** — 🚀 **`build-515-4e328e2` NO AR EM PRODUÇÃO**: o MVP do torneio está **completo** no site — botão na página do torneio, votação e o interruptor do organizador na gestão. Foi junto o SEO da sessão paralela (página por cidade, sitemap, dados estruturados).
+>
+> ✅ **Conferido em produção**: symlink **e** `cwd` do processo em `build-515-4e328e2`, `NRestarts=0`, `active/running`, `/healthz` 200, **zero exceções** no journal. O botão **"MVP do torneio" aparece na página pública** do torneio 23, ao lado do "Ver os campeões". 🔍 **Pegadinha na hora de conferir**: `strings -a` no `.dll` devolveu **0** pro `editMvpSwitch` e quase virou "não subiu" — literal de view Razor é gravado em **UTF-16**, e só aparece com `strings -el` (aí são 2 ocorrências, junto com "Eleger o MVP do torneio"). O que `strings -a` acha é nome de parâmetro/símbolo, não texto de tela.
+>
+> Antes, no mesmo dia: 🎛️ **O INTERRUPTOR DO MVP CHEGOU NA GESTÃO DO TORNEIO**, fechando o que faltava do MVP. O botão "MVP do torneio" na página do torneio já tinha entrado de carona no commit `ff433da` da sessão paralela.
 >
 > 🐛 **UM DEFEITO MEU QUE SÓ O NAVEGADOR PEGARIA: a ordem do `<input type="hidden">`.** O parâmetro do servidor é `bool?` (nulo = aba antiga, mantém o que está gravado), então a caixa precisa de um campo escondido com `false` — senão DESMARCAR é indistinguível de "formulário sem o campo" e o organizador nunca conseguiria desligar. Eu pus o escondido **ANTES** da caixa, e o POST saía `["false","true"]`: **o binder do ASP.NET lê o PRIMEIRO valor**, então marcar a caixa DESLIGARIA a votação. ⚠️ **O teste de controller não vê isso** — ele chama a ação direto e pula o model binding inteiro. Quem pegou foi ler o `FormData` do formulário de verdade no navegador. A ordem certa (caixa, depois escondido) é exatamente a que o `asp-for` gera sozinho.
 >
