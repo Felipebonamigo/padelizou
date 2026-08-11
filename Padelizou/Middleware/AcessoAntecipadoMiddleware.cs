@@ -27,10 +27,17 @@ public class AcessoAntecipadoMiddleware
     // esqueceu a senha da própria conta é exatamente quem não tem como pedir a do portão.
     // "/Auth/Cadastro" continua FORA: conta nova segue sendo por convite, que é o que o
     // portão existe pra controlar.
+    //
+    // "/.well-known" é onde mora o assetlinks.json do app Android. Quem busca esse arquivo é um
+    // robô do Google, que não tem cookie, não tem conta e NÃO segue redirecionamento: se o
+    // portão for religado pelo painel e o caminho não estiver aqui, ele leva 302 pra tela de
+    // senha, a verificação falha e o app instalado passa a mostrar a barra de endereço do
+    // Chrome por cima — no celular de todo mundo, sem nada quebrar deste lado. Não tem nada
+    // secreto lá dentro: o arquivo é público por definição.
     public static readonly string[] PrefixosLiberados =
     {
         "/AcessoAntecipado", "/lib", "/css", "/js", "/image", "/uploads", "/favicon", "/Agenda/Feed",
-        "/manifest.json", "/sw.js", "/Pagamentos/Webhook", "/healthz",
+        "/manifest.json", "/sw.js", "/Pagamentos/Webhook", "/healthz", "/.well-known",
         "/Auth/Login", "/Auth/Logout", "/Auth/EsqueciSenha", "/Auth/RedefinirSenha"
     };
 
