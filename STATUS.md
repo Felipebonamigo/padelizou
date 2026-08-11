@@ -17,7 +17,7 @@
 >
 > 🧪 **3.746 testes, 0 falhas** (30 novos). **Zero migration.** ✅ **Conferido no navegador contra o Postgres local**: `/torneios-de-padel-em-porto-alegre-rs` com **13 cards**, título "Torneios de padel em Porto Alegre", descrição própria e canônica certa; as 3 cidades no `sitemap.xml`; e o bloco de links saindo *Porto Alegre 13 · Bento Gonçalves 4 · Gravataí 1*. Zero erro no log do servidor.
 >
-> 📌 **A cidade dos clubes REAIS está preenchida** (o que a memória antiga dizia não valer mais): dos 8 clubes locais, os 4 sem cidade são todos de teste. ⚠️ Mas `Clube.CidadeId` **só é atribuído na CRIAÇÃO** (`CatalogoLocais`) — **não existe tela pra dar cidade a um clube que já existe**. Clube antigo sem cidade não entra em página nenhuma, e nada avisa.
+> 📌 **A cidade dos clubes REAIS está preenchida**: dos 8 clubes locais, os 4 sem cidade são todos de teste. O `CatalogoLocais.AcharOuCriarClubeAsync` ainda **conserta o passivo sozinho** — clube antigo sem cidade recebe a que for informada na próxima vez que alguém cadastrar aquele nome (só preenche vazio, nunca sobrescreve). ⚠️ **Mas não existe tela de EDIÇÃO** que dê cidade a um clube direto: o clube que ninguém mais cadastrar fica sem cidade indefinidamente, fora de toda página de cidade, e nada avisa.
 >
 > ⏭️ **Falta**: publicar, e no Search Console enviar o sitemap. ⚠️ **E o site responde em DOIS endereços** — `www.padelizou.com.br` serve tudo, idêntico, **sem redirecionar**. Pro Google são dois sites duplicados. O canonical não resolve sozinho (ele usa o host da requisição); a correção é um **301 de `www` pra raiz no Caddy**, que não está no repo.
 >
