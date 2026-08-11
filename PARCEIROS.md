@@ -31,14 +31,31 @@ abaixo já foram escolhidos sabendo disso.
 
 ## Tabela de comissão
 
-| Produto | 1ª venda | Recorrente | Prazo |
-|---|---|---|---|
-| **Torneio** | 20% da comissão da 1ª edição | **10%** das edições seguintes | **12 meses** |
-| **Professor** | R$ 50 quando a 1ª mensalidade for paga | **10%** de tudo que ele gerar (mensalidade + taxa de aula) | **12 meses** |
-| **Clube** | 1ª mensalidade cheia | **10%** das seguintes | **12 meses** |
+**Toda venda é a mesma régua: 20% na entrada, 10% pelos 12 meses seguintes.** O que muda de um
+produto pro outro é só o que conta como "a entrada".
 
-O dobro na estreia paga o trabalho de verdade, que é a primeira conversa. O 10% depois é a cauda —
+| Produto | A entrada é… | 1ª venda | Recorrente | Prazo |
+|---|---|---|---|---|
+| **Torneio** | a 1ª **edição** (não a 1ª cobrança) | **20%** da comissão dela | **10%** das edições seguintes | **12 meses** |
+| **Professor** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes + das taxas de aula | **12 meses** |
+| **Clube** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes + das reservas | **12 meses** |
+
+O dobro na entrada paga o trabalho de verdade, que é a primeira conversa. O 10% depois é a cauda —
 não é salário, é o lembrete de que aquele cliente é dele.
+
+⚠️ **A COMISSÃO É SÓ DA FRENTE QUE ELE VENDEU.** Quem vendeu um **torneio** não ganha da
+mensalidade de professor da mesma pessoa — aquela venda não foi dele, e pode ter sido de outro
+parceiro. Um organizador que também dá aula gera duas receitas independentes, e cada uma pertence
+a quem a trouxe (ou a ninguém).
+
+⚠️ **E só do que o cliente USOU.** A comissão nasce do pagamento **confirmado**, nunca do faturado,
+e **estorno derruba a parte do parceiro junto** — inclusive o parcial, na proporção do que voltou.
+
+📌 **A entrada do professor é a MENSALIDADE, não o primeiro pagamento qualquer.** Um professor
+pode pagar taxa de aula antes de assinar (é o plano Avulso), e 20% de uma aula de R$ 100 seriam
+R$ 2 pelo trabalho inteiro de trazer um cliente. A venda que o parceiro fez é a assinatura.
+Consequência assumida: **professor que fica no Avulso pra sempre nunca gera entrada** — tudo dele
+é 10%.
 
 📌 **Por que 20% e não 30% (decisão de 11/08/2026).** A régua nasceu 30/10 e foi corrigida no mesmo
 dia, e **o que mudou não foi o percentual — foi o tamanho do torneio.** A conta original usava um
@@ -146,11 +163,12 @@ RPA ou nota do parceiro) é pergunta pro contador** — este documento não deci
 > 1. O Parceiro indica clientes ao Padelizou e recebe percentual **sobre a comissão que o
 >    Padelizou efetivamente receber** desses clientes. Nada é cobrado do cliente por causa da
 >    indicação.
-> 2. **Torneio:** 20% da comissão da primeira edição, 10% das edições seguintes.
->    **Professor:** R$ 50 na primeira mensalidade paga, 10% do que ele gerar.
->    **Clube:** primeira mensalidade cheia, 10% das seguintes.
->    Em todos os casos o percentual recorrente vale por **12 meses contados do primeiro pagamento
->    confirmado** do cliente. Não há comissão vitalícia.
+> 2. **Toda venda paga 20% da comissão da entrada e 10% do que vier depois**, por **12 meses
+>    contados do primeiro pagamento confirmado** do cliente. Não há comissão vitalícia.
+>    A entrada é a **primeira edição** no torneio e a **primeira mensalidade** no professor e no
+>    clube.
+> 2.1. A comissão vale **apenas para a frente que o Parceiro vendeu**: quem indicou um
+>    organizador de torneio não recebe sobre aulas, mensalidades ou reservas da mesma pessoa.
 > 3. A indicação só é válida se o lead for **registrado no painel antes do primeiro contato**.
 >    Leads vencem em 90 dias. Clientes que se cadastram por conta própria não geram comissão.
 >    Um cliente tem um único Parceiro.

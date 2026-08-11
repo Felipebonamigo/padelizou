@@ -2,8 +2,10 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// Quanto o parceiro comercial tem a receber. A régua está em PARCEIROS.md e é curta:
-// 20% da comissão da PRIMEIRA venda, 10% do que vier depois, por 12 MESES — nada vitalício.
+// Quanto o parceiro comercial tem a receber. A régua está em PARCEIROS.md e é a mesma pros
+// dois produtos que existem: **20% da PRIMEIRA venda, 10% do que vier depois, por 12 MESES** —
+// nada vitalício. No torneio a primeira venda é a primeira EDIÇÃO; no professor é a primeira
+// MENSALIDADE.
 //
 // Fica aqui, e não no controller, porque a mesma conta vai ser lida por dois olhos diferentes
 // (o Felipe vendo todo mundo, o parceiro vendo só ele) e uma segunda cópia da regra é a causa
@@ -20,15 +22,30 @@ public static class ComissaoDoParceiro
 
     public const decimal PercentualRecorrente = 10m;
 
-    // No professor o bônus de estreia é um valor fixo, e não um percentual: 10% de R$ 49,90
-    // seriam R$ 4,99 pelo trabalho inteiro de trazer um cliente novo.
-    public const decimal BonusDeEstreiaDoProfessor = 50m;
-
     // Só o que virou dinheiro conta. "Pendente" é promessa e "Estornado" é dinheiro que voltou.
     public const string StatusQueConta = "Confirmado";
 
     // As duas cobranças que são 100% nossas e onde o cliente é quem PAGA, não quem recebe.
     public static readonly string[] TiposDeMensalidade = { "AssinaturaProfessor" };
+
+    // ⚠️ O PARCEIRO GANHA SÓ DA FRENTE QUE ELE VENDEU (decisão do Felipe, 11/08/2026). Quem
+    // vendeu um TORNEIO não ganha da mensalidade de professor da mesma pessoa: aquela venda
+    // não foi dele. Sem este filtro, um lead de torneio rendia sobre tudo que o cliente
+    // gerasse pra sempre — inclusive frentes que outro parceiro (ou o próprio Felipe) vendeu.
+    //
+    // Torneio é reconhecido pelo `TorneioId`, e não por lista de tipo: toda cobrança de
+    // torneio carrega o id (inscrição de dupla, individual, "pagar depois" e a taxa do
+    // externo), e uma lista de strings esqueceria a próxima frente de torneio que nascer.
+    public static readonly string[] TiposDoProfessor = { "AssinaturaProfessor", "Aula" };
+    public static readonly string[] TiposDoClube = { "Jogo", "JogoVarios" };
+
+    public static bool EhDaFrente(string tipoDoLead, Pagamento p) => tipoDoLead switch
+    {
+        "Torneio" => p.TorneioId != null,
+        "Professor" => TiposDoProfessor.Contains(p.Tipo),
+        "Clube" => TiposDoClube.Contains(p.Tipo) || TiposDeMensalidade.Contains(p.Tipo),
+        _ => false,
+    };
 
     // ⚠️ DE QUEM É O CLIENTE NESTE PAGAMENTO — a pergunta que o cálculo inteiro depende, e ela
     // tem DUAS respostas no banco:
@@ -82,7 +99,11 @@ public static class ComissaoDoParceiro
     // é decidida aqui, pela data de confirmação.
     public static Conta Calcular(string tipoDoLead, IEnumerable<Pagamento> pagamentosDoCliente)
     {
+        // Três filtros, e cada um é uma frase da régua:
+        //   "do que ele vendeu"  → EhDaFrente
+        //   "e o cliente usou"   → Confirmado, e ComissaoLiquida já desconta estorno
         var pagos = pagamentosDoCliente
+            .Where(p => EhDaFrente(tipoDoLead, p))
             .Where(p => p.Status == StatusQueConta && p.ConfirmadoEm != null && ComissaoLiquida(p) > 0)
             .OrderBy(p => p.ConfirmadoEm!.Value)
             .ToList();
@@ -98,12 +119,12 @@ public static class ComissaoDoParceiro
 
         var dentro = pagos.Where(p => p.ConfirmadoEm!.Value < fim).ToList();
 
-        var parcelas = tipoDoLead switch
-        {
-            "Torneio" => PorEdicaoDeTorneio(dentro),
-            "Professor" => ComBonusDeEstreia(dentro),
-            _ => ComPrimeiraMensalidadeInteira(dentro),
-        };
+        // A régua é UMA — 20% na entrada, 10% no resto. O que muda por produto é só o que
+        // conta como "a primeira venda": no torneio é a primeira EDIÇÃO (não a primeira
+        // cobrança), no professor e no clube é a primeira MENSALIDADE.
+        var parcelas = tipoDoLead == "Torneio"
+            ? PorEdicaoDeTorneio(dentro)
+            : PelaPrimeiraMensalidade(dentro);
 
         return new Conta(primeiro, fim, parcelas.Sum(p => p.Valor), parcelas);
     }
@@ -126,39 +147,30 @@ public static class ComissaoDoParceiro
         }).ToList();
     }
 
-    // Professor: 10% de tudo, mais R$ 50 fixos quando a primeira mensalidade é paga.
-    private static List<Parcela> ComBonusDeEstreia(List<Pagamento> pagos)
-    {
-        var primeiraMensalidade = pagos.FirstOrDefault(EhMensalidade);
-
-        return pagos.Select(p =>
-        {
-            var valor = Math.Round(ComissaoLiquida(p) * PercentualRecorrente / 100m, 2);
-            if (p == primeiraMensalidade)
-                return new Parcela(p, PercentualRecorrente,
-                    valor + BonusDeEstreiaDoProfessor, $"1ª mensalidade — 10% + R$ {BonusDeEstreiaDoProfessor:N0} de estreia");
-
-            return new Parcela(p, PercentualRecorrente, valor, "recorrente");
-        }).ToList();
-    }
-
-    // Clube: a primeira MENSALIDADE vem inteira, o resto é 10%.
+    // Professor e clube: a "entrada" é a PRIMEIRA MENSALIDADE, e o resto é 10%.
     //
-    // ⚠️ Hoje isso nunca dispara, e é de propósito: **não existe plano de clube no código**
-    // (o preço nem foi fechado — ver PARCEIROS.md). Um clube só gera pagamento de reserva, que
-    // é recorrente. Quando a mensalidade do clube nascer, basta o tipo dela entrar em
-    // `TiposDeMensalidade` e a estreia passa a ser paga sozinha.
-    private static List<Parcela> ComPrimeiraMensalidadeInteira(List<Pagamento> pagos)
+    // ⚠️ A ENTRADA É A MENSALIDADE, E NÃO O PRIMEIRO PAGAMENTO QUALQUER. Um professor pode
+    // pagar taxa de aula antes de assinar (é o plano Avulso), e nesse caso a primeira cobrança
+    // dele é uma aula de R$ 100 — 20% dali seriam R$ 2 pelo trabalho de trazer um cliente
+    // novo. A venda que o parceiro fez é a ASSINATURA; é ela que paga a entrada.
+    //
+    // ⚠️ Consequência assumida: professor que fica no Avulso pra sempre **nunca gera entrada**
+    // — tudo dele é 10%. Era assim também com o bônus fixo de R$ 50 que existia antes.
+    //
+    // Pro CLUBE isso hoje nunca dispara, e é de propósito: não existe plano de clube no código,
+    // então um clube só gera pagamento de reserva, que é recorrente. Quando a mensalidade do
+    // clube nascer, o tipo dela entra em `TiposDeMensalidade` e a entrada passa a ser paga
+    // sozinha, nos mesmos 20%.
+    private static List<Parcela> PelaPrimeiraMensalidade(List<Pagamento> pagos)
     {
-        var primeiraMensalidade = pagos.FirstOrDefault(EhMensalidade);
+        var entrada = pagos.FirstOrDefault(EhMensalidade);
 
         return pagos.Select(p =>
         {
-            if (p == primeiraMensalidade)
-                return new Parcela(p, 100m, ComissaoLiquida(p), "1ª mensalidade, inteira");
-
-            return new Parcela(p, PercentualRecorrente,
-                Math.Round(ComissaoLiquida(p) * PercentualRecorrente / 100m, 2), "recorrente");
+            var percentual = p == entrada ? PercentualDaPrimeiraVenda : PercentualRecorrente;
+            var motivo = p == entrada ? "1ª mensalidade" : "recorrente";
+            return new Parcela(p, percentual,
+                Math.Round(ComissaoLiquida(p) * percentual / 100m, 2), motivo);
         }).ToList();
     }
 

@@ -167,10 +167,8 @@ public class ComissaoDoParceiroTests
     // ── Professor ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Professor_ganha_os_50_reais_de_estreia_uma_vez_so()
+    public void Professor_paga_20_por_cento_na_primeira_mensalidade_e_10_nas_seguintes()
     {
-        // 10% de R$ 49,90 seriam R$ 4,99 pelo trabalho inteiro de trazer um cliente novo —
-        // por isso o bônus de estreia é fixo, e não percentual.
         var pagos = new[]
         {
             Mensalidade(5, 49.90m, Estreia),
@@ -179,10 +177,58 @@ public class ComissaoDoParceiroTests
 
         var conta = ComissaoDoParceiro.Calcular("Professor", pagos);
 
-        // (49,90 × 10% + 50) + (49,90 × 10%) = 54,99 + 4,99
-        Assert.Equal(59.98m, conta.Total);
-        Assert.Contains("estreia", conta.Parcelas[0].Motivo);
+        // (49,90 × 20%) + (49,90 × 10%) = 9,98 + 4,99
+        Assert.Equal(14.97m, conta.Total);
+        Assert.Equal(20m, conta.Parcelas[0].Percentual);
+        Assert.Equal("1ª mensalidade", conta.Parcelas[0].Motivo);
         Assert.Equal("recorrente", conta.Parcelas[1].Motivo);
+    }
+
+    [Fact]
+    public void O_plano_ANUAL_paga_uma_entrada_bem_maior()
+    {
+        // R$ 499,90 de uma vez: a entrada acompanha o tamanho da venda, sem regra especial.
+        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { Mensalidade(5, 499.90m, Estreia) });
+
+        Assert.Equal(99.98m, conta.Total);
+    }
+
+    [Fact]
+    public void Aula_paga_ANTES_de_assinar_nao_consome_a_entrada()
+    {
+        // ⚠️ O professor pode estar no plano Avulso e pagar taxa de aula antes de assinar. Se
+        // a entrada fosse "o primeiro pagamento qualquer", ela cairia numa aula de R$ 100 e
+        // valeria R$ 2 — pelo trabalho inteiro de trazer um cliente novo.
+        var aula = new Pagamento
+        {
+            Tipo = "Aula", JogadorId = 999, RecebedorId = 5,
+            Valor = 100m, Comissao = 10m, Status = "Confirmado", ConfirmadoEm = Estreia,
+        };
+        var assinatura = Mensalidade(5, 49.90m, Estreia.AddMonths(1));
+
+        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { aula, assinatura });
+
+        Assert.Equal("recorrente", conta.Parcelas[0].Motivo);       // a aula
+        Assert.Equal(1m, conta.Parcelas[0].Valor);
+        Assert.Equal("1ª mensalidade", conta.Parcelas[1].Motivo);   // a assinatura
+        Assert.Equal(9.98m, conta.Parcelas[1].Valor);
+    }
+
+    [Fact]
+    public void Professor_que_nunca_assina_nao_gera_entrada_nenhuma()
+    {
+        // Consequência assumida do "a entrada é a mensalidade": quem fica no Avulso pra sempre
+        // rende só o recorrente. Valia igual com o bônus fixo de R$ 50 que existia antes.
+        var aula = new Pagamento
+        {
+            Tipo = "Aula", JogadorId = 999, RecebedorId = 5,
+            Valor = 100m, Comissao = 10m, Status = "Confirmado", ConfirmadoEm = Estreia,
+        };
+
+        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { aula });
+
+        Assert.Equal(1m, conta.Total);
+        Assert.All(conta.Parcelas, p => Assert.Equal(10m, p.Percentual));
     }
 
     [Fact]
@@ -229,6 +275,67 @@ public class ComissaoDoParceiroTests
         Assert.Equal(0.80m, conta.Total);
         Assert.Equal("recorrente", conta.Parcelas[0].Motivo);
         Assert.DoesNotContain("AssinaturaClube", ComissaoDoParceiro.TiposDeMensalidade);
+    }
+
+    // ── "Apenas do que ele vendeu" ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Quem_vendeu_TORNEIO_nao_ganha_da_mensalidade_de_professor_do_mesmo_cliente()
+    {
+        // ⚠️ A regra do Felipe: a comissão é da FRENTE que o parceiro vendeu. O organizador
+        // que também é professor pode ter sido trazido pra aula por outra pessoa — ou por
+        // ninguém. Sem este filtro, uma venda de torneio rendia sobre tudo que aquela pessoa
+        // gerasse no sistema inteiro.
+        var pagos = new Pagamento[]
+        {
+            Inscricao(7, torneioId: 1, comissao: 900m, Estreia),
+            Mensalidade(7, 49.90m, Estreia.AddMonths(1)),
+        };
+
+        var conta = ComissaoDoParceiro.Calcular("Torneio", pagos);
+
+        Assert.Equal(180m, conta.Total);                 // só os 20% da 1ª edição
+        Assert.Single(conta.Parcelas);
+    }
+
+    [Fact]
+    public void Quem_vendeu_PROFESSOR_nao_ganha_das_inscricoes_de_torneio_do_mesmo_cliente()
+    {
+        var pagos = new Pagamento[]
+        {
+            Mensalidade(7, 49.90m, Estreia),
+            Inscricao(7, torneioId: 1, comissao: 900m, Estreia.AddMonths(1)),
+        };
+
+        var conta = ComissaoDoParceiro.Calcular("Professor", pagos);
+
+        Assert.Equal(9.98m, conta.Total);                // só os 20% da 1ª mensalidade
+        Assert.Single(conta.Parcelas);
+    }
+
+    [Fact]
+    public void A_taxa_do_torneio_externo_conta_como_torneio()
+    {
+        // Ela é 100% nossa, o cliente é quem paga, e carrega o TorneioId — é por isso que a
+        // frente é reconhecida pelo id, e não por lista de tipos.
+        var taxa = new Pagamento
+        {
+            Tipo = "TaxaTorneio", TorneioId = 4, JogadorId = 7, RecebedorId = null,
+            Valor = 450m, Comissao = 450m, Status = "Confirmado", ConfirmadoEm = Estreia,
+        };
+
+        Assert.True(ComissaoDoParceiro.EhDaFrente("Torneio", taxa));
+        Assert.Equal(90m, ComissaoDoParceiro.Calcular("Torneio", new[] { taxa }).Total);
+    }
+
+    [Fact]
+    public void A_reserva_de_quadra_e_do_CLUBE_e_nao_do_professor()
+    {
+        var reserva = new Pagamento { Tipo = "Jogo", JogadorId = 999, RecebedorId = 3, Valor = 80m, Comissao = 8m };
+
+        Assert.True(ComissaoDoParceiro.EhDaFrente("Clube", reserva));
+        Assert.False(ComissaoDoParceiro.EhDaFrente("Professor", reserva));
+        Assert.False(ComissaoDoParceiro.EhDaFrente("Torneio", reserva));
     }
 
     // ── Estorno ───────────────────────────────────────────────────────────────────────────
@@ -291,7 +398,6 @@ public class ComissaoDoParceiroTests
         // uma coisa e o contrato a prometer outra.
         Assert.Equal(20m, ComissaoDoParceiro.PercentualDaPrimeiraVenda);
         Assert.Equal(10m, ComissaoDoParceiro.PercentualRecorrente);
-        Assert.Equal(50m, ComissaoDoParceiro.BonusDeEstreiaDoProfessor);
         Assert.Equal(12, ComissaoDoParceiro.MesesDeComissao);
     }
 }
