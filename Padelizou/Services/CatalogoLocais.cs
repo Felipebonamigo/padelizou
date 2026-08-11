@@ -15,16 +15,43 @@ public static class CatalogoLocais
 
     // Procura pelo nome sem diferenciar maiúsculas (LIKE do PostgreSQL diferencia) e só
     // cria se não achar — senão "Nata Padel" e "nata padel" viram dois clubes.
-    public static async Task<Clube?> AcharOuCriarClubeAsync(DbPadelContext db, string? nome)
+    //
+    // A CIDADE entrou em 11/08/2026, e não é enfeite de cadastro: o clube é o único lugar que
+    // sabe ONDE um torneio acontece (ver Services/UfDoTorneio), e sem ela o aviso de torneio
+    // novo não tem como ser mirado. Conferido em produção: os 3 clubes que sediam torneio
+    // real tinham `CidadeId` NULO, porque este método nunca perguntou.
+    //
+    // ⚠️ Continua OPCIONAL. Obrigar a cidade aqui travaria o cadastro de quem só quer marcar
+    // onde jogou, e um campo a mais na primeira tela é onde se perde gente. Sem cidade, a
+    // mira cai no plano B (o estado de quem organiza) — que é pior, mas não é silêncio.
+    public static async Task<Clube?> AcharOuCriarClubeAsync(DbPadelContext db, string? nome,
+        string? cidadeNome = null, string? estado = null)
     {
         nome = Normalizar(nome);
         if (nome == null) return null;
 
+        var cidade = await AcharOuCriarCidadeAsync(db, cidadeNome, estado);
+
         var alvo = nome.ToLower();
         var existente = await db.Clubes.FirstOrDefaultAsync(c => c.Nome.ToLower() == alvo);
-        if (existente != null) return existente;
+        if (existente != null)
+        {
+            // CONSERTA O QUE JÁ EXISTE: clube antigo sem cidade recebe a que acabou de ser
+            // informada. É de graça e resolve sozinho o passivo dos clubes que nasceram antes
+            // desta pergunta existir.
+            //
+            // ⚠️ Só PREENCHE VAZIO, nunca sobrescreve: quem digita o nome de um clube que já
+            // existe não pode mudar o endereço dele pra todo mundo por engano de digitação.
+            if (existente.CidadeId == null && cidade != null)
+            {
+                existente.CidadeId = cidade.Id;
+                await db.SaveChangesAsync();
+            }
 
-        var clube = new Clube { Nome = nome, Endereco = "", Contato = "" };
+            return existente;
+        }
+
+        var clube = new Clube { Nome = nome, Endereco = "", Contato = "", CidadeId = cidade?.Id };
         db.Clubes.Add(clube);
         await db.SaveChangesAsync();
         return clube;

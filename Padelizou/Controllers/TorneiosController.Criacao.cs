@@ -216,6 +216,9 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Create(Torneio torneio, int[] categoriasSelecionadas, int[]? organizadoresSelecionados, string[]? nomesQuadras, IFormFile? capa, Dictionary<int, int?>? limiteCategoria, string? novoClubeNome = null,
+            // A cidade do local, escrita junto com o nome. É dela que sai o estado do torneio
+            // (Services/UfDoTorneio), e é o que faz o "Novo torneio aberto" ser mirado.
+            string? novoClubeCidade = null, string? novoClubeEstado = null,
             bool querRegistroDeResultados = false, string? observacoesRegistro = null, string? chaveAcessoEscolhida = null,
             bool categoriaDeTimes = false, string? nomeCategoriaTimes = null,
             int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null,
@@ -388,7 +391,8 @@ namespace Padelizou.Controllers
 
             // O clube pode ser escrito na hora: numa base nova não existe nenhum, e um select
             // obrigatório e vazio impediria de criar o primeiro torneio.
-            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
+            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(
+                _context, novoClubeNome, novoClubeCidade, novoClubeEstado);
             if (clubeNovo != null) torneio.ClubeId = clubeNovo.Id;
 
             // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário

@@ -252,10 +252,22 @@
     }
     @* Vai junto no envio do formulário: o clube é criado no servidor, dentro do mesmo
        cadastro. Não existe endpoint aberto de criar clube pra ninguém encher a base. *@
+    @* ⚠️ `novoClubeCidade`/`novoClubeEstado` são a cidade DO CLUBE, e não se confundem com
+       `novaCidadeNome`/`novaCidadeEstado` logo abaixo — aquelas são as cidades onde a PESSOA
+       aceita jogar. Dois pares de campos parecidos na mesma tela: os nomes precisam dizer de
+       quem é cada cidade, senão o clube nasce na cidade errada e ninguém percebe. *@
     <div class="mt-2">
         <input type="text" name="novoClubeNome" class="form-control form-control-sm"
                maxlength="80" placeholder="Não achou? Escreva o nome do seu clube" style="max-width: 320px;" />
-        <small class="text-muted d-block mt-1">A gente cadastra junto com o seu perfil.</small>
+        <div class="d-flex gap-2 mt-2" style="max-width: 320px;">
+            <input type="text" name="novoClubeCidade" class="form-control form-control-sm"
+                   maxlength="80" placeholder="Cidade do clube" />
+            <input type="text" name="novoClubeEstado" class="form-control form-control-sm text-uppercase"
+                   maxlength="2" placeholder="UF" style="max-width: 80px;" />
+        </div>
+        <small class="text-muted d-block mt-1">
+            A gente cadastra junto com o seu perfil. A cidade ajuda a avisar de torneio na região.
+        </small>
     </div>
 </div>
 
