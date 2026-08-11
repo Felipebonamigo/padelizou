@@ -158,9 +158,18 @@ fi
 
 echo "$(date '+%Y-%m-%d %H:%M') $TAG" >> "$RELEASES/.historico"
 
-# ── 7. Limpa versões antigas (mantém as 5 últimas) ──────────────────────────
+# ── 7. Limpa versões antigas (mantém as 3 últimas) ──────────────────────────
+#
+# Eram 5, e cada build ocupa ~530 MB: com prod e dev, a retenção sozinha segurava 5,2 GB —
+# quase um terço do disco usado (medição de 11/08/2026, com o banco em 15 MB). Três é o que
+# a gente de fato usa: a que está no ar, a de voltar atrás (o `rollback.sh` lê UMA, a do
+# `.anterior`) e uma folga pra quando o rollback também não presta.
+#
+# ⚠️ A conta é POR AMBIENTE, e o `continue` abaixo é o que protege a versão no ar de ser
+# apagada mesmo que ela caia fora das 3 mais recentes — pode acontecer depois de um rollback,
+# quando a que está rodando é mais VELHA que as que ficaram no disco.
 cd "$RELEASES"
-ls -dt build-* 2>/dev/null | tail -n +6 | while read -r VELHA; do
+ls -dt build-* 2>/dev/null | tail -n +4 | while read -r VELHA; do
   [ "$RELEASES/$VELHA" = "$(readlink "$LIVE")" ] && continue
   rm -rf "$RELEASES/$VELHA"
 done
