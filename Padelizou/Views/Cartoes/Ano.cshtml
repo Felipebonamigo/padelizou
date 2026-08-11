@@ -1,0 +1,216 @@
+@model Padelizou.Services.RetrospectivaVM
+@{
+    var souEu = (bool)ViewBag.SouEu;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    var anoAtual = (int)ViewBag.AnoAtual;
+    var emAndamento = Model.Ano == anoAtual;
+
+    var titulo = souEu ? "Seu ano no padel" : $"O ano de {Model.Jogador.ComoChamar}";
+    ViewData["Title"] = $"{titulo} — {Model.Ano} - Padelizou";
+
+    var imagem = Url.Action("AnoImagem", "Cartoes", new { id = Model.Jogador.Id, ano = Model.Ano });
+    var imagemAbsoluta = Url.Action("AnoImagem", "Cartoes",
+        new { id = Model.Jogador.Id, ano = Model.Ano }, Context.Request.Scheme);
+    var arquivo = $"meu-ano-{Model.Ano}.png";
+}
+
+@if (Model.TemCard)
+{
+    @section Head {
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="@Model.Jogador.ComoChamar — @Model.Ano no padel" />
+        <meta property="og:description" content="@Model.Jogos jogos, @Model.Vitorias vitórias. Veja o seu no Padelizou." />
+        <meta property="og:image" content="@imagemAbsoluta" />
+        <meta name="twitter:card" content="summary_large_image" />
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 640px;">
+
+    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Jogador.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao perfil
+    </a>
+
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">@titulo</h2>
+            <p class="text-muted mb-0">
+                @Model.Ano
+                @if (emAndamento)
+                {
+                    @* O ano corrente é o caso NORMAL desta tela — ela não é de dezembro. Dizer
+                       que a conta ainda está correndo evita a leitura de que o número final é
+                       aquele, e é o que faz a pessoa voltar. *@
+                    <span class="badge rounded-pill bg-light text-dark border ms-1">até agora</span>
+                }
+            </p>
+        </div>
+
+        @* Os anos anteriores. Só aparecem depois que existe um. *@
+        @if (anoAtual > Padelizou.Services.RetrospectivaDoAno.PrimeiroAno)
+        {
+            <form method="get" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="id" value="@Model.Jogador.Id" />
+                <label class="form-label small text-muted mb-0">Ano</label>
+                <select name="ano" class="form-select form-select-sm rounded-pill w-auto"
+                        onchange="this.form.submit()">
+                    @for (var a = anoAtual; a >= Padelizou.Services.RetrospectivaDoAno.PrimeiroAno; a--)
+                    {
+                        <option value="@a" selected="@(a == Model.Ano)">@a</option>
+                    }
+                </select>
+            </form>
+        }
+    </div>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+
+    @if (!Model.TemCard)
+    {
+        @* ⚠️ Card de quem não jogou não existe — e a tela DIZ o que falta, em vez de mostrar
+           uma arte com zeros. É a mesma régua da aba de pontos vazia: estado vazio que avisa,
+           nunca estado vazio que oferece nada. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-calendar-heart fs-1 text-muted"></i>
+                <h5 class="fw-bold mt-3 mb-2" style="color: var(--pdz-ink);">
+                    @(souEu ? "Seu" : "O") ano ainda não tem história pra contar
+                </h5>
+                <p class="text-muted mb-4">
+                    @if (Model.Jogos == 0)
+                    {
+                        <text>Nenhum jogo registrado em @Model.Ano.</text>
+                    }
+                    else
+                    {
+                        <text>
+                            @(Model.Jogos == 1 ? "1 jogo registrado" : $"{Model.Jogos} jogos registrados")
+                            em @Model.Ano — a partir de
+                            @Padelizou.Services.RetrospectivaDoAno.JogosMinimosParaCard a arte fica pronta.
+                        </text>
+                    }
+                </p>
+                @if (souEu)
+                {
+                    <a asp-controller="Torneios" asp-action="Index" class="btn btn-primary rounded-pill px-4">
+                        <i class="bi bi-trophy"></i> Ver torneios abertos
+                    </a>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="@titulo em @Model.Ano"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="@titulo — @Model.Ano">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @* Os mesmos números em texto: a arte é pra postar, esta lista é pra conferir — e é o
+           que um leitor de tela consegue ler. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="row text-center g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.Jogos</div>
+                        <div class="small text-muted">jogos</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.Vitorias</div>
+                        <div class="small text-muted">vitórias</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.AproveitamentoPct%</div>
+                        <div class="small text-muted">aproveitamento</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.Torneios</div>
+                        <div class="small text-muted">torneios</div>
+                    </div>
+                </div>
+
+                <hr />
+
+                <ul class="list-unstyled mb-0 small">
+                    @if (Model.Titulos > 0)
+                    {
+                        <li class="mb-2">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                            <strong>@Model.Titulos</strong>
+                            @(Model.Titulos == 1 ? "título" : "títulos") em @Model.Ano
+                        </li>
+                    }
+                    @if (Model.Parceiro != null)
+                    {
+                        <li class="mb-2">
+                            <i class="bi bi-people-fill text-primary"></i>
+                            Parceiro do ano: <strong>@Model.Parceiro.Nome</strong>
+                            (@Model.Parceiro.Jogos jogos, @Model.Parceiro.Vitorias @(Model.Parceiro.Vitorias == 1 ? "vitória" : "vitórias"))
+                        </li>
+                    }
+                    @if (Model.Clube != null)
+                    {
+                        <li class="mb-2">
+                            <i class="bi bi-geo-alt-fill text-danger"></i>
+                            Onde mais jogou: <strong>@Model.Clube.Nome</strong> (@Model.Clube.Jogos jogos)
+                        </li>
+                    }
+                    @if (Model.MesMaisAtivo != null)
+                    {
+                        <li class="mb-2">
+                            <i class="bi bi-calendar-check-fill text-success"></i>
+                            Mês mais cheio:
+                            <strong>@Padelizou.Services.RetrospectivaDoAno.NomeDoMes(Model.MesMaisAtivo.Value)</strong>
+                            (@Model.JogosNoMesMaisAtivo jogos)
+                        </li>
+                    }
+                    @if (Model.MelhorPosicao != null)
+                    {
+                        <li class="mb-2">
+                            <i class="bi bi-bar-chart-fill text-primary"></i>
+                            Melhor posição no ranking do ano:
+                            <strong>@Model.MelhorPosicao&#186;</strong> na @Model.CategoriaDaPosicao
+                        </li>
+                    }
+                    @if (Model.JogosDeTorneio < Model.Jogos)
+                    {
+                        @* A frase existe porque o número daqui é MAIOR que o do ranking de
+                           propósito: aqui conta o jogo de quinta com a panelinha. Sem dizer
+                           isso, a pessoa compara as duas telas e acha que uma está errada. *@
+                        <li class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Conta torneio e jogo de grupo — o ranking oficial só conta torneio.
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

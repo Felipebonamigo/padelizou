@@ -1,0 +1,106 @@
+@model List<Padelizou.Services.CampeaoDeCategoria>
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+    ViewData["Title"] = $"Campeões — {torneio.Nome} - Padelizou";
+
+    // Endereço ABSOLUTO da primeira arte, pra prévia do link. Relativo não serve: quem lê a
+    // meta é o servidor da Meta, de fora, sem saber qual é o nosso domínio.
+    var primeiro = Model.FirstOrDefault();
+    var capa = primeiro == null ? null : Url.Action("Campeao", "Cartoes",
+        new { id = torneio.Id, categoriaId = primeiro.CategoriaId }, Context.Request.Scheme);
+}
+
+@if (capa != null)
+{
+    @section Head {
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Campeões — @torneio.Nome" />
+        <meta property="og:description" content="Os campeões de cada categoria, no Padelizou." />
+        <meta property="og:image" content="@capa" />
+        <meta name="twitter:card" content="summary_large_image" />
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@torneio.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-trophy-fill text-warning"></i> Campeões
+    </h2>
+    <p class="text-muted">@torneio.Nome</p>
+
+    @if (!fonteDisponivel)
+    {
+        @* A recusa é explícita, e não uma tela vazia: sem os .ttf o card sairia com todo texto
+           invisível no Linux, então preferimos não desenhar. Quem lê isto é o admin. *@
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (Model.Count == 0)
+    {
+        <div class="alert alert-light border rounded-4">
+            <strong>Ainda não há campeão neste torneio.</strong>
+            <div class="small text-muted">
+                A arte de cada categoria nasce sozinha assim que a final é encerrada.
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small mb-4">
+            Uma arte por categoria, pronta pra postar. Salve no celular e mande no story.
+        </p>
+
+        foreach (var campeao in Model)
+        {
+            var imagem = Url.Action("Campeao", "Cartoes",
+                new { id = torneio.Id, categoriaId = campeao.CategoriaId });
+            var arquivo = $"campeoes-{campeao.CategoriaId}.png";
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <div>
+                            <div class="fw-bold" style="color: var(--pdz-ink);">
+                                @Padelizou.Services.CategoriaNaTela.Curto(campeao.Categoria)
+                            </div>
+                            <div class="small text-muted">@campeao.Nomes</div>
+                        </div>
+                    </div>
+
+                    @* loading="lazy": num torneio de 12 categorias são 12 PNGs de ~1080px, e
+                       carregar todos de uma vez no 4G do clube trava a página. *@
+                    <img src="@imagem" alt="Card dos campeões de @campeao.Categoria"
+                         class="img-fluid rounded-3 d-block mx-auto" loading="lazy"
+                         style="max-width: 380px;" />
+
+                    <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                        <a href="@imagem" download="@arquivo"
+                           class="btn btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
+                        <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                                data-imagem="@imagem" data-arquivo="@arquivo"
+                                data-titulo="Campeões — @campeao.Categoria">
+                            <i class="bi bi-share-fill"></i> Compartilhar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

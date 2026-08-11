@@ -62,6 +62,9 @@ builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSect
 builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
+// Nasce DESLIGADO: sem impressão digital configurada o /.well-known/assetlinks.json responde
+// 404, que é a resposta honesta enquanto não existe app na Play Store (ver Services/AndroidSettings).
+builder.Services.Configure<AndroidSettings>(builder.Configuration.GetSection("Android"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
 // Ranking RS (mundodoatleta.com.br). Nasce DESLIGADO: sem chave configurada, nenhuma inscrição
 // é validada contra o ranking — ver Services/RankingRsSettings.
@@ -200,6 +203,15 @@ builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
+// A fonte dos cards compartilháveis (campeão do torneio e "seu ano no padel").
+//
+// SINGLETON porque um SKTypeface é caro de abrir e vale pro processo inteiro — e porque o
+// aviso de "a fonte não está lá" precisa sair UMA vez, no start, e não a cada card pedido.
+//
+// ⚠️ Sem os .ttf em wwwroot/fonts o recurso se DESLIGA (os endpoints devolvem 404 e os botões
+// somem). Ele não cai em fonte do sistema: o pacote NoDependencies do SkiaSharp não enxerga
+// nenhuma no Linux, e o card sairia com todo texto invisível. Ver Services/FonteDoCartao.
+builder.Services.AddSingleton<FonteDoCartao>();
 // Tira da tabela de push os registros que o servidor de push já não entrega — o número de
 // aparelhos é o que a gente usa pra medir o alcance do canal, e ele inflava sozinho.
 builder.Services.AddScoped<ISondaDePush, SondaDePushWebPush>();
@@ -477,6 +489,34 @@ app.MapMethods("/healthz", new[] { "GET", "HEAD" }, async (DbPadelContext db) =>
     {
         return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
+});
+
+// Digital Asset Links: é este arquivo que faz o app da Play Store abrir SEM a barra de
+// endereço do Chrome por cima. O Google busca sempre em
+// https://padelizou.com.br/.well-known/assetlinks.json, e não segue redirecionamento — por
+// isso o caminho também está liberado no AcessoAntecipadoMiddleware. Se o portão de Acesso
+// Antecipado for religado pelo painel e este caminho não estiver na lista, o verificador leva
+// 302 pra tela de senha e o app de TODO MUNDO passa a mostrar a barra, sem nada quebrar aqui.
+//
+// 404 enquanto não estiver configurado: é a resposta honesta de "ainda não existe app", e é o
+// que a ferramenta do Google sabe dizer. Um arquivo vazio ou com impressão digital errada dá
+// a mesma falha com uma cara pior de diagnosticar.
+app.MapGet("/.well-known/assetlinks.json",
+    (IOptions<AndroidSettings> options, ILoggerFactory loggerFactory) =>
+{
+    var android = options.Value;
+
+    if (android.ImpressoesInvalidas.Count > 0)
+    {
+        loggerFactory.CreateLogger("AssetLinks").LogWarning(
+            "Android__Sha256Fingerprints tem {Quantidade} valor(es) que não são impressão digital SHA-256 " +
+            "e foram ignorados: {Valores}. Uma impressão digital tem 64 caracteres hexadecimais.",
+            android.ImpressoesInvalidas.Count, string.Join(" | ", android.ImpressoesInvalidas));
+    }
+
+    return android.EstaConfigurado
+        ? Results.Json(android.MontarAssetLinks(), contentType: "application/json")
+        : Results.NotFound();
 });
 
 app.MapControllerRoute(

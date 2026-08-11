@@ -136,6 +136,21 @@
                 </p>
             }
 
+            @* 📅 A retrospectiva do ano. Aparece SEMPRE, e não só pra quem tem card: a tela do
+               outro lado sabe dizer "ainda não tem história pra contar" e convida pra um
+               torneio, que é melhor destino do que um link que ninguém descobre. É o único
+               lugar do perfil cujo objetivo é sair do Padelizou — ver CartoesController. *@
+            <p class="mb-2">
+                <a asp-controller="Cartoes" asp-action="Ano" asp-route-id="@Model.jogador.Id"
+                   class="text-decoration-none">
+                    <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis"
+                          style="font-size:.9rem;"
+                          title="Os números do ano, numa arte pronta pra postar.">
+                        📅 Retrospectiva @DateTime.Now.Year
+                    </span>
+                </a>
+            </p>
+
             @* ⚠️ O selo com a posição no @Padelizou.Services.MarcaDoRanking.Nome MORAVA AQUI e
                saiu em 08/08/2026, A PEDIDO DELES: o dado é deles, e fora de um torneio que usa a
                conferência não traz retorno nenhum pra quem o publica — vira o ranking deles

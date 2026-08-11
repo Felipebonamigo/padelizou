@@ -206,6 +206,27 @@
     </div>
 }
 
+@* ── OS CARDS DE CAMPEÃO ──────────────────────────────────────────────────────────────
+   Irmão do bloco das fotos, e pelo mesmo motivo: é PRA TODO MUNDO. A arte de cada
+   categoria nasce sozinha quando a final é encerrada, e existe pra sair daqui — é o
+   campeão postando sobre ele mesmo que leva a marca junto.
+
+   ⚠️ Quem responde "já tem campeão?" é o serviço, e não um `UltimaFase == "Campeao"`
+   escrito aqui: seria a segunda cópia da regra que decide campeão, no lugar mais fácil de
+   esquecer no dia em que ela mudar. *@
+@if (Padelizou.Services.CampeoesDoTorneio.TemCampeao(Model))
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a asp-controller="Cartoes" asp-action="Campeoes" asp-route-id="@Model.Id"
+           class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-trophy-fill"></i> Ver os campeões
+        </a>
+        <small class="text-muted">
+            Uma arte por categoria, pronta pra postar.
+        </small>
+    </div>
+}
+
 @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
    "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
    (decisão do Felipe, 10/08/2026): é quem se inscreveu que fica olhando a chave encher

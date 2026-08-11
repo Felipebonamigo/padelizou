@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🥊 **DESAFIOS FASE 3: O CINTURÃO. O MÓDULO ESTÁ COMPLETO** — e continua invisível atrás de `Desafios__Habilitado`. ⏳ **NÃO PUBLICADO.**
+> Última atualização: **11/08/2026** — 📣 **OS CARDS COMPARTILHÁVEIS ESTÃO DE PÉ (no repo).** ⏳ **NÃO PUBLICADO** (commit local, sem deploy). São as duas primeiras telas do Padelizou cujo objetivo é **sair** do Padelizou.
+>
+> 🏆 **CARD DE CAMPEÃO:** quando a final de uma categoria é encerrada, nasce sozinha uma arte 1080×1350 com o nome da dupla, a categoria, o torneio, o clube, a data e o endereço do site. Botão **"Ver os campeões"** na página do torneio, ao lado do das fotos — e pelo mesmo motivo: é **pra todo mundo**, porque é o campeão postando sobre ele mesmo que leva a marca de carona. Hoje cada final morre no grupo do WhatsApp, sem nada que diga de onde aquilo saiu.
+>
+> 📅 **"SEU ANO NO PADEL":** a retrospectiva do jogador (jogos, vitórias, aproveitamento, torneios, títulos, parceiro do ano, clube do ano, mês mais cheio, melhor posição no ranking do ano). Entra por uma linha no perfil e **funciona pro ano CORRENTE** — não é tela de dezembro, é tela de hoje que vira o momento de dezembro sozinha.
+>
+> 🕳️ **A ARMADILHA QUE ISTO QUASE PISOU, e que não reproduz nesta máquina:** o projeto usa `SkiaSharp.NativeAssets.Linux.**NoDependencies**` — o Skia compilado **sem fontconfig**. No Windows daqui o desenho acha a fonte no DirectWrite e sai perfeito; **no VPS o gerenciador de fontes nasce vazio**, e o card sairia com fundo, moldura, foto e escudo — e **todos os textos invisíveis**, sem uma linha de erro no log. Por isso a **Poppins vai versionada em `wwwroot/fonts`** (OFL, licença junto) e o `FonteDoCartao` **NUNCA cai em `SKTypeface.Default`**: faltando o arquivo o recurso se **desliga** (404 e os botões somem), porque arte muda circulando com a nossa marca é pior que arte nenhuma. Dois testes prendem isso — um prova que sem o `.ttf` as fontes ficam **nulas**, outro conta os **pixels brancos** do card desenhado (com fonte sem glifo, seriam zero).
+>
+> 💾 **NADA VAI PRO DISCO.** O PNG é desenhado a cada pedido e morre na resposta, com `Cache-Control: public, max-age=3600` — que aqui **não é otimização, é requisito**: quem busca a imagem pra montar a prévia do link é o servidor da Meta, e sem cache a mesma arte é redesenhada pra cada pessoa do grupo. Guardar em disco entraria no `tar` completo diário do backup (14 cópias), que é a **mesma conta que manteve a galeria de fotos fora do sistema**.
+>
+> 🐛 **DOIS DEFEITOS REAIS ACHADOS NA CONFERÊNCIA, e os dois eram invisíveis no caminho feliz:**
+> · **O `ª` derrubava o card de toda categoria numerada.** O nome do arquivo vai pro `Content-Disposition`, e cabeçalho HTTP é ASCII: o "ª" de "6ª Categoria Masculina" **não é acento** (é a letra U+00AA por conta própria), então passa pelo `FormD` e pelo `char.IsLetterOrDigit` inteiro e o Kestrel devolvia **500**. Só as categorias "Open" funcionavam — e foi justamente uma "Open" a primeira que eu abri pra conferir.
+> · **Navegação obrigatória em projeção vira INNER JOIN e some com a linha.** `Clube = t.Clube.Nome` fazia o **torneio inteiro desaparecer** quando não havia clube: o método respondia "este torneio não tem campeão" em vez de estourar. Um teste pegou; **em produção passaria batido**, porque lá a FK sempre tem clube. O clube agora vem por consulta à parte, onde a falta dele custa no máximo uma legenda. O mesmo padrão foi tirado da retrospectiva antes de morder.
+>
+> 🚫 **NENHUM ZERO APARECE NO CARD DO ANO**, e é regra, não estética: "0 TÍTULOS" num card que a pessoa vai postar é um motivo pra ela **não** postar. Título, parceiro e clube são seções que existem quando existem; e **abaixo de 3 jogos não vira arte** — a tela diz "ainda não tem história pra contar" e convida pra um torneio. Mesma régua do "1º lugar — Fulano — 0 pontos" que saiu do ranking.
+>
+> ⚖️ **A RETROSPECTIVA CONTA O JOGO DE GRUPO, o ranking oficial não** — e isso é decisão. A pergunta dela é "quanto padel você jogou", não "quem é melhor": contando só torneio, **a maioria das pessoas veria um card vazio**, que é literalmente o estado da produção hoje (zero partidas finalizadas em torneio que conta). Só os **pontos** saem da régua oficial (`PontosDoTorneio`), e a própria tela avisa a diferença — senão a pessoa compara com o ranking e acha que um dos dois está errado.
+>
+> 🧪 **3.605 testes, 0 falhas** (24 novos). **Zero migration.** ✅ **Conferido no navegador contra o PostgreSQL local, com dado real**: o card do "Aberto de Verão 2026" saiu com *Rafael Souza & Diego Martins (Diguinho)*, Open Masculino, Arena Beira Rio, 26/04/2026 e o **fallback de iniciais** (ninguém tem foto no banco local); o campeão **individual** do Americano saiu como **"CAMPEÃO"** no singular; e o ano da Gisele Matos fechou **15 jogos · 9 vitórias · 60% · 2 torneios · 1 título · Fabio Rocha · Arena Beira Rio**. ⚠️ **A primeira versão do card do ano tinha três sobreposições** (a pílula do ano por cima da foto, o "1 TÍTULO" por cima dos rótulos e a última linha por cima do rodapé) — causa única: `Pilula`/`FotoRedonda` recebem o **centro** e `Texto` recebe a **linha de base**, e o mesmo `y += ...` misturava as duas convenções. Agora as alturas são constantes nomeadas e parceiro/quadra ficam **lado a lado**.
+>
+> ⏭️ **Falta**: publicar (nada disto foi pro ar), e a lista de ideias de 2027 que ficou de fora deste bloco (MVP do torneio, desconto do líder, votação de melhor clube, Melhores do Ano).
+>
+> Antes, no mesmo dia: 🥊 **DESAFIOS FASE 3: O CINTURÃO. O MÓDULO ESTÁ COMPLETO** — e continua invisível atrás de `Desafios__Habilitado`. ⏳ **NÃO PUBLICADO.**
 >
 > 🥊 **Em cada categoria existe UM dono, e quem vence o dono leva.** É a mecânica do boxe, e é a parte da feature que faz alguém abrir o app numa terça sem motivo.
 >

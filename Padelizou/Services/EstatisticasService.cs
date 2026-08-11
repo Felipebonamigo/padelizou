@@ -1466,6 +1466,177 @@ public class EstatisticasService : IEstatisticasService
 
     // ---------- helpers ----------
 
+    // "SEU ANO NO PADEL" — a COLETA. A regra mora em Services/RetrospectivaDoAno, puro.
+    //
+    // ⚠️ Conta jogo de torneio E jogo de grupo, e isso é decisão (ver o cabeçalho de lá): a
+    // pergunta aqui é "quanto padel você jogou", não "quem é melhor". Só os PONTOS saem da
+    // régua oficial — um número chamado "pontos" que discordasse do ranking seria a segunda
+    // versão da mesma verdade.
+    public async Task<RetrospectivaVM> ObterRetrospectivaAsync(int jogadorId, int ano)
+    {
+        var jogador = await _context.Jogadores.FindAsync(jogadorId);
+        if (jogador == null)
+        {
+            return new RetrospectivaVM { Ano = ano, Jogador = new Jogador { Nome = "" } };
+        }
+
+        var inicio = new DateTime(ano, 1, 1);
+        var fim = inicio.AddYears(1);
+
+        var jogos = new List<JogoDoAno>();
+
+        // ── Jogos de torneio ──────────────────────────────────────────────────────────────
+        // Consulta própria (e não `CarregarPartidasFinalizadasAsync`) porque aqui se filtra por
+        // jogador e por ano; o loader compartilhado traz o sistema inteiro.
+        //
+        // ⚠️ O CLUBE NÃO ENTRA POR `Include`, e isso não é estilo. `Torneio.ClubeId` é
+        // obrigatório, e navegação obrigatória o EF traduz como INNER JOIN — um torneio sem
+        // clube casando faria a PARTIDA sumir da retrospectiva, calada. Aconteceu de verdade no
+        // card de campeão (o torneio inteiro desaparecia), e foi um teste que pegou. O nome do
+        // clube vem depois, por um dicionário, onde a falta dele custa no máximo uma legenda.
+        var partidas = await _context.Partidas
+            .AsNoTracking()
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+            .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+            .Include(p => p.Categoria).ThenInclude(c => c.Torneio)
+            .Where(p => p.VencedorId != null
+                     && (p.Dupla1.Jogador1Id == jogadorId || p.Dupla1.Jogador2Id == jogadorId
+                      || p.Dupla2.Jogador1Id == jogadorId || p.Dupla2.Jogador2Id == jogadorId))
+            .ToListAsync();
+
+        var clubeDoTorneio = await ClubesPorIdAsync(
+            partidas.Select(p => p.Categoria?.Torneio?.ClubeId).Where(id => id != null).Select(id => id!.Value));
+
+        foreach (var p in partidas)
+        {
+            var (minhaDupla, oponente) = LocalizarDuplas(p, jogadorId);
+            if (minhaDupla == null || oponente == null) continue;
+
+            // A MESMA escada de data do hub de ranking: o jogo aconteceu quando terminou; sem
+            // isso, cai pro previsto e por fim pra abertura do torneio.
+            var quando = p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto
+                      ?? p.Categoria?.Torneio?.DataInicio;
+            if (quando == null || quando < inicio || quando >= fim) continue;
+
+            var parceiro = minhaDupla.Jogador1Id == jogadorId ? minhaDupla.Jogador2 : minhaDupla.Jogador1;
+
+            jogos.Add(new JogoDoAno(
+                Quando: quando.Value,
+                Venceu: p.VencedorId == minhaDupla.Id,
+                ParceiroId: parceiro?.Id,
+                ParceiroNome: parceiro?.ComoChamar,
+                Clube: p.Categoria?.Torneio == null
+                    ? null
+                    : clubeDoTorneio.GetValueOrDefault(p.Categoria.Torneio.ClubeId),
+                DeTorneio: true));
+        }
+
+        // ── Jogos de grupo (a panelinha de quinta) ────────────────────────────────────────
+        var semanais = await _context.JogosSemanais
+            .AsNoTracking()
+            .Include(j => j.Dupla1Jogador1).Include(j => j.Dupla1Jogador2)
+            .Include(j => j.Dupla2Jogador1).Include(j => j.Dupla2Jogador2)
+            .Where(j => j.DataJogo >= inicio && j.DataJogo < fim
+                     && (j.Dupla1Jogador1Id == jogadorId || j.Dupla1Jogador2Id == jogadorId
+                      || j.Dupla2Jogador1Id == jogadorId || j.Dupla2Jogador2Id == jogadorId))
+            .ToListAsync();
+
+        // O clube do jogo de grupo é opcional (`ClubeId` é anulável), então aqui um `Include`
+        // seria seguro — mas o nome vem do mesmo dicionário do torneio, pra haver UM jeito só
+        // de resolver clube nesta função em vez de dois com garantias diferentes.
+        var clubeDoJogo = await ClubesPorIdAsync(
+            semanais.Select(j => j.ClubeId).Where(id => id != null).Select(id => id!.Value));
+
+        foreach (var j in semanais)
+        {
+            var (meuLado, _) = LocalizarLadoJogoSemanal(j, jogadorId);
+            if (meuLado == 0) continue;
+
+            var parceiro = meuLado == 1
+                ? (j.Dupla1Jogador1Id == jogadorId ? j.Dupla1Jogador2 : j.Dupla1Jogador1)
+                : (j.Dupla2Jogador1Id == jogadorId ? j.Dupla2Jogador2 : j.Dupla2Jogador1);
+
+            jogos.Add(new JogoDoAno(
+                Quando: j.DataJogo,
+                // ⚠️ Nulo no empate em games, que só existe aqui — o torneio sempre tem um
+                // vencedor. Tratar empate como derrota mentiria no aproveitamento.
+                Venceu: j.VencedorLado == 0 ? null : j.VencedorLado == meuLado,
+                ParceiroId: parceiro?.Id,
+                ParceiroNome: parceiro?.ComoChamar,
+                Clube: j.ClubeId == null ? null : clubeDoJogo.GetValueOrDefault(j.ClubeId.Value),
+                DeTorneio: false));
+        }
+
+        // ── Campanhas de torneio do ano (torneios, títulos, finais e PONTOS) ──────────────
+        // ⚠️ `ForaDoSorteio.EstaNaChave` e `NomeTime == null`, a mesma régua do resumo do
+        // perfil: quem ficou na lista de espera ou sem parceiro se inscreveu e não jogou, e a
+        // linha de TIME tem o organizador no Jogador1Id.
+        var participacoes = await _context.Duplas
+            .AsNoTracking()
+            .Where(ForaDoSorteio.EstaNaChave)
+            .Where(d => d.NomeTime == null
+                     && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId)
+                     && d.Categoria.Torneio.DataInicio >= inicio
+                     && d.Categoria.Torneio.DataInicio < fim)
+            .Select(d => new
+            {
+                d.UltimaFase,
+                d.CategoriaId,
+                d.Categoria.TorneioId,
+                Restrito = d.Categoria.Torneio.Restrito,
+                Formato = d.Categoria.Torneio.Formato,
+                Status = d.Categoria.Torneio.Status,
+            })
+            .ToListAsync();
+
+        var duplasPorCategoria = await ContarDuplasPorCategoriaAsync(participacoes.Select(p => p.CategoriaId));
+
+        // ── Melhor posição no ranking, DENTRO do ano ──────────────────────────────────────
+        // Usa o próprio ranking por categoria com a janela do ano, pra a posição do card ser
+        // exatamente a que a tela de ranking mostraria naquele recorte.
+        int? melhorPosicao = null;
+        string? categoriaDaPosicao = null;
+        foreach (var categoria in await ObterRankingPorCategoriaAsync(de: inicio, ate: fim.AddDays(-1)))
+        {
+            var posicao = categoria.Linhas.FindIndex(l => l.Jogador.Id == jogadorId);
+            if (posicao < 0) continue;
+            if (melhorPosicao == null || posicao + 1 < melhorPosicao)
+            {
+                melhorPosicao = posicao + 1;
+                categoriaDaPosicao = categoria.Categoria;
+            }
+        }
+
+        return RetrospectivaDoAno.Montar(new DadosDaRetrospectiva(
+            Ano: ano,
+            Jogador: jogador,
+            Jogos: jogos,
+            Torneios: participacoes.Select(p => p.TorneioId).Distinct().Count(),
+            Titulos: participacoes.Count(p => p.UltimaFase == "Campeao"),
+            Finais: participacoes.Count(p => p.UltimaFase == "Final"),
+            Pontos: participacoes
+                .Where(p => ContaNoRanking(p.Restrito, p.Formato))
+                .Sum(p => PontosDoTorneio.Pontos(
+                    p.UltimaFase, duplasPorCategoria.GetValueOrDefault(p.CategoriaId), p.Status)),
+            MelhorPosicao: melhorPosicao,
+            CategoriaDaPosicao: categoriaDaPosicao));
+    }
+
+    // Nome de cada clube pedido, por id. Existe pra o clube ser sempre um ACRÉSCIMO à linha e
+    // nunca uma condição pra ela existir — ver a nota do INNER JOIN em ObterRetrospectivaAsync.
+    private async Task<Dictionary<int, string>> ClubesPorIdAsync(IEnumerable<int> ids)
+    {
+        var procurados = ids.Distinct().ToList();
+        if (procurados.Count == 0) return new Dictionary<int, string>();
+
+        return await _context.Clubes
+            .AsNoTracking()
+            .Where(c => procurados.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Nome);
+    }
+
     private async Task<List<Partida>> CarregarPartidasFinalizadasAsync(bool incluirTorneio = false)
     {
         var query = _context.Partidas

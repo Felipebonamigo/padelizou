@@ -86,4 +86,9 @@ public interface IEstatisticasService
 
     // Primeiros passos do jogador (completar perfil → seguir → se inscrever → instalar o app).
     Task<OnboardingVM> ObterOnboardingAsync(int jogadorId);
+
+    // "Seu ano no padel": os números de UM ano do jogador, pro card compartilhável.
+    // ⚠️ Conta torneio E jogo de grupo — não é ranking, é quanto padel a pessoa jogou.
+    // Só os PONTOS saem da régua oficial. Ver Services/RetrospectivaDoAno.
+    Task<RetrospectivaVM> ObterRetrospectivaAsync(int jogadorId, int ano);
 }

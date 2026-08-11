@@ -105,6 +105,12 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Ponto de extensão do <head> pras páginas que precisam de meta própria.
+       Existe por causa dos cards compartilháveis: a prévia que o WhatsApp e o Instagram
+       montam sai de <meta property="og:..."> — e ela SÓ é lida no <head>, o que nenhuma
+       @section Scripts (que roda no fim do <body>) alcança. Sem isto, mandar o link do card
+       no grupo mostraria um retângulo cinza, que é o oposto do objetivo da página. *@
+    @await RenderSectionAsync("Head", required: false)
 </head>
 <body>
     @* Carimbo antifalsificação de onde o JavaScript tira o valor (ver `cabecalhoAntifalsificacao`
