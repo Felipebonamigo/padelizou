@@ -316,6 +316,13 @@ public class EstatisticasService : IEstatisticasService
             }
 
             var linhas = acc.Values
+                // ⚠️ QUEM TEM ZERO NÃO É RANQUEADO (decisão do Felipe, 10/08/2026, olhando a
+                // produção). Ficou visível quando o ponto passou a exigir torneio começado: a
+                // tela mostrava "1º lugar — Fulano — 0 pontos", e primeiro colocado com zero
+                // ponto é uma frase que não se sustenta. As outras seis abas, sem resultado,
+                // dizem "Ainda não há resultados de torneio"; só esta insistia em ranquear
+                // quem não pontuou. Inscrição se vê na página do torneio — ranking é de ponto.
+                .Where(l => l.Pontos > 0)
                 .OrderByDescending(l => l.Pontos)
                 .ThenByDescending(l => l.Titulos)
                 .ThenByDescending(l => l.Finais)
@@ -323,7 +330,8 @@ public class EstatisticasService : IEstatisticasService
                 .ThenBy(l => l.Jogador.Nome)
                 .ToList();
 
-            // Com filtro de cidade/estado uma categoria pode ficar sem ninguém — não mostra vazia.
+            // Categoria sem ninguém (pelo filtro de cidade/estado, ou porque ninguém pontuou
+            // ainda) não é exibida vazia.
             if (linhas.Count > 0)
             {
                 resultado.Add(new RankingCategoriaVM { Categoria = grupo.Key, Linhas = linhas });
@@ -410,6 +418,14 @@ public class EstatisticasService : IEstatisticasService
                     Titulos = titulos
                 };
             })
+            // ⚠️ MESMA RÉGUA DA ABA DE PONTOS: time com zero não é ranqueado. Sem isto, metade
+            // da tela ficava consertada — produção listava 25 times, todos com 0, numerados de
+            // 1º a 25º. A aba já tem o estado vazio pronto pra quando não sobrar ninguém.
+            //
+            // ⚠️ `TimesController` (a LISTA de times, outra tela) lê isto num dicionário com
+            // `GetValueOrDefault`, então time filtrado aqui continua valendo 0 lá — a listagem
+            // de times não perde ninguém.
+            .Where(t => t.Pontos > 0)
             .OrderByDescending(t => t.Pontos).ThenByDescending(t => t.Titulos).ThenBy(t => t.Time)
             .ToList();
     }
@@ -823,6 +839,15 @@ public class EstatisticasService : IEstatisticasService
         }
 
         return acc.Values
+            // ⚠️ Mesma régua das outras abas: quem tem zero não é ranqueado. Aqui a VIEW já
+            // prometia isso antes do código cumprir — o estado vazio dela diz "Esse torneio
+            // ainda não tem jogadores PONTUANDO", e mesmo assim a lista trazia todo mundo com
+            // 0 quando o torneio não tinha começado. Quem se inscreveu aparece na página do
+            // torneio, que é onde inscrição se vê.
+            //
+            // ⚠️ Filtra por PONTO, não por jogos: num torneio cancelado depois de jogado, a
+            // pessoa tem jogos e vitórias, e mesmo assim não pontua — o evento não aconteceu.
+            .Where(l => l.Pontos > 0)
             .OrderByDescending(l => l.Pontos)
             .ThenByDescending(l => l.Titulos)
             .ThenByDescending(l => l.Vitorias)

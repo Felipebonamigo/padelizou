@@ -64,7 +64,54 @@ public class PontoSoDepoisDeComecarTests
 
         Assert.Equal(0, resumo.Pontos);
         Assert.Equal(0, mapa[campeaoId]);
-        Assert.DoesNotContain(porCategoria.SelectMany(c => c.Linhas), l => l.Pontos > 0);
+
+        // ⚠️ E a categoria não aparece NEM VAZIA. Quem tem zero não é ranqueado (decisão do
+        // Felipe, 10/08/2026): a tela mostrava "1º lugar — Fulano — 0 pontos" em produção,
+        // que é o que se vê quando o único torneio existente ainda não começou.
+        Assert.Empty(porCategoria);
+    }
+
+    [Fact]
+    public async Task Quem_tem_zero_sai_da_lista_mas_quem_pontuou_fica()
+    {
+        // A contraprova que separa "escondi o zero" de "quebrei o ranking": no MESMO ranking,
+        // o campeão aparece e o inscrito que não jogou (lista de espera) não.
+        var (ctx, svc, campeaoId, cat) = Cenario("Finalizado");
+        using var _ctx = ctx;
+
+        var esperando = new Jogador { Nome = "Na Espera", Cpf = "99966600001" };
+        var parceiro = new Jogador { Nome = "Parceiro Espera", Cpf = "99966600002" };
+        ctx.Jogadores.AddRange(esperando, parceiro);
+        ctx.SaveChanges();
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = esperando.Id, Jogador2Id = parceiro.Id,
+            UltimaFase = "Grupos", EmListaDeEspera = true,
+        });
+        ctx.SaveChanges();
+
+        var linhas = (await svc.ObterRankingPorCategoriaAsync()).SelectMany(c => c.Linhas).ToList();
+
+        Assert.Contains(linhas, l => l.Jogador.Id == campeaoId && l.Pontos == 100);
+        Assert.DoesNotContain(linhas, l => l.Jogador.Id == esperando.Id);
+        Assert.DoesNotContain(linhas, l => l.Pontos == 0);
+    }
+
+    [Fact]
+    public async Task Time_sem_ponto_tambem_sai_do_ranking_de_times()
+    {
+        // Metade da tela consertada seria pior que nenhuma: producao listava 25 times, todos
+        // com 0 ponto, numerados de 1º a 25º, ao lado da aba de pontos ja limpa.
+        var (ctx, svc, _, cat) = Cenario(PortaDaInscricao.Aberta);
+        using var _ctx = ctx;
+
+        var time = new Time { Nome = "Nata Padel" };
+        ctx.Add(time);
+        ctx.SaveChanges();
+        foreach (var j in ctx.Jogadores.ToList()) j.TimeId = time.Id;
+        ctx.SaveChanges();
+
+        Assert.Empty(await svc.ObterRankingTimesAsync());
     }
 
     [Fact]
