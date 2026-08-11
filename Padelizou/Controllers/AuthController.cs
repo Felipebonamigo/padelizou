@@ -935,6 +935,9 @@ namespace padelizou.Controllers
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
             string? apelido = null, int[]? cidadesSelecionadas = null, string? novoClubeNome = null,
             string? novaCidadeNome = null, string? novaCidadeEstado = null,
+            // ⚠️ Cidade DO CLUBE — não confundir com as `novaCidade*` acima, que são as
+            // cidades onde a PESSOA aceita jogar. Os dois pares convivem na mesma tela.
+            string? novoClubeCidade = null, string? novoClubeEstado = null,
             int? timeId = null, string? nomeTime = null,
             // Pedido no cadastro desde 08/08/2026 — é o que decide a inscrição na Mista e na
             // Casais. Com default no FIM da lista de propósito: chamada antiga (e teste que
@@ -1129,7 +1132,8 @@ namespace padelizou.Controllers
 
             await _context.SaveChangesAsync();
             await AtualizarPreferenciasAsync(jogador.Id, categoriasSelecionadas, clubesSelecionados,
-                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado);
+                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado,
+                novoClubeCidade, novoClubeEstado);
             await DefinirTimeAsync(jogador, timeId, nomeTime);
 
             // 3. Loga o usuário automaticamente e manda pro Perfil
@@ -1190,7 +1194,8 @@ namespace padelizou.Controllers
             bool notificarTorneiosAbertos, bool notificarSeguidosTorneio, bool notificarAvisoJogo, bool notificarJogoAula, bool notificarRaqueteLivre,
             bool notificarHorarioVagoRegiao,
             int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados, int[]? cidadesSelecionadas,
-            string? novoClubeNome = null, string? novaCidadeNome = null, string? novaCidadeEstado = null)
+            string? novoClubeNome = null, string? novaCidadeNome = null, string? novaCidadeEstado = null,
+            string? novoClubeCidade = null, string? novoClubeEstado = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
@@ -1212,7 +1217,8 @@ namespace padelizou.Controllers
             await _context.SaveChangesAsync();
 
             await AtualizarPreferenciasAsync(jogadorId, categoriasSelecionadas, clubesSelecionados,
-                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado);
+                diasHorariosSelecionados, cidadesSelecionadas, novoClubeNome, novaCidadeNome, novaCidadeEstado,
+                novoClubeCidade, novoClubeEstado);
 
             TempData["Sucesso"] = "Preferências atualizadas!";
             return RedirectToAction("Preferencias");
@@ -1274,9 +1280,13 @@ namespace padelizou.Controllers
         private async Task AtualizarPreferenciasAsync(
             int jogadorId, int[]? categoriasSelecionadas, int[]? clubesSelecionados, string[]? diasHorariosSelecionados,
             int[]? cidadesSelecionadas = null, string? novoClubeNome = null,
-            string? novaCidadeNome = null, string? novaCidadeEstado = null)
+            string? novaCidadeNome = null, string? novaCidadeEstado = null,
+            // ⚠️ A cidade DO CLUBE, não as cidades onde a pessoa joga (essas são as
+            // `novaCidade*` acima). São dois pares parecidos na mesma tela.
+            string? novoClubeCidade = null, string? novoClubeEstado = null)
         {
-            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(_context, novoClubeNome);
+            var clubeNovo = await CatalogoLocais.AcharOuCriarClubeAsync(
+                _context, novoClubeNome, novoClubeCidade, novoClubeEstado);
             if (clubeNovo != null)
             {
                 clubesSelecionados = (clubesSelecionados ?? Array.Empty<int>()).Append(clubeNovo.Id).Distinct().ToArray();

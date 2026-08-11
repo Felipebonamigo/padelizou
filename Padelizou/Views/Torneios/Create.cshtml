@@ -277,8 +277,21 @@
                         </select>
                         <input type="text" name="novoClubeNome" id="pdzNovoClube" class="form-control form-control-sm mt-2"
                                maxlength="80" placeholder="Não achou? Escreva o nome do local" />
+                        @* A cidade do local, perguntada junto com o nome (11/08/2026). É por
+                           ela que o "Novo torneio aberto" sabe pra quem mirar — sem cidade o
+                           aviso cai no plano B (o estado de quem organiza). Opcional de
+                           propósito: campo obrigatório aqui trava a criação do torneio. *@
+                        <div class="d-flex gap-2 mt-2">
+                            <input type="text" name="novoClubeCidade" class="form-control form-control-sm"
+                                   maxlength="80" placeholder="Cidade do local" />
+                            <input type="text" name="novoClubeEstado" class="form-control form-control-sm text-uppercase"
+                                   maxlength="2" placeholder="UF" style="max-width: 80px;" />
+                        </div>
                         <small id="pdzAvisoClubeEscrito" class="text-muted d-none mt-1">
                             <i class="bi bi-arrow-up"></i> Vale o nome que você escreveu — o seletor fica de fora.
+                        </small>
+                        <small class="text-muted d-block mt-1">
+                            A cidade ajuda a avisar do torneio quem joga na região.
                         </small>
                     </div>
                     <div class="col-md-4">
