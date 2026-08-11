@@ -30,6 +30,19 @@ public class ComissaoDoParceiroTests
             ConfirmadoEm = confirmadoEm,
         };
 
+    // Taxa de aula: o professor é o RECEBEDOR. NÃO é da frente do parceiro desde 11/08/2026.
+    private static Pagamento Aula(int professorId, decimal comissao, DateTime confirmadoEm) =>
+        new()
+        {
+            Tipo = "Aula",
+            JogadorId = 999,
+            RecebedorId = professorId,
+            Valor = 100m,
+            Comissao = comissao,
+            Status = "Confirmado",
+            ConfirmadoEm = confirmadoEm,
+        };
+
     // Mensalidade: RecebedorId NULO (é 100% nosso) e quem paga É o cliente.
     private static Pagamento Mensalidade(int professorId, decimal valor, DateTime confirmadoEm) =>
         new()
@@ -181,7 +194,7 @@ public class ComissaoDoParceiroTests
         Assert.Equal(14.97m, conta.Total);
         Assert.Equal(20m, conta.Parcelas[0].Percentual);
         Assert.Equal("1ª mensalidade", conta.Parcelas[0].Motivo);
-        Assert.Equal("recorrente", conta.Parcelas[1].Motivo);
+        Assert.Equal("mensalidade seguinte", conta.Parcelas[1].Motivo);
     }
 
     [Fact]
@@ -196,69 +209,56 @@ public class ComissaoDoParceiroTests
     [Fact]
     public void Aula_paga_ANTES_de_assinar_nao_consome_a_entrada()
     {
-        // ⚠️ O professor pode estar no plano Avulso e pagar taxa de aula antes de assinar. Se
-        // a entrada fosse "o primeiro pagamento qualquer", ela cairia numa aula de R$ 100 e
-        // valeria R$ 2 — pelo trabalho inteiro de trazer um cliente novo.
-        var aula = new Pagamento
-        {
-            Tipo = "Aula", JogadorId = 999, RecebedorId = 5,
-            Valor = 100m, Comissao = 10m, Status = "Confirmado", ConfirmadoEm = Estreia,
-        };
+        // O professor pode estar no Avulso e pagar taxa de aula antes de assinar. A aula fica
+        // fora da conta, e a ENTRADA continua sendo a mensalidade — se a aula entrasse como
+        // "primeira cobrança", a entrada valeria R$ 2 em vez de R$ 9,98.
+        var aula = Aula(professorId: 5, comissao: 10m, Estreia);
         var assinatura = Mensalidade(5, 49.90m, Estreia.AddMonths(1));
 
         var conta = ComissaoDoParceiro.Calcular("Professor", new[] { aula, assinatura });
 
-        Assert.Equal("recorrente", conta.Parcelas[0].Motivo);       // a aula
-        Assert.Equal(1m, conta.Parcelas[0].Valor);
-        Assert.Equal("1ª mensalidade", conta.Parcelas[1].Motivo);   // a assinatura
-        Assert.Equal(9.98m, conta.Parcelas[1].Valor);
+        var unica = Assert.Single(conta.Parcelas);
+        Assert.Equal("1ª mensalidade", unica.Motivo);
+        Assert.Equal(9.98m, unica.Valor);
+
+        // ⚠️ E a JANELA também começa na mensalidade, não na aula ignorada: contar dali
+        // encurtaria os 12 meses do parceiro por causa de um pagamento que não é dele.
+        Assert.Equal(Estreia.AddMonths(1), conta.PrimeiroPagamento);
     }
 
     [Fact]
-    public void Professor_que_nunca_assina_nao_gera_entrada_nenhuma()
+    public void Professor_que_nunca_assina_nao_rende_NADA()
     {
-        // Consequência assumida do "a entrada é a mensalidade": quem fica no Avulso pra sempre
-        // rende só o recorrente. Valia igual com o bônus fixo de R$ 50 que existia antes.
-        var aula = new Pagamento
-        {
-            Tipo = "Aula", JogadorId = 999, RecebedorId = 5,
-            Valor = 100m, Comissao = 10m, Status = "Confirmado", ConfirmadoEm = Estreia,
-        };
+        // Consequência assumida: quem fica no Avulso pra sempre não paga mensalidade, e a taxa
+        // das aulas dele não é do parceiro. Zero, e a tela mostra zero.
+        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { Aula(5, 10m, Estreia) });
 
-        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { aula });
-
-        Assert.Equal(1m, conta.Total);
-        Assert.All(conta.Parcelas, p => Assert.Equal(10m, p.Percentual));
+        Assert.Equal(0m, conta.Total);
+        Assert.Null(conta.PrimeiroPagamento);
     }
 
     [Fact]
-    public void A_aula_do_professor_tambem_rende_10_por_cento()
+    public void A_taxa_das_AULAS_nao_e_do_parceiro()
     {
-        // "10% de tudo que ele gerar" inclui a taxa das aulas, não só a mensalidade.
-        var aula = new Pagamento
-        {
-            Tipo = "Aula",
-            JogadorId = 999,
-            RecebedorId = 5,
-            Valor = 100m,
-            Comissao = 10m,
-            Status = "Confirmado",
-            ConfirmadoEm = Estreia,
-        };
+        // ⚠️ Decisão do Felipe: no professor a frente é SÓ A MENSALIDADE. O que o parceiro
+        // vendeu foi a assinatura, não o movimento de alunos do professor.
+        var aula = Aula(professorId: 5, comissao: 10m, Estreia);
 
-        var conta = ComissaoDoParceiro.Calcular("Professor", new[] { aula });
-
-        Assert.Equal(1m, conta.Total);
+        Assert.False(ComissaoDoParceiro.EhDaFrente("Professor", aula));
+        Assert.Equal(0m, ComissaoDoParceiro.Calcular("Professor", new[] { aula }).Total);
     }
 
     // ── Clube: a régua existe, o plano ainda não ──────────────────────────────────────────
 
     [Fact]
-    public void Clube_hoje_so_rende_recorrente_porque_nao_existe_mensalidade_de_clube()
+    public void Clube_hoje_rende_ZERO_e_isso_e_a_verdade()
     {
-        // A régua diz "1ª mensalidade cheia", mas não há plano de clube no código (o preço nem
-        // foi fechado). Este teste é o marcador: quando a mensalidade nascer, o tipo dela entra
-        // em TiposDeMensalidade e este teste passa a falhar de propósito.
+        // ⚠️ A frente do clube é só a mensalidade — e **a mensalidade de clube não existe no
+        // código** (o preço nem foi fechado). A reserva de quadra não é do parceiro. Logo,
+        // lead de clube fechado hoje rende ZERO: não há o que comissionar.
+        //
+        // Este teste é o marcador. Quando o plano de clube nascer, o tipo dele entra em
+        // TiposDoClube e este teste falha de propósito.
         var reserva = new Pagamento
         {
             Tipo = "Jogo",
@@ -272,9 +272,8 @@ public class ComissaoDoParceiroTests
 
         var conta = ComissaoDoParceiro.Calcular("Clube", new[] { reserva });
 
-        Assert.Equal(0.80m, conta.Total);
-        Assert.Equal("recorrente", conta.Parcelas[0].Motivo);
-        Assert.DoesNotContain("AssinaturaClube", ComissaoDoParceiro.TiposDeMensalidade);
+        Assert.Equal(0m, conta.Total);
+        Assert.Empty(ComissaoDoParceiro.TiposDoClube);
     }
 
     // ── "Apenas do que ele vendeu" ────────────────────────────────────────────────────────
@@ -329,11 +328,13 @@ public class ComissaoDoParceiroTests
     }
 
     [Fact]
-    public void A_reserva_de_quadra_e_do_CLUBE_e_nao_do_professor()
+    public void Reserva_de_quadra_nao_e_de_parceiro_nenhum()
     {
+        // Nem do clube, nem do professor, nem do torneio: o parceiro vendeu a assinatura, e
+        // não o movimento de quem usa a quadra.
         var reserva = new Pagamento { Tipo = "Jogo", JogadorId = 999, RecebedorId = 3, Valor = 80m, Comissao = 8m };
 
-        Assert.True(ComissaoDoParceiro.EhDaFrente("Clube", reserva));
+        Assert.False(ComissaoDoParceiro.EhDaFrente("Clube", reserva));
         Assert.False(ComissaoDoParceiro.EhDaFrente("Professor", reserva));
         Assert.False(ComissaoDoParceiro.EhDaFrente("Torneio", reserva));
     }

@@ -34,11 +34,11 @@ abaixo já foram escolhidos sabendo disso.
 **Toda venda é a mesma régua: 20% na entrada, 10% pelos 12 meses seguintes.** O que muda de um
 produto pro outro é só o que conta como "a entrada".
 
-| Produto | A entrada é… | 1ª venda | Recorrente | Prazo |
-|---|---|---|---|---|
-| **Torneio** | a 1ª **edição** (não a 1ª cobrança) | **20%** da comissão dela | **10%** das edições seguintes | **12 meses** |
-| **Professor** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes + das taxas de aula | **12 meses** |
-| **Clube** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes + das reservas | **12 meses** |
+| Produto | Sobre o quê | A entrada é… | 1ª venda | Recorrente | Prazo |
+|---|---|---|---|---|---|
+| **Torneio** | inscrições e taxa do externo | a 1ª **edição** (não a 1ª cobrança) | **20%** da comissão dela | **10%** das edições seguintes | **12 meses** |
+| **Professor** | **só a mensalidade** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes | **12 meses** |
+| **Clube** | **só a mensalidade** | a 1ª **mensalidade** paga | **20%** da comissão dela | **10%** das seguintes | **12 meses** |
 
 O dobro na entrada paga o trabalho de verdade, que é a primeira conversa. O 10% depois é a cauda —
 não é salário, é o lembrete de que aquele cliente é dele.
@@ -48,14 +48,22 @@ mensalidade de professor da mesma pessoa — aquela venda não foi dele, e pode 
 parceiro. Um organizador que também dá aula gera duas receitas independentes, e cada uma pertence
 a quem a trouxe (ou a ninguém).
 
+⚠️ **NO PROFESSOR E NO CLUBE, A FRENTE É SÓ A MENSALIDADE.** Taxa de aula e taxa de reserva **não
+entram**: o que o parceiro vendeu foi a assinatura, não o movimento de alunos ou de quadra do
+cliente. Duas consequências a aceitar de olhos abertos:
+
+- **Um professor vale ~R$ 65 ao parceiro no ano inteiro** (20% de R$ 49,90 + 10% de onze
+  mensalidades), contra **R$ 135 a R$ 330 de UM torneio**. Os parceiros vão atrás de torneio — e
+  é onde está o dinheiro mesmo.
+- 🛑 **Lead de clube fechado hoje rende ZERO**, porque **a mensalidade de clube não existe no
+  código** (o preço nem foi fechado). Não é bug: não há o que comissionar. Quem vender clube antes
+  do plano existir precisa saber disso — ou o acerto é combinado por fora.
+
 ⚠️ **E só do que o cliente USOU.** A comissão nasce do pagamento **confirmado**, nunca do faturado,
 e **estorno derruba a parte do parceiro junto** — inclusive o parcial, na proporção do que voltou.
 
-📌 **A entrada do professor é a MENSALIDADE, não o primeiro pagamento qualquer.** Um professor
-pode pagar taxa de aula antes de assinar (é o plano Avulso), e 20% de uma aula de R$ 100 seriam
-R$ 2 pelo trabalho inteiro de trazer um cliente. A venda que o parceiro fez é a assinatura.
-Consequência assumida: **professor que fica no Avulso pra sempre nunca gera entrada** — tudo dele
-é 10%.
+📌 **Professor que fica no Avulso pra sempre não rende nada.** Ele nunca paga mensalidade, e a
+taxa das aulas dele não é do parceiro. A tela mostra zero, que é a verdade.
 
 📌 **Por que 20% e não 30% (decisão de 11/08/2026).** A régua nasceu 30/10 e foi corrigida no mesmo
 dia, e **o que mudou não foi o percentual — foi o tamanho do torneio.** A conta original usava um
@@ -169,6 +177,8 @@ RPA ou nota do parceiro) é pergunta pro contador** — este documento não deci
 >    clube.
 > 2.1. A comissão vale **apenas para a frente que o Parceiro vendeu**: quem indicou um
 >    organizador de torneio não recebe sobre aulas, mensalidades ou reservas da mesma pessoa.
+>    No Professor e no Clube, a comissão incide **somente sobre a mensalidade** — taxas de aula
+>    e de reserva de quadra não entram.
 > 3. A indicação só é válida se o lead for **registrado no painel antes do primeiro contato**.
 >    Leads vencem em 90 dias. Clientes que se cadastram por conta própria não geram comissão.
 >    Um cliente tem um único Parceiro.
