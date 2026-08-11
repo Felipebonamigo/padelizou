@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
+using Padelizou.Services;
 using System.Security.Claims;
 
 namespace padelizou.Controllers
@@ -23,31 +24,45 @@ namespace padelizou.Controllers
         // Grupos/Configuracoes, telas que já exigem login. Tinha [AllowAnonymous], que só
         // alargava a superfície — qualquer um criava clubes sem limite, e clube aparece em
         // dropdown por todo o app (locais de aula, torneio, preferências, busca).
+        // ⚠️ `cidade`/`estado` entraram em 11/08/2026 e fecham a ÚLTIMA porta que criava clube
+        // sem saber onde ele fica. As outras duas (cadastro/preferências e criação de torneio)
+        // já perguntavam; enquanto esta não perguntasse, um local cadastrado pelo grupo
+        // continuaria invisível pra qualquer mira geográfica — ver Services/UfDoTorneio.
+        //
+        // Os dois são OPCIONAIS: aqui o local costuma ser "onde a gente jogou", e exigir
+        // endereço no meio de registrar um jogo é atrito na hora errada.
         [HttpPost]
-        public async Task<IActionResult> Criar(string nome, string? endereco)
+        public async Task<IActionResult> Criar(string nome, string? endereco = null,
+            string? cidade = null, string? estado = null)
         {
             nome = (nome ?? "").Trim();
 
-            if (string.IsNullOrWhiteSpace(nome) || nome.Length > 120)
+            // ⚠️ A régua passou a ser a do CatalogoLocais (80), e não mais 120: era ele quem
+            // CORTAVA silenciosamente o que passava disso. Recusar e avisar é melhor que
+            // gravar um nome pela metade e a pessoa nunca entender por que ficou torto.
+            if (string.IsNullOrWhiteSpace(nome) || nome.Length > CatalogoLocais.TamanhoMaximoNome)
             {
                 return BadRequest();
             }
 
-            // Mesmo nome não vira clube novo: devolve o que já existe. Evita a lista encher
-            // de "Arena Beira Rio" repetido só porque dois jogadores digitaram junto.
-            var existente = await _context.Clubes
-                .FirstOrDefaultAsync(c => c.Nome.ToLower() == nome.ToLower());
+            // Uma implementação só de achar-ou-criar, compartilhada com as outras duas portas
+            // (Services/CatalogoLocais): mesmo nome não vira clube novo, e clube antigo sem
+            // cidade recebe a que acabou de ser informada — sem nunca sobrescrever a que já
+            // existe. Antes isto era uma segunda cópia da regra, aqui dentro.
+            var clube = await CatalogoLocais.AcharOuCriarClubeAsync(_context, nome, cidade, estado, endereco);
+            if (clube == null) return BadRequest();
 
-            if (existente != null)
+            // A cidade volta junto porque o seletor é agrupado por ela: sem esse rótulo o
+            // JavaScript não teria como saber em qual `<optgroup>` pendurar o clube novo, e a
+            // opção ficaria solta DEPOIS de todos os grupos — visualmente fora da lista em que
+            // ela acabou de entrar. Quem sabe o rótulo é o servidor, e é uma régua só
+            // (CatalogoLocais.RotuloDaCidadeAsync, a mesma de AgrupadosPorCidade).
+            return Json(new
             {
-                return Json(new { id = existente.Id, nome = existente.Nome });
-            }
-
-            var clube = new Clube { Nome = nome, Endereco = endereco?.Trim() ?? "", Contato = "" };
-            _context.Clubes.Add(clube);
-            await _context.SaveChangesAsync();
-
-            return Json(new { id = clube.Id, nome = clube.Nome });
+                id = clube.Id,
+                nome = clube.Nome,
+                cidade = await CatalogoLocais.RotuloDaCidadeAsync(_context, clube),
+            });
         }
 
         private async Task<bool> EhDonoOuAdminDoClubeAsync(int clubeId, int jogadorId)

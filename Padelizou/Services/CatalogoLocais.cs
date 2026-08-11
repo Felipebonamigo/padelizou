@@ -63,6 +63,22 @@ public static class CatalogoLocais
             .OrderBy(g => g.Key == SemCidade ? 1 : 0)
             .ThenBy(g => g.Key);
 
+    // O rótulo de `<optgroup>` deste clube — o MESMO texto que `AgrupadosPorCidade` usa, pra
+    // que o clube recém-criado caia no grupo certo do seletor em vez de ficar solto no fim.
+    //
+    // ⚠️ EXISTE PORQUE `CidadeDoClube` LÊ A NAVEGAÇÃO `clube.Cidade`, e quem acabou de criar o
+    // clube tem só o `CidadeId`: `AcharOuCriarClubeAsync` grava o id e não carrega a navegação.
+    // Não há lazy loading neste repo — ler `clube.Cidade` ali devolveria "Sem cidade" mesmo com
+    // a cidade gravada, sem erro nenhum. Por isso aqui vai ao banco quando falta.
+    public static async Task<string> RotuloDaCidadeAsync(DbPadelContext db, Clube clube)
+    {
+        if (clube.Cidade != null) return CidadeDoClube(clube);
+        if (clube.CidadeId == null) return SemCidade;
+
+        var cidade = await db.Cidades.FirstOrDefaultAsync(c => c.Id == clube.CidadeId);
+        return cidade == null ? SemCidade : NomeDaCidade(cidade);
+    }
+
     // As cidades presentes numa lista de clubes, na ordem em que devem aparecer num filtro.
     public static List<string> CidadesDaLista(IEnumerable<Clube> clubes) =>
         AgrupadosPorCidade(clubes).Select(g => g.Key).ToList();
@@ -78,8 +94,10 @@ public static class CatalogoLocais
     // ⚠️ Continua OPCIONAL. Obrigar a cidade aqui travaria o cadastro de quem só quer marcar
     // onde jogou, e um campo a mais na primeira tela é onde se perde gente. Sem cidade, a
     // mira cai no plano B (o estado de quem organiza) — que é pior, mas não é silêncio.
+    // `endereco` só chega pela porta do "cadastre um local novo" (ClubesController.Criar); as
+    // outras duas não perguntam. Fica opcional pra que essa porta não perca o que já gravava.
     public static async Task<Clube?> AcharOuCriarClubeAsync(DbPadelContext db, string? nome,
-        string? cidadeNome = null, string? estado = null)
+        string? cidadeNome = null, string? estado = null, string? endereco = null)
     {
         nome = Normalizar(nome);
         if (nome == null) return null;
@@ -105,7 +123,13 @@ public static class CatalogoLocais
             return existente;
         }
 
-        var clube = new Clube { Nome = nome, Endereco = "", Contato = "", CidadeId = cidade?.Id };
+        var clube = new Clube
+        {
+            Nome = nome,
+            Endereco = endereco?.Trim() ?? "",
+            Contato = "",
+            CidadeId = cidade?.Id,
+        };
         db.Clubes.Add(clube);
         await db.SaveChangesAsync();
         return clube;

@@ -59,10 +59,16 @@
                                 }
                             </select>
                             <div class="mt-2 d-flex gap-2">
-                                <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Não achou? Cadastre um local novo" />
+                                <input type="text" id="novoClubeNome" maxlength="80" class="form-control form-control-sm" placeholder="Não achou? Cadastre um local novo" />
                                 <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" onclick="adicionarClubeSelect()">
                                     <i class="bi bi-plus-circle"></i> Adicionar
                                 </button>
+                            </div>
+                            @* Opcional, mas é por ela que o local passa a existir no mapa —
+                               ver Services/UfDoTorneio. *@
+                            <div class="mt-2 d-flex gap-2">
+                                <input type="text" id="novoClubeCidade" maxlength="80" class="form-control form-control-sm" placeholder="Cidade do local (opcional)" />
+                                <input type="text" id="novoClubeEstado" maxlength="2" class="form-control form-control-sm text-uppercase" placeholder="UF" style="max-width: 80px;" />
                             </div>
                         </div>
 
@@ -135,27 +141,6 @@
 </div>
 
 @section Scripts {
-    <script>
-        function adicionarClubeSelect() {
-            var input = document.getElementById('novoClubeNome');
-            var nome = input.value.trim();
-            if (!nome) return;
-
-            fetch('/Clubes/Criar', {
-                method: 'POST',
-                headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
-                body: 'nome=' + encodeURIComponent(nome)
-            })
-                .then(function (res) { return res.json(); })
-                .then(function (clube) {
-                    var select = document.getElementById('selectClube');
-                    var option = document.createElement('option');
-                    option.value = clube.id;
-                    option.text = clube.nome;
-                    option.selected = true;
-                    select.appendChild(option);
-                    input.value = '';
-                });
-        }
-    </script>
+    @* Implementação ÚNICA — ver wwwroot/js/adicionar-local.js. *@
+    <script src="~/js/adicionar-local.js" asp-append-version="true"></script>
 }
