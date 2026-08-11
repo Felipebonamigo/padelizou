@@ -1,6 +1,8 @@
 ﻿@model GrupoPrivado
+@using System.Security.Claims
 @{
     ViewData["Title"] = $"{Model.Nome} - Padelizou";
+    var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
     var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
     var rankingMes = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingMes;
     int mesConsulta = ViewBag.MesConsulta;
@@ -101,6 +103,51 @@
                             <button type="submit" class="btn btn-padel">Convidar</button>
                         </div>
                     </form>
+
+                    @* CHAMAR PRA UM JOGO ≠ CONVIDAR PRA PANELINHA, e a diferença importa: um
+                       entra pro ranking e vê tudo pra sempre, o outro é o quarto pra fechar a
+                       quadra de quinta. O caminho avulso já existia (ConfirmacaoSessao.Avulso),
+                       mas só aparecia lá dentro da tela da semana — quem procurava "convidar"
+                       caía aqui e só encontrava o convite definitivo.
+                       Só o administrador vê: a ação de convidar avulso é dele, e um link que
+                       devolve a pessoa pra lista seria um botão que mente. *@
+                    @if (ehAdmin)
+                    {
+                        @* O convite avulso pendura a pessoa numa SESSÃO (o jogo daquela data), e
+                           sessão só existe se o grupo tiver clube, categoria, dia e horário. Sem
+                           isso o Convidar devolve pras Configurações — então a falta é dita AQUI,
+                           antes do clique, em vez de virar um botão que joga a pessoa pra outra
+                           tela sem ela ter pedido. *@
+                        var faltaConfigurar = Model.ClubeId == null || Model.CategoriaPadraoId == null
+                            || Model.DiaSemanaFixo == null || Model.HorarioFixo == null;
+
+                        <hr class="my-4" />
+                        <p class="fw-bold small mb-2"><i class="bi bi-person-check text-primary"></i> Só pro jogo desta semana</p>
+                        <p class="text-muted small">
+                            A pessoa é chamada pra <strong>um jogo só</strong>, sem entrar na panelinha:
+                            ela não entra no ranking do grupo nem enxerga o resto. É o caminho pra
+                            completar a quadra quando falta gente.
+                        </p>
+                        @if (faltaConfigurar)
+                        {
+                            <div class="alert alert-warning small mb-2 py-2">
+                                Pra chamar alguém pra um jogo só, o grupo precisa ter
+                                <strong>local, categoria, dia e horário</strong> definidos — é o que
+                                diz à pessoa pra onde e a que horas ela está sendo chamada.
+                            </div>
+                            <a asp-controller="Grupos" asp-action="Configuracoes" asp-route-id="@Model.Id"
+                               class="btn btn-outline-secondary rounded-pill w-100">
+                                <i class="bi bi-gear"></i> Completar as configurações
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@Model.Id"
+                               class="btn btn-outline-primary rounded-pill w-100">
+                                <i class="bi bi-person-plus"></i> Chamar alguém só pra esse jogo
+                            </a>
+                        }
+                    }
                 </div>
             </div>
         </div>
@@ -190,6 +237,7 @@
                         <th>Dupla 1</th>
                         <th class="text-center">Placar</th>
                         <th>Dupla 2</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -206,6 +254,29 @@
                             <td class="@(jogo.VencedorLado == 2 ? "fw-bold text-success" : "")">
                                 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador1.ComoChamar</a> /
                                 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador2.ComoChamar</a>
+                            </td>
+                            @* Corrigir e apagar aparecem pra quem administra a panelinha e pra
+                               quem LANÇOU aquele jogo — o placar errado quase sempre é digitação
+                               de quem lançou, e mandar chamar o administrador pra arrumar um 6x4
+                               faz a correção simplesmente não acontecer. *@
+                            <td class="text-end text-nowrap">
+                                @if (ehAdmin || jogo.RegistradoPorId == userId)
+                                {
+                                    <a asp-controller="Grupos" asp-action="EditarJogo" asp-route-id="@jogo.Id"
+                                       class="btn btn-sm btn-link text-muted p-1" title="Corrigir este jogo">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    @* A confirmação sai de `data-confirmar` (wwwroot/js/confirmar.js) e nunca de
+                                       um onsubmit escrito na view: o Razor trata `@` colado num caractere como
+                                       e-mail e cospe o nome da variável literal na tela. *@
+                                    <form asp-controller="Grupos" asp-action="ApagarJogo" method="post" class="d-inline"
+                                          data-confirmar="Apagar este jogo? Os pontos dele saem do ranking do grupo.">
+                                        <input type="hidden" name="id" value="@jogo.Id" />
+                                        <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Apagar este jogo">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
                             </td>
                         </tr>
                     }

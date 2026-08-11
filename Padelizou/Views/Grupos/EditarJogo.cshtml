@@ -1,0 +1,116 @@
+@model JogoSemanal
+@{
+    ViewData["Title"] = "Corrigir Jogo - Padelizou";
+    var membros = (List<Jogador>)ViewBag.Membros;
+    var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
+    string nomeDoGrupo = ViewBag.NomeDoGrupo;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-pencil-square display-4" style="color: var(--padel-green);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Corrigir Jogo</h3>
+                        <p class="text-muted">@nomeDoGrupo · o ranking é refeito quando você salvar.</p>
+                    </div>
+
+                    <form asp-controller="Grupos" asp-action="EditarJogo" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Data do jogo</label>
+                            <input type="date" name="dataJogo" class="form-control bg-light" required value="@Model.DataJogo.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Onde jogaram</label>
+                            <select name="clubeId" id="selectClube" class="form-select bg-light">
+                                <option value="">-- Não informar --</option>
+                                @* Agrupado por cidade — ver Services/CatalogoLocais. *@
+                                @foreach (var cidade in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(catalogoClubes))
+                                {
+                                    <optgroup label="@cidade.Key">
+                                        @foreach (var clube in cidade)
+                                        {
+                                            <option value="@clube.Id" selected="@(Model.ClubeId == clube.Id)">@clube.Nome</option>
+                                        }
+                                    </optgroup>
+                                }
+                            </select>
+                            <div class="mt-2 d-flex gap-2">
+                                <input type="text" id="novoClubeNome" class="form-control form-control-sm" placeholder="Jogaram em outro lugar? Cadastre aqui" />
+                                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" onclick="adicionarClubeSelect()">
+                                    <i class="bi bi-plus-circle"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Dupla 1 - Jogador 1</label>
+                                <select name="dupla1Jogador1Id" class="form-select bg-light" required>
+                                    @foreach (var m in membros)
+                                    {
+                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador1Id == m.Id)">@m.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Dupla 1 - Jogador 2</label>
+                                <select name="dupla1Jogador2Id" class="form-select bg-light" required>
+                                    @foreach (var m in membros)
+                                    {
+                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador2Id == m.Id)">@m.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Dupla 2 - Jogador 1</label>
+                                <select name="dupla2Jogador1Id" class="form-select bg-light" required>
+                                    @foreach (var m in membros)
+                                    {
+                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador1Id == m.Id)">@m.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Dupla 2 - Jogador 2</label>
+                                <select name="dupla2Jogador2Id" class="form-select bg-light" required>
+                                    @foreach (var m in membros)
+                                    {
+                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador2Id == m.Id)">@m.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4 align-items-center">
+                            <div class="col-5">
+                                <label class="form-label fw-bold text-muted small">Games Dupla 1</label>
+                                <input type="number" name="gamesDupla1" class="form-control bg-light" required min="0" value="@Model.GamesDupla1" />
+                            </div>
+                            <div class="col-2 text-center fw-bold text-muted mt-3">x</div>
+                            <div class="col-5">
+                                <label class="form-label fw-bold text-muted small">Games Dupla 2</label>
+                                <input type="number" name="gamesDupla2" class="form-control bg-light" required min="0" value="@Model.GamesDupla2" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Salvar Correção</button>
+                        <a asp-controller="Grupos" asp-action="Detalhes" asp-route-id="@Model.GrupoId" class="btn btn-link w-100 text-muted mt-2">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/clube-novo-no-select.js"></script>
+}

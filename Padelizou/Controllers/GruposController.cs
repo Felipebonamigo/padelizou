@@ -302,19 +302,103 @@ namespace padelizou.Controllers
             _context.JogosSemanais.Add(jogo);
             await _context.SaveChangesAsync();
 
-            var pontos = new Dictionary<int, int>();
-            AplicarPontos(pontos, jogo);
-            foreach (var (jogadorId, pts) in pontos)
-            {
-                var registro = await _context.JogadoresGrupo.FirstOrDefaultAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == jogadorId);
-                if (registro != null)
-                {
-                    registro.PontuacaoInterna += pts;
-                }
-            }
-            await _context.SaveChangesAsync();
+            await RecalcularPontuacaoAsync(grupoId);
 
             TempData["Sucesso"] = "Jogo registrado! Ranking atualizado.";
+            return RedirectToAction("Detalhes", new { id = grupoId });
+        }
+
+        // ===================== CORRIGIR UM JOGO JÁ LANÇADO =====================
+
+        [HttpGet]
+        public async Task<IActionResult> EditarJogo(int id)
+        {
+            var userId = ObterUserId();
+
+            var jogo = await _context.JogosSemanais.FirstOrDefaultAsync(j => j.Id == id);
+            if (jogo == null) return NotFound();
+
+            var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == jogo.GrupoId);
+            if (grupo == null) return NotFound();
+            if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+
+            var membros = await _context.JogadoresGrupo
+                .Include(jg => jg.Jogador)
+                .Where(jg => jg.GrupoId == jogo.GrupoId)
+                .Select(jg => jg.Jogador)
+                .ToListAsync();
+
+            // ⚠️ QUEM JOGOU MAS NÃO É MAIS MEMBRO PRECISA ESTAR NA LISTA. Sem isso o <select>
+            // abre sem a opção da pessoa, o navegador seleciona o primeiro nome da lista e
+            // salvar a correção de UM PLACAR trocaria calado quem jogou a partida.
+            var idsNoJogo = new[] { jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id };
+            var faltantes = idsNoJogo.Where(id => membros.All(m => m.Id != id)).Distinct().ToList();
+            if (faltantes.Count > 0)
+            {
+                membros.AddRange(await _context.Jogadores.Where(j => faltantes.Contains(j.Id)).ToListAsync());
+            }
+
+            ViewBag.Membros = membros.OrderBy(m => m.Nome).ToList();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
+            ViewBag.NomeDoGrupo = grupo.Nome;
+
+            return View(jogo);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditarJogo(
+            int id, DateTime dataJogo,
+            int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
+            int gamesDupla1, int gamesDupla2, int? clubeId)
+        {
+            var userId = ObterUserId();
+
+            var jogo = await _context.JogosSemanais.FirstOrDefaultAsync(j => j.Id == id);
+            if (jogo == null) return NotFound();
+
+            var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == jogo.GrupoId);
+            if (grupo == null) return NotFound();
+            if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+
+            // O GRUPO DO JOGO NÃO SE MEXE. Trocar de grupo levaria os pontos junto pra outro
+            // ranking, e o recálculo só passa no grupo que veio no formulário — o de origem
+            // ficaria com o fantasma que este método existe pra evitar.
+            jogo.DataJogo = dataJogo;
+            jogo.ClubeId = clubeId;
+            jogo.Dupla1Jogador1Id = dupla1Jogador1Id;
+            jogo.Dupla1Jogador2Id = dupla1Jogador2Id;
+            jogo.Dupla2Jogador1Id = dupla2Jogador1Id;
+            jogo.Dupla2Jogador2Id = dupla2Jogador2Id;
+            jogo.GamesDupla1 = gamesDupla1;
+            jogo.GamesDupla2 = gamesDupla2;
+            await _context.SaveChangesAsync();
+
+            await RecalcularPontuacaoAsync(jogo.GrupoId);
+
+            TempData["Sucesso"] = "Jogo corrigido! Ranking refeito.";
+            return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ApagarJogo(int id)
+        {
+            var userId = ObterUserId();
+
+            var jogo = await _context.JogosSemanais.FirstOrDefaultAsync(j => j.Id == id);
+            if (jogo == null) return NotFound();
+
+            var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == jogo.GrupoId);
+            if (grupo == null) return NotFound();
+            if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+
+            var grupoId = jogo.GrupoId;
+            _context.JogosSemanais.Remove(jogo);
+            await _context.SaveChangesAsync();
+
+            // Depois do Remove, senão o jogo apagado ainda entra na conta.
+            await RecalcularPontuacaoAsync(grupoId);
+
+            TempData["Sucesso"] = "Jogo apagado! Ranking refeito.";
             return RedirectToAction("Detalhes", new { id = grupoId });
         }
 
@@ -586,23 +670,36 @@ namespace padelizou.Controllers
         }
 
         // Vitória = 3 pts, derrota = 1 pt (participação), empate = 2 pts pra cada lado.
-        private static void AplicarPontos(Dictionary<int, int> pontos, JogoSemanal jogo)
-        {
-            int pontosDupla1, pontosDupla2;
-            if (jogo.VencedorLado == 1) { pontosDupla1 = 3; pontosDupla2 = 1; }
-            else if (jogo.VencedorLado == 2) { pontosDupla1 = 1; pontosDupla2 = 3; }
-            else { pontosDupla1 = 2; pontosDupla2 = 2; }
+        // A conta em si mora em Services/PontuacaoDaPanelinha — é a MESMA usada pra refazer o
+        // ranking gravado, e ter uma cópia aqui é como o placar geral se descolaria da lista.
+        private static void AplicarPontos(Dictionary<int, int> pontos, JogoSemanal jogo) =>
+            PontuacaoDaPanelinha.Aplicar(pontos, jogo);
 
-            Somar(pontos, jogo.Dupla1Jogador1Id, pontosDupla1);
-            Somar(pontos, jogo.Dupla1Jogador2Id, pontosDupla1);
-            Somar(pontos, jogo.Dupla2Jogador1Id, pontosDupla2);
-            Somar(pontos, jogo.Dupla2Jogador2Id, pontosDupla2);
+        // Refaz `JogadorGrupo.PontuacaoInterna` do grupo inteiro a partir dos jogos que existem
+        // AGORA. Chamado por registrar, editar e apagar — os três, sempre.
+        //
+        // ⚠️ É REFAZER, não somar a diferença. Somar a diferença exige que o total de antes
+        // estivesse certo; refazer não exige nada e ainda conserta o que já estava torto. E o
+        // zero é obrigatório: quem saiu de todos os jogos do grupo precisa CAIR pra 0, e um
+        // laço que só escreve quem aparece no dicionário deixaria o número velho parado.
+        private async Task RecalcularPontuacaoAsync(int grupoId)
+        {
+            var jogos = await _context.JogosSemanais.Where(j => j.GrupoId == grupoId).ToListAsync();
+            var totais = PontuacaoDaPanelinha.Totais(jogos);
+
+            var membros = await _context.JogadoresGrupo.Where(jg => jg.GrupoId == grupoId).ToListAsync();
+            foreach (var membro in membros)
+            {
+                membro.PontuacaoInterna = totais.GetValueOrDefault(membro.JogadorId);
+            }
+            await _context.SaveChangesAsync();
         }
 
-        private static void Somar(Dictionary<int, int> dict, int id, int pts)
-        {
-            dict[id] = dict.GetValueOrDefault(id) + pts;
-        }
+        // Quem pode mexer num jogo já lançado: quem administra a panelinha e quem registrou
+        // aquele jogo. O placar errado quase sempre é digitação de quem lançou, e obrigar a
+        // chamar o administrador pra corrigir um 6x4 faria a correção não acontecer.
+        private static bool PodeMexerNoJogo(GrupoPrivado grupo, JogoSemanal jogo, int userId) =>
+            grupo.AdministradorId == userId || jogo.RegistradoPorId == userId;
 
         private int ObterUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
