@@ -16,29 +16,11 @@ function cabecalhoAntifalsificacao(outros) {
     return cabecalhos;
 }
 
-// Adiciona um clube novo via AJAX (sem recarregar a página, pra não perder o resto do formulário)
-// e insere um checkbox já marcado na lista. Usado em Cadastro, Preferências e Criar Aviso.
-function adicionarClube(nomeInputId, listaContainerId, checkboxName) {
-    var input = document.getElementById(nomeInputId);
-    var nome = input.value.trim();
-    if (!nome) return;
-
-    fetch('/Clubes/Criar', {
-        method: 'POST',
-        headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
-        body: 'nome=' + encodeURIComponent(nome)
-    })
-        .then(function (res) { return res.json(); })
-        .then(function (clube) {
-            var container = document.getElementById(listaContainerId);
-            var wrapper = document.createElement('div');
-            wrapper.className = 'form-check form-check-inline';
-            wrapper.innerHTML = '<input class="form-check-input clube-check" type="checkbox" checked name="' + checkboxName + '" value="' + clube.id + '" id="clube_' + clube.id + '">' +
-                '<label class="form-check-label small" for="clube_' + clube.id + '">' + clube.nome + '</label>';
-            container.appendChild(wrapper);
-            input.value = '';
-        });
-}
+// `adicionarClube(...)` morava aqui e foi REMOVIDA em 11/08/2026: zero chamadores em todo o
+// projeto — o comentário dela ainda dizia "usado em Cadastro, Preferências e Criar Aviso",
+// telas que há tempos mandam o clube junto com o formulário. Ficava sendo uma quinta cópia do
+// POST /Clubes/Criar, sem cidade e sem conferir `res.ok`, esperando alguém religá-la e voltar
+// a criar local sem saber onde fica. Quem cadastra local por AJAX hoje é o adicionar-local.js.
 
 // Desmarca todos os checkboxes de uma dimensão de preferência (categoria/clube/diahorario) —
 // usado pelos botões "Aceito qualquer X".

@@ -24,8 +24,10 @@ public static class CatalogoLocais
     // ⚠️ Continua OPCIONAL. Obrigar a cidade aqui travaria o cadastro de quem só quer marcar
     // onde jogou, e um campo a mais na primeira tela é onde se perde gente. Sem cidade, a
     // mira cai no plano B (o estado de quem organiza) — que é pior, mas não é silêncio.
+    // `endereco` só chega pela porta do "cadastre um local novo" (ClubesController.Criar); as
+    // outras duas não perguntam. Fica opcional pra que essa porta não perca o que já gravava.
     public static async Task<Clube?> AcharOuCriarClubeAsync(DbPadelContext db, string? nome,
-        string? cidadeNome = null, string? estado = null)
+        string? cidadeNome = null, string? estado = null, string? endereco = null)
     {
         nome = Normalizar(nome);
         if (nome == null) return null;
@@ -51,7 +53,13 @@ public static class CatalogoLocais
             return existente;
         }
 
-        var clube = new Clube { Nome = nome, Endereco = "", Contato = "", CidadeId = cidade?.Id };
+        var clube = new Clube
+        {
+            Nome = nome,
+            Endereco = endereco?.Trim() ?? "",
+            Contato = "",
+            CidadeId = cidade?.Id,
+        };
         db.Clubes.Add(clube);
         await db.SaveChangesAsync();
         return clube;
