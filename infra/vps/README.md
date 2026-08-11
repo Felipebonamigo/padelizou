@@ -167,3 +167,23 @@ volta no ar" — não "o site está fora".
 Pra voltar mais longe do que a última versão, dispare o workflow com **acao: deploy** e
 o `build-N-sha` que você quer. Os cinco últimos ficam no disco do VPS e todos seguem
 guardados nos releases do GitHub.
+
+## A camada que o deploy NÃO toca: o Caddy
+
+Cabeçalho de segurança, TLS, compressão, cache e redirecionamento (inclusive o **301 do
+`www`**) moram no proxy, não no app. O `deploy.sh` nunca encosta neles — mudança ali é
+feita no servidor, na mão.
+
+Há uma cópia de referência em [`Caddyfile`](Caddyfile), com o porquê de cada bloco.
+⚠️ **É um RECORTE**: o arquivo do VPS serve cinco negócios no mesmo servidor, e a cópia
+traz só os blocos do Padelizou — copiá-la por cima do servidor tira os outros quatro
+sites do ar.
+
+Pra mexer lá, sempre nesta ordem:
+
+```bash
+cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-$(date +%Y%m%d-%H%M%S)
+# editar
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl reload caddy   # reload, NUNCA restart
+```

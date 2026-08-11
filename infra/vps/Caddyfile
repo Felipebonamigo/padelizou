@@ -1,0 +1,94 @@
+# Caddy — a camada de borda do Padelizou (cópia de referência)
+#
+# ⚠️⚠️ ISTO NÃO É O ARQUIVO DO SERVIDOR, É UM RECORTE DELE. ⚠️⚠️
+#
+# O `/etc/caddy/Caddyfile` do VPS serve CINCO negócios no mesmo servidor (Padelizou,
+# carolinetedesco, atomatiza, bonamigosystems e pokepanda). Aqui estão SÓ os blocos do
+# Padelizou, porque a configuração dos outros não pertence a este repositório — que, além
+# de tudo, é público.
+#
+# 🚨 **COPIAR ESTE ARQUIVO POR CIMA DO SERVIDOR TIRA OS OUTROS QUATRO SITES DO AR.**
+#    Para mudar algo lá, edite o arquivo do VPS; aqui só se atualiza a cópia depois.
+#
+# ── POR QUE ESTE ARQUIVO EXISTE ────────────────────────────────────────────────────────
+#
+# Porque uma parte do sistema é invisível pra quem lê só o C#. Cabeçalho de segurança, TLS,
+# compressão, cache e redirecionamento moram no proxy — e em 06/08/2026 uma varredura
+# concluiu "faltam os cabeçalhos de segurança" olhando apenas o `Program.cs`. Acrescentá-los
+# ao app fez cada um chegar DUAS vezes em produção; a RFC 7034 diz que servidor não deve
+# mandar mais de um `X-Frame-Options`, e navegador pode ignorar os dois quando divergem.
+# Duplicar não protegia mais: protegia menos, e custou um segundo deploy pra desfazer.
+#
+# Antes de afirmar que falta algo de borda, conferir numa resposta real:
+#   curl -s -D - -o /dev/null https://padelizou.com.br/
+#
+# ── COMO MEXER NO SERVIDOR, SEM DERRUBAR NADA ──────────────────────────────────────────
+#
+#   cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-$(date +%Y%m%d-%H%M%S)
+#   # editar
+#   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+#   systemctl reload caddy      # RELOAD, nunca restart — reload não derruba conexão
+#
+# Conferir depois (o `-D -` mostra os cabeçalhos; `Invoke-WebRequest` do PowerShell 5.1
+# NÃO serve pra ver redirect: ele segue sozinho e esconde o `Location`):
+#   curl -s -o /dev/null -D - https://www.padelizou.com.br/     # 301 pra raiz
+#   curl -s -o /dev/null -D - https://padelizou.com.br/         # 200
+#   curl -s -o /dev/null -D - https://admin.padelizou.com.br/   # 302 /Admin/Index
+#
+# Última sincronização com o servidor: 11/08/2026.
+# ───────────────────────────────────────────────────────────────────────────────────────
+
+# ⚠️ O ADMIN COMPARTILHA ESTE BLOCO com o site público. Mexer na primeira linha sem ler
+# derruba o painel junto — foi o cuidado que o 301 do `www` exigiu em 11/08/2026.
+padelizou.com.br, admin.padelizou.com.br {
+	# Caddy cuida do certificado HTTPS automaticamente (Let's Encrypt) e redireciona
+	# http:// -> https:// sozinho.
+	reverse_proxy localhost:5000
+
+	# Cabeçalhos de segurança (30/07/2026): nosniff impede o navegador de "adivinhar"
+	# tipo de arquivo (upload malicioso servido como script), SAMEORIGIN impede que
+	# outro site embuta o Padelizou num iframe (clickjacking), e a Referrer-Policy
+	# evita vazar a URL completa de origem pra sites de fora.
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/padelizou.log
+		format json
+	}
+}
+
+# Ambiente de teste isolado: instância própria (padelizou-dev.service, porta 5001) e banco
+# Postgres próprio (db_padel_dev) — pra testar código novo sem mexer em dado real de usuário.
+dev.padelizou.com.br {
+	reverse_proxy localhost:5001
+
+	# Mesmos cabeçalhos de segurança da produção — dev igual a prod evita surpresa.
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/padelizou-dev.log
+		format json
+	}
+}
+
+# 301 do www pra raiz (11/08/2026). Até aqui o site respondia nos DOIS endereços, com o
+# conteúdo idêntico e SEM redirecionar: para o buscador eram dois sites iguais, e a força de
+# cada página se dividia entre eles. O canonical do app reduz o dano; quem resolve é isto.
+#
+# {uri} preserva caminho e query — sem ele, um link de torneio compartilhado no WhatsApp com
+# www cairia na home em vez do torneio.
+www.padelizou.com.br {
+	redir https://padelizou.com.br{uri} permanent
+}
