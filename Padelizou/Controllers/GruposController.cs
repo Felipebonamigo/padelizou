@@ -264,7 +264,7 @@ namespace padelizou.Controllers
 
             // O local já vem escolhido no clube fixo do grupo — quem jogou fora do de sempre
             // troca ali mesmo, sem precisar mexer nas configurações da panelinha.
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             ViewBag.ClubeDoGrupoId = await _context.GruposPrivados
                 .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
 
@@ -526,7 +526,7 @@ namespace padelizou.Controllers
             var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == id);
             if (grupo == null || grupo.AdministradorId != userId) return RedirectToAction("Index");
 
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
 
             return View(grupo);

@@ -583,7 +583,7 @@ public class JogadoresController : Controller
         // Escrita igual à da lista, senão a cidade escolhida não fica marcada no select.
         vm.Cidade = CidadesSemRepetir.Canonizar(new[] { vm.Cidade }, cidades).FirstOrDefault();
         vm.Categorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
-        vm.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+        vm.Clubes = await _context.Clubes.ParaEscolher().ToListAsync();
 
         // Sem filtro nenhum a busca lista TODO MUNDO (pedido do Felipe, 29/07/2026): quem
         // abre a tela querendo "ver quem tem por aqui" não deveria precisar adivinhar um

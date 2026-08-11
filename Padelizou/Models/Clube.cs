@@ -19,6 +19,19 @@ public class Clube
     public int? CidadeId { get; set; }
     public virtual Cidade? Cidade { get; set; }
 
+    // Aparece nas listas de escolha do site? O clube nasce do que o jogador digitou no
+    // cadastro (CatalogoLocais), então a base junta os nomes certos com "Batata", "Rogérinho."
+    // e sobra de teste tipo "Clube Teste CSRF 1785325726351". Desligar aqui tira o clube de
+    // TODA lista de escolha de uma vez — ver Services/CatalogoLocais.ParaEscolher.
+    //
+    // ⚠️ Desligar NÃO apaga e NÃO desvincula: quem já marcou aquele clube continua marcado, o
+    // torneio que aconteceu lá continua sendo lá. Some só da lista de quem vai escolher agora.
+    //
+    // ⚠️ Nasce LIGADO, e a migration precisa dizer isso com `defaultValue: true` escrito à mão —
+    // coluna bool nova do EF nasce `false` no banco, e o padrão em C# só vale pra objeto NOVO.
+    // Sem esse cuidado, TODOS os clubes que já existiam sumiriam das listas no primeiro deploy.
+    public bool Selecionavel { get; set; } = true;
+
     // "Marcar Jogo" — dono/admin ativa pra permitir que o Padelizou administre a agenda de
     // quadras do clube (ver QuadraClube/HorarioMarcacaoDisponivel/MarcacaoJogo).
     public bool MarcacaoHorariosAtiva { get; set; }

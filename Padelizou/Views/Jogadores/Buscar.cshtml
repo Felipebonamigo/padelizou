@@ -89,9 +89,15 @@
                 <label class="form-label small fw-bold text-muted mb-1">Clube</label>
                 <select name="clubeId" class="form-select">
                     <option value="">Todos</option>
-                    @foreach (var cl in Model.Clubes)
+                    @* Agrupado por cidade — ver Services/CatalogoLocais. *@
+                    @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(Model.Clubes))
                     {
-                        <option value="@cl.Id" selected="@(Model.ClubeId == cl.Id)">@cl.Nome</option>
+                        <optgroup label="@grupo.Key">
+                            @foreach (var cl in grupo)
+                            {
+                                <option value="@cl.Id" selected="@(Model.ClubeId == cl.Id)">@cl.Nome</option>
+                            }
+                        </optgroup>
                     }
                 </select>
             </div>

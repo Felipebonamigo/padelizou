@@ -38,9 +38,15 @@
                                 <label class="form-label fw-bold text-muted small">Onde jogaram</label>
                                 <select name="clubeId" id="selectClube" class="form-select bg-light">
                                     <option value="">-- Não informar --</option>
-                                    @foreach (var clube in catalogoClubes)
+                                    @* Agrupado por cidade — ver Services/CatalogoLocais. *@
+                                    @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(catalogoClubes))
                                     {
-                                        <option value="@clube.Id" selected="@(clubeDoGrupoId == clube.Id)">@clube.Nome</option>
+                                        <optgroup label="@grupo.Key">
+                                            @foreach (var clube in grupo)
+                                            {
+                                                <option value="@clube.Id" selected="@(clubeDoGrupoId == clube.Id)">@clube.Nome</option>
+                                            }
+                                        </optgroup>
                                     }
                                 </select>
                                 <div class="mt-2 d-flex gap-2">

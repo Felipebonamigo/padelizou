@@ -1,0 +1,125 @@
+@* Filtro de cidade + busca por nome pra uma lista de clubes em CAIXINHAS (checkbox).
+   Os seletores usam `<optgroup>` e não precisam disto — o navegador já agrupa sozinho.
+
+   Existe porque com muitos clubes a lista de caixinhas vira uma parede: o cadastro e o
+   perfil desenham TODOS os clubes lado a lado, e achar o seu no meio de duzentos é rolar
+   procurando. Aqui não há consulta nova — a lista inteira já veio do servidor, e esconder
+   caixinha no navegador é instantâneo.
+
+   Como usar, de quem chama:
+     ViewData["FiltroClubesId"]      = id do container que tem as caixinhas (obrigatório)
+     ViewData["FiltroClubesCidades"] = List<string> das cidades presentes (obrigatório)
+     ViewData["FiltroClubesItem"]    = seletor CSS de cada item dentro do container
+                                       (opcional; padrão ".form-check")
+
+   Cada item precisa carregar `data-clube-nome` (minúsculo) e `data-clube-cidade`. Sem os
+   dois, o item é tratado como "não casa com filtro nenhum" e sumiria — por isso o JS
+   abaixo deixa passar quem não declarou, em vez de esconder: uma tela que esqueceu o
+   data-attribute mostra clube demais, e nunca clube de menos. *@
+@{
+    var filtroId = ViewData["FiltroClubesId"] as string;
+    var filtroCidades = ViewData["FiltroClubesCidades"] as List<string> ?? new List<string>();
+    var filtroItem = ViewData["FiltroClubesItem"] as string ?? ".form-check";
+    var filtroUid = Guid.NewGuid().ToString("N").Substring(0, 8);
+}
+
+@* Só aparece quando há mais de uma cidade OU lista grande: num clube só, o filtro é ruído. *@
+@if (!string.IsNullOrEmpty(filtroId) && filtroCidades.Count > 1)
+{
+    <div class="row g-2 mb-2">
+        <div class="col-7">
+            <input type="text" class="form-control form-control-sm" id="filtroClubeNome_@filtroUid"
+                   placeholder="Procurar clube pelo nome..." autocomplete="off" aria-label="Procurar clube pelo nome" />
+        </div>
+        <div class="col-5">
+            <select class="form-select form-select-sm" id="filtroClubeCidade_@filtroUid" aria-label="Filtrar clubes por cidade">
+                <option value="">Todas as cidades</option>
+                @foreach (var cidade in filtroCidades)
+                {
+                    <option value="@cidade">@cidade</option>
+                }
+            </select>
+        </div>
+    </div>
+    <div class="text-muted small mb-2" id="filtroClubeContagem_@filtroUid"></div>
+
+    <script>
+        (function () {
+            // ⚠️ ESPERAR O DOM não é zelo: este partial é desenhado ACIMA da lista que ele
+            // filtra (o filtro fica em cima, como se espera de um filtro), então na hora em que
+            // este script roda o container AINDA NÃO EXISTE. Sem isto, o `getElementById`
+            // devolvia null, a função saía pela porta dos fundos e o filtro simplesmente não
+            // fazia nada — sem erro no console, com os campos desenhados na tela.
+            //
+            // `readyState` e não só o DOMContentLoaded: se um dia alguém incluir este partial
+            // no fim da página, o evento já terá passado e nunca dispararia.
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', iniciar);
+            } else {
+                iniciar();
+            }
+
+            function iniciar() {
+            var container = document.getElementById(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(filtroId)));
+            if (!container) return;
+
+            var seletorItem = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(filtroItem));
+            var campoNome = document.getElementById('filtroClubeNome_@filtroUid');
+            var campoCidade = document.getElementById('filtroClubeCidade_@filtroUid');
+            var contagem = document.getElementById('filtroClubeContagem_@filtroUid');
+            var itens = [].slice.call(container.querySelectorAll(seletorItem));
+
+            // O que esconder: a caixinha, ou a coluna que a embrulha.
+            //
+            // ⚠️ Só o pai DIRETO, e nunca `closest('[class*="col-"]')`: o closest sobe a árvore
+            // até achar, e acha a coluna do LAYOUT (o `col-md-8` do card inteiro) — aí todos os
+            // itens dividem o mesmo alvo, o loop liga e desliga o mesmo elemento, e o filtro ou
+            // não faz nada ou some com a tela toda. Foi exatamente o que aconteceu.
+            //
+            // Telas que embrulham em coluna (Desafios) escondem a coluna, senão sobraria um
+            // buraco na grade; telas que não embrulham (preferências) escondem a caixinha.
+            function alvoDe(item) {
+                var pai = item.parentElement;
+                return pai && /(^|\s)col(-\S+)?(\s|$)/.test(pai.className) ? pai : item;
+            }
+
+            function aplicar() {
+                var nome = campoNome.value.trim().toLowerCase();
+                var cidade = campoCidade.value;
+                var visiveis = 0;
+
+                itens.forEach(function (item) {
+                    var nomeDoItem = item.dataset ? item.dataset.clubeNome : null;
+                    var cidadeDoItem = item.dataset ? item.dataset.clubeCidade : null;
+
+                    // Item sem os data-attributes passa sempre. Esconder o que não sei
+                    // classificar tiraria opção de alguém sem nenhum aviso.
+                    var passa = (!nome || !nomeDoItem || nomeDoItem.indexOf(nome) !== -1)
+                             && (!cidade || !cidadeDoItem || cidadeDoItem === cidade);
+
+                    alvoDe(item).style.display = passa ? '' : 'none';
+                    if (passa) visiveis++;
+                });
+
+                // A caixinha JÁ MARCADA que o filtro escondeu continua marcada e vai no envio.
+                // Sem dizer isso, alguém filtra por uma cidade, vê três marcadas, salva e leva
+                // junto as sete de outra cidade que marcou antes — e conclui que o site errou.
+                var marcadasEscondidas = itens.filter(function (item) {
+                    var caixa = item.querySelector('input[type=checkbox]');
+                    return caixa && caixa.checked && alvoDe(item).style.display === 'none';
+                }).length;
+
+                var texto = visiveis === itens.length ? '' : visiveis + ' de ' + itens.length + ' clube(s)';
+                if (marcadasEscondidas > 0) {
+                    texto += (texto ? ' · ' : '') + marcadasEscondidas + ' marcado(s) fora do filtro continuam marcados';
+                }
+                contagem.textContent = texto;
+            }
+
+            campoNome.addEventListener('input', aplicar);
+            campoCidade.addEventListener('change', aplicar);
+            aplicar();
+            }
+        })();
+    </script>
+}

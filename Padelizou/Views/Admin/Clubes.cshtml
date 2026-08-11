@@ -1,13 +1,24 @@
 @model List<Clube>
 @{
     ViewData["Title"] = "Clubes - Painel Admin - Padelizou";
+    var foraDoCatalogo = Model.Count(c => !c.Selecionavel);
+
+    // As cidades que existem na lista, pro filtro. "Sem cidade" entra como uma opção de
+    // verdade: é onde está o passivo dos clubes que nasceram antes de a pergunta existir, e
+    // é justamente ele que precisa ser varrido.
+    var cidadesDaLista = Model
+        .Select(Padelizou.Services.CatalogoLocais.CidadeDoClube)
+        .Distinct()
+        .OrderBy(c => c == Padelizou.Services.CatalogoLocais.SemCidade ? 1 : 0)
+        .ThenBy(c => c)
+        .ToList();
 }
 
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="fw-bold" style="color: var(--pdz-ink);">Clubes</h2>
-            <p class="text-muted mb-0">Arrume o nome e atribua o dono de cada clube. Só o dono e quem ele adicionar como administrador conseguem gerenciar o clube.</p>
+            <p class="text-muted mb-0">Arrume o nome, diga quem é o dono e escolha quais aparecem nas listas do site.</p>
         </div>
         <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
     </div>
@@ -21,26 +32,83 @@
         <div class="alert alert-danger">@TempData["Erro"]</div>
     }
 
+    <div class="alert alert-light border small">
+        <i class="bi bi-eye-slash"></i>
+        <strong>"No catálogo"</strong> é o que decide se o clube aparece pra quem vai <em>escolher</em>
+        um local — no cadastro, no perfil, ao criar torneio, ao publicar aviso ou desafio.
+        Tirar do catálogo <strong>não apaga e não desvincula nada</strong>: quem já marcou aquele
+        clube continua marcado e o torneio que aconteceu lá continua sendo lá. É pra varrer
+        duplicata e sobra de teste sem perder história.
+        @if (foraDoCatalogo > 0)
+        {
+            <text><br /><strong>@foraDoCatalogo</strong> @(foraDoCatalogo == 1 ? "clube está" : "clubes estão") fora do catálogo hoje.</text>
+        }
+    </div>
+
+    @* Filtro de tela, não de consulta: a lista inteira já veio, e esconder linha no navegador
+       é instantâneo. Com a base crescendo, achar "aquele clube de Gravataí" a olho na tabela
+       inteira deixou de ser possível. *@
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-5">
+            <label class="form-label small text-muted mb-1" for="filtroNome">Procurar pelo nome</label>
+            <input type="text" class="form-control" id="filtroNome" placeholder="Digite parte do nome..." autocomplete="off" />
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label small text-muted mb-1" for="filtroCidade">Cidade</label>
+            <select class="form-select" id="filtroCidade">
+                <option value="">Todas as cidades</option>
+                @foreach (var cidade in cidadesDaLista)
+                {
+                    <option value="@cidade">@cidade</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label small text-muted mb-1" for="filtroCatalogo">No catálogo</label>
+            <select class="form-select" id="filtroCatalogo">
+                <option value="">Tanto faz</option>
+                <option value="sim">Só os que aparecem</option>
+                <option value="nao">Só os que estão fora</option>
+            </select>
+        </div>
+    </div>
+
+    <p class="text-muted small" id="contagemClubes"></p>
+
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
                 <tr>
                     <th>Clube</th>
+                    <th>Cidade</th>
                     <th>Dono atual</th>
+                    <th class="text-center">No catálogo</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var clube in Model)
                 {
-                    <tr>
+                    var cidadeDoClube = Padelizou.Services.CatalogoLocais.CidadeDoClube(clube);
+                    <tr class="linha-clube" data-nome="@clube.Nome.ToLower()" data-cidade="@cidadeDoClube"
+                        data-catalogo="@(clube.Selecionavel ? "sim" : "nao")">
                         <td class="fw-bold">
-                            @clube.Nome
+                            <span class="@(clube.Selecionavel ? "" : "text-muted")">@clube.Nome</span>
                             <button type="button" class="btn btn-sm btn-link p-0 ms-2 text-decoration-none"
                                     data-bs-toggle="collapse" data-bs-target="#renomear_@clube.Id"
                                     title="Editar o nome" aria-label="Editar o nome de @clube.Nome">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                        </td>
+                        <td>
+                            @if (clube.Cidade != null)
+                            {
+                                <span class="small">@cidadeDoClube</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic small">@cidadeDoClube</span>
+                            }
                         </td>
                         <td>
                             @if (clube.Dono != null)
@@ -57,14 +125,39 @@
                                 <span class="text-muted fst-italic">Sem dono</span>
                             }
                         </td>
+                        <td class="text-center">
+                            @{
+                                var avisoDoCatalogo = clube.Selecionavel
+                                    ? $"Tirar \"{clube.Nome}\" das listas de escolha?\n\nEle some de onde as pessoas escolhem um local, e nada mais muda: quem já está vinculado continua, e o histórico fica inteiro."
+                                    : $"Devolver \"{clube.Nome}\" às listas de escolha?";
+                            }
+                            <form asp-controller="Admin" asp-action="AlternarClubeSelecionavel" method="post"
+                                  class="d-inline" data-confirmar="@avisoDoCatalogo">
+                                <input type="hidden" name="clubeId" value="@clube.Id" />
+                                @if (clube.Selecionavel)
+                                {
+                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3"
+                                            title="Aparece nas listas. Clique pra tirar.">
+                                        <i class="bi bi-check-lg"></i> Aparece
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                            title="Está fora das listas. Clique pra devolver.">
+                                        <i class="bi bi-eye-slash"></i> Fora
+                                    </button>
+                                }
+                            </form>
+                        </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#atribuir_@clube.Id">
                                 Atribuir dono
                             </button>
                         </td>
                     </tr>
-                    <tr class="collapse" id="renomear_@clube.Id">
-                        <td colspan="3">
+                    <tr class="collapse linha-extra-@clube.Id" id="renomear_@clube.Id">
+                        <td colspan="5">
                             <form asp-controller="Admin" asp-action="RenomearClube" method="post" class="d-flex gap-2 flex-wrap align-items-center">
                                 <input type="hidden" name="clubeId" value="@clube.Id" />
                                 @* O list mostra os clubes que já existem enquanto se digita: o nome
@@ -77,8 +170,8 @@
                             </form>
                         </td>
                     </tr>
-                    <tr class="collapse" id="atribuir_@clube.Id">
-                        <td colspan="3">
+                    <tr class="collapse linha-extra-@clube.Id" id="atribuir_@clube.Id">
+                        <td colspan="5">
                             @{
                                 ViewData["BuscaOrgActionUrl"] = Url.Action("AtribuirDono", "Admin");
                                 ViewData["BuscaOrgExtraFieldName"] = "clubeId";
@@ -105,3 +198,52 @@
         }
     </datalist>
 </div>
+
+@* Confirmação por `data-confirmar`, nunca por `confirm('...@variavel...')` dentro do atributo:
+   o Razor tem uma regra de e-mail e o `@` colado num caractere anterior sai LITERAL na tela,
+   sem erro nenhum — e um clube chamado "Rafa's" fecharia a aspa do JS. *@
+<script>
+    document.addEventListener('submit', function (e) {
+        var texto = e.target.dataset ? e.target.dataset.confirmar : null;
+        if (texto && !confirm(texto)) e.preventDefault();
+    });
+
+    (function () {
+        var campoNome = document.getElementById('filtroNome');
+        var campoCidade = document.getElementById('filtroCidade');
+        var campoCatalogo = document.getElementById('filtroCatalogo');
+        var contagem = document.getElementById('contagemClubes');
+        var linhas = [].slice.call(document.querySelectorAll('tr.linha-clube'));
+
+        function aplicar() {
+            var nome = campoNome.value.trim().toLowerCase();
+            var cidade = campoCidade.value;
+            var catalogo = campoCatalogo.value;
+            var visiveis = 0;
+
+            linhas.forEach(function (linha) {
+                var passa = (!nome || linha.dataset.nome.indexOf(nome) !== -1)
+                         && (!cidade || linha.dataset.cidade === cidade)
+                         && (!catalogo || linha.dataset.catalogo === catalogo);
+
+                linha.style.display = passa ? '' : 'none';
+                if (passa) visiveis++;
+
+                // As linhas de "renomear" e "atribuir dono" moram FORA da linha do clube (são
+                // <tr> irmãs). Sem escondê-las junto, o formulário de um clube filtrado ficaria
+                // aberto e solto no meio da tabela, sem dizer de quem é.
+                var extras = document.querySelectorAll('.linha-extra-' + linha.querySelector('input[name=clubeId]').value);
+                [].forEach.call(extras, function (extra) { if (!passa) extra.style.display = 'none'; else extra.style.display = ''; });
+            });
+
+            contagem.textContent = visiveis === linhas.length
+                ? linhas.length + ' clube(s)'
+                : visiveis + ' de ' + linhas.length + ' clube(s)';
+        }
+
+        campoNome.addEventListener('input', aplicar);
+        campoCidade.addEventListener('change', aplicar);
+        campoCatalogo.addEventListener('change', aplicar);
+        aplicar();
+    })();
+</script>

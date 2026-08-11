@@ -13,6 +13,60 @@ public static class CatalogoLocais
 {
     public const int TamanhoMaximoNome = 80;
 
+    // ── QUAIS CLUBES PODEM SER ESCOLHIDOS ─────────────────────────────────────────────────
+    //
+    // A lista que aparece pra quem vai ESCOLHER um clube: no cadastro, no perfil, ao criar
+    // torneio, ao publicar aviso, ao configurar grupo, ao publicar desafio, na busca de
+    // jogadores e no painel. Traz a cidade junto, porque com muitos clubes o nome sozinho não
+    // distingue duas "Arena Central" de cidades diferentes.
+    //
+    // ⚠️ EXISTE PRA SER O ÚNICO LUGAR. Antes disto, onze telas repetiam
+    // `_context.Clubes.OrderBy(c => c.Nome)` — acrescentar a régua em dez e esquecer de uma
+    // não quebra nada: o clube desligado simplesmente continua aparecendo naquela tela, calado,
+    // e ninguém descobre até alguém escolher o clube errado. Regra de catálogo espalhada é a
+    // mesma família de bug que a regra de torneio duplicada.
+    //
+    // NÃO usar em: /Admin/Clubes (a tela de gestão precisa ver os desligados pra religar), na
+    // checagem de nome repetido (nome duplicado é duplicado mesmo desligado) e em consulta de
+    // HISTÓRICO — o clube onde um torneio aconteceu não deixa de ser onde ele aconteceu.
+    public static IQueryable<Clube> ParaEscolher(this IQueryable<Clube> clubes) =>
+        clubes.Where(c => c.Selecionavel)
+              .Include(c => c.Cidade)
+              .OrderBy(c => c.Nome);
+
+    // O nome como ele aparece numa lista de escolha: "Nata Padel · Porto Alegre/RS".
+    // Clube sem cidade fica só com o nome — o passivo antigo não pode virar "Fulano · ".
+    public static string RotuloComCidade(Clube clube) =>
+        clube.Cidade == null ? clube.Nome : $"{clube.Nome} · {NomeDaCidade(clube.Cidade)}";
+
+    // Só a cidade, pro agrupamento e pro filtro. Quem não tem cidade cai num grupo próprio, e
+    // não some da lista: clube sem cidade é a maioria do passivo, e escondê-lo seria pior que
+    // deixá-lo no fim.
+    public const string SemCidade = "Sem cidade";
+
+    public static string CidadeDoClube(Clube clube) =>
+        clube.Cidade == null ? SemCidade : NomeDaCidade(clube.Cidade);
+
+    private static string NomeDaCidade(Cidade cidade) =>
+        string.IsNullOrWhiteSpace(cidade.Estado) ? cidade.Nome : $"{cidade.Nome}/{cidade.Estado}";
+
+    // Os clubes agrupados por cidade, pro `<optgroup>` dos seletores. O navegador já sabe
+    // desenhar grupo com título — num seletor de 200 clubes isso é a diferença entre rolar
+    // procurando e ir direto na cidade certa, sem uma linha de JavaScript.
+    //
+    // "Sem cidade" vai por último de propósito: é o passivo dos clubes que nasceram antes de a
+    // cidade ser perguntada, e ele encolhe sozinho (AcharOuCriarClubeAsync preenche o vazio
+    // quando alguém informa a cidade daquele clube).
+    public static IEnumerable<IGrouping<string, Clube>> AgrupadosPorCidade(IEnumerable<Clube> clubes) =>
+        clubes
+            .GroupBy(CidadeDoClube)
+            .OrderBy(g => g.Key == SemCidade ? 1 : 0)
+            .ThenBy(g => g.Key);
+
+    // As cidades presentes numa lista de clubes, na ordem em que devem aparecer num filtro.
+    public static List<string> CidadesDaLista(IEnumerable<Clube> clubes) =>
+        AgrupadosPorCidade(clubes).Select(g => g.Key).ToList();
+
     // Procura pelo nome sem diferenciar maiúsculas (LIKE do PostgreSQL diferencia) e só
     // cria se não achar — senão "Nata Padel" e "nata padel" viram dois clubes.
     //

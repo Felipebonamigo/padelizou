@@ -505,7 +505,7 @@ namespace Padelizou.Controllers
                     .Include(o => o.Jogador)
                     .Where(o => o.TorneioId == id)
                     .ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
 
                 // Trocar a forma de recebimento depois de criado: dá enquanto ninguém se

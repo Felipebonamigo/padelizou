@@ -236,12 +236,42 @@ namespace padelizou.Controllers
         {
             if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
 
+            // ⚠️ Sem `ParaEscolher()` de propósito: esta é a tela que LIGA e DESLIGA o
+            // "selecionável", e ela precisa enxergar justamente os desligados — filtrar aqui
+            // esconderia o botão de religar junto com o clube.
             var clubes = await _context.Clubes
                 .Include(c => c.Dono)
+                .Include(c => c.Cidade)
                 .OrderBy(c => c.Nome)
                 .ToListAsync();
 
             return View(clubes);
+        }
+
+        // O interruptor do catálogo. O clube nasce do que o jogador digitou no cadastro, então
+        // a base junta os nomes certos com "Batata", "Rogérinho." e sobra de teste tipo
+        // "Clube Teste CSRF 1785325726351" — e agora que a lista cresceu, essa sujeira aparece
+        // em toda tela onde alguém escolhe um local.
+        //
+        // Desligar é o meio-termo que faltava entre "deixar aparecer" e "apagar": some das
+        // listas de escolha e NÃO desfaz nada. Quem já marcou aquele clube continua marcado, o
+        // torneio que aconteceu lá continua sendo lá, e religar é o mesmo clique.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlternarClubeSelecionavel(int clubeId)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var clube = await _context.Clubes.FindAsync(clubeId);
+            if (clube == null) return NotFound();
+
+            clube.Selecionavel = !clube.Selecionavel;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = clube.Selecionavel
+                ? $"\"{clube.Nome}\" volta a aparecer nas listas de escolha."
+                : $"\"{clube.Nome}\" saiu das listas de escolha. Quem já estava vinculado a ele continua — só não aparece mais pra quem for escolher agora.";
+            return RedirectToAction("Clubes");
         }
 
         [HttpPost]

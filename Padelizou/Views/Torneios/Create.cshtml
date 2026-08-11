@@ -269,9 +269,17 @@
                             <option value="">@(temClube ? "-- Selecione o local --" : "-- Nenhum cadastrado ainda --")</option>
                             @if (catalogoClubes != null)
                             {
-                                foreach (var clube in catalogoClubes)
+                                @* Agrupado por cidade: o navegador desenha o título do grupo
+                                   sozinho, e num seletor grande é o que separa duas "Arena
+                                   Central" de cidades diferentes sem uma linha de JS. *@
+                                foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(catalogoClubes))
                                 {
-                                    <option value="@clube.Id">@clube.Nome</option>
+                                    <optgroup label="@grupo.Key">
+                                        @foreach (var clube in grupo)
+                                        {
+                                            <option value="@clube.Id">@clube.Nome</option>
+                                        }
+                                    </optgroup>
                                 }
                             }
                         </select>

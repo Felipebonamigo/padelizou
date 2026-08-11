@@ -237,12 +237,33 @@
         <label class="form-label fw-bold text-muted small mb-0">Locais preferidos</label>
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="desmarcarTodos('clube')">Qualquer local</button>
     </div>
+    @{
+        ViewData["FiltroClubesId"] = "listaClubes";
+        ViewData["FiltroClubesCidades"] = Padelizou.Services.CatalogoLocais.CidadesDaLista(catalogoClubes);
+        ViewData["FiltroClubesItem"] = ".form-check";
+    }
+    <partial name="_FiltroDeClubes" />
+    @{
+        ViewData["FiltroClubesId"] = null;
+        ViewData["FiltroClubesCidades"] = null;
+        ViewData["FiltroClubesItem"] = null;
+    }
     <div id="listaClubes">
         @foreach (var clube in catalogoClubes)
         {
-            <div class="form-check form-check-inline">
+            @* A cidade vai no RÓTULO, e não só no filtro: com a base crescendo, "Arena Central"
+               deixou de identificar um clube — existem duas, em cidades diferentes, e quem marca
+               a errada só descobre quando o aviso de jogo chega do lugar errado. *@
+            <div class="form-check form-check-inline" data-clube-nome="@clube.Nome.ToLower()"
+                 data-clube-cidade="@Padelizou.Services.CatalogoLocais.CidadeDoClube(clube)">
                 <input class="form-check-input clube-check" type="checkbox" name="clubesSelecionados" value="@clube.Id" id="clube_@clube.Id" @(Model.ClubesSelecionados.Contains(clube.Id) ? "checked" : "") />
-                <label class="form-check-label small" for="clube_@clube.Id">@clube.Nome</label>
+                <label class="form-check-label small" for="clube_@clube.Id">
+                    @clube.Nome
+                    @if (clube.Cidade != null)
+                    {
+                        <span class="text-muted">· @Padelizou.Services.CatalogoLocais.CidadeDoClube(clube)</span>
+                    }
+                </label>
             </div>
         }
     </div>

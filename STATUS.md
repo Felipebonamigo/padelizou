@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 📣 **OS CARDS COMPARTILHÁVEIS ESTÃO DE PÉ (no repo).** ⏳ **NÃO PUBLICADO** (commit local, sem deploy). São as duas primeiras telas do Padelizou cujo objetivo é **sair** do Padelizou.
+> Última atualização: **11/08/2026** — 🏟️ **O CATÁLOGO DE CLUBES GANHOU INTERRUPTOR E CIDADE.** ⏳ **NÃO PUBLICADO.**
+>
+> 🏟️ **"NO CATÁLOGO": O MEIO-TERMO ENTRE DEIXAR APARECER E APAGAR.** Pedido do Felipe olhando o seletor de clube sede em `/Admin/Times`, que trazia "Clube Teste CSRF 1785325726351" ao lado dos clubes de verdade. `Clube.Selecionavel` decide se o clube aparece pra quem vai **escolher** um local; desligar **não apaga e não desvincula nada** — quem já marcou continua marcado, e o torneio que aconteceu lá continua sendo lá. O interruptor mora em `/Admin/Clubes` (a única tela que continua vendo os desligados, senão o botão de religar sumiria junto).
+>
+> ⚠️ **A régua é UM MÉTODO, não uma condição copiada.** Onze telas repetiam `_context.Clubes.OrderBy(c => c.Nome)` — cadastro, perfil, criar/editar torneio, avisos, grupos, desafios, busca de jogadores, marcar jogo e o painel. Todas passaram a chamar `CatalogoLocais.ParaEscolher()`. Pôr a condição em dez e esquecer de uma não quebraria nada: o clube desligado seguiria aparecendo naquela tela, calado.
+>
+> 🗺️ **A CIDADE SAIU DO BANCO E FOI PRA TELA.** Os seletores agora são agrupados por cidade com `<optgroup>` — o navegador desenha o título do grupo sozinho, sem uma linha de JS — e as listas de caixinhas (preferências e desafios) ganharam **busca por nome + filtro de cidade**, com aviso quando um clube marcado está fora do filtro (senão alguém filtra, vê três marcados, salva e leva sete junto). Clube sem cidade cai num grupo "Sem cidade" que vai por último e **não some**: é onde está o passivo, e é ele que precisa ser varrido.
+>
+> 🚨 **A MIGRATION NASCEU ERRADA E FOI CORRIGIDA À MÃO.** O EF gerou `defaultValue: false` — o padrão de todo `bool` novo. Se subisse assim, **todos os clubes da base sumiriam de toda lista de escolha no primeiro deploy**: cadastro sem clube nenhum, criar torneio sem local, e nenhum erro em lugar nenhum pra explicar. Trocado por `true` no arquivo. ✅ Conferido no PostgreSQL local: os 8 clubes existentes acordaram todos "Aparece".
+>
+> 🐛 **Dois defeitos que só o navegador pegou** (teste xUnit não renderiza Razor): (1) o script do filtro rodava **antes** do container existir — ele é desenhado ACIMA da lista que filtra —, saía por `if (!container) return` e o filtro simplesmente não fazia nada, sem erro no console; (2) `closest('[class*="col-"]')` subia até a **coluna do layout**, então todos os itens dividiam o mesmo alvo e o filtro ligava/desligava a tela inteira. Agora espera o DOM e olha só o pai direto.
+>
+> 🧪 3.643 testes, 0 falhas (14 novos). `has-pending-model-changes` limpo.
+>
+> ⚠️ **Ficou de fora do commit, de propósito:** `Controllers/MarcarJogoController.cs`. Ele tem trabalho **das duas sessões** — o meu `ParaEscolher()` e o `PortaDoMarcarJogo` da sessão paralela, que depende de dois arquivos ainda não commitados. Commitá-lo sozinho quebraria o build.
+>
+> Antes — 📣 **OS CARDS COMPARTILHÁVEIS ESTÃO DE PÉ (no repo).** ⏳ **NÃO PUBLICADO** (commit local, sem deploy). São as duas primeiras telas do Padelizou cujo objetivo é **sair** do Padelizou.
 >
 > 🏆 **CARD DE CAMPEÃO:** quando a final de uma categoria é encerrada, nasce sozinha uma arte 1080×1350 com o nome da dupla, a categoria, o torneio, o clube, a data e o endereço do site. Botão **"Ver os campeões"** na página do torneio, ao lado do das fotos — e pelo mesmo motivo: é **pra todo mundo**, porque é o campeão postando sobre ele mesmo que leva a marca de carona. Hoje cada final morre no grupo do WhatsApp, sem nada que diga de onde aquilo saiu.
 >

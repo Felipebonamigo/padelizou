@@ -44,7 +44,7 @@ namespace padelizou.Controllers
         public async Task<IActionResult> Criar()
         {
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             return View();
         }
 

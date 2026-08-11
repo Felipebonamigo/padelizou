@@ -35,7 +35,7 @@ namespace Padelizou.Controllers
             // categoria desligada continua valendo onde já foi usada, mas não é oferecida.
             var catalogo = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
             ViewBag.CatalogoCategorias = catalogo;
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
 
             // Pacote adicional de registro de resultados: some da tela quando o serviço está
             // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
@@ -247,7 +247,7 @@ namespace Padelizou.Controllers
             {
                 ViewBag.Erro = motivo;
                 ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
-                ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+                ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 // Sem isto, cada recusa apagava as categorias marcadas e o organizador
                 // remarcava tudo de novo — oito cliques pra corrigir um campo de texto.
                 ViewBag.CategoriasSelecionadas = categoriasSelecionadas ?? Array.Empty<int>();

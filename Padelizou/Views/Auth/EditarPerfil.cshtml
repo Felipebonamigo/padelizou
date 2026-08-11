@@ -272,9 +272,17 @@
                                 <label class="form-label fw-bold text-muted small">Clube sede (opcional)</label>
                                 <select name="clubeSedeId" class="form-select bg-light">
                                     <option value="">— Sem clube —</option>
-                                    @foreach (var c in clubesDisponiveis)
+                                    @* Agrupado por cidade: o navegador desenha o título do grupo
+                                       sozinho, e num seletor grande é o que separa duas "Arena
+                                       Central" de cidades diferentes sem uma linha de JS. *@
+                                    @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(clubesDisponiveis))
                                     {
-                                        <option value="@c.Id" selected="@(meuTimeDono?.ClubeId == c.Id)">@c.Nome</option>
+                                        <optgroup label="@grupo.Key">
+                                            @foreach (var c in grupo)
+                                            {
+                                                <option value="@c.Id" selected="@(meuTimeDono?.ClubeId == c.Id)">@c.Nome</option>
+                                            }
+                                        </optgroup>
                                     }
                                 </select>
                             </div>

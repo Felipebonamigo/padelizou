@@ -427,7 +427,7 @@ namespace padelizou.Controllers
         private async Task PopularDadosTimeAsync(int jogadorId)
         {
             ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
-            ViewBag.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.Clubes = await _context.Clubes.ParaEscolher().ToListAsync();
             ViewBag.MeuTimeDono = await MeuTimeAsync(jogadorId);
         }
 
@@ -919,7 +919,7 @@ namespace padelizou.Controllers
         private async Task PopularCatalogosAsync()
         {
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             // Agrupado: catálogo com "Gravataí" e "Gravatai" mostrava duas caixinhas com o
             // mesmo nome, e marcar uma ou outra decidia se o aviso de quadra vaga chegava.
             ViewBag.CatalogoCidades = CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync());
@@ -1190,7 +1190,7 @@ namespace padelizou.Controllers
             if (jogador == null) return NotFound();
 
             ViewBag.CatalogoCategorias = await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync();
-            ViewBag.CatalogoClubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             // Agrupado: catálogo com "Gravataí" e "Gravatai" mostrava duas caixinhas com o
             // mesmo nome, e marcar uma ou outra decidia se o aviso de quadra vaga chegava.
             ViewBag.CatalogoCidades = CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync());

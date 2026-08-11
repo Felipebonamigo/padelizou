@@ -77,15 +77,33 @@
             <div class="mb-4">
                 <label class="form-label fw-bold">Clubes</label>
                 <div class="form-text mb-2">Não marcar nenhum = qualquer clube.</div>
-                <div class="row g-2" style="max-height: 260px; overflow-y: auto;">
+                @{
+                    ViewData["FiltroClubesId"] = "listaClubesDoDesafio";
+                    ViewData["FiltroClubesCidades"] = Padelizou.Services.CatalogoLocais.CidadesDaLista(Model.CatalogoClubes);
+                    ViewData["FiltroClubesItem"] = ".form-check";
+                }
+                <partial name="_FiltroDeClubes" />
+                @{
+                    ViewData["FiltroClubesId"] = null;
+                    ViewData["FiltroClubesCidades"] = null;
+                    ViewData["FiltroClubesItem"] = null;
+                }
+                <div class="row g-2" id="listaClubesDoDesafio" style="max-height: 260px; overflow-y: auto;">
                     @foreach (var c in Model.CatalogoClubes)
                     {
                         <div class="col-6 col-md-4">
-                            <div class="form-check">
+                            <div class="form-check" data-clube-nome="@c.Nome.ToLower()"
+                                 data-clube-cidade="@Padelizou.Services.CatalogoLocais.CidadeDoClube(c)">
                                 <input class="form-check-input" type="checkbox" name="clubes"
                                        value="@c.Id" id="clu@(c.Id)"
                                        checked="@Model.ClubesMarcados.Contains(c.Id)" />
-                                <label class="form-check-label small" for="clu@(c.Id)">@c.Nome</label>
+                                <label class="form-check-label small" for="clu@(c.Id)">
+                                    @c.Nome
+                                    @if (c.Cidade != null)
+                                    {
+                                        <span class="text-muted">· @Padelizou.Services.CatalogoLocais.CidadeDoClube(c)</span>
+                                    }
+                                </label>
                             </div>
                         </div>
                     }

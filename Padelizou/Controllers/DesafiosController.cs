@@ -913,7 +913,7 @@ public class DesafiosController : Controller
         return new PublicarAnuncioVM(
             await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync(),
             CidadesSemRepetir.Agrupar(await _context.Cidades.ToListAsync()),
-            await _context.Clubes.OrderBy(c => c.Nome).ToListAsync(),
+            await _context.Clubes.ParaEscolher().ToListAsync(),
             await _context.JogadorCategorias.Where(x => x.JogadorId == meuId)
                 .Select(x => x.CategoriaPadraoId).ToListAsync(),
             await _context.JogadorCidades.Where(x => x.JogadorId == meuId)

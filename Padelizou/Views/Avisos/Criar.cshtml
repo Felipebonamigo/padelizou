@@ -20,9 +20,15 @@
                             <label class="form-label fw-bold text-muted small">Local do jogo</label>
                             <select name="clubeId" id="selectClube" class="form-select bg-light" required>
                                 <option value="">-- Escolha um local --</option>
-                                @foreach (var clube in catalogoClubes)
+                                @* Agrupado por cidade — ver Services/CatalogoLocais. *@
+                                @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(catalogoClubes))
                                 {
-                                    <option value="@clube.Id">@clube.Nome</option>
+                                    <optgroup label="@grupo.Key">
+                                        @foreach (var clube in grupo)
+                                        {
+                                            <option value="@clube.Id">@clube.Nome</option>
+                                        }
+                                    </optgroup>
                                 }
                             </select>
                             <div class="mt-2 d-flex gap-2">
@@ -103,7 +109,21 @@
                     option.value = clube.id;
                     option.text = clube.nome;
                     option.selected = true;
-                    select.appendChild(option);
+
+                    // O select é agrupado por cidade, e o clube criado por aqui nasce sem
+                    // cidade. Sem escolher o grupo, a option ficaria solta DEPOIS de todos os
+                    // optgroups — visualmente fora da lista que ela acabou de entrar.
+                    var grupos = select.querySelectorAll('optgroup');
+                    var semCidade = null;
+                    for (var i = 0; i < grupos.length; i++) {
+                        if (grupos[i].label === 'Sem cidade') { semCidade = grupos[i]; break; }
+                    }
+                    if (!semCidade) {
+                        semCidade = document.createElement('optgroup');
+                        semCidade.label = 'Sem cidade';
+                        select.appendChild(semCidade);
+                    }
+                    semCidade.appendChild(option);
                     input.value = '';
                 });
         }

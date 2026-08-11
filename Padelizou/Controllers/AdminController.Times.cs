@@ -77,7 +77,7 @@ namespace padelizou.Controllers
                     .ToList(),
             }).ToList();
 
-            ViewBag.Clubes = await _context.Clubes.OrderBy(c => c.Nome).ToListAsync();
+            ViewBag.Clubes = await _context.Clubes.ParaEscolher().ToListAsync();
 
             return View(linhas);
         }

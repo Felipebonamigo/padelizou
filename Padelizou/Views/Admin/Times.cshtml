@@ -42,11 +42,19 @@
                 </div>
                 <div class="col-12 col-md-4">
                     <label class="form-label small text-muted mb-1" for="clubeSede">Clube sede <span class="fw-normal">(opcional)</span></label>
+                    @* Agrupado por cidade, e só com os clubes que estão no catálogo: a lista
+                       crua trazia junto a sobra de teste ("Clube Teste CSRF 1785325726351") e
+                       duas "Arena Central" indistinguíveis. Quem varre isso é /Admin/Clubes. *@
                     <select class="form-select" id="clubeSede" name="clubeId">
                         <option value="">Sem clube sede</option>
-                        @foreach (var clube in clubes)
+                        @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(clubes))
                         {
-                            <option value="@clube.Id">@clube.Nome</option>
+                            <optgroup label="@grupo.Key">
+                                @foreach (var clube in grupo)
+                                {
+                                    <option value="@clube.Id">@clube.Nome</option>
+                                }
+                            </optgroup>
                         }
                     </select>
                 </div>
