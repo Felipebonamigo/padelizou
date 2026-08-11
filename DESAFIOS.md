@@ -187,23 +187,57 @@ quem está olhando.
 
 ---
 
-## 4. 🏆 O Cinturão (fase 3)
+## 4. 🥊 O Cinturão
 
-Em cada **categoria × cidade** existe **um dono do cinturão**. Quem vencer o dono num desafio
-**leva o cinturão**.
+Em cada **categoria** existe **um dono do cinturão**. Quem vencer o dono num desafio **leva o
+cinturão**.
+
+> 🔒 **O recorte é a categoria, e não "categoria × cidade"** como esta espec dizia no primeiro
+> desenho (decisão do Felipe, 11/08/2026). Dois motivos, e o segundo é o que manda:
+>
+> 1. `Clube.CidadeId` existe e nada preenche (seção 8) — o cinturão por cidade nasceria vazio ou
+>    errado, calado.
+> 2. **Densidade.** Com a base de hoje, um cinturão por categoria é o único recorte em que ele
+>    troca de mão com alguma frequência. Cinturão que ninguém disputa é enfeite.
+>
+> Virar categoria × cidade depois é **uma coluna a mais**, não uma tabela nova.
 
 Três regras que impedem o cinturão de morrer no primeiro mês:
 
 - **O dono é obrigado a defender.** Recusou ou ignorou **3 desafios em 14 dias** → perde o
-  cinturão para o primeiro que desafiou e não foi atendido. Sem isso, ganhar e sumir seria a
-  estratégia ótima.
+  cinturão para o **primeiro** que desafiou e não foi atendido ("o primeiro", e não "o melhor
+  colocado": quem tentou antes esperou mais). Sem isso, ganhar e sumir seria a estratégia ótima.
 - **Perder para qualquer um vale.** Nada de "só o top 10 desafia": o cinturão é a porta de
   entrada do jogador novo, não o clube fechado dos veteranos.
 - **É da DUPLA, não do jogador.** Trocou de parceiro, começa de novo — é o que torna a dupla um
   personagem.
 
+**Detalhes que a implementação fixou:**
+
+- **O cinturão vago vai para o vencedor do primeiro desafio confirmado da categoria.** Sem isso
+  ele nunca nasceria: não há dono para alguém tomar.
+- **Cancelar um jogo já aceito NÃO conta** como fuga de defesa. A regra fala em *recusou ou
+  ignorou*, e desmarcar tem motivo legítimo demais (chuva, lesão) para custar um cinturão.
+- **Recusa de antes do reinado não conta.** Recusar quando não se tinha o cinturão é uma dupla
+  qualquer dizendo que não pode jogar — sem esse corte, quem ganhasse hoje poderia perder amanhã
+  por recusas de ontem.
+- **O dono vê que está em risco antes de perder** (*"mais 1 e o cinturão passa adiante"*), lido
+  do relógio. Regra que só aparece depois de executada vira *"o site tirou meu cinturão"*.
+- **Uma tabela só** (`ReinadoNoCinturao`): o dono de hoje é a linha com `TerminouEm` nulo, e as
+  demais são o histórico. Duas tabelas obrigariam toda troca a escrever nas duas.
+
 ⚠️ **Não lançar em cidade com menos de ~15 duplas ativas.** Cinturão com dois participantes é
-piada, e piada em produção não volta atrás.
+piada, e piada em produção não volta atrás. Quem segura isso é `Desafios__Habilitado`.
+
+## 4b. 🎾 A quadra do desafio
+
+Desafio **aceito** num clube com `MarcacaoHorariosAtiva` mostra **"Reservar a quadra"**, que cai
+no fluxo do `MarcarJogo` já no dia e no clube certos, com o rateio sugerido (*"o normal é cada
+dupla pagar metade"*).
+
+É só um atalho, de propósito: quem reserva, cobra e confirma continua sendo o `MarcarJogo` — nada
+aqui inventa preço nem horário. É o gancho que faz o desafio encher a terça vazia do clube, e é
+o argumento concreto da conversa comercial (seção 6).
 
 ---
 
@@ -298,10 +332,13 @@ com link compartilhável do anúncio. Nunca um "nenhum resultado encontrado".
 |---|---|---|
 | **1 — O mural** | Anúncio com convite do parceiro, mural filtrado, desafiar/aceitar/recusar, placar com dupla confirmação, avisos | ✅ **feita** (11/08/2026) |
 | **2 — O ranking** | As duas tabelas, filtros, cartão no hub, linha no perfil | ✅ **feita** (11/08/2026) |
-| **3 — O cinturão** | Cinturão por categoria × cidade, defesa obrigatória, selo no perfil, integração com a reserva de quadra | ⏳ a fazer |
+| **3 — O cinturão** | Cinturão por categoria, defesa obrigatória, selo no perfil e no mural, reserva de quadra | ✅ **feita** (11/08/2026) |
 
 A fase 1 é útil sozinha — é a que responde *"contra quem eu jogo sábado?"*. O ranking é o que
 faz voltar; o cinturão é o que vicia.
+
+**O módulo está completo e continua fechado.** O que falta não é código: é `Desafios__Habilitado=true`
+e uma cidade com densidade suficiente para o mural não nascer morto.
 
 > **A pontuação e o anti-farm entraram já na fase 1**, e não aqui. O motivo é que o ponto é
 > **congelado** na linha do desafio no fechamento: deixá-lo para a fase 2 faria o ranking nascer

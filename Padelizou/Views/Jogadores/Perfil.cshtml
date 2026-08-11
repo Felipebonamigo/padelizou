@@ -102,6 +102,23 @@
                 </p>
             }
 
+            @* 🥊 Cinturão: o selo mais alto do perfil. Vem ANTES do retrospecto porque é o que a
+               pessoa quer que vejam primeiro — e some sozinho no dia em que a dupla perde. *@
+            @if (ViewBag.CinturoesDoJogador is List<string> cinturoesDele && cinturoesDele.Count > 0)
+            {
+                <p class="mb-2">
+                    @foreach (var categoriaDoCinturao in cinturoesDele)
+                    {
+                        <a asp-controller="Desafios" asp-action="Ranking" class="text-decoration-none">
+                            <span class="badge rounded-pill" style="background:#0b3d2e;color:#9be3c0;font-size:.9rem;"
+                                  title="Dono do cinturão desta categoria nos Desafios. É da dupla: trocou de parceiro, começa de novo.">
+                                🥊 Cinturão @categoriaDoCinturao
+                            </span>
+                        </a>
+                    }
+                </p>
+            }
+
             @* Desafios (fase 2 do DESAFIOS.md). Só existe quando a porta do módulo está aberta
                pra quem está olhando — o ViewBag fica nulo quando não está. *@
             @if (ViewBag.ResumoDeDesafios is Padelizou.Services.ResumoDeDesafios desafiosDela

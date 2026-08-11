@@ -306,11 +306,13 @@ public static class TestInfra
     public static DesafiosController NovoDesafiosController(DbPadelContext ctx, int usuarioLogadoId,
         bool habilitado = true, IPushNotificationService? push = null)
     {
+        push ??= Substitute.For<IPushNotificationService>();
+
         var controller = new DesafiosController(
             ctx,
             PortaDosDesafiosDe(ctx, habilitado),
-            new FechamentoDoDesafio(ctx),
-            push ?? Substitute.For<IPushNotificationService>());
+            FechamentoDeDesafioDe(ctx, push),
+            push);
 
         controller.ControllerContext = new ControllerContext
         {
@@ -326,6 +328,13 @@ public static class TestInfra
         controller.Url = UrlDeTeste();
         return controller;
     }
+
+    // O fechamento de desafio pros testes — já com o cinturão pendurado nele, que é como roda em
+    // produção. Montar o FechamentoDoDesafio "pelado" num teste faria o teste passar num caminho
+    // que não existe: fechar placar SEM mexer no cinturão.
+    public static FechamentoDoDesafio FechamentoDeDesafioDe(DbPadelContext ctx,
+        IPushNotificationService? push = null) =>
+        new(ctx, new MovimentacaoDoCinturao(ctx, push ?? Substitute.For<IPushNotificationService>()));
 
     // A porta dos Desafios pros testes. `habilitado: false` é o PADRÃO porque é o estado de
     // produção hoje — quem testa o módulo passa true de propósito, e quem só precisa da porta

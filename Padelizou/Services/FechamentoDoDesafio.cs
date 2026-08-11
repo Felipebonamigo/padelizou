@@ -16,15 +16,20 @@ namespace Padelizou.Services;
 public class FechamentoDoDesafio
 {
     private readonly DbPadelContext _context;
+    private readonly MovimentacaoDoCinturao _cinturao;
 
-    public FechamentoDoDesafio(DbPadelContext context)
+    public FechamentoDoDesafio(DbPadelContext context, MovimentacaoDoCinturao cinturao)
     {
         _context = context;
+        _cinturao = cinturao;
     }
 
     // confirmadoPorId nulo = foi o relógio, não uma pessoa. A distinção fica no banco de
     // propósito: "quem confirmou este placar?" é a primeira pergunta de qualquer discussão.
-    public async Task FecharAsync(Desafio desafio, int? confirmadoPorId, DateTime agora,
+    //
+    // Devolve o que o resultado fez com o cinturão da categoria, pra quem chamou poder contar na
+    // tela ("vocês tomaram o cinturão!").
+    public async Task<EfeitoNoCinturao> FecharAsync(Desafio desafio, int? confirmadoPorId, DateTime agora,
         CancellationToken cancelationToken = default)
     {
         var niveis = await NiveisAsync(desafio, cancelationToken);
@@ -47,6 +52,15 @@ public class FechamentoDoDesafio
         desafio.ConfirmadoPorId = confirmadoPorId;
 
         await _context.SaveChangesAsync(cancelationToken);
+
+        // ⚠️ O cinturão entra AQUI, e não no controller: este é o caminho único por onde um
+        // desafio vira resultado — pelo botão da outra dupla e pelo relógio das 72h. No
+        // controller, o cinturão ficaria parado em todo desafio fechado pelo prazo, e o defeito
+        // seria mudo (o placar entra no ranking e o cinturão simplesmente não troca).
+        //
+        // E DEPOIS do SaveChanges de propósito: a régua do cinturão só olha desafio já
+        // `Confirmado` (ver Cinturao.Efeito).
+        return await _cinturao.AplicarAsync(desafio, agora, cancelationToken);
     }
 
     // Quantas vezes ESTAS DUAS DUPLAS já fecharam um desafio no mês corrente. É o número que

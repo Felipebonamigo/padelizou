@@ -20,7 +20,10 @@ public record CartaoDoMural(
     int DesafiosJogados,
     int Vitorias,
     bool EMeu,
-    bool JaDesafiei)
+    bool JaDesafiei,
+    // As categorias em que ESTA dupla tem o cinturão. O selo no cartão é o que transforma o
+    // mural numa lista de alvos — sem ele, o cinturão só existiria numa tabela que ninguém abre.
+    IReadOnlyList<string> Cinturoes)
 {
     public string PrazoNaTela => SemanaDoDesafio.RotuloDoPrazo(Anuncio.ValeAte);
 
@@ -114,9 +117,27 @@ public record MeusDesafiosVM(
 // O filtro é categoria + CLUBE, e não cidade: `Clube.CidadeId` existe e nada preenche, então um
 // filtro por cidade devolveria lista vazia com defeito mudo (ver DESAFIOS.md, "Buracos
 // conhecidos"). A cidade filtra o mural, que lê a cidade digitada pelas pessoas.
+// Um cinturão no ar: quem é o dono da categoria, desde quando, e o quanto ele está perto de
+// perder por não defender.
+public record CinturaoNaTela(
+    string Categoria,
+    string Dupla,
+    IReadOnlyList<int> Donos,
+    DateTime Desde,
+    int Defesas,
+    int FaltamParaPerder)
+{
+    // O dono precisa saber ANTES de perder — regra que só aparece depois de executada vira "o
+    // site tirou meu cinturão".
+    public bool EmRisco => FaltamParaPerder < Cinturao.NaoAtendidosQueCustamOCinturao;
+
+    public int NaoAtendidos => Cinturao.NaoAtendidosQueCustamOCinturao - FaltamParaPerder;
+}
+
 public record RankingDeDesafiosVM(
     IReadOnlyList<LinhaDoRankingDeDesafios> Duplas,
     IReadOnlyList<LinhaDoRankingDeDesafios> Jogadores,
+    IReadOnlyList<CinturaoNaTela> Cinturoes,
     IReadOnlyList<CategoriaPadrao> CatalogoCategorias,
     IReadOnlyList<Clube> CatalogoClubes,
     int? CategoriaFiltrada,
@@ -124,6 +145,8 @@ public record RankingDeDesafiosVM(
     int MeuId,
     bool EmConstrucao)
 {
+    public bool SouDonoDe(CinturaoNaTela cinturao) => cinturao.Donos.Contains(MeuId);
+
     public bool Vazio => Duplas.Count == 0 && Jogadores.Count == 0;
 
     // "Minha linha" é o que faz a tabela valer a rolagem. Serve pros dois modos: na de duplas a

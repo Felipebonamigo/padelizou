@@ -84,6 +84,7 @@ public class DesafiosController : Controller
 
         var retrospecto = await RetrospectoAsync(anuncios, agora);
         var jaDesafiei = await AnunciosQueJaDesafieiAsync(meuId, anuncios.Select(a => a.Id).ToList());
+        var cinturoes = await CinturoesPorDuplaAsync();
 
         var cartoes = anuncios.Select(a => new CartaoDoMural(
             a,
@@ -93,7 +94,9 @@ public class DesafiosController : Controller
             retrospecto.GetValueOrDefault(ChaveDaDupla.De(a.Jogador1Id, a.Jogador2Id!.Value)).Jogos,
             retrospecto.GetValueOrDefault(ChaveDaDupla.De(a.Jogador1Id, a.Jogador2Id!.Value)).Vitorias,
             EMeu: a.Jogador1Id == meuId || a.Jogador2Id == meuId,
-            JaDesafiei: jaDesafiei.Contains(a.Id))).ToList();
+            JaDesafiei: jaDesafiei.Contains(a.Id),
+            Cinturoes: cinturoes.GetValueOrDefault(
+                ChaveDaDupla.De(a.Jogador1Id, a.Jogador2Id!.Value)) ?? new List<string>())).ToList();
 
         var meuAnuncio = await MeuAnuncioVivoAsync(meuId, agora, incluirRascunho: true);
 
@@ -405,12 +408,54 @@ public class DesafiosController : Controller
         return View(new RankingDeDesafiosVM(
             RankingDeDesafios.PorDupla(confirmados, pessoas),
             RankingDeDesafios.PorJogador(confirmados, pessoas),
+            await CinturoesNoArAsync(agora, categoria),
             await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync(),
             await ClubesComDesafioAsync(agora),
             categoria,
             clube,
             MeuId(),
             _porta.EmConstrucao));
+    }
+
+    // Os cinturões de pé agora, com o quanto cada dono está perto de perder por não defender.
+    //
+    // ⚠️ "Quantas faltam" é lido do RELÓGIO aqui, e não de uma coluna: o vigia que executa a
+    // troca roda de 6 em 6 horas, e a tela não pode esperar por ele pra contar a verdade. Vigia
+    // parado atrasa a troca; nunca esconde o estado.
+    private async Task<List<CinturaoNaTela>> CinturoesNoArAsync(DateTime agora, int? categoria)
+    {
+        var donos = await _context.ReinadosNoCinturao
+            .AsNoTracking()
+            .Include(r => r.CategoriaPadrao)
+            .Include(r => r.Jogador1)
+            .Include(r => r.Jogador2)
+            .Where(r => r.TerminouEm == null)
+            .Where(r => categoria == null || r.CategoriaPadraoId == categoria)
+            .ToListAsync();
+
+        if (donos.Count == 0) return new();
+
+        // A janela da regra mais uma folga: um desafio proposto pouco antes dela ainda pode
+        // VENCER dentro dela (a proposta morre 48h depois de nascer).
+        var desdeQuando = agora - Cinturao.JanelaDaDefesa - EstadoDoDesafio.PrazoParaResponder;
+        var categorias = donos.Select(d => d.CategoriaPadraoId).ToList();
+
+        var recentes = await _context.Desafios
+            .AsNoTracking()
+            .Where(d => categorias.Contains(d.CategoriaPadraoId) && d.PropostoEm >= desdeQuando)
+            .ToListAsync();
+
+        return donos
+            .Select(d => new CinturaoNaTela(
+                d.CategoriaPadrao.Nome,
+                DuplaNaTela.Nome(d.Jogador1, d.Jogador2),
+                d.Donos.ToList(),
+                d.ComecouEm,
+                d.Defesas,
+                Cinturao.QuantasFaltamParaPerder(d, recentes, agora)))
+            .OrderByDescending(c => c.Defesas)
+            .ThenBy(c => c.Categoria, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     // ─────────────────────────── MEUS DESAFIOS ───────────────────────────
@@ -779,6 +824,20 @@ public class DesafiosController : Controller
             var atual = conta.GetValueOrDefault(chave);
             conta[chave] = (atual.Jogos + 1, atual.Vitorias + (venceu ? 1 : 0));
         }
+    }
+
+    // Quais categorias cada dupla tem na mão hoje, pra o cartão do mural mostrar o selo.
+    private async Task<Dictionary<string, List<string>>> CinturoesPorDuplaAsync()
+    {
+        var donos = await _context.ReinadosNoCinturao
+            .AsNoTracking()
+            .Include(r => r.CategoriaPadrao)
+            .Where(r => r.TerminouEm == null)
+            .ToListAsync();
+
+        return donos
+            .GroupBy(r => ChaveDaDupla.De(r.Jogador1Id, r.Jogador2Id))
+            .ToDictionary(g => g.Key, g => g.Select(r => r.CategoriaPadrao.Nome).OrderBy(n => n).ToList());
     }
 
     // Os quatro jogadores de cada desafio, pro ranking saber escrever os nomes.

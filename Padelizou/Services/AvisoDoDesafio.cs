@@ -59,4 +59,34 @@ public static class AvisoDoDesafio
     public static TextoDoAviso ConvitePraDupla(string quem) =>
         new("Te chamaram pra um desafio",
             $"{quem} quer fazer dupla com você nesta semana. Confirme pra o anúncio ir pro mural.");
+
+    // ── O cinturão ────────────────────────────────────────────────────────────────────
+    //
+    // Os quatro primeiros são bilhetes sociais (AppSemEmail): bons de ver, ninguém age por causa
+    // deles. O ÚLTIMO não é — quem perde por não defender precisa saber POR QUE perdeu, senão
+    // vira "o site tirou meu cinturão".
+
+    public static TextoDoAviso CinturaoVago(string categoria) =>
+        new("Vocês são os donos do cinturão! 🥊",
+            $"O cinturão da {categoria} estava vago e é de vocês. Agora é defender.");
+
+    public static TextoDoAviso CinturaoTomado(string categoria) =>
+        new("Cinturão conquistado! 🥊",
+            $"Vocês tomaram o cinturão da {categoria}. Agora é defender.");
+
+    public static TextoDoAviso CinturaoPerdido(string categoria) =>
+        new("O cinturão mudou de mão",
+            $"Vocês perderam o cinturão da {categoria} na quadra. Desafie de novo pra retomar.");
+
+    public static TextoDoAviso CinturaoPorOmissao(string categoria) =>
+        new("O cinturão é de vocês! 🥊",
+            $"O dono da {categoria} não respondeu aos desafios, e o cinturão passou pra vocês — "
+            + "foram os primeiros a chamar.");
+
+    // ⚠️ Diz o número e o prazo, porque é a única forma de a regra não parecer arbitrária.
+    public static TextoDoAviso CinturaoPerdidoPorOmissao(string categoria) =>
+        new("Vocês perderam o cinturão",
+            $"O cinturão da {categoria} passou adiante: foram {Cinturao.NaoAtendidosQueCustamOCinturao} "
+            + $"desafios recusados ou sem resposta em {Cinturao.JanelaDaDefesa.Days} dias. "
+            + "Aceite um desafio pra retomar.");
 }

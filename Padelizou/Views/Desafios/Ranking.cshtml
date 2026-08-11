@@ -62,6 +62,60 @@
         </div>
     </form>
 
+    @if (Model.Cinturoes.Count > 0)
+    {
+        @* 🥊 Os cinturões vêm ANTES da tabela de propósito: é o que a pessoa abre a tela pra ver,
+           e é o que dá um alvo pra ela ("quero tomar aquele"). A tabela é a temporada; o
+           cinturão é o hoje. *@
+        <div class="row g-3 mb-4">
+            @foreach (var c in Model.Cinturoes)
+            {
+                var meu = Model.SouDonoDe(c);
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100"
+                         style="border-left: 5px solid @(c.EmRisco ? "#dc3545" : "var(--padel-green)") !important;">
+                        <div class="card-body">
+                            <div class="small text-muted text-uppercase fw-bold">🥊 Cinturão · @c.Categoria</div>
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                                @c.Dupla
+                                @if (meu)
+                                {
+                                    <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
+                                }
+                            </h5>
+                            <div class="small text-muted">
+                                @c.Defesas defesa(s) · desde @c.Desde.ToString("dd/MM")
+                            </div>
+
+                            @if (c.EmRisco)
+                            {
+                                @* A regra tem que aparecer ANTES de ser executada — perder o
+                                   cinturão sem nunca ter sido avisado vira "o site tirou o meu". *@
+                                <div class="alert alert-danger small rounded-4 py-2 mt-2 mb-0">
+                                    @if (meu)
+                                    {
+                                        <strong>Defenda o cinturão.</strong>
+                                        <text>
+                                            @c.NaoAtendidos desafio(s) recusado(s) ou sem resposta nos últimos
+                                            @Cinturao.JanelaDaDefesa.Days dias — mais @c.FaltamParaPerder e ele passa adiante.
+                                        </text>
+                                    }
+                                    else
+                                    {
+                                        <text>
+                                            Esta dupla não respondeu @c.NaoAtendidos desafio(s).
+                                            Mais @c.FaltamParaPerder e o cinturão vai pra quem chamou primeiro.
+                                        </text>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
     @if (Model.Vazio)
     {
         <div class="text-center py-5">

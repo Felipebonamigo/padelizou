@@ -123,6 +123,9 @@ public partial class DbPadelContext : DbContext
     public DbSet<AnuncioDesafioCidade> AnuncioDesafioCidades { get; set; }
     public DbSet<AnuncioDesafioClube> AnuncioDesafioClubes { get; set; }
     public DbSet<Desafio> Desafios { get; set; }
+    // O cinturão de cada categoria: o dono de hoje é a linha com TerminouEm nulo, e as demais
+    // são o histórico. Ver o comentário do modelo.
+    public DbSet<ReinadoNoCinturao> ReinadosNoCinturao { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -1109,6 +1112,21 @@ public partial class DbPadelContext : DbContext
 
             // "Meus desafios" pergunta por status e data em toda visita.
             entity.HasIndex(e => new { e.Status, e.DataHora });
+        });
+
+        modelBuilder.Entity<ReinadoNoCinturao>(entity =>
+        {
+            // Restrict pelo mesmo motivo do Desafio: apagar uma conta não pode levar junto o
+            // reinado que o ADVERSÁRIO conquistou tomando o cinturão dela.
+            entity.HasOne(e => e.CategoriaPadrao).WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Jogador1).WithMany()
+                .HasForeignKey(e => e.Jogador1Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Jogador2).WithMany()
+                .HasForeignKey(e => e.Jogador2Id).OnDelete(DeleteBehavior.Restrict);
+
+            // "Quem tem o cinturão desta categoria?" é a pergunta de toda tela do módulo.
+            entity.HasIndex(e => new { e.CategoriaPadraoId, e.TerminouEm });
         });
 
         modelBuilder.Entity<ProfessorCidade>(entity =>

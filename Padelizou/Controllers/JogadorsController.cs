@@ -142,6 +142,15 @@ public class JogadoresController : Controller
                 .ToListAsync();
 
             ViewBag.ResumoDeDesafios = RankingDeDesafios.DoJogador(confirmadosDela, id);
+
+            // 🥊 Os cinturões que esta pessoa tem HOJE. É o selo mais alto do perfil — e é da
+            // DUPLA: some no dia em que ela perde na quadra ou deixa de defender.
+            ViewBag.CinturoesDoJogador = await _context.ReinadosNoCinturao
+                .AsNoTracking()
+                .Include(r => r.CategoriaPadrao)
+                .Where(r => r.TerminouEm == null && (r.Jogador1Id == id || r.Jogador2Id == id))
+                .Select(r => r.CategoriaPadrao.Nome)
+                .ToListAsync();
         }
 
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil

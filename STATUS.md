@@ -1,7 +1,33 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🏆 **DESAFIOS FASE 2: O RANKING ESTÁ NO AR (no repo).** ⏳ **NÃO PUBLICADO** e segue invisível atrás de `Desafios__Habilitado`.
+> Última atualização: **11/08/2026** — 🥊 **DESAFIOS FASE 3: O CINTURÃO. O MÓDULO ESTÁ COMPLETO** — e continua invisível atrás de `Desafios__Habilitado`. ⏳ **NÃO PUBLICADO.**
+>
+> 🥊 **Em cada categoria existe UM dono, e quem vence o dono leva.** É a mecânica do boxe, e é a parte da feature que faz alguém abrir o app numa terça sem motivo.
+>
+> 🔒 **O RECORTE MUDOU: categoria, não "categoria × cidade"** (decisão do Felipe, perguntada antes de codar). Dois motivos, e o segundo é o que manda: (1) `Clube.CidadeId` existe e **nada preenche**, então o cinturão por cidade nasceria vazio ou errado, calado; (2) **densidade** — com a base de hoje, um cinturão por categoria é o único recorte em que ele troca de mão com alguma frequência, e cinturão que ninguém disputa é enfeite. Virar categoria × cidade depois é **uma coluna a mais**, não uma tabela nova.
+>
+> 🛡️ **A DEFESA OBRIGATÓRIA É A METADE MAIS IMPORTANTE.** Sem ela, ganhar e sumir seria a estratégia ótima, e o campeão viraria um nome parado numa tela. Recusou ou ignorou **3 desafios em 14 dias** → o cinturão passa pro **primeiro** que chamou e não foi atendido ("o primeiro", e não "o melhor colocado": quem tentou antes esperou mais).
+>
+> 🕳️ **Três buracos dessa regra foram fechados de propósito, e cada um tem teste:** **cancelar** um jogo já aceito NÃO conta (desmarcar tem motivo legítimo demais — chuva, lesão — pra custar um cinturão; a regra fala em *recusou ou ignorou*); **recusa de antes do reinado** não conta (senão quem ganhasse hoje perderia amanhã por recusas de ontem); e recusa de **outra categoria** não conta contra este cinturão.
+>
+> 👀 **O dono vê que está em risco ANTES de perder** — *"2 desafios sem resposta, mais 1 e ele passa adiante"* —, e isso é **lido do relógio**, não do job. Regra que só aparece depois de executada vira "o site tirou meu cinturão". O `VigiaDoCinturaoBackgroundService` (6/6h) só MATERIALIZA o que o relógio já decidiu: vigia parado atrasa a troca, nunca esconde o estado.
+>
+> 🔁 **O cinturão entra pelo `FechamentoDoDesafio`**, que é o caminho único dos dois modos de fechar (botão da outra dupla e relógio das 72h). No controller, ele ficaria parado em todo desafio fechado pelo prazo — e o defeito seria mudo: o placar entraria no ranking e o cinturão simplesmente não trocaria.
+>
+> 🗃️ **UMA TABELA SÓ** (`ReinadoNoCinturao`): o dono de hoje é a linha com `TerminouEm` nulo, e as demais são o histórico com defesas, como terminou e qual desafio custou. Duas tabelas ("atual" + "histórico") obrigariam toda troca a escrever nas duas, e o dia em que uma falhasse deixaria um dono no cinturão e outro no histórico.
+>
+> 🎾 **E a quadra:** desafio aceito em clube com `MarcacaoHorariosAtiva` ganhou **"Reservar a quadra"**, caindo no `MarcarJogo` já no dia e no clube certos, com o rateio sugerido. É só atalho — quem cobra e confirma continua sendo o MarcarJogo. É o gancho que faz o desafio encher a terça vazia do clube.
+>
+> 🧪 **3.581 testes, 0 falhas** (15 novos). **1 migration** (tabela nova, conferida linha a linha). ✅ **Conferido no navegador com o cinturão TROCANDO DE MÃO de verdade**: dono semeado com 2 defesas, aviso vermelho lendo o relógio (*"não respondeu 2 desafios, mais 1 e vai pra quem chamou primeiro"*), o Rafael lançou 6x4, o Bruno confirmou — e o cinturão passou pra "Rafael Souza & Tania · 0 defesas · desde 11/08". No banco: reinado antigo encerrado com `ComoTerminou='Perdeu na quadra'` e `DesafioDaPerdaId`, **mantendo as 2 defesas no histórico**; reinado novo com `DesafioDeConquistaId`. E o **aviso de risco sumiu sozinho** — as recusas eram do reinado anterior, que é exatamente o corte por `ComecouEm`.
+>
+> 🏅 **O selo apareceu nos dois lugares que importam**: no cartão do mural (é o que transforma o mural numa lista de alvos) e no perfil. E o botão da quadra levou pro dia 15/08 do Arena Beira Rio com horários e preços reais.
+>
+> 🔒 **A porta segurou tudo de novo, no teste mais duro possível**: a Tania **é dona do cinturão** e, como não-admin, não vê o selo nem no PRÓPRIO perfil — e `/Desafios/Ranking` segue 404 pra ela.
+>
+> ⏭️ **O módulo está completo.** O que falta não é código: é `Desafios__Habilitado=true` e uma cidade com densidade pro mural não nascer morto.
+>
+> Antes, no mesmo dia: 🏆 **DESAFIOS FASE 2: O RANKING ESTÁ NO AR (no repo).** ⏳ **NÃO PUBLICADO** e segue invisível atrás de `Desafios__Habilitado`.
 >
 > 🏆 **DUAS TABELAS, E ELAS NUNCA SE SOMAM.** "Duplas" conta o par fixo (identidade pela chave canônica, então a dupla que desafiou na terça e foi desafiada no sábado é UMA linha); "Jogadores" conta o que cada um fez com qualquer parceiro. São os **mesmos jogos** por recortes diferentes — somar as duas conta cada pessoa duas vezes, que foi exatamente o erro do Ranking Americano (individual × duplas). A tela diz isso com todas as letras, e **um teste trava a tentação**: o total da tabela de jogadores é sempre o dobro da de duplas.
 >

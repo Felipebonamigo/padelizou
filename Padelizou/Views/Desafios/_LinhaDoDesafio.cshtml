@@ -82,6 +82,26 @@
             }
         }
 
+        @* A quadra ainda precisa ser reservada — e o clube deste desafio aluga pelo Padelizou.
+           O botão é só um atalho pro fluxo que já existe: quem reserva e quem paga é o
+           MarcarJogo, e nada aqui inventa preço nem horário. É o gancho que faz o desafio
+           encher a terça vazia do clube. *@
+        @if (d.Status == Desafio.Aceito && d.Clube.MarcacaoHorariosAtiva && d.DataHora > DateTime.Now)
+        {
+            <div class="alert alert-light border rounded-4 small d-flex justify-content-between align-items-center gap-2 flex-wrap mt-2 mb-2">
+                <span>
+                    <i class="bi bi-calendar2-plus"></i>
+                    O @d.Clube.Nome aluga quadra pelo Padelizou. Combinem quem reserva —
+                    o normal é cada dupla pagar metade.
+                </span>
+                <a asp-controller="MarcarJogo" asp-action="Clube"
+                   asp-route-clubeId="@d.ClubeId" asp-route-data="@d.DataHora.ToString("yyyy-MM-dd")"
+                   class="btn btn-sm btn-outline-primary rounded-pill">
+                    Reservar a quadra
+                </a>
+            </div>
+        }
+
         @if (Model.PossoLancarPlacar)
         {
             <form asp-action="LancarPlacar" method="post" class="border-top pt-3 mt-2">

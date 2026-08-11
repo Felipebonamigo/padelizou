@@ -215,8 +215,12 @@ builder.Services.AddScoped<ModuloDoBar>();
 // Desafios (DESAFIOS.md): quem enxerga o módulo enquanto ele está em construção, e o
 // fechamento do placar — que precisa ser o mesmo pra quem confirma no botão e pro relógio.
 builder.Services.AddScoped<PortaDosDesafios>();
+builder.Services.AddScoped<MovimentacaoDoCinturao>();
 builder.Services.AddScoped<FechamentoDoDesafio>();
 builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
+// O dono que recusa ou ignora 3 desafios em 14 dias perde o cinturão. É a metade da regra que
+// impede o campeão de virar um nome parado numa tela — ver Services/Cinturao.
+builder.Services.AddHostedService<VigiaDoCinturaoBackgroundService>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();

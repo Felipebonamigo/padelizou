@@ -409,7 +409,7 @@ public class DesafiosFluxoTests
         c.Ctx.Desafios.Add(terceiro);
         c.Ctx.SaveChanges();
 
-        var fechamento = new FechamentoDoDesafio(c.Ctx);
+        var fechamento = TestInfra.FechamentoDeDesafioDe(c.Ctx);
         Assert.Equal(2, await fechamento.ConfrontosAnterioresNoMesAsync(terceiro, agora));
 
         await fechamento.FecharAsync(terceiro, c.Jogadores[2], agora);
@@ -441,7 +441,7 @@ public class DesafiosFluxoTests
         c.Ctx.Desafios.Add(novo);
         c.Ctx.SaveChanges();
 
-        var fechamento = new FechamentoDoDesafio(c.Ctx);
+        var fechamento = TestInfra.FechamentoDeDesafioDe(c.Ctx);
         Assert.Equal(0, await fechamento.ConfrontosAnterioresNoMesAsync(novo, agora));
     }
 
