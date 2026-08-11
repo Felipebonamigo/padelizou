@@ -21,7 +21,15 @@
 >
 > 🐛 **Um defeito pego pelo próprio teste, e ele estava no teste**: `P(cidade, estado, em = null)` com `em ?? Hoje` engolia o `null` que o caso "conta anterior a 25/07/2026, sem data" precisa. Virou sobrecarga — parâmetro opcional que "conserta" o valor é como um teste passa verde sem nunca exercitar o que diz exercitar.
 >
-> Antes, no mesmo dia — 🤝 **PROGRAMA DE PARCEIROS INTEIRO: a régua, o registro da indicação, a conta da comissão e o 5º perfil de acesso.**
+> Antes, no mesmo dia — 🤝 **PROGRAMA DE PARCEIROS INTEIRO: a régua, o registro da indicação, a conta da comissão, o 5º perfil de acesso e o botão "Paguei".**
+>
+> 💸 **O BOTÃO "PAGUEI" NÃO PAGA NINGUÉM — e a tela diz isso com todas as letras.** O Pix é feito no banco, à mão; a ação só REGISTRA que saiu, pra que "quanto você já me pagou?" tenha resposta sem abrir o extrato. O acerto é um **saldo** (ganhou − recebeu), e não uma marcação por pagamento: a comissão pinga o mês inteiro, cliente a cliente, e escolher quais cobranças entram em cada Pix criaria uma segunda contabilidade pra manter de pé.
+>
+> ⚠️ **O "a pagar agora" NÃO é o saldo: o mês corrente fica de fora.** Ele ainda pode crescer — ou **ENCOLHER**, se entrar um estorno antes do fim do mês. Pagar adiantado cria um crédito que só aparece dois meses depois, sem ninguém lembrar por quê. E quem recebeu a mais aparece como **adiantado**, nunca como saldo negativo: negativo faria o Felipe achar que ainda deve.
+>
+> 🔒 **Só admin registra.** O parceiro **vê os próprios repasses** (é a transparência que sustenta a relação) e não tem formulário nem botão; o assistente do sistema passa no GET e é barrado no POST, pela trava do verbo. ✅ **Provado no navegador**: o POST forjado do parceiro, **com token CSRF válido pego de uma página que ele pode abrir**, não gravou linha nenhuma — o teste tinha que falhar por permissão, não por antiforgery.
+>
+> 🧪 **3.474 testes, 0 falhas** (17 novos). **1 migration** (tabela `RepassesAoParceiro`). ✅ **Conferido no navegador**: card do Diego com "ganhou R$ 55 · a pagar R$ 45" (os R$ 10 de agosto de fora), repasse de **R$ 12,34** gravado com os centavos certos (`numeric(10,2)`) e o saldo caindo pra R$ 32,66 na hora, **data no futuro recusada** (nada gravado) e o apagar devolvendo o valor ao saldo.
 >
 > 💰 **`/Admin/Comissoes` — a conta que transforma o programa numa promessa cumprível.** Mostra por parceiro o **já fechado** (entra no Pix do dia 10), o **mês corrente** (separado porque ainda pode crescer) e quantos dias faltam pro fim dos 12 meses de cada cliente, com o detalhe pagamento a pagamento. Regras em `Services/ComissaoDoParceiro`.
 >

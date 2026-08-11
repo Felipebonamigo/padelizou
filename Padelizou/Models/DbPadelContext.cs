@@ -33,6 +33,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
     public DbSet<LeadComercial> LeadsComerciais { get; set; }
+    public DbSet<RepasseAoParceiro> RepassesAoParceiro { get; set; }
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
@@ -202,6 +203,22 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(e => e.Cliente)
                 .WithMany()
                 .HasForeignKey(e => e.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RepasseAoParceiro>(entity =>
+        {
+            entity.Property(e => e.Valor).HasPrecision(10, 2);
+            entity.Property(e => e.Observacao).HasMaxLength(Services.LeadsComerciais.TamanhoMaximoObservacao);
+
+            // A tela lê "os repasses deste parceiro" o tempo todo.
+            entity.HasIndex(e => e.ParceiroId);
+
+            // Restrict pela mesma razão do lead: repasse é registro de dinheiro que saiu, e
+            // sumir junto com uma conta apagaria a prova de um pagamento já feito.
+            entity.HasOne(e => e.Parceiro)
+                .WithMany()
+                .HasForeignKey(e => e.ParceiroId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

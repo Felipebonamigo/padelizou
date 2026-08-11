@@ -163,4 +163,25 @@ public static class ComissaoDoParceiro
         var quando = parcela.Pagamento.ConfirmadoEm;
         return quando != null && quando.Value.Year == agora.Year && quando.Value.Month == agora.Month;
     }
+
+    // ── O ACERTO: quanto o parceiro já ganhou × quanto já recebeu ─────────────────────────
+    //
+    // ⚠️ É um SALDO, não uma marcação por pagamento. A comissão pinga o mês inteiro, cliente a
+    // cliente; o repasse cobre "tudo que fechou até agora". Marcar pagamento por pagamento
+    // obrigaria a escolher quais entram em cada Pix e criaria uma segunda contabilidade.
+    public record Acerto(decimal TotalGanho, decimal JaRepassado, decimal DoMesCorrente)
+    {
+        public decimal Saldo => TotalGanho - JaRepassado;
+
+        // ⚠️ O QUE JÁ DÁ PRA PAGAR HOJE — e não é o saldo. O mês corrente ainda pode crescer
+        // (ou ENCOLHER, se um estorno entrar antes do fim do mês), e pagá-lo adiantado é como
+        // se cria um repasse a mais que ninguém consegue explicar depois. `Max(0)` porque
+        // adiantamento não vira dívida do parceiro.
+        public decimal PagavelAgora => Math.Max(0m, Saldo - DoMesCorrente);
+
+        // Pagou mais do que devia (adiantou, ou um estorno derrubou a comissão depois do Pix).
+        // Aparece como crédito, não como número negativo: negativo faz o Felipe achar que
+        // ainda deve.
+        public decimal Adiantado => Math.Max(0m, JaRepassado - TotalGanho);
+    }
 }

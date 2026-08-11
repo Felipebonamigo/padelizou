@@ -20,3 +20,16 @@ public class ComissaoDeClienteVM
     // Já fechado: é isto que entra no Pix do dia 10.
     public decimal Fechado => Conta.Total - DoMesCorrente;
 }
+
+// O bloco de dinheiro de um parceiro: o que ele ganhou, o que já recebeu e o que falta.
+// É por aqui que o botão "Registrar repasse" sabe quanto sugerir.
+public class AcertoDoParceiroVM
+{
+    public Jogador Parceiro { get; set; } = null!;
+
+    public ComissaoDoParceiro.Acerto Acerto { get; set; } = new(0m, 0m, 0m);
+
+    public List<RepasseAoParceiro> Repasses { get; set; } = new();
+
+    public int Clientes { get; set; }
+}

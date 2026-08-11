@@ -78,6 +78,34 @@ namespace padelizou.Controllers
             .OrderByDescending(l => l.Conta.Total)
             .ToList();
 
+            // ── O bloco de dinheiro, por parceiro ─────────────────────────────────────────
+            // Os repasses saem da MESMA regra de filtro das linhas: um parceiro não pode ver
+            // nem o que o outro recebeu.
+            var parceiroIds = leads.Select(l => l.ParceiroId).Distinct().ToList();
+            var repasses = await _context.RepassesAoParceiro
+                .Where(r => parceiroIds.Contains(r.ParceiroId))
+                .OrderByDescending(r => r.PagoEm)
+                .ToListAsync();
+
+            ViewBag.Acertos = linhas
+                .GroupBy(l => l.Lead.Parceiro)
+                .Select(g =>
+                {
+                    var doParceiro = repasses.Where(r => r.ParceiroId == g.Key.Id).ToList();
+                    return new AcertoDoParceiroVM
+                    {
+                        Parceiro = g.Key,
+                        Clientes = g.Count(),
+                        Repasses = doParceiro,
+                        Acerto = new ComissaoDoParceiro.Acerto(
+                            TotalGanho: g.Sum(l => l.Conta.Total),
+                            JaRepassado: doParceiro.Sum(r => r.Valor),
+                            DoMesCorrente: g.Sum(l => l.DoMesCorrente)),
+                    };
+                })
+                .OrderByDescending(a => a.Acerto.PagavelAgora)
+                .ToList();
+
             ViewBag.Agora = agora;
             ViewBag.SoVeAsProprias = soVeAsProprias;
             ViewBag.NomeDeQuemOlha = quem!.Nome;
@@ -93,6 +121,81 @@ namespace padelizou.Controllers
                     .ToListAsync();
 
             return View(linhas);
+        }
+
+        // ⚠️ ISTO NÃO PAGA NINGUÉM. O Pix quem faz é o Felipe, no banco dele; esta ação só
+        // REGISTRA que ele fez, pra que "quanto eu já te paguei?" tenha resposta sem abrir o
+        // extrato. O texto da tela diz isso com todas as letras, de propósito.
+        //
+        // 🔒 Quem pode gravar: só admin de verdade. O parceiro comercial não passa por
+        // `ObterJogadorAdminAsync`, e o assistente do sistema também não — a trava dele é o
+        // VERBO, e esta é a única gravação nova desta frente.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarRepasse(int parceiroId, decimal valor,
+            DateTime? pagoEm, string? observacao)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return Forbid();
+
+            var parceiro = await _context.Jogadores.FindAsync(parceiroId);
+            if (parceiro == null) return NotFound();
+
+            if (valor <= 0)
+            {
+                TempData["Erro"] = "O valor do repasse precisa ser maior que zero.";
+                return RedirectToAction("Comissoes", new { parceiroId });
+            }
+
+            // Data no futuro é quase sempre erro de digitação (ano trocado), e uma data futura
+            // some do fechamento do mês sem ninguém entender por quê.
+            var quando = pagoEm ?? DateTime.Now;
+            if (quando.Date > DateTime.Now.Date)
+            {
+                TempData["Erro"] = "A data do repasse não pode ser no futuro.";
+                return RedirectToAction("Comissoes", new { parceiroId });
+            }
+
+            observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+            if (observacao != null && observacao.Length > LeadsComerciais.TamanhoMaximoObservacao)
+                observacao = observacao[..LeadsComerciais.TamanhoMaximoObservacao];
+
+            _context.RepassesAoParceiro.Add(new RepasseAoParceiro
+            {
+                ParceiroId = parceiro.Id,
+                Valor = valor,
+                PagoEm = quando,
+                RegistradoEm = DateTime.Now,
+                RegistradoPorId = admin.Id,
+                Observacao = observacao,
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Repasse de R$ {valor:N2} para {parceiro.ComoChamar} registrado "
+                + $"em {quando:dd/MM/yyyy}. O saldo dele caiu na mesma hora.";
+            return RedirectToAction("Comissoes", new { parceiroId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExcluirRepasse(int repasseId)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var repasse = await _context.RepassesAoParceiro
+                .Include(r => r.Parceiro)
+                .FirstOrDefaultAsync(r => r.Id == repasseId);
+            if (repasse == null) return NotFound();
+
+            // Apagar é pra lançamento errado — o dinheiro que saiu do banco não volta por aqui.
+            // O saldo do parceiro SOBE de novo, e é isso que o aviso da tela diz.
+            var parceiroId = repasse.ParceiroId;
+            var valor = repasse.Valor;
+            _context.RepassesAoParceiro.Remove(repasse);
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Lançamento de R$ {valor:N2} apagado. O saldo voltou a contar esse valor.";
+            return RedirectToAction("Comissoes", new { parceiroId });
         }
     }
 }

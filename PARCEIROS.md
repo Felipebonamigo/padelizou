@@ -172,14 +172,21 @@ inscrição, aula e quadra o cliente é o **`RecebedorId`** (o organizador, o pr
 clube); em mensalidade e taxa do externo o `RecebedorId` é **nulo** (o valor inteiro é nosso) e o
 cliente é **quem pagou**. Buscar só por um dos dois perderia frentes inteiras em silêncio.
 
+✅ **Botão "Paguei"** — registra o repasse e derruba o saldo. 💸 **Ele NÃO envia dinheiro**: o Pix
+é feito no banco, à mão, e a tela diz isso com todas as letras. O acerto é um **saldo**
+(ganhou − recebeu), não uma marcação por pagamento: a comissão pinga o mês inteiro e o repasse
+cobre tudo que fechou.
+
+⚠️ **O "a pagar agora" NÃO é o saldo** — o mês corrente fica de fora. Ele ainda pode crescer, ou
+**encolher** se entrar um estorno antes do fim do mês, e pagar adiantado cria um crédito que só
+aparece dois meses depois. Quem recebeu a mais aparece como **adiantado**, nunca como saldo
+negativo (negativo faria parecer dívida).
+
 ### O que ainda falta
 
-1. **Registro de repasse** — hoje a tela diz quanto, mas ninguém marca "paguei". Sem isso o
-   controle do que já saiu é o extrato bancário. 💸 O Pix quem aperta é o Felipe; o sistema só
-   monta o relatório e o botão.
-2. **A "1ª mensalidade cheia" do clube** nunca dispara, porque **não existe plano de clube no
+1. **A "1ª mensalidade cheia" do clube** nunca dispara, porque **não existe plano de clube no
    código**. Quando existir, basta o tipo dela entrar em `ComissaoDoParceiro.TiposDeMensalidade`.
-3. **A tela do parceiro é só leitura e só dele** — não há como ele registrar o próprio lead. Com
+2. **A tela do parceiro é só leitura e só dele** — não há como ele registrar o próprio lead. Com
    dois ou três parceiros o registro chega por WhatsApp e o Felipe lança; com cinco, não dá.
 
 ---
