@@ -1,4 +1,5 @@
 @model Clube
+@inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
 @{
     ViewData["Title"] = $"Gerenciar {Model.Nome} - Padelizou";
     var souDono = (bool)ViewBag.SouDono;
@@ -31,6 +32,12 @@
         <div class="alert alert-success">@TempData["Sucesso"]</div>
     }
 
+    @* O interruptor da agenda só aparece com o módulo de pé. Enquanto o Marcar Jogo está
+       escondido (Services/PortaDoMarcarJogo), ligar aqui não colocaria o clube em vitrine
+       nenhuma: o dono cadastraria quadras e horários pra ninguém, e concluiria que o
+       Padelizou não funciona. O estado fica guardado — quem já ligou continua ligado. *@
+    @if (await PortaMarcarJogo.PodeUsarAsync(User))
+    {
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h6 class="fw-bold text-muted mb-3">Marcar Jogo pelo Padelizou</h6>
@@ -66,6 +73,7 @@
             }
         </div>
     </div>
+    }
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">

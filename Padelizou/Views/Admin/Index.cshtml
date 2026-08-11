@@ -118,36 +118,32 @@
     }
 
     <div class="row g-3">
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Metricas" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-graph-up"></i> Métricas de uso</h5>
-                        <p class="text-muted small mb-0">Cadastros, inscrições, pagamentos e o medidor do teto do MEI.</p>
+        @* OS GRUPOS. Cada cartão abre uma tela com abas — as telas continuam as mesmas, o que
+           mudou é que elas deixaram de disputar espaço uma com a outra aqui. A lista é a mesma
+           que desenha a barra de abas lá dentro (Services/PainelAdminAgrupado): mexer nela é o
+           único lugar onde se mexe.
+
+           Os nomes das abas ficam escritos no cartão de propósito — sem isso, "onde foi parar
+           o Clubes?" viraria uma caça ao tesouro no primeiro dia. *@
+        @foreach (var grupo in Padelizou.Services.PainelAdminAgrupado.Grupos.Where(g => !g.SoRaiz || ehRaiz))
+        {
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="@grupo.Abas[0].Action" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi @grupo.Icone"></i> @grupo.Titulo</h5>
+                            <p class="text-muted small mb-2">@grupo.Descricao</p>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var aba in grupo.Abas)
+                                {
+                                    <span class="badge rounded-pill text-bg-light border fw-normal">@aba.Titulo</span>
+                                }
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Regioes" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-geo-alt"></i> Jogadores por região</h5>
-                        <p class="text-muted small mb-0">Quantos em cada cidade e estado, e o cadastro de cada região por dia, semana ou mês.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Feedbacks" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-chat-heart"></i> Opiniões dos jogadores</h5>
-                        <p class="text-muted small mb-0">O que escreveram sobre o site, a nota de 0 a 10, e o que publicar.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
+                </a>
+            </div>
+        }
         <div class="col-md-6">
             <a asp-controller="Admin" asp-action="Erros" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100">
@@ -159,71 +155,11 @@
             </a>
         </div>
         <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Denuncias" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-flag"></i> Comentários denunciados</h5>
-                        <p class="text-muted small mb-0">O que os jogadores sinalizaram nos perfis. Apagar ou manter, um a um.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
             <a asp-controller="Admin" asp-action="RegistroResultados" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
                         <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-raised-hand"></i> Registro de resultados</h5>
                         <p class="text-muted small mb-0">Organizadores pedindo nossa equipe pra lançar os jogos. Confirmar disponibilidade e valor.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Professores" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-mortarboard"></i> Professores</h5>
-                        <p class="text-muted small mb-0">Quem dá aula, em que plano está, quem já pagou e quanto entrou por mês.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Clubes" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shop"></i> Clubes</h5>
-                        <p class="text-muted small mb-0">Atribuir ou trocar o dono de cada clube.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Times" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Times</h5>
-                        <p class="text-muted small mb-0">Criar, apagar e designar quem administra cada time. O primeiro administrador só entra por aqui.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Leads" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-plus"></i> Indicações dos parceiros</h5>
-                        <p class="text-muted small mb-0">Quem trouxe quem, carimbado antes da conversa. É o que decide de quem é a comissão quando o cliente fechar.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="Comissoes" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-cash-coin"></i> Comissões dos parceiros</h5>
-                        <p class="text-muted small mb-0">Quanto cada parceiro tem a receber: o já fechado, o que ainda corre no mês e quanto falta pro fim dos 12 meses.</p>
                     </div>
                 </div>
             </a>
@@ -242,19 +178,6 @@
                 </div>
             </a>
         </div>
-        @if (ehRaiz)
-        {
-            <div class="col-md-6">
-                <a asp-controller="Admin" asp-action="Administradores" class="text-decoration-none">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-badge"></i> Administradores</h5>
-                            <p class="text-muted small mb-0">Nomear ou remover administradores do sistema.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        }
         @if (ehRaiz)
         {
             @* Os dois cards de dinheiro do dono ficam juntos, e só o raiz os vê — dar baixa
@@ -293,26 +216,6 @@
                 </a>
             </div>
             <div class="col-md-6">
-                <a asp-controller="Admin" asp-action="TorneiosParaAprovar" class="text-decoration-none">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-patch-check"></i> Torneios para aprovar</h5>
-                            <p class="text-muted small mb-0">Todo torneio nasce fora da vitrine. Aprovar põe na listagem e dispara o aviso.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-6">
-                <a asp-controller="Admin" asp-action="Organizadores" class="text-decoration-none">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-badge"></i> Quem pode criar torneio</h5>
-                            <p class="text-muted small mb-0">O perfil de organizador, liberado pessoa a pessoa.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-md-6">
                 <a asp-controller="Admin" asp-action="RankingAmericano" class="text-decoration-none">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body">
@@ -323,30 +226,6 @@
                 </a>
             </div>
         }
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="NotificacaoTeste" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-send-check"></i> Teste de aviso (WhatsApp e push)</h5>
-                        <p class="text-muted small mb-0">Manda pra <strong>uma pessoa só</strong>, pelo login dela, e diz por que não chegou quando não chega.</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-bell"></i> Notificação de teste (push)</h5>
-                    @* Este manda pra TODO MUNDO com o app, e só push — nunca WhatsApp. Teste
-                       chegando no celular de todo mundo é o jeito mais rápido de fazer a
-                       pessoa desligar o canal. Pra testar de verdade, use o card ao lado. *@
-                    <p class="text-muted small mb-3">Manda um push de teste pra todo mundo que instalou o app e ativou notificações.</p>
-                    <form asp-controller="Admin" asp-action="EnviarNotificacaoTeste" method="post">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Enviar pra todos</button>
-                    </form>
-                </div>
-            </div>
-        </div>
         <div class="col-md-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body">
@@ -380,13 +259,72 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    @* A GAVETA. O que se usa uma vez por mês saiu da grade (pedido do Felipe, 11/08: "tem
+       muita coisa, tá ruim de me achar") — mas saiu pra DENTRO de um clique, não pro código
+       apagado. Esconder o que é raro é o que faz o resto ficar achável.
+
+       ⚠️ Ela abre SOZINHA quando o portão está ligado. É a mesma disciplina do alarme do
+       canal, logo acima: dado normal fica quieto, estado anormal se apresenta. Site trancado
+       sem ninguém perceber é exatamente o que uma gaveta fechada causaria. *@
+    <details class="mt-4" open="@(ehRaiz && portaoLigado ? "open" : null)">
+        <summary class="fw-bold" style="color: var(--pdz-ink); cursor: pointer;">
+            <i class="bi bi-tools"></i> Ferramentas e ajustes
+            <span class="text-muted small fw-normal">— testes de aviso@(ehRaiz ? ", administradores e o portão do site" : "")</span>
+            @if (ehRaiz && portaoLigado)
+            {
+                <span class="badge text-bg-warning ms-1">portão FECHADO</span>
+            }
+        </summary>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="NotificacaoTeste" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-send-check"></i> Teste de aviso (WhatsApp e push)</h5>
+                            <p class="text-muted small mb-0">Manda pra <strong>uma pessoa só</strong>, pelo login dela, e diz por que não chegou quando não chega.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-bell"></i> Notificação de teste (push)</h5>
+                        @* Este manda pra TODO MUNDO com o app, e só push — nunca WhatsApp. Teste
+                           chegando no celular de todo mundo é o jeito mais rápido de fazer a
+                           pessoa desligar o canal. Pra testar de verdade, use o card ao lado. *@
+                        <p class="text-muted small mb-3">Manda um push de teste pra todo mundo que instalou o app e ativou notificações.</p>
+                        <form asp-controller="Admin" asp-action="EnviarNotificacaoTeste" method="post">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Enviar pra todos</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @if (ehRaiz)
+            {
+                <div class="col-md-6">
+                    <a asp-controller="Admin" asp-action="Administradores" class="text-decoration-none">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body">
+                                <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-badge"></i> Administradores</h5>
+                                <p class="text-muted small mb-0">Nomear ou remover administradores do sistema.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+
         @if (ehRaiz)
         {
-            @* O PORTÃO. Fica por último e ocupa a largura inteira de propósito: é o único
-               botão deste painel que muda quem consegue ENTRAR no site, e um card de meia
-               largura no meio da grade não carrega esse peso. O estado atual vem escrito em
-               letra grande porque a pergunta que se faz aqui é "está aberto ou fechado?",
-               não "onde clico". *@
+            @* O PORTÃO. Por último e na largura inteira de propósito: é o único botão deste
+               painel que muda quem consegue ENTRAR no site, e um card de meia largura não
+               carrega esse peso. O estado atual vem escrito em letra grande porque a pergunta
+               que se faz aqui é "está aberto ou fechado?", não "onde clico". *@
+            <div class="row g-3 mt-1">
             <div class="col-12">
                 <div class="card shadow-sm border-0 h-100 @(portaoLigado ? "" : "border-warning border-2")">
                     <div class="card-body">
@@ -441,6 +379,7 @@
                     </div>
                 </div>
             </div>
+            </div>
         }
-    </div>
+    </details>
 </div>

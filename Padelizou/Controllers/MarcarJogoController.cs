@@ -9,30 +9,47 @@ namespace padelizou.Controllers
 {
     // Tela do jogador pra marcar horário de quadra num clube que ativou "Marcar Jogo pelo
     // Padelizou" — gestão de quadras/horários pelo dono/admin é HorarioMarcacaoController.
+    //
+    // ⚠️ O módulo está ESCONDIDO até termos um clube (Services/MarcarJogoSettings). Sumir do
+    // menu é cortesia; o que fecha a porta é o `PortaAbertaAsync` no começo de cada ação de
+    // ENTRADA — sem ele, /MarcarJogo responderia pra quem digitasse o endereço na barra.
+    //
+    // ⚠️ E a trava é só na ENTRADA, de propósito. Ver, convidar e CANCELAR uma reserva que já
+    // existe continuam abertos: fechar isso junto prenderia quem marcou antes numa reserva que
+    // ele não consegue mais desmarcar — e o no-show sobraria pro clube. Todas essas ações já
+    // são filtradas por `JogadorId == meuId`, então não abrem nada de ninguém.
     [Authorize]
     public class MarcarJogoController : Controller
     {
         private readonly DbPadelContext _context;
         private readonly IHorarioMarcacaoService _horarioMarcacaoService;
         private readonly IPagamentoInscricaoService _pagamentos;
+        private readonly PortaDoMarcarJogo _porta;
 
         public MarcarJogoController(DbPadelContext context, IHorarioMarcacaoService horarioMarcacaoService,
-            IPagamentoInscricaoService pagamentos)
+            IPagamentoInscricaoService pagamentos, PortaDoMarcarJogo porta)
         {
             _context = context;
             _horarioMarcacaoService = horarioMarcacaoService;
             _pagamentos = pagamentos;
+            _porta = porta;
         }
 
         private int ObterJogadorIdLogado() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        private Task<bool> PortaAbertaAsync() => _porta.PodeUsarAsync(ObterJogadorIdLogado());
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
+            if (!await PortaAbertaAsync()) return NotFound();
+
+            // `ParaEscolher` também aqui: clube tirado do catálogo some de TODA lista de
+            // escolha, e esta é uma. Na prática não muda nada — o que se desliga é lixo de
+            // teste e duplicata, e esses nunca tiveram agenda de quadra ligada.
             var clubes = await _context.Clubes
-                .Include(c => c.Cidade)
                 .Where(c => c.MarcacaoHorariosAtiva)
-                .OrderBy(c => c.Nome)
+                .ParaEscolher()
                 .ToListAsync();
 
             return View(clubes);
@@ -41,6 +58,8 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Clube(int clubeId, DateTime? data)
         {
+            if (!await PortaAbertaAsync()) return NotFound();
+
             var clube = await _context.Clubes.Include(c => c.Cidade).FirstOrDefaultAsync(c => c.Id == clubeId);
             if (clube == null || !clube.MarcacaoHorariosAtiva) return NotFound();
 
@@ -56,6 +75,8 @@ namespace padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Marcar(int clubeId, int quadraClubeId, DateTime dataHora, int duracaoMinutos)
         {
+            if (!await PortaAbertaAsync()) return NotFound();
+
             var clube = await _context.Clubes.FindAsync(clubeId);
             if (clube == null || !clube.MarcacaoHorariosAtiva) return NotFound();
 
@@ -127,6 +148,8 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> MarcarVarios(int clubeId, string[] slots)
         {
+            if (!await PortaAbertaAsync()) return NotFound();
+
             var clube = await _context.Clubes.FindAsync(clubeId);
             if (clube == null || !clube.MarcacaoHorariosAtiva) return NotFound();
 

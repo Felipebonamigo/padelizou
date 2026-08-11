@@ -1,0 +1,40 @@
+@*
+    A barra de abas das telas do painel admin. A tela não diz quais são as abas dela: ela
+    pergunta pro Services/PainelAdminAgrupado, que é a mesma lista que desenha os cartões
+    em /Admin. Uma aba nova entra lá e aparece nos dois lugares de uma vez.
+
+    Uso, no topo de cada tela do grupo:  <partial name="_AbasDoPainel" />
+
+    ⚠️ Some sozinha quando a tela não pertence a grupo nenhum, e quando sobra uma aba só —
+    é o caso do parceiro comercial, que enxerga apenas as próprias comissões e pra quem uma
+    "barra de navegação" de um item seria só ruído.
+*@
+@{
+    var actionAtual = ViewContext.RouteData.Values["action"]?.ToString();
+    var grupo = Padelizou.Services.PainelAdminAgrupado.DoAction(actionAtual);
+
+    // A aba de INDICAÇÕES é da casa. O parceiro comercial chega em /Admin/Comissoes com o id
+    // dele imposto pela sessão (ver AdminController.Comissoes) — mostrar a ele um caminho pro
+    // caderno de quem-trouxe-quem seria oferecer a carteira de contatos dos concorrentes.
+    // Aqui é cortesia; quem recusa a entrada é a action, que exige admin.
+    var soVeAsProprias = ViewBag.SoVeAsProprias as bool? ?? false;
+    var abas = grupo?.Abas
+        .Where(a => !soVeAsProprias || string.Equals(a.Action, actionAtual, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+}
+
+@if (abas is { Count: > 1 })
+{
+    <ul class="nav nav-tabs mb-4">
+        @foreach (var aba in abas)
+        {
+            var ativa = string.Equals(aba.Action, actionAtual, StringComparison.OrdinalIgnoreCase);
+            <li class="nav-item">
+                <a class="nav-link @(ativa ? "active fw-bold" : "")"
+                   asp-controller="Admin" asp-action="@aba.Action">
+                    <i class="bi @aba.Icone me-1"></i> @aba.Titulo
+                </a>
+            </li>
+        }
+    </ul>
+}

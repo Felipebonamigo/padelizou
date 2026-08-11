@@ -13,12 +13,15 @@ public class HorarioVagoBackgroundService : BackgroundService
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<HorarioVagoBackgroundService> _logger;
+    private readonly MarcarJogoSettings _marcarJogo;
     private DateTime? _ultimaDataDisparada;
 
-    public HorarioVagoBackgroundService(IServiceScopeFactory scopeFactory, ILogger<HorarioVagoBackgroundService> logger)
+    public HorarioVagoBackgroundService(IServiceScopeFactory scopeFactory, ILogger<HorarioVagoBackgroundService> logger,
+        Microsoft.Extensions.Options.IOptions<MarcarJogoSettings> marcarJogo)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _marcarJogo = marcarJogo.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -37,6 +40,11 @@ public class HorarioVagoBackgroundService : BackgroundService
     {
         var agora = DateTime.Now;
         if (agora.Hour < HoraDoDisparo || _ultimaDataDisparada == agora.Date) return;
+
+        // Módulo escondido, aviso calado: este push manda o jogador pra uma tela que responde
+        // 404 pra ele (ver Services/MarcarJogoSettings). Aviso que leva a lugar nenhum queima a
+        // permissão de notificação — a pessoa desliga tudo e não volta.
+        if (!_marcarJogo.Habilitado) return;
 
         try
         {

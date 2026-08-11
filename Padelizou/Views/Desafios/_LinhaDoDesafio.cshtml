@@ -1,4 +1,5 @@
 @model LinhaDeDesafio
+@inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
 @{
     var d = Model.Desafio;
 
@@ -85,8 +86,12 @@
         @* A quadra ainda precisa ser reservada — e o clube deste desafio aluga pelo Padelizou.
            O botão é só um atalho pro fluxo que já existe: quem reserva e quem paga é o
            MarcarJogo, e nada aqui inventa preço nem horário. É o gancho que faz o desafio
-           encher a terça vazia do clube. *@
-        @if (d.Status == Desafio.Aceito && d.Clube.MarcacaoHorariosAtiva && d.DataHora > DateTime.Now)
+           encher a terça vazia do clube.
+
+           E é o MarcarJogo que decide se o atalho existe: com o módulo escondido, o botão
+           levaria a dupla a um 404 (Services/PortaDoMarcarJogo). *@
+        @if (d.Status == Desafio.Aceito && d.Clube.MarcacaoHorariosAtiva && d.DataHora > DateTime.Now
+             && await PortaMarcarJogo.PodeUsarAsync(User))
         {
             <div class="alert alert-light border rounded-4 small d-flex justify-content-between align-items-center gap-2 flex-wrap mt-2 mb-2">
                 <span>

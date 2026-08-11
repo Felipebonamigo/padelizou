@@ -75,6 +75,9 @@ builder.Services.Configure<BarSettings>(builder.Configuration.GetSection("Bar"))
 // Mesma ideia do Bar: os Desafios rodam em produção invisíveis até `Desafios__Habilitado=true`
 // (ver Services/DesafiosSettings) — aqui a chave também serve pra abrir cidade por cidade.
 builder.Services.Configure<DesafiosSettings>(builder.Configuration.GetSection("Desafios"));
+// Mesma prateleira, motivo diferente: o Marcar Jogo está PRONTO e escondido até termos um
+// clube com agenda de quadras. Vitrine vazia vende contra a gente — ver Services/MarcarJogoSettings.
+builder.Services.Configure<MarcarJogoSettings>(builder.Configuration.GetSection("MarcarJogo"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).
@@ -227,6 +230,9 @@ builder.Services.AddScoped<ModuloDoBar>();
 // Desafios (DESAFIOS.md): quem enxerga o módulo enquanto ele está em construção, e o
 // fechamento do placar — que precisa ser o mesmo pra quem confirma no botão e pro relógio.
 builder.Services.AddScoped<PortaDosDesafios>();
+// Quem enxerga o Marcar Jogo enquanto ele está escondido. Mesma régua pro menu, pra home,
+// pro painel do clube e pro controller — ver Services/PortaDoMarcarJogo.
+builder.Services.AddScoped<PortaDoMarcarJogo>();
 builder.Services.AddScoped<MovimentacaoDoCinturao>();
 builder.Services.AddScoped<FechamentoDoDesafio>();
 builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();

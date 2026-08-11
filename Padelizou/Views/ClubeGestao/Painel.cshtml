@@ -1,5 +1,6 @@
 @model Padelizou.ViewModels.PainelClubeVM
 @using System.Globalization
+@inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
 @{
     ViewData["Title"] = Model.Clube.Nome + " — Painel do Clube";
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
@@ -14,10 +15,15 @@
             </h2>
             <p class="text-muted mb-0">Painel do clube — agenda, quadras e financeiro num lugar.</p>
         </div>
-        <a asp-controller="MarcarJogo" asp-action="Clube" asp-route-clubeId="@Model.Clube.Id"
-           class="btn btn-outline-secondary rounded-pill">
-            <i class="bi bi-eye"></i> Ver como o jogador vê
-        </a>
+        @* Enquanto o Marcar Jogo está escondido não existe "como o jogador vê": a tela do
+           jogador responde 404 pra ele (Services/PortaDoMarcarJogo). *@
+        @if (await PortaMarcarJogo.PodeUsarAsync(User))
+        {
+            <a asp-controller="MarcarJogo" asp-action="Clube" asp-route-clubeId="@Model.Clube.Id"
+               class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-eye"></i> Ver como o jogador vê
+            </a>
+        }
     </div>
 
     @if (TempData["Sucesso"] != null)

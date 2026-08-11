@@ -1,10 +1,15 @@
 @model Padelizou.ViewModels.HomeVM
 @using System.Globalization
+@* Marcar Jogo escondido até termos um clube: a mesma régua do menu e do controller decide o
+   que esta página promete (Services/PortaDoMarcarJogo). *@
+@inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @{
     // Título vazio de propósito: a aba mostra só "Padelizou" (o sistema não é só torneio).
     ViewData["Title"] = null;
     bool logado = Model.PrimeiroNome != null;
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var marcarQuadraNaVitrine = await PortaMarcarJogo.MostrarNaVitrineAsync(User);
 
     // "hoje 14:00" / "amanhã 09:30" / "sáb 05/08 10:00" — curto, do jeito que se fala.
     string QuandoFala(DateTime d)
@@ -21,7 +26,11 @@
     <div class="pdz-hero text-center mb-5">
         <span class="pdz-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Jogos · Aulas · Torneios · Ranking</span>
         <h1 class="display-4 fw-bold mb-2">Seu padel num lugar só.</h1>
-        <p class="lead mb-4">Encontre parceiros, marque quadra e aula, dispute torneios e acompanhe sua evolução.</p>
+        @* A promessa segue o que existe: sem clube com agenda no ar, "marque quadra" seria uma
+           frase que a primeira tela desmente. *@
+        <p class="lead mb-4">
+            Encontre parceiros, @(marcarQuadraNaVitrine ? "marque quadra e aula" : "marque sua aula"), dispute torneios e acompanhe sua evolução.
+        </p>
         <div class="d-flex flex-wrap gap-2 justify-content-center">
             <a asp-controller="Auth" asp-action="Cadastro" class="btn btn-padel btn-lg rounded-pill px-4">
                 <i class="bi bi-person-plus me-1"></i> Criar Conta Grátis
@@ -324,11 +333,11 @@ else
         </div>
     }
 
-    <!-- O mapa da plataforma: as 6 portas de entrada -->
+    <!-- O mapa da plataforma: as portas de entrada -->
     <h3 class="pdz-section-title mb-4">@(logado ? "O que você quer fazer hoje?" : "O que dá pra fazer aqui")</h3>
     <div class="row row-cols-2 row-cols-md-3 g-3 mb-5">
         @{
-            var portas = new[]
+            var portas = new List<(string Icone, string Titulo, string Texto, string Controller, string Action)>
             {
                 (Icone: "bi-megaphone-fill", Titulo: "Buscar um jogo", Texto: "Ache parceiros do seu nível pra jogar hoje.", Controller: "Avisos", Action: "Index"),
                 (Icone: "bi-trophy-fill", Titulo: "Torneios", Texto: "Inscreva sua dupla e dispute de verdade.", Controller: "Torneios", Action: "Index"),
@@ -336,8 +345,14 @@ else
                 (Icone: "bi-graph-up-arrow", Titulo: "Ranking", Texto: "Pontos, títulos, vitórias e sua evolução.", Controller: "Jogadores", Action: "Ranking"),
                 (Icone: "bi-people-fill", Titulo: "Buscar jogadores", Texto: "Ache parceiro pelo nível, cidade ou clube.", Controller: "Jogadores", Action: "Buscar"),
                 (Icone: "bi-shield-lock-fill", Titulo: "Grupos", Texto: "Organize o jogo fixo da semana com a galera.", Controller: "Grupos", Action: "Index"),
-                (Icone: "bi-calendar2-week-fill", Titulo: "Marcar quadra", Texto: "Reserve horário nos clubes parceiros.", Controller: "MarcarJogo", Action: "Index"),
             };
+
+            @* "Marcar quadra" só entra quando o módulo está de pé. Esta é a porta mais visível
+               de todas — e hoje ela abre numa lista de zero clubes. *@
+            if (marcarQuadraNaVitrine)
+            {
+                portas.Add((Icone: "bi-calendar2-week-fill", Titulo: "Marcar quadra", Texto: "Reserve horário nos clubes parceiros.", Controller: "MarcarJogo", Action: "Index"));
+            }
         }
         @foreach (var p in portas)
         {
@@ -444,7 +459,19 @@ else
             <div class="card border-0 shadow-sm h-100 p-3">
                 <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-shop me-1"></i> Clube</h6>
                 <p class="small text-muted mb-2">Agenda de quadras online, com marcação pelos jogadores e cobrança na reserva.</p>
-                <a asp-controller="MarcarJogo" asp-action="Index" class="small fw-bold text-decoration-none mt-auto">Ver como funciona →</a>
+                @* O card FICA mesmo com o módulo escondido — é a porta de entrada do dono de
+                   clube, e é justamente ele que a gente está procurando. O que muda é o destino:
+                   "ver como funciona" numa vitrine de zero clubes vende contra a gente, então
+                   enquanto não temos clube o convite é falar com a gente. *@
+                @if (marcarQuadraNaVitrine)
+                {
+                    <a asp-controller="MarcarJogo" asp-action="Index" class="small fw-bold text-decoration-none mt-auto">Ver como funciona →</a>
+                }
+                else
+                {
+                    <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(SuporteOpcoes.Value.WhatsApp, "Olá! Tenho um clube e queria saber como funciona a agenda de quadras do Padelizou.")"
+                       target="_blank" rel="noopener" class="small fw-bold text-decoration-none mt-auto">Falar com a gente →</a>
+                }
             </div>
         </div>
     </div>

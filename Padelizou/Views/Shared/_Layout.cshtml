@@ -3,6 +3,10 @@
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.BetaSettings> BetaOpcoes
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @inject IWebHostEnvironment Ambiente
+@* O Marcar Jogo está escondido até termos um clube. A régua é a MESMA que trava o controller
+   (Services/PortaDoMarcarJogo) — um `if` próprio aqui seria a segunda cópia, e é assim que um
+   módulo escondido reaparece no menu no dia em que só uma das duas for atualizada. *@
+@inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
 @{
     var beta = BetaOpcoes.Value;
     var suporte = SuporteOpcoes.Value;
@@ -241,7 +245,9 @@
                                             <i class="bi bi-megaphone me-1"></i> Buscar jogo
                                         </a>
                                     </li>
-                                    @if (User.Identity?.IsAuthenticated == true)
+                                    @* Marcar jogo: escondido até termos um clube com agenda de quadras.
+                                       Enquanto isso o item só aparece pra admin do Padelizou. *@
+                                    @if (await PortaMarcarJogo.MostrarNoMenuAsync(User))
                                     {
                                         <li>
                                             <a class="dropdown-item" asp-controller="MarcarJogo" asp-action="Index">

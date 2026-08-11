@@ -19,9 +19,14 @@ public class MarcarVariosTests
         IHorarioMarcacaoService? slots = null, IPagamentoInscricaoService? pagamentos = null)
     {
         var pag = pagamentos ?? Substitute.For<IPagamentoInscricaoService>();
+        // Porta ABERTA nos testes: o módulo está escondido em produção até termos um clube
+        // (Services/MarcarJogoSettings), mas o que se exercita aqui é a regra do tudo-ou-nada,
+        // não a trava. Com a porta fechada toda ação responderia 404 e o teste passaria vazio.
+        var porta = new PortaDoMarcarJogo(ctx,
+            Microsoft.Extensions.Options.Options.Create(new MarcarJogoSettings { Habilitado = true }));
         var c = new MarcarJogoController(ctx,
             slots ?? Substitute.For<IHorarioMarcacaoService>(),
-            pag);
+            pag, porta);
         c.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext

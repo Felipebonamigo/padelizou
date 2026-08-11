@@ -144,10 +144,18 @@ namespace padelizou.Controllers
                 .OrderByDescending(t => t.Id)
                 .ToListAsync();
 
-            var criadores = await _context.TorneioOrganizadores
-                .Where(o => o.NivelAcesso == "Criador")
-                .Include(o => o.Jogador)
-                .ToDictionaryAsync(o => o.TorneioId, o => o.Jogador);
+            // ⚠️ Um torneio pode ter MAIS DE UM "Criador" — nada no cadastro impede, e no banco
+            // local três torneios já estão assim. Um `ToDictionaryAsync` cru estoura com "chave
+            // duplicada" e derruba a FILA INTEIRA por causa de um torneio: a tela vira 500 e
+            // nenhum torneio consegue ser aprovado. Agrupa e fica com o primeiro — por JogadorId,
+            // que junto com o TorneioId é a chave da tabela, pra não depender da ordem que o
+            // banco devolver. Aqui a pergunta é "quem criou isto", não "quem administra".
+            var criadores = (await _context.TorneioOrganizadores
+                    .Where(o => o.NivelAcesso == "Criador")
+                    .Include(o => o.Jogador)
+                    .ToListAsync())
+                .GroupBy(o => o.TorneioId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(o => o.JogadorId).First().Jogador);
 
             ViewBag.Esperando = torneios.Where(t => t.AprovadoEm == null).ToList();
             ViewBag.Aprovados = torneios.Where(t => t.AprovadoEm != null).Take(20).ToList();
