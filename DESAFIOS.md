@@ -163,12 +163,27 @@ ranking de agosto inteiro, em silêncio.
 ⚠️ São recortes diferentes das **mesmas** partidas. Somar as duas conta a mesma pessoa duas
 vezes — que foi exatamente o erro do Ranking Americano individual × duplas.
 
-Colunas: `Pos · Dupla · Desafios · V · D · % · Pontos`. Filtros por **categoria** e por
-**cidade** — a cidade passando por `Services/CidadesSemRepetir`, senão "Gravataí", "GRAVATAI" e
-"Gravatai" viram três rankings.
+Colunas: `Pos · Dupla · Desafios · V · D · % · Pontos`. Filtros por **categoria** e por **clube**.
+
+> ⚠️ **O filtro do ranking é por CLUBE, e não por cidade** — ao contrário do mural. A razão é o
+> buraco da seção 8: `Clube.CidadeId` existe e nada preenche, então um filtro por cidade aqui
+> devolveria tabela vazia sem dizer por quê. O mural filtra por cidade porque lê a cidade que as
+> **pessoas** digitaram (via `CidadesSemRepetir`); o desafio guarda o **clube** onde foi jogado.
+> Quando a coluna do clube for preenchida, o filtro por cidade vira uma linha a mais aqui.
+>
+> E o `<select>` de clube só oferece clubes que **já receberam desafio contado**: um filtro que só
+> sabe esvaziar a tela ensina a pessoa a não usar filtro.
 
 **Expira em 12 meses**, igual ao ranking anual: mata o "campeão eterno" e dá motivo para voltar
-todo ano.
+todo ano. O corte é lido do relógio em `RankingDeDesafios.QueContam` — o **mesmo** método que o
+retrospecto do cartão do mural e a linha do perfil usam. Três leituras discordando sobre o
+retrospecto da mesma dupla é como se deixa de acreditar nas três.
+
+**Onde ele aparece:** tela própria em `/Desafios/Ranking`; um **cartão** no hub
+`/Jogadores/Ranking` (não uma nona aba — a frase do topo daquela tela promete que tudo ali sai de
+resultados de **torneio**, e o desafio não é isso); e uma **linha no perfil**
+(`🥊 8 desafio(s) · 6 V · 75% · 71 pts`), que só existe quando a porta do módulo está aberta para
+quem está olhando.
 
 ---
 
@@ -279,11 +294,16 @@ com link compartilhável do anúncio. Nunca um "nenhum resultado encontrado".
 
 ## 9. Fases
 
-| Fase | O que entra |
-|---|---|
-| **1 — O mural** | Anúncio com convite do parceiro, mural filtrado, desafiar/aceitar/recusar, placar com dupla confirmação, avisos. **Sem ranking.** Os campos de ponto já nascem na tabela. |
-| **2 — O ranking** | Pontuação, as duas tabelas, filtros, seção no hub `/Jogadores/Ranking`, linha no perfil, anti-farm |
-| **3 — O cinturão** | Cinturão por categoria × cidade, defesa obrigatória, selo no perfil, integração com a reserva de quadra |
+| Fase | O que entra | Estado |
+|---|---|---|
+| **1 — O mural** | Anúncio com convite do parceiro, mural filtrado, desafiar/aceitar/recusar, placar com dupla confirmação, avisos | ✅ **feita** (11/08/2026) |
+| **2 — O ranking** | As duas tabelas, filtros, cartão no hub, linha no perfil | ✅ **feita** (11/08/2026) |
+| **3 — O cinturão** | Cinturão por categoria × cidade, defesa obrigatória, selo no perfil, integração com a reserva de quadra | ⏳ a fazer |
 
 A fase 1 é útil sozinha — é a que responde *"contra quem eu jogo sábado?"*. O ranking é o que
 faz voltar; o cinturão é o que vicia.
+
+> **A pontuação e o anti-farm entraram já na fase 1**, e não aqui. O motivo é que o ponto é
+> **congelado** na linha do desafio no fechamento: deixá-lo para a fase 2 faria o ranking nascer
+> sem histórico nenhum, com todos os desafios anteriores valendo nulo. A fase 2 é, por isso, só
+> leitura — nada nela calcula ponto.

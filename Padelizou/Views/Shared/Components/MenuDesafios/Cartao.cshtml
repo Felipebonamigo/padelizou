@@ -1,0 +1,30 @@
+@model bool
+@*
+    A entrada dos Desafios no hub de ranking (/Jogadores/Ranking).
+
+    É um CARTÃO que leva pra tela cheia, e não uma nona aba: as oito abas de lá são todas
+    calculadas "só a partir de resultados de torneios", e o desafio mede outra coisa — placar
+    combinado entre duas duplas, sem organizador. Enfiá-lo entre elas faria a frase do topo
+    daquela tela deixar de ser verdade.
+
+    Enquanto o módulo está em construção, o cartão só existe pra admin do Padelizou — mesma
+    régua do item do menu (Services/PortaDosDesafios).
+*@
+@if (Model)
+{
+    <a asp-controller="Desafios" asp-action="Ranking"
+       class="card border-0 shadow-sm rounded-4 text-decoration-none mb-4 d-block"
+       style="border-left: 5px solid var(--padel-green) !important;">
+        <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div>
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">🥊 Ranking de Desafios</h6>
+                <p class="small text-muted mb-0">
+                    Duplas e jogadores que se enfrentaram fora de torneio, nos últimos 12 meses.
+                </p>
+            </div>
+            <span class="btn btn-sm btn-outline-primary rounded-pill">
+                Ver <i class="bi bi-arrow-right"></i>
+            </span>
+        </div>
+    </a>
+}

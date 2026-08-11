@@ -204,6 +204,15 @@
         </div>
     }
 
+    @* O ranking de DESAFIOS mora numa tela própria e entra aqui como cartão, não como nona aba:
+       a frase do topo desta página promete que tudo abaixo sai de resultados de TORNEIO, e o
+       desafio é placar combinado entre duas duplas, sem organizador. Enquanto o módulo está em
+       construção o cartão só existe pra admin — quem decide é Services/PortaDosDesafios. *@
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        @await Component.InvokeAsync("MenuDesafios", new { estilo = "Cartao" })
+    }
+
     <!-- Navegação principal -->
     <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3 mt-2" role="tablist" style="white-space: nowrap;">
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill" data-bs-target="#tab-pontos" type="button"><i class="bi bi-list-ol"></i> Por categoria</button></li>

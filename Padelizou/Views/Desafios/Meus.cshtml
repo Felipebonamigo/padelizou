@@ -17,7 +17,12 @@
         <div class="alert alert-danger">@TempData["Erro"]</div>
     }
 
-    <h2 class="fw-bold mb-4" style="color: var(--pdz-ink);">Meus desafios</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Meus desafios</h2>
+        <a asp-action="Ranking" class="btn btn-outline-primary rounded-pill">
+            <i class="bi bi-trophy"></i> Ranking
+        </a>
+    </div>
 
     @if (Model.Recebidos.Count > 0)
     {

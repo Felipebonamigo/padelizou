@@ -1,0 +1,113 @@
+@model RankingDeDesafiosVM
+@{
+    ViewData["Title"] = "Ranking de Desafios - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+
+    @if (Model.EmConstrucao)
+    {
+        <div class="alert alert-warning d-flex align-items-center gap-2 rounded-4">
+            <i class="bi bi-cone-striped fs-4"></i>
+            <div>
+                <strong>Em construção — só você vê isto.</strong>
+                <div class="small">Pra abrir pros jogadores: <code>Desafios__Habilitado=true</code> no systemd.</div>
+            </div>
+        </div>
+    }
+
+    <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao mural
+    </a>
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">🏆 Ranking de Desafios</h2>
+            <p class="text-muted mb-0">
+                Só desafios com placar confirmado, dos últimos @RankingDeDesafios.MesesQueContam meses.
+            </p>
+        </div>
+        <a asp-action="Meus" class="btn btn-outline-primary rounded-pill">
+            <i class="bi bi-list-check"></i> Meus desafios
+        </a>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-4">
+        <div class="col-6 col-md-4">
+            <label class="form-label small text-muted mb-1">Categoria</label>
+            <select name="categoria" class="form-select rounded-pill">
+                <option value="">Todas</option>
+                @foreach (var c in Model.CatalogoCategorias)
+                {
+                    <option value="@c.Id" selected="@(Model.CategoriaFiltrada == c.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-4">
+            @* Clube, e não cidade: `Clube.CidadeId` existe e nada preenche, então um filtro por
+               cidade devolveria tabela vazia sem dizer por quê. *@
+            <label class="form-label small text-muted mb-1">Clube</label>
+            <select name="clube" class="form-select rounded-pill">
+                <option value="">Todos</option>
+                @foreach (var c in Model.CatalogoClubes)
+                {
+                    <option value="@c.Id" selected="@(Model.ClubeFiltrado == c.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <button type="submit" class="btn btn-outline-primary rounded-pill w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+
+    @if (Model.Vazio)
+    {
+        <div class="text-center py-5">
+            <p class="text-muted mb-1">Nenhum desafio confirmado ainda.</p>
+            <p class="text-muted small mb-3">O ranking começa no primeiro placar que as duas duplas confirmarem.</p>
+            <a asp-action="Index" class="btn btn-padel rounded-pill px-4 fw-bold">
+                <i class="bi bi-megaphone"></i> Ir pro mural
+            </a>
+        </div>
+    }
+    else
+    {
+        <ul class="nav nav-pills mb-3">
+            <li class="nav-item me-2">
+                <button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill"
+                        data-bs-target="#rk-duplas" type="button">
+                    <i class="bi bi-people-fill"></i> Duplas
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill"
+                        data-bs-target="#rk-jogadores" type="button">
+                    <i class="bi bi-person-check-fill"></i> Jogadores
+                </button>
+            </li>
+        </ul>
+
+        @* ⚠️ Este aviso não é enfeite. As duas tabelas leem as MESMAS partidas por recortes
+           diferentes, e alguém somando as duas conta a mesma pessoa duas vezes — foi exatamente
+           o que aconteceu com o Ranking Americano (individual × duplas). *@
+        <p class="small text-muted">
+            <i class="bi bi-info-circle"></i>
+            São os mesmos jogos vistos de dois jeitos: <strong>Duplas</strong> conta o par fixo,
+            <strong>Jogadores</strong> conta o que cada um fez com qualquer parceiro. Uma tabela
+            não se soma à outra.
+        </p>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="rk-duplas">
+                <partial name="_TabelaDoRankingDeDesafios"
+                         model='@(new TabelaDoRankingVM(Model.Duplas, Model.MeuId, "Dupla"))' />
+            </div>
+            <div class="tab-pane fade" id="rk-jogadores">
+                <partial name="_TabelaDoRankingDeDesafios"
+                         model='@(new TabelaDoRankingVM(Model.Jogadores, Model.MeuId, "Jogador"))' />
+            </div>
+        </div>
+    }
+</div>

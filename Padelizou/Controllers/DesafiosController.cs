@@ -82,7 +82,7 @@ public class DesafiosController : Controller
                 .ToList();
         }
 
-        var retrospecto = await RetrospectoAsync(anuncios);
+        var retrospecto = await RetrospectoAsync(anuncios, agora);
         var jaDesafiei = await AnunciosQueJaDesafieiAsync(meuId, anuncios.Select(a => a.Id).ToList());
 
         var cartoes = anuncios.Select(a => new CartaoDoMural(
@@ -380,6 +380,37 @@ public class DesafiosController : Controller
 
         TempData["Sucesso"] = "Desafio enviado! Eles têm 48h pra responder.";
         return RedirectToAction(nameof(Meus));
+    }
+
+    // ─────────────────────────── O RANKING ───────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Ranking(int? categoria, int? clube)
+    {
+        if (!await PortaAbertaAsync()) return NotFound();
+
+        var agora = DateTime.Now;
+
+        // ⚠️ O "o que conta" (confirmado + últimos 12 meses) sai de RankingDeDesafios.QueContam,
+        // o mesmo que o retrospecto do mural e a linha do perfil usam. Repetir a cláusula aqui
+        // seria a terceira cópia — e a que ficaria pra trás no dia em que nascer um estado novo.
+        var query = RankingDeDesafios.QueContam(_context.Desafios.AsNoTracking(), agora);
+
+        if (categoria is > 0) query = query.Where(d => d.CategoriaPadraoId == categoria);
+        if (clube is > 0) query = query.Where(d => d.ClubeId == clube);
+
+        var confirmados = await query.ToListAsync();
+        var pessoas = await PessoasDosDesafiosAsync(confirmados);
+
+        return View(new RankingDeDesafiosVM(
+            RankingDeDesafios.PorDupla(confirmados, pessoas),
+            RankingDeDesafios.PorJogador(confirmados, pessoas),
+            await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync(),
+            await ClubesComDesafioAsync(agora),
+            categoria,
+            clube,
+            MeuId(),
+            _porta.EmConstrucao));
     }
 
     // ─────────────────────────── MEUS DESAFIOS ───────────────────────────
@@ -710,10 +741,13 @@ public class DesafiosController : Controller
         return await query.OrderBy(c => c.Nome).ToListAsync();
     }
 
-    // Quantos desafios cada dupla do mural já fechou, e quantos venceu. Só o que está
-    // CONFIRMADO conta — placar em disputa e jogo que ninguém apareceu não são retrospecto.
+    // Quantos desafios cada dupla do mural já fechou, e quantos venceu.
+    //
+    // ⚠️ Lê pelo MESMO filtro do ranking (RankingDeDesafios.QueContam): o cartão do mural e a
+    // tabela do ranking não podem discordar sobre o retrospecto da mesma dupla — quem vê "8V" no
+    // cartão e "6V" na tabela deixa de acreditar nos dois.
     private async Task<Dictionary<string, (int Jogos, int Vitorias)>> RetrospectoAsync(
-        List<AnuncioDeDesafio> anuncios)
+        List<AnuncioDeDesafio> anuncios, DateTime agora)
     {
         var pessoas = anuncios
             .SelectMany(a => new[] { a.Jogador1Id, a.Jogador2Id ?? 0 })
@@ -723,10 +757,9 @@ public class DesafiosController : Controller
 
         if (pessoas.Count == 0) return new();
 
-        var confirmados = await _context.Desafios
-            .AsNoTracking()
-            .Where(d => d.Status == Desafio.Confirmado
-                && (pessoas.Contains(d.DesafianteJogador1Id) || pessoas.Contains(d.DesafiadoJogador1Id)))
+        var confirmados = await RankingDeDesafios
+            .QueContam(_context.Desafios.AsNoTracking(), agora)
+            .Where(d => pessoas.Contains(d.DesafianteJogador1Id) || pessoas.Contains(d.DesafiadoJogador1Id))
             .ToListAsync();
 
         var conta = new Dictionary<string, (int Jogos, int Vitorias)>();
@@ -746,6 +779,35 @@ public class DesafiosController : Controller
             var atual = conta.GetValueOrDefault(chave);
             conta[chave] = (atual.Jogos + 1, atual.Vitorias + (venceu ? 1 : 0));
         }
+    }
+
+    // Os quatro jogadores de cada desafio, pro ranking saber escrever os nomes.
+    private async Task<Dictionary<int, Jogador>> PessoasDosDesafiosAsync(List<Desafio> desafios)
+    {
+        var ids = desafios.SelectMany(d => d.Envolvidos).Distinct().ToList();
+        if (ids.Count == 0) return new();
+
+        return await _context.Jogadores
+            .AsNoTracking()
+            .Where(j => ids.Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id);
+    }
+
+    // Só os clubes que JÁ receberam desafio contado. Oferecer o catálogo inteiro encheria o
+    // filtro de clubes que devolvem tabela vazia — e um filtro que só sabe esvaziar a tela
+    // ensina a pessoa a não usar filtro.
+    private async Task<List<Clube>> ClubesComDesafioAsync(DateTime agora)
+    {
+        var ids = await RankingDeDesafios
+            .QueContam(_context.Desafios.AsNoTracking(), agora)
+            .Select(d => d.ClubeId)
+            .Distinct()
+            .ToListAsync();
+
+        return await _context.Clubes
+            .Where(c => ids.Contains(c.Id))
+            .OrderBy(c => c.Nome)
+            .ToListAsync();
     }
 
     private async Task<HashSet<int>> AnunciosQueJaDesafieiAsync(int meuId, List<int> anuncioIds)

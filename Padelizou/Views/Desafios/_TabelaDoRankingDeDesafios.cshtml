@@ -1,0 +1,43 @@
+@model TabelaDoRankingVM
+@*
+    A tabela do ranking de desafios — a mesma pras duas abas (duplas e jogadores).
+
+    Desafios, V, D e % somem abaixo de 576px: no celular o que decide é posição, nome e pontos,
+    e sete colunas ali viram uma tabela que ninguém lê. Mesmo corte das outras tabelas do hub.
+*@
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead>
+            <tr class="text-muted small">
+                <th style="width:3rem;">#</th>
+                <th>@Model.TituloDaColuna</th>
+                <th class="text-center d-none d-sm-table-cell">Desafios</th>
+                <th class="text-center d-none d-sm-table-cell">V</th>
+                <th class="text-center d-none d-sm-table-cell">D</th>
+                <th class="text-center d-none d-sm-table-cell">%</th>
+                <th class="text-end">Pontos</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var linha in Model.Linhas)
+            {
+                var souEu = Model.SouEu(linha);
+                <tr class="@(souEu ? "table-success" : "")">
+                    <td class="fw-bold text-muted">@linha.Posicao</td>
+                    <td class="fw-semibold" style="color: var(--pdz-ink);">
+                        @linha.Nome
+                        @if (souEu)
+                        {
+                            <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
+                        }
+                    </td>
+                    <td class="text-center d-none d-sm-table-cell">@linha.Desafios</td>
+                    <td class="text-center d-none d-sm-table-cell text-success fw-bold">@linha.Vitorias</td>
+                    <td class="text-center d-none d-sm-table-cell text-danger">@linha.Derrotas</td>
+                    <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento%</td>
+                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

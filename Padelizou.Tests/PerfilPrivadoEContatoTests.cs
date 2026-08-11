@@ -52,7 +52,9 @@ public class PerfilPrivadoEContatoTests
     private static async Task<JogadoresController> PerfilAsync(DbPadelContext ctx, int deQuem, int? logadoComo)
     {
         var controller = TestInfra.NovoJogadoresController(ctx, logadoComo);
-        Assert.IsType<ViewResult>(await controller.Perfil(deQuem));
+        // Desafios em construção, como em produção: a linha de retrospecto não entra na tela, e
+        // este teste continua medindo só a régua de privacidade.
+        Assert.IsType<ViewResult>(await controller.Perfil(deQuem, TestInfra.PortaDosDesafiosDe(ctx)));
         return controller;
     }
 

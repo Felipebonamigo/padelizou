@@ -104,3 +104,39 @@ public record MeusDesafiosVM(
     IReadOnlyList<LinhaDeDesafio> Enviados,
     IReadOnlyList<LinhaDeDesafio> Agendados,
     IReadOnlyList<LinhaDeDesafio> Historico);
+
+// O ranking (fase 2 do DESAFIOS.md).
+//
+// ⚠️ As duas listas vêm separadas e assim ficam. Uma única lista com um "modo" viraria, mais
+// cedo ou mais tarde, alguém somando as duas — e elas leem as MESMAS partidas por recortes
+// diferentes (o mesmo erro do Ranking Americano individual × duplas).
+//
+// O filtro é categoria + CLUBE, e não cidade: `Clube.CidadeId` existe e nada preenche, então um
+// filtro por cidade devolveria lista vazia com defeito mudo (ver DESAFIOS.md, "Buracos
+// conhecidos"). A cidade filtra o mural, que lê a cidade digitada pelas pessoas.
+public record RankingDeDesafiosVM(
+    IReadOnlyList<LinhaDoRankingDeDesafios> Duplas,
+    IReadOnlyList<LinhaDoRankingDeDesafios> Jogadores,
+    IReadOnlyList<CategoriaPadrao> CatalogoCategorias,
+    IReadOnlyList<Clube> CatalogoClubes,
+    int? CategoriaFiltrada,
+    int? ClubeFiltrado,
+    int MeuId,
+    bool EmConstrucao)
+{
+    public bool Vazio => Duplas.Count == 0 && Jogadores.Count == 0;
+
+    // "Minha linha" é o que faz a tabela valer a rolagem. Serve pros dois modos: na de duplas a
+    // linha é minha se eu sou um dos dois.
+    public bool SouEu(LinhaDoRankingDeDesafios linha) => linha.JogadorIds.Contains(MeuId);
+}
+
+// Uma tabela do ranking, pronta pra partial. As duas abas usam a MESMA — o cabeçalho muda uma
+// palavra, e duas partials quase iguais é como uma delas ganha uma coluna e a outra não.
+public record TabelaDoRankingVM(
+    IReadOnlyList<LinhaDoRankingDeDesafios> Linhas,
+    int MeuId,
+    string TituloDaColuna)
+{
+    public bool SouEu(LinhaDoRankingDeDesafios linha) => linha.JogadorIds.Contains(MeuId);
+}

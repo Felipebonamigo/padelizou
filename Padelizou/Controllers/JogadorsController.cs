@@ -32,8 +32,11 @@ public class JogadoresController : Controller
             .Select(j => new ValueTuple<string?, string?>(j.Nome, j.Apelido))
             .FirstOrDefaultAsync();
 
+    // `desafios` vem por [FromServices], e não pelo construtor, pra não obrigar as ~20 outras
+    // ações deste controller (e cada teste que as monta) a conhecer uma dependência que só o
+    // perfil usa. Mesmo arranjo do IPadelimetroService lá embaixo.
     [HttpGet]
-    public async Task<IActionResult> Perfil(int id)
+    public async Task<IActionResult> Perfil(int id, [FromServices] PortaDosDesafios desafios)
     {
         // Busca o jogador (com clubes e dias/horários preferidos, pro bloco "joga em")
         var jogador = await _context.Jogadores
@@ -121,6 +124,24 @@ public class JogadoresController : Controller
                 .OrderByDescending(h => h.CriadoEm).ThenByDescending(h => h.Id)
                 .Take(8)
                 .ToListAsync();
+        }
+
+        // ---- Desafios (fase 2 do DESAFIOS.md) ----
+        //
+        // ⚠️ Passa pela MESMA porta do módulo: enquanto ele está em construção, nem o dono do
+        // perfil vê a linha — senão o retrospecto de uma feature invisível apareceria num perfil
+        // que é público. E o filtro do que conta sai de RankingDeDesafios.QueContam, o mesmo do
+        // ranking e do mural: três leituras discordando sobre o retrospecto da mesma pessoa é
+        // como se deixa de acreditar nas três.
+        if (await desafios.PodeUsarAsync(meuId))
+        {
+            var confirmadosDela = await RankingDeDesafios
+                .QueContam(_context.Desafios.AsNoTracking(), DateTime.Now)
+                .Where(d => d.DesafianteJogador1Id == id || d.DesafianteJogador2Id == id
+                    || d.DesafiadoJogador1Id == id || d.DesafiadoJogador2Id == id)
+                .ToListAsync();
+
+            ViewBag.ResumoDeDesafios = RankingDeDesafios.DoJogador(confirmadosDela, id);
         }
 
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil

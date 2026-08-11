@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🥊 **DESAFIOS: A FASE 1 ESTÁ DE PÉ, E FECHADA.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy) e **invisível por decisão**: enquanto `Desafios__Habilitado` for false, só admin do Padelizou enxerga (pedido do Felipe: *"exiba apenas para mim por enquanto"*).
+> Última atualização: **11/08/2026** — 🏆 **DESAFIOS FASE 2: O RANKING ESTÁ NO AR (no repo).** ⏳ **NÃO PUBLICADO** e segue invisível atrás de `Desafios__Habilitado`.
+>
+> 🏆 **DUAS TABELAS, E ELAS NUNCA SE SOMAM.** "Duplas" conta o par fixo (identidade pela chave canônica, então a dupla que desafiou na terça e foi desafiada no sábado é UMA linha); "Jogadores" conta o que cada um fez com qualquer parceiro. São os **mesmos jogos** por recortes diferentes — somar as duas conta cada pessoa duas vezes, que foi exatamente o erro do Ranking Americano (individual × duplas). A tela diz isso com todas as letras, e **um teste trava a tentação**: o total da tabela de jogadores é sempre o dobro da de duplas.
+>
+> 🧊 **O ranking não calcula nada — ele SOMA o que já está congelado** na linha de cada desafio (`PontosDesafiante`/`PontosDesafiado`, gravados no fechamento desde a fase 1). É por isso que a fórmula pode mudar amanhã sem reescrever agosto.
+>
+> ⏳ **12 meses, lidos do relógio, num lugar só.** `RankingDeDesafios.QueContam` é o **mesmo** método que o retrospecto do cartão do mural e a linha do perfil usam — três leituras discordando sobre o retrospecto da mesma dupla é como se deixa de acreditar nas três. Só `Confirmado` entra: placar em disputa não é resultado, e jogo em que ninguém apareceu não mediu nada.
+>
+> 🔀 **A ordenação é TOTAL de propósito** (pontos → vitórias → jogos → nome → chave). Empate é o estado normal de um ranking novo, e ordenação parcial faz a tabela trocar de ordem entre dois carregamentos da MESMA página — ninguém reporta isso como bug e todo mundo desconfia. Tem teste que embaralha a entrada e exige a mesma sequência.
+>
+> 🗺️ **O filtro do ranking é por CLUBE, não por cidade** — e isso é decisão, não esquecimento: `Clube.CidadeId` existe e **nada preenche**, então filtrar por cidade aqui devolveria tabela vazia com defeito mudo. O mural continua filtrando por cidade porque lê a cidade que as PESSOAS digitaram. E o `<select>` só oferece clubes que já receberam desafio: filtro que só sabe esvaziar a tela ensina a pessoa a não usar filtro.
+>
+> 🃏 **No hub `/Jogadores/Ranking` ele entra como CARTÃO, não como nona aba.** A frase do topo daquela tela promete que *tudo abaixo sai de resultados de torneio* — enfiar o desafio entre as oito abas faria aquela promessa deixar de ser verdade. No perfil é uma linha (`🥊 2 desafio(s) · 1 V · 50% · 11 pts`) que leva ao ranking.
+>
+> 🧪 **3.566 testes, 0 falhas** (12 novos). **Zero migration.** ✅ **Conferido no navegador contra o PostgreSQL local, com quatro desafios semeados de propósito**: a revanche com lados trocados virou **uma** linha (2 jogos, 1V-1D), o desafio de **13 meses não aparece** (senão a dupla líder teria 511 pontos), o filtro por clube recortou de 4 linhas pra 2, o empate em 1 ponto saiu em ordem alfabética estável, e o selo "você" caiu na linha certa **nas duas tabelas**. 🔒 **A porta foi provada de novo com a Tania (não-admin) — e ela É jogadora de um dos desafios**: perfil do Rafael **sem** a linha, hub **sem** o cartão, `/Desafios/Ranking` **404**.
+>
+> ⏭️ **Falta só a fase 3**: o Cinturão por categoria × cidade (com defesa obrigatória) e a reserva de quadra saindo do desafio aceito.
+>
+> Antes, no mesmo dia: 🥊 **DESAFIOS: A FASE 1 ESTÁ DE PÉ, E FECHADA.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy) e **invisível por decisão**: enquanto `Desafios__Habilitado` for false, só admin do Padelizou enxerga (pedido do Felipe: *"exiba apenas para mim por enquanto"*).
 >
 > 🥊 **O QUE É:** uma dupla anuncia que quer jogar **nesta semana**, dizendo as categorias que aceita e as cidades/clubes onde topa; outra dupla clica em **Desafiar**; o jogo acontece; os dois lados confirmam o placar. Espec completa em **`DESAFIOS.md`**, na raiz — mudou a regra, muda LÁ primeiro.
 >

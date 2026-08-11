@@ -102,6 +102,23 @@
                 </p>
             }
 
+            @* Desafios (fase 2 do DESAFIOS.md). Só existe quando a porta do módulo está aberta
+               pra quem está olhando — o ViewBag fica nulo quando não está. *@
+            @if (ViewBag.ResumoDeDesafios is Padelizou.Services.ResumoDeDesafios desafiosDela
+                 && !desafiosDela.Vazio)
+            {
+                <p class="mb-2">
+                    <a asp-controller="Desafios" asp-action="Ranking" class="text-decoration-none">
+                        <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis"
+                              style="font-size:.9rem;"
+                              title="Desafios com placar confirmado nos últimos 12 meses. Não entram no Padelímetro.">
+                            🥊 @desafiosDela.Desafios desafio(s) · @desafiosDela.Vitorias V ·
+                            @desafiosDela.Aproveitamento% · @desafiosDela.Pontos pts
+                        </span>
+                    </a>
+                </p>
+            }
+
             @* ⚠️ O selo com a posição no @Padelizou.Services.MarcaDoRanking.Nome MORAVA AQUI e
                saiu em 08/08/2026, A PEDIDO DELES: o dado é deles, e fora de um torneio que usa a
                conferência não traz retorno nenhum pra quem o publica — vira o ranking deles

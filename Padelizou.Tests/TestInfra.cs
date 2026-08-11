@@ -306,12 +306,9 @@ public static class TestInfra
     public static DesafiosController NovoDesafiosController(DbPadelContext ctx, int usuarioLogadoId,
         bool habilitado = true, IPushNotificationService? push = null)
     {
-        var settings = Microsoft.Extensions.Options.Options.Create(
-            new DesafiosSettings { Habilitado = habilitado });
-
         var controller = new DesafiosController(
             ctx,
-            new PortaDosDesafios(ctx, settings),
+            PortaDosDesafiosDe(ctx, habilitado),
             new FechamentoDoDesafio(ctx),
             push ?? Substitute.For<IPushNotificationService>());
 
@@ -329,6 +326,12 @@ public static class TestInfra
         controller.Url = UrlDeTeste();
         return controller;
     }
+
+    // A porta dos Desafios pros testes. `habilitado: false` é o PADRÃO porque é o estado de
+    // produção hoje — quem testa o módulo passa true de propósito, e quem só precisa da porta
+    // como dependência (o perfil do jogador) recebe o mundo real: módulo em construção.
+    public static PortaDosDesafios PortaDosDesafiosDe(DbPadelContext ctx, bool habilitado = false) =>
+        new(ctx, Microsoft.Extensions.Options.Options.Create(new DesafiosSettings { Habilitado = habilitado }));
 
     public static Jogador NovoJogador(int i) => new()
     {
