@@ -1,7 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🚀 **`build-517-7f5e975` NO AR EM PRODUÇÃO** (21:09). A imagem da marca, o ícone da busca, o remendo do `www` e a cidade do clube.
+> Última atualização: **11/08/2026** — 🔗 **O `www` PAROU DE DUPLICAR O SITE** (21:51, no Caddy) + 🚀 **`build-517-7f5e975` NO AR** (21:09).
+>
+> 🔗 **301 DO `www` PRA RAIZ, e ele NÃO passa por deploy**: o `Caddyfile` mora só no VPS e não é versionado, então isto não está em commit nenhum — está valendo desde o `reload`. Até aqui os dois endereços serviam o site inteiro, idêntico e sem redirecionar; para o buscador eram dois sites iguais dividindo a força de cada página.
+>
+> 🕳️ **A ARMADILHA ERA A PRIMEIRA LINHA DO BLOCO**: `padelizou.com.br, www.padelizou.com.br, admin.padelizou.com.br {` — o **admin estava junto**. Tirar o `www` sem ler derrubaria o painel no mesmo movimento. O `www` saiu para um bloco próprio com `redir https://padelizou.com.br{uri} permanent`; ⚠️ **o `{uri}` é o que preserva caminho e query** — sem ele, link de torneio com `www` já compartilhado no WhatsApp cairia na home.
+>
+> ✅ **Receita usada (vale pra qualquer mexida no Caddy):** backup datado → `caddy validate` → **`systemctl reload`**, nunca restart. Conferido: `www` → 301 (com caminho e query), raiz 200, `admin` → 302 `/Admin/Index`, `dev` → 302 portão. ⚠️ `Invoke-WebRequest` do PS 5.1 **não serve** pra ver redirect (segue sozinho e esconde o `Location`) — usar `curl -s -o /dev/null -D -`.
+>
+> 📊 **Sitemap ENVIADO E PROCESSADO** no Search Console: 19 páginas encontradas. ⏭️ **O que o Google exibe ainda é o de antes, e o sinal objetivo disso é a DESCRIÇÃO**: ela ainda cita "Criar Conta Grátis Já tenho conta", texto que não existe mais no site. Enquanto ela não trocar, ele não releu — e **o ícone vem depois disso, nunca antes** (ciclo próprio, semanas é normal).
+>
+> Antes, no mesmo dia: 🚀 **`build-517-7f5e975` NO AR EM PRODUÇÃO** (21:09). A imagem da marca, o ícone da busca, o remendo do `www` e a cidade do clube.
 >
 > ✅ **E O DEPLOY PELO GITHUB FUNCIONOU PELA PRIMEIRA VEZ.** Ele **nunca tinha rodado**: os secrets não existiam — `SSH_KEY`, `KNOWN_HOSTS` e `VPS_HOST` chegavam **vazios** no job, e ele saía com exit 1 no "Preparar o acesso ao VPS" (a proteção fazendo o trabalho dela). Todos os deploys anteriores saíram por SSH direto. Agora o `gh` CLI está instalado e autenticado (escopo `workflow`), e `VPS_HOST`/`VPS_SSH_KEY` estão no environment `prod`. Publicar virou um comando. ⚠️ **O environment `dev` não existe** (404), e **a "aprovação obrigatória do prod" que o comentário do `deploy.yml` descreve NÃO está configurada** — a API devolve `prod` sem protection rule nenhuma, então disparar publica direto.
 >
