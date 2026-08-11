@@ -2415,6 +2415,14 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 📎 Documentos de apoio
+Gerado em 11/08/2026, no repo:
+- **Programa de Parceiros** — `PARCEIROS.md` (a regra fechada, o contrato de 1 página e o que
+  falta construir, para uso INTERNO) + `PARCEIROS.html` (fonte) e `Padelizou-Parceiros.pdf`
+  (3 páginas A4), que é a peça **para mostrar ao candidato a vendedor**: quanto ganha, as contas
+  em torneios de 45/60/110 duplas, como funciona em 4 passos e as regras sem letra miúda.
+  ⚠️ O bloco `@media print` do HTML vem **por último** de propósito — o headless pode reportar
+  tema escuro, e sem ele o PDF sai com fundo navy. Regerar: Edge headless `--print-to-pdf`.
+
 Gerado em 07/08/2026, no repo:
 - **Apresentação de vendas completa** — `APRESENTACAO.html` (fonte) + `Padelizou-Apresentacao.pdf`
   (12 páginas A4). O sistema inteiro por papel — jogador, organizador, professor, clube —

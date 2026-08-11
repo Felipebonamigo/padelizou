@@ -1,4 +1,4 @@
-<title>Parceiro Padelizou — 30/10</title>
+<title>Programa de Parceiros Padelizou</title>
 
 <style>
   :root {
@@ -211,6 +211,39 @@
   @media (max-width: 34rem) {
     .placar { grid-template-columns: 1fr; }
     .wrap { gap: 2.5rem; padding-top: 2rem; }
+  }
+
+  /* ---- Impressão / PDF ----
+     Gerado com Edge headless --print-to-pdf (Chrome não serve nesta máquina).
+     Vem POR ÚLTIMO de propósito: o headless pode reportar tema escuro, e estes
+     tokens têm a mesma especificidade do bloco prefers-color-scheme — quem vem
+     depois vence. Sem isto o PDF sai com fundo navy e come tinta à toa. */
+  @media print {
+    :root {
+      --navy: #1C2742;
+      --navy-2: #232F4E;
+      --verde-ink: #5E7D0F;
+      --ink: #16203A;
+      --ink-soft: #4A566F;
+      --paper: #FFFFFF;
+      --surface: #F1F4FA;
+      --rule: #C9D2E4;
+    }
+
+    @page { margin: 14mm 12mm; }
+
+    body { font-size: 10.5pt; }
+    .wrap { max-width: none; padding: 0; gap: 1.5rem; }
+    h1 { font-size: 1.9rem; }
+    .lead { font-size: 1rem; }
+
+    /* Nada de tabela partida no meio da página, nem título órfão no rodapé. */
+    section, .placar, table, ol.passos li, ul.regras li { break-inside: avoid; }
+    h2 { break-after: avoid; }
+
+    /* O placar é a identidade da peça — mantém o fundo escuro na impressão. */
+    .placar div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .base, thead th, td.destaque { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 
