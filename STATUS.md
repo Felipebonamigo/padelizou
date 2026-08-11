@@ -13,7 +13,17 @@
 >
 > 🧪 **3.681 testes, 0 falhas** (21 novos). **1 migration** (`VotoDeMvp`, puramente aditiva — `CreateTable` + índices; snapshot conferido linha a linha, 59 inserções e **zero remoções**, só a tabela nova). ✅ **Conferido no navegador contra o PostgreSQL local, com o torneio 29 (acabou há 4 dias, janela aberta)**: a cédula trouxe **só os dois campeões**; **Rafael Souza, que não jogou aquele torneio, não viu botão nenhum** (e a régua estava certa — foi cookie velho, não defeito); a Ana BAFICA votou e a tela passou de "0 de 6" pra **"1 de 6"** com o selo "Seu voto", **sem mostrar placar**; a troca de voto deixou **UMA linha** no banco, apontando pro novo escolhido; e `/Torneios/Mvp/1` — torneio finalizado **sem jogo nenhum** — devolve **404**, porque sem última bola não há de onde contar a semana.
 >
-> ⏭️ **Falta**: publicar, e ligar o botão na página do torneio — o `Details.cshtml` está com trabalho de SEO da sessão paralela em cima, então o ViewBag já está pronto e o botão entra num commit separado.
+> 🎛️ **O ORGANIZADOR DECIDE SE O TORNEIO TEM MVP, e o padrão é VIR ATIVO** (Felipe, 11/08/2026). `Torneio.UsaVotacaoDeMvp` nasce `true` — ao contrário do `UsaCheckIn`, e a diferença é o que cada um custa a quem não quer: o check-in ligado dá ao organizador uma TELA a mais pra operar no dia; a votação não pede nada dele — abre sozinha depois que o torneio acabou e quem trabalha são os jogadores. O interruptor existe pro organizador que não quer a disputa (confraternização, escolinha), não porque a maioria fosse desligar.
+>
+> 🕳️ **A ARMADILHA DO `defaultValue`, de novo — e desta vez no sentido contrário.** O EF gerou `defaultValue: false` na migração (ele olha o TIPO, não o `= true` da propriedade, que só vale pra objeto novo criado pelo app). Deixando como veio, **todo torneio já existente nasceria com a votação DESLIGADA** e o recurso estrearia invisível em produção, sem erro nenhum. Corrigido à mão pra `true`, igual ao que a migração `CheckInOpcional` fez no sentido oposto — e **um teste lê o ARQUIVO da migração** pra prender isso: regerar a migração desfaria o conserto em silêncio.
+>
+> 🔌 **Desligar some com a votação INTEIRA — cédula e resultado** —, mas **não apaga voto nenhum**: religar devolve o eleito. É o mesmo princípio do "esconder ≠ destruir" do catálogo de clubes. E `usaVotacao` é **parâmetro obrigatório** de `Aberta`/`Encerrada`/`TemVotacao`, no arranjo do `PontosDoTorneio.Pontos`: são quatro lugares perguntando pela votação, e um deles esquecer o interruptor não daria erro — daria votação acontecendo em torneio que a desligou.
+>
+> ⚠️ Na gestão o parâmetro é `bool?`, e não `bool` como o `usaCheckIn`: caixa desmarcada não vai no POST, então um `bool` não distingue "desmarquei" de "esta aba foi aberta antes do deploy". No check-in os dois casos dão o mesmo resultado; aqui o segundo **desligaria a votação de todo torneio salvo por uma aba antiga**.
+>
+> 🧪 **3.716 testes, 0 falhas.**
+>
+> ⏭️ **Falta**: ligar o botão "MVP do torneio" na página do torneio e o interruptor na tela de gestão — os dois moram no `Details.cshtml`, que está com trabalho de SEO **não commitado** da sessão paralela em cima (referenciando serviços que ainda não existem no git). O ViewBag já está pronto; entram num commit separado assim que aquilo for commitado. Enquanto isso a votação é alcançável por `/Torneios/Mvp/{id}` e o interruptor está na criação do torneio.
 >
 > Antes, no mesmo dia: 🤖 **O APP ANDROID COMEÇOU, E O `build-508-ef532e3` ESTÁ NO AR** (18:46, com tudo o que estava represado desde o build-505).
 >

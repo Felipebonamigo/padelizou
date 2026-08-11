@@ -343,6 +343,22 @@ public partial class Torneio
     // continuaria abrindo uma tela que o organizador decidiu não usar.
     public bool UsaCheckIn { get; set; }
 
+    // Este torneio elege um MVP? Quem jogou vota no melhor entre os campeões, na semana
+    // seguinte ao fim (ver Services/MvpDoTorneio).
+    //
+    // ⚠️ NASCE LIGADO — ao contrário do UsaCheckIn logo acima, e a diferença é o que cada um
+    // custa a quem não quer. O check-in ligado dá ao organizador uma TELA a mais pra operar no
+    // dia, e os inscritos cobram por ela; a votação do MVP não pede nada dele: ela abre sozinha
+    // depois que o torneio acabou, e quem trabalha são os jogadores. O interruptor existe pro
+    // organizador que não quer a disputa (interno de confraternização, torneio de escolinha),
+    // não porque a maioria fosse querer desligar.
+    //
+    // ⚠️ Ligado por padrão também no que JÁ EXISTE: a migração grava `true` nas linhas antigas
+    // (ver a nota do defaultValue lá). Sem isso, todo torneio de produção nasceria com a
+    // votação desligada e o recurso estrearia invisível — o mesmo cuidado que a migração
+    // `CheckInOpcional` teve, só que no sentido contrário.
+    public bool UsaVotacaoDeMvp { get; set; } = true;
+
     // ---- Cancelamento (Services/CancelamentoDoTorneio) ----
     // O torneio não vai acontecer. Vive no Status ("Cancelado"), e estes dois campos guardam
     // o PORQUÊ e o QUANDO — sem eles o organizador cancela hoje e daqui a duas semanas não

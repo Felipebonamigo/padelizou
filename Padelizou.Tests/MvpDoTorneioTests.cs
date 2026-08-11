@@ -22,14 +22,14 @@ public class MvpDoTorneioTests
     public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_sete_dias_depois_do_ultimo_jogo()
     {
         // Logo depois do último jogo: aberta.
-        Assert.True(MvpDoTorneio.Aberta("Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.True(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1)));
 
         // No sexto dia ainda dá.
-        Assert.True(MvpDoTorneio.Aberta("Finalizado", Domingo, Domingo.AddDays(6)));
+        Assert.True(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddDays(6)));
 
         // No sétimo, fecha — e a partir daí o resultado aparece.
-        Assert.False(MvpDoTorneio.Aberta("Finalizado", Domingo, Domingo.AddDays(7)));
-        Assert.True(MvpDoTorneio.Encerrada("Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.True(MvpDoTorneio.Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(7)));
     }
 
     [Fact]
@@ -38,9 +38,9 @@ public class MvpDoTorneioTests
         // Pedido do Felipe: "a votação é feita após finalizar o torneio".
         foreach (var status in new[] { "Fase de Grupos", "Mata-Mata", "Inscrições Abertas", "Chaves em Sorteio" })
         {
-            Assert.False(MvpDoTorneio.Aberta(status, Domingo, Domingo.AddHours(1)), status);
-            Assert.False(MvpDoTorneio.Encerrada(status, Domingo, Domingo.AddHours(1)), status);
-            Assert.False(MvpDoTorneio.TemVotacao(status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(MvpDoTorneio.Aberta(true, status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(MvpDoTorneio.Encerrada(true, status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(MvpDoTorneio.TemVotacao(true, status, Domingo, Domingo.AddHours(1)), status);
         }
     }
 
@@ -48,8 +48,8 @@ public class MvpDoTorneioTests
     public void Torneio_CANCELADO_nao_tem_MVP()
     {
         // Mesma régua do card de campeão e do ponto de ranking: o evento não aconteceu.
-        Assert.False(MvpDoTorneio.Aberta("Cancelado", Domingo, Domingo.AddHours(1)));
-        Assert.False(MvpDoTorneio.TemVotacao("Cancelado", Domingo, Domingo.AddHours(1)));
+        Assert.False(MvpDoTorneio.Aberta(true, "Cancelado", Domingo, Domingo.AddHours(1)));
+        Assert.False(MvpDoTorneio.TemVotacao(true, "Cancelado", Domingo, Domingo.AddHours(1)));
     }
 
     [Fact]
@@ -60,8 +60,8 @@ public class MvpDoTorneioTests
         // mês passado simplesmente já está fora da janela.
         var mesPassado = Domingo.AddDays(-40);
 
-        Assert.False(MvpDoTorneio.Aberta("Finalizado", mesPassado, Domingo));
-        Assert.True(MvpDoTorneio.Encerrada("Finalizado", mesPassado, Domingo));
+        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", mesPassado, Domingo));
+        Assert.True(MvpDoTorneio.Encerrada(true, "Finalizado", mesPassado, Domingo));
     }
 
     [Fact]
@@ -70,8 +70,8 @@ public class MvpDoTorneioTests
         // Sem última bola não há de onde contar a semana. Torneio marcado como finalizado na
         // mão, sem placar nenhum, não elege ninguém.
         Assert.Null(MvpDoTorneio.UltimoJogo(new DateTime?[] { null, null }));
-        Assert.False(MvpDoTorneio.Aberta("Finalizado", null, Domingo));
-        Assert.False(MvpDoTorneio.Encerrada("Finalizado", null, Domingo));
+        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", null, Domingo));
+        Assert.False(MvpDoTorneio.Encerrada(true, "Finalizado", null, Domingo));
     }
 
     [Fact]
@@ -79,6 +79,118 @@ public class MvpDoTorneioTests
     {
         var fins = new DateTime?[] { Domingo.AddDays(-2), null, Domingo, Domingo.AddDays(-1) };
         Assert.Equal(Domingo, MvpDoTorneio.UltimoJogo(fins));
+    }
+
+    // ─────────────────────────── O INTERRUPTOR DO ORGANIZADOR ───────────────────────────
+
+    [Fact]
+    public void Torneio_novo_NASCE_com_a_votacao_LIGADA()
+    {
+        // "O padrão é vir ativo" (Felipe, 11/08/2026). Ao contrário do check-in, a votação não
+        // dá trabalho nenhum ao organizador — ela abre sozinha e quem trabalha são os jogadores.
+        Assert.True(new Torneio().UsaVotacaoDeMvp);
+    }
+
+    [Fact]
+    public void A_migracao_liga_a_votacao_nos_torneios_que_JA_EXISTEM()
+    {
+        // ⚠️ ESTE TESTE OLHA O ARQUIVO DA MIGRAÇÃO, e não o banco, de propósito.
+        //
+        // O `= true` da propriedade em C# vale só pra objeto NOVO criado pelo app: quem já está
+        // gravado recebe o que o `defaultValue` da migração disser. O EF gera `false` aqui
+        // (ele olha o tipo, não o inicializador), e com isso TODO torneio de produção nasceria
+        // com a votação desligada — o recurso estrearia invisível, sem erro nenhum.
+        //
+        // A correção é feita à mão no arquivo, então é o arquivo que precisa ser guardado:
+        // regerar a migração desfaz o conserto em silêncio.
+        var migracao = Path.Combine(RaizDoRepo(), "Padelizou", "Migrations",
+            "20260811190842_VotacaoDeMvpOpcional.cs");
+
+        Assert.True(File.Exists(migracao), $"Não achei a migração em {migracao}");
+
+        var texto = File.ReadAllText(migracao);
+        Assert.Contains("UsaVotacaoDeMvp", texto);
+        Assert.Contains("defaultValue: true", texto);
+        Assert.DoesNotContain("defaultValue: false", texto);
+    }
+
+    private static string RaizDoRepo()
+    {
+        var pasta = AppContext.BaseDirectory;
+        for (int i = 0; i < 8 && pasta != null; i++)
+        {
+            if (Directory.Exists(Path.Combine(pasta, "Padelizou", "Migrations"))) return pasta;
+            pasta = Directory.GetParent(pasta)?.FullName;
+        }
+        throw new DirectoryNotFoundException("Não achei a raiz do repositório a partir de " + AppContext.BaseDirectory);
+    }
+
+    [Fact]
+    public void Organizador_que_DESLIGA_a_votacao_some_com_ela_inteira()
+    {
+        // Nem cédula, nem resultado. O interruptor é sobre o torneio TER MVP, não sobre "parar
+        // de receber voto" — um torneio que desligou não mostra vencedor nenhum.
+        Assert.False(MvpDoTorneio.Aberta(false, "Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.False(MvpDoTorneio.Encerrada(false, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.False(MvpDoTorneio.TemVotacao(false, "Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.False(MvpDoTorneio.TemVotacao(false, "Finalizado", Domingo, Domingo.AddDays(7)));
+    }
+
+    [Fact]
+    public async Task Com_a_votacao_DESLIGADA_o_voto_e_recusado_pelo_servidor()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+
+        torneio.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var vice = ctx.Duplas.First(d => d.UltimaFase == "Final");
+
+        // ⚠️ Quem recusa é o SERVIÇO, não a tela: esconder o botão não impede um POST montado
+        // à mão, e o organizador desligou justamente pra não ter essa disputa no torneio dele.
+        var recusa = await MvpDoTorneio.VotarAsync(
+            ctx, torneio.Id, vice.Jogador1Id, campea.Jogador1Id, Domingo.AddHours(1));
+
+        Assert.NotNull(recusa);
+        Assert.Empty(ctx.VotosDeMvp);
+    }
+
+    [Fact]
+    public async Task Religar_a_votacao_devolve_os_votos_que_ja_existiam()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var vice = ctx.Duplas.First(d => d.UltimaFase == "Final");
+
+        await MvpDoTorneio.VotarAsync(ctx, torneio.Id, vice.Jogador1Id, campea.Jogador1Id, Domingo.AddHours(1));
+        await MvpDoTorneio.VotarAsync(ctx, torneio.Id, vice.Jogador2Id!.Value, campea.Jogador1Id, Domingo.AddHours(1));
+        await MvpDoTorneio.VotarAsync(ctx, torneio.Id, campea.Jogador2Id!.Value, campea.Jogador1Id, Domingo.AddHours(1));
+
+        // Desliga: a tela some, mas os votos NÃO são apagados.
+        torneio.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        var desligada = await MvpDoTorneio.DoTorneioAsync(
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+        Assert.False(desligada!.Aberta);
+        Assert.False(desligada.Encerrada);
+        Assert.Empty(desligada.Vencedores);
+        Assert.Equal(3, ctx.VotosDeMvp.Count());
+
+        // Religa: o resultado volta inteiro. Desligar é esconder, nunca destruir — a decisão
+        // do organizador não pode apagar o voto de ninguém.
+        torneio.UsaVotacaoDeMvp = true;
+        await ctx.SaveChangesAsync();
+
+        var religada = await MvpDoTorneio.DoTorneioAsync(
+            ctx, torneio.Id, vice.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar));
+        Assert.True(religada!.Encerrada);
+        var eleito = Assert.Single(religada.Vencedores);
+        Assert.Equal(campea.Jogador1Id, eleito.JogadorId);
     }
 
     // ─────────────────────────── A APURAÇÃO ───────────────────────────

@@ -880,6 +880,14 @@ namespace Padelizou.Controllers
             string? linkDasFotos = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
             bool usaCheckIn = false,
+            // ⚠️ `bool?` e não `bool`, ao contrário do usaCheckIn logo acima — e a diferença
+            // existe porque este campo nasce LIGADO. Caixa desmarcada não vai no POST, então
+            // um `bool` normal não distingue "o organizador desmarcou" de "esta aba foi aberta
+            // antes do deploy e não tem o campo". No usaCheckIn os dois casos dão o mesmo
+            // resultado (desligado, que é o padrão dele); aqui o segundo caso DESLIGARIA a
+            // votação de todo torneio salvo por uma aba antiga, sem ninguém pedir. Nulo =
+            // mantém o que está gravado, igual ao permiteImpedimentoQuintaNoite.
+            bool? usaVotacaoDeMvp = null,
             bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false,
             // Formato das partidas. Nulo = aba antiga (sem os campos) ou campo em branco:
             // nesse caso o que está gravado FICA, em vez de virar zero e deixar a Mesa sem
@@ -1186,6 +1194,9 @@ namespace Padelizou.Controllers
             torneio.PrevisaoChaveamento = previsaoChaveamento;
             // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".
             torneio.UsaCheckIn = usaCheckIn;
+            // Nulo = aba aberta antes deste deploy, que não tem o campo: mantém o que está
+            // gravado em vez de desligar a votação sem ninguém ter pedido.
+            if (usaVotacaoDeMvp is bool querMvp) torneio.UsaVotacaoDeMvp = querMvp;
 
             // ---- Torneio restrito (chave de acesso), agora editável ----
             // Só se decidia isso na criação, e "esqueci de marcar restrito" obrigava a criar

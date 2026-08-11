@@ -52,15 +52,22 @@ public static class MvpDoTorneio
 
     // A votação aceita voto agora?
     //
-    // Duas condições: torneio FINALIZADO (a votação é depois que acaba, como pedido) e dentro
-    // da janela.
+    // Três condições: o organizador QUER MVP neste torneio, o torneio está FINALIZADO (a
+    // votação é depois que acaba, como pedido) e estamos dentro da janela.
+    //
+    // ⚠️ `usaVotacao` é PARÂMETRO OBRIGATÓRIO, e não um filtro de quem chama. São quatro
+    // lugares que perguntam pela votação (a tela, o POST do voto, o botão da página do torneio
+    // e a apuração); um deles esquecer o interruptor não daria erro nenhum — daria votação
+    // acontecendo num torneio que a desligou. Aqui é impossível esquecer: a assinatura obriga.
+    // É o mesmo arranjo do `PontosDoTorneio.Pontos`, que exige o status pelo mesmo motivo.
     //
     // ⚠️ Não há um teste separado pra "cancelado", e isso é decisão e não esquecimento:
     // `Status` é UMA coluna, então torneio cancelado vale "Cancelado" e nunca "Finalizado" —
     // exigir o segundo já exclui o primeiro. Um `EstaCancelado` a mais aqui seria linha morta
     // com cara de regra, que é pior do que não ter: o próximo leitor confia nela.
-    public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora)
+    public static bool Aberta(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora)
     {
+        if (!usaVotacao) return false;
         if (statusDoTorneio != StatusFinalizado) return false;
 
         var fecha = FechaEm(ultimoJogo);
@@ -68,8 +75,14 @@ public static class MvpDoTorneio
     }
 
     // Já dá pra mostrar o resultado? Só depois que fecha — ver `Apurar`.
-    public static bool Encerrada(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
-        statusDoTorneio == StatusFinalizado
+    //
+    // ⚠️ Desligar a votação some com o RESULTADO também, e não só com a cédula. Um torneio que
+    // já elegeu MVP e depois teve a votação desligada volta a não ter MVP nenhum na tela: o
+    // interruptor é sobre o torneio TER isso, não sobre "parar de receber voto". Os votos
+    // continuam gravados — religar devolve o resultado inteiro, e nada é apagado.
+    public static bool Encerrada(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
+        usaVotacao
+        && statusDoTorneio == StatusFinalizado
         && FechaEm(ultimoJogo) is { } fecha
         && agora >= fecha;
 
@@ -108,7 +121,7 @@ public static class MvpDoTorneio
             .Where(t => t.Id == torneioId)
             // ⚠️ Só colunas do próprio torneio: navegação obrigatória em projeção vira INNER
             // JOIN e some com a linha inteira — foi o que fez o card de campeão sumir.
-            .Select(t => new { t.Id, t.Nome, t.Status })
+            .Select(t => new { t.Id, t.Nome, t.Status, t.UsaVotacaoDeMvp })
             .FirstOrDefaultAsync();
 
         if (torneio == null) return null;
@@ -122,8 +135,8 @@ public static class MvpDoTorneio
             .ToListAsync();
 
         var ultimoJogo = UltimoJogo(fins);
-        var aberta = Aberta(torneio.Status, ultimoJogo, agora);
-        var encerrada = Encerrada(torneio.Status, ultimoJogo, agora);
+        var aberta = Aberta(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora);
+        var encerrada = Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora);
 
         var candidatos = await CandidatosAsync(contexto, torneioId);
         var votos = await contexto.VotosDeMvp
@@ -267,7 +280,10 @@ public static class MvpDoTorneio
         if (!votacao.Aberta)
             return votacao.Encerrada
                 ? "A votação do MVP deste torneio já encerrou."
-                : "A votação do MVP ainda não abriu — ela começa quando o torneio é finalizado.";
+                // Cobre os dois "ainda não": torneio em andamento e organizador que desligou a
+                // votação. A frase é a mesma de propósito — quem vota não precisa saber qual
+                // dos dois é, e dizer "o organizador desligou" convida a cobrança dele.
+                : "A votação do MVP não está aberta neste torneio.";
 
         if (!votacao.SouEleitor)
             return "Só quem jogou este torneio vota no MVP.";
@@ -310,8 +326,9 @@ public static class MvpDoTorneio
     // Aparece enquanto a votação está aberta E depois que encerra (pra mostrar o eleito). O que
     // não existe é a tela de um torneio que nunca chegou a ter votação — ela abriria dizendo
     // apenas que não há nada, que é ruído na página de todo torneio em andamento.
-    public static bool TemVotacao(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
-        Aberta(statusDoTorneio, ultimoJogo, agora) || Encerrada(statusDoTorneio, ultimoJogo, agora);
+    public static bool TemVotacao(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
+        Aberta(usaVotacao, statusDoTorneio, ultimoJogo, agora)
+        || Encerrada(usaVotacao, statusDoTorneio, ultimoJogo, agora);
 }
 
 // Um nome na cédula.
