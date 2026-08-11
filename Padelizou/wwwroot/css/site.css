@@ -89,6 +89,31 @@
 
 :root[data-bs-theme="dark"] .table-hover > tbody > tr:hover { background-color: rgba(163, 216, 39, .10); }
 
+/* SELO DE MOVIMENTO NO RANKING: quantas posições o último torneio fez ganhar ou perder.
+   Bloquinho com fundo lavado e número em negrito — o mesmo desenho das tabelas de mercado,
+   que é onde a leitura "verde subiu / vermelho desceu" já é automática pra qualquer um.
+   `tabular-nums` porque a coluna inteira tem que alinhar: com largura variável, +10 e +2
+   ficam tortos um embaixo do outro e a coluna parece bagunçada. */
+.pdz-mov {
+    display: inline-block;
+    min-width: 2.6rem;
+    padding: .12rem .4rem;
+    border-radius: .35rem;
+    font-size: .8rem;
+    font-weight: 700;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+}
+.pdz-mov-sobe  { background: rgba(56, 142, 60, .12);  color: #2e7d32; }
+.pdz-mov-desce { background: rgba(211, 47, 47, .10);  color: #c62828; }
+.pdz-mov-igual { background: transparent; color: var(--pdz-muted); font-weight: 600; }
+.pdz-mov-novo  { background: rgba(51, 69, 110, .10); color: var(--pdz-navy-600); font-size: .72rem; }
+
+/* No escuro o pastel do tema claro some no fundo: o texto abre e a tinta fica mais viva. */
+:root[data-bs-theme="dark"] .pdz-mov-sobe  { background: rgba(163, 216, 39, .16); color: #b6e84f; }
+:root[data-bs-theme="dark"] .pdz-mov-desce { background: rgba(255, 99, 132, .14); color: #ff8fa3; }
+:root[data-bs-theme="dark"] .pdz-mov-novo  { background: rgba(125, 211, 252, .12); color: #7dd3fc; }
+
 /* Linha de quem CLASSIFICA (e de quem está empatado). O Bootstrap fixa essas variantes num
    verde/amarelo pastel de fundo claro: no tema escuro a linha virava um bloco berrante no
    meio da tabela, e o texto escuro dela some sobre o resto da tela. Aqui vira tinta, não

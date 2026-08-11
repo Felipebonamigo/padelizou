@@ -524,13 +524,18 @@ public class EstatisticasService : IEstatisticasService
         vm.TodasCategorias = await _context.Categorias
             .Select(c => c.Nome).Distinct().OrderBy(n => n).ToListAsync();
 
-        // Corte para o indicador de movimento (subiu/desceu) vs ~1 mês atrás.
-        var corteMes = DateTime.Now.AddMonths(-1);
+        // O movimento agora é O QUE O ÚLTIMO TORNEIO FEZ, e não "vs ~1 mês atrás" — ver
+        // Services/MovimentoNoRanking, inclusive a decisão dos 7 dias de validade. Janela
+        // nula = nenhum torneio recente, e aí a coluna some da tela em vez de mostrar zeros.
+        vm.JanelaDoMovimento = await MovimentoNoRanking.DoOficialAsync(_context, DateTime.Now);
 
-        // 1: ranking por categoria (pontos) — sempre o total, com movimento vs ~1 mês.
+        // 1: ranking por categoria (pontos) — sempre o total, com o movimento do último torneio.
         var porCategoria = await ObterRankingPorCategoriaAsync(jogadoresFiltro: filtro);
-        var porCategoriaAntes = await ObterRankingPorCategoriaAsync(ate: corteMes, jogadoresFiltro: filtro);
-        AplicarMovimentoCategorias(porCategoria, porCategoriaAntes);
+        if (vm.JanelaDoMovimento is { } janela)
+        {
+            var porCategoriaAntes = await ObterRankingPorCategoriaAsync(ate: janela.Corte, jogadoresFiltro: filtro);
+            AplicarMovimentoCategorias(porCategoria, porCategoriaAntes);
+        }
         vm.PorCategoria = porCategoria;
 
         // 2: troféus por categoria — RESPEITA o período (só títulos/finais de torneios no período).
@@ -749,10 +754,13 @@ public class EstatisticasService : IEstatisticasService
 
         // 9. Nível comprovado saiu da página de ranking — agora aparece no perfil de cada jogador.
 
-        // 10. Ranking de times (sempre o total) + movimento vs ~1 mês + vitórias somadas (R6).
+        // 10. Ranking de times (sempre o total) + movimento do último torneio + vitórias (R6).
         vm.Times = await ObterRankingTimesAsync(jogadoresFiltro: filtro);
-        var timesAntes = await ObterRankingTimesAsync(ate: corteMes, jogadoresFiltro: filtro);
-        AplicarMovimentoTimes(vm.Times, timesAntes);
+        if (vm.JanelaDoMovimento is { } janelaTimes)
+        {
+            var timesAntes = await ObterRankingTimesAsync(ate: janelaTimes.Corte, jogadoresFiltro: filtro);
+            AplicarMovimentoTimes(vm.Times, timesAntes);
+        }
         if (vm.Times.Count > 0)
         {
             var jogadoresComTime = await _context.Jogadores
@@ -856,40 +864,28 @@ public class EstatisticasService : IEstatisticasService
     }
 
     // Preenche RankingLinhaVM.Movimento comparando a posição em cada categoria agora vs "antes".
+    // ⚠️ A posição é POR CATEGORIA, então cada categoria é comparada com a versão dela mesma
+    // "antes do torneio" — e não a lista toda de uma vez. Comparar as listas concatenadas
+    // daria movimento fantasma pra quem só mudou de vizinho na emenda entre duas categorias.
+    //
+    // A conta em si mora em MovimentoNoRanking: era a mesma lógica escrita aqui e no de times,
+    // e agora serve cinco rankings.
     private static void AplicarMovimentoCategorias(List<RankingCategoriaVM> agora, List<RankingCategoriaVM> antes)
     {
-        bool temHistorico = antes.Any(c => c.Linhas.Count > 0);
-        var posAntes = new Dictionary<(string cat, int jid), int>();
-        foreach (var c in antes)
-            for (int i = 0; i < c.Linhas.Count; i++)
-                posAntes[(c.Categoria, c.Linhas[i].Jogador.Id)] = i + 1;
+        var vazia = new List<RankingLinhaVM>();
 
         foreach (var c in agora)
-            for (int i = 0; i < c.Linhas.Count; i++)
-            {
-                var linha = c.Linhas[i];
-                if (!temHistorico) { linha.Movimento = 0; continue; } // sem base de comparação
-                linha.Movimento = posAntes.TryGetValue((c.Categoria, linha.Jogador.Id), out var pAntes)
-                    ? pAntes - (i + 1)   // >0 subiu, <0 desceu, 0 igual
-                    : (int?)null;        // novo no ranking
-            }
+        {
+            var linhasAntes = antes.FirstOrDefault(a => a.Categoria == c.Categoria)?.Linhas ?? vazia;
+            MovimentoNoRanking.Aplicar(c.Linhas, linhasAntes.Select(l => l.Jogador.Id).ToList(),
+                l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
+        }
     }
 
     // Preenche RankingTimeVM.Movimento comparando a posição global agora vs "antes".
-    private static void AplicarMovimentoTimes(List<RankingTimeVM> agora, List<RankingTimeVM> antes)
-    {
-        bool temHistorico = antes.Count > 0;
-        var posAntes = new Dictionary<int, int>();
-        for (int i = 0; i < antes.Count; i++) posAntes[antes[i].TimeId] = i + 1;
-
-        for (int i = 0; i < agora.Count; i++)
-        {
-            if (!temHistorico) { agora[i].Movimento = 0; continue; }
-            agora[i].Movimento = posAntes.TryGetValue(agora[i].TimeId, out var pAntes)
-                ? pAntes - (i + 1)
-                : (int?)null;
-        }
-    }
+    private static void AplicarMovimentoTimes(List<RankingTimeVM> agora, List<RankingTimeVM> antes) =>
+        MovimentoNoRanking.Aplicar(agora, antes.Select(t => t.TimeId).ToList(),
+            t => t.TimeId, (t, mov) => t.Movimento = mov);
 
     // Fases (UltimaFase da dupla) que "comprovam" nível, conforme o gatilho escolhido
     // pelo organizador. "Livre" => nenhuma (não trava).

@@ -1,0 +1,33 @@
+@model Padelizou.ViewModels.SeloDeMovimentoVM
+@{
+    // O SELO DE MOVIMENTO: quantas posições o último torneio fez esta pessoa (ou este time)
+    // ganhar ou perder. Mora aqui e só aqui — cinco tabelas o mostram (categoria, Padelímetro,
+    // Americano individual, Americano em duplas e times), e cinco cópias do mesmo bloquinho
+    // divergiriam na primeira vez que alguém mexesse numa delas.
+    //
+    // Sem seta: o sinal e a seta diziam a mesma coisa duas vezes, e no celular a coluna ficava
+    // larga à toa. Verde pra cima, vermelho pra baixo — é a leitura que qualquer um faz sem
+    // legenda nenhuma.
+    var mov = Model.Posicoes;
+}
+
+@if (mov == null)
+{
+    @* "novo" NÃO é "+0": um entrou agora no ranking (não havia posição anterior pra comparar),
+       o outro jogou e ficou onde estava. Trocar um pelo outro é uma mentira pequena que some
+       no meio da tabela e ninguém desconfia. *@
+    <span class="pdz-mov pdz-mov-novo" title="Entrou agora no ranking">novo</span>
+}
+else if (mov == 0)
+{
+    <span class="pdz-mov pdz-mov-igual" title="Ficou na mesma posição">–</span>
+}
+else if (mov > 0)
+{
+    <span class="pdz-mov pdz-mov-sobe" title="Subiu @mov posição(ões)">+@mov</span>
+}
+else
+{
+    @* O próprio número já vem com o menos. *@
+    <span class="pdz-mov pdz-mov-desce" title="Desceu @(-mov) posição(ões)">@mov</span>
+}

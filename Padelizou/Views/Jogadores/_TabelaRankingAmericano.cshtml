@@ -1,4 +1,7 @@
-@model List<Padelizou.ViewModels.RankingAmericanoLinhaVM>
+@using Padelizou.ViewModels
+@* A janela vem junto porque a coluna do movimento só existe enquanto ela está aberta — e a
+   do Americano é OUTRA, separada da do ranking oficial (ver Services/MovimentoNoRanking). *@
+@model (List<RankingAmericanoLinhaVM> Linhas, Padelizou.Services.MovimentoNoRanking.Janela? Janela)
 
 @* A tabela do Ranking Americano, usada pelos DOIS formatos (individual e de duplas). É uma
    partial e não duas cópias: as colunas e o selo de posição são os mesmos, e duas cópias
@@ -16,7 +19,7 @@
     };
 }
 
-@if (!Model.Any())
+@if (!Model.Linhas.Any())
 {
     <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
         <i class="bi bi-arrow-repeat display-6 text-muted"></i>
@@ -35,10 +38,15 @@ else
             <th class="text-center d-none d-sm-table-cell">Americanos</th>
             <th class="text-center d-none d-sm-table-cell">Vitórias</th>
             <th class="text-end">Pontos</th>
+            @if (Model.Janela is { } janela)
+            {
+                <th class="text-center" style="width:72px;"
+                    title="Posições ganhas ou perdidas em @janela.Nome. Fica na tela até @janela.SomeEm.ToString("dd/MM").">Americano</th>
+            }
         </tr></thead>
         <tbody>
             @{ var pos = 1; }
-            @foreach (var l in Model)
+            @foreach (var l in Model.Linhas)
             {
                 <tr>
                     <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
@@ -62,6 +70,10 @@ else
                         }
                     </td>
                     <td class="text-end fw-bold" style="color: var(--pdz-ink);">@l.Pontos</td>
+                    @if (Model.Janela != null)
+                    {
+                        <td class="text-center"><partial name="_SeloDeMovimento" model="new SeloDeMovimentoVM(l.Movimento)" /></td>
+                    }
                 </tr>
                 pos++;
             }

@@ -17,6 +17,10 @@ public interface IPadelimetroService
     // A aba Padelímetro do ranking: todo mundo com nível, do maior pro menor.
     // filtroJogadores nulo = país todo (mesmo contrato do ObterJogadoresDoLocalAsync).
     Task<List<PadelimetroLinhaVM>> ListarRankingAsync(HashSet<int>? filtroJogadores);
+
+    // Quantas posições cada um ganhou/perdeu desde `corte` — o instante antes do último
+    // torneio. Preenche PadelimetroLinhaVM.Movimento. Ver Services/MovimentoNoRanking.
+    Task AplicarMovimentoAsync(List<PadelimetroLinhaVM> linhas, DateTime corte);
 }
 
 // Quem decide QUAIS partidas movem o Padelímetro e escreve o resultado no banco.
@@ -170,6 +174,58 @@ public class PadelimetroService : IPadelimetroService
                 FaixaEscada = faixa?.Escada,
             };
         }).ToList();
+    }
+
+    // QUANTAS POSIÇÕES O ÚLTIMO TORNEIO MOVEU CADA UM na aba Padelímetro.
+    //
+    // ⚠️ Aqui não dá pra "recalcular o ranking com data de corte" como nas outras abas: o nível
+    // é um número GUARDADO no jogador, não uma soma que se refaz. Mas o extrato existe justo
+    // pra isso — `HistoricoDePadelimetro` tem o delta de cada partida com a data. Então o nível
+    // de antes é o de hoje MENOS tudo que entrou depois do corte, o que é exato e custa uma
+    // consulta. Refazer o Elo do zero até a data daria o mesmo número por um caminho caro e
+    // com uma segunda implementação da mesma matemática pra divergir.
+    public async Task AplicarMovimentoAsync(List<PadelimetroLinhaVM> linhas, DateTime corte)
+    {
+        if (linhas.Count == 0) return;
+
+        var ids = linhas.Select(l => l.Jogador.Id).ToHashSet();
+
+        var depois = await _context.HistoricosDePadelimetro
+            .Where(h => ids.Contains(h.JogadorId) && h.CriadoEm > corte)
+            .GroupBy(h => h.JogadorId)
+            .Select(g => new { JogadorId = g.Key, Delta = g.Sum(h => h.Delta), Quantos = g.Count() })
+            .ToListAsync();
+        var deltaDepois = depois.ToDictionary(d => d.JogadorId, d => d.Delta);
+        var quantosDepois = depois.ToDictionary(d => d.JogadorId, d => d.Quantos);
+
+        // ⚠️ Quem SÓ tem extrato depois do corte não tinha nível antes: ele fica fora da lista
+        // "antes" e aparece como NOVO. Sem esta consulta ele entraria com o nível de estreia
+        // (500) numa posição do meio da tabela, e o selo diria que ele "desceu 3" num ranking
+        // em que ele acabou de entrar.
+        var tinhaAntes = (await _context.HistoricosDePadelimetro
+            .Where(h => ids.Contains(h.JogadorId) && h.CriadoEm <= corte)
+            .Select(h => h.JogadorId)
+            .Distinct()
+            .ToListAsync()).ToHashSet();
+
+        // A MESMA ordenação de `ListarRankingAsync` — nível, depois jogos, depois nome. Ordenar
+        // diferente aqui inventaria movimento em quem empatou e não saiu do lugar.
+        var ordemAntes = linhas
+            .Where(l => tinhaAntes.Contains(l.Jogador.Id))
+            .Select(l => new
+            {
+                l.Jogador.Id,
+                l.Jogador.Nome,
+                Pdz = l.Pdz - deltaDepois.GetValueOrDefault(l.Jogador.Id),
+                Jogos = l.Jogos - quantosDepois.GetValueOrDefault(l.Jogador.Id),
+            })
+            .OrderByDescending(x => x.Pdz)
+            .ThenByDescending(x => x.Jogos)
+            .ThenBy(x => x.Nome)
+            .Select(x => x.Id)
+            .ToList();
+
+        MovimentoNoRanking.Aplicar(linhas, ordemAntes, l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
     }
 
     // Os 4 jogadores da partida — nulo quando não são 4 pessoas DISTINTAS (dado torto:

@@ -788,6 +788,26 @@ public class JogadoresController : Controller
         hub.AmericanoIndividual = americano.Individual;
         hub.AmericanoDuplas = americano.Duplas;
 
+        // "Quantas posições o último torneio me fez ganhar?" nas duas abas que faltavam.
+        //
+        // ⚠️ A janela do OFICIAL (que o EstatisticasService já abriu pro hub) serve pro
+        // Padelímetro, porque é o mesmo torneio de chave que move os dois. O Americano tem
+        // janela PRÓPRIA: são rankings separados, e o rodízio de sábado não move o oficial.
+        if (hub.JanelaDoMovimento is { } janela)
+            await padelimetro.AplicarMovimentoAsync(hub.Padelimetro, janela.Corte);
+
+        hub.JanelaDoAmericano = await MovimentoNoRanking.DoAmericanoAsync(_context, DateTime.Now);
+        if (hub.JanelaDoAmericano is { } janelaAmericano)
+        {
+            var antes = await rankingAmericano.ListarAsync(doLocal, ate: janelaAmericano.Corte);
+            MovimentoNoRanking.Aplicar(hub.AmericanoIndividual,
+                antes.Individual.Select(l => l.Jogador.Id).ToList(),
+                l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
+            MovimentoNoRanking.Aplicar(hub.AmericanoDuplas,
+                antes.Duplas.Select(l => l.Jogador.Id).ToList(),
+                l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
+        }
+
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
         if (torneioId.HasValue)
         {

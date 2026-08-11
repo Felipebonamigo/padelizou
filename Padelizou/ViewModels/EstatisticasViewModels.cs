@@ -210,7 +210,23 @@ public class RankingHubVM
     // Numa lista só, os dois números pareceriam a mesma medida.
     public List<RankingAmericanoLinhaVM> AmericanoIndividual { get; set; } = new();
     public List<RankingAmericanoLinhaVM> AmericanoDuplas { get; set; } = new();
+
+    // "Quantas posições o último torneio me fez ganhar ou perder" — o selo verde/vermelho das
+    // tabelas. Nulo = nenhum torneio terminou nos últimos 7 dias, e aí a coluna some inteira
+    // (ver Services/MovimentoNoRanking, inclusive a razão dos 7 dias).
+    //
+    // ⚠️ São DUAS janelas porque são dois rankings que não se somam: o Americano de sábado não
+    // pode carimbar movimento no ranking oficial, nem o contrário.
+    public Padelizou.Services.MovimentoNoRanking.Janela? JanelaDoMovimento { get; set; }
+    public Padelizou.Services.MovimentoNoRanking.Janela? JanelaDoAmericano { get; set; }
 }
+
+// O selo "+2 / -1" de uma linha, pro partial `_SeloDeMovimento`.
+//
+// ⚠️ É um record e não um `int?` solto porque partial com modelo NULO herda o modelo do PAI
+// em vez de receber nulo — e "novo no ranking" É o caso nulo. Com `int?` a estreia de um
+// jogador renderizaria o hub inteiro dentro de uma célula da tabela.
+public record SeloDeMovimentoVM(int? Posicoes);
 
 // Uma linha da aba Ranking Americano.
 public class RankingAmericanoLinhaVM
@@ -224,6 +240,10 @@ public class RankingAmericanoLinhaVM
     // O último que contou, pra linha dizer de onde veio o ponto mais recente.
     public DateTime? UltimoEm { get; set; }
     public string? UltimoNome { get; set; }
+
+    // Posições ganhas/perdidas no último Americano que contou (>0 subiu, <0 desceu, 0 igual,
+    // null = entrou agora). Ver Services/MovimentoNoRanking.
+    public int? Movimento { get; set; }
 }
 
 // Uma linha da aba Padelímetro do ranking.
@@ -235,6 +255,10 @@ public class PadelimetroLinhaVM
     public bool EmCalibracao { get; set; }
     public string? FaixaRotulo { get; set; }     // "4ª", "Open"... nulo = sem escada conhecida
     public string? FaixaEscada { get; set; }     // "masculina" | "feminina"
+
+    // Posições ganhas/perdidas no último torneio (>0 subiu, <0 desceu, 0 igual, null = entrou
+    // agora no ranking). Ver Services/MovimentoNoRanking.
+    public int? Movimento { get; set; }
 }
 
 // Uma linha do ranking de UM torneio (agregado por jogador dentro daquele torneio).
