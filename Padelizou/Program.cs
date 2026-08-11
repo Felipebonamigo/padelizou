@@ -215,6 +215,12 @@ builder.Services.AddScoped<OtimizacaoDeImagens>();
 // somem). Ele não cai em fonte do sistema: o pacote NoDependencies do SkiaSharp não enxerga
 // nenhuma no Linux, e o card sairia com todo texto invisível. Ver Services/FonteDoCartao.
 builder.Services.AddSingleton<FonteDoCartao>();
+// "O torneio acabou — vote no MVP", pra todo mundo que jogou.
+//
+// ⚠️ VARREDOR e não gancho: `Status = "Finalizado"` é carimbado em SEIS lugares (dois no
+// EncerramentoDaPartida, quatro no RoboDoChaveamento), e pendurar o aviso em cada um seria a
+// mesma regra escrita seis vezes — com o sétimo caminho nascendo sem aviso, calado.
+builder.Services.AddHostedService<AvisoDoMvpBackgroundService>();
 // Tira da tabela de push os registros que o servidor de push já não entrega — o número de
 // aparelhos é o que a gente usa pra medir o alcance do canal, e ele inflava sozinho.
 builder.Services.AddScoped<ISondaDePush, SondaDePushWebPush>();

@@ -359,6 +359,18 @@ public partial class Torneio
     // `CheckInOpcional` teve, só que no sentido contrário.
     public bool UsaVotacaoDeMvp { get; set; } = true;
 
+    // Quando o "vote no MVP" foi disparado pra quem jogou. Nulo = ainda não saiu.
+    //
+    // ⚠️ É esta coluna — e não o relógio — que garante UM aviso só. O varredor passa a cada
+    // poucos minutos, e sem a marca cada passada mandaria o mesmo push pras 90 a 220 pessoas de
+    // um torneio grande. É a mesma lição do `PerguntaDeNaoPagosEm` e do
+    // `Dupla.UltimoLembreteDePagamento`: prazo se lê do relógio, mas ENVIO se carimba.
+    //
+    // ⚠️ Ela é gravada mesmo quando não há ninguém pra avisar (torneio sem campeão, sem
+    // eleitor), senão a varredura voltaria àquele torneio pra sempre só pra descobrir de novo
+    // que não há o que mandar.
+    public DateTime? AvisoDeMvpEnviadoEm { get; set; }
+
     // ---- Cancelamento (Services/CancelamentoDoTorneio) ----
     // O torneio não vai acontecer. Vive no Status ("Cancelado"), e estes dois campos guardam
     // o PORQUÊ e o QUANDO — sem eles o organizador cancela hoje e daqui a duas semanas não

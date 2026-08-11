@@ -321,6 +321,40 @@ public static class MvpDoTorneio
         return null;
     }
 
+    // ─────────────────────── O AVISO DE "VOTE NO MVP" ───────────────────────
+
+    public const string TituloDoAviso = "Vote no MVP do torneio";
+
+    public static string CorpoDoAviso(string nomeDoTorneio) =>
+        $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões — "
+        + $"a votação fica aberta por {DiasParaVotar} dias.";
+
+    // O canal do aviso. Notificação do app e caixa de entrada; **sem e-mail**.
+    //
+    // ⚠️ A pergunta do `AlcanceDoAviso` é "a pessoa faz alguma coisa por causa disto?" — e aqui
+    // faz (vota). Mesmo assim o e-mail fica de fora, por causa do TAMANHO: este aviso sai pra
+    // TODO MUNDO que jogou, de uma vez. Um torneio real tem 45 a 110 duplas, ou seja 90 a 220
+    // e-mails num único minuto — a rajada exata que já queimou a cota duas vezes e levou junto
+    // duas recuperações de senha. Perder um voto de MVP não custa nada a ninguém; perder o
+    // "esqueci minha senha" custa a conta.
+    //
+    // ⚠️ E WhatsApp está fora de questão: não é pessoal (é o mesmo recado pra 200 pessoas), que
+    // é precisamente o que a Meta chama de spam e o que restringiu o número em 04/08.
+    public const AlcanceDoAviso CanalDoAviso = AlcanceDoAviso.AppSemEmail;
+
+    // A madrugada de verdade, e SÓ ela.
+    //
+    // ⚠️ De propósito NÃO se usa a janela civilizada do lembrete de pagamento (9h–21h): torneio
+    // de padel terminando às 22h ou 23h é o normal, e segurar o aviso até as 9h da manhã perde
+    // exatamente o momento em que ele vale — todo mundo ainda no clube, falando do torneio que
+    // acabou de acabar. O que esta janela protege é o outro caso: um admin arrumando dado às 3h
+    // e finalizando um torneio antigo não acorda 200 pessoas.
+    public const int PrimeiraHoraDoAviso = 7;
+    public const int UltimaHoraDoAviso = 1;   // exclusivo: 1h da manhã já é tarde demais
+
+    public static bool HoraDeAvisar(DateTime agora) =>
+        agora.Hour >= PrimeiraHoraDoAviso || agora.Hour < UltimaHoraDoAviso;
+
     // Esta tela deve aparecer na página do torneio?
     //
     // Aparece enquanto a votação está aberta E depois que encerra (pra mostrar o eleito). O que

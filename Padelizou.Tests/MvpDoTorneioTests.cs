@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using NSubstitute.Core;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -243,6 +245,158 @@ public class MvpDoTorneioTests
         Assert.True(religada!.Encerrada);
         var eleito = Assert.Single(religada.Vencedores);
         Assert.Equal(campea.Jogador1Id, eleito.JogadorId);
+    }
+
+    // ─────────────────────────── O AVISO DE "VOTE NO MVP" ───────────────────────────
+
+    private static IPushNotificationService PushDublado() =>
+        Substitute.For<IPushNotificationService>();
+
+    // Quantos avisos de MVP o dublê recebeu, e pra quem.
+    private static List<int> QuemFoiAvisado(IPushNotificationService push) =>
+        push.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IPushNotificationService.EnviarParaJogadorAsync)
+                     && (string)c.GetArguments()[1]! == MvpDoTorneio.TituloDoAviso)
+            .Select(c => (int)c.GetArguments()[0]!)
+            .ToList();
+
+    [Fact]
+    public async Task Quando_o_torneio_acaba_TODO_MUNDO_que_jogou_e_avisado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var push = PushDublado();
+
+        var avisados = await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5));
+
+        Assert.Equal(1, avisados);
+
+        // Os quatro que estiveram na chave — campeões inclusive, que também votam (só não em
+        // si mesmos).
+        var eleitores = await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id);
+        Assert.Equal(4, eleitores.Count);
+        Assert.Equal(eleitores.OrderBy(x => x), QuemFoiAvisado(push).OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task O_aviso_sai_UMA_VEZ_SO_por_mais_que_o_varredor_passe()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var push = PushDublado();
+
+        // ⚠️ O varredor passa a cada 5 minutos. Sem a coluna de carimbo, cada passada
+        // repetiria o push pras 90 a 220 pessoas de um torneio real.
+        Assert.Equal(1, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(10)));
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(15)));
+
+        Assert.Equal(4, QuemFoiAvisado(push).Count);
+        Assert.NotNull((await ctx.Torneios.FindAsync(torneio.Id))!.AvisoDeMvpEnviadoEm);
+    }
+
+    [Fact]
+    public async Task O_aviso_vai_pelo_app_e_SEM_email()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var push = PushDublado();
+
+        await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5));
+
+        // ⚠️ Este aviso sai pra TODO MUNDO que jogou, de uma vez: num torneio real são 90 a 220
+        // e-mails num minuto — a rajada que já queimou a cota duas vezes, levando junto duas
+        // recuperações de senha. Perder um voto de MVP não custa nada; perder o "esqueci minha
+        // senha" custa a conta. E WhatsApp está fora: o mesmo recado pra 200 pessoas é
+        // exatamente o que a Meta chama de spam.
+        var alcances = push.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IPushNotificationService.EnviarParaJogadorAsync))
+            .Select(c => (AlcanceDoAviso)c.GetArguments()[4]!)
+            .ToList();
+
+        Assert.NotEmpty(alcances);
+        Assert.All(alcances, a => Assert.Equal(AlcanceDoAviso.AppSemEmail, a));
+    }
+
+    [Fact]
+    public async Task Torneio_com_a_votacao_DESLIGADA_nao_avisa_ninguem()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        var push = PushDublado();
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+        Assert.Empty(QuemFoiAvisado(push));
+    }
+
+    [Fact]
+    public async Task Torneio_FORA_da_janela_nao_avisa_e_nao_fica_sendo_varrido_pra_sempre()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var push = PushDublado();
+
+        // Passaram-se 10 dias desde o último jogo: a votação já fechou.
+        var tarde = Domingo.AddDays(10);
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, tarde));
+        Assert.Empty(QuemFoiAvisado(push));
+
+        // ⚠️ Mas o carimbo SAI mesmo assim: sem isso a varredura voltaria a este torneio a cada
+        // 5 minutos, pra sempre, só pra descobrir de novo que não há o que mandar.
+        Assert.NotNull((await ctx.Torneios.FindAsync(torneio.Id))!.AvisoDeMvpEnviadoEm);
+    }
+
+    [Fact]
+    public async Task Torneio_SEM_campeao_nao_avisa_porque_nao_ha_cedula()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+
+        // Tira a coroa: sobra torneio finalizado sem ninguém pra votar.
+        foreach (var d in ctx.Duplas.Where(d => d.UltimaFase == "Campeao").ToList()) d.UltimaFase = "Final";
+        await ctx.SaveChangesAsync();
+
+        var push = PushDublado();
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+        Assert.Empty(QuemFoiAvisado(push));
+    }
+
+    [Fact]
+    public async Task De_MADRUGADA_o_aviso_espera_a_manha()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var push = PushDublado();
+
+        // 3h da manhã: um admin arrumando dado não acorda 200 pessoas.
+        var madrugada = new DateTime(2026, 8, 10, 3, 0, 0);
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, madrugada));
+        Assert.Empty(QuemFoiAvisado(push));
+
+        // ⚠️ Mas 22h e 23h PASSAM, ao contrário da janela civilizada do lembrete de pagamento
+        // (9h–21h): torneio de padel terminando às 22h é o normal, e segurar o aviso até as 9h
+        // perderia justamente o momento em que ele vale — todo mundo ainda no clube.
+        Assert.True(MvpDoTorneio.HoraDeAvisar(new DateTime(2026, 8, 9, 22, 30, 0)));
+        Assert.True(MvpDoTorneio.HoraDeAvisar(new DateTime(2026, 8, 9, 23, 50, 0)));
+        Assert.False(MvpDoTorneio.HoraDeAvisar(new DateTime(2026, 8, 10, 4, 0, 0)));
+    }
+
+    [Fact]
+    public async Task Torneio_que_AINDA_NAO_ACABOU_nao_avisa()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        torneio.Status = "Mata-Mata";
+        await ctx.SaveChangesAsync();
+
+        var push = PushDublado();
+        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+        Assert.Empty(QuemFoiAvisado(push));
+
+        // E o carimbo NÃO sai: este torneio ainda vai acabar, e quando acabar precisa avisar.
+        Assert.Null((await ctx.Torneios.FindAsync(torneio.Id))!.AvisoDeMvpEnviadoEm);
     }
 
     // ─────────────────────────── A APURAÇÃO ───────────────────────────

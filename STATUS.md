@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🔗 **O `www` PAROU DE DUPLICAR O SITE** (21:51, no Caddy) + 🚀 **`build-517-7f5e975` NO AR** (21:09).
+> Última atualização: **11/08/2026** — 🔔 **"O TORNEIO ACABOU — VOTE NO MVP" agora sai sozinho pra todo mundo que jogou** (pedido do Felipe). ⏳ **NÃO PUBLICADO** ainda.
+>
+> 🔔 **É VARREDOR, e não gancho no fim da última partida** — e essa é a decisão que importa. `Status = "Finalizado"` é carimbado em **SEIS lugares** (dois no `EncerramentoDaPartida`, quatro no `RoboDoChaveamento`: mata-mata, Americano individual, Americano de duplas e a coroação na mão do organizador). Pendurar o aviso em cada um seria a mesma regra escrita seis vezes — e o sétimo caminho que alguém escrevesse amanhã nasceria **sem aviso, calado**. `AvisoDoMvpBackgroundService` passa a cada **5 minutos**, cobre qualquer caminho que leve o torneio a acabar, e tem **um dono só**.
+>
+> 📵 **CANAL: notificação do app + caixa de entrada, SEM E-MAIL** — e aqui a régua do `AlcanceDoAviso` foi contrariada de propósito. Pela pergunta dela ("a pessoa faz alguma coisa por causa disto?") caberia e-mail, porque a pessoa **vota**. O que desempata é o TAMANHO: este aviso sai pra todos de uma vez, e torneio real tem 45–110 duplas — **90 a 220 e-mails num único minuto**, exatamente a rajada que já queimou a cota duas vezes e levou junto duas recuperações de senha. **Perder um voto de MVP não custa nada a ninguém; perder o "esqueci minha senha" custa a conta.** WhatsApp está fora sem discussão: o mesmo recado pra 200 pessoas é a definição de spam pra Meta.
+>
+> 🌙 **JANELA PRÓPRIA, 7h–1h — não a "hora civilizada" 9h–21h do lembrete de pagamento.** Torneio de padel terminando às 22h ou 23h é o normal, e segurar o aviso até as 9h da manhã perderia justamente o momento em que ele vale: todo mundo ainda no clube, falando do torneio que acabou de acabar. O que a janela protege é o outro caso — um admin arrumando dado às 3h não acorda 200 pessoas.
+>
+> 🔒 **`Torneio.AvisoDeMvpEnviadoEm` garante UM envio só**, e o carimbo é **salvo ANTES de enfileirar, um torneio por vez**. Com um `SaveChanges` só no fim do laço, um torneio que estourasse no meio perderia o carimbo dos anteriores e o tick seguinte **reenviaria o push pras 200 pessoas de cada um**. Entre falhar por falta e falhar por excesso num canal de massa, escolhe-se a falta. ⚠️ E o carimbo sai **mesmo quando não há o que avisar** (torneio sem campeão, fora da janela) — senão a varredura voltaria àquele torneio a cada 5 minutos, pra sempre.
+>
+> 🚫 **Sem varredura na subida**, ao contrário do irmão que pergunta sobre não pagos: deploy é restart, e restart não é notícia. Varrer no start faria o **primeiro deploy deste código disparar o aviso de todo torneio que acabou nos últimos 7 dias, de uma vez**. Esperar um tick custa 5 minutos.
+>
+> 🧪 **3.771 testes, 0 falhas** (8 novos). **1 migration** (`AvisoDeMvpEnviadoEm`, `timestamp` anulável — sem a armadilha do default, aqui nulo É a resposta certa: "ainda não avisei").
+>
+> Antes, no mesmo dia: 🔗 **O `www` PAROU DE DUPLICAR O SITE** (21:51, no Caddy) + 🚀 **`build-517-7f5e975` NO AR** (21:09).
 >
 > 🔗 **301 DO `www` PRA RAIZ, e ele NÃO passa por deploy**: o `Caddyfile` mora só no VPS e não é versionado, então isto não está em commit nenhum — está valendo desde o `reload`. Até aqui os dois endereços serviam o site inteiro, idêntico e sem redirecionar; para o buscador eram dois sites iguais dividindo a força de cada página.
 >
