@@ -112,6 +112,13 @@
                             {
                                 <span class="text-muted fst-italic small">@cidadeDoClube</span>
                             }
+                            @* Clube sem cidade não entra em página de cidade nenhuma, e nada
+                               na tela dizia isso — o botão é onde o passivo vira conserto. *@
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-2 text-decoration-none"
+                                    data-bs-toggle="collapse" data-bs-target="#cidade_@clube.Id"
+                                    title="Definir a cidade" aria-label="Definir a cidade de @clube.Nome">
+                                <i class="bi bi-geo-alt"></i>
+                            </button>
                         </td>
                         <td>
                             @if (clube.Dono != null)
@@ -173,6 +180,26 @@
                             </form>
                         </td>
                     </tr>
+                    <tr class="collapse linha-extra-@clube.Id" id="cidade_@clube.Id">
+                        <td colspan="5">
+                            <form asp-controller="Admin" asp-action="DefinirCidadeDoClube" method="post" class="d-flex gap-2 flex-wrap align-items-center">
+                                <input type="hidden" name="clubeId" value="@clube.Id" />
+                                @* O `list` oferece as cidades que já existem: escolher uma delas
+                                   é o que impede a base de ganhar a décima grafia da mesma
+                                   cidade. Quem digitar mesmo assim cai no AcharOuCriarCidade,
+                                   que casa "gravatai" com a "Gravataí" já cadastrada. *@
+                                <input type="text" name="cidade" value="@(clube.Cidade?.Nome)" class="form-control"
+                                       style="max-width: 18rem;" list="cidadesConhecidas" placeholder="Cidade"
+                                       autocomplete="off" aria-label="Cidade do clube @clube.Nome" />
+                                <input type="text" name="estado" value="@(clube.Cidade?.Estado)" class="form-control"
+                                       style="max-width: 6rem;" maxlength="2" placeholder="UF"
+                                       autocomplete="off" aria-label="Estado do clube @clube.Nome" />
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar cidade</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#cidade_@clube.Id">Cancelar</button>
+                                <span class="small text-muted">Vazio tira a cidade. É ela que põe os torneios do clube na página da cidade.</span>
+                            </form>
+                        </td>
+                    </tr>
                     <tr class="collapse linha-extra-@clube.Id" id="atribuir_@clube.Id">
                         <td colspan="5">
                             @{
@@ -196,6 +223,16 @@
     @* Um datalist só pra tabela inteira — 17 clubes repetidos 17 vezes seria puro peso. *@
     <datalist id="nomesDeClube">
         @foreach (var nome in Model.Select(c => c.Nome).Distinct().OrderBy(n => n))
+        {
+            <option value="@nome"></option>
+        }
+    </datalist>
+
+    @* As cidades que a base já conhece. Escolher uma delas é o que impede a base de ganhar
+       mais uma grafia da mesma cidade — o problema que o CidadesSemRepetir existe pra remendar
+       depois, e que aqui dá pra evitar antes. *@
+    <datalist id="cidadesConhecidas">
+        @foreach (var nome in Model.Where(c => c.Cidade != null).Select(c => c.Cidade!.Nome).Distinct().OrderBy(n => n))
         {
             <option value="@nome"></option>
         }

@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🚀 **`build-515-4e328e2` NO AR EM PRODUÇÃO**: o MVP do torneio está **completo** no site — botão na página do torneio, votação e o interruptor do organizador na gestão. Foi junto o SEO da sessão paralela (página por cidade, sitemap, dados estruturados).
+> Última atualização: **11/08/2026** — 🖼️ **A IMAGEM DA MARCA, O ÍCONE DA BUSCA, O REMENDO DO `www` — E A CIDADE DO CLUBE, QUE ERA O QUE TRAVAVA TUDO.** ⏳ **NÃO PUBLICADO** (commitado, sem deploy).
+>
+> 🕳️ **AS PÁGINAS DE CIDADE SUBIRAM NO `build-515` E ESTAVAM INERTES.** Conferido em produção: `/torneios-de-padel-em-porto-alegre-rs` respondia **404 em todas** — e **corretamente**, porque **nenhum clube de produção tem cidade**. O JSON-LD do torneio 25 provou: `"location":{"name":"Chakra Padel"}`, **sem `address`**. `Clube.CidadeId` só era preenchido na criação, e não havia como editar depois: o recurso estava pronto e morto por falta de um campo, **sem nada na tela dizendo isso**.
+>
+> 🗺️ **`/Admin/Clubes` ganhou "definir a cidade"** (botão de pin ao lado da coluna). Passa por `CatalogoLocais.AcharOuCriarCidadeAsync` de propósito: digitar **"gravatai"** casa com a **"Gravataí"** que já existe em vez de criar a décima grafia — ✅ conferido no navegador **e no banco** (continuou 1 Gravataí, total de cidades inalterado). **Campo vazio TIRA a cidade**, senão corrigir um engano voltaria a ser SQL na mão.
+>
+> 🖼️ **A ARTE DE COMPARTILHAMENTO EXISTE** (`wwwroot/image/og-padelizou.png`, 1200×630). Era a **logo quadrada** que ia como `og:image` — e logo quadrada rende o **cartão pequeno**. 🚨 **O PNG é pronto e versionado, não desenhado em runtime**: mesmo motivo dos cards — no VPS o SkiaSharp é o `NoDependencies`, e uma falha de fonte lá entregaria a `og:image` com **texto invisível** ou 404. Gerado UMA VEZ por um programa descartável. ⚠️ A 1ª versão usou o `icon-512`, que tem **fundo cinza próprio** e virou um quadrado destoando sobre o navy; trocado pelo `logo-raquetes.webp`, recortado.
+>
+> 🔎 **O GLOBO CINZA DA BUSCA ERA O TAMANHO DO ÍCONE.** O Google só usa o favicon nos resultados se for quadrado de lado **múltiplo de 48** — o nosso é **64×64**. Entrou o `icon-192` (48×4), que já existia. ⚠️ **Sem `asp-append-version`, ao contrário de todo o resto do layout**: o Google exige URL de ícone **estável** entre rastreamentos, e o hash muda a cada build.
+>
+> 🔗 **O CANÔNICO ESTAVA CONFIRMANDO OS DOIS ENDEREÇOS**: servido pelo `www`, apontava pro **próprio `www`** — o contrário do que ele existe pra fazer. Agora `www` é reescrito pra raiz (`MetaDaBusca.HostCanonico`). ⚠️ **Reduz o dano, não conserta**: a correção é o **301 no Caddy**. `localhost`/`dev` seguem apontando pra si mesmos — canônico de dev apontando pra produção mandaria indexar a página errada.
+>
+> 🧐 **UM SUSTO QUE ERA ERRO DE MEDIÇÃO, não do site**: a varredura acusou "0 blocos JSON-LD" em produção. O bloco **está lá e correto** — o TagHelper do `<script>` escapa o `+`, então o HTML traz `type="application/ld&#x2B;json"` e o `grep` por `ld+json` não acha. O parser HTML decodifica normalmente (o seletor `script[type="application/ld+json"]` casa no navegador). **Procurar por `ld&#x2B;json` também.**
+>
+> 🧪 **3.763 testes, 0 falhas** (17 novos). **Zero migration.** ✅ Conferido no navegador: `og:image` da arte nova na home e **a capa do torneio continuando a passar na frente** nele; os dois `<link rel="icon">`; e o fluxo inteiro da cidade — clube sem cidade → definir → a página da cidade **nasce**.
+>
+> ⛔ **O DEPLOY NÃO PÔDE SER FEITO POR MIM**: `gh` não está instalado nesta máquina e não há token do GitHub; o `deploy.yml` é `workflow_dispatch`. **Publicar o build gerado a partir deste commit.**
+>
+> Antes, no mesmo dia: 🚀 **`build-515-4e328e2` NO AR EM PRODUÇÃO**: o MVP do torneio está **completo** no site — botão na página do torneio, votação e o interruptor do organizador na gestão. Foi junto o SEO da sessão paralela (página por cidade, sitemap, dados estruturados).
 >
 > ✅ **Conferido em produção**: symlink **e** `cwd` do processo em `build-515-4e328e2`, `NRestarts=0`, `active/running`, `/healthz` 200, **zero exceções** no journal. O botão **"MVP do torneio" aparece na página pública** do torneio 23, ao lado do "Ver os campeões". 🔍 **Pegadinha na hora de conferir**: `strings -a` no `.dll` devolveu **0** pro `editMvpSwitch` e quase virou "não subiu" — literal de view Razor é gravado em **UTF-16**, e só aparece com `strings -el` (aí são 2 ocorrências, junto com "Eleger o MVP do torneio"). O que `strings -a` acha é nome de parâmetro/símbolo, não texto de tela.
 >

@@ -37,7 +37,11 @@ public static class DadosEstruturados
         ["@type"] = "Organization",
         ["name"] = "Padelizou",
         ["url"] = baseUrl,
+        // logo é a marca isolada (quadrada, é o que o buscador espera); image é a arte de
+        // compartilhamento, que tem texto e proporção de cartão. Não são a mesma coisa e
+        // trocá-las faz o painel do buscador mostrar um retângulo com frase no lugar do ícone.
         ["logo"] = $"{baseUrl}/image/icon-512.png",
+        ["image"] = $"{baseUrl}/image/og-padelizou.png",
         ["description"] = MetaDaBusca.DescricaoDoSite,
         ["sameAs"] = new[] { Instagram },
     });

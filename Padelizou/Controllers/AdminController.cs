@@ -274,6 +274,51 @@ namespace padelizou.Controllers
             return RedirectToAction("Clubes");
         }
 
+        // Dar cidade a um clube que já existe.
+        //
+        // Era o buraco que deixava as PÁGINAS DE CIDADE inertes: `Clube.CidadeId` só era
+        // preenchido quando alguém cadastrava aquele nome informando a cidade
+        // (CatalogoLocais.AcharOuCriarClubeAsync), e não havia como editar depois. Em produção,
+        // nenhum clube com torneio tinha cidade — então `/torneios-de-padel-em-...` respondia
+        // 404 pra todas, corretamente, e a ficha de evento dos torneios saía sem endereço.
+        //
+        // Passa por AcharOuCriarCidadeAsync de propósito: é ele que casa "gravatai" com a
+        // "Gravataí" que já existe em vez de criar a décima grafia da mesma cidade.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DefinirCidadeDoClube(int clubeId, string? cidade, string? estado)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var clube = await _context.Clubes.FindAsync(clubeId);
+            if (clube == null) return NotFound();
+
+            // Campo vazio TIRA a cidade. É o desfazer de quem escolheu a errada — sem isso,
+            // corrigir um engano voltaria a ser SQL na mão, que é o que esta tela existe pra
+            // acabar.
+            if (string.IsNullOrWhiteSpace(cidade))
+            {
+                clube.CidadeId = null;
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = $"\"{clube.Nome}\" ficou sem cidade. Ele sai das páginas de cidade.";
+                return RedirectToAction("Clubes");
+            }
+
+            var registro = await CatalogoLocais.AcharOuCriarCidadeAsync(_context, cidade, estado);
+            if (registro == null)
+            {
+                TempData["Erro"] = "Não entendi essa cidade. Escreva o nome dela, por exemplo \"Porto Alegre\".";
+                return RedirectToAction("Clubes");
+            }
+
+            clube.CidadeId = registro.Id;
+            await _context.SaveChangesAsync();
+
+            var uf = registro.Estado == null ? "" : $"/{registro.Estado}";
+            TempData["Sucesso"] = $"\"{clube.Nome}\" agora é em {registro.Nome}{uf} — os torneios dele entram na página dessa cidade.";
+            return RedirectToAction("Clubes");
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AtribuirDono(int clubeId, int jogadorId)

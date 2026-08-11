@@ -55,6 +55,23 @@ public static class MetaDaBusca
 
     private static string Chave(string? controller, string? action) => $"{controller}/{action}";
 
+    // O site atende em DOIS endereços: padelizou.com.br e www.padelizou.com.br servem tudo,
+    // idêntico, e o www não redireciona. Pro buscador são dois sites com o mesmo conteúdo, e a
+    // força de cada página se divide entre eles.
+    //
+    // ⚠️ Isto REDUZ o dano, não conserta: a correção é um 301 do www pra raiz, e ela mora no
+    // Caddy (que não está neste repo). Sem esta linha o canônico era pior que inútil — servido
+    // pelo www, ele apontava pro PRÓPRIO www, confirmando os dois endereços como legítimos.
+    //
+    // Só o www é reescrito. localhost e dev continuam apontando pra si mesmos: canônico de
+    // desenvolvimento apontando pra produção mandaria o buscador indexar a página errada — e é
+    // o tipo de coisa que ninguém percebe olhando a tela.
+    public static string HostCanonico(string host)
+    {
+        const string publico = Middleware.AdminHostMiddleware.SitePublicoHost;
+        return host.Equals($"www.{publico}", StringComparison.OrdinalIgnoreCase) ? publico : host;
+    }
+
     // "follow" e não "nofollow": a tela de login não deve APARECER na busca, mas os links do
     // rodapé que saem dela continuam valendo. Um nofollow aqui cortaria caminho pro que
     // interessa indexar.

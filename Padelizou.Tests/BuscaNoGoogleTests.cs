@@ -68,6 +68,29 @@ public class BuscaNoGoogleTests
         Assert.Equal(MetaDaBusca.DescricaoDoSite, MetaDaBusca.Descricao("Auth", "Login"));
     }
 
+    // ── Os dois endereços do site ──────────────────────────────────────────────────────────
+
+    // O site atende em padelizou.com.br E www.padelizou.com.br, idêntico, sem redirecionar.
+    // Servido pelo www, o canônico apontava pro PRÓPRIO www — confirmando os dois endereços
+    // como legítimos, que é o contrário do que ele existe pra fazer.
+    [Fact]
+    public void Servido_pelo_www_o_canonico_aponta_pra_raiz()
+    {
+        Assert.Equal("padelizou.com.br", MetaDaBusca.HostCanonico("www.padelizou.com.br"));
+        Assert.Equal("padelizou.com.br", MetaDaBusca.HostCanonico("WWW.Padelizou.com.br"));
+    }
+
+    // Canônico de desenvolvimento apontando pra produção mandaria o buscador indexar outra
+    // página — e nada na tela denunciaria isso.
+    [Theory]
+    [InlineData("padelizou.com.br")]
+    [InlineData("localhost:5038")]
+    [InlineData("dev.padelizou.com.br")]
+    public void Os_outros_enderecos_continuam_apontando_pra_si_mesmos(string host)
+    {
+        Assert.Equal(host, MetaDaBusca.HostCanonico(host));
+    }
+
     // ── O corte da frase ───────────────────────────────────────────────────────────────────
 
     [Fact]

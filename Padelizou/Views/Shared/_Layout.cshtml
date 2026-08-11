@@ -93,14 +93,19 @@
            linha o buscador os trata como páginas concorrentes — nenhuma das quatro ranqueia
            bem, e a que ele escolhe mostrar é a que ele quiser. *@
         var pedido = ViewContext.HttpContext.Request;
-        var urlCanonica = $"{pedido.Scheme}://{pedido.Host}{pedido.Path}";
+        @* O host passa pela régua do canônico porque o site atende em dois endereços — ver
+           MetaDaBusca.HostCanonico. *@
+        var hostCanonico = Padelizou.Services.MetaDaBusca.HostCanonico(pedido.Host.Value);
+        var urlCanonica = $"{pedido.Scheme}://{hostCanonico}{pedido.Path}";
 
-        @* Sem imagem própria vai a logo, que é quadrada — então o cartão do compartilhamento
-           também é o pequeno. Capa de torneio e arte de campeão entram por aqui e viram o
-           cartão grande, que é o que ocupa espaço no grupo do WhatsApp. *@
-        var ogImagem = ViewData["OgImagem"] as string;
-        var ogImagemGrande = ogImagem != null;
-        ogImagem ??= $"{pedido.Scheme}://{pedido.Host}/image/icon-512.png";
+        @* Sem imagem própria vai a arte de compartilhamento (1200×630), e não a logo quadrada:
+           o cartão grande é o que ocupa espaço no grupo do WhatsApp e faz alguém parar pra ler.
+           Ela é um PNG PRONTO no repo, e não desenhada na hora de propósito — no VPS o
+           SkiaSharp é o NoDependencies, e uma falha de fonte lá entregaria a og:image com o
+           texto invisível ou um 404. Capa de torneio e arte de campeão entram por ViewData e
+           passam na frente. *@
+        var ogImagem = ViewData["OgImagem"] as string
+            ?? $"{pedido.Scheme}://{hostCanonico}/image/og-padelizou.png";
     }
     <meta name="description" content="@descricaoPagina" />
     @if (foraDoIndice)
@@ -120,7 +125,9 @@
     <meta property="og:description" content="@descricaoPagina" />
     <meta property="og:url" content="@urlCanonica" />
     <meta property="og:image" content="@ogImagem" />
-    <meta name="twitter:card" content="@(ogImagemGrande ? "summary_large_image" : "summary")" />
+    @* Sempre o cartão grande: agora até o padrão é uma arte 1200×630, e não mais a logo
+       quadrada que só rendia o cartão pequeno. *@
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#141d33" />
     @* iOS antigo (antes do 16.4) ignora o manifest e só obedece estas três. Sem elas, quem
        adiciona à tela de início nesses aparelhos abre o site DENTRO do Safari, com barra de
@@ -149,6 +156,13 @@
        selo das notificações no Android, onde 32 ficaria borrado). O nome ficou; o `sizes` diz a
        verdade — declarar tamanho errado faz o navegador descartar o ícone. *@
     <link rel="icon" type="image/png" sizes="64x64" href="~/image/favicon-32.png" asp-append-version="true" />
+    @* O ícone que o Google mostra ao lado do resultado da busca precisa ser um quadrado com
+       lado MÚLTIPLO DE 48 — e 64 não é. Sem um que sirva, ele desenha o globo cinza genérico.
+       O de 192 (48×4) atende, e o navegador segue usando o de 64 pra aba.
+
+       ⚠️ SEM asp-append-version aqui, ao contrário dos outros: o Google exige que a URL do
+       ícone seja ESTÁVEL entre rastreamentos, e o hash muda a cada build do arquivo. *@
+    <link rel="icon" type="image/png" sizes="192x192" href="~/image/icon-192.png" />
     <link rel="apple-touch-icon" href="~/image/apple-touch-icon.png" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
