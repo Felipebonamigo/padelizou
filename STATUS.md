@@ -1,7 +1,15 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🗺️ **UMA PÁGINA POR CIDADE: "Torneios de padel em Porto Alegre".** ⏳ **NÃO PUBLICADO** (commitado, sem deploy).
+> Última atualização: **11/08/2026** — 🎛️ **O INTERRUPTOR DO MVP CHEGOU NA GESTÃO DO TORNEIO**, fechando o que faltava do MVP. O botão "MVP do torneio" na página do torneio já tinha entrado de carona no commit `ff433da` da sessão paralela.
+>
+> 🐛 **UM DEFEITO MEU QUE SÓ O NAVEGADOR PEGARIA: a ordem do `<input type="hidden">`.** O parâmetro do servidor é `bool?` (nulo = aba antiga, mantém o que está gravado), então a caixa precisa de um campo escondido com `false` — senão DESMARCAR é indistinguível de "formulário sem o campo" e o organizador nunca conseguiria desligar. Eu pus o escondido **ANTES** da caixa, e o POST saía `["false","true"]`: **o binder do ASP.NET lê o PRIMEIRO valor**, então marcar a caixa DESLIGARIA a votação. ⚠️ **O teste de controller não vê isso** — ele chama a ação direto e pula o model binding inteiro. Quem pegou foi ler o `FormData` do formulário de verdade no navegador. A ordem certa (caixa, depois escondido) é exatamente a que o `asp-for` gera sozinho.
+>
+> ✅ **Conferido no navegador, ciclo completo, contra o PostgreSQL local**: desmarcar e salvar gravou `f` no banco, **o botão sumiu da página do torneio** e `/Torneios/Mvp/29` passou a devolver **404**; a caixa voltou a renderizar desmarcada; remarcar gravou `t` de volta — e **o voto que já existia continuava lá** (desligar é esconder, nunca destruir). ⚠️ De quebra, o primeiro POST foi RECUSADO por uma validação sem relação nenhuma ("Sets e games precisam ser pelo menos 1"): o formulário da gestão salva tudo de uma vez, então um campo inválido em qualquer canto impede a gravação do resto — vale lembrar disso antes de concluir que o próprio campo não funciona.
+>
+> 🧪 **3.748 testes, 0 falhas** (2 novos, cobrindo o `null` da aba antiga que NÃO pode desligar nada). **Zero migration** (a coluna subiu no `build-510`).
+>
+> Antes, no mesmo dia: 🗺️ **UMA PÁGINA POR CIDADE: "Torneios de padel em Porto Alegre".** ⏳ **NÃO PUBLICADO** (commitado, sem deploy).
 >
 > 🗺️ **O MOTIVO É O QUE AS PESSOAS DIGITAM.** Ninguém procura "padelizou" sem já conhecer o site — quem ainda não conhece procura **o esporte mais o lugar**. A listagem em `/Torneios` não responde a isso: ela não fala de cidade nenhuma. Agora `/torneios-de-padel-em-porto-alegre-rs` responde, com `<h1>`, título e descrição na mesma ordem da pergunta. O endereço é escrito por extenso de propósito: é a primeira coisa que o buscador e a pessoa leem sobre a página.
 >

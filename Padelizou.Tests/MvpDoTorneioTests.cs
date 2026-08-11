@@ -125,6 +125,58 @@ public class MvpDoTorneioTests
         throw new DirectoryNotFoundException("Não achei a raiz do repositório a partir de " + AppContext.BaseDirectory);
     }
 
+    // A gestão do torneio salvando o interruptor. `null` é o formulário ANTIGO (aba aberta antes
+    // do deploy, sem o campo); `false` é o organizador desmarcando de verdade — e essa diferença
+    // só existe na tela porque há um <input type="hidden" value="false"> antes da caixa.
+    private static async Task SalvarNaGestaoAsync(
+        DbPadelContext ctx, Torneio torneio, int organizadorId, bool? usaVotacaoDeMvp)
+    {
+        var controller = TestInfra.NovoTorneiosController(ctx, organizadorId);
+        await controller.Editar(
+            id: torneio.Id, nome: torneio.Nome, localTorneio: null, dataInicio: torneio.DataInicio,
+            precoInscricao: torneio.PrecoInscricao, clubeId: torneio.ClubeId,
+            quantidadeQuadras: torneio.QuantidadeQuadras, nomesQuadras: null,
+            permiteImpedimentos: false, permiteImpedimentoSextaNoite: false,
+            permiteImpedimentoSabadoManha: false, permiteImpedimentoSabadoTarde: false,
+            restricaoCategoria: "Livre", capa: null,
+            usaVotacaoDeMvp: usaVotacaoDeMvp);
+    }
+
+    [Fact]
+    public async Task Na_gestao_o_organizador_DESLIGA_e_RELIGA_a_votacao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Finalizado");
+
+        Assert.True(torneio.UsaVotacaoDeMvp);   // nasce ligada
+
+        await SalvarNaGestaoAsync(ctx, torneio, organizador.Id, usaVotacaoDeMvp: false);
+        Assert.False((await ctx.Torneios.FindAsync(torneio.Id))!.UsaVotacaoDeMvp);
+
+        await SalvarNaGestaoAsync(ctx, torneio, organizador.Id, usaVotacaoDeMvp: true);
+        Assert.True((await ctx.Torneios.FindAsync(torneio.Id))!.UsaVotacaoDeMvp);
+    }
+
+    [Fact]
+    public async Task Formulario_ANTIGO_da_gestao_nao_desliga_a_votacao_sem_ninguem_pedir()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, organizador) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Finalizado");
+
+        // ⚠️ `null` = aba aberta ANTES deste deploy, que não tem o campo no formulário. Se isso
+        // fosse tratado como "desmarcado", salvar qualquer outra coisa na gestão por uma aba
+        // velha desligaria a votação do torneio caladinho. Mantém o que está gravado.
+        await SalvarNaGestaoAsync(ctx, torneio, organizador.Id, usaVotacaoDeMvp: null);
+        Assert.True((await ctx.Torneios.FindAsync(torneio.Id))!.UsaVotacaoDeMvp);
+
+        // E o mesmo vale no sentido contrário: desligada, uma aba velha não RELIGA.
+        torneio.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        await SalvarNaGestaoAsync(ctx, torneio, organizador.Id, usaVotacaoDeMvp: null);
+        Assert.False((await ctx.Torneios.FindAsync(torneio.Id))!.UsaVotacaoDeMvp);
+    }
+
     [Fact]
     public void Organizador_que_DESLIGA_a_votacao_some_com_ela_inteira()
     {

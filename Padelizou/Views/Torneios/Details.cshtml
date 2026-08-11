@@ -2165,6 +2165,38 @@
                                 </div>
                             </div>
                             <div class="form-check form-switch mb-2">
+                                @* O MVP do torneio: quando ele acaba, quem jogou elege o melhor
+                                   entre os campeões (ver Services/MvpDoTorneio). Nasce LIGADO,
+                                   ao contrário do check-in aí em cima — a votação não dá
+                                   trabalho nenhum ao organizador, ela abre sozinha depois do
+                                   torneio e quem trabalha são os jogadores.
+
+                                   ⚠️ O <input type="hidden" value="false"> não é enfeite: o
+                                   parâmetro do servidor é `bool?`, onde NULO quer dizer "aba
+                                   aberta antes do deploy, mantenha o que está gravado". Caixa
+                                   desmarcada não vai no POST — então, sem este campo escondido,
+                                   DESMARCAR seria indistinguível de "formulário antigo" e o
+                                   organizador nunca conseguiria DESLIGAR a votação. É o mesmo
+                                   par que o `asp-for` gera sozinho; aqui o formulário é escrito
+                                   à mão, então ele vai à mão.
+
+                                   ⚠️⚠️ E O ESCONDIDO VEM DEPOIS DA CAIXA, NÃO ANTES. O binder do
+                                   ASP.NET lê o PRIMEIRO valor do campo repetido: com o escondido
+                                   na frente, o POST manda ["false","true"] e marcar a caixa
+                                   DESLIGARIA a votação. Foi assim que eu escrevi da primeira vez
+                                   e o navegador pegou — teste de controller não vê isso, porque
+                                   ele chama a ação direto e pula o model binding. Esta é
+                                   exatamente a ordem que o `asp-for` gera. *@
+                                <input class="form-check-input" type="checkbox" name="usaVotacaoDeMvp" value="true" id="editMvpSwitch" @(Model.UsaVotacaoDeMvp ? "checked" : "")>
+                                <input type="hidden" name="usaVotacaoDeMvp" value="false" />
+                                <label class="form-check-label fw-bold" for="editMvpSwitch">Eleger o MVP do torneio?</label>
+                                <div class="small text-muted mb-2">
+                                    Quando o torneio acabar, quem jogou vota no melhor entre os campeões —
+                                    fica aberto por uma semana. Desligado, a votação some da página (os
+                                    votos que já existirem ficam guardados).
+                                </div>
+                            </div>
+                            <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="permiteImpedimentos" value="true" id="editImpSwitch" onchange="toggleImpedimentosEdicao()" @(Model.PermiteImpedimentos ? "checked" : "")>
                                 <label class="form-check-label fw-bold" for="editImpSwitch">Permitir Impedimentos de Horário?</label>
                             </div>
