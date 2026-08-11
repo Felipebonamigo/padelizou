@@ -1,0 +1,365 @@
+<title>Parceiro Padelizou — 30/10</title>
+
+<style>
+  :root {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde: #A3D827;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+    --on-dark: #EEF2F9;
+    --on-dark-soft: #96A2BE;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #0F1626;
+      --navy-2: #17203A;
+      --verde-ink: #A3D827;
+      --ink: #E6EBF5;
+      --ink-soft: #99A5C0;
+      --paper: #121826;
+      --surface: #1A2233;
+      --rule: #2C3650;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --navy: #0F1626;
+    --navy-2: #17203A;
+    --verde-ink: #A3D827;
+    --ink: #E6EBF5;
+    --ink-soft: #99A5C0;
+    --paper: #121826;
+    --surface: #1A2233;
+    --rule: #2C3650;
+  }
+
+  :root[data-theme="light"] {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 2.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0.6rem 0 0;
+  }
+
+  h2 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 1.1rem;
+  }
+
+  p { margin: 0 0 0.9rem; max-width: 62ch; }
+  p:last-child { margin-bottom: 0; }
+  .lead { font-size: 1.12rem; color: var(--ink-soft); margin-top: 1.1rem; }
+  strong { font-weight: 700; color: var(--ink); }
+
+  /* ---- Placar: o 30/10 ---- */
+  .placar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .placar div {
+    background: var(--navy);
+    padding: 1.9rem 1.5rem 1.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .placar .num {
+    font-size: clamp(3.2rem, 12vw, 4.6rem);
+    font-weight: 700;
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--verde);
+    font-variant-numeric: tabular-nums;
+  }
+  .placar .num span { font-size: 0.42em; letter-spacing: 0; }
+  .placar .rot {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--on-dark-soft);
+  }
+  .placar .desc { font-size: 0.95rem; color: var(--on-dark); line-height: 1.45; }
+
+  .base {
+    background: var(--surface);
+    border-left: 3px solid var(--verde);
+    padding: 1rem 1.25rem;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ---- Tabelas ---- */
+  .rolagem { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.97rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: right;
+    padding: 0.72rem 0.5rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; white-space: normal; }
+  thead th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom-width: 2px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.destaque { color: var(--verde-ink); font-weight: 700; }
+
+  /* ---- Passos ---- */
+  ol.passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.1rem; counter-reset: p; }
+  ol.passos li {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    counter-increment: p;
+  }
+  ol.passos li::before {
+    content: counter(p);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--verde-ink);
+    border-bottom: 2px solid var(--verde);
+    padding-bottom: 0.1rem;
+  }
+  ol.passos p { margin: 0; }
+
+  ul.regras { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.85rem; }
+  ul.regras li { padding-left: 1.15rem; position: relative; max-width: 62ch; }
+  ul.regras li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.62em;
+    width: 6px; height: 6px;
+    background: var(--verde);
+    border-radius: 50%;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 34rem) {
+    .placar { grid-template-columns: 1fr; }
+    .wrap { gap: 2.5rem; padding-top: 2rem; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Programa de Parceiros</p>
+    <h1>Você traz o cliente. A gente divide o que entra.</h1>
+    <p class="lead">O Padelizou é a plataforma que organiza torneio, aula e quadra — inscrição,
+    chave, pagamento e ranking, tudo pelo celular. Quem traz um organizador, um professor ou um
+    clube pra dentro ganha uma fatia de tudo que aquele cliente gerar.</p>
+  </header>
+
+  <section>
+    <h2>Quanto você ganha</h2>
+    <div class="placar">
+      <div>
+        <p class="num">30<span>%</span></p>
+        <p class="rot">Na estreia</p>
+        <p class="desc">Do primeiro torneio que o cliente rodar com a gente. É onde está o
+        trabalho, e é onde está o dinheiro.</p>
+      </div>
+      <div>
+        <p class="num">10<span>%</span></p>
+        <p class="rot">Nos 12 meses seguintes</p>
+        <p class="desc">De cada edição que aquele grupo rodar no primeiro ano. Você vendeu uma
+        vez, recebe o ano inteiro.</p>
+      </div>
+    </div>
+    <p class="base" style="margin-top:1.25rem">A conta é sobre <strong>a comissão que o Padelizou
+    recebe</strong> — não sobre o faturamento do torneio, e não sobre "lucro". É um número que
+    aparece no sistema, no dia em que o pagamento cai. Você confere quando quiser.</p>
+  </section>
+
+  <section>
+    <h2>Na prática, um torneio</h2>
+    <div class="rolagem">
+      <table>
+        <thead>
+          <tr>
+            <th>Torneio</th>
+            <th>Inscrições</th>
+            <th>Comissão</th>
+            <th>Sua estreia</th>
+            <th>Cada próximo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>16 duplas</td>
+            <td>R$ 2.400</td>
+            <td>R$ 240</td>
+            <td class="destaque">R$ 72</td>
+            <td>R$ 24</td>
+          </tr>
+          <tr>
+            <td>32 duplas</td>
+            <td>R$ 4.800</td>
+            <td>R$ 480</td>
+            <td class="destaque">R$ 144</td>
+            <td>R$ 48</td>
+          </tr>
+          <tr>
+            <td>60 duplas</td>
+            <td>R$ 9.000</td>
+            <td>R$ 900</td>
+            <td class="destaque">R$ 270</td>
+            <td>R$ 90</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:1.1rem">Contas com inscrição de R$ 150 a dupla. Um grupo de 32 duplas que
+    roda quatro torneios no primeiro ano te devolve <strong>R$ 288</strong> — R$ 144 da estreia
+    mais três edições a R$ 48. Dez grupos trazidos ao longo de um ano dão perto de R$ 3.000.</p>
+  </section>
+
+  <section>
+    <h2>Não é só torneio</h2>
+    <div class="rolagem">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Quando ele começa</th>
+            <th>Nos 12 meses seguintes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Organizador de torneio</strong></td>
+            <td class="destaque">30% da 1ª edição</td>
+            <td>10% de cada edição</td>
+          </tr>
+          <tr>
+            <td><strong>Professor</strong></td>
+            <td class="destaque">R$ 50</td>
+            <td>10% do que ele gerar</td>
+          </tr>
+          <tr>
+            <td><strong>Clube</strong></td>
+            <td class="destaque">1ª mensalidade cheia</td>
+            <td>10% de cada mensalidade</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Como funciona</h2>
+    <ol class="passos">
+      <li><p><strong>Você registra o contato antes de falar com ele.</strong> Nome e telefone no
+      painel. É isso que garante que o cliente é seu — quem registra primeiro, leva.</p></li>
+      <li><p><strong>Conversa e apresenta.</strong> Você recebe a apresentação pronta, em PDF, e um
+      torneio de demonstração pra abrir no celular na hora.</p></li>
+      <li><p><strong>O cliente entra e usa.</strong> A gente cuida da configuração, do suporte e do
+      sistema. Você não dá suporte técnico.</p></li>
+      <li><p><strong>Você recebe no dia 10.</strong> Fecha dia 30, cai no dia 10 do mês seguinte,
+      por Pix. Valor mínimo de R$ 50 pra sacar — abaixo disso, acumula.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>As regras, sem letra miúda</h2>
+    <ul class="regras">
+      <li>O cliente <strong>não paga nada a mais</strong> por ter vindo por você. Sua parte sai da
+      fatia do Padelizou.</li>
+      <li>O recorrente vale por <strong>12 meses</strong>, contados do primeiro pagamento daquele
+      cliente. Não existe comissão vitalícia — pra ganhar de novo no ano seguinte, é cliente
+      novo.</li>
+      <li>Contato tem que ser <strong>registrado antes</strong> da conversa. Sem registro não há
+      comissão, mesmo que a indicação tenha sido sua de verdade — é a única forma de a regra valer
+      pra todo mundo.</li>
+      <li>O registro <strong>vale 90 dias</strong>. Se não fechar nesse prazo, o contato volta a
+      ficar livre.</li>
+      <li>Quem se cadastra sozinho no site <strong>não gera comissão</strong>. Os clientes que já
+      estavam em negociação antes do programa também não — a lista é fechada e você recebe ela
+      junto com o contrato.</li>
+      <li>A comissão nasce quando <strong>o pagamento entra</strong>, não quando a venda é
+      combinada. Se o cliente for estornado, ela cai junto.</li>
+      <li><strong>Sem exclusividade, sem meta, sem horário.</strong> Você vende quando e como
+      quiser. Não é emprego, é parceria.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Padelizou — padelizou.com.br · Programa aberto a quem já vive o padel: organizador,
+    professor, jogador de clube. Se você conhece as pessoas certas, o resto a gente resolve.</p>
+  </footer>
+
+</div>

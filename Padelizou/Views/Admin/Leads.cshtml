@@ -1,0 +1,314 @@
+@using Padelizou.Services
+@model List<Padelizou.Models.LeadComercial>
+@{
+    ViewData["Title"] = "Indicações - Painel Admin - Padelizou";
+    var agora = ViewBag.Agora as DateTime? ?? DateTime.Now;
+
+    var abertos = Model.Count(l => LeadsComerciais.Situacao(l, agora) == LeadsComerciais.Aberto);
+    var vencendo = Model.Count(l => LeadsComerciais.Situacao(l, agora) == LeadsComerciais.Aberto
+                                    && LeadsComerciais.DiasQueRestam(l, agora) <= 15);
+    var ganhos = Model.Count(l => l.Status == LeadsComerciais.Ganho);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Indicações dos parceiros</h2>
+            <p class="text-muted mb-0">
+                O caderno de quem-trouxe-quem. Registre o contato <strong>antes</strong> de o
+                parceiro falar com a pessoa — é o carimbo de hora que decide de quem é a
+                comissão quando o cliente fechar.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @* ── REGISTRAR ────────────────────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold text-muted mb-3">Registrar indicação</h6>
+
+            <form asp-controller="Admin" asp-action="RegistrarLead" method="post" id="formRegistrarLead">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-5">
+                        <label class="form-label small text-muted mb-1">Parceiro que está indicando</label>
+                        @{
+                            ViewData["BuscaOrgHiddenName"] = "parceiroId";
+                        }
+                        <partial name="_BuscaOrganizador" />
+                        @{
+                            ViewData["BuscaOrgHiddenName"] = null;
+                        }
+                    </div>
+
+                    <div class="col-12 col-lg-7">
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted mb-1" for="contatoDoLead">Nome do contato</label>
+                                <input type="text" class="form-control" id="contatoDoLead" name="contato"
+                                       maxlength="@LeadsComerciais.TamanhoMaximoContato"
+                                       placeholder="Pessoa, grupo ou clube" required autocomplete="off" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted mb-1" for="telefoneDoLead">Telefone com DDD</label>
+                                <input type="tel" class="form-control" id="telefoneDoLead" name="telefone"
+                                       placeholder="(51) 98456-7890" required autocomplete="off" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted mb-1" for="tipoDoLead">O que ele seria</label>
+                                <select class="form-select" id="tipoDoLead" name="tipo" required>
+                                    @foreach (var tipo in LeadsComerciais.Tipos)
+                                    {
+                                        <option value="@tipo">@tipo</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small text-muted mb-1" for="obsDoLead">Observação <span class="fw-normal">(opcional)</span></label>
+                                <input type="text" class="form-control" id="obsDoLead" name="observacao"
+                                       maxlength="@LeadsComerciais.TamanhoMaximoObservacao"
+                                       placeholder="Ex.: roda 3 torneios por ano" autocomplete="off" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4">Registrar</button>
+                    </div>
+                </div>
+            </form>
+
+            <p class="text-muted small mb-0 mt-3">
+                <i class="bi bi-telephone"></i>
+                <strong>O telefone é o que vale</strong>, não o nome: grupo de torneio muda de
+                nome o tempo todo, e é só pelo número que dá pra saber que dois parceiros
+                registraram o mesmo contato. O registro segura o contato por
+                <strong>@LeadsComerciais.DiasDeValidade dias</strong>.
+            </p>
+        </div>
+    </div>
+
+    @* A lista congelada aparece na hora de registrar, e não escondida no contrato: é aqui que
+       alguém ia lançar o Er Padel sem lembrar que ele já era nosso. *@
+    <div class="alert alert-secondary small">
+        <i class="bi bi-lock"></i>
+        <strong>Não geram comissão</strong> — já estavam em negociação quando o programa nasceu
+        (11/08/2026): @string.Join(" · ", LeadsComerciais.PipelineCongelado).
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@abertos</div>
+                    <div class="text-muted small">em aberto</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4 @(vencendo > 0 ? "text-warning" : "")" style="@(vencendo > 0 ? "" : "color: var(--pdz-ink);")">@vencendo</div>
+                    <div class="text-muted small">vencem em 15 dias ou menos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@ganhos</div>
+                    <div class="text-muted small">viraram cliente</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Contato</th>
+                    <th>Parceiro</th>
+                    <th>Registrado</th>
+                    <th>Situação</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var lead in Model)
+                {
+                    var situacao = LeadsComerciais.Situacao(lead, agora);
+                    var restam = LeadsComerciais.DiasQueRestam(lead, agora);
+                    <tr>
+                        <td>
+                            <span class="fw-bold">@lead.Contato</span>
+                            <span class="badge text-bg-light border ms-1">@lead.Tipo</span>
+                            <div class="text-muted" style="font-size: .75rem;">
+                                <i class="bi bi-telephone"></i> @lead.Telefone
+                                @if (!string.IsNullOrWhiteSpace(lead.Observacao))
+                                {
+                                    <span>· @lead.Observacao</span>
+                                }
+                            </div>
+                            @if (lead.Cliente != null)
+                            {
+                                <div class="text-success" style="font-size: .75rem;">
+                                    <i class="bi bi-person-check"></i> virou @lead.Cliente.ComoChamar
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(lead.MotivoPerda))
+                            {
+                                <div class="text-muted fst-italic" style="font-size: .75rem;">
+                                    perdido: @lead.MotivoPerda
+                                </div>
+                            }
+                        </td>
+                        <td>@lead.Parceiro.ComoChamar</td>
+                        <td class="text-nowrap">
+                            @lead.RegistradoEm.ToString("dd/MM/yyyy")
+                            @if (situacao == LeadsComerciais.Aberto)
+                            {
+                                <div class="text-muted" style="font-size: .75rem;">
+                                    dele até @LeadsComerciais.VenceEm(lead).ToString("dd/MM")
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            @switch (situacao)
+                            {
+                                case LeadsComerciais.Aberto:
+                                    <span class="badge @(restam <= 15 ? "text-bg-warning" : "text-bg-primary")">
+                                        Aberto · @restam @(restam == 1 ? "dia" : "dias")
+                                    </span>
+                                    break;
+                                case LeadsComerciais.Vencido:
+                                    <span class="badge text-bg-warning">Vencido</span>
+                                    break;
+                                case LeadsComerciais.Ganho:
+                                    <span class="badge text-bg-success">Cliente</span>
+                                    break;
+                                default:
+                                    <span class="badge text-bg-secondary">Perdido</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (lead.Status == LeadsComerciais.Aberto)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        data-bs-toggle="collapse" data-bs-target="#fecharLead_@lead.Id">
+                                    Fechou
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="collapse" data-bs-target="#perderLead_@lead.Id">
+                                    Não fechou
+                                </button>
+                            }
+                            @{
+                                var avisoDoApagar =
+                                    $"Apagar o registro de {lead.Contato}?\n\n"
+                                    + $"{lead.Parceiro.ComoChamar} perde a indicação, e o telefone volta a ficar livre para outro parceiro registrar.\n\n"
+                                    + "Use só para erro de digitação.";
+                            }
+                            <form asp-controller="Admin" asp-action="ExcluirLead" method="post" class="d-inline"
+                                  data-confirmar="@avisoDoApagar">
+                                <input type="hidden" name="leadId" value="@lead.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Apagar</button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    @if (lead.Status == LeadsComerciais.Aberto)
+                    {
+                        <tr class="collapse" id="fecharLead_@lead.Id">
+                            <td colspan="5">
+                                <p class="text-muted small mb-2">
+                                    Escolha a <strong>conta do cliente</strong> no Padelizou. É por
+                                    ela que a comissão de @lead.Parceiro.ComoChamar vai ser
+                                    calculada — sem vincular, o contato fecha e não paga ninguém.
+                                    Se a pessoa ainda não tem conta, deixe aberto até ela criar.
+                                </p>
+                                @{
+                                    ViewData["BuscaOrgActionUrl"] = Url.Action("MarcarLeadGanho", "Admin");
+                                    ViewData["BuscaOrgExtraFieldName"] = "leadId";
+                                    ViewData["BuscaOrgExtraFieldValue"] = lead.Id;
+                                }
+                                <partial name="_BuscaOrganizador" />
+                                @{
+                                    ViewData["BuscaOrgActionUrl"] = null;
+                                    ViewData["BuscaOrgExtraFieldName"] = null;
+                                    ViewData["BuscaOrgExtraFieldValue"] = null;
+                                }
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="perderLead_@lead.Id">
+                            <td colspan="5">
+                                <form asp-controller="Admin" asp-action="MarcarLeadPerdido" method="post"
+                                      class="row g-2 align-items-end">
+                                    <input type="hidden" name="leadId" value="@lead.Id" />
+                                    <div class="col-12 col-md-8">
+                                        <label class="form-label small text-muted mb-1" for="motivoLead_@lead.Id">
+                                            Por que não fechou? <span class="fw-normal">(opcional, mas é o que diz se o problema é preço, concorrente ou nada)</span>
+                                        </label>
+                                        <input type="text" class="form-control" id="motivoLead_@lead.Id" name="motivo"
+                                               maxlength="@LeadsComerciais.TamanhoMaximoObservacao"
+                                               placeholder="Ex.: achou caro perto do concorrente" autocomplete="off" />
+                                    </div>
+                                    <div class="col-12 col-md-4 d-grid">
+                                        <button type="submit" class="btn btn-outline-secondary">Marcar como perdido</button>
+                                    </div>
+                                </form>
+                                <p class="text-muted small mb-0 mt-2">
+                                    O telefone fica livre na hora — quem não fechou não segura o
+                                    contato até o fim dos @LeadsComerciais.DiasDeValidade dias.
+                                </p>
+                            </td>
+                        </tr>
+                    }
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="text-muted">
+                            Nenhuma indicação registrada ainda. A primeira coisa que um parceiro
+                            faz é mandar o nome e o telefone de quem ele vai procurar — lance aqui
+                            antes de ele ligar.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@* Mesma razão do Times.cshtml: a confirmação sai de `data-confirmar`, nunca de um
+   `confirm('...@@variavel...')` dentro do onsubmit — o Razor trata `@@` colado num caractere
+   como e-mail e renderiza o nome da variável literal, e um contato chamado "Rafa's" fecharia
+   a aspa do JS. *@
+<script>
+    document.addEventListener('submit', function (e) {
+        var texto = e.target.dataset ? e.target.dataset.confirmar : null;
+        if (texto && !confirm(texto)) e.preventDefault();
+    });
+
+    // A busca em modo "coleta" acumula chips, e aqui só pode haver UM parceiro: dois chips
+    // mandariam parceiroId duas vezes e o registro falharia com "escolha o parceiro", sem a
+    // pessoa entender por quê.
+    (function () {
+        var form = document.getElementById('formRegistrarLead');
+        if (!form) return;
+        new MutationObserver(function () {
+            var chips = form.querySelectorAll('[data-chip-id]');
+            for (var i = 0; i < chips.length - 1; i++) chips[i].remove();
+        }).observe(form, { childList: true, subtree: true });
+    })();
+</script>

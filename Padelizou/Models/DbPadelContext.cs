@@ -32,6 +32,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
+    public DbSet<LeadComercial> LeadsComerciais { get; set; }
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
@@ -170,6 +171,38 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.JogadorId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LeadComercial>(entity =>
+        {
+            entity.Property(e => e.Contato).HasMaxLength(Services.LeadsComerciais.TamanhoMaximoContato);
+            entity.Property(e => e.Telefone).HasMaxLength(11);
+            entity.Property(e => e.Tipo).HasMaxLength(20);
+            entity.Property(e => e.Status).HasMaxLength(20);
+            entity.Property(e => e.Observacao).HasMaxLength(Services.LeadsComerciais.TamanhoMaximoObservacao);
+            entity.Property(e => e.MotivoPerda).HasMaxLength(Services.LeadsComerciais.TamanhoMaximoObservacao);
+
+            // A pergunta que a tela faz em toda gravação é "quem já registrou esse telefone?".
+            // Sem índice, cada registro varre a tabela inteira.
+            //
+            // ⚠️ NÃO é único, e isso é decisão, não esquecimento: o mesmo contato PODE ser
+            // registrado de novo depois de vencer ou de ser perdido. Quem decide se o novo
+            // registro vale é LeadsComerciais.QuemSegura, que sabe ler as datas — um índice
+            // único recusaria a segunda tentativa até de quem tem direito a ela.
+            entity.HasIndex(e => e.Telefone);
+
+            // Restrict nos três: um lead é registro comercial, e sumir junto com a conta de
+            // quem indicou apagaria a resposta de "quem trouxe esse cliente?" bem depois de a
+            // comissão já ter sido paga. Se a conta precisar sair, o lead aparece primeiro.
+            entity.HasOne(e => e.Parceiro)
+                .WithMany()
+                .HasForeignKey(e => e.ParceiroId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Cliente)
+                .WithMany()
+                .HasForeignKey(e => e.ClienteId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<GrupoPrivado>(entity =>

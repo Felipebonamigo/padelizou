@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/08/2026** — 🚀 **`build-493-d765d76` NO AR EM PROD** (21:32). ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. **Fecha os cinco itens da varredura de conformidade.**
+> Última atualização: **11/08/2026** — 🤝 **PROGRAMA DE PARCEIROS: a régua está escrita e a tela de indicação está no painel.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy).
+>
+> 🤝 **O Felipe faz o sistema, mas vender não é o forte dele** — e o pipeline inteiro (6 grupos de torneio, 3 clubes, 2 professores) veio de relação pessoal, que não escala. A saída desenhada hoje: pagar quem sabe vender, **só quando a venda vira dinheiro na conta**.
+>
+> 💰 **A régua (decidida pelo Felipe hoje): 30% da primeira venda, 10% do que vier depois, e NADA é vitalício — 12 meses em tudo**, contados do primeiro pagamento confirmado do cliente. Torneio: 30% da comissão da 1ª edição + 10% das seguintes. Professor: R$ 50 na 1ª mensalidade paga + 10%. Clube: 1ª mensalidade cheia + 10%. Documento completo em **`PARCEIROS.md`**; a peça pra mostrar ao candidato é **`PARCEIROS.html`** (mesma paleta do PROFESSORES.html, o 30/10 tratado como placar).
+>
+> 🧮 **Duas correções de rumo que a conta impôs:** a base **nunca é "% do lucro"** (exigiria acordo sobre custos todo mês) e sim **`Pagamento.Comissao`**, que já é coluna do banco; e a comissão bruta **não é o que entra** — num torneio de 32 duplas os 10% dão R$ 480, mas 32 cobranças Pix a R$ 1,99 comem R$ 64. A mordida do gateway é de 8% a 20%, e os percentuais foram escolhidos sabendo disso.
+>
+> 📇 **`/Admin/Leads` — o carimbo de hora que decide de quem é a comissão.** A regra que sustenta o programa é "quem registra primeiro leva, e o registro é ANTES da conversa"; sem um lugar que grave a hora, ela é a palavra de um amigo contra a de outro. A tela registra indicação (parceiro + contato + telefone + tipo), lista por urgência, e fecha como **ganho** (vinculando a conta do cliente, que é por onde a comissão vai ser calculada) ou **perdido** (com motivo).
+>
+> ⚠️ **O TELEFONE É A CHAVE, NÃO O NOME.** Grupo de torneio muda de nome ("Loberos" / "Los Loberos" / "Turma do Lobero") e nome não prova que dois parceiros trouxeram o mesmo contato. O número é normalizado pra só-dígitos na gravação — **`(51) 98456-7890` e `51 9 8456-7890` são o mesmo contato**, e a segunda tentativa é recusada dizendo QUEM segura e ATÉ QUANDO. "Já existe" obrigaria o Felipe a abrir o banco pra responder a pergunta que o parceiro faz em seguida no WhatsApp.
+>
+> ⏳ **90 dias, e "Vencido" NÃO é gravado** — é lido do relógio em `Services/LeadsComerciais`. Gravar exigiria um job virando a chave de todo lead à meia-noite, e um job que falha calado transforma contato livre em contato preso. **Cliente fechado tranca pra sempre**: os 12 meses limitam quanto ele RENDE, não de quem ele é — sem isso, um cliente de março voltaria a ser registrável em junho e outro parceiro ganharia comissão de uma venda que não fez.
+>
+> 🔒 **A lista congelada aparece NA TELA**, não escondida no contrato: Loberos, Corneteiros, Golden Point, Nata Padel, Chakra, Er Padel, Jonatas, Índio e Batata Padel **não geram comissão** — já estavam em negociação quando o programa nasceu. É aviso, não trava: bloquear por comparação de nome deixaria "GoldenPoint Padel" passar e recusaria um nome legítimo parecido.
+>
+> 🧪 **3.433 testes, 0 falhas** (13 novos). **1 migration** (tabela nova `LeadsComerciais`, worktree limpo, `has-pending-model-changes` conferido antes). ✅ **Conferido no navegador contra o PostgreSQL local**: registro criado com a máscara removida e prazo em 09/11; a MESMA linha recusada pra outro parceiro com máscara diferente; fechamento vinculando a conta do cliente (contadores 0/0/1); a re-tentativa depois de fechado recusada com "já é cliente"; e o apagar limpando a lista. ⚠️ **O `confirm()` do navegador trava num painel não exibido** — os POSTs de confirmação precisaram do atributo removido pra serem exercitados.
+>
+> 🕳️ **Buraco conhecido, decidir antes do primeiro externo vendido:** o "externo 5%" **não gera `Pagamento`** (vive como `Torneio.TaxaExternoPagaEm`, cobrado à mão), então torneio externo trazido por parceiro **não aparece em relatório nenhum**. Nada aqui calcula ou paga comissão ainda — esta tela responde "de quem é o cliente"; o quanto ele rende sai do `Pagamento`.
+>
+> Anterior: **10/08/2026** — 🚀 **`build-493-d765d76` NO AR EM PROD** (21:32). ✍️ **AGORA EXISTE PROVA DE QUE A PESSOA ACEITOU OS TERMOS**, e o parceiro do Ranking deixou de ser um acesso não declarado. **Fecha os cinco itens da varredura de conformidade.**
 >
 > 🚀 **O QUE FOI JUNTO NESTE BUILD, por escolha do Felipe** (a pergunta foi feita porque não era só código meu): o aceite dos Termos + a linha do parceiro na política, **o desligamento do boleto**, a fatura sem o endereço residencial e o `/Admin/Times` — os três últimos da sessão paralela, que ainda os marcava como não publicados.
 >
