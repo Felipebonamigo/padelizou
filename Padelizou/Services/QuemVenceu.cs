@@ -23,16 +23,44 @@ public static class QuemVenceu
 
     // Separados porque quem edita SÓ GAMES precisa saber se o set guardado contradiz o placar
     // novo — set velho decidindo jogo corrigido foi o que deixou uma final com campeão errado.
-    public static int? PorSets(Partida partida)
+    public static int? PorSets(Partida partida) =>
+        LadoPorSets(partida.SetsDupla1, partida.SetsDupla2) switch
+        {
+            1 => partida.Dupla1Id,
+            2 => partida.Dupla2Id,
+            _ => null
+        };
+
+    public static int? PorGames(Partida partida) =>
+        LadoPorGames(partida.GamesDupla1, partida.GamesDupla2) switch
+        {
+            1 => partida.Dupla1Id,
+            2 => partida.Dupla2Id,
+            _ => null
+        };
+
+    // ── A mesma régua, para quem não tem `Dupla` ────────────────────────────────────────
+    //
+    // O Desafio (ver DESAFIOS.md) tem placar com a mesma forma — sets e games nuláveis — e
+    // nenhuma `Dupla`: os quatro jogadores ficam soltos na linha. Escrever lá um
+    // `games1 > games2` seria recriar exatamente o bug que este arquivo existe pra impedir,
+    // com o mesmo `4 > null` dando a vitória a quem não marcou nada.
+    //
+    // Devolve o LADO (1, 2 ou null pra empate/sem placar), que é o que sobra da pergunta
+    // quando não há id de dupla pra devolver.
+    public static int? Lado(int? sets1, int? sets2, int? games1, int? games2) =>
+        LadoPorSets(sets1, sets2) ?? LadoPorGames(games1, games2);
+
+    private static int? LadoPorSets(int? sets1, int? sets2)
     {
-        int sets1 = partida.SetsDupla1 ?? 0, sets2 = partida.SetsDupla2 ?? 0;
-        return sets1 == sets2 ? null : sets1 > sets2 ? partida.Dupla1Id : partida.Dupla2Id;
+        int s1 = sets1 ?? 0, s2 = sets2 ?? 0;
+        return s1 == s2 ? null : s1 > s2 ? 1 : 2;
     }
 
-    public static int? PorGames(Partida partida)
+    private static int? LadoPorGames(int? games1, int? games2)
     {
-        int games1 = partida.GamesDupla1 ?? 0, games2 = partida.GamesDupla2 ?? 0;
-        return games1 == games2 ? null : games1 > games2 ? partida.Dupla1Id : partida.Dupla2Id;
+        int g1 = games1 ?? 0, g2 = games2 ?? 0;
+        return g1 == g2 ? null : g1 > g2 ? 1 : 2;
     }
 
     // Dá pra encerrar? Só quando o placar aponta alguém. Finalizar 0 x 0 gravava um "vencedor"

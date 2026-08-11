@@ -1,0 +1,181 @@
+@model LinhaDeDesafio
+@{
+    var d = Model.Desafio;
+
+    @* O prazo dito em horas cheias: "faltam 9h" é fato e cria urgência sozinho. "Responda
+       logo!" seria o site chateando a pessoa. *@
+    string Horas(TimeSpan t) => t.TotalHours >= 1
+        ? $"{(int)Math.Floor(t.TotalHours)}h"
+        : $"{(int)Math.Ceiling(t.TotalMinutes)}min";
+
+    var corDaBorda = Model.StatusNaTela switch
+    {
+        Desafio.Confirmado => "var(--padel-green)",
+        Desafio.EmDisputa => "#dc3545",
+        Desafio.Aceito => "#0d6efd",
+        _ => "#dee2e6"
+    };
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-3" style="border-left: 5px solid @corDaBorda !important;">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                    @(Model.SouDesafiante ? "Você desafiou" : "Te desafiaram") · @Model.Adversarios
+                </h6>
+                <div class="small text-muted">
+                    <i class="bi bi-trophy"></i> @d.CategoriaPadrao.Nome
+                    · <i class="bi bi-geo-alt"></i> @d.Clube.Nome
+                    · <i class="bi bi-clock"></i> @d.DataHora.ToString("dd/MM 'às' HH'h'mm")
+                </div>
+                <div class="small text-muted">@d.Formato</div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">@Model.StatusNaTela</span>
+                @if (Model.TemPlacar)
+                {
+                    <div class="fw-bold fs-5 mt-1" style="color: var(--pdz-ink);">@Model.PlacarNaTela</div>
+                }
+                @if (Model.MeusPontos != null)
+                {
+                    <div class="small text-success fw-bold">+@Model.MeusPontos pts</div>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(d.Observacao))
+        {
+            <p class="small fst-italic text-muted mb-2">"@d.Observacao"</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(d.MotivoDaDisputa))
+        {
+            <div class="alert alert-danger small rounded-4 py-2 mb-2">
+                <strong>Contestado:</strong> @d.MotivoDaDisputa
+            </div>
+        }
+
+        @if (Model.PossoResponder)
+        {
+            <div class="d-flex gap-2 flex-wrap">
+                <form asp-action="Responder" method="post" class="flex-grow-1">
+                    <input type="hidden" name="id" value="@d.Id" />
+                    <input type="hidden" name="aceitar" value="true" />
+                    <button type="submit" class="btn btn-sm btn-padel rounded-pill w-100 fw-bold">
+                        <i class="bi bi-check-lg"></i> Aceitar
+                    </button>
+                </form>
+                <form asp-action="Responder" method="post" class="flex-grow-1">
+                    <input type="hidden" name="id" value="@d.Id" />
+                    <input type="hidden" name="aceitar" value="false" />
+                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill w-100">
+                        Recusar
+                    </button>
+                </form>
+            </div>
+            @if (Model.TempoParaResponder != null)
+            {
+                <div class="small text-muted text-center mt-2">
+                    Faltam @Horas(Model.TempoParaResponder.Value) pra responder.
+                </div>
+            }
+        }
+
+        @if (Model.PossoLancarPlacar)
+        {
+            <form asp-action="LancarPlacar" method="post" class="border-top pt-3 mt-2">
+                <input type="hidden" name="id" value="@d.Id" />
+                <div class="small fw-bold mb-2">Lançar o placar</div>
+                <div class="row g-2 align-items-end">
+                    @if (FormatoDoDesafio.PedeSets(d.Formato))
+                    {
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0">Sets vocês</label>
+                            <input type="number" min="0" max="3" class="form-control form-control-sm"
+                                   name="@(Model.SouDesafiante ? "setsDesafiante" : "setsDesafiado")" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0">Sets eles</label>
+                            <input type="number" min="0" max="3" class="form-control form-control-sm"
+                                   name="@(Model.SouDesafiante ? "setsDesafiado" : "setsDesafiante")" />
+                        </div>
+                    }
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small mb-0">Games vocês</label>
+                        <input type="number" min="0" max="99" class="form-control form-control-sm"
+                               name="@(Model.SouDesafiante ? "gamesDesafiante" : "gamesDesafiado")" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small mb-0">Games eles</label>
+                        <input type="number" min="0" max="99" class="form-control form-control-sm"
+                               name="@(Model.SouDesafiante ? "gamesDesafiado" : "gamesDesafiante")" required />
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <button type="submit" class="btn btn-sm btn-padel rounded-pill w-100 fw-bold">
+                            Lançar
+                        </button>
+                    </div>
+                </div>
+                <div class="form-text">@FormatoDoDesafio.ComoLancar(d.Formato) A outra dupla confirma depois.</div>
+            </form>
+        }
+
+        @if (Model.PossoResponderPlacar)
+        {
+            <form asp-action="ResponderPlacar" method="post" class="border-top pt-3 mt-2">
+                <input type="hidden" name="id" value="@d.Id" />
+                <div class="small fw-bold mb-2">Esse placar está certo?</div>
+                <div class="d-flex gap-2 flex-wrap mb-2">
+                    <button type="submit" name="confirmar" value="true"
+                            class="btn btn-sm btn-padel rounded-pill flex-grow-1 fw-bold">
+                        <i class="bi bi-check-lg"></i> Confirmar
+                    </button>
+                    <button type="submit" name="confirmar" value="false"
+                            class="btn btn-sm btn-outline-danger rounded-pill flex-grow-1">
+                        Contestar
+                    </button>
+                </div>
+                <input type="text" class="form-control form-control-sm rounded-pill" name="motivo"
+                       maxlength="200" placeholder="Se for contestar, diga o que houve" />
+                @if (Model.TempoParaContestar != null)
+                {
+                    <div class="small text-muted mt-2">
+                        Sem resposta em @Horas(Model.TempoParaContestar.Value), esse placar vale.
+                    </div>
+                }
+            </form>
+        }
+
+        @if (Model.PossoCancelar || Model.PossoLancarPlacar)
+        {
+            <div class="d-flex gap-3 mt-2">
+                @if (Model.PossoCancelar)
+                {
+                    <form asp-action="Cancelar" method="post"
+                          data-confirmar="A outra dupla é avisada de que o jogo não vai acontecer."
+                          data-confirmar-titulo="Cancelar o desafio?"
+                          data-confirmar-ok="Cancelar desafio"
+                          data-confirmar-tom="perigo">
+                        <input type="hidden" name="id" value="@d.Id" />
+                        <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none px-0">
+                            Cancelar
+                        </button>
+                    </form>
+                }
+                @if (Model.PossoLancarPlacar)
+                {
+                    <form asp-action="RegistrarFalta" method="post"
+                          data-confirmar="O jogo não aconteceu: ninguém pontua, e isso fica no histórico das duas duplas."
+                          data-confirmar-titulo="Registrar que não teve jogo?"
+                          data-confirmar-ok="Registrar">
+                        <input type="hidden" name="id" value="@d.Id" />
+                        <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none px-0">
+                            Não teve jogo
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+</div>

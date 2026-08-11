@@ -299,6 +299,37 @@ public static class TestInfra
         return controller;
     }
 
+    // DesafiosController pronto pra uso. `habilitado` é o interruptor de DesafiosSettings: em
+    // produção ele nasce FALSE (módulo em construção, só admin entra), e por isso o padrão
+    // aqui é true — a maioria dos testes quer exercitar a regra, não a porta. Quem testa a
+    // porta passa false de propósito.
+    public static DesafiosController NovoDesafiosController(DbPadelContext ctx, int usuarioLogadoId,
+        bool habilitado = true, IPushNotificationService? push = null)
+    {
+        var settings = Microsoft.Extensions.Options.Options.Create(
+            new DesafiosSettings { Habilitado = habilitado });
+
+        var controller = new DesafiosController(
+            ctx,
+            new PortaDosDesafios(ctx, settings),
+            new FechamentoDoDesafio(ctx),
+            push ?? Substitute.For<IPushNotificationService>());
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        // O mural monta o link do convite com Url.Action.
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
     public static Jogador NovoJogador(int i) => new()
     {
         Nome = $"Jogador {i:00}",

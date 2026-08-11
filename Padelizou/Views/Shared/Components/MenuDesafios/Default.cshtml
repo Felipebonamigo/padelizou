@@ -1,0 +1,14 @@
+@model bool
+@*
+    "Desafios" no menu Jogos. Enquanto o módulo está em construção, só admin do Padelizou vê
+    (Services/PortaDosDesafios) — e a marca de obra fica visível pra eu não confundir com o
+    que já está no ar.
+*@
+@if (Model)
+{
+    <li>
+        <a class="dropdown-item" asp-area="" asp-controller="Desafios" asp-action="Index">
+            <i class="bi bi-trophy me-1"></i> Desafios
+        </a>
+    </li>
+}

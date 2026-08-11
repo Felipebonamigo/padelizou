@@ -1,0 +1,70 @@
+@model DesafiarVM
+@{
+    ViewData["Title"] = "Desafiar - Padelizou";
+    var limite = Model.Anuncio.ValeAte;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 620px;">
+    <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao mural
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">🥊 Desafiar @Model.DuplaAdversaria</h2>
+    <p class="text-muted">Escolha onde e quando. Eles têm 48h pra responder.</p>
+
+    <form asp-action="Desafiar" method="post" class="card border-0 shadow-sm rounded-4">
+        <div class="card-body">
+            <input type="hidden" name="anuncioId" value="@Model.Anuncio.Id" />
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="categoriaPadraoId">Categoria</label>
+                <select class="form-select rounded-pill" name="categoriaPadraoId" id="categoriaPadraoId" required>
+                    @foreach (var c in Model.CategoriasPossiveis)
+                    {
+                        <option value="@c.Id">@c.Nome</option>
+                    }
+                </select>
+                <div class="form-text">Só aparecem as categorias que as duas duplas aceitam.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="clubeId">Clube</label>
+                <select class="form-select rounded-pill" name="clubeId" id="clubeId" required>
+                    @foreach (var c in Model.ClubesPossiveis)
+                    {
+                        <option value="@c.Id">@c.Nome</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="dataHora">Dia e hora</label>
+                <input type="datetime-local" class="form-control rounded-pill" name="dataHora" id="dataHora"
+                       value="@Model.QuandoSugerido.ToString("yyyy-MM-ddTHH:mm")"
+                       max="@limite.ToString("yyyy-MM-ddTHH:mm")" required />
+                <div class="form-text">Até @limite.ToString("dd/MM 'às' HH'h'mm") — é até onde vale o anúncio.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="formato">Formato</label>
+                <select class="form-select rounded-pill" name="formato" id="formato">
+                    @foreach (var f in FormatoDoDesafio.Todos)
+                    {
+                        <option value="@f">@f</option>
+                    }
+                </select>
+                <div class="form-text">Combinado agora pra não virar discussão na hora do placar.</div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold" for="observacao">Recado (opcional)</label>
+                <textarea class="form-control rounded-4" name="observacao" id="observacao" rows="2"
+                          maxlength="300" placeholder="Ex.: a gente reserva a quadra"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
+                Enviar desafio
+            </button>
+        </div>
+    </form>
+</div>

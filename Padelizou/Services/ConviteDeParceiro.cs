@@ -39,11 +39,22 @@ public static class ConviteDeParceiro
         if (dupla.Jogador2Id != null) return false;
         if (statusDoTorneio != "Inscrições Abertas") return false;
 
-        // Comparação em tempo fixo: o token é um segredo, e comparar com == vaza o tamanho
-        // do prefixo acertado pelo tempo de resposta.
+        return TokenConfere(dupla.ConviteToken, token);
+    }
+
+    // Comparação em tempo fixo: o token é um segredo, e comparar com == vaza o tamanho do
+    // prefixo acertado pelo tempo de resposta.
+    //
+    // Público porque o convite do anúncio de desafio usa o MESMO token e precisa da MESMA
+    // comparação (ver ConviteDoAnuncio). A regra de validade é outra lá — o que não pode
+    // virar segunda cópia é a criptografia.
+    public static bool TokenConfere(string? guardado, string? recebido)
+    {
+        if (string.IsNullOrWhiteSpace(guardado) || string.IsNullOrWhiteSpace(recebido)) return false;
+
         return CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(dupla.ConviteToken),
-            System.Text.Encoding.UTF8.GetBytes(token));
+            System.Text.Encoding.UTF8.GetBytes(guardado),
+            System.Text.Encoding.UTF8.GetBytes(recebido));
     }
 
     // Por que o convite não serve mais — a mensagem que a pessoa lê ao abrir um link velho.

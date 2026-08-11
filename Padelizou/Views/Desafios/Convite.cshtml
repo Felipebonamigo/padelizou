@@ -1,0 +1,55 @@
+@model ConviteVM
+@{
+    ViewData["Title"] = "Convite pra dupla - Padelizou";
+}
+
+<div class="container mt-5 mb-5" style="max-width: 560px;">
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body text-center p-4">
+
+            @if (Model.Valido && Model.Anuncio != null)
+            {
+                <div class="display-6 mb-2">🥊</div>
+                <h4 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                    @NomeBonito.ComApelido(Model.Anuncio.Jogador1.Nome, Model.Anuncio.Jogador1.Apelido)
+                    quer fazer dupla com você
+                </h4>
+                <p class="text-muted">Pra desafiar e ser desafiado nesta semana.</p>
+
+                <ul class="list-group list-group-flush text-start my-4">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Categorias</span>
+                        <span class="fw-bold text-end">
+                            @(Model.Categorias.Count > 0 ? string.Join(", ", Model.Categorias) : "Qualquer uma")
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Clubes</span>
+                        <span class="fw-bold text-end">
+                            @(Model.Locais.Count > 0 ? string.Join(", ", Model.Locais) : "Qualquer um")
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Vale</span>
+                        <span class="fw-bold">@SemanaDoDesafio.RotuloDoPrazo(Model.Anuncio.ValeAte)</span>
+                    </li>
+                </ul>
+
+                <form asp-action="AceitarConvite" method="post">
+                    <input type="hidden" name="token" value="@Model.Token" />
+                    <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
+                        Confirmar e ir pro mural
+                    </button>
+                </form>
+                <a asp-action="Index" class="btn btn-link text-muted mt-2">Agora não</a>
+            }
+            else
+            {
+                <div class="display-6 mb-2">🫤</div>
+                <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">Convite indisponível</h5>
+                <p class="text-muted">@Model.Motivo</p>
+                <a asp-action="Index" class="btn btn-outline-primary rounded-pill px-4">Ver o mural</a>
+            }
+        </div>
+    </div>
+</div>

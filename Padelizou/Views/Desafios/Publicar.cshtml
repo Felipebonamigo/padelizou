@@ -1,0 +1,113 @@
+@model PublicarAnuncioVM
+@{
+    ViewData["Title"] = "Publicar anúncio de desafio - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+    <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao mural
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">Publicar anúncio</h2>
+    <p class="text-muted">Diga o que vocês aceitam. Quem topar manda o desafio.</p>
+
+    <form asp-action="Publicar" method="post" class="card border-0 shadow-sm rounded-4">
+        <div class="card-body">
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Quando vocês querem jogar</label>
+                @if (Model.SemanaAcabando)
+                {
+                    @* Publicar "esta semana" num sábado à noite dá um anúncio de horas. A tela
+                       marca a próxima por padrão em vez de deixar a pessoa descobrir isso
+                       depois, olhando um anúncio que já nasceu vencendo. *@
+                    <div class="alert alert-info small rounded-4 py-2">
+                        Esta semana está acabando — já marcamos a próxima pra você.
+                    </div>
+                }
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="proximaSemana" value="false"
+                           id="semanaAtual" checked="@(!Model.SemanaAcabando)" />
+                    <label class="form-check-label" for="semanaAtual">Esta semana</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="proximaSemana" value="true"
+                           id="semanaProxima" checked="@Model.SemanaAcabando" />
+                    <label class="form-check-label" for="semanaProxima">Semana que vem</label>
+                </div>
+                <div class="form-text">O anúncio sai do mural sozinho no domingo, 23h59.</div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Categorias que vocês aceitam</label>
+                <div class="form-text mb-2">Não marcar nenhuma = aceita desafio de qualquer categoria.</div>
+                <div class="row g-2">
+                    @foreach (var c in Model.CatalogoCategorias)
+                    {
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="categorias"
+                                       value="@c.Id" id="cat@(c.Id)"
+                                       checked="@Model.CategoriasMarcadas.Contains(c.Id)" />
+                                <label class="form-check-label small" for="cat@(c.Id)">@c.Nome</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Cidades</label>
+                <div class="form-text mb-2">Não marcar nenhuma = qualquer cidade.</div>
+                <div class="row g-2">
+                    @foreach (var c in Model.CatalogoCidades)
+                    {
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="cidades"
+                                       value="@c.Id" id="cid@(c.Id)"
+                                       checked="@Model.CidadesMarcadas.Contains(c.Id)" />
+                                <label class="form-check-label small" for="cid@(c.Id)">@c.Rotulo</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Clubes</label>
+                <div class="form-text mb-2">Não marcar nenhum = qualquer clube.</div>
+                <div class="row g-2" style="max-height: 260px; overflow-y: auto;">
+                    @foreach (var c in Model.CatalogoClubes)
+                    {
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="clubes"
+                                       value="@c.Id" id="clu@(c.Id)"
+                                       checked="@Model.ClubesMarcados.Contains(c.Id)" />
+                                <label class="form-check-label small" for="clu@(c.Id)">@c.Nome</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold" for="observacao">Recado (opcional)</label>
+                <textarea class="form-control rounded-4" name="observacao" id="observacao" rows="2"
+                          maxlength="300" placeholder="Ex.: preferência por quadra coberta, topamos jogar cedo"></textarea>
+            </div>
+
+            <div class="alert alert-light border rounded-4 small">
+                <i class="bi bi-people-fill"></i>
+                <strong>O anúncio precisa dos dois.</strong> Depois de publicar você recebe um link
+                pra mandar ao seu parceiro. Só quando ele confirmar é que vocês aparecem no mural —
+                ninguém entra numa dupla sem saber.
+            </div>
+
+            <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
+                <i class="bi bi-megaphone"></i> Publicar e gerar o link
+            </button>
+        </div>
+    </form>
+</div>

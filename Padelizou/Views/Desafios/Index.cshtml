@@ -1,0 +1,215 @@
+@model MuralVM
+@{
+    ViewData["Title"] = "Desafios - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+
+    @if (Model.EmConstrucao)
+    {
+        @* A faixa existe pra eu não esquecer em qual mundo estou. O módulo roda em produção
+           invisível pros jogadores (Desafios__Habilitado), e uma tela idêntica à de todo mundo
+           é a receita pra alguém anunciar um torneio que ninguém consegue ver. *@
+        <div class="alert alert-warning d-flex align-items-center gap-2 rounded-4">
+            <i class="bi bi-cone-striped fs-4"></i>
+            <div>
+                <strong>Em construção — só você vê isto.</strong>
+                <div class="small">Pra abrir pros jogadores: <code>Desafios__Habilitado=true</code> no systemd.</div>
+            </div>
+        </div>
+    }
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">🥊 Desafios</h2>
+            <p class="text-muted mb-0">Duplas abertas pra jogar nesta semana.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Meus" class="btn btn-outline-primary rounded-pill">
+                <i class="bi bi-list-check"></i> Meus desafios
+            </a>
+            @if (Model.MeuAnuncio == null)
+            {
+                <a asp-action="Publicar" class="btn btn-padel rounded-pill fw-bold">
+                    <i class="bi bi-megaphone"></i> Publicar anúncio
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (Model.MeuAnuncio != null)
+    {
+        var meu = Model.MeuAnuncio;
+        var fechado = meu.Jogador2Id != null;
+
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="border-left: 5px solid var(--padel-green) !important;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <div class="small text-muted text-uppercase fw-bold">Seu anúncio</div>
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            @DuplaNaTela.Nome(meu.Jogador1, meu.Jogador2)
+                        </h5>
+                        <div class="small text-muted">
+                            <i class="bi bi-calendar-week"></i> @SemanaDoDesafio.RotuloDoPrazo(meu.ValeAte)
+                            · @SemanaDoDesafio.StatusNaTela(meu, DateTime.Now)
+                        </div>
+                    </div>
+                    <form asp-action="CancelarAnuncio" method="post"
+                          data-confirmar="Seu anúncio sai do mural. Os desafios que você já aceitou continuam de pé."
+                          data-confirmar-titulo="Cancelar o anúncio?"
+                          data-confirmar-ok="Cancelar anúncio"
+                          data-confirmar-tom="perigo">
+                        <input type="hidden" name="id" value="@meu.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </button>
+                    </form>
+                </div>
+
+                @if (!fechado)
+                {
+                    @* Sem o "sim" do parceiro o anúncio não vai pro mural — então este link é a
+                       coisa mais importante da tela pra quem acabou de publicar. *@
+                    <div class="alert alert-warning mt-3 mb-0 rounded-4">
+                        <strong>Falta o seu parceiro confirmar.</strong>
+                        <div class="small mb-2">Mande este link pra ele. Enquanto ele não aceitar, o anúncio não aparece pra ninguém.</div>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" readonly value="@Model.MeuLinkDeConvite" id="pdzLinkConvite" />
+                            <button class="btn btn-outline-secondary" type="button" onclick="pdzCopiarConvite()">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <form method="get" class="row g-2 align-items-end mb-4">
+        <div class="col-6 col-md-4">
+            <label class="form-label small text-muted mb-1">Categoria</label>
+            <select name="categoria" class="form-select rounded-pill">
+                <option value="">Todas</option>
+                @foreach (var c in Model.CatalogoCategorias)
+                {
+                    <option value="@c.Id" selected="@(Model.CategoriaFiltrada == c.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-4">
+            <label class="form-label small text-muted mb-1">Cidade</label>
+            <select name="cidade" class="form-select rounded-pill">
+                <option value="">Todas</option>
+                @foreach (var c in Model.CatalogoCidades)
+                {
+                    <option value="@c.Id" selected="@(Model.CidadeFiltrada == c.Id)">@c.Rotulo</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <button type="submit" class="btn btn-outline-primary rounded-pill w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+
+    <div class="row">
+        @if (Model.Cartoes.Count > 0)
+        {
+            @foreach (var cartao in Model.Cartoes)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card shadow-sm border-0 h-100 rounded-4">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                                    @DuplaNaTela.Nome(cartao.Anuncio.Jogador1, cartao.Anuncio.Jogador2)
+                                </h5>
+                                @if (cartao.Aproveitamento != null)
+                                {
+                                    <span class="badge bg-success-subtle text-success-emphasis">@cartao.Aproveitamento%</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Estreando</span>
+                                }
+                            </div>
+
+                            <div class="small text-muted mb-1">
+                                <i class="bi bi-trophy"></i> @cartao.CategoriasNaTela
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <i class="bi bi-geo-alt"></i> @cartao.LocaisNaTela
+                            </div>
+                            <div class="small text-muted mb-2">
+                                <i class="bi bi-calendar-week"></i> @cartao.PrazoNaTela
+                            </div>
+
+                            @if (cartao.DesafiosJogados > 0)
+                            {
+                                <div class="small mb-2">
+                                    <span class="fw-bold">@cartao.DesafiosJogados</span> desafios ·
+                                    <span class="text-success fw-bold">@cartao.Vitorias V</span> ·
+                                    <span class="text-danger">@cartao.Derrotas D</span>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(cartao.Anuncio.Observacao))
+                            {
+                                <p class="small fst-italic text-muted">"@cartao.Anuncio.Observacao"</p>
+                            }
+
+                            <div class="mt-auto pt-2">
+                                @if (cartao.EMeu)
+                                {
+                                    <span class="btn btn-sm btn-light rounded-pill w-100 disabled">Seu anúncio</span>
+                                }
+                                else if (cartao.JaDesafiei)
+                                {
+                                    <a asp-action="Meus" class="btn btn-sm btn-outline-secondary rounded-pill w-100">
+                                        <i class="bi bi-hourglass-split"></i> Você já desafiou
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a asp-action="Desafiar" asp-route-id="@cartao.Anuncio.Id"
+                                       class="btn btn-sm btn-padel rounded-pill w-100 fw-bold">
+                                        🥊 Desafiar
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            @* Mural vazio é o maior risco desta feature: quem entra uma vez e não vê ninguém
+               não volta. Por isso o vazio aqui CONVIDA em vez de informar. *@
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <p class="text-muted mb-1">Nenhuma dupla aberta por aqui nesta semana.</p>
+                    <p class="text-muted small mb-3">Seja o primeiro: publique o anúncio da sua dupla e mande o link no grupo.</p>
+                    <a asp-action="Publicar" class="btn btn-padel rounded-pill px-4 fw-bold">
+                        <i class="bi bi-megaphone"></i> Publicar meu anúncio
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script asp-append-version="true" src="~/js/desafios-convite.js"></script>
+}

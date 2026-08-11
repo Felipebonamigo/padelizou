@@ -116,6 +116,14 @@ public partial class DbPadelContext : DbContext
     // Padelímetro: o extrato de movimentos do nível (o número atual vive no Jogador).
     public DbSet<HistoricoDePadelimetro> HistoricosDePadelimetro { get; set; }
 
+    // Desafios: o mural de duplas abertas na semana e os confrontos que saem dele.
+    // Espec em DESAFIOS.md, na raiz do repo.
+    public DbSet<AnuncioDeDesafio> AnunciosDeDesafio { get; set; }
+    public DbSet<AnuncioDesafioCategoria> AnuncioDesafioCategorias { get; set; }
+    public DbSet<AnuncioDesafioCidade> AnuncioDesafioCidades { get; set; }
+    public DbSet<AnuncioDesafioClube> AnuncioDesafioClubes { get; set; }
+    public DbSet<Desafio> Desafios { get; set; }
+
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
     //        => optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DB_PADEL;Trusted_Connection=True;TrustServerCertificate=True;");
@@ -1003,6 +1011,104 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.ClubeId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---- Desafios (espec em DESAFIOS.md) ----
+        //
+        // As três tabelas de escolha do anúncio morrem COM ele (Cascade): categoria, cidade e
+        // clube escolhidos não têm vida própria fora do anúncio que os guardou.
+        //
+        // ⚠️ Já o resto é Restrict de propósito. `Desafio` aponta pra QUATRO jogadores, e deixar
+        // os quatro em cascade daria quatro caminhos de exclusão pra mesma linha — além de
+        // fazer o apagar de uma conta levar junto o resultado de um jogo que o adversário
+        // jogou. Exclusão de conta aqui é `ExcluidoEm` (soft delete), não DELETE.
+        modelBuilder.Entity<AnuncioDeDesafio>(entity =>
+        {
+            entity.HasOne(e => e.Jogador1)
+                .WithMany()
+                .HasForeignKey(e => e.Jogador1Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Jogador2)
+                .WithMany()
+                .HasForeignKey(e => e.Jogador2Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O mural filtra por "publicado e ainda dentro da semana" em toda visita.
+            entity.HasIndex(e => new { e.Status, e.ValeAte });
+        });
+
+        modelBuilder.Entity<AnuncioDesafioCategoria>(entity =>
+        {
+            entity.HasKey(e => new { e.AnuncioDeDesafioId, e.CategoriaPadraoId });
+
+            entity.HasOne(e => e.Anuncio)
+                .WithMany(a => a.Categorias)
+                .HasForeignKey(e => e.AnuncioDeDesafioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CategoriaPadrao)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AnuncioDesafioCidade>(entity =>
+        {
+            entity.HasKey(e => new { e.AnuncioDeDesafioId, e.CidadeId });
+
+            entity.HasOne(e => e.Anuncio)
+                .WithMany(a => a.Cidades)
+                .HasForeignKey(e => e.AnuncioDeDesafioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Cidade)
+                .WithMany()
+                .HasForeignKey(e => e.CidadeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AnuncioDesafioClube>(entity =>
+        {
+            entity.HasKey(e => new { e.AnuncioDeDesafioId, e.ClubeId });
+
+            entity.HasOne(e => e.Anuncio)
+                .WithMany(a => a.Clubes)
+                .HasForeignKey(e => e.AnuncioDeDesafioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Clube)
+                .WithMany()
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Desafio>(entity =>
+        {
+            // SetNull, nunca Cascade: o anúncio vence no domingo e o jogo pode ser na terça.
+            // Apagar o anúncio levando junto o desafio aceito seria desmarcar um compromisso
+            // de quatro pessoas sem ninguém pedir — a lição das 8 inscrições que sumiram.
+            entity.HasOne(e => e.Anuncio)
+                .WithMany()
+                .HasForeignKey(e => e.AnuncioDeDesafioId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.DesafianteJogador1).WithMany()
+                .HasForeignKey(e => e.DesafianteJogador1Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DesafianteJogador2).WithMany()
+                .HasForeignKey(e => e.DesafianteJogador2Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DesafiadoJogador1).WithMany()
+                .HasForeignKey(e => e.DesafiadoJogador1Id).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DesafiadoJogador2).WithMany()
+                .HasForeignKey(e => e.DesafiadoJogador2Id).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.CategoriaPadrao).WithMany()
+                .HasForeignKey(e => e.CategoriaPadraoId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Clube).WithMany()
+                .HasForeignKey(e => e.ClubeId).OnDelete(DeleteBehavior.Restrict);
+
+            // "Meus desafios" pergunta por status e data em toda visita.
+            entity.HasIndex(e => new { e.Status, e.DataHora });
         });
 
         modelBuilder.Entity<ProfessorCidade>(entity =>

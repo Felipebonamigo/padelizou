@@ -69,6 +69,9 @@ builder.Services.Configure<RankingRsSettings>(builder.Configuration.GetSection("
 // Nasce DESLIGADO: o bar do clube está em construção e, enquanto isso, só admin do Padelizou
 // enxerga (ver Services/BarSettings).
 builder.Services.Configure<BarSettings>(builder.Configuration.GetSection("Bar"));
+// Mesma ideia do Bar: os Desafios rodam em produção invisíveis até `Desafios__Habilitado=true`
+// (ver Services/DesafiosSettings) — aqui a chave também serve pra abrir cidade por cidade.
+builder.Services.Configure<DesafiosSettings>(builder.Configuration.GetSection("Desafios"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).
@@ -209,6 +212,11 @@ builder.Services.AddScoped<RegistroDeErros>();
 builder.Services.AddExceptionHandler<CapturaDeErro>();
 // Quem pode abrir o bar e as contas do clube. Uma regra só pros dois módulos.
 builder.Services.AddScoped<ModuloDoBar>();
+// Desafios (DESAFIOS.md): quem enxerga o módulo enquanto ele está em construção, e o
+// fechamento do placar — que precisa ser o mesmo pra quem confirma no botão e pro relógio.
+builder.Services.AddScoped<PortaDosDesafios>();
+builder.Services.AddScoped<FechamentoDoDesafio>();
+builder.Services.AddHostedService<FechamentoDeDesafiosBackgroundService>();
 builder.Services.AddHostedService<LembreteJogoBackgroundService>();
 builder.Services.AddHostedService<HorarioVagoBackgroundService>();
 builder.Services.AddHostedService<PagamentoExpiradoBackgroundService>();

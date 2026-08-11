@@ -1,0 +1,72 @@
+@model MeusDesafiosVM
+@{
+    ViewData["Title"] = "Meus desafios - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 860px;">
+    <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao mural
+    </a>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    <h2 class="fw-bold mb-4" style="color: var(--pdz-ink);">Meus desafios</h2>
+
+    @if (Model.Recebidos.Count > 0)
+    {
+        <h5 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+            <i class="bi bi-inbox"></i> Aguardando sua resposta
+            <span class="badge bg-danger rounded-pill">@Model.Recebidos.Count</span>
+        </h5>
+        @foreach (var linha in Model.Recebidos)
+        {
+            <partial name="_LinhaDoDesafio" model="linha" />
+        }
+    }
+
+    @if (Model.Agendados.Count > 0)
+    {
+        <h5 class="fw-bold mb-3 mt-4" style="color: var(--pdz-ink);">
+            <i class="bi bi-calendar-check"></i> Jogos marcados
+        </h5>
+        @foreach (var linha in Model.Agendados)
+        {
+            <partial name="_LinhaDoDesafio" model="linha" />
+        }
+    }
+
+    @if (Model.Enviados.Count > 0)
+    {
+        <h5 class="fw-bold mb-3 mt-4" style="color: var(--pdz-ink);">
+            <i class="bi bi-send"></i> Enviados, esperando resposta
+        </h5>
+        @foreach (var linha in Model.Enviados)
+        {
+            <partial name="_LinhaDoDesafio" model="linha" />
+        }
+    }
+
+    @if (Model.Historico.Count > 0)
+    {
+        <h5 class="fw-bold mb-3 mt-4" style="color: var(--pdz-ink);">
+            <i class="bi bi-clock-history"></i> Histórico
+        </h5>
+        @foreach (var linha in Model.Historico)
+        {
+            <partial name="_LinhaDoDesafio" model="linha" />
+        }
+    }
+
+    @if (Model.Recebidos.Count == 0 && Model.Agendados.Count == 0
+        && Model.Enviados.Count == 0 && Model.Historico.Count == 0)
+    {
+        <partial name="_Vazio" model='@(new EstadoVazio("Você ainda não tem desafio nenhum. Vá ao mural e escolha uma dupla.", "Ver o mural", "Desafios", "Index"))' />
+    }
+</div>

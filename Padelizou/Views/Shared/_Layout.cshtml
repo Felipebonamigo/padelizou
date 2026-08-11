@@ -248,6 +248,13 @@
                                             <i class="bi bi-shield-lock me-1"></i> Grupos
                                         </a>
                                     </li>
+                                    @* Desafios: enquanto o módulo está em construção, o item só
+                                       aparece pra admin do Padelizou. Quem decide é o mesmo
+                                       PortaDosDesafios que trava o controller. *@
+                                    @if (User.Identity?.IsAuthenticated == true)
+                                    {
+                                        @await Component.InvokeAsync("MenuDesafios")
+                                    }
                                 </ul>
                             </li>
                             if (souAdmin || souAssistente)

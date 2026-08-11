@@ -1,7 +1,31 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🏆 **`build-505-d932986` NO AR EM PROD** (15:27): **quem tem 0 ponto deixa de ser ranqueado**, fechando a régua de peso do ranking.
+> Última atualização: **11/08/2026** — 🥊 **DESAFIOS: A FASE 1 ESTÁ DE PÉ, E FECHADA.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy) e **invisível por decisão**: enquanto `Desafios__Habilitado` for false, só admin do Padelizou enxerga (pedido do Felipe: *"exiba apenas para mim por enquanto"*).
+>
+> 🥊 **O QUE É:** uma dupla anuncia que quer jogar **nesta semana**, dizendo as categorias que aceita e as cidades/clubes onde topa; outra dupla clica em **Desafiar**; o jogo acontece; os dois lados confirmam o placar. Espec completa em **`DESAFIOS.md`**, na raiz — mudou a regra, muda LÁ primeiro.
+>
+> 🕳️ **O buraco que ele tapa:** o sistema só sabia juntar gente por EVENTO — torneio precisa de organizador, aula precisa de professor, raquete livre precisa do clube abrir, grupo privado precisa você já ser da panelinha. Não havia nada pro cara que **tem parceiro, quer jogar sábado e não sabe contra quem** — que é o padel de 90% das semanas do ano. É também a isca do plano do clube: desafio marcado num clube com `MarcacaoHorariosAtiva` vira reserva de quadra (fase 3).
+>
+> 🔐 **O ANÚNCIO PRECISA DOS DOIS.** Ele nasce `Rascunho` e só vai pro mural quando o parceiro entra com a **própria conta** e aceita pelo link (mesmo mecanismo do `ConviteDeParceiro`). Sem isso eu anunciaria o Lucas pra sábado às 8h — com hora e lugar públicos — e ele descobriria por um push de desafio **já aceito**.
+>
+> 📅 **`Expirado` NÃO É STATUS, nos dois relógios.** Anúncio vale até domingo 23h59; proposta morre em 48h sem resposta; placar lançado vale em 72h sem contestação. Os três são **lidos do relógio**, nunca gravados por job — é a lição do "Vencido" dos leads. E o único job que existe (`FechamentoDeDesafiosBackgroundService`) só MATERIALIZA o que o relógio já decidiu: se ele morrer, a tela continua certa e o que atrasa é o ranking. ⚠️ **Anúncio vencido ou cancelado NÃO desmarca jogo já aceito** — aquilo é compromisso entre quatro pessoas (a pergunta das 8 inscrições que sumiram: *o que mais morre junto?*; resposta: nada).
+>
+> 🚫 **O ANTI-FARM VEIO JUNTO, não depois.** O Desafio tem o mesmo furo do Americano — três amigos lançando placares que quiserem — **e maior**, porque bastam quatro pessoas e nenhum organizador. Três defesas: **não move o Padelímetro** (trilha própria, como o Americano virou a Trilha C); **contra a mesma dupla no mesmo mês o 2º confronto vale metade e o 3º só a presença** (e trocar quem desafia quem não engana — a comparação é por chave canônica de dupla); e **ponto só soma**, perder nunca tira.
+>
+> 🧊 **Os pontos são CONGELADOS na linha** no fechamento, nunca recalculados na leitura — padrão do `PrecoPorJogoCotado`. Sem isso, mexer na fórmula em novembro reescreveria o ranking de agosto em silêncio. Fórmula: `1 de presença + round(20 × (1 − expectativa))` preso entre 5 e 20, lendo a expectativa do **`Padelimetro.Expectativa`** (matemática pura; nada aqui escreve nível de ninguém). 🐛 **A espec dizia "até 30" e a conta não passava de 20** — o teto era inalcançável, e um teste pegou; documento e código foram acertados juntos.
+>
+> 🧪 **3.554 testes, 0 falhas** (50 novos). **1 migration** (5 tabelas novas; worktree limpo, migration conferida linha a linha — só as tabelas dos Desafios). ✅ **Conferido no navegador contra o PostgreSQL local, com o fluxo inteiro e três contas reais**: anúncio nasceu rascunho e **não apareceu no mural nem pro dono**; a parceira aceitou pelo link e ele virou "Rafael Souza & Tania · No mural"; a tela de desafiar mostrou **só a categoria que as duas duplas aceitam**; o desafiado viu "Faltam 47h pra responder"; o formulário de placar **não existia antes da hora do jogo** e apareceu depois; o placar saiu **"3 x 6" pra um lado e "6 x 3" pro outro**; e quem lançou **não tinha botão de confirmar**. 🔒 **A porta foi provada com jogador real não-admin (Tania):** menu sem "Desafios" e **404** em `/Desafios`, `/Desafios/Publicar` e no link do convite.
+>
+> 🧮 **A conta bateu exata no banco:** `PontosDesafiante=10, PontosDesafiado=1`. Os quatro jogadores locais têm Padelímetro (902 × 868 de média), o desafiante era leve favorito (expectativa 0,55), então a vitória valeu **9** em vez de 10 — e não os 11 que eu esperava antes de olhar os níveis.
+>
+> 📣 **Nenhum broadcast existe, de propósito.** O único aviso que vai pro WhatsApp é **"vocês foram desafiados"** (pessoal + morre em 48h + pede ação — os três critérios do `AlcanceDoAviso`). "Nova dupla aberta na sua cidade" **não foi implementado**: é exatamente o que a Meta chama de spam e o que restringiu o número. O mural é **pull**.
+>
+> 🕳️ **Buraco conhecido, herdado:** `Clube.CidadeId` existe e **nada preenche**. Por isso a escolha de clube no desafio NÃO filtra por cidade — filtrar hoje devolveria lista vazia com defeito mudo. A cidade filtra o **mural** (e passa por `CidadesSemRepetir`, senão "Gravataí"/"GRAVATAI" viram dois filtros que escondem gente um do outro).
+>
+> ⏭️ **Faltam as fases 2 e 3** (o ranking de duplas/jogadores com as duas tabelas que nunca se somam; e o Cinturão por categoria × cidade). Os campos de ponto já nascem preenchidos desde agora, então a fase 2 é só leitura.
+>
+> Anterior: **11/08/2026** — 🏆 **`build-505-d932986` NO AR EM PROD** (15:27): **quem tem 0 ponto deixa de ser ranqueado**, fechando a régua de peso do ranking.
 >
 > 🏆 **"1º LUGAR — FULANO — 0 PONTOS" ERA O QUE A PRODUÇÃO MOSTRAVA** (pedido do Felipe olhando a tela). O caso nasceu do trabalho de ontem: quando o ponto passou a exigir **torneio começado**, os 6 inscritos do único torneio de produção caíram de 10 pra 0 — e continuaram listados e numerados. Antes ninguém ficava em zero, então o caso não existia. Primeiro colocado com zero ponto é uma frase que não se sustenta, e as **seis abas irmãs** já diziam *"Ainda não há resultados de torneio"*.
 >
