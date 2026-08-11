@@ -1,9 +1,43 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🏟️ **O CATÁLOGO DE CLUBES GANHOU INTERRUPTOR E CIDADE.** ⏳ **NÃO PUBLICADO.**
+> Última atualização: **11/08/2026** — 🤖 **O APP ANDROID COMEÇOU, E O `build-508-ef532e3` ESTÁ NO AR** (18:46, com tudo o que estava represado desde o build-505).
 >
-> 🏟️ **"NO CATÁLOGO": O MEIO-TERMO ENTRE DEIXAR APARECER E APAGAR.** Pedido do Felipe olhando o seletor de clube sede em `/Admin/Times`, que trazia "Clube Teste CSRF 1785325726351" ao lado dos clubes de verdade. `Clube.Selecionavel` decide se o clube aparece pra quem vai **escolher** um local; desligar **não apaga e não desvincula nada** — quem já marcou continua marcado, e o torneio que aconteceu lá continua sendo lá. O interruptor mora em `/Admin/Clubes` (a única tela que continua vendo os desligados, senão o botão de religar sumiria junto).
+> 🤖 **ANDROID SIM, IPHONE NÃO** — decisão do Felipe depois dos custos: **US$ 25 uma vez na vida** contra **US$ 99 por ANO, para sempre**, e no Google não existe renovação. Revê em parte o "loja não" de 10/08; o PWA segue sendo o caminho no iPhone. O app é o **próprio site dentro de uma casca (TWA)**: não há segundo código, e todo deploy do site já atualiza o app.
+>
+> 🔑 **A peça que faz o app parecer app:** `/.well-known/assetlinks.json`, servido por `Program.cs` a partir de `Services/AndroidSettings`. Sem ele o app abre **com a barra de endereço do Chrome por cima** — funciona, mas deixa de parecer app, que é a única coisa que a loja compra. E a falha é **muda**. A impressão digital vem de **configuração** (drop-in do systemd, sem republicar), porque ela só existe depois da chave de assinatura e **muda quando o Google reassina**. Sem nada configurado: **404**, que é a resposta honesta enquanto não há app. ✅ Conferido em produção agora: 404.
+>
+> 🚨 **São DUAS impressões digitais, não uma** — a da chave de upload e a que o Google gera ao reassinar. Configurar só a primeira faz o app funcionar no teste local e falhar pra quem instalou pela loja.
+>
+> 🚨 **`/.well-known` teve que entrar nos `PrefixosLiberados` do Acesso Antecipado.** Quem busca esse arquivo é um robô sem cookie que **não segue redirecionamento**: bastaria religar o portão pelo painel pra verificação cair e a barra de endereço voltar **no celular de todo mundo**, sem nada quebrar deste lado. Guardado por `AppAndroidTests`.
+>
+> 📄 **`ANDROID.md`** com o roteiro do Bubblewrap (⚠️ **API 36 obrigatória desde 31/08**, e por isso Bubblewrap local e não PWABuilder na nuvem), o texto pronto da ficha e o rascunho do formulário de Segurança dos Dados tirado da política de privacidade. 🖼️ **`loja-android/`** com o **gráfico de destaque 1024×500**, que a Play exige e **não existia**. ⚠️ As capturas seguem em 504×1000: válidas, mas moles na vitrine — as boas saem do celular do Felipe depois do teste interno.
+>
+> ⚠️ **O que só o Felipe pode fazer:** pagar os US$ 25, criar a conta (**pessoal exige 12 testadores por 14 dias; organização exige D-U-N-S, ~28 dias**), guardar a senha do keystore e publicar. ⚠️ **A ficha da loja estampa o endereço do desenvolvedor publicamente** — conferir o endereço do CNPJ antes de escolher, é o mesmo problema da tela de fatura.
+>
+> 🔀 **Uma sessão paralela levou meu `Program.cs` junto no commit dela** (`63b2a97`), e como a classe que ele usa ainda estava sem rastreamento, **aquele commit sozinho não compilava**. O commit seguinte (`87d1391`) fechou. Antes de enviar, o HEAD foi conferido **num worktree limpo**: 3.637 testes, 0 falhas. Vale como regra: quando o diretório tem trabalho de duas sessões, o que prova o push é o worktree, não o `dotnet test` do diretório sujo.
+>
+> ✅ **Deploy conferido pelos três sinais** (`healthz` 200 **não** basta): symlink, `cwd` do processo e `NRestarts=0` todos em `build-508-ef532e3`, sem colisão no `.historico`. **A migration `ClubeSelecionavel` entrou certa: 17 clubes, 17 no catálogo** — o `defaultValue: true` escrito à mão segurou.
+>
+> Antes, no mesmo dia — 🙈 **O MARCAR JOGO SAIU DE VISTA (escondido, não apagado) E O PAINEL ADMIN VIROU 5 GRUPOS COM ABAS.** ✅ **PUBLICADO no build-508.**
+>
+> 🙈 **O MARCAR JOGO ESTÁ PRONTO E ESCONDIDO — até termos um clube** (pedido do Felipe). A tela lista os clubes que ligaram a agenda de quadras, e esse número é **zero**: uma porta que abre numa lista vazia não é promessa pendente, é promessa quebrada — a pessoa entra uma vez e aprende que aqui não se marca quadra. Sai do menu Jogos, sai das portas da home, sai o interruptor de `MarcacaoHorariosAtiva` do `/Clubes/Gerenciar` (senão o dono cadastra quadra e horário pra ninguém), sai o "ver como o jogador vê" do painel do clube e o atalho de reservar quadra do desafio. `/MarcarJogo` responde **404** pra quem não é admin do Padelizou — esconder link é cortesia, a trava é no controller.
+>
+> ⚠️ **A VOLTA É MANUAL, e foi escolha perguntada antes de codar.** A alternativa oferecida — reabrir sozinho no dia em que qualquer clube ligasse a agenda — foi **recusada**: "quando eu escolher voltar". **Consequência a não esquecer: fechar o primeiro clube não basta. Sem `MarcarJogo__Habilitado=true` no systemd, o cliente liga a agenda e continua invisível.**
+>
+> 🔒 **A trava é na ENTRADA, nunca na saída.** Ver, convidar e **cancelar** uma reserva que já existe continuam abertos: fechar isso junto prenderia quem marcou antes numa quadra que não consegue mais desmarcar — e o no-show sobraria pro clube. Todas essas ações já filtram por `JogadorId == meuId`, então não abrem nada de ninguém. **6 testes novos** prendem as duas metades (`MarcarJogoEscondidoTests`).
+>
+> 💬 **O card "Clube" da home FICOU** — é a porta de entrada do dono de clube, que é exatamente quem estamos procurando. O que mudou é o destino: em vez de "ver como funciona" numa vitrine de zero clubes, agora é **"falar com a gente"** no WhatsApp do suporte. E o hero do visitante parou de prometer "marque quadra". ⚠️ Vitrine é OUTRA pergunta que "pode usar": a régua do menu responde não pra quem está deslogado, e usá-la na home faria o card sumir pro visitante **mesmo depois de reabrir** — daí `MostrarNaVitrineAsync` separado em `Services/PortaDoMarcarJogo`.
+>
+> 🗂️ **O PAINEL ADMIN: 20 CARTÕES VIRARAM 14 + UMA GAVETA** ("tem muita coisa, tá ruim de me achar"). Telas do mesmo assunto viraram **um cartão que abre uma página com abas**: *Professores · Clubes · Times*, *Métricas · Jogadores por região*, *Opiniões · Comentários denunciados*, *Comissões · Indicações*, *Torneios para aprovar · Quem pode criar torneio*. **Nenhuma tela foi apagada nem reescrita** — cada uma ganhou uma linha (`<partial name="_AbasDoPainel" />`), e a barra pergunta a `Services/PainelAdminAgrupado` a quem ela pertence. **Essa lista é a fonte única**: é a mesma que desenha os cartões, então aba nova nasce achável pelos dois caminhos. Os nomes das abas ficam escritos no cartão de propósito, senão "onde foi parar o Clubes?" vira caça ao tesouro no primeiro dia.
+>
+> 🤝 **Parceiros numa tela só, com o corte que o Felipe pediu:** ele vê as duas abas; **o parceiro comercial não vê barra nenhuma** — cai direto no extrato dele, sem caminho pro caderno de quem-trouxe-quem (que é a carteira de contatos dos concorrentes). Isso é cortesia; quem recusa a entrada continua sendo a action, e o `?parceiroId=` de outro parceiro segue ignorado pelo id imposto na sessão. ✅ Conferido no navegador com a flag ligada e desligada.
+>
+> 🧰 **A gaveta "Ferramentas e ajustes"** guarda o que se usa uma vez por mês: os dois testes de aviso, **Administradores** e o **portão do site**. ⚠️ Ela **abre sozinha quando o portão está ligado**, e o resumo mostra "portão FECHADO" — mesma disciplina do alarme do canal: dado normal fica quieto, estado anormal se apresenta. Site trancado sem ninguém notar é exatamente o que uma gaveta muda teria causado.
+>
+> 🐛 **Um 500 preexistente apareceu na conferência e foi corrigido:** `/Admin/TorneiosParaAprovar` estourava com *"An item with the same key has already been added"* — o `ToDictionaryAsync` assume **um** "Criador" por torneio, e nada no cadastro impede dois (no banco local já há **três** torneios assim). Um torneio duplicado derrubava a **fila inteira**, e nenhum torneio podia ser aprovado. Agora agrupa e fica com o primeiro por `JogadorId`.
+>
+> Antes, no mesmo dia: 🏟️ **"NO CATÁLOGO": O MEIO-TERMO ENTRE DEIXAR APARECER E APAGAR.** Pedido do Felipe olhando o seletor de clube sede em `/Admin/Times`, que trazia "Clube Teste CSRF 1785325726351" ao lado dos clubes de verdade. `Clube.Selecionavel` decide se o clube aparece pra quem vai **escolher** um local; desligar **não apaga e não desvincula nada** — quem já marcou continua marcado, e o torneio que aconteceu lá continua sendo lá. O interruptor mora em `/Admin/Clubes` (a única tela que continua vendo os desligados, senão o botão de religar sumiria junto).
 >
 > ⚠️ **A régua é UM MÉTODO, não uma condição copiada.** Onze telas repetiam `_context.Clubes.OrderBy(c => c.Nome)` — cadastro, perfil, criar/editar torneio, avisos, grupos, desafios, busca de jogadores, marcar jogo e o painel. Todas passaram a chamar `CatalogoLocais.ParaEscolher()`. Pôr a condição em dez e esquecer de uma não quebraria nada: o clube desligado seguiria aparecendo naquela tela, calado.
 >
@@ -17,7 +51,7 @@
 >
 > ⚠️ **Ficou de fora do commit, de propósito:** `Controllers/MarcarJogoController.cs`. Ele tem trabalho **das duas sessões** — o meu `ParaEscolher()` e o `PortaDoMarcarJogo` da sessão paralela, que depende de dois arquivos ainda não commitados. Commitá-lo sozinho quebraria o build.
 >
-> Antes — 📣 **OS CARDS COMPARTILHÁVEIS ESTÃO DE PÉ (no repo).** ⏳ **NÃO PUBLICADO** (commit local, sem deploy). São as duas primeiras telas do Padelizou cujo objetivo é **sair** do Padelizou.
+> Antes — 📣 **OS CARDS COMPARTILHÁVEIS ESTÃO DE PÉ.** ✅ **PUBLICADO no build-508.** São as duas primeiras telas do Padelizou cujo objetivo é **sair** do Padelizou.
 >
 > 🏆 **CARD DE CAMPEÃO:** quando a final de uma categoria é encerrada, nasce sozinha uma arte 1080×1350 com o nome da dupla, a categoria, o torneio, o clube, a data e o endereço do site. Botão **"Ver os campeões"** na página do torneio, ao lado do das fotos — e pelo mesmo motivo: é **pra todo mundo**, porque é o campeão postando sobre ele mesmo que leva a marca de carona. Hoje cada final morre no grupo do WhatsApp, sem nada que diga de onde aquilo saiu.
 >
