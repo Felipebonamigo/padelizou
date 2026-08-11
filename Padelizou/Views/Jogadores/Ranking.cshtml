@@ -227,7 +227,13 @@
 
         @* ============================ 1. POR CATEGORIA (PONTOS) — DROPDOWN ============================ *@
         <div class="tab-pane fade show active" id="tab-pontos" role="tabpanel">
-            @if (!Model.TodasCategorias.Any())
+            @* ⚠️ A guarda olha `PorCategoria` (quem PONTUOU) e não `TodasCategorias` (as que
+               existem no banco). Com a régua de esconder quem tem zero, o segundo passou a
+               mentir: havia 12 categorias cadastradas e ninguém pontuando, então a aba abria
+               com um dropdown de categorias todas vazias e um "escolha uma categoria acima"
+               que só levava a "sem resultados". As seis abas irmãs dizem, de cara, "Ainda não
+               há resultados de torneio" — esta agora diz o mesmo. *@
+            @if (!Model.PorCategoria.Any())
             {
                 <partial name="_RankingVazio" />
             }

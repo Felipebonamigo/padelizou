@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -95,6 +96,39 @@ public class PontoSoDepoisDeComecarTests
         Assert.Contains(linhas, l => l.Jogador.Id == campeaoId && l.Pontos == 100);
         Assert.DoesNotContain(linhas, l => l.Jogador.Id == esperando.Id);
         Assert.DoesNotContain(linhas, l => l.Pontos == 0);
+    }
+
+    [Fact]
+    public void A_aba_de_pontos_vazia_avisa_em_vez_de_oferecer_categorias_vazias()
+    {
+        // ⚠️ Guarda de FONTE, porque o defeito é uma condição de Razor e o sintoma é mudo.
+        // Esconder quem tem zero fez a aba poder ficar sem NENHUMA linha, e a guarda de lá
+        // olhava `TodasCategorias` (as cadastradas no banco) em vez de `PorCategoria` (quem
+        // pontuou): com 12 categorias cadastradas e ninguém pontuando, a aba abria com um
+        // dropdown de categorias todas vazias e um "escolha uma categoria acima" que só
+        // levava a "sem resultados". As seis abas irmãs avisam de cara.
+        var view = File.ReadAllText(Path.Combine(PastaDoProjetoWeb(), "Views", "Jogadores", "Ranking.cshtml"));
+        var semComentarios = Regex.Replace(view, @"@\*.*?\*@", "", RegexOptions.Singleline);
+
+        var guarda = Regex.Match(semComentarios,
+            @"id=""tab-pontos""[^>]*>\s*@if \(!Model\.(\w+)\.Any\(\)\)");
+
+        Assert.True(guarda.Success, "Não achei a guarda de vazio da aba de pontos.");
+        Assert.Equal("PorCategoria", guarda.Groups[1].Value);
+    }
+
+    private static string PastaDoProjetoWeb()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, "Padelizou", "Views")))
+                return Path.Combine(dir.FullName, "Padelizou");
+            dir = dir.Parent;
+        }
+
+        throw new DirectoryNotFoundException(
+            "Não achei a pasta do projeto web subindo a partir de " + AppContext.BaseDirectory);
     }
 
     [Fact]
