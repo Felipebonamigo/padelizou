@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Padelizou — Para Professores</title>
+<style>
+    /* ====== Identidade (as mesmas cores do app) ====== */
+    :root {
+        --verde: #A3D827;
+        --navy: #1C2742;
+        --navy-900: #141d33;
+        --navy-600: #33456e;
+        --ink: #1b2540;
+        --cinza: #f4f6fb;
+        --cinza-borda: #e3e8f2;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+        font-family: "Segoe UI", -apple-system, Arial, sans-serif;
+        background: #d8dde8; color: var(--ink);
+        font-size: 10.5pt; line-height: 1.5;
+    }
+
+    /* ====== Página A4 ====== */
+    .pagina {
+        width: 210mm; min-height: 296mm; margin: 8mm auto;
+        background: #fff; position: relative;
+        padding: 16mm 16mm 20mm 16mm;
+        box-shadow: 0 4px 24px rgba(20,29,51,.25);
+        page-break-after: always; overflow: hidden;
+    }
+    @media print {
+        body { background: #fff; }
+        .pagina { margin: 0; box-shadow: none; width: 210mm; height: 296mm; }
+    }
+    @page { size: A4; margin: 0; }
+
+    .rodape {
+        position: absolute; bottom: 8mm; left: 16mm; right: 16mm;
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 8pt; color: #8a93a8; border-top: 1px solid var(--cinza-borda);
+        padding-top: 3mm;
+    }
+    .rodape b { color: var(--navy); }
+
+    /* ====== Tipografia ====== */
+    h1 { font-size: 26pt; line-height: 1.15; color: var(--navy); }
+    h2 { font-size: 17pt; color: var(--navy); margin-bottom: 4mm; }
+    h3 { font-size: 12pt; color: var(--navy); margin-bottom: 2mm; }
+    p  { margin-bottom: 3mm; }
+    .eyebrow {
+        display: inline-block; font-size: 8.5pt; font-weight: 700;
+        letter-spacing: 2.5px; text-transform: uppercase; color: #7c8aa8;
+        margin-bottom: 2mm;
+    }
+    .eyebrow::before {
+        content: ""; display: inline-block; width: 22px; height: 4px;
+        background: var(--verde); border-radius: 2px; margin-right: 8px;
+        vertical-align: middle;
+    }
+    .destaque { color: var(--navy); font-weight: 700; }
+    .verde-txt { color: #6f9a0d; font-weight: 700; }
+
+    /* ====== Componentes ====== */
+    .chip {
+        display: inline-block; background: var(--navy); color: #fff;
+        border-radius: 999px; padding: 1.2mm 4mm; font-size: 8.5pt;
+        font-weight: 600; margin: 0 1mm 2mm 0;
+    }
+    .chip.verde { background: var(--verde); color: var(--navy-900); }
+    .chip.claro { background: #eef3e2; color: #55750a; }
+
+    .caixa {
+        background: var(--cinza); border: 1px solid var(--cinza-borda);
+        border-radius: 12px; padding: 5mm; margin-bottom: 4mm;
+    }
+    .caixa.navy {
+        background: linear-gradient(120deg, var(--navy-900), var(--navy) 60%, #24325a);
+        color: #dfe6f5; border: none;
+    }
+    .caixa.navy h3, .caixa.navy .titulo { color: #fff; }
+    .caixa.navy .verde-txt { color: var(--verde); }
+    .caixa.borda-verde { border-left: 5px solid var(--verde); }
+
+    ul.lista { list-style: none; margin-bottom: 3mm; }
+    ul.lista li {
+        padding-left: 7mm; position: relative; margin-bottom: 2.2mm;
+    }
+    ul.lista li::before {
+        content: "✓"; position: absolute; left: 0; top: -0.4mm;
+        width: 5mm; height: 5mm; border-radius: 50%;
+        background: var(--verde); color: var(--navy-900);
+        font-size: 8pt; font-weight: 800; text-align: center; line-height: 5mm;
+    }
+    ul.lista li b { color: var(--navy); }
+    ul.lista.compacta li { margin-bottom: 1.2mm; font-size: 9.3pt; }
+
+    .duas-colunas { display: flex; gap: 8mm; align-items: flex-start; }
+    .col { flex: 1; min-width: 0; }
+
+    .grade-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+    .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+
+    .cartao {
+        border: 1px solid var(--cinza-borda); border-radius: 12px;
+        padding: 4mm; background: #fff;
+    }
+    .cartao .titulo { font-weight: 700; color: var(--navy); font-size: 10.5pt; margin-bottom: 1.5mm; }
+    .cartao .icone { font-size: 15pt; margin-bottom: 1mm; }
+    .cartao p { font-size: 9pt; margin-bottom: 0; color: #4a5470; }
+
+    .num-grande { font-size: 21pt; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .num-legenda { font-size: 8.5pt; color: #7c8aa8; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ====== Mockup de celular ====== */
+    .celular {
+        width: 58mm; background: #0d1424; border-radius: 9mm;
+        padding: 2.6mm; box-shadow: 0 6px 20px rgba(13,20,36,.35);
+        flex-shrink: 0;
+    }
+    .celular .tela {
+        background: #f2f5fa; border-radius: 6.6mm; overflow: hidden;
+        min-height: 108mm; position: relative; font-size: 6.6pt; line-height: 1.35;
+    }
+    .celular .notch {
+        width: 18mm; height: 2.4mm; background: #0d1424;
+        border-radius: 0 0 3mm 3mm; margin: 0 auto;
+        position: relative; z-index: 5;
+    }
+    .app-topo {
+        background: linear-gradient(120deg, var(--navy-900), var(--navy) 70%);
+        color: #fff; padding: 4mm 3.5mm 3mm; margin-top: -2.4mm;
+    }
+    .app-topo .marca { font-weight: 800; font-size: 8pt; letter-spacing: .5px; }
+    .app-topo .marca span { color: var(--verde); }
+    .app-corpo { padding: 2.6mm 3mm 3mm; }
+    .app-card {
+        background: #fff; border-radius: 2.6mm; padding: 2.4mm 2.8mm;
+        margin-bottom: 2.2mm; box-shadow: 0 1px 4px rgba(27,37,64,.10);
+        border: 1px solid #e8ecf4;
+    }
+    .app-card.navy { background: var(--navy); color: #e8edf9; border: none; }
+    .app-card.navy .mini-titulo { color: var(--verde); }
+    .mini-titulo {
+        font-size: 5.6pt; text-transform: uppercase; letter-spacing: 1px;
+        color: #8a93a8; font-weight: 700; margin-bottom: .8mm;
+    }
+    .app-btn {
+        display: inline-block; background: var(--verde); color: var(--navy-900);
+        font-weight: 700; border-radius: 999px; padding: 1mm 3mm; font-size: 6.2pt;
+    }
+    .app-btn.ghost { background: transparent; border: 1px solid #b9c2d8; color: #4a5470; }
+    .selo {
+        display: inline-block; border-radius: 1.4mm; font-size: 5.2pt; font-weight: 800;
+        padding: .4mm 1.6mm; letter-spacing: .5px;
+    }
+    .selo.seu { background: var(--verde); color: var(--navy-900); }
+    .selo.alerta { background: #d92c3f; color: #fff; }
+    .selo.navy { background: var(--navy); color: #fff; }
+    .linha-jogo {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1mm 0; border-bottom: 1px dashed #e0e5f0; gap: 1.5mm;
+    }
+    .linha-jogo:last-child { border-bottom: none; }
+    .linha-jogo span { color: #3b4767; }
+    .avatar {
+        width: 8mm; height: 8mm; border-radius: 50%;
+        background: linear-gradient(135deg, var(--navy-600), var(--navy));
+        color: #fff; font-weight: 800; font-size: 7pt;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .legenda-mock {
+        font-size: 8pt; color: #7c8aa8; text-align: center; margin-top: 2mm;
+        max-width: 58mm;
+    }
+
+    .pdz-barra { background: #e3e8f2; border-radius: 999px; height: 2.2mm; overflow: hidden; margin: 1mm 0 .6mm; }
+    .pdz-barra i { display: block; height: 100%; background: linear-gradient(90deg, #86b81f, var(--verde)); }
+
+    /* tabela de planos */
+    table.tab { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    table.tab th {
+        background: var(--navy); color: #fff; text-align: left;
+        padding: 2.6mm 3mm; font-size: 9pt;
+    }
+    table.tab th:first-child { border-radius: 2mm 0 0 0; }
+    table.tab th:last-child { border-radius: 0 2mm 0 0; }
+    table.tab td { padding: 1.7mm 3mm; border-bottom: 1px solid var(--cinza-borda); vertical-align: top; }
+    table.tab tr:nth-child(even) td { background: #f8fafd; }
+
+    /* capa */
+    .capa {
+        background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy) 55%, #24325a 100%);
+        color: #dfe6f5; display: flex; flex-direction: column;
+        padding: 18mm 16mm 14mm;
+    }
+    .capa h1 { color: #fff; font-size: 30pt; }
+    .capa .marca-grande { font-size: 34pt; font-weight: 800; color: #fff; letter-spacing: 1px; }
+    .capa .marca-grande span { color: var(--verde); }
+    .risco { width: 30mm; height: 5px; background: var(--verde); border-radius: 3px; margin: 6mm 0; }
+
+    /* passo a passo */
+    .passo { display: flex; gap: 4mm; margin-bottom: 2.2mm; align-items: flex-start; }
+    .passo .n {
+        width: 8mm; height: 8mm; border-radius: 50%; flex-shrink: 0;
+        background: var(--verde); color: var(--navy-900);
+        font-weight: 800; font-size: 11pt; text-align: center; line-height: 8mm;
+    }
+    .passo .txt { padding-top: .6mm; }
+    .passo .txt b { color: var(--navy); }
+    .passo .txt p { font-size: 9.3pt; margin-bottom: 0; color: #4a5470; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ PÁGINA 1 — CAPA ═══════════════════════ -->
+<div class="pagina capa">
+    <div style="font-size:9pt; letter-spacing:3px; text-transform:uppercase; color:#93a2c4;">
+        Para professores de padel
+    </div>
+    <div class="marca-grande" style="margin-top:4mm;">PADELI<span>ZOU</span></div>
+    <div class="risco"></div>
+    <h1>Sua agenda, seus alunos<br>e seu dinheiro no mesmo lugar.</h1>
+    <p style="font-size:12.5pt; margin-top:4mm; max-width:122mm; color:#c3cde4;">
+        O aluno marca pelo celular, você aceita com um toque, e o sistema cuida do resto:
+        <b style="color:#fff;">pacote, aula fixa, presença, quem está devendo e o recebimento</b>.
+        Sem planilha, sem caderninho, sem caçar mensagem no WhatsApp pra lembrar quem pagou.
+    </p>
+
+    <div style="margin-top:8mm;">
+        <span class="chip verde">Agenda</span>
+        <span class="chip" style="background:#33456e;">Alunos</span>
+        <span class="chip" style="background:#33456e;">Financeiro</span>
+        <span class="chip" style="background:#33456e;">Avaliação técnica</span>
+        <span class="chip" style="background:#33456e;">Recebimento</span>
+    </div>
+
+    <div style="display:flex; gap:10mm; margin-top:9mm; align-items:flex-start;">
+        <div class="celular">
+            <div class="tela">
+                <div class="notch"></div>
+                <div class="app-topo">
+                    <div class="marca">PADELI<span>ZOU</span></div>
+                    <div style="font-size:7.4pt; font-weight:700; margin-top:1.6mm;">Painel do Professor</div>
+                    <div style="font-size:5.8pt; color:#aeb9d4;">segunda-feira, 10 de agosto</div>
+                </div>
+                <div class="app-corpo">
+                    <div class="app-card navy">
+                        <div class="mini-titulo">🔔 Nova solicitação</div>
+                        <div style="font-weight:800; font-size:7.4pt;">Marina Costa · quinta 18:00</div>
+                        <div style="font-size:6pt; color:#aeb9d4;">Arena Zona Sul · aula individual · R$ 120,00</div>
+                        <div style="margin-top:1.6mm; display:flex; gap:1.5mm;">
+                            <span class="app-btn">Aceitar</span>
+                            <span class="app-btn ghost">Recusar</span>
+                        </div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">📅 Próximas aulas</div>
+                        <div class="linha-jogo">
+                            <span style="font-size:6pt;">hoje 07:00 · <b>Rafael</b></span>
+                            <span class="selo seu">FIXA</span>
+                        </div>
+                        <div class="linha-jogo">
+                            <span style="font-size:6pt;">hoje 19:00 · <b>Turma iniciante</b></span>
+                            <span class="selo navy">4 ALUNOS</span>
+                        </div>
+                        <div class="linha-jogo">
+                            <span style="font-size:6pt;">amanhã 08:00 · <b>Camila</b></span>
+                            <span class="selo alerta">A PAGAR</span>
+                        </div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">💰 Financeiro do mês</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-weight:800; font-size:7.4pt; color:#6f9a0d;">R$ 3.480</div>
+                                <div style="font-size:5.6pt; color:#6a7590;">recebido</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:800; font-size:7.4pt; color:var(--navy);">R$ 720</div>
+                                <div style="font-size:5.6pt; color:#6a7590;">a receber · 3 alunos</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="app-card">
+                        <div class="mini-titulo">📈 Evolução do aluno</div>
+                        <div style="font-size:6pt; color:#4a5470;">Marina · Bandeja</div>
+                        <div class="pdz-barra"><i style="width:72%"></i></div>
+                        <div style="font-size:5.4pt; color:#6f9a0d; font-weight:700;">▲ subiu desde a última ficha</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="flex:1; padding-top:4mm;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6mm;">
+                <div>
+                    <div class="num-grande" style="color:#fff;">15</div>
+                    <div class="num-legenda" style="color:#93a2c4;">dias de teste, sem cartão e sem compromisso</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">R$ 0</div>
+                    <div class="num-legenda" style="color:#93a2c4;">para começar — o plano pago é opcional</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">0</div>
+                    <div class="num-legenda" style="color:#93a2c4;">download na loja — abre no navegador e instala como app</div>
+                </div>
+                <div>
+                    <div class="num-grande" style="color:#fff;">Pix</div>
+                    <div class="num-legenda" style="color:#93a2c4;">aula paga no app, direto na sua conta</div>
+                </div>
+            </div>
+            <div style="margin-top:9mm; background:rgba(163,216,39,.12); border:1px solid rgba(163,216,39,.4); border-radius:12px; padding:5mm;">
+                <div style="color:var(--verde); font-weight:800; font-size:11pt;">padelizou.com.br</div>
+                <div style="font-size:9pt; color:#c3cde4;">Funciona em qualquer celular — Android e iPhone.</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top:auto; display:flex; justify-content:space-between; font-size:8.5pt; color:#93a2c4; border-top:1px solid rgba(255,255,255,.15); padding-top:4mm;">
+        <span><b style="color:#fff;">Padelizou</b> · a plataforma completa de padel</span>
+        <span>agosto de 2026</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 2 — A ROTINA DO PROFESSOR ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">O dia a dia</span>
+    <h2>Do "vamos marcar?" até a aula dada</h2>
+    <p>
+        Hoje uma aula nasce numa mensagem, vira um combinado na cabeça e some quando alguém esquece.
+        No Padelizou ela vira <span class="destaque">um compromisso registrado</span>: o aluno escolhe
+        cidade, professor, local e horário; você recebe o aviso <b>por e-mail e no celular</b>; aceita
+        ou recusa — e a aula entra na sua agenda com preço, local e status.
+    </p>
+
+    <div class="grade-3" style="margin: 5mm 0;">
+        <div class="cartao">
+            <div class="icone">📲</div>
+            <div class="titulo">O aluno marca sozinho</div>
+            <p>Ele filtra por cidade, vê seus locais e horários e envia a solicitação. Você não precisa
+               ficar de plantão no WhatsApp pra montar a semana.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">✅</div>
+            <div class="titulo">Aceita em um toque</div>
+            <p>Pelo app ou <b>pelo próprio e-mail</b>, sem nem abrir o site. Um pacote de 8 aulas pode
+               ser aceito de uma vez só — ou aula por aula, se preferir.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🗓️</div>
+            <div class="titulo">Agenda de verdade</div>
+            <p>Visão por dia, semana e mês. E, se você quiser, a aula confirmada entra automaticamente
+               na sua Google Agenda.</p>
+        </div>
+    </div>
+
+    <div class="duas-colunas" style="margin-top:2mm;">
+        <div class="col">
+            <h3>Todos os formatos que você já usa</h3>
+            <ul class="lista compacta">
+                <li><b>Aula avulsa</b> — a mais simples: dia, hora, local, preço.</li>
+                <li><b>Pacote de aulas</b> — vende 8 aulas por um valor; o sistema cria as 8 e divide
+                    o preço, ajustando os centavos na última pra fechar exatamente o total.</li>
+                <li><b>Aula fixa semanal</b> — "toda terça às 19h". O sistema renova sozinho, sem você
+                    lançar mês a mês.</li>
+                <li><b>Turma / Jogo Aula</b> — você publica uma aula por categoria e os alunos se
+                    inscrevem, com <b>lista de espera</b> quando lota.</li>
+                <li><b>Aluno sem conta</b> — lança a aula à mão. Aluno antigo que não usa app nenhum
+                    continua na sua agenda igual.</li>
+            </ul>
+        </div>
+        <div class="col">
+            <h3>E o que costuma dar problema</h3>
+            <ul class="lista compacta">
+                <li><b>Presença e falta</b> — você fecha a aula como realizada ou falta, e a regra de
+                    cobrança já sai aplicada.</li>
+                <li><b>Desmarcação</b> — com política clara pros dois lados, registrada. Ninguém discute
+                    depois o que foi combinado.</li>
+                <li><b>Locais e cidades</b> — dá aula em três arenas e em duas cidades? Cada uma com
+                    seus horários, e o aluno só vê o que existe.</li>
+                <li><b>Sua página pública</b> — um link seu, com seus locais e as <b>avaliações dos seus
+                    alunos</b>. Serve de cartão de visita pra quem ainda não te conhece.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="caixa navy" style="margin-top:4mm;">
+        <h3>💰 O financeiro que ninguém gosta de fazer</h3>
+        <p style="margin-bottom:2mm; color:#c3cde4;">
+            Uma tela responde as três perguntas do fim do mês:
+            <b style="color:#fff;">quanto entrou</b>, <b style="color:#fff;">quanto ainda entra</b> e
+            <b style="color:#fff;">quem está devendo</b> — com relatório por período.
+        </p>
+        <p style="margin-bottom:0; color:#c3cde4; font-size:9.3pt;">
+            Funciona mesmo se você recebe tudo por fora: aula acertada em dinheiro ou Pix na mão é só
+            marcar como paga. <span class="verde-txt">Você não é obrigado a cobrar pelo site</span> —
+            mas, se quiser, o aluno paga por Pix ou cartão e o valor cai direto na sua conta.
+        </p>
+    </div>
+
+    <div class="grade-2" style="margin-top:4mm;">
+        <div class="caixa borda-verde" style="margin-bottom:0;">
+            <h3 style="font-size:11pt;">🔔 O aviso não depende de você olhar</h3>
+            <p style="font-size:9pt; margin-bottom:0;">
+                Solicitação de aula chega por <b>e-mail e como notificação no celular</b>. Você não
+                precisa abrir o app pra descobrir que alguém quer aula na quinta.
+            </p>
+        </div>
+        <div class="caixa borda-verde" style="margin-bottom:0;">
+            <h3 style="font-size:11pt;">📱 Vira app sem passar por loja</h3>
+            <p style="font-size:9pt; margin-bottom:0;">
+                Abre no navegador e instala na tela inicial, com ícone e tudo. Nada de pedir pro aluno
+                de 60 anos procurar na Play Store.
+            </p>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · para professores</span>
+        <span>padelizou.com.br · 2</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 3 — ENSINO + ALUNO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">O diferencial</span>
+    <h2>O que separa um professor de um "quem marcou a quadra"</h2>
+    <p>
+        Agenda todo mundo tem. O que o aluno lembra é a <span class="destaque">sensação de estar
+        evoluindo</span> — e é exatamente isso que costuma ficar só na sua cabeça. O Padelizou dá
+        forma a isso, com uma ferramenta que é <b>sua</b>, não um modelo genérico.
+    </p>
+
+    <div class="grade-2" style="margin:5mm 0;">
+        <div class="caixa borda-verde" style="margin-bottom:0;">
+            <h3>📋 A sua régua de avaliação</h3>
+            <p style="font-size:9.3pt; margin-bottom:2mm;">
+                Você monta a lista de fundamentos que avalia, separada por módulo (iniciante,
+                intermediário, avançado). Pode renomear, reordenar, desativar o que não usa e trazer
+                de volta depois. <b>É a sua metodologia</b> — o sistema só organiza.
+            </p>
+            <p style="font-size:9.3pt; margin-bottom:0;">
+                A cada ficha você dá nota de <b>execução</b> e <b>acertos</b> por fundamento, escreve um
+                recado ao aluno — e decide <b>quando liberar</b>.
+            </p>
+        </div>
+        <div class="caixa borda-verde" style="margin-bottom:0;">
+            <h3>🔒 A anotação que é só sua</h3>
+            <p style="font-size:9.3pt; margin-bottom:2mm;">
+                Toda ficha tem um campo privado. "Está com medo da parede", "não pode forçar o ombro",
+                "sumiu duas semanas" — o que você precisa registrar e o aluno <b>nunca</b> vê.
+            </p>
+            <p style="font-size:9.3pt; margin-bottom:0;">
+                Não é um campo escondido na tela: o dado <span class="destaque">não sai do servidor</span>
+                quando é o aluno olhando. Foi feito assim de propósito.
+            </p>
+        </div>
+    </div>
+
+    <div class="caixa" style="margin-bottom:4mm;">
+        <h3>📓 Caderno da aula</h3>
+        <p style="font-size:9.5pt; margin-bottom:0;">
+            Professor e aluno anotam sobre a <b>mesma aula</b>, no mesmo fio. Ele registra a dúvida que
+            ficou; você deixa o exercício pra treinar até a próxima. Na semana seguinte ninguém começa
+            do zero perguntando "onde a gente parou?".
+        </p>
+    </div>
+
+    <span class="eyebrow" style="margin-top:2mm;">Para o seu aluno</span>
+    <h2 style="font-size:15pt;">Ele ganha um motivo pra não faltar</h2>
+
+    <div class="grade-3" style="margin:4mm 0;">
+        <div class="cartao">
+            <div class="icone">📈</div>
+            <div class="titulo">Vê a própria evolução</div>
+            <p>As fichas que você liberou, uma ao lado da outra, mostrando o que <b>subiu</b> desde a
+               anterior. Comparando sempre com o mesmo professor — réguas diferentes não se misturam.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">🎾</div>
+            <div class="titulo">Joga o resto da semana</div>
+            <p>Fora da aula ele acha parceiro do nível dele, marca quadra, entra em torneios e sobe no
+               ranking. Quem joga mais, precisa mais de aula.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">💳</div>
+            <div class="titulo">Paga como preferir</div>
+            <p>Pix ou cartão pelo app — ou combinado direto com você, como sempre foi. Você
+               escolhe.</p>
+        </div>
+    </div>
+
+    <div class="caixa navy" style="margin-bottom:0;">
+        <h3>🎯 O aluno já está aqui</h3>
+        <p style="margin-bottom:0; color:#c3cde4;">
+            O Padelizou não é um app só de aula: é onde o jogador já marca partida, disputa torneio e
+            acompanha o ranking dele. Quando ele procura "professor na minha cidade", ele procura
+            <b style="color:#fff;">dentro do app que já usa</b> — e quem está cadastrado aparece.
+        </p>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · para professores</span>
+        <span>padelizou.com.br · 3</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 4 — PLANOS + COMEÇAR ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Quanto custa</span>
+    <h2>Dois caminhos — e o teste não pede cartão</h2>
+    <p>
+        Você começa com <span class="destaque">15 dias de teste</span> já nas condições de assinante.
+        Depois escolhe: mensalidade com a menor taxa por aula, ou nada por mês e a taxa cheia.
+        <b>A taxa só existe quando o aluno paga pelo site</b> — aula acertada em dinheiro ou Pix na
+        mão não paga nada, nunca.
+    </p>
+
+    <table class="tab" style="margin: 3mm 0 3mm;">
+        <tr>
+            <th style="width:26%;">&nbsp;</th>
+            <th style="width:37%;">Avulso</th>
+            <th style="width:37%;">Assinante</th>
+        </tr>
+        <tr>
+            <td><b>Mensalidade</b></td>
+            <td><b>R$ 0,00</b></td>
+            <td><b>R$ 49,90/mês</b><br>
+                <span style="font-size:8.5pt; color:#6f9a0d; font-weight:700;">ou R$ 499,90/ano — economia de R$ 98,90</span></td>
+        </tr>
+        <tr>
+            <td><b>Aula paga no app</b> <span style="color:#7c8aa8;">· Pix</span></td>
+            <td>10%</td>
+            <td><b class="verde-txt">3%</b></td>
+        </tr>
+        <tr>
+            <td><b>Aula paga no app</b> <span style="color:#7c8aa8;">· cartão</span></td>
+            <td>10%</td>
+            <td><b class="verde-txt">6%</b></td>
+        </tr>
+        <tr>
+            <td><b>Aula recebida por fora</b> <span style="color:#7c8aa8;">· dinheiro, Pix na mão</span></td>
+            <td>sem taxa</td>
+            <td>sem taxa</td>
+        </tr>
+        <tr>
+            <td><b>Todas as ferramentas</b></td>
+            <td>incluídas</td>
+            <td>incluídas</td>
+        </tr>
+    </table>
+
+    <div class="duas-colunas" style="margin-bottom:3mm;">
+        <div class="col">
+            <div class="caixa borda-verde" style="margin-bottom:0; height:100%; padding:4mm;">
+                <h3 style="font-size:11pt;">🧮 Faça a conta antes de assinar</h3>
+                <p style="font-size:8.8pt; margin-bottom:0;">
+                    A mensalidade só compensa a partir de mais ou menos
+                    <b>R$ 713 por mês passando pelo app no Pix</b> (ou R$ 1.248 no cartão).
+                    <b>Abaixo disso, o Avulso é mais barato pra você</b> — preferimos te dizer isso agora
+                    do que te ver cancelar no mês que vem.
+                </p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="caixa" style="margin-bottom:0; height:100%; padding:4mm;">
+                <h3 style="font-size:11pt;">🤝 Sem fidelidade e sem susto</h3>
+                <ul class="lista compacta" style="margin-bottom:0; font-size:8.8pt;">
+                    <li style="font-size:8.8pt;"><b>Sem débito automático.</b> Você gera a cobrança quando
+                        quiser; não guardamos cartão pra debitar sozinhos.</li>
+                    <li style="font-size:8.8pt;"><b>Sem contrato.</b> Parou de pagar? Volta pro Avulso e
+                        continua usando tudo.</li>
+                    <li style="font-size:8.8pt;"><b>Você decide quem paga a taxa:</b> somada ao preço do
+                        aluno (você recebe cheio) ou descontada do seu valor.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <span class="eyebrow" style="margin-bottom:1mm;">Como começar</span>
+    <h2 style="font-size:14pt; margin-bottom:1mm;">Dá pra estar dando a primeira aula hoje</h2>
+
+    <div style="margin-top:2.5mm;">
+        <div class="passo">
+            <div class="n">1</div>
+            <div class="txt">
+                <b>Crie sua conta em padelizou.com.br</b>
+                <p>Pelo celular mesmo — sem loja de aplicativo e sem download.</p>
+            </div>
+        </div>
+        <div class="passo">
+            <div class="n">2</div>
+            <div class="txt">
+                <b>Peça a liberação do perfil de professor</b>
+                <p>Feita pessoa a pessoa. Depois é só cadastrar cidades, locais e horários.</p>
+            </div>
+        </div>
+        <div class="passo">
+            <div class="n">3</div>
+            <div class="txt">
+                <b>Chame seus alunos atuais</b>
+                <p>Quem não quiser criar conta, você lança à mão — a agenda funciona igual.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="caixa navy" style="margin-top:3mm; margin-bottom:0; padding:4mm 5mm;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:6mm;">
+            <div>
+                <h3 style="margin-bottom:1mm;">Quer ver funcionando antes de decidir?</h3>
+                <p style="margin-bottom:0; color:#c3cde4; font-size:9.3pt;">
+                    A gente abre o sistema com você, com os seus alunos e os seus horários — sem
+                    compromisso nenhum.
+                </p>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+                <div style="color:var(--verde); font-weight:800; font-size:13pt;">padelizou.com.br</div>
+                <div style="font-size:8.5pt; color:#93a2c4;">Android · iPhone · computador</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · para professores</span>
+        <span>padelizou.com.br · 4</span>
+    </div>
+</div>
+
+</body>
+</html>
