@@ -72,14 +72,14 @@ public class RepasseAoParceiroTests
         var ana = ctx.Jogadores.Single(j => j.Nome == "Ana Vendedora");
 
         var antes = DoParceiro(await Controlador(ctx, felipe.Id).Comissoes(null), ana.Id);
-        Assert.Equal(30m, antes.Acerto.TotalGanho);
-        Assert.Equal(30m, antes.Acerto.PagavelAgora);
+        Assert.Equal(20m, antes.Acerto.TotalGanho);
+        Assert.Equal(20m, antes.Acerto.PagavelAgora);
 
         await Controlador(ctx, felipe.Id)
-            .RegistrarRepasse(ana.Id, valor: 30m, pagoEm: new DateTime(2026, 8, 11), observacao: "Pix");
+            .RegistrarRepasse(ana.Id, valor: 20m, pagoEm: new DateTime(2026, 8, 11), observacao: "Pix");
 
         var depois = DoParceiro(await Controlador(ctx, felipe.Id).Comissoes(null), ana.Id);
-        Assert.Equal(30m, depois.Acerto.JaRepassado);
+        Assert.Equal(20m, depois.Acerto.JaRepassado);
         Assert.Equal(0m, depois.Acerto.PagavelAgora);
         Assert.Equal("Pix", Assert.Single(depois.Repasses).Observacao);
     }
@@ -107,7 +107,7 @@ public class RepasseAoParceiroTests
         var felipe = ctx.Jogadores.Single(j => j.IsAdminRaiz);
         var ana = ctx.Jogadores.Single(j => j.Nome == "Ana Vendedora");
 
-        await Controlador(ctx, felipe.Id).RegistrarRepasse(ana.Id, 30m, DateTime.Now.AddDays(1), null);
+        await Controlador(ctx, felipe.Id).RegistrarRepasse(ana.Id, 20m, DateTime.Now.AddDays(1), null);
 
         Assert.Empty(ctx.RepassesAoParceiro);
     }
@@ -132,13 +132,13 @@ public class RepasseAoParceiroTests
         var felipe = ctx.Jogadores.Single(j => j.IsAdminRaiz);
         var ana = ctx.Jogadores.Single(j => j.Nome == "Ana Vendedora");
 
-        await Controlador(ctx, felipe.Id).RegistrarRepasse(ana.Id, 30m, null, null);
+        await Controlador(ctx, felipe.Id).RegistrarRepasse(ana.Id, 20m, null, null);
         var repasse = ctx.RepassesAoParceiro.Single();
 
         await Controlador(ctx, felipe.Id).ExcluirRepasse(repasse.Id);
 
         Assert.Empty(ctx.RepassesAoParceiro);
-        Assert.Equal(30m, DoParceiro(await Controlador(ctx, felipe.Id).Comissoes(null), ana.Id).Acerto.PagavelAgora);
+        Assert.Equal(20m, DoParceiro(await Controlador(ctx, felipe.Id).Comissoes(null), ana.Id).Acerto.PagavelAgora);
     }
 
     // ── Quem pode ─────────────────────────────────────────────────────────────────────────

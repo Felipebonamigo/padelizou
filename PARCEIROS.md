@@ -21,9 +21,9 @@ Foi a primeira decisão, e é a que evita briga todo mês. "Percentual do lucro"
 custos, e a discussão sobre o que entra na conta nunca acaba. A comissão da plataforma já é uma
 **coluna do banco**, gravada no instante em que o pagamento confirma, igual pros dois lados.
 
-⚠️ **A comissão bruta não é o que entra.** Num torneio de 32 duplas × R$ 150 (R$ 4.800), os 10%
-são R$ 480 — mas são **32 cobranças Pix a R$ 1,99 = R$ 64** que saem da nossa fatia, não da do
-organizador. Entram R$ 416. A mordida do gateway é de 8% a 20% da comissão, pior no cartão. **O
+⚠️ **A comissão bruta não é o que entra.** Num torneio de 60 duplas × R$ 150 (R$ 9.000), os 10%
+são R$ 900 — mas são **60 cobranças Pix a R$ 1,99 = R$ 119** que saem da nossa fatia, não da do
+organizador. Entram R$ 781. A mordida do gateway é de ~13% da comissão no Pix e pior no cartão. **O
 parceiro é pago sobre a comissão BRUTA** (é o número que ele consegue conferir), e os percentuais
 abaixo já foram escolhidos sabendo disso.
 
@@ -33,12 +33,18 @@ abaixo já foram escolhidos sabendo disso.
 
 | Produto | 1ª venda | Recorrente | Prazo |
 |---|---|---|---|
-| **Torneio** | 30% da comissão da 1ª edição | **10%** das edições seguintes | **12 meses** |
+| **Torneio** | 20% da comissão da 1ª edição | **10%** das edições seguintes | **12 meses** |
 | **Professor** | R$ 50 quando a 1ª mensalidade for paga | **10%** de tudo que ele gerar (mensalidade + taxa de aula) | **12 meses** |
 | **Clube** | 1ª mensalidade cheia | **10%** das seguintes | **12 meses** |
 
-O 30% na estreia paga o trabalho de verdade, que é a primeira conversa. O 10% depois é a cauda —
+O dobro na estreia paga o trabalho de verdade, que é a primeira conversa. O 10% depois é a cauda —
 não é salário, é o lembrete de que aquele cliente é dele.
+
+📌 **Por que 20% e não 30% (decisão de 11/08/2026).** A régua nasceu 30/10 e foi corrigida no mesmo
+dia, e **o que mudou não foi o percentual — foi o tamanho do torneio.** A conta original usava um
+torneio de 32 duplas, que na prática quase não existe: **os reais têm de 45 a 110 duplas**. Nesse
+tamanho, 20% da estreia dá **R$ 135 a R$ 330**, e o parceiro continua bem pago com metade do
+desembolso no momento em que ainda não se sabe se o cliente vinga.
 
 ⚠️ **NADA É VITALÍCIO (decisão de 11/08/2026).** Os 12 meses contam do **primeiro pagamento
 confirmado** daquele cliente e valem para os três produtos. Um cliente trazido em março de 2027
@@ -46,16 +52,17 @@ para de render em março de 2028, continue ele ativo ou não. A razão é simple
 transfere para sempre parte da margem de um cliente que a plataforma é quem sustenta — suporte,
 servidor e produto seguem custando no ano 3, a venda não.
 
-**O que um torneio vale pro parceiro** (comissão bruta de 10%, "só Pix"):
+**O que um torneio vale pro parceiro** (comissão bruta de 10%, "só Pix", inscrição de R$ 150 a
+dupla — tamanhos reais, informados pelo Felipe):
 
-| Tamanho | Comissão bruta | Parceiro na 1ª | Parceiro nas seguintes |
-|---|---|---|---|
-| 16 duplas × R$ 150 | R$ 240 | R$ 72 | R$ 24 |
-| 32 duplas × R$ 150 | R$ 480 | R$ 144 | R$ 48 |
-| 60 duplas × R$ 150 | R$ 900 | R$ 270 | R$ 90 |
+| Tamanho | Inscrições | Comissão bruta | Parceiro na 1ª | Parceiro nas seguintes |
+|---|---|---|---|---|
+| 45 duplas | R$ 6.750 | R$ 675 | R$ 135 | R$ 67,50 |
+| 60 duplas | R$ 9.000 | R$ 900 | R$ 180 | R$ 90 |
+| 110 duplas | R$ 16.500 | R$ 1.650 | R$ 330 | R$ 165 |
 
-Um grupo de 32 duplas que roda 4 torneios no primeiro ano rende **R$ 288 ao parceiro** (R$ 144 da
-estreia + 3 × R$ 48) — e para aí. Dez grupos trazidos ao longo de um ano valem cerca de R$ 2.880,
+Um grupo de 60 duplas que roda 4 torneios no primeiro ano rende **R$ 450 ao parceiro** (R$ 180 da
+estreia + 3 × R$ 90) — e para aí. Dez grupos trazidos ao longo de um ano valem cerca de R$ 4.500,
 mas essa esteira **não se acumula sozinha**: pra ganhar de novo no ano seguinte, o parceiro
 precisa trazer clientes novos. É de propósito. No "externo 5%" tudo isso cai pela metade; no
 "todas as formas 15%", sobe ~50%.
@@ -139,7 +146,7 @@ RPA ou nota do parceiro) é pergunta pro contador** — este documento não deci
 > 1. O Parceiro indica clientes ao Padelizou e recebe percentual **sobre a comissão que o
 >    Padelizou efetivamente receber** desses clientes. Nada é cobrado do cliente por causa da
 >    indicação.
-> 2. **Torneio:** 30% da comissão da primeira edição, 10% das edições seguintes.
+> 2. **Torneio:** 20% da comissão da primeira edição, 10% das edições seguintes.
 >    **Professor:** R$ 50 na primeira mensalidade paga, 10% do que ele gerar.
 >    **Clube:** primeira mensalidade cheia, 10% das seguintes.
 >    Em todos os casos o percentual recorrente vale por **12 meses contados do primeiro pagamento

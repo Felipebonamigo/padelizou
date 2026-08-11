@@ -3,7 +3,7 @@ using Padelizou.Models;
 namespace Padelizou.Services;
 
 // Quanto o parceiro comercial tem a receber. A régua está em PARCEIROS.md e é curta:
-// 30% da comissão da PRIMEIRA venda, 10% do que vier depois, por 12 MESES — nada vitalício.
+// 20% da comissão da PRIMEIRA venda, 10% do que vier depois, por 12 MESES — nada vitalício.
 //
 // Fica aqui, e não no controller, porque a mesma conta vai ser lida por dois olhos diferentes
 // (o Felipe vendo todo mundo, o parceiro vendo só ele) e uma segunda cópia da regra é a causa
@@ -11,7 +11,13 @@ namespace Padelizou.Services;
 public static class ComissaoDoParceiro
 {
     public const int MesesDeComissao = 12;
-    public const decimal PercentualDaPrimeiraVenda = 30m;
+
+    // 20%, e não 30%, por decisão do Felipe em 11/08/2026. O que derrubou o 30 não foi o
+    // percentual: foi o TAMANHO REAL do torneio. A régua tinha sido calibrada em cima de um
+    // torneio de 32 duplas, que praticamente não existe — os de verdade têm 45 a 110. Nesse
+    // tamanho, 20% da estreia dá R$ 135 a R$ 330, e o parceiro segue bem pago.
+    public const decimal PercentualDaPrimeiraVenda = 20m;
+
     public const decimal PercentualRecorrente = 10m;
 
     // No professor o bônus de estreia é um valor fixo, e não um percentual: 10% de R$ 49,90

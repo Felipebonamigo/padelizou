@@ -3,9 +3,13 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// A conta do Programa de Parceiros: 30% da primeira venda, 10% do que vier depois, por 12
+// A conta do Programa de Parceiros: 20% da primeira venda, 10% do que vier depois, por 12
 // meses. Errar aqui não quebra tela nenhuma — devolve um número plausível e errado, que vai
 // virar Pix pra uma pessoa de fora da empresa.
+//
+// ⚠️ Os tamanhos daqui são os REAIS (45 a 110 duplas, informado pelo Felipe em 11/08/2026).
+// A régua já tinha sido calibrada uma vez em cima de um torneio de 32 duplas, que quase não
+// existe — e a conclusão sobre o percentual saiu errada por causa disso.
 public class ComissaoDoParceiroTests
 {
     private static readonly DateTime Estreia = new(2026, 3, 10, 10, 0, 0);
@@ -67,31 +71,33 @@ public class ComissaoDoParceiroTests
     [Fact]
     public void Um_torneio_e_UMA_edicao_mesmo_com_dezenas_de_inscricoes()
     {
-        // ⚠️ A armadilha central: 32 duplas são 32 cobranças e uma edição só. Contar por
-        // pagamento pagaria 30% da 1ª dupla e 10% das outras 31 — 20% a menos do combinado.
-        var pagos = Enumerable.Range(0, 32)
+        // ⚠️ A armadilha central: 45 duplas são 45 cobranças e uma edição só. Contar por
+        // pagamento pagaria 20% da 1ª dupla e 10% das outras 44 — quase metade a menos do
+        // combinado.
+        var pagos = Enumerable.Range(0, 45)
             .Select(i => Inscricao(7, torneioId: 1, comissao: 15m, Estreia.AddMinutes(i)))
             .ToList();
 
         var conta = ComissaoDoParceiro.Calcular("Torneio", pagos);
 
-        // 32 × R$ 15 = R$ 480 de comissão; 30% de tudo = R$ 144.
-        Assert.Equal(144m, conta.Total);
-        Assert.All(conta.Parcelas, p => Assert.Equal(30m, p.Percentual));
+        // 45 × R$ 15 = R$ 675 de comissão; 20% de tudo = R$ 135.
+        Assert.Equal(135m, conta.Total);
+        Assert.All(conta.Parcelas, p => Assert.Equal(20m, p.Percentual));
     }
 
     [Fact]
     public void A_segunda_edicao_cai_pra_10_por_cento()
     {
+        // Duas edições de 60 duplas: comissão de R$ 900 cada.
         var pagos = new[]
         {
-            Inscricao(7, torneioId: 1, comissao: 480m, Estreia),
-            Inscricao(7, torneioId: 2, comissao: 480m, Estreia.AddMonths(3)),
+            Inscricao(7, torneioId: 1, comissao: 900m, Estreia),
+            Inscricao(7, torneioId: 2, comissao: 900m, Estreia.AddMonths(3)),
         };
 
         var conta = ComissaoDoParceiro.Calcular("Torneio", pagos);
 
-        Assert.Equal(144m + 48m, conta.Total);
+        Assert.Equal(180m + 90m, conta.Total);
         Assert.Equal("1ª edição", conta.Parcelas[0].Motivo);
         Assert.Equal("edição seguinte", conta.Parcelas[1].Motivo);
     }
@@ -110,7 +116,7 @@ public class ComissaoDoParceiroTests
         var conta = ComissaoDoParceiro.Calcular("Torneio", pagos);
         var doDoze = conta.Parcelas.Single(p => p.Pagamento.TorneioId == 12);
 
-        Assert.Equal(30m, doDoze.Percentual);
+        Assert.Equal(20m, doDoze.Percentual);
     }
 
     // ── A janela de 12 meses ──────────────────────────────────────────────────────────────
@@ -130,7 +136,7 @@ public class ComissaoDoParceiroTests
         var conta = ComissaoDoParceiro.Calcular("Torneio", pagos);
 
         Assert.Equal(2, conta.Parcelas.Count);
-        Assert.Equal(30m + 10m, conta.Total);
+        Assert.Equal(20m + 10m, conta.Total);
         Assert.Equal(Estreia.AddMonths(12), conta.FimDaJanela);
     }
 
@@ -246,7 +252,7 @@ public class ComissaoDoParceiroTests
         meio.ValorEstornado = 500m;
 
         Assert.Equal(50m, ComissaoDoParceiro.ComissaoLiquida(meio));
-        Assert.Equal(15m, ComissaoDoParceiro.Calcular("Torneio", new[] { meio }).Total);
+        Assert.Equal(10m, ComissaoDoParceiro.Calcular("Torneio", new[] { meio }).Total);
     }
 
     [Fact]
@@ -283,7 +289,7 @@ public class ComissaoDoParceiroTests
     {
         // Se alguém mexer nestes números sem mexer no PARCEIROS.md, o sistema passa a pagar
         // uma coisa e o contrato a prometer outra.
-        Assert.Equal(30m, ComissaoDoParceiro.PercentualDaPrimeiraVenda);
+        Assert.Equal(20m, ComissaoDoParceiro.PercentualDaPrimeiraVenda);
         Assert.Equal(10m, ComissaoDoParceiro.PercentualRecorrente);
         Assert.Equal(50m, ComissaoDoParceiro.BonusDeEstreiaDoProfessor);
         Assert.Equal(12, ComissaoDoParceiro.MesesDeComissao);

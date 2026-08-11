@@ -35,7 +35,7 @@
 >
 > 🔑 **DE QUEM É O CLIENTE NUM PAGAMENTO TEM DUAS RESPOSTAS** — e o cálculo inteiro depende de acertar as duas. Em inscrição, aula e quadra o cliente é o **`RecebedorId`** (organizador/professor/dono do clube); em **mensalidade e taxa do externo** o `RecebedorId` é **nulo** de propósito (o valor inteiro é nosso) e o cliente é **quem pagou**. Buscar só por recebedor perderia essas duas frentes em silêncio; buscar só por pagador daria a comissão do parceiro por causa de um cliente do cliente — cada jogador inscrito viraria uma "indicação".
 >
-> 🧮 **Um torneio é UMA edição, não uma cobrança.** 32 duplas são 32 pagamentos e uma edição só: contar por pagamento pagaria 30% da primeira dupla e 10% das outras 31, **20% a menos do combinado**. Tem teste com as 32 cobranças.
+> 🧮 **Um torneio é UMA edição, não uma cobrança.** 45 duplas são 45 pagamentos e uma edição só: contar por pagamento pagaria 20% da primeira dupla e 10% das outras 44, **quase metade a menos do combinado**. Tem teste com as 45 cobranças.
 >
 > 👤 **5º PERFIL: `IsParceiroComercial` — o acesso MAIS ESTREITO do sistema.** O parceiro do Ranking vê uma tela inteira; este vê uma tela **filtrada nele**. A diferença é o que está em jogo: os parceiros disputam os mesmos contatos, e quem o outro trouxe e quanto vai receber é informação de concorrente. Liberado em `/Admin/Administradores`, como 4ª lista.
 >
@@ -49,9 +49,11 @@
 >
 > 🤝 **O Felipe faz o sistema, mas vender não é o forte dele** — e o pipeline inteiro (6 grupos de torneio, 3 clubes, 2 professores) veio de relação pessoal, que não escala. A saída desenhada hoje: pagar quem sabe vender, **só quando a venda vira dinheiro na conta**.
 >
-> 💰 **A régua (decidida pelo Felipe hoje): 30% da primeira venda, 10% do que vier depois, e NADA é vitalício — 12 meses em tudo**, contados do primeiro pagamento confirmado do cliente. Torneio: 30% da comissão da 1ª edição + 10% das seguintes. Professor: R$ 50 na 1ª mensalidade paga + 10%. Clube: 1ª mensalidade cheia + 10%. Documento completo em **`PARCEIROS.md`**; a peça pra mostrar ao candidato é **`PARCEIROS.html`** (mesma paleta do PROFESSORES.html, o 30/10 tratado como placar).
+> 💰 **A régua (decidida pelo Felipe hoje): 20% da primeira venda, 10% do que vier depois, e NADA é vitalício — 12 meses em tudo**, contados do primeiro pagamento confirmado do cliente. Torneio: 20% da comissão da 1ª edição + 10% das seguintes. Professor: R$ 50 na 1ª mensalidade paga + 10%. Clube: 1ª mensalidade cheia + 10%. Documento completo em **`PARCEIROS.md`**; a peça pra mostrar ao candidato é **`PARCEIROS.html`** (mesma paleta do PROFESSORES.html, o 20/10 tratado como placar).
 >
-> 🧮 **Duas correções de rumo que a conta impôs:** a base **nunca é "% do lucro"** (exigiria acordo sobre custos todo mês) e sim **`Pagamento.Comissao`**, que já é coluna do banco; e a comissão bruta **não é o que entra** — num torneio de 32 duplas os 10% dão R$ 480, mas 32 cobranças Pix a R$ 1,99 comem R$ 64. A mordida do gateway é de 8% a 20%, e os percentuais foram escolhidos sabendo disso.
+> 📌 **O 30% virou 20% no mesmo dia, e o que mudou NÃO foi o percentual — foi o TAMANHO DO TORNEIO.** A régua tinha sido calibrada em cima de um torneio de 32 duplas, e o Felipe corrigiu: **os reais têm de 45 a 110 duplas**. Nesse tamanho, 20% da estreia dá **R$ 135 a R$ 330** (não os R$ 96 que a conta errada sugeria), e o parceiro segue bem pago com metade do desembolso no momento em que ainda não se sabe se o cliente vinga. **Lição: conferir a premissa de volume ANTES de recomendar percentual** — a recomendação de manter 30% estava certa para o cenário errado.
+>
+> 🧮 **Duas correções de rumo que a conta impôs:** a base **nunca é "% do lucro"** (exigiria acordo sobre custos todo mês) e sim **`Pagamento.Comissao`**, que já é coluna do banco; e a comissão bruta **não é o que entra** — num torneio de 60 duplas os 10% dão R$ 900, mas 60 cobranças Pix a R$ 1,99 comem R$ 119. A mordida do gateway é de ~13% no Pix e pior no cartão, e os percentuais foram escolhidos sabendo disso.
 >
 > 📇 **`/Admin/Leads` — o carimbo de hora que decide de quem é a comissão.** A regra que sustenta o programa é "quem registra primeiro leva, e o registro é ANTES da conversa"; sem um lugar que grave a hora, ela é a palavra de um amigo contra a de outro. A tela registra indicação (parceiro + contato + telefone + tipo), lista por urgência, e fecha como **ganho** (vinculando a conta do cliente, que é por onde a comissão vai ser calculada) ou **perdido** (com motivo).
 >

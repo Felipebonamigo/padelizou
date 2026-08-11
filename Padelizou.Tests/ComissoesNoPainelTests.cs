@@ -75,7 +75,7 @@ public class ComissoesNoPainelTests
 
         var linha = Assert.Single(linhas);
         Assert.Equal("Grupo da Ana", linha.Lead.Contato);
-        Assert.Equal(30m, linha.Conta.Total);   // 30% de R$ 100 na 1ª edição
+        Assert.Equal(20m, linha.Conta.Total);   // 20% de R$ 100 na 1ª edição
     }
 
     [Fact]
