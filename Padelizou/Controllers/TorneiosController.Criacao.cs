@@ -327,6 +327,17 @@ namespace Padelizou.Controllers
             }
             torneio.LinkGrupoWhatsApp = GrupoDoTorneioNoWhatsApp.Normalizar(torneio.LinkGrupoWhatsApp);
 
+            // O álbum das fotos não tem campo NESTE formulário — torneio que está nascendo não
+            // tem foto ainda, e o organizador preenche isso na gestão, depois que rolou. Mas o
+            // model binder aceita a propriedade de qualquer POST montado à mão, então ela passa
+            // pela mesma peneira dos outros: sem isto, o único caminho até o banco seria um que
+            // ninguém confere.
+            if (FotosDoTorneio.ProblemaCom(torneio.LinkDasFotos) is { } problemaFotos)
+            {
+                return await Recusar(problemaFotos);
+            }
+            torneio.LinkDasFotos = FotosDoTorneio.Normalizar(torneio.LinkDasFotos);
+
             // Torneio sem categoria nenhuma é um torneio em que NINGUÉM consegue se inscrever:
             // o formulário de inscrição escolhe a categoria, e sem opção não há o que escolher.
             // Ele era aceito em silêncio — o organizador compartilhava o link e descobria pelo
@@ -864,6 +875,9 @@ namespace Padelizou.Controllers
             // branco APAGA o link (e com ele o botão), que é como o organizador desfaz um
             // grupo que acabou.
             string? linkGrupoWhatsApp = null,
+            // Onde as fotos do torneio foram parar. Mesma regra: campo em branco APAGA o link
+            // (e com ele o botão), que é como o organizador desfaz um álbum que saiu do ar.
+            string? linkDasFotos = null,
             DateTime? previsaoEncerramentoInscricoes = null, DateTime? previsaoChaveamento = null,
             bool usaCheckIn = false,
             bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false,
@@ -943,6 +957,13 @@ namespace Padelizou.Controllers
             if (GrupoDoTorneioNoWhatsApp.ProblemaCom(linkGrupoWhatsApp) is { } problemaGrupo)
             {
                 TempData["Erro"] = problemaGrupo;
+                return RedirectToAction("Details", new { id });
+            }
+
+            // E o mesmo pro álbum das fotos, que vira o botão "Ver as fotos" na página.
+            if (FotosDoTorneio.ProblemaCom(linkDasFotos) is { } problemaFotos)
+            {
+                TempData["Erro"] = problemaFotos;
                 return RedirectToAction("Details", new { id });
             }
 
@@ -1160,6 +1181,7 @@ namespace Padelizou.Controllers
             // Já passou pela recusa lá em cima; aqui só falta guardar em formato único (com
             // https na frente), pra o botão não depender de como o organizador colou.
             torneio.LinkGrupoWhatsApp = GrupoDoTorneioNoWhatsApp.Normalizar(linkGrupoWhatsApp);
+            torneio.LinkDasFotos = FotosDoTorneio.Normalizar(linkDasFotos);
             torneio.PrevisaoEncerramentoInscricoes = previsaoEncerramentoInscricoes;
             torneio.PrevisaoChaveamento = previsaoChaveamento;
             // Caixa desmarcada não vai no POST, então o `false` do parâmetro é o "desliguei".

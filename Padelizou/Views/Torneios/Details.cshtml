@@ -186,6 +186,26 @@
     </div>
 }
 
+@* ── AS FOTOS DO TORNEIO ──────────────────────────────────────────────────────────────
+   O oposto do bloco acima, e de propósito: este botão é PRA TODO MUNDO. Álbum de torneio
+   é divulgação — quem não jogou ver a foto é justamente o que puxa gente pro próximo.
+
+   O Padelizou não hospeda a imagem: guarda o endereço de onde o fotógrafo publicou. Quem
+   confere se esse endereço serve é o serviço, na hora de mostrar — a view nunca lê
+   Model.LinkDasFotos num href, ou a conferência deixa de existir. *@
+@if (Padelizou.Services.FotosDoTorneio.LinkPara(Model) is { } linkDasFotos)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a href="@linkDasFotos" target="_blank" rel="noopener noreferrer"
+           class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-camera-fill"></i> Ver as fotos do torneio
+        </a>
+        <small class="text-muted">
+            Publicadas pelo organizador — abre fora do Padelizou.
+        </small>
+    </div>
+}
+
 @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
    "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
    (decisão do Felipe, 10/08/2026): é quem se inscreveu que fica olhando a chave encher
@@ -2002,6 +2022,23 @@
                                         Vira o botão <strong>Entrar no grupo do torneio</strong>, que só
                                         quem está inscrito enxerga. Apague o campo pra tirar o botão —
                                         quem já entrou no grupo continua lá.
+                                    </small>
+                                </div>
+
+                                @* As fotos do torneio. Só existe aqui, na gestão: torneio que está
+                                   sendo criado não tem foto, então o campo não polui o formulário
+                                   de criação — ele aparece quando faz sentido preencher. *@
+                                <div class="col-12">
+                                    <label class="form-label fw-bold small">Link das fotos do torneio</label>
+                                    @* type="text" e não type="url": o navegador recusaria o endereço
+                                       colado sem o https, que o servidor completa sozinho. *@
+                                    <input type="text" name="linkDasFotos" class="form-control" maxlength="300"
+                                           inputmode="url" value="@Model.LinkDasFotos"
+                                           placeholder="https://photos.app.goo.gl/..." />
+                                    <small class="text-muted">
+                                        Vira o botão <strong>Ver as fotos do torneio</strong> na página,
+                                        pra todo mundo. Pode ser álbum do Google Fotos, pasta do Drive
+                                        ou o Instagram do fotógrafo. Apague o campo pra tirar o botão.
                                     </small>
                                 </div>
 

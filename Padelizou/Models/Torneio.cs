@@ -314,6 +314,17 @@ public partial class Torneio
     // Services/GrupoDoTorneioNoWhatsApp — nenhuma tela lê esta propriedade direto num href.
     public string? LinkGrupoWhatsApp { get; set; }
 
+    // Onde as fotos do torneio foram parar: álbum do Google Fotos, pasta do Drive, perfil do
+    // Instagram do fotógrafo. Nulo = ninguém publicou (ainda), e aí não há botão nenhum.
+    //
+    // Guarda o ENDEREÇO, não a imagem — o Padelizou não hospeda foto de torneio, e isso é
+    // decisão, não pendência. Ver Services/FotosDoTorneio.
+    //
+    // ⚠️ Ao contrário do link do grupo acima, este é PÚBLICO: álbum de torneio é divulgação, e
+    // quem não jogou ver as fotos é o ponto. Mas ele vira `href` na nossa página, então quem
+    // decide se o endereço serve continua sendo o serviço, nunca a view.
+    public string? LinkDasFotos { get; set; }
+
     // ---- O que o inscrito quer saber e ninguém respondia ----
     // Duas datas PREVISTAS, não automáticas: quando as inscrições devem fechar e quando o
     // chaveamento deve sair. O sistema não age por elas (quem encerra e quem sorteia continua
