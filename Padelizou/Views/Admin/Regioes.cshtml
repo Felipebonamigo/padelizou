@@ -1,0 +1,279 @@
+@using Padelizou.Services
+@model Padelizou.ViewModels.RegioesAdminVM
+@{
+    ViewData["Title"] = "Jogadores por região - Padelizou";
+
+    var porCidade = Model.Por == JogadoresPorRegiao.PorCidade;
+    var maior = Model.MaiorNaFaixa;
+
+    // A barrinha de cada fatia. Altura proporcional à MAIOR fatia da tela inteira, pra a
+    // comparação ser entre regiões — mas com um piso de 3px: fatia com cadastro nunca pode
+    // parecer fatia vazia, que é a única leitura errada que esta tela não pode permitir.
+    Func<int, int> altura = n => n == 0 ? 0 : Math.Max(3, (int)Math.Round(n * 26.0 / Math.Max(maior, 1)));
+}
+
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-geo-alt"></i> Jogadores por região
+            </h2>
+            <div class="text-muted">De onde vem quem se cadastra — e em que ritmo cada lugar cresce.</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Metricas" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-graph-up"></i> Métricas
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Voltar ao painel
+            </a>
+        </div>
+    </div>
+
+    @* ── Os números de cima ──────────────────────────────────────────────────────────── *@
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Jogadores contados</div>
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.TotalContado</div>
+                    <div class="text-muted" style="font-size: .75rem;">contas ativas, sem as excluídas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Estados</div>
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.QuantosEstados</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        @(Model.SemEstado > 0 ? $"{Model.SemEstado} sem saber qual" : "todo mundo com estado")
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Cidades</div>
+                    <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.QuantasCidades</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        @(Model.SemCidade > 0 ? $"{Model.SemCidade} sem cidade preenchida" : "todo mundo com cidade")
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Cadastros no período</div>
+                    <div class="fs-3 fw-bold" style="color: var(--padel-green);">@Model.NovosNoPeriodo</div>
+                    <div class="text-muted" style="font-size: .75rem;">
+                        @FaixasDeMetricas.Titulo(Model.Agrupamento).ToLowerInvariant()
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── As duas perguntas da tela: que recorte, e em que ritmo ──────────────────────── *@
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3 d-flex flex-wrap gap-3 align-items-center">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Agrupar região por">
+                @foreach (var (valor, rotulo) in new[]
+                {
+                    (JogadoresPorRegiao.PorEstado, "Por estado"),
+                    (JogadoresPorRegiao.PorCidade, "Por cidade"),
+                })
+                {
+                    @* A região escolhida NÃO vai junto ao trocar de recorte: a chave de uma
+                       cidade não existe na lista de estados, e o link levaria a um detalhe
+                       vazio. *@
+                    <a class="btn @(Model.Por == valor ? "btn-primary" : "btn-outline-primary")"
+                       asp-action="Regioes" asp-route-por="@valor" asp-route-agrupar="@Model.Agrupamento"
+                       aria-current="@(Model.Por == valor ? "page" : null)">@rotulo</a>
+                }
+            </div>
+
+            <div class="btn-group btn-group-sm" role="group" aria-label="Agrupar por período">
+                @foreach (var (valor, rotulo) in new[]
+                {
+                    (FaixasDeMetricas.Dia, "Dia"),
+                    (FaixasDeMetricas.Semana, "Semana"),
+                    (FaixasDeMetricas.Mes, "Mês"),
+                })
+                {
+                    <a class="btn @(Model.Agrupamento == valor ? "btn-primary" : "btn-outline-primary")"
+                       asp-action="Regioes" asp-route-por="@Model.Por" asp-route-agrupar="@valor"
+                       asp-route-regiao="@Model.ChaveSelecionada"
+                       aria-current="@(Model.Agrupamento == valor ? "page" : null)">@rotulo</a>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── A região aberta ─────────────────────────────────────────────────────────────── *@
+    @if (Model.Selecionada is { } r)
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-0">
+                            <i class="bi bi-@(r.NaoInformada ? "question-circle" : "pin-map")"></i> @r.Rotulo
+                        </h5>
+                        <div class="text-muted small">
+                            <strong>@r.Total</strong> jogador(es) ·
+                            <strong>@r.NoPeriodo</strong> cadastro(s) @FaixasDeMetricas.NaJanela(Model.Agrupamento)
+                            @if (r.SemData > 0)
+                            {
+                                <text>· @r.SemData sem data de cadastro</text>
+                            }
+                        </div>
+                    </div>
+                    <a asp-action="Regioes" asp-route-por="@Model.Por" asp-route-agrupar="@Model.Agrupamento"
+                       class="btn btn-sm btn-outline-secondary rounded-pill px-3">Fechar</a>
+                </div>
+
+                @if (r.NaoInformada)
+                {
+                    <p class="text-muted small mb-2">
+                        Não é uma região: é quem não preencheu
+                        @(porCidade ? "a cidade" : "o estado, e cuja cidade também não diz qual é")
+                        no perfil. Entra aqui também o <strong>pré-cadastro</strong> — a conta que
+                        nasce quando um parceiro inscreve a dupla, e que nunca viu tela de perfil.
+                    </p>
+                }
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th>Período</th>
+                                <th class="text-end" style="width: 6rem;">Cadastros</th>
+                                <th style="width: 60%;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @* Recente em cima, como na tela de métricas. *@
+                            @for (var i = Model.RotulosDasFaixas.Count - 1; i >= 0; i--)
+                            {
+                                var n = r.PorFaixa[i];
+                                <tr>
+                                    <td class="text-capitalize">@Model.RotulosDasFaixas[i]</td>
+                                    <td class="text-end fw-bold">@(n > 0 ? n.ToString() : "—")</td>
+                                    <td>
+                                        <div class="progress" style="height: 8px; background: var(--pdz-border);">
+                                            <div class="progress-bar" role="progressbar"
+                                                 style="width: @(n * 100 / Math.Max(maior, 1))%; background: var(--pdz-lime);"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ── A lista ─────────────────────────────────────────────────────────────────────── *@
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h5 class="fw-bold mb-1">
+                <i class="bi bi-list-ol"></i> @(porCidade ? "Cada cidade" : "Cada estado")
+            </h5>
+            <p class="text-muted small mb-3">
+                @* Parênteses explícitos: o ponto final colado no fim de uma expressão implícita
+                   é justamente o que o Razor tenta ler como acesso a membro. *@
+                Maior primeiro. Clique numa linha pra ver o cadastro dela
+                @(FaixasDeMetricas.FatiaAFatia(Model.Agrupamento)).
+            </p>
+
+            @if (!Model.Regioes.Any())
+            {
+                <div class="text-muted small">Nenhum jogador cadastrado ainda.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th>@(porCidade ? "Cidade" : "Estado")</th>
+                                <th class="text-end">Jogadores</th>
+                                <th class="d-none d-md-table-cell" style="width: 30%;"></th>
+                                <th class="text-end">Novos</th>
+                                <th class="d-none d-sm-table-cell text-end">@FaixasDeMetricas.Titulo(Model.Agrupamento)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var linha in Model.Regioes)
+                            {
+                                var selecionada = linha.Chave == Model.ChaveSelecionada;
+                                var fatia = Model.TotalContado > 0 ? linha.Total * 100 / Model.TotalContado : 0;
+
+                                <tr class="@(selecionada ? "table-active" : null)">
+                                    <td>
+                                        <a asp-action="Regioes" asp-route-por="@Model.Por"
+                                           asp-route-agrupar="@Model.Agrupamento"
+                                           asp-route-regiao="@(selecionada ? null : linha.Chave)"
+                                           class="text-decoration-none fw-bold @(linha.NaoInformada ? "text-muted" : null)"
+                                           style="color: var(--pdz-ink);">@linha.Rotulo</a>
+                                    </td>
+                                    <td class="text-end fw-bold">@linha.Total</td>
+                                    <td class="d-none d-md-table-cell">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 8px; background: var(--pdz-border);">
+                                                <div class="progress-bar" role="progressbar" style="width: @fatia%;
+                                                     background: @(linha.NaoInformada ? "var(--pdz-muted)" : "var(--pdz-lime)");"></div>
+                                            </div>
+                                            <span class="text-muted" style="font-size: .75rem; width: 2.5rem;">@fatia%</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">@(linha.NoPeriodo > 0 ? linha.NoPeriodo.ToString() : "—")</td>
+                                    <td class="d-none d-sm-table-cell">
+                                        @* A série inteira em barrinhas: é aqui que se vê a cidade que
+                                           acordou esta semana sem precisar abrir linha por linha. *@
+                                        <div class="d-flex align-items-end justify-content-end gap-1" style="height: 26px;">
+                                            @for (var i = 0; i < linha.PorFaixa.Count; i++)
+                                            {
+                                                var n = linha.PorFaixa[i];
+                                                <span title="@Model.RotulosDasFaixas[i]: @n cadastro(s)"
+                                                      style="display: inline-block; width: 6px; border-radius: 1px;
+                                                             height: @(altura(n))px;
+                                                             background: @(n > 0 ? "var(--pdz-lime)" : "var(--pdz-border)");
+                                                             min-height: 2px;"></span>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="small text-muted mt-3">
+                <div>
+                    Cidade e estado são <strong>texto livre</strong> no perfil: "RS", "Rs" e
+                    "Rio Grande do Sul" contam como o mesmo estado, e "Gravataí", "Gravatai" e
+                    "GRAVATAI" como a mesma cidade.
+                </div>
+                @if (Model.HerdaramAUfDaCidade > 0)
+                {
+                    <div class="mt-1">
+                        <strong>@Model.HerdaramAUfDaCidade</strong> pessoa(s) não escreveram o estado — a
+                        contagem usou a UF que os outros moradores da mesma cidade declararam. Cidade
+                        onde as UFs discordam fica em "@JogadoresPorRegiao.RotuloSemRegiao".
+                    </div>
+                }
+                <div class="mt-1">
+                    Cadastros anteriores a 25/07/2026 não têm data registrada — entram no total de
+                    cada região, mas não na série.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🤝 **PROGRAMA DE PARCEIROS: a régua está escrita e a tela de indicação está no painel.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy).
+> Última atualização: **11/08/2026** — 🗺️ **JOGADORES POR REGIÃO: o painel passou a saber DE ONDE vem quem se cadastra.** ⏳ **NÃO PUBLICADO** (commit local, sem deploy).
+>
+> 🗺️ **A tela de métricas dizia QUANTOS entraram e nunca DE ONDE.** Agora `/Admin/Regioes` mostra a base por **estado** e por **cidade**, e o cadastro de cada região **dia a dia, semana a semana ou mês a mês** — as mesmas fatias da tela de métricas, que é a mesma pergunta com um recorte a mais. Clicando numa região, a série dela abre por inteiro. Entra pelo painel (card novo) e pelo botão "Por região" dentro de Métricas, que leva o agrupamento junto.
+>
+> ⚠️ **CIDADE E ESTADO SÃO TEXTO LIVRE, e contar na lata teria mentido pra menos — sem parecer defeito.** Em produção o Rio Grande do Sul está escrito de quatro jeitos (`RS` 87 · `Rs` 32 · `rs` 6 · `Rio Grande do Sul (RS)` 1) e Gravataí de três. A tela abriria bonita com o RS partido em quatro linhas, nenhuma delas do tamanho real do estado. Nada aqui compara texto na lata: estado passa por `UnidadeFederativa` e cidade por `NomeDeCidade`/`CidadesSemRepetir`, os mesmos tradutores do ranking e da busca — **zero regra nova duplicada**.
+>
+> 🧠 **A única regra que nasceu aqui: quem não escreveu a UF herda a da própria cidade** — e só quando os outros moradores dela não se contradizem. Eram **44 contas de 172 sem estado nenhum**; sem isso, um quarto da base cairia em "não informado" e a visão por estado não decidiria nada. **Homônima de estados diferentes não herda**: duas UFs discordando é "não sei", e "não sei" não vira chute. O rodapé diz quantas pessoas foram deduzidas — número deduzido tem que se apresentar como deduzido.
+>
+> 🕳️ **"Não informado" é uma LINHA, com nome e número**, sempre no fim da lista por maior que seja. Escondê-lo faria a tela mentir sobre o tamanho da própria base. **Conta excluída fica de fora** (apagar a conta apaga cidade e estado junto — ver `ExclusaoDeConta`): ela engordaria o buraco fingindo ser gente que esqueceu de preencher.
+>
+> 🧪 **3.419 testes, 0 falhas** (18 novos). **Zero migration.** ✅ **Conferido no navegador, com dado sujo de propósito no PostgreSQL local**: as 3 grafias de Gravataí viraram **uma** cidade de 21, as 2 de São Paulo **13**, as 2 de Florianópolis **11**, e os 19 sem UF caíram no estado certo. Agrupamento inválido na URL cai na semana e região inexistente abre sem detalhe, sem erro. **Em 375px a página não rola pra o lado** — as colunas de barra e de série somem antes disso.
+>
+> 🐛 **Um defeito pego pelo próprio teste, e ele estava no teste**: `P(cidade, estado, em = null)` com `em ?? Hoje` engolia o `null` que o caso "conta anterior a 25/07/2026, sem data" precisa. Virou sobrecarga — parâmetro opcional que "conserta" o valor é como um teste passa verde sem nunca exercitar o que diz exercitar.
+>
+> Antes, no mesmo dia — 🤝 **PROGRAMA DE PARCEIROS: a régua está escrita e a tela de indicação está no painel.**
 >
 > 🤝 **O Felipe faz o sistema, mas vender não é o forte dele** — e o pipeline inteiro (6 grupos de torneio, 3 clubes, 2 professores) veio de relação pessoal, que não escala. A saída desenhada hoje: pagar quem sabe vender, **só quando a venda vira dinheiro na conta**.
 >

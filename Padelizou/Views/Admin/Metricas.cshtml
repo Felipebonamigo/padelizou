@@ -43,7 +43,15 @@
             <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Métricas de uso</h2>
             <p class="text-muted mb-0">@FaixasDeMetricas.Subtitulo(Model.Agrupamento)</p>
         </div>
-        <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+        <div class="d-flex gap-2">
+            @* A mesma série, recortada por lugar. Fica aqui porque a pergunta nasce olhando
+               esta tela: "os 12 cadastros da semana vieram de onde?". *@
+            <a asp-controller="Admin" asp-action="Regioes" asp-route-agrupar="@Model.Agrupamento"
+               class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-geo-alt"></i> Por região
+            </a>
+            <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Voltar</a>
+        </div>
     </div>
 
     @* ---- Medidor do MEI ---- *@

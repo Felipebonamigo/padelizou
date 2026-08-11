@@ -97,10 +97,25 @@ public static class FaixasDeMetricas
         _ => $"Últimas {SemanasMostradas} semanas",
     };
 
-    public static string Subtitulo(string? agrupamento) => Normalizar(agrupamento) switch
+    public static string Subtitulo(string? agrupamento) =>
+        $"Como o sistema está sendo usado, {FatiaAFatia(agrupamento)}.";
+
+    // "dia a dia", "semana a semana", "mês a mês" — pra frase nenhuma na tela precisar
+    // reescrever o mapeamento e depois discordar dele.
+    public static string FatiaAFatia(string? agrupamento) => Normalizar(agrupamento) switch
     {
-        Dia => "Como o sistema está sendo usado, dia a dia.",
-        Mes => "Como o sistema está sendo usado, mês a mês.",
-        _ => "Como o sistema está sendo usado, semana a semana.",
+        Dia => "dia a dia",
+        Mes => "mês a mês",
+        _ => "semana a semana",
+    };
+
+    // A mesma janela do `Titulo`, escrita pra caber no meio de uma frase: "15 cadastros nas
+    // últimas 8 semanas". O artigo muda com o gênero da fatia — semana é ela, dia e mês são
+    // ele —, e é por isso que ele mora aqui, e não solto num `?:` dentro da view.
+    public static string NaJanela(string? agrupamento) => Normalizar(agrupamento) switch
+    {
+        Dia => $"nos últimos {DiasMostrados} dias",
+        Mes => $"nos últimos {MesesMostrados} meses",
+        _ => $"nas últimas {SemanasMostradas} semanas",
     };
 }

@@ -64,3 +64,69 @@ public class FaixaMetricaVM
     public int Pagamentos { get; set; }
     public decimal Valor { get; set; }
 }
+
+// Painel "Jogadores por região" — de onde vem quem se cadastra, e em que ritmo cada lugar
+// cresce. Usa as mesmas fatias (dia/semana/mês) da tela de métricas, porque é a mesma
+// pergunta com um recorte a mais.
+public class RegioesAdminVM
+{
+    // "estado" ou "cidade" (ver Services/JogadoresPorRegiao).
+    public string Por { get; set; } = JogadoresPorRegiao.PorEstado;
+
+    // "dia", "semana" ou "mes" (ver Services/FaixasDeMetricas).
+    public string Agrupamento { get; set; } = FaixasDeMetricas.Semana;
+
+    // A região aberta embaixo da lista, quando o admin clica numa linha. Nulo = nenhuma.
+    public string? ChaveSelecionada { get; set; }
+
+    public int TotalContado { get; set; }
+    public int QuantosEstados { get; set; }
+    public int QuantasCidades { get; set; }
+
+    // Os dois buracos da medição, contados separado porque são gente diferente: dá pra ter
+    // escrito "RS" e não ter escrito a cidade, e o contrário também.
+    public int SemEstado { get; set; }
+    public int SemCidade { get; set; }
+
+    // Quantas pessoas estão numa UF que elas não escreveram — a cidade delas é que disse.
+    // Vai pro rodapé: número deduzido tem que se apresentar como deduzido.
+    public int HerdaramAUfDaCidade { get; set; }
+
+    // Os rótulos das fatias, da mais ANTIGA pra mais recente — mesma ordem de `PorFaixa`.
+    public List<string> RotulosDasFaixas { get; set; } = new();
+
+    public List<RegiaoNaTelaVM> Regioes { get; set; } = new();
+
+    public RegiaoNaTelaVM? Selecionada =>
+        ChaveSelecionada == null ? null : Regioes.FirstOrDefault(r => r.Chave == ChaveSelecionada);
+
+    // Quantos entraram na janela inteira da série — é a soma das linhas, e não o total da
+    // base: cadastro anterior a 25/07/2026 não tem data e não entra em fatia nenhuma.
+    public int NovosNoPeriodo => Regioes.Sum(r => r.NoPeriodo);
+
+    // A escala das barrinhas: o maior número de cadastros que UMA região fez em UMA fatia.
+    // É a mesma pra todas as linhas de propósito — barra por barra, a comparação é entre
+    // regiões, e normalizar cada linha pelo próprio máximo faria a cidade de 2 cadastros
+    // parecer do tamanho da de 20.
+    public int MaiorNaFaixa => Regioes.SelectMany(r => r.PorFaixa).DefaultIfEmpty(0).Max();
+}
+
+// Uma linha da tabela de regiões.
+public class RegiaoNaTelaVM
+{
+    public string Rotulo { get; set; } = "";
+    public string Chave { get; set; } = "";
+
+    // O "Não informado" — é linha de verdade, mas não é uma região: a tela o marca.
+    public bool NaoInformada { get; set; }
+
+    public int Total { get; set; }
+
+    // Cadastros anteriores a 25/07/2026, que não têm data e por isso não entram na série.
+    public int SemData { get; set; }
+
+    // Cadastros em cada fatia, na ordem de `RotulosDasFaixas`.
+    public List<int> PorFaixa { get; set; } = new();
+
+    public int NoPeriodo => PorFaixa.Sum();
+}
