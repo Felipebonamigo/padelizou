@@ -62,7 +62,15 @@ public static class CartazDoTorneio
                 Capa(canvas, capa);
                 CartaoCompartilhavel.FaixaDoTopo(canvas);
 
-                Cabecalho(canvas, fontes, logo);
+                // ⚠️ A NOSSA MARCA SÓ ENTRA NO TOPO QUANDO NÃO HÁ CAPA, e isso foi visto no
+                // cartaz REAL do NATA PADEL TOUR já publicado: a capa do torneio é quase sempre
+                // uma arte que já tem o logotipo DELE no meio, e as raquetes do Padelizou caíam
+                // exatamente em cima — duas marcas empilhadas, nenhuma das duas legível.
+                //
+                // Tirar não deixa o cartaz órfão: a faixa lime, o navy, a pílula e o
+                // "padelizou.com.br" do rodapé continuam assinando. E a capa ganha o topo
+                // inteiro, que é o que o organizador queria ao subir uma.
+                if (capa == null) Cabecalho(canvas, fontes, logo);
 
                 var selo = CentroDoSelo(fontes, torneio, capa != null);
                 CartaoCompartilhavel.Pilula(canvas, torneio.Selo, selo, fontes, TamanhoDoSelo);
