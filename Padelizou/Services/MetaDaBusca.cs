@@ -71,6 +71,25 @@ public static class MetaDaBusca
 
     private static string Chave(string? controller, string? action) => $"{controller}/{action}";
 
+    // O que vai dentro de <title>. Cada view escreve o nome da própria tela; a marca é
+    // acrescentada aqui.
+    //
+    // ⚠️ A régua é "JÁ FALA O NOME DA MARCA?", e não "termina com ela": boa parte das views
+    // escreve "Entrar - Padelizou" no próprio Title, e o título da home passou a começar pela
+    // marca ("Padelizou — Torneios de padel…"). Com um `EndsWith`, esse segundo caso virava
+    // "Padelizou — Torneios de padel, ranking e aulas - Padelizou" — a marca duas vezes, no
+    // texto que o Google mostra como manchete do site.
+    public static string TituloDaAba(string? tituloDaTela)
+    {
+        var titulo = tituloDaTela?.Trim();
+
+        if (string.IsNullOrWhiteSpace(titulo)) return "Padelizou";
+
+        return titulo.Contains("Padelizou", StringComparison.OrdinalIgnoreCase)
+            ? titulo
+            : $"{titulo} - Padelizou";
+    }
+
     // O site atende em DOIS endereços: padelizou.com.br e www.padelizou.com.br servem tudo,
     // idêntico, e o www não redireciona. Pro buscador são dois sites com o mesmo conteúdo, e a
     // força de cada página se divide entre eles.

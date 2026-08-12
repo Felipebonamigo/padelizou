@@ -109,6 +109,44 @@ public class BuscaNoGoogleTests
         Assert.Equal(MetaDaBusca.DescricaoDoSite, MetaDaBusca.Descricao("Auth", "Login"));
     }
 
+    // ── O <title>, que é a manchete do site no Google ──────────────────────────────────────
+
+    [Fact]
+    public void Tela_sem_titulo_proprio_mostra_so_a_marca()
+    {
+        Assert.Equal("Padelizou", MetaDaBusca.TituloDaAba(null));
+        Assert.Equal("Padelizou", MetaDaBusca.TituloDaAba("   "));
+    }
+
+    [Fact]
+    public void Tela_com_nome_proprio_ganha_a_marca_no_fim()
+    {
+        Assert.Equal("Torneios - Padelizou", MetaDaBusca.TituloDaAba("Torneios"));
+    }
+
+    // As duas formas de já falar a marca: no fim (a maioria das views) e no COMEÇO (a home,
+    // desde que o título dela virou "Padelizou — Torneios de padel…"). Com a régua antiga, de
+    // `EndsWith`, o segundo caso saía "…ranking e aulas - Padelizou" — a marca duas vezes no
+    // texto que o Google usa como manchete.
+    [Theory]
+    [InlineData("Entrar - Padelizou")]
+    [InlineData("Padelizou — Torneios de padel, ranking e aulas")]
+    public void Titulo_que_ja_fala_a_marca_nao_ganha_outra(string titulo)
+    {
+        Assert.Equal(titulo, MetaDaBusca.TituloDaAba(titulo));
+    }
+
+    // O Google corta o título por volta dos 60 caracteres. Cortado no meio, a manchete do site
+    // fica pela metade — e é a primeira coisa que alguém lê sobre o Padelizou.
+    [Fact]
+    public void O_titulo_da_home_cabe_no_que_o_google_mostra()
+    {
+        var daHome = MetaDaBusca.TituloDaAba("Padelizou — Torneios de padel, ranking e aulas");
+
+        Assert.True(daHome.Length <= 60, $"o título da home tem {daHome.Length} caracteres");
+        Assert.StartsWith("Padelizou", daHome);
+    }
+
     // ── Os dois endereços do site ──────────────────────────────────────────────────────────
 
     // O site atende em padelizou.com.br E www.padelizou.com.br, idêntico, sem redirecionar.

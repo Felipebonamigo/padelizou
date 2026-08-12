@@ -67,10 +67,9 @@
         "Entrar - Padelizou - Padelizou"), então só completamos quando falta.
     *@
     @{
-        var tituloPagina = (ViewData["Title"] as string)?.Trim();
-        var tituloAba = string.IsNullOrWhiteSpace(tituloPagina) ? "Padelizou"
-            : tituloPagina.EndsWith("Padelizou", StringComparison.OrdinalIgnoreCase) ? tituloPagina
-            : $"{tituloPagina} - Padelizou";
+        @* A régua mora em Services/MetaDaBusca pra ter teste: o <title> é a manchete do site
+           no Google, e "Padelizou - Padelizou" não estoura em lugar nenhum. *@
+        var tituloAba = Padelizou.Services.MetaDaBusca.TituloDaAba(ViewData["Title"] as string);
     }
     <title>@tituloAba</title>
     @* ── O que o Google e a prévia de link do WhatsApp leem ──────────────────────────────

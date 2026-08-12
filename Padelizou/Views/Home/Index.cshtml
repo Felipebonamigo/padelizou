@@ -5,8 +5,15 @@
 @inject Padelizou.Services.PortaDoMarcarJogo PortaMarcarJogo
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
 @{
-    // Título vazio de propósito: a aba mostra só "Padelizou" (o sistema não é só torneio).
-    ViewData["Title"] = null;
+    // O <title> é a MANCHETE do site no Google, e por muito tempo aqui foi só "Padelizou" —
+    // que não diz nada a quem ainda não conhece, justamente o público que a busca traz. Quem
+    // procura "padelizou" continua achando (a marca vem primeiro); quem procura "torneio de
+    // padel" passa a ter por que clicar.
+    //
+    // Cabe nos ~60 caracteres que o Google mostra: título mais longo aparece cortado.
+    // O nome do app instalado NÃO muda com isto — ele sai do manifest.json e do
+    // apple-mobile-web-app-title, que seguem "Padelizou".
+    ViewData["Title"] = "Padelizou — Torneios de padel, ranking e aulas";
     bool logado = Model.PrimeiroNome != null;
     var ptBr = CultureInfo.GetCultureInfo("pt-BR");
     var marcarQuadraNaVitrine = await PortaMarcarJogo.MostrarNaVitrineAsync(User);
