@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/08/2026** — 🔎 **SEO: `build-527-29896d1` NO AR**, migalhas na busca, indexação pedida e o **deploy pelo GitHub blindado**.
+> Última atualização: **12/08/2026** — 🚀 **`build-533-415f133` NO AR EM PROD** (14:52). Publicado a pedido do Felipe: *"ainda não libera os desafios para todo mundo, mas publica o que foi atualizado"*.
+>
+> 🔒 **OS DESAFIOS SUBIRAM E CONTINUAM FECHADOS.** Conferido no servidor: **`Desafios` não aparece no `padelizou.service` nem em nenhum dos 9 drop-ins** — sem `Desafios__Habilitado`, `DesafiosSettings.Habilitado` fica `false` e só admin do Padelizou enxerga. E o HTML público do `/Jogadores/Ranking` traz **zero links `/Desafios`** pra visitante: a única ocorrência da palavra é um **comentário de JavaScript**. Liberar, quando for a hora, é **uma linha no systemd** — não um deploy.
+>
+> 🕵️ **O CÓDIGO DOS DESAFIOS JÁ ESTAVA NO AR ANTES DESTE DEPLOY.** As três fases entraram no **build-531**, publicado pela sessão paralela — é o caso que a memória descreve: *o deploy do OUTRO publica o SEU código*. Provado **pelo binário**, não pelo git: `strings -el Padelizou.dll` achou o texto das views e `strings -a` achou `ReinadoNoCinturao` dentro do build-531. As duas migrations (`DesafiosFase1`, `CinturaoDosDesafios`) já estavam no `__EFMigrationsHistory` de prod, com as **6 tabelas criadas e vazias** — certo, já que ninguém pode usar o módulo ainda.
+>
+> 📦 **O que este deploy levou de fato (531 → 533):** `QuadraPreferidaDaCategoria` (a central é da 1ª, mas ninguém fica parado) e a reforma do hub de ranking (as três abas de vitória viraram uma, e os Desafios saíram do cartão pra uma aba) — as duas da sessão paralela.
+>
+> 🗄️ **Migration junto, então saiu `pg_dump` antes** (`/root/pre-deploy-533-*.sql.gz`), e o dump foi **validado** em vez de aceito pelo tamanho: `gzip -t` OK, **81 `CREATE TABLE`, 81 `COPY`** e dado real dentro. A migration nova é **aditiva** (tabela `QuadraDaCategoria`), sem risco pro que já existia.
+>
+> ✅ **Provado que a versão nova subiu, e não pelo "Feito" do script**: `readlink -f /opt/padelizou` **e** o `cwd` do processo os dois em `build-533-415f133`, `NRestarts=0`, `active`, `/healthz` 200, home/ranking/torneios em 200, **journal sem uma exceção** e `.historico` com a linha das 14:52. No banco: a migration nova entrou, a tabela existe, e os dados estão inteiros (**177 jogadores, 3 torneios**).
+>
+> Anterior: **12/08/2026** — 🔎 **SEO: `build-527-29896d1` NO AR**, migalhas na busca, indexação pedida e o **deploy pelo GitHub blindado**.
 >
 > 🚨 **O RANKING TINHA SUBIDO PEDINDO AO GOOGLE QUE NÃO O INDEXASSE.** A allowlist foi escrita com o nome do **arquivo** (`JogadorsController.cs`, sem "e") em vez do nome da **classe** (`JogadoresController`) — e é a classe que vira rota. Resultado: `/Jogadores/Ranking` caiu na regra do desconhecido e foi pro ar com `noindex`; o sitemap entregava `/Jogadors/Ranking`, que responde **404**; e a descrição saía a genérica. **Três sintomas, uma letra.** ✅ Pego a tempo: a inspeção no Search Console ainda dizia *"O URL está no Google"* — na releitura seguinte ele teria saído.
 >
