@@ -127,6 +127,80 @@ public static class CartaoCompartilhavel
         return Math.Max(tamanhoMinimo, proporcional);
     }
 
+    // Quebra o texto em linhas que caibam na largura, sem partir palavra.
+    //
+    // ⚠️ EXISTE PORQUE ENCOLHER NÃO RESOLVE TUDO. `TextoCentralizado` diminui a fonte até
+    // caber, e isso salva o nome de dupla longo — mas o NOME DO TORNEIO é a maior palavra do
+    // cartaz e a que precisa ser lida de longe: "NATA PADEL TOUR — 2ª Etapa Gravataí" numa
+    // linha só cairia pra corpo 28 e sumiria dentro da própria arte. Duas linhas grandes leem
+    // melhor que uma linha pequena.
+    //
+    // Pura de propósito (não desenha nada), pra o teste conferir a quebra sem abrir canvas.
+    public static List<string> QuebrarEmLinhas(
+        string? texto, SKTypeface? familia, float tamanho, float larguraMaxima)
+    {
+        var linhas = new List<string>();
+        var palavras = (texto ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (palavras.Length == 0) return linhas;
+
+        using var fonte = new SKFont(familia, tamanho);
+
+        var atual = palavras[0];
+        for (var i = 1; i < palavras.Length; i++)
+        {
+            var tentativa = $"{atual} {palavras[i]}";
+            if (fonte.MeasureText(tentativa) <= larguraMaxima)
+            {
+                atual = tentativa;
+            }
+            else
+            {
+                linhas.Add(atual);
+                atual = palavras[i];
+            }
+        }
+
+        linhas.Add(atual);
+        return linhas;
+    }
+
+    // Escreve em até `maximoDeLinhas`, encolhendo a fonte enquanto sobrar linha. Devolve a
+    // LINHA DE BASE da última — quem empilha o próximo bloco continua de onde este parou.
+    public static float TextoEmVariasLinhas(
+        SKCanvas canvas, string texto, float yPrimeiraLinha, SKTypeface? familia, float tamanho,
+        SKColor cor, float larguraMaxima, int maximoDeLinhas, float tamanhoMinimo = 30f,
+        float entrelinha = 1.12f)
+    {
+        var usado = tamanho;
+        var linhas = QuebrarEmLinhas(texto, familia, usado, larguraMaxima);
+
+        // 10% por vez: passo grosso demais salta o tamanho bom, fino demais gasta iteração à
+        // toa num texto que tem meia dúzia de palavras.
+        while (linhas.Count > maximoDeLinhas && usado > tamanhoMinimo)
+        {
+            usado = Math.Max(tamanhoMinimo, usado * 0.9f);
+            linhas = QuebrarEmLinhas(texto, familia, usado, larguraMaxima);
+        }
+
+        // Chegou no menor tamanho e ainda sobra linha: o excesso é EMENDADO na última, que o
+        // `Texto` encolhe sozinha até caber. Cortar com reticências perderia texto em silêncio,
+        // e o que se perde num cartaz é justamente o fim do nome do torneio ("... 2ª Etapa").
+        if (linhas.Count > maximoDeLinhas)
+        {
+            var sobra = string.Join(" ", linhas.Skip(maximoDeLinhas - 1));
+            linhas = linhas.Take(maximoDeLinhas - 1).Append(sobra).ToList();
+        }
+
+        var y = yPrimeiraLinha;
+        foreach (var linha in linhas)
+        {
+            Texto(canvas, linha, Largura / 2f, y, familia, usado, cor, larguraMaxima, tamanhoMinimo: 18f);
+            y += usado * entrelinha;
+        }
+
+        return y - usado * entrelinha;
+    }
+
     // A pílula lime com texto escuro dentro — a mesma forma do `badge` do site. Usada pra
     // categoria e pro ano.
     public static void Pilula(
@@ -271,10 +345,60 @@ public static class CartaoCompartilhavel
         canvas.DrawBitmap(logo, destino, Reamostragem);
     }
 
+    // O QR que leva ao torneio, sobre a plaquinha branca que o destaca do fundo navy.
+    // Devolve o lado realmente desenhado — que quase nunca é o pedido, e a razão importa.
+    //
+    // ⚠️ ESCALA INTEIRA E SEM SUAVIZAR, as duas coisas. Um QR é uma grade de quadradinhos, e
+    // ampliá-lo com o filtro bonito (o Mitchell que as fotos usam) borra a borda de cada módulo
+    // — o leitor do celular passa a ler cinza onde deveria haver preto ou branco, e falha em
+    // luz ruim, que é a luz do clube. Por isso a escala é um INTEIRO calculado a partir do
+    // número de módulos: assim cada módulo recebe exatamente os mesmos N pixels. Escala
+    // fracionária (300px em cima de 41 módulos = 7,3) daria módulos de 7 e de 8 pixels
+    // alternados — legível na tela grande e falho no celular, que é o pior defeito possível,
+    // porque passa no teste de quem olha e falha em quem usa.
+    public static float Qr(SKCanvas canvas, string conteudo, float centroX, float centroY, float ladoAlvo)
+    {
+        // ECC M é o mesmo nível do QR do Pix: aguenta tela riscada e dedo em cima sem inflar o
+        // código a ponto de os módulos ficarem miúdos demais pra câmera.
+        using var gerador = new QRCoder.QRCodeGenerator();
+        using var codigo = gerador.CreateQrCode(conteudo, QRCoder.QRCodeGenerator.ECCLevel.M);
+
+        // 1 pixel por módulo: o desenho sai daqui do tamanho da GRADE (uns 41×41), e quem
+        // amplia é o canvas, em múltiplo exato. Pedir o tamanho final ao QRCoder devolveria um
+        // número que raramente casa com o espaço da arte.
+        var png = new QRCoder.PngByteQRCode(codigo).GetGraphic(pixelsPerModule: 1);
+        using var bitmap = SKBitmap.Decode(png);
+        if (bitmap == null || bitmap.Width == 0) return 0;
+
+        var escala = Math.Max(1, (int)(ladoAlvo / bitmap.Width));
+        var lado = bitmap.Width * escala;
+
+        // A plaquinha branca por baixo. O PNG do QR já traz a margem clara que a norma exige
+        // (a "zona de silêncio"), mas ela some visualmente contra o navy; a plaquinha devolve
+        // o contorno e ainda faz o QR parecer parte da arte em vez de um adesivo colado.
+        var folga = Math.Max(16f, lado * 0.06f);
+        var moldura = new SKRect(
+            centroX - lado / 2f - folga, centroY - lado / 2f - folga,
+            centroX + lado / 2f + folga, centroY + lado / 2f + folga);
+
+        using (var tinta = new SKPaint { Color = Branco, IsAntialias = true })
+            canvas.DrawRoundRect(moldura, 24, 24, tinta);
+
+        var destino = new SKRect(
+            centroX - lado / 2f, centroY - lado / 2f,
+            centroX + lado / 2f, centroY + lado / 2f);
+
+        canvas.DrawBitmap(bitmap, destino, SemSuavizar);
+        return lado + folga * 2;
+    }
+
     // O mesmo filtro cúbico que o `ImagemEnviada` usa pra encolher foto: aqui toda imagem que
     // entra no card está sendo REDUZIDA (foto de 512px num círculo de 150), que é justamente o
     // caso em que o filtro padrão serrilha.
     private static readonly SKSamplingOptions Reamostragem = new(SKCubicResampler.Mitchell);
+
+    // O oposto, e só pro QR: vizinho mais próximo, sem mipmap. Ver a nota do `Qr`.
+    private static readonly SKSamplingOptions SemSuavizar = new(SKFilterMode.Nearest, SKMipmapMode.None);
 
     // ── Saída ──────────────────────────────────────────────────────────────────────────────
 

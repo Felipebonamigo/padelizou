@@ -235,6 +235,28 @@
     </div>
 }
 
+@* ── O CARTAZ DE DIVULGAÇÃO ───────────────────────────────────────────────────────────
+   A peça do ANTES, como o card de campeão é a do depois — e, como ele, é PRA TODO MUNDO:
+   o organizador é quem mais divulga, mas cada inscrito que chama a turma no grupo é
+   divulgação que não custa nada.
+
+   ⚠️ Quem responde "este torneio pode virar cartaz?" é o serviço, e não um teste de status
+   escrito aqui: torneio cancelado e torneio já finalizado não divulgam, e essa regra tem
+   que ter um dono só — cartaz é a peça que mais sobrevive ao próprio contexto, porque é
+   salva na galeria e reencaminhada dias depois. *@
+@if (Padelizou.Services.DivulgacaoDoTorneio.PodeDivulgar(Model.Status))
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
+           class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
+        </a>
+        <small class="text-muted">
+            Arte pronta pra postar, com o QR que leva direto pra cá.
+        </small>
+    </div>
+}
+
 @* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
    Quem está inscrito (e quem organiza) ganha o botão de entrar; pra todo o resto ele não
    existe — nem escondido, nem no código-fonte. Esta página abre sem login, e convite de
@@ -316,6 +338,25 @@
         </a>
         <small class="text-muted">
             Quem jogou vota no melhor entre os campeões.
+        </small>
+    </div>
+}
+
+@* ── OS PALPITEIROS ───────────────────────────────────────────────────────────────────
+   O Palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem
+   ACERTOU. O ranking é derivado do que já estava lá — por isso nasce com histórico.
+
+   ⚠️ Quem responde "já tem o que mostrar?" é o CONTROLLER, pelo mesmo motivo do MVP: a
+   view não tem as partidas do torneio em mãos, e a conta feita aqui esconderia o link em
+   silêncio, sempre. *@
+@if (ViewBag.TemRankingDePalpiteiros == true)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a asp-action="Palpiteiros" asp-route-id="@Model.Id" class="btn btn-outline-success rounded-pill px-3">
+            <i class="bi bi-graph-up"></i> Palpiteiros
+        </a>
+        <small class="text-muted">
+            Quem mais acertou no Palpitrômetro — cravar a zebra vale mais.
         </small>
     </div>
 }
@@ -1659,6 +1700,34 @@
                             </button>
                         </form>
                     }
+                </div>
+            </div>
+
+            @* CRIAR A PRÓXIMA EDIÇÃO — pro organizador que faz o mesmo torneio todo mês.
+               A cópia leva a ESTRUTURA (categorias, preços, formato, quadras, equipe) e nada
+               do que aconteceu; a edição nova nasce sem datas e com as inscrições fechadas.
+               O que copia e o que não copia mora em Services/DuplicacaoDeTorneio. *@
+            <div class="card bg-light border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-2">
+                        <i class="bi bi-copy"></i> Próxima edição
+                    </h6>
+                    <p class="small text-muted mb-3">
+                        Cria um torneio novo com a mesma configuração deste — categorias, valores,
+                        formato, quadras e equipe. As <strong>datas ficam em branco</strong> e as
+                        <strong>inscrições nascem fechadas</strong>: você revisa, marca as datas e
+                        abre quando quiser. Inscrições, jogos e resultados desta edição
+                        <strong>não</strong> vão junto.
+                    </p>
+                    <form asp-controller="Torneios" asp-action="Duplicar" method="post"
+                          data-confirmar-titulo="Criar a próxima edição?"
+                          data-confirmar="Um torneio novo nasce copiando a configuração deste, sem datas e com as inscrições fechadas."
+                          data-confirmar-ok="Criar a edição">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button type="submit" class="btn btn-outline-primary fw-bold">
+                            <i class="bi bi-copy"></i> Criar a próxima edição
+                        </button>
+                    </form>
                 </div>
             </div>
 

@@ -84,6 +84,44 @@ public class CartoesController : Controller
         return Png(png, $"campeoes-{Arquivo(campeao.Categoria)}.png");
     }
 
+    // ───────────────────────── O CARTAZ DO TORNEIO ─────────────────────────
+
+    // A página com o cartaz de divulgação, pronto pra baixar e postar.
+    //
+    // Pública como as outras daqui, e isso é escolha: o organizador é quem mais divulga, mas
+    // não é o único. Cada inscrito que chama a turma no grupo é divulgação que não custa nada —
+    // e trancar o cartaz atrás do login do organizador transformaria a peça de crescimento numa
+    // tela de gestão.
+    [HttpGet]
+    public async Task<IActionResult> Cartaz(int id)
+    {
+        var torneio = await DivulgacaoDoTorneio.DoTorneioAsync(_context, id);
+        if (torneio == null) return NotFound();
+
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(torneio);
+    }
+
+    // O PNG do cartaz.
+    [HttpGet]
+    public async Task<IActionResult> CartazImagem(int id)
+    {
+        // Mesma recusa do card de campeão, pelo mesmo motivo: sem a Poppins o cartaz sairia com
+        // todo texto invisível no Linux, e uma arte muda com a nossa marca é pior que nenhuma.
+        if (!_fontes.Disponivel) return NotFound();
+
+        var torneio = await DivulgacaoDoTorneio.DoTorneioAsync(_context, id);
+        if (torneio == null) return NotFound();
+
+        // ⚠️ ABSOLUTO, e é o que faz o cartaz valer. O QR é lido por uma câmera que não tem a
+        // menor ideia de qual é o nosso domínio — um caminho relativo viraria um código que não
+        // leva a lugar nenhum, e ninguém descobriria isso olhando a imagem.
+        var link = Url.Action("Details", "Torneios", new { id }, Request.Scheme)!;
+
+        var png = CartazDoTorneio.Desenhar(torneio, link, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"torneio-{Arquivo(torneio.Nome)}.png");
+    }
+
     // ───────────────────────── O CARD DO ANO ─────────────────────────
 
     // "Seu ano no padel". Sem `id`, é o ano de quem está logado.

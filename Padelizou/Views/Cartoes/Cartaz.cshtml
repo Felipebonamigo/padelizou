@@ -1,0 +1,79 @@
+@model Padelizou.Services.TorneioParaDivulgar
+@{
+    ViewData["Title"] = $"Cartaz — {Model.Nome} - Padelizou";
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+
+    var imagem = Url.Action("CartazImagem", "Cartoes", new { id = Model.TorneioId });
+    var arquivo = $"torneio-{Padelizou.Controllers.CartoesController.Arquivo(Model.Nome)}.png";
+
+    @* Endereço ABSOLUTO pra prévia do link: quem lê a meta é o servidor da Meta, de fora, sem
+       saber qual é o nosso domínio. *@
+    ViewData["OgTitulo"] = Model.Nome;
+    ViewData["Descricao"] = $"{Model.Selo} — {Model.Nome} no Padelizou.";
+    if (fonteDisponivel)
+    {
+        ViewData["OgImagem"] = Url.Action("CartazImagem", "Cartoes",
+            new { id = Model.TorneioId }, Context.Request.Scheme);
+    }
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@Model.TorneioId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-megaphone-fill text-primary"></i> Cartaz do torneio
+    </h2>
+    <p class="text-muted">@Model.Nome</p>
+
+    @if (!fonteDisponivel)
+    {
+        @* A recusa é explícita, e não uma tela vazia: sem os .ttf o cartaz sairia com todo
+           texto invisível no Linux, então preferimos não desenhar. Quem lê isto é o admin. *@
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o cartaz sairia
+                com todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small mb-4">
+            Pronto pra postar: quem apontar a câmera no QR cai direto na página do torneio.
+            Salve no celular e mande no grupo.
+        </p>
+
+        <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+            <div class="card-body">
+                <img src="@imagem" alt="Cartaz de divulgação do @Model.Nome"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 380px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo"
+                       class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="@Model.Nome">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-light border rounded-4 small text-muted">
+            O cartaz é gerado na hora: se você mudar a data, o local, o valor ou a capa do
+            torneio, é só voltar aqui e baixar de novo.
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}
