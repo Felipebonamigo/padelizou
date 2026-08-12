@@ -22,25 +22,48 @@ namespace Padelizou.Models;
 public class AnuncioDeDesafio
 {
     // Publicado por um, ainda sem o "sim" do parceiro. Não aparece pra mais ninguém.
+    //
+    // ⚠️ Rascunho é só o caminho do CONVITE POR LINK. Quem escolhe o parceiro direto na tela
+    // publica de uma vez — ver `ParceiroConfirmouEm`.
     public const string Rascunho = "Rascunho";
     public const string Publicado = "Publicado";
     public const string Cancelado = "Cancelado";
+
+    // Achou jogo. É o fim de vida do anúncio "até alguém aceitar": ele não tem data pra
+    // vencer, então quem o tira do mural é o aceite de um desafio.
+    public const string Fechado = "Fechado";
 
     public int Id { get; set; }
 
     // Quem publicou. É sempre uma pessoa de verdade logada — não existe anúncio de terceiro.
     public int Jogador1Id { get; set; }
 
-    // O parceiro. Nulo enquanto ele não aceitou o convite.
+    // O parceiro. Nulo enquanto ele não aceitou o convite (caminho do link).
     public int? Jogador2Id { get; set; }
 
+    // Quando o parceiro DISSE SIM. Nulo com `Jogador2Id` preenchido = ele foi ESCOLHIDO na
+    // tela e ainda não se manifestou (decisão do Felipe, 12/08/2026: dá pra montar a dupla sem
+    // pedir licença, e o parceiro tira o anúncio do ar se não quiser).
+    //
+    // ⚠️ Esta coluna é o que permite a tela falar a verdade pros dois lados: pro parceiro,
+    // "te incluíram numa dupla — se não quiser, remova"; e pra quem publicou, "seu parceiro
+    // ainda não confirmou". Sem ela, "escolhido" e "aceitou" seriam o mesmo estado, e ninguém
+    // saberia a quem cobrar o quê.
+    public DateTime? ParceiroConfirmouEm { get; set; }
+
     // O convite pendente. Limpo no aceite, pra um link usado não fechar uma segunda dupla.
+    // Nulo desde o começo quando a dupla já nasceu fechada pela escolha direta.
     public string? ConviteToken { get; set; }
 
     public DateTime CriadoEm { get; set; } = DateTime.Now;
 
     // Fim da semana anunciada (domingo 23:59:59). Ver Services/SemanaDoDesafio.
-    public DateTime ValeAte { get; set; }
+    //
+    // ⚠️ NULO = "até alguém aceitar": o anúncio não vence no relógio. Quem o tira do mural é o
+    // primeiro desafio ACEITO, que o vira `Fechado`. É a terceira opção do "quando vocês querem
+    // jogar" (pedido do Felipe, 12/08/2026) — e a razão de ela existir é que a semana é um
+    // prazo bom pra quem tem agenda e péssimo pra quem só quer jogar quando aparecer.
+    public DateTime? ValeAte { get; set; }
 
     public string Status { get; set; } = Rascunho;
 

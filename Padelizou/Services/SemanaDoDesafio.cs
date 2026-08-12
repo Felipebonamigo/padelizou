@@ -36,10 +36,16 @@ public static class SemanaDoDesafio
     public static DateTime FimDaSemanaSugerido(DateTime momento) =>
         SemanaJaEstaAcabando(momento) ? FimDaSemanaSeguinte(momento) : FimDaSemanaDe(momento);
 
-    public static bool Vencido(AnuncioDeDesafio anuncio, DateTime agora) => agora > anuncio.ValeAte;
+    // ⚠️ `ValeAte` NULO é "até alguém aceitar": não vence nunca no relógio. Quem tira esse
+    // anúncio do mural é o aceite de um desafio (ele vira `Fechado`) ou a própria dupla.
+    public static bool Vencido(AnuncioDeDesafio anuncio, DateTime agora) =>
+        anuncio.ValeAte != null && agora > anuncio.ValeAte.Value;
+
+    public static bool SemPrazo(AnuncioDeDesafio anuncio) => anuncio.ValeAte == null;
 
     // O anúncio aparece no mural? Precisa das três coisas: publicado, com o parceiro dentro e
-    // dentro da semana. Rascunho fora é a trava do convite — ver ConviteDoAnuncio.
+    // dentro do prazo (quando existe prazo). Rascunho fora é a trava do convite por link — ver
+    // ConviteDoAnuncio; quem escolheu o parceiro na tela já nasce publicado.
     public static bool NoMural(AnuncioDeDesafio anuncio, DateTime agora) =>
         anuncio.Status == AnuncioDeDesafio.Publicado
         && anuncio.Jogador2Id != null
@@ -49,11 +55,29 @@ public static class SemanaDoDesafio
     public static string StatusNaTela(AnuncioDeDesafio anuncio, DateTime agora)
     {
         if (anuncio.Status == AnuncioDeDesafio.Cancelado) return "Cancelado";
+        if (anuncio.Status == AnuncioDeDesafio.Fechado) return "Jogo marcado";
         if (anuncio.Status == AnuncioDeDesafio.Rascunho) return "Aguardando o parceiro";
         return Vencido(anuncio, agora) ? "Semana encerrada" : "No mural";
     }
 
     // "até domingo, 17/08" — o prazo dito como as pessoas falam dele.
-    public static string RotuloDoPrazo(DateTime valeAte) =>
-        $"até domingo, {valeAte:dd/MM}";
+    public static string RotuloDoPrazo(DateTime? valeAte) =>
+        valeAte == null ? "até alguém aceitar" : $"até domingo, {valeAte.Value:dd/MM}";
+
+    // Até quando dá pra marcar um jogo com um anúncio SEM prazo.
+    //
+    // ⚠️ Um teto precisa existir mesmo sem data no anúncio: "aceito desafio quando aparecer"
+    // não é "aceito jogar em abril". Sem isto, o campo de data do desafio aceitaria qualquer
+    // futuro — e um jogo marcado pra daqui a oito meses é um compromisso que ninguém honra e
+    // que fica ocupando "Meus desafios" até lá.
+    public static readonly TimeSpan TetoSemPrazo = TimeSpan.FromDays(30);
+
+    // O limite de data pra um desafio entre DOIS anúncios: o menor prazo entre eles, e o teto
+    // quando nenhum dos dois tem prazo.
+    public static DateTime LimiteParaJogar(AnuncioDeDesafio a, AnuncioDeDesafio b, DateTime agora)
+    {
+        var prazos = new[] { a.ValeAte, b.ValeAte }.Where(p => p != null).Select(p => p!.Value).ToList();
+
+        return prazos.Count == 0 ? agora + TetoSemPrazo : prazos.Min();
+    }
 }

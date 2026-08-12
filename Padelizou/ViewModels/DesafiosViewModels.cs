@@ -51,6 +51,9 @@ public record MuralVM(
     IReadOnlyList<CidadeNaLista> CatalogoCidades,
     int? CategoriaFiltrada,
     int? CidadeFiltrada,
+    // Quem está olhando. O cartão do próprio anúncio muda conforme eu ser quem CRIOU ou quem
+    // foi ESCOLHIDO como parceiro — e só o segundo vê o botão de sair da dupla.
+    int MeuId,
     bool EmConstrucao);
 
 // O formulário de publicar. Nasce marcado com as preferências que a pessoa já tem no perfil —
@@ -63,7 +66,10 @@ public record PublicarAnuncioVM(
     IReadOnlyList<int> CidadesMarcadas,
     IReadOnlyList<int> ClubesMarcados,
     DateTime ValeAteSugerido,
-    bool SemanaAcabando);
+    bool SemanaAcabando,
+    // Quem pode ser escolhido como parceiro direto. Já vem filtrado por `AceitaConvitesJogo`:
+    // quem desligou o interruptor não entra na lista, e pra ele sobra o link.
+    IReadOnlyList<Jogador> ParceirosPossiveis);
 
 public record ConviteVM(
     AnuncioDeDesafio? Anuncio,
@@ -78,7 +84,11 @@ public record DesafiarVM(
     IReadOnlyList<CategoriaPadrao> CategoriasPossiveis,
     IReadOnlyList<Clube> ClubesPossiveis,
     string DuplaAdversaria,
-    DateTime QuandoSugerido);
+    DateTime QuandoSugerido,
+    // Até quando dá pra marcar. Vem calculado (o menor prazo entre os dois anúncios, ou o teto
+    // de quem não tem prazo) porque a view não pode ler `Anuncio.ValeAte` direto desde que ele
+    // virou nulável — "até alguém aceitar" não tem data pra mostrar no `max` do campo.
+    DateTime LimiteParaJogar);
 
 // Uma linha de "meus desafios". O status vem de EstadoDoDesafio.StatusNaTela — nunca do campo
 // cru, senão a proposta vencida apareceria como "Proposto" pra sempre.

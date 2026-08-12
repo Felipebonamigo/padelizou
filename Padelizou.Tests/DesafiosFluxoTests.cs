@@ -111,7 +111,7 @@ public class DesafiosFluxoTests
         var controller = TestInfra.NovoDesafiosController(c.Ctx, c.Jogadores[0]);
 
         await controller.Publicar(new[] { c.CategoriaId }, Array.Empty<int>(), new[] { c.ClubeId },
-            "topamos jogar cedo", proximaSemana: false);
+            "topamos jogar cedo", PrazoDoAnuncio.EstaSemana, parceiroId: null);
 
         var anuncio = await c.Ctx.AnunciosDeDesafio.SingleAsync();
         Assert.Equal(AnuncioDeDesafio.Rascunho, anuncio.Status);
@@ -130,7 +130,7 @@ public class DesafiosFluxoTests
         var c = Montar();
         using var _ = c.Ctx;
         var dono = TestInfra.NovoDesafiosController(c.Ctx, c.Jogadores[0]);
-        await dono.Publicar(Array.Empty<int>(), Array.Empty<int>(), Array.Empty<int>(), null, false);
+        await dono.Publicar(Array.Empty<int>(), Array.Empty<int>(), Array.Empty<int>(), null, PrazoDoAnuncio.EstaSemana, parceiroId: null);
 
         var token = (await c.Ctx.AnunciosDeDesafio.SingleAsync()).ConviteToken!;
 
@@ -150,7 +150,7 @@ public class DesafiosFluxoTests
         var c = Montar();
         using var _ = c.Ctx;
         var dono = TestInfra.NovoDesafiosController(c.Ctx, c.Jogadores[0]);
-        await dono.Publicar(Array.Empty<int>(), Array.Empty<int>(), Array.Empty<int>(), null, false);
+        await dono.Publicar(Array.Empty<int>(), Array.Empty<int>(), Array.Empty<int>(), null, PrazoDoAnuncio.EstaSemana, parceiroId: null);
 
         var token = (await c.Ctx.AnunciosDeDesafio.SingleAsync()).ConviteToken!;
         await dono.AceitarConvite(token);

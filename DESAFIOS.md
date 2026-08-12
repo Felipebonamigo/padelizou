@@ -69,18 +69,48 @@ nós faríamos.
 
 ## 2. As regras duras
 
-### 🔐 O anúncio precisa dos DOIS
+### 🤝 Duas formas de fechar a dupla
 
-Quem publica manda um link ao parceiro; o parceiro entra com a **própria conta** e confirma.
-Enquanto não confirmar, o anúncio é **rascunho** e **não aparece no mural**.
+**① Escolher o parceiro na tela** (decisão do Felipe, 12/08/2026). O anúncio nasce **publicado**,
+sem pedir licença — e o parceiro **pode sair da dupla**, o que tira o anúncio do mural.
 
-É o mesmo mecanismo do `Services/ConviteDeParceiro` (token de 32 bytes base64url, comparado em
-tempo fixo) e existe pela mesma razão que ele: sem isso eu anuncio o Lucas para jogar sábado às
-8h e ele descobre por um push de desafio **já aceito**.
+> ⚠️ **O que sustenta essa regra é o AVISO, não o botão.** O anúncio é público e diz a categoria,
+> os clubes e a semana em que aquela pessoa vai jogar. "Poder sair" só existe se ela souber que
+> entrou: por isso o aviso vai por **WhatsApp** (pessoal + acionável + perde valor amanhã) e diz,
+> na mesma frase, o que aconteceu **e** como desfazer.
+>
+> **`AceitaConvitesJogo` é respeitado** — quem desligou o interruptor não entra na lista de
+> escolha. Não é regra nova: é o mesmo filtro que o Marcar Jogo e o Grupo já usam. Quem fechou
+> essa porta não pode ser puxado por ela; para essa pessoa, sobra o link.
+>
+> `ParceiroConfirmouEm` distingue **escolhido** de **aceitou**. Sem essa coluna, a tela não teria
+> como cobrar a coisa certa de cada lado — e ofereceria "sair da dupla" a quem já disse sim.
 
-### 📅 "A semana" expira — e expirar não mata nada junto
+**② Mandar o link** (o caminho original, para quem ainda não sabe com quem vai jogar). O anúncio
+fica **rascunho** e não aparece no mural até o parceiro entrar com a **própria conta** e aceitar.
+Mesmo mecanismo do `Services/ConviteDeParceiro` (token de 32 bytes base64url, comparado em tempo
+fixo). Quem entra por aqui já entra **confirmado**.
 
-O anúncio vale até **domingo 23:59** da semana escolhida. Renovar é um clique.
+### 📅 O prazo — e expirar não mata nada junto
+
+Três opções em "quando vocês querem jogar" (`Services/PrazoDoAnuncio`): **esta semana**, **semana
+que vem** ou **até alguém aceitar**.
+
+**"Até alguém aceitar"** (pedido do Felipe, 12/08/2026) grava `ValeAte` **nulo**: o anúncio não
+vence no relógio. Quem o tira do mural é o **primeiro desafio aceito**, que o vira `Fechado`.
+Existe porque a semana é um prazo bom para quem tem agenda e péssimo para quem só quer jogar
+quando aparecer alguém — essa pessoa republicaria o mesmo anúncio todo domingo, ou desistiria na
+segunda vez.
+
+> ⚠️ **Coluna nulável cria uma armadilha em toda consulta**: `ValeAte >= agora` é **falso** para o
+> anúncio sem prazo, e o defeito é mudo — o anúncio existe, publicado, e simplesmente não aparece.
+> Toda pergunta de "ainda está de pé?" precisa do `ValeAte == null ||`. Um teste pegou isso.
+>
+> ⚠️ E o **jogo** ainda tem teto: 30 dias quando nenhum dos dois anúncios tem prazo
+> (`SemanaDoDesafio.TetoSemPrazo`). "Aceito desafio quando aparecer" não é "aceito jogar em
+> abril".
+
+O anúncio com data vale até **domingo 23:59**. Renovar é um clique.
 
 Duas travas, e nenhuma é detalhe:
 

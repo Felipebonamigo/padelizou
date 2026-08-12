@@ -60,6 +60,26 @@ public static class AvisoDoDesafio
         new("Te chamaram pra um desafio",
             $"{quem} quer fazer dupla com você nesta semana. Confirme pra o anúncio ir pro mural.");
 
+    // ⚠️ ESTE AVISO É O QUE SUSTENTA A REGRA. Desde 12/08/2026 dá pra montar a dupla sem pedir
+    // licença ao parceiro — e o que torna isso aceitável é ele poder sair. "Poder sair" só vale
+    // se ele SOUBER: o anúncio é público e diz a categoria, os clubes e a semana em que ele vai
+    // jogar. Por isso o corpo diz, na mesma frase, o que aconteceu E como desfazer.
+    public static TextoDoAviso ParceiroIncluido(string quem) =>
+        new("Te colocaram numa dupla 🥊",
+            $"{quem} criou um desafio com você, e ele já está no mural. "
+            + "Se não quiser, é só abrir os Desafios e remover.");
+
+    // ⚠️ DOIS TEXTOS, e não um: quem cancela pode ser o parceiro SAINDO ou quem criou
+    // DESISTINDO, e as duas coisas soam muito diferentes pra quem lê. Na primeira conferência
+    // saiu "Rafael não quis participar da dupla" sobre o próprio dono do anúncio.
+    public static TextoDoAviso ParceiroSaiuDaDupla(string quem) =>
+        new("Seu desafio saiu do mural",
+            $"{quem} preferiu não participar da dupla, então o desafio foi removido.");
+
+    public static TextoDoAviso CriadorRemoveuODesafio(string quem) =>
+        new("O desafio de vocês saiu do mural",
+            $"{quem} removeu o desafio. Nenhum jogo já marcado foi desmarcado.");
+
     // ── O cinturão ────────────────────────────────────────────────────────────────────
     //
     // Os quatro primeiros são bilhetes sociais (AppSemEmail): bons de ver, ninguém age por causa

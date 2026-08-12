@@ -59,11 +59,18 @@ public class DesafiosController : Controller
         var meuId = MeuId();
         var catalogoDeCidades = await _context.Cidades.ToListAsync();
 
+        // ⚠️ `a.ValeAte == null ||` NÃO PODE FALTAR. Desde que a coluna virou nulável ("até
+        // alguém aceitar"), `a.ValeAte >= agora` sozinho é FALSO pro anúncio sem prazo — e o
+        // defeito seria mudo: o anúncio existiria, publicado, e simplesmente não apareceria no
+        // mural pra ninguém. Vale pra toda consulta que pergunta "ainda está de pé?".
         var anuncios = await AnunciosComTudo()
             .Where(a => a.Status == AnuncioDeDesafio.Publicado
                 && a.Jogador2Id != null
-                && a.ValeAte >= agora)
-            .OrderBy(a => a.ValeAte)
+                && (a.ValeAte == null || a.ValeAte >= agora))
+            // Sem prazo vai pro fim da lista: quem marcou uma semana tem urgência, e é essa
+            // dupla que precisa ser vista antes de o prazo dela passar.
+            .OrderBy(a => a.ValeAte == null)
+            .ThenBy(a => a.ValeAte)
             .ThenByDescending(a => a.CriadoEm)
             .ToListAsync();
 
@@ -115,6 +122,7 @@ public class DesafiosController : Controller
             CidadesSemRepetir.Agrupar(catalogoDeCidades),
             categoria,
             cidade,
+            meuId,
             _porta.EmConstrucao);
 
         return View(vm);
@@ -142,7 +150,7 @@ public class DesafiosController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Publicar(int[] categorias, int[] cidades, int[] clubes,
-        string? observacao, bool proximaSemana)
+        string? observacao, string prazo, int? parceiroId)
     {
         if (!await PortaAbertaAsync()) return NotFound();
 
@@ -155,15 +163,32 @@ public class DesafiosController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // O parceiro escolhido direto na tela. Null = ninguém escolhido, e a dupla vai fechar
+        // pelo link (o caminho antigo, que continua valendo pra quem não sabe o nome de quem
+        // vai jogar ainda).
+        var parceiro = await ParceiroEscolhidoAsync(parceiroId, meuId);
+        if (parceiroId is > 0 && parceiro == null)
+        {
+            TempData["Erro"] = "Não deu pra incluir essa pessoa como parceiro. "
+                + "Ela pode ter desligado os convites de jogo — nesse caso, mande o link.";
+            return RedirectToAction(nameof(Publicar));
+        }
+
         var anuncio = new AnuncioDeDesafio
         {
             Jogador1Id = meuId,
-            // ⚠️ Nasce SEM parceiro e em rascunho: o anúncio precisa dos dois. Sem isso eu
-            // anuncio o Lucas pra sábado às 8h e ele descobre por um push de desafio JÁ ACEITO.
-            Jogador2Id = null,
-            ConviteToken = ConviteDoAnuncio.NovoToken(),
-            Status = AnuncioDeDesafio.Rascunho,
-            ValeAte = proximaSemana ? SemanaDoDesafio.FimDaSemanaSeguinte(agora) : SemanaDoDesafio.FimDaSemanaDe(agora),
+            // ⚠️ DOIS CAMINHOS PRA FECHAR A DUPLA (decisão do Felipe, 12/08/2026):
+            //
+            //  · PARCEIRO ESCOLHIDO na tela → o anúncio já nasce PUBLICADO, sem pedir licença.
+            //    `ParceiroConfirmouEm` fica nulo, e é isso que a tela usa pra dizer aos dois
+            //    lados o que está pendente. O parceiro é AVISADO na hora e pode remover.
+            //  · NINGUÉM ESCOLHIDO → nasce Rascunho com token, e só vai pro mural quando o
+            //    parceiro aceitar pelo link.
+            Jogador2Id = parceiro?.Id,
+            ParceiroConfirmouEm = null,
+            ConviteToken = parceiro == null ? ConviteDoAnuncio.NovoToken() : null,
+            Status = parceiro == null ? AnuncioDeDesafio.Rascunho : AnuncioDeDesafio.Publicado,
+            ValeAte = PrazoEscolhido(prazo, agora),
             Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim(),
             CriadoEm = agora
         };
@@ -178,10 +203,55 @@ public class DesafiosController : Controller
         _context.AnunciosDeDesafio.Add(anuncio);
         await _context.SaveChangesAsync();
 
-        TempData["Sucesso"] = "Anúncio criado! Agora mande o link pro seu parceiro confirmar — "
-            + "só depois disso ele vai pro mural.";
+        if (parceiro == null)
+        {
+            TempData["Sucesso"] = "Desafio criado! Agora mande o link pro seu parceiro confirmar — "
+                + "só depois disso ele vai pro mural.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ⚠️ O AVISO NÃO É CORTESIA AQUI: é o que dá sentido a "o parceiro pode remover". A
+        // pessoa foi posta num anúncio público que diz a categoria, os clubes e a semana em que
+        // ela vai jogar — descobrir isso por acaso, dias depois, seria a mesma coisa que não
+        // poder remover. Por isso vai no WhatsApp: é pessoal, é acionável e perde valor amanhã.
+        var eu = await _context.Jogadores.FindAsync(meuId);
+        var aviso = AvisoDoDesafio.ParceiroIncluido(NomeBonito.ComApelido(eu?.Nome, eu?.Apelido));
+        await _push.EnviarParaJogadorAsync(parceiro.Id, aviso.Titulo, aviso.Corpo,
+            "/Desafios", AlcanceDoAviso.AppEWhatsApp);
+
+        // Sem gênero na frase: o nome não diz como a pessoa se trata.
+        TempData["Sucesso"] = $"Desafio criado com {NomeBonito.Curto(parceiro.Nome)}! "
+            + "Já está no mural — avisamos, e quem não quiser participar pode sair da dupla.";
         return RedirectToAction(nameof(Index));
     }
+
+    // Quem pode ser posto numa dupla sem ter pedido.
+    //
+    // ⚠️ `AceitaConvitesJogo` é respeitado, e não é regra nova: é o MESMO interruptor que já
+    // decide quem entra na lista de convite do MarcarJogo e do Grupo. Quem desligou disse que
+    // não quer ser puxado pra jogo por outra pessoa — e escolher essa gente direto seria usar a
+    // porta que ela fechou. Pra ela, sobra o link, que ela aceita se quiser.
+    //
+    // Conta excluída (LGPD) também não entra: é o filtro que o BuscaJogador já aplica.
+    private async Task<Jogador?> ParceiroEscolhidoAsync(int? parceiroId, int meuId)
+    {
+        if (parceiroId is not > 0 || parceiroId == meuId) return null;
+
+        return await _context.Jogadores
+            .FirstOrDefaultAsync(j => j.Id == parceiroId
+                && j.ExcluidoEm == null
+                && j.AceitaConvitesJogo);
+    }
+
+    // "Esta semana" | "Semana que vem" | "Até alguém aceitar" (nulo = não vence no relógio).
+    // Escolha desconhecida cai na semana atual, que é o padrão de menor surpresa: um anúncio
+    // que vence sozinho no domingo, e não um que fica no mural pra sempre.
+    private static DateTime? PrazoEscolhido(string? prazo, DateTime agora) => prazo switch
+    {
+        PrazoDoAnuncio.ProximaSemana => SemanaDoDesafio.FimDaSemanaSeguinte(agora),
+        PrazoDoAnuncio.AteAlguemAceitar => null,
+        _ => SemanaDoDesafio.FimDaSemanaDe(agora),
+    };
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -194,13 +264,58 @@ public class DesafiosController : Controller
         if (anuncio == null) return NotFound();
         if (anuncio.Jogador1Id != meuId && anuncio.Jogador2Id != meuId) return Forbid();
 
+        var souOParceiroNaoConfirmado = anuncio.Jogador2Id == meuId && anuncio.ParceiroConfirmouEm == null;
+
         anuncio.Status = AnuncioDeDesafio.Cancelado;
         anuncio.ConviteToken = null;
         await _context.SaveChangesAsync();
 
+        // O outro lado da dupla precisa saber que o anúncio saiu do ar — ainda mais quando quem
+        // removeu foi o parceiro que nunca pediu pra entrar. Sem o aviso, quem publicou
+        // continuaria esperando desafio de um anúncio que já não existe.
+        var souOCriador = anuncio.Jogador1Id == meuId;
+        var outro = souOCriador ? anuncio.Jogador2Id : anuncio.Jogador1Id;
+        if (outro != null)
+        {
+            var eu = await _context.Jogadores.FindAsync(meuId);
+            var nome = NomeBonito.ComApelido(eu?.Nome, eu?.Apelido);
+            // O texto muda conforme quem saiu: "não quis participar da dupla" sobre o dono do
+            // anúncio seria uma frase sem sentido pra quem a recebe.
+            var aviso = souOCriador
+                ? AvisoDoDesafio.CriadorRemoveuODesafio(nome)
+                : AvisoDoDesafio.ParceiroSaiuDaDupla(nome);
+
+            await _push.EnviarParaJogadorAsync(outro.Value, aviso.Titulo, aviso.Corpo,
+                "/Desafios", AlcanceDoAviso.SoApp);
+        }
+
         // ⚠️ Nada de desafio morre junto. O anúncio some do mural; o jogo já combinado é
         // compromisso entre quatro pessoas e sobrevive (Desafio.AnuncioDeDesafioId é SetNull).
-        TempData["Sucesso"] = "Anúncio cancelado. Os desafios que você já aceitou continuam de pé.";
+        TempData["Sucesso"] = souOParceiroNaoConfirmado
+            ? "Pronto, você saiu da dupla e o desafio saiu do mural."
+            : "Desafio removido. Os jogos que você já aceitou continuam de pé.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // O parceiro que foi ESCOLHIDO na tela dizendo "tudo certo". Não destrava nada — o anúncio
+    // já está no mural —, mas encerra a cobrança nas duas telas e registra que ele topou.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmarParceria(int id)
+    {
+        if (!await PortaAbertaAsync()) return NotFound();
+
+        var meuId = MeuId();
+        var anuncio = await _context.AnunciosDeDesafio.FirstOrDefaultAsync(a => a.Id == id);
+        if (anuncio == null) return NotFound();
+
+        // Só o parceiro confirma, e só uma vez.
+        if (anuncio.Jogador2Id != meuId || anuncio.ParceiroConfirmouEm != null) return Forbid();
+
+        anuncio.ParceiroConfirmouEm = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        TempData["Sucesso"] = "Confirmado! Bom jogo.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -254,6 +369,8 @@ public class DesafiosController : Controller
         }
 
         anuncio!.Jogador2Id = meuId;
+        // Quem entra pelo LINK disse sim de verdade — diferente de quem foi escolhido na tela.
+        anuncio.ParceiroConfirmouEm = agora;
         anuncio.Status = AnuncioDeDesafio.Publicado;
         // Link usado não fecha uma segunda dupla.
         anuncio.ConviteToken = null;
@@ -310,7 +427,8 @@ public class DesafiosController : Controller
             categorias,
             await ClubesPossiveisAsync(meu, alvo),
             DuplaNaTela.Nome(alvo.Jogador1, alvo.Jogador2),
-            QuandoSugerido(agora)));
+            QuandoSugerido(agora),
+            SemanaDoDesafio.LimiteParaJogar(meu, alvo, agora)));
     }
 
     [HttpPost]
@@ -348,7 +466,9 @@ public class DesafiosController : Controller
 
         // O jogo tem que caber na semana que as DUAS duplas anunciaram — desafiar pra daqui a
         // três meses não é desafio da semana, é agenda.
-        var limite = meu.ValeAte < alvo.ValeAte ? meu.ValeAte : alvo.ValeAte;
+        // O menor prazo entre os dois anúncios — e o teto de 30 dias quando nenhum tem prazo
+        // ("até alguém aceitar" não é "aceito jogar em abril"). Ver SemanaDoDesafio.
+        var limite = SemanaDoDesafio.LimiteParaJogar(meu, alvo, agora);
         if (dataHora <= agora || dataHora > limite)
         {
             TempData["Erro"] = $"Escolha um horário entre agora e {limite:dd/MM 'às' HH'h'mm} — "
@@ -456,6 +576,15 @@ public class DesafiosController : Controller
 
         desafio.Status = aceitar ? Desafio.Aceito : Desafio.Recusado;
         desafio.RespondidoEm = agora;
+
+        // ⚠️ O anúncio SEM PRAZO ("até alguém aceitar") não vence no relógio — quem o tira do
+        // mural é este aceite. Sem isto ele ficaria lá pra sempre, e o mural viraria uma lista
+        // de duplas que já arrumaram jogo.
+        //
+        // Só o do LADO DESAFIADO: o anúncio de quem desafiou continua valendo, porque a condição
+        // que ele escreveu ("até alguém aceitar o MEU") não aconteceu.
+        if (aceitar) await FecharAnuncioSemPrazoAsync(desafio.AnuncioDeDesafioId);
+
         await _context.SaveChangesAsync();
 
         var minhaDupla = DuplaNaTela.Nome(desafio.DesafiadoJogador1, desafio.DesafiadoJogador2);
@@ -673,10 +802,13 @@ public class DesafiosController : Controller
             ? new[] { AnuncioDeDesafio.Publicado, AnuncioDeDesafio.Rascunho }
             : new[] { AnuncioDeDesafio.Publicado };
 
+        // ⚠️ Mesma armadilha do mural: sem o `== null`, o anúncio "até alguém aceitar" não seria
+        // encontrado — e a pessoa poderia publicar um segundo, além de não conseguir desafiar
+        // ninguém (é este método que dá a identidade da dupla desafiante).
         return await AnunciosComTudo()
             .Where(a => (a.Jogador1Id == meuId || a.Jogador2Id == meuId)
                 && statusQueValem.Contains(a.Status)
-                && a.ValeAte >= agora)
+                && (a.ValeAte == null || a.ValeAte >= agora))
             .OrderByDescending(a => a.CriadoEm)
             .FirstOrDefaultAsync();
     }
@@ -769,6 +901,19 @@ public class DesafiosController : Controller
         }
     }
 
+    // O anúncio "até alguém aceitar" achou jogo e sai do mural. Anúncio com data segue como
+    // estava: a dupla escolheu ficar disponível a semana toda, e pode jogar mais de uma vez.
+    private async Task FecharAnuncioSemPrazoAsync(int? anuncioId)
+    {
+        if (anuncioId == null) return;
+
+        var anuncio = await _context.AnunciosDeDesafio.FindAsync(anuncioId.Value);
+        if (anuncio == null || !SemanaDoDesafio.SemPrazo(anuncio)) return;
+        if (anuncio.Status != AnuncioDeDesafio.Publicado) return;
+
+        anuncio.Status = AnuncioDeDesafio.Fechado;
+    }
+
     // Quais categorias cada dupla tem na mão hoje, pra o cartão do mural mostrar o selo.
     private async Task<Dictionary<string, List<string>>> CinturoesPorDuplaAsync()
     {
@@ -835,8 +980,22 @@ public class DesafiosController : Controller
             await _context.JogadorClubes.Where(x => x.JogadorId == meuId)
                 .Select(x => x.ClubeId).ToListAsync(),
             SemanaDoDesafio.FimDaSemanaSugerido(agora),
-            SemanaDoDesafio.SemanaJaEstaAcabando(agora));
+            SemanaDoDesafio.SemanaJaEstaAcabando(agora),
+            await ParceirosPossiveisAsync(meuId));
     }
+
+    // Quem pode ser escolhido como parceiro na tela.
+    //
+    // ⚠️ O filtro é o MESMO `AceitaConvitesJogo` que o Marcar Jogo e o Grupo já usam pra montar
+    // lista de convite. Quem desligou disse que não quer ser puxado pra jogo por outra pessoa —
+    // e colocá-lo numa dupla sem pedir seria entrar pela porta que ele fechou. Pra ele, sobra o
+    // link. Conta excluída também fica de fora, pela régua do BuscaJogador.
+    private async Task<List<Jogador>> ParceirosPossiveisAsync(int meuId) =>
+        await _context.Jogadores
+            .AsNoTracking()
+            .Where(j => j.Id != meuId && j.ExcluidoEm == null && j.AceitaConvitesJogo)
+            .OrderBy(j => j.Nome)
+            .ToListAsync();
 
     // Sugestão de horário: amanhã às 20h, que é quando o padel amador acontece. Serve pra o
     // campo não nascer vazio — a pessoa muda em dois toques.

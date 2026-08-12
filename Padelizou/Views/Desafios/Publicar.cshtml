@@ -26,16 +26,34 @@
                     </div>
                 }
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="proximaSemana" value="false"
+                    <input class="form-check-input" type="radio" name="prazo" value="@PrazoDoAnuncio.EstaSemana"
                            id="semanaAtual" checked="@(!Model.SemanaAcabando)" />
-                    <label class="form-check-label" for="semanaAtual">Esta semana</label>
+                    <label class="form-check-label" for="semanaAtual">
+                        Esta semana
+                        <span class="d-block small text-muted">Sai do mural sozinho no domingo, 23h59.</span>
+                    </label>
                 </div>
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="proximaSemana" value="true"
+                    <input class="form-check-input" type="radio" name="prazo" value="@PrazoDoAnuncio.ProximaSemana"
                            id="semanaProxima" checked="@Model.SemanaAcabando" />
-                    <label class="form-check-label" for="semanaProxima">Semana que vem</label>
+                    <label class="form-check-label" for="semanaProxima">
+                        Semana que vem
+                        <span class="d-block small text-muted">Sai no domingo seguinte.</span>
+                    </label>
                 </div>
-                <div class="form-text">O anúncio sai do mural sozinho no domingo, 23h59.</div>
+                <div class="form-check">
+                    @* A semana é um prazo bom pra quem tem agenda e péssimo pra quem só quer
+                       jogar quando aparecer alguém — essa pessoa republicaria o mesmo anúncio
+                       todo domingo, ou desistiria na segunda vez. *@
+                    <input class="form-check-input" type="radio" name="prazo" value="@PrazoDoAnuncio.AteAlguemAceitar"
+                           id="semanaAberta" />
+                    <label class="form-check-label" for="semanaAberta">
+                        Deixar até alguém aceitar
+                        <span class="d-block small text-muted">
+                            Fica no mural sem prazo. Sai quando você aceitar um desafio.
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -116,15 +134,32 @@
                           maxlength="300" placeholder="Ex.: preferência por quadra coberta, topamos jogar cedo"></textarea>
             </div>
 
+            <div class="mb-4">
+                <label class="form-label fw-bold" for="parceiroId">Seu parceiro</label>
+                <div class="form-text mb-2">
+                    Escolha quem vai jogar com você e o desafio já vai pro mural. Ele é avisado na
+                    hora e pode sair se não quiser.
+                </div>
+                <select class="form-select rounded-pill" name="parceiroId" id="parceiroId">
+                    <option value="">Ainda não sei — quero mandar um link</option>
+                    @foreach (var p in Model.ParceirosPossiveis)
+                    {
+                        <option value="@p.Id">@Padelizou.Services.NomeBonito.ComApelido(p.Nome, p.Apelido)</option>
+                    }
+                </select>
+                @* Quem desligou "aceito convites de jogo" não aparece nesta lista: é o mesmo
+                   interruptor que já filtra o convite do Marcar Jogo e do Grupo. Pra essa
+                   pessoa, sobra o link — que ela aceita se quiser. *@
+            </div>
+
             <div class="alert alert-light border rounded-4 small">
                 <i class="bi bi-people-fill"></i>
-                <strong>O anúncio precisa dos dois.</strong> Depois de publicar você recebe um link
-                pra mandar ao seu parceiro. Só quando ele confirmar é que vocês aparecem no mural —
-                ninguém entra numa dupla sem saber.
+                <strong>Sem parceiro escolhido, o desafio espera.</strong> Você recebe um link pra
+                mandar pra ele, e vocês só aparecem no mural quando ele confirmar.
             </div>
 
             <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
-                <i class="bi bi-megaphone"></i> Publicar e gerar o link
+                <i class="bi bi-megaphone"></i> Criar desafio
             </button>
         </div>
     </form>

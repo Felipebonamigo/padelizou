@@ -43,7 +43,7 @@
             @if (Model.MeuAnuncio == null)
             {
                 <a asp-action="Publicar" class="btn btn-padel rounded-pill fw-bold">
-                    <i class="bi bi-megaphone"></i> Criar meu desafio
+                    🥊 Criar meu desafio
                 </a>
             }
         </div>
@@ -53,6 +53,11 @@
     {
         var meu = Model.MeuAnuncio;
         var fechado = meu.Jogador2Id != null;
+        @* Fui EU que fui escolhido, e ainda não disse nada. É o estado que a regra de 12/08/2026
+           criou: dá pra montar a dupla sem pedir licença, e o que a torna aceitável é este
+           bloco — saber que aconteceu, e poder sair num clique. *@
+        var souParceiroNaoConfirmado = meu.Jogador2Id == Model.MeuId && meu.ParceiroConfirmouEm == null;
+        var meuParceiroNaoConfirmou = meu.Jogador1Id == Model.MeuId && fechado && meu.ParceiroConfirmouEm == null;
 
         <div class="card border-0 shadow-sm rounded-4 mb-4" style="border-left: 5px solid var(--padel-green) !important;">
             <div class="card-body">
@@ -68,16 +73,48 @@
                         </div>
                     </div>
                     <form asp-action="CancelarAnuncio" method="post"
-                          data-confirmar="Seu anúncio sai do mural. Os desafios que você já aceitou continuam de pé."
-                          data-confirmar-titulo="Cancelar o anúncio?"
-                          data-confirmar-ok="Cancelar anúncio"
+                          data-confirmar="@(souParceiroNaoConfirmado
+                              ? "O desafio sai do mural e você não fica na dupla."
+                              : "Seu desafio sai do mural. Os jogos que você já aceitou continuam de pé.")"
+                          data-confirmar-titulo="@(souParceiroNaoConfirmado ? "Sair da dupla?" : "Remover o desafio?")"
+                          data-confirmar-ok="@(souParceiroNaoConfirmado ? "Sair da dupla" : "Remover")"
                           data-confirmar-tom="perigo">
                         <input type="hidden" name="id" value="@meu.Id" />
                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
-                            <i class="bi bi-x-circle"></i> Cancelar
+                            <i class="bi bi-x-circle"></i> @(souParceiroNaoConfirmado ? "Sair da dupla" : "Remover")
                         </button>
                     </form>
                 </div>
+
+                @if (souParceiroNaoConfirmado)
+                {
+                    @* ⚠️ ESTE BLOCO É O QUE SUSTENTA A REGRA de montar dupla sem pedir licença.
+                       O anúncio é público e diz a categoria, os clubes e a semana em que esta
+                       pessoa vai jogar — "poder sair" só vale se ela vir a porta. *@
+                    <div class="alert alert-warning mt-3 mb-0 rounded-4">
+                        <strong>@NomeBonito.Curto(meu.Jogador1.Nome) criou este desafio com você.</strong>
+                        <div class="small mb-2">
+                            Ele já está no mural. Se estiver tudo certo, confirme — se não quiser,
+                            é só sair da dupla que ele sai do ar.
+                        </div>
+                        <form asp-action="ConfirmarParceria" method="post">
+                            <input type="hidden" name="id" value="@meu.Id" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill fw-bold">
+                                <i class="bi bi-check-lg"></i> Confirmar, tô dentro
+                            </button>
+                        </form>
+                    </div>
+                }
+                else if (meuParceiroNaoConfirmou)
+                {
+                    @* Sem gênero na frase de propósito: o nome não diz como a pessoa se trata, e
+                       o sistema não vai adivinhar pelo primeiro nome. *@
+                    <div class="alert alert-light border mt-3 mb-0 rounded-4 small">
+                        <i class="bi bi-hourglass-split"></i>
+                        Já está no mural. Avisamos @NomeBonito.Curto(meu.Jogador2!.Nome), que ainda
+                        não confirmou — e pode sair da dupla se não quiser.
+                    </div>
+                }
 
                 @if (!fechado)
                 {
@@ -222,7 +259,7 @@
                     <p class="text-muted mb-1">Nenhuma dupla aberta por aqui nesta semana.</p>
                     <p class="text-muted small mb-3">Seja o primeiro: crie o desafio da sua dupla e mande o link no grupo.</p>
                     <a asp-action="Publicar" class="btn btn-padel rounded-pill px-4 fw-bold">
-                        <i class="bi bi-megaphone"></i> Criar meu desafio
+                        🥊 Criar meu desafio
                     </a>
                 </div>
             </div>

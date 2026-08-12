@@ -30,7 +30,7 @@ public static class ConviteDoAnuncio
     {
         if (anuncio == null) return false;
         if (anuncio.Jogador2Id != null) return false;
-        if (anuncio.Status == AnuncioDeDesafio.Cancelado) return false;
+        if (anuncio.Status is AnuncioDeDesafio.Cancelado or AnuncioDeDesafio.Fechado) return false;
         if (SemanaDoDesafio.Vencido(anuncio, agora)) return false;
 
         return ConviteDeParceiro.TokenConfere(anuncio.ConviteToken, token);
@@ -44,6 +44,7 @@ public static class ConviteDoAnuncio
         if (anuncio == null) return "Esse convite não existe mais.";
         if (anuncio.Jogador2Id != null) return "Essa dupla já está fechada — alguém aceitou antes.";
         if (anuncio.Status == AnuncioDeDesafio.Cancelado) return "Quem te convidou cancelou o anúncio.";
+        if (anuncio.Status == AnuncioDeDesafio.Fechado) return "Essa dupla já marcou o jogo dela.";
         if (SemanaDoDesafio.Vencido(anuncio, agora)) return "A semana desse anúncio já passou. Peça um link novo.";
         return "Esse convite não vale mais. Peça um link novo pra quem te chamou.";
     }
