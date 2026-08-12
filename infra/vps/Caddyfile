@@ -74,9 +74,23 @@ padelizou.com.br, admin.padelizou.com.br {
 	# tipo de arquivo (upload malicioso servido como script), SAMEORIGIN impede que
 	# outro site embuta o Padelizou num iframe (clickjacking), e a Referrer-Policy
 	# evita vazar a URL completa de origem pra sites de fora.
+	#
+	# ⚠️ O `>` do X-Frame-Options NÃO é enfeite (12/08/2026): sem ele o cabeçalho saía
+	# DUPLICADO, e a causa não era o Caddy nem código nosso — é o **ASP.NET Core**. O
+	# `DefaultAntiforgery` acrescenta `X-Frame-Options: SAMEORIGIN` sozinho toda vez que
+	# EMITE o cookie de token, e com o CSRF global toda view emite. `header Nome valor`
+	# faz "set" do que o Caddy escreve, mas convive com o que veio do upstream; o prefixo
+	# `>` substitui inclusive o do upstream. A RFC 7034 diz que servidor não deve mandar
+	# mais de um (navegador pode ignorar os dois quando divergem).
+	#
+	# 🔎 Como provar em 20 segundos, se alguém duvidar: a 1ª requisição sem cookie traz
+	# `Set-Cookie: .AspNetCore.Antiforgery...` **e** o cabeçalho; mandando o cookie de
+	# volta, os dois somem. Procurar a string no nosso código ou com `strings` no
+	# `Padelizou.dll` dá ZERO — ela mora no `Microsoft.AspNetCore.Antiforgery.dll`, que
+	# fica em `/usr/share/dotnet/shared/` porque o publish é framework-dependent.
 	header {
 		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
+		>X-Frame-Options SAMEORIGIN
 		Referrer-Policy strict-origin-when-cross-origin
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
 	}
@@ -97,7 +111,7 @@ dev.padelizou.com.br {
 	# Mesmos cabeçalhos de segurança da produção — dev igual a prod evita surpresa.
 	header {
 		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
+		>X-Frame-Options SAMEORIGIN
 		Referrer-Policy strict-origin-when-cross-origin
 		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
 	}
