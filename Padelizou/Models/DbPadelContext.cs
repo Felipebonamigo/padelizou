@@ -55,6 +55,8 @@ public partial class DbPadelContext : DbContext
     public DbSet<MensalidadeGrupo> MensalidadesGrupo { get; set; }
     public DbSet<PalpitePartida> PalpitesPartida { get; set; }
     public DbSet<Quadra> Quadras { get; set; }
+    // Qual quadra cada categoria prefere. Ver Models/QuadraDaCategoria.
+    public DbSet<QuadraDaCategoria> QuadrasDaCategoria { get; set; }
     public DbSet<InscricaoAmericana> InscricoesAmericanas { get; set; }
     public DbSet<PushSubscriptionJogador> PushSubscriptionsJogador { get; set; }
     public DbSet<ClubeAdministrador> ClubeAdministradores { get; set; }
@@ -838,6 +840,30 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(d => d.TorneioId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Categoria__Torne__5165187F");
+        });
+
+        // A quadra preferida de cada categoria. Chave composta: a linha É o par, e um Id
+        // próprio só daria margem a gravar a mesma escolha duas vezes.
+        //
+        // Cascade nas duas pontas de propósito, e aqui isso é seguro: são dois caminhos até o
+        // Torneio (por Categoria e por Quadra), o que o SQL Server recusaria — mas o banco é
+        // Postgres, que resolve os dois. E é o comportamento certo: preferência não tem vida
+        // própria. Quadra apagada na edição (o organizador baixou de 5 pra 3) leva junto as
+        // escolhas que apontavam pra ela, senão a grade tentaria mandar jogo pra uma quadra
+        // que não existe mais.
+        modelBuilder.Entity<QuadraDaCategoria>(entity =>
+        {
+            entity.HasKey(e => new { e.CategoriaId, e.QuadraId });
+
+            entity.HasOne(e => e.Categoria)
+                .WithMany()
+                .HasForeignKey(e => e.CategoriaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Quadra)
+                .WithMany()
+                .HasForeignKey(e => e.QuadraId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Dupla>(entity =>

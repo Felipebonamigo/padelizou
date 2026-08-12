@@ -255,7 +255,8 @@ namespace Padelizou.Controllers
 
                 GradeDeJogos.Encaixar(jogos, horarios,
                     RoboDoChaveamento.OcupantesPorDupla(torneio),
-                    await QuadrasDoTorneioAsync(torneio.Id));
+                    await QuadrasDoTorneioAsync(torneio.Id),
+                    quadrasPorCategoria: await QuadrasPreferidasAsync(torneio.Id));
             }
 
             _context.Partidas.AddRange(jogos);

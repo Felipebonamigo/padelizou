@@ -471,8 +471,13 @@ public class RoboDoChaveamento
         // Encaixe ciente de conflito: semifinais de chaves diferentes podem dividir o horário,
         // mas a mesma PESSOA nunca joga em duas quadras ao mesmo tempo — vale pra quem chegou
         // longe na categoria dele e na chave direta ao mesmo tempo.
+        //
+        // A preferência de quadra entra aqui também, e é justamente aqui que ela mais importa:
+        // as fases que este método agenda são a semi e a FINAL, que é o jogo que o organizador
+        // quer na quadra boa.
         GradeDeJogos.Encaixar(jogos, horarios, await OcupantesPorDuplaAsync(torneioId.Value),
-            await QuadrasEmUsoAsync(torneioId.Value), jaMarcados);
+            await QuadrasEmUsoAsync(torneioId.Value), jaMarcados,
+            await QuadrasPreferidasAsync(torneioId.Value));
     }
 
     // Os nomes das quadras do torneio, na ordem — é o que transforma "a definir" em "Quadra C"
@@ -484,6 +489,23 @@ public class RoboDoChaveamento
             .OrderBy(q => q.Nome)
             .Select(q => q.Nome)
             .ToListAsync();
+
+    // A quadra que cada categoria PREFERE, por nome — CategoriaId → nomes das quadras.
+    // Escolha do organizador (Models/QuadraDaCategoria); quem decide o que fazer com ela é
+    // Services/PreferenciaDeQuadra. Torneio sem escolha nenhuma devolve mapa vazio, e aí a
+    // grade se comporta exatamente como antes desta opção existir.
+    //
+    // ⚠️ Nome, e não Id, porque é assim que a grade fala (Partida.NomeQuadra é texto). A
+    // consequência: quadra RENOMEADA depois do sorteio deixa de casar com o nome que os jogos
+    // guardaram, e a preferência dela simplesmente não se aplica àquele horário — o mesmo
+    // desencontro que NomesDeQuadra descreve, e pelo mesmo motivo.
+    public async Task<Dictionary<int, string[]>> QuadrasPreferidasAsync(int torneioId) =>
+        (await _context.QuadrasDaCategoria
+            .Where(q => q.Quadra.TorneioId == torneioId)
+            .Select(q => new { q.CategoriaId, q.Quadra.Nome })
+            .ToListAsync())
+        .GroupBy(q => q.CategoriaId)
+        .ToDictionary(g => g.Key, g => g.Select(q => q.Nome).ToArray());
 
     // As quadras que o torneio está DE FATO usando: as que já estão escritas nos jogos
     // marcados, completadas pelo cadastro quando faltam nomes pra encher a grade.

@@ -1908,6 +1908,45 @@
                                     <label class="form-label fw-bold small">Nome de cada Quadra</label>
                                     <div id="editCamposNomesQuadras" class="row g-2" data-nomes-atuais='@Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewBag.Quadras as List<Padelizou.Models.Quadra>)?.Select(q => q.Nome) ?? Enumerable.Empty<string>()))'></div>
                                 </div>
+
+                                @* ── QUADRA PREFERENCIAL POR CATEGORIA ──────────────────
+                                   A mesma escolha da criação, editável depois — que é quando
+                                   ela costuma aparecer: o clube libera a central só no
+                                   domingo, entrou uma categoria nova, a final mudou de lugar.
+
+                                   Recolhida, como lá: a maioria dos torneios não usa isso, e
+                                   uma tabela de categorias × quadras aberta no meio do
+                                   formulário de gestão atrapalharia todos eles.
+
+                                   As colunas saem dos campos de nome ali de cima, e não do
+                                   banco: a quadra marcada aqui pode ser uma que ainda vai
+                                   nascer neste mesmo salvamento (subiu de 3 pra 5). Por isso
+                                   o valor da caixinha é a POSIÇÃO, traduzida em Id pelo
+                                   servidor depois de reconciliar as quadras (ver Editar). *@
+                                <div class="col-12">
+                                    <details class="p-3 rounded" style="background-color: var(--pdz-surface-alt);"
+                                             id="pdzEditPreferenciaQuadra"
+                                             data-marcadas='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.QuadrasPreferidas as List<string> ?? new List<string>()))'
+                                             data-categorias='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Categorias.OrderBy(c => c.Id).Select(c => new { id = c.Id, nome = c.Nome })))'>
+                                        <summary class="fw-bold small" style="color: var(--pdz-ink); cursor: pointer;">
+                                            <i class="bi bi-star-fill"></i> Quadra preferencial por categoria
+                                            <span class="text-muted fw-normal">— opcional</span>
+                                        </summary>
+                                        <p class="small text-muted mt-2 mb-2">
+                                            Os jogos da categoria vão pra quadra marcada primeiro. As outras
+                                            categorias só ocupam essa quadra quando não sobrar nenhuma outra livre
+                                            no horário — segurar quadra vazia atrasaria o torneio inteiro.
+                                            <strong>Vale a partir do próximo sorteio</strong> (ou do "refazer grade"):
+                                            jogo que já tem quadra não muda de lugar sozinho.
+                                        </p>
+                                        <div id="pdzEditPreferenciaQuadraTabela" class="table-responsive"></div>
+                                        @* Caixa desmarcada não vai no POST — então "desmarquei
+                                           todas" chega igualzinho a "esta aba é antiga e nem
+                                           tem esse campo". Sem esta marca, salvar a gestão numa
+                                           aba velha APAGARIA a preferência inteira, calado. É a
+                                           mesma armadilha do `dataFimInformada`. *@
+                                        <input type="hidden" name="quadrasPreferidasInformadas" value="true" />
+                                </div>
                                 @* Os mesmos campos da criação, editáveis depois: chave Pix
                                    trocada, data que escorregou e recado que mudou são coisas
                                    que acontecem com o torneio já publicado. *@
@@ -3489,9 +3528,65 @@
                     input.className = 'form-control form-control-sm';
                     input.placeholder = 'Quadra ' + String.fromCharCode(65 + i);
                     input.value = valores[i] || '';
+                    // Renomeou a quadra? A tabela de preferência tem que dizer o nome novo.
+                    input.addEventListener('input', montarPreferenciaQuadraEdicao);
                     col.appendChild(input);
                     container.appendChild(col);
                 }
+
+                montarPreferenciaQuadraEdicao();
+            }
+
+            // A tabela categorias × quadras da gestão. As categorias já existem (vêm com Id no
+            // data-categorias); as quadras saem dos campos de nome, pela POSIÇÃO — quem sobe a
+            // quantidade marca a preferência da quadra nova antes de ela existir.
+            function montarPreferenciaQuadraEdicao() {
+                var secao = document.getElementById('pdzEditPreferenciaQuadra');
+                var alvo = document.getElementById('pdzEditPreferenciaQuadraTabela');
+                if (!secao || !alvo) return;
+
+                // O que já está marcado: primeiro o que o organizador acabou de mexer na tela,
+                // e só na primeira montagem o que veio do banco.
+                var marcadas = {};
+                var naTela = alvo.querySelectorAll('input');
+                if (naTela.length > 0) {
+                    naTela.forEach(function (c) { if (c.checked) marcadas[c.value] = true; });
+                } else {
+                    JSON.parse(secao.getAttribute('data-marcadas') || '[]')
+                        .forEach(function (par) { marcadas[par] = true; });
+                }
+
+                var quadras = Array.from(document.querySelectorAll('#editCamposNomesQuadras input'))
+                    .map(function (i, pos) { return (i.value || '').trim() || i.placeholder || ('Quadra ' + (pos + 1)); });
+                var categorias = JSON.parse(secao.getAttribute('data-categorias') || '[]');
+
+                if (quadras.length === 0 || categorias.length === 0) {
+                    alvo.innerHTML = '<div class="small text-muted">Cadastre quadras e categorias pra escolher aqui.</div>';
+                    return;
+                }
+
+                function escapar(texto) {
+                    var caixa = document.createElement('span');
+                    caixa.textContent = texto;
+                    return caixa.innerHTML;
+                }
+
+                var html = '<table class="table table-sm align-middle mb-0"><thead><tr><th class="small">Categoria</th>';
+                quadras.forEach(function (nome) { html += '<th class="small text-center">' + escapar(nome) + '</th>'; });
+                html += '</tr></thead><tbody>';
+
+                categorias.forEach(function (cat) {
+                    html += '<tr><td class="small">' + escapar(cat.nome) + '</td>';
+                    quadras.forEach(function (nome, pos) {
+                        var valor = cat.id + ':' + pos;
+                        html += '<td class="text-center"><input class="form-check-input" type="checkbox" '
+                             + 'name="quadrasPreferidas" value="' + valor + '"'
+                             + (marcadas[valor] ? ' checked' : '') + ' title="' + escapar(nome) + '"></td>';
+                    });
+                    html += '</tr>';
+                });
+
+                alvo.innerHTML = html + '</tbody></table>';
             }
             gerarCamposQuadraEdicao();
     </script>

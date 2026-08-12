@@ -224,7 +224,11 @@ namespace Padelizou.Controllers
             int? quantidadeTimes = null, int? quantidadeGruposTimes = null, int? classificadosPorGrupoTimes = null,
             // Caixa marcada por padrão na tela. Vem como `true` aqui também porque aba aberta
             // antes deste deploy não manda o campo, e o comportamento de sempre é abrir.
-            bool abrirInscricoes = true)
+            bool abrirInscricoes = true,
+            // A quadra preferida de cada categoria, em pares "categoriaDoCatálogo:posiçãoDa
+            // Quadra" (ver Services/PreferenciaDeQuadra.Ler). Nulo = a seção ficou fechada,
+            // que é o caso da maioria — e aí a grade escolhe quadra como sempre escolheu.
+            string[]? quadrasPreferidas = null)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -461,13 +465,20 @@ namespace Padelizou.Controllers
 
             // Cria as quadras do torneio a partir da quantidade informada, usando o nome que o
             // organizador deu a cada uma (ou "Quadra A/B..." como fallback se deixou em branco).
+            //
+            // A lista guarda as quadras NA ORDEM em que o formulário as mostrou: é essa posição
+            // que a preferência por categoria usa pra apontar a quadra, porque na hora em que a
+            // caixinha foi marcada nenhuma delas tinha Id ainda.
             string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             int quantidadeQuadras = Math.Max(1, torneio.QuantidadeQuadras);
+            var quadrasCriadas = new List<Quadra>();
             for (int q = 0; q < quantidadeQuadras && q < alfabetoQuadras.Length; q++)
             {
                 string? nomeInformado = nomesQuadras != null && q < nomesQuadras.Length ? nomesQuadras[q]?.Trim() : null;
                 string nomeQuadra = string.IsNullOrWhiteSpace(nomeInformado) ? $"Quadra {alfabetoQuadras[q]}" : nomeInformado;
-                _context.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = nomeQuadra });
+                var quadraNova = new Quadra { TorneioId = torneio.Id, Nome = nomeQuadra };
+                _context.Quadras.Add(quadraNova);
+                quadrasCriadas.Add(quadraNova);
             }
             await _context.SaveChangesAsync();
 
@@ -499,6 +510,10 @@ namespace Padelizou.Controllers
             // Pega as categorias que o organizador marcou e salva na tabela Categoria do Torneio
             var semParNoRanking = new List<string>();
             int comParNoRanking = 0;
+            // Categoria do CATÁLOGO → a categoria que nasceu dela neste torneio. É por aqui que
+            // a preferência de quadra acha o Id novo: a caixinha marcada na tela conhece só o
+            // id do catálogo, porque a categoria do torneio ainda não existia.
+            var categoriasCriadas = new Dictionary<int, Categoria>();
             if (categoriasSelecionadas != null && categoriasSelecionadas.Length > 0)
             {
                 foreach (var catId in categoriasSelecionadas)
@@ -532,10 +547,33 @@ namespace Padelizou.Controllers
                         }
 
                         _context.Categorias.Add(novaCategoria);
+                        categoriasCriadas[catId] = novaCategoria;
                     }
                 }
                 await _context.SaveChangesAsync();
             }
+
+            // ── A quadra preferida de cada categoria ──────────────────────────────────────
+            // Só agora: as duas pontas precisavam ter Id, e a tela só sabia falar em "categoria
+            // do catálogo" e "a terceira quadra da lista". Par que não casa com nada (categoria
+            // que não foi marcada, quadra além das que existem) é ignorado calado — é POST
+            // desencontrado da tela, não escolha do organizador.
+            //
+            // A categoria de TIMES fica de fora aqui: ela não vem do catálogo e nasce sem par
+            // pra oferecer na tela de criação. A preferência dela se escolhe na gestão do
+            // torneio, onde toda categoria já existe com Id.
+            foreach (var (doCatalogo, posicaoDaQuadra) in PreferenciaDeQuadra.Ler(quadrasPreferidas))
+            {
+                if (!categoriasCriadas.TryGetValue(doCatalogo, out var categoria)) continue;
+                if (posicaoDaQuadra >= quadrasCriadas.Count) continue;
+
+                _context.QuadrasDaCategoria.Add(new QuadraDaCategoria
+                {
+                    CategoriaId = categoria.Id,
+                    QuadraId = quadrasCriadas[posicaoDaQuadra].Id,
+                });
+            }
+            await _context.SaveChangesAsync();
 
             // Categoria de times (validada lá em cima, antes de qualquer gravação). Os times
             // em si são cadastrados depois, na tela de times do torneio.
@@ -932,7 +970,13 @@ namespace Padelizou.Controllers
             // (0 = "não validar esta"). Par de arrays, e não dicionário, porque é o que o
             // binder do ASP.NET monta a partir de campos repetidos num formulário comum.
             bool validarPeloRankingRs = false,
-            int[]? rankingCategoriaId = null, int[]? rankingRsId = null)
+            int[]? rankingCategoriaId = null, int[]? rankingRsId = null,
+            // A quadra preferida de cada categoria, em pares "categoria:posiçãoDaQuadra" (ver
+            // Services/PreferenciaDeQuadra.Ler). O par com `quadrasPreferidasInformadas` existe
+            // pelo mesmo motivo do `dataFimInformada`: caixa desmarcada não vai no POST, então
+            // sem a marca "desmarquei todas" e "minha aba nem tem esse campo" chegariam iguais —
+            // e a segunda apagaria a escolha inteira, calada.
+            string[]? quadrasPreferidas = null, bool quadrasPreferidasInformadas = false)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
             if (!await EhOrganizadorAsync(id, jogadorId)) return Forbid();
@@ -1233,8 +1277,22 @@ namespace Padelizou.Controllers
                 else if (capaSalva.DeuErro) TempData["ErroImagem"] = capaSalva.Erro;
             }
 
-            // Reconcilia a lista de Quadras com a nova quantidade/nomes (por posição)
+            // A preferência de quadra antiga sai INTEIRA antes de mexer nas quadras, e é
+            // regravada logo abaixo a partir do que veio da tela. Regravar tudo (em vez de
+            // comparar e ajustar) é o que faz a tela ser a verdade — e é também o que limpa
+            // sozinha a escolha que apontava pra uma quadra que este mesmo salvamento remove.
+            if (quadrasPreferidasInformadas)
+            {
+                _context.QuadrasDaCategoria.RemoveRange(
+                    await _context.QuadrasDaCategoria.Where(q => q.Categoria.TorneioId == id).ToListAsync());
+            }
+
+            // Reconcilia a lista de Quadras com a nova quantidade/nomes (por posição).
+            // `quadrasPorPosicao` é essa mesma ordem, e é ela que traduz a caixinha marcada na
+            // tela ("a terceira quadra") na quadra de verdade — inclusive quando a terceira
+            // está nascendo agora.
             var quadrasAtuais = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+            var quadrasPorPosicao = new List<Quadra>();
             string alfabetoQuadras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             int quantidade = Math.Max(1, quantidadeQuadras);
             for (int i = 0; i < quantidade && i < alfabetoQuadras.Length; i++)
@@ -1244,10 +1302,13 @@ namespace Padelizou.Controllers
                 if (i < quadrasAtuais.Count)
                 {
                     quadrasAtuais[i].Nome = nomeQuadra;
+                    quadrasPorPosicao.Add(quadrasAtuais[i]);
                 }
                 else
                 {
-                    _context.Quadras.Add(new Quadra { TorneioId = id, Nome = nomeQuadra });
+                    var quadraNova = new Quadra { TorneioId = id, Nome = nomeQuadra };
+                    _context.Quadras.Add(quadraNova);
+                    quadrasPorPosicao.Add(quadraNova);
                 }
             }
             if (quadrasAtuais.Count > quantidade)
@@ -1256,6 +1317,32 @@ namespace Padelizou.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // Agora as quadras novas têm Id, e a preferência pode ser gravada.
+            //
+            // ⚠️ A categoria é conferida contra ESTE torneio: o valor vem do navegador, e sem a
+            // conferência um POST montado à mão gravaria preferência na categoria de outro
+            // organizador — que a grade dele obedeceria no sorteio seguinte.
+            if (quadrasPreferidasInformadas)
+            {
+                var categoriasDaqui = (await _context.Categorias
+                    .Where(c => c.TorneioId == id).Select(c => c.Id).ToListAsync()).ToHashSet();
+
+                foreach (var (categoriaId, posicaoDaQuadra) in PreferenciaDeQuadra.Ler(quadrasPreferidas))
+                {
+                    if (!categoriasDaqui.Contains(categoriaId)) continue;
+                    if (posicaoDaQuadra >= quadrasPorPosicao.Count) continue;
+
+                    _context.QuadrasDaCategoria.Add(new QuadraDaCategoria
+                    {
+                        CategoriaId = categoriaId,
+                        QuadraId = quadrasPorPosicao[posicaoDaQuadra].Id,
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
             TempData["Sucesso"] = "Dados do torneio atualizados!";
             return RedirectToAction("Details", new { id });
         }

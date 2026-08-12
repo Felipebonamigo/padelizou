@@ -120,10 +120,18 @@ public static class GradeDeJogos
     // marca a semifinal na Quadra A das 22h onde já existe um jogo, e chama pra duas quadras
     // quem estiver nos dois. Passando-os, uma rodada nova entra EMENDADA nas vagas livres em
     // vez de esperar tudo acabar — que era o preço de não saber o que já estava marcado.
+    // `quadrasPorCategoria` é a quadra que cada categoria PREFERE, escolhida pelo organizador
+    // (Models/QuadraDaCategoria). Sem ela — que é o caso da maioria dos torneios — nada muda:
+    // a quadra continua sendo a primeira livre do horário. Com ela, a regra dos três degraus
+    // de Services/PreferenciaDeQuadra decide, e é ela também que autoriza a ÚNICA quebra da
+    // ordem da fila que existe aqui: quando o primeiro jogo livre só caberia tomando a quadra
+    // reservada de outra categoria, quem entra na vaga é um jogo da categoria dona dela, se
+    // houver algum esperando.
     public static void Encaixar(List<Partida> jogos, IReadOnlyList<DateTime> horarios,
         IReadOnlyDictionary<int, int[]>? ocupantesPorDupla = null,
         IReadOnlyList<string>? quadras = null,
-        IReadOnlyList<Partida>? jaMarcados = null)
+        IReadOnlyList<Partida>? jaMarcados = null,
+        IReadOnlyDictionary<int, string[]>? quadrasPorCategoria = null)
     {
         int[] Ocupantes(int duplaId) =>
             ocupantesPorDupla != null && ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0
@@ -133,6 +141,12 @@ public static class GradeDeJogos
         var fila = new List<Partida>(jogos);
         var ocupados = new Dictionary<DateTime, HashSet<int>>();
         var ocupadasNoHorario = new Dictionary<DateTime, HashSet<string>>();
+
+        // A preferência de quadra, pronta pra ser consultada jogo a jogo. `comDono` é o que
+        // distingue quadra neutra de quadra que alguém pediu — ver PreferenciaDeQuadra.
+        var comDono = PreferenciaDeQuadra.ComDono(quadrasPorCategoria);
+        IReadOnlyList<string> Preferidas(Partida p) =>
+            PreferenciaDeQuadra.Da(quadrasPorCategoria, p.CategoriaId);
 
         foreach (var marcado in jaMarcados ?? Array.Empty<Partida>())
         {
@@ -178,24 +192,48 @@ public static class GradeDeJogos
                 jogo = fila[0];
             }
 
-            jogo.HorarioPrevisto = horario;
+            // As quadras ainda livres NESTE horário. Só interessam quando o torneio cadastrou
+            // quadra; sem cadastro a grade marca hora e não nomeia lugar, como sempre fez.
+            List<string> livresAgora = new();
+            HashSet<string>? nomes = null;
 
-            // A quadra é a PRIMEIRA LIVRE naquele horário: o primeiro jogo das 20h vai pra
-            // primeira quadra, o segundo pra segunda. Livre, e não a posição na fila, porque
-            // o horário pode já ter jogo marcado de outra fase — aí a primeira quadra está
-            // ocupada e contar posição daria o mesmo nome duas vezes. Torneio sem quadra
-            // cadastrada segue sem nome: inventar "Quadra 1" onde o clube chama de "Central"
-            // seria pior.
             if (quadras is { Count: > 0 })
             {
-                if (!ocupadasNoHorario.TryGetValue(horario, out var nomes))
+                if (!ocupadasNoHorario.TryGetValue(horario, out nomes))
                     ocupadasNoHorario[horario] = nomes = new HashSet<string>();
 
-                if (quadras.FirstOrDefault(q => !nomes.Contains(q)) is { } livre)
-                {
-                    jogo.NomeQuadra = livre;
-                    nomes.Add(livre);
-                }
+                livresAgora = quadras.Where(q => !nomes.Contains(q)).ToList();
+            }
+
+            // A ÚNICA quebra da ordem da fila que existe aqui, e só quando há preferência
+            // cadastrada: se o primeiro da fila só caberia tomando a quadra preferida de outra
+            // categoria, quem entra na vaga é um jogo da categoria DONA dela — se estiver
+            // esperando na fila. É o que faz a preferência valer sempre, e não por sorte.
+            //
+            // Nada disso empurra jogo pra fora: o preterido continua no topo da fila e pega a
+            // vaga seguinte, que é o mesmo horário na outra quadra ou o horário seguinte.
+            if (comDono.Count > 0 && livresAgora.Count > 0
+                && PreferenciaDeQuadra.TomariaQuadraDeOutro(
+                       PreferenciaDeQuadra.Escolher(livresAgora, Preferidas(jogo), comDono),
+                       Preferidas(jogo), comDono)
+                && fila.FirstOrDefault(p => Livre(p) && Preferidas(p).Any(livresAgora.Contains)) is { } dono)
+            {
+                jogo = dono;
+            }
+
+            jogo.HorarioPrevisto = horario;
+
+            // A quadra sai de PreferenciaDeQuadra: a preferida da categoria, senão uma neutra,
+            // senão a primeira livre — que é exatamente o comportamento antigo quando ninguém
+            // pediu quadra nenhuma. Livre, e não a posição na fila, porque o horário pode já
+            // ter jogo marcado de outra fase: aí a primeira quadra está ocupada e contar
+            // posição daria o mesmo nome duas vezes. Torneio sem quadra cadastrada segue sem
+            // nome: inventar "Quadra 1" onde o clube chama de "Central" seria pior.
+            if (nomes != null
+                && PreferenciaDeQuadra.Escolher(livresAgora, Preferidas(jogo), comDono) is { } livre)
+            {
+                jogo.NomeQuadra = livre;
+                nomes.Add(livre);
             }
 
             foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) quem.Add(pessoa);

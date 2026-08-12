@@ -1173,6 +1173,35 @@
                     </div>
                 </div>
 
+                @* ── QUADRA PREFERENCIAL POR CATEGORIA ──────────────────────────────────
+                   Todo clube tem A quadra: a do meio, a com arquibancada, a que tem câmera.
+                   É nela que o organizador quer a 1ª categoria — e até aqui quem jogava na
+                   melhor quadra era quem calhasse de estar antes na fila de jogos, porque a
+                   grade dava sempre a primeira livre do horário.
+
+                   RECOLHIDA de propósito, e não escondida atrás de um "avançado": a imensa
+                   maioria dos torneios não usa isso, e uma tabela de categorias × quadras
+                   aberta no meio do formulário mais longo do sistema atrapalharia todos eles.
+                   Quem precisa, abre — e a linha de resumo já diz o que tem lá dentro.
+
+                   Ela se monta ao ABRIR (e a cada mudança nas categorias e nas quadras),
+                   porque depende das duas: sem categoria marcada e sem quantidade de quadras
+                   não há tabela nenhuma pra desenhar. *@
+                <details class="card bg-light border-0 p-3 mb-2" id="pdzPreferenciaQuadra">
+                    <summary class="fw-bold" style="color: var(--pdz-ink); cursor: pointer;">
+                        <i class="bi bi-star-fill"></i> Quadra preferencial por categoria
+                        <span class="text-muted small fw-normal">— opcional: a quadra boa pras categorias mais altas</span>
+                    </summary>
+                    <p class="small text-muted mt-2 mb-2">
+                        Marque em que quadra cada categoria <strong>deve jogar de preferência</strong>.
+                        Os jogos dessa categoria vão pra lá primeiro, e as outras categorias só ocupam
+                        essa quadra quando não sobrar nenhuma outra livre no horário —
+                        <strong>quadra parada atrasaria o torneio inteiro</strong>. Deixe tudo em branco
+                        pra continuar como sempre foi: a primeira quadra livre de cada horário.
+                    </p>
+                    <div id="pdzPreferenciaQuadraTabela" class="table-responsive"></div>
+                </details>
+
                 <hr class="my-4" />
                 @* Publicar sobe a capa, cria o torneio, as categorias e as quadras: leva alguns
                    segundos. Sem sinal nenhum na tela, o organizador acha que o clique não pegou
@@ -1360,12 +1389,92 @@
             input.className = 'form-control form-control-sm';
             input.placeholder = 'Quadra ' + String.fromCharCode(65 + i);
             input.value = valoresAtuais[i] || '';
+            // Renomear a quadra tem que se refletir na tabela de preferência: quem escreve
+            // "Central" no campo 1 procura "Central" lá embaixo, não "Quadra A".
+            input.addEventListener('input', montarPreferenciaDeQuadra);
             col.appendChild(input);
             container.appendChild(col);
         }
+
+        montarPreferenciaDeQuadra();
     }
 
     document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
+
+    // ── Quadra preferencial por categoria ────────────────────────────────────────────────
+    // A tabela é categorias (linhas) × quadras (colunas), e as duas listas vivem em outros
+    // dois pontos do formulário — as caixinhas do catálogo, lá embaixo, e os campos de nome
+    // de quadra, lá em cima. Por isso ela é montada, e não escrita: qualquer uma das duas
+    // pode mudar depois que a seção já foi aberta.
+    //
+    // O valor de cada caixinha é "categoriaDoCatálogo:posiçãoDaQuadra" — a POSIÇÃO, porque
+    // nem a categoria do torneio nem a quadra existem ainda: as duas nascem neste mesmo POST.
+    // Quem traduz posição em Id é o servidor, logo depois de criá-las (ver
+    // TorneiosController.Criacao e Services/PreferenciaDeQuadra.Ler).
+    function montarPreferenciaDeQuadra() {
+        var alvo = document.getElementById('pdzPreferenciaQuadraTabela');
+        if (!alvo) return;
+
+        // Guarda o que já estava marcado: remontar não pode apagar a escolha de quem só
+        // corrigiu o nome de uma quadra ou marcou mais uma categoria.
+        var marcadas = {};
+        alvo.querySelectorAll('input:checked').forEach(function (c) { marcadas[c.value] = true; });
+
+        var quadras = Array.from(document.querySelectorAll('#camposNomesQuadras input'))
+            .map(function (i, pos) { return (i.value || '').trim() || i.placeholder || ('Quadra ' + (pos + 1)); });
+
+        var categorias = Array.from(document.querySelectorAll('input[name="categoriasSelecionadas"]:checked'))
+            .map(function (c) {
+                var rotulo = document.querySelector('label[for="' + c.id + '"]');
+                return { id: c.value, nome: rotulo ? rotulo.textContent.trim() : c.value };
+            });
+
+        if (quadras.length === 0 || categorias.length === 0) {
+            alvo.innerHTML = '<div class="small text-muted">'
+                + 'Preencha a <strong>quantidade de quadras</strong> e marque as <strong>categorias</strong> '
+                + 'pra escolher aqui.</div>';
+            return;
+        }
+
+        var html = '<table class="table table-sm align-middle mb-0"><thead><tr><th class="small">Categoria</th>';
+        quadras.forEach(function (nome) {
+            html += '<th class="small text-center">' + pdzEscapar(nome) + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        categorias.forEach(function (cat) {
+            html += '<tr><td class="small">' + pdzEscapar(cat.nome) + '</td>';
+            quadras.forEach(function (nome, pos) {
+                var valor = cat.id + ':' + pos;
+                html += '<td class="text-center"><input class="form-check-input" type="checkbox" '
+                     + 'name="quadrasPreferidas" value="' + valor + '"'
+                     + (marcadas[valor] ? ' checked' : '') + ' title="' + pdzEscapar(nome) + '"></td>';
+            });
+            html += '</tr>';
+        });
+
+        alvo.innerHTML = html + '</tbody></table>';
+    }
+
+    // Nome de quadra e de categoria entram na tabela como TEXTO. O de categoria vem do
+    // catálogo, mas o da quadra é digitado — e HTML montado com `innerHTML` transforma um
+    // `<` digitado em marcação. Escapar aqui é o que impede isso.
+    function pdzEscapar(texto) {
+        var caixa = document.createElement('span');
+        caixa.textContent = texto;
+        return caixa.innerHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('input[name="categoriasSelecionadas"]').forEach(function (caixa) {
+            caixa.addEventListener('change', montarPreferenciaDeQuadra);
+        });
+        // Também ao abrir: quem marcou categoria antes de abrir a seção encontra a tabela
+        // pronta, e não uma vazia que só se preenche no clique seguinte.
+        var secao = document.getElementById('pdzPreferenciaQuadra');
+        if (secao) secao.addEventListener('toggle', montarPreferenciaDeQuadra);
+        montarPreferenciaDeQuadra();
+    });
 
     // Clube: quem escreve o nome manda. Não é escolha da tela, é o que o servidor já faz —
     // vindo nome escrito, AcharOuCriarClubeAsync sobrepõe o ClubeId que o seletor mandou. Com

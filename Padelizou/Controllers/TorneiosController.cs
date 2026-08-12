@@ -558,7 +558,29 @@ namespace Padelizou.Controllers
                     .Where(o => o.TorneioId == id)
                     .ToListAsync();
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
-                ViewBag.Quadras = await _context.Quadras.Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+                // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
+                // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens
+                // TÊM que ser a mesma, senão renomear a quadra 2 renomeia a 3.
+                var quadrasDoTorneio = await _context.Quadras
+                    .Where(q => q.TorneioId == id).OrderBy(q => q.Id).ToListAsync();
+                ViewBag.Quadras = quadrasDoTorneio;
+
+                // A quadra preferida de cada categoria, já traduzida pro par
+                // "categoria:POSIÇÃO" que o formulário fala (ver PreferenciaDeQuadra.Ler).
+                // Posição, e não Id da quadra, porque aqui o organizador pode marcar uma
+                // quadra que ainda vai nascer — quem sobe de 3 pra 5 quadras escolhe a
+                // preferência da quinta no mesmo salvamento que a cria.
+                var posicaoDaQuadra = quadrasDoTorneio
+                    .Select((q, posicao) => (q.Id, posicao))
+                    .ToDictionary(q => q.Id, q => q.posicao);
+
+                ViewBag.QuadrasPreferidas = (await _context.QuadrasDaCategoria
+                        .Where(q => q.Quadra.TorneioId == id)
+                        .Select(q => new { q.CategoriaId, q.QuadraId })
+                        .ToListAsync())
+                    .Where(p => posicaoDaQuadra.ContainsKey(p.QuadraId))
+                    .Select(p => $"{p.CategoriaId}:{posicaoDaQuadra[p.QuadraId]}")
+                    .ToList();
 
                 // Trocar a forma de recebimento depois de criado: dá enquanto ninguém se
                 // inscreveu. A MESMA pergunta que o POST do Editar faz — se as duas
