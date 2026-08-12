@@ -132,6 +132,7 @@ public partial class DbPadelContext : DbContext
     // daqui — nunca um contador numa coluna, que não dá pra auditar nem pra desfazer.
     public DbSet<VotoDeMvp> VotosDeMvp { get; set; }
     public DbSet<AvaliacaoDoTorneio> AvaliacoesDeTorneio { get; set; }
+    public DbSet<ChamadoDoMural> ChamadosDoMural { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -474,6 +475,24 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(v => v.Candidato)
                 .WithMany()
                 .HasForeignKey(v => v.CandidatoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ChamadoDoMural>(entity =>
+        {
+            // UM CHAMADO POR PESSOA POR INSCRIÇÃO — o anti-spam mora no banco, como o voto
+            // de MVP: dois cliques simultâneos passam os dois pela checagem em C#.
+            entity.HasIndex(c => new { c.DuplaId, c.CandidatoId }).IsUnique();
+
+            // A dupla saiu (desistiu, virou completa e foi apagada): os chamados morrem junto.
+            entity.HasOne(c => c.Dupla)
+                .WithMany()
+                .HasForeignKey(c => c.DuplaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(c => c.Candidato)
+                .WithMany()
+                .HasForeignKey(c => c.CandidatoId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

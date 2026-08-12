@@ -1,0 +1,65 @@
+@model Padelizou.Services.DadosDoCardDoJogador
+@{
+    var jogadorId = (int)ViewBag.JogadorId;
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+
+    ViewData["Title"] = $"Card de {Model.Nome} - Padelizou";
+
+    var imagem = Url.Action("JogadorImagem", "Cartoes", new { id = jogadorId });
+    var imagemAbsoluta = Url.Action("JogadorImagem", "Cartoes", new { id = jogadorId }, Context.Request.Scheme);
+    var arquivo = $"jogador-{Padelizou.Controllers.CartoesController.Arquivo(Model.Nome)}.png";
+
+    @* A prévia do link é montada pelo _Layout a partir daqui — meta duplicada é a Meta
+       escolhendo qual ler. *@
+    ViewData["OgTitulo"] = $"{Model.Nome} no Padelizou";
+    ViewData["Descricao"] = $"{Model.Torneios} torneios, {Model.Titulos} títulos, {Model.Vitorias} vitórias. Monte o seu card no Padelizou.";
+    ViewData["OgImagem"] = imagemAbsoluta;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 640px;">
+
+    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogadorId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao perfil
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-person-badge-fill"></i> Card do jogador
+    </h2>
+    <p class="text-muted">A carteirinha de @Model.Nome, pronta pra mandar no grupo.</p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="Card de @Model.Nome"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="@Model.Nome no Padelizou">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

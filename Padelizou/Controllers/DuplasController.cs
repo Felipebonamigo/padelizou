@@ -898,6 +898,83 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
         }
 
+        // ── O chamado do mural ("quero jogar com você") ────────────────────────────────
+        // A lista de inscritos já mostra quem está SEM PARCEIRO; este POST é a ação em cima
+        // dela. Só manda o recado — quem fecha a dupla é o dono da inscrição, pelo convite
+        // por link logo acima. Regras em Services/MuralDeParceiros.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> ChamarParaDupla(int duplaId)
+        {
+            var candidatoId = ObterJogadorIdLogado();
+            if (candidatoId == null) return Forbid();
+
+            var dupla = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+
+            var torneio = dupla?.Categoria.Torneio;
+            if (MuralDeParceiros.MotivoParaNaoChamar(dupla, torneio?.Status, candidatoId.Value)
+                is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return torneio == null
+                    ? RedirectToAction("Index", "Torneios")
+                    : RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            }
+
+            // Um chamado por pessoa por inscrição. A checagem aqui é a MENSAGEM amigável;
+            // quem segura o clique duplo de verdade é o índice único do banco.
+            bool jaChamei = await _context.ChamadosDoMural
+                .AnyAsync(c => c.DuplaId == duplaId && c.CandidatoId == candidatoId.Value);
+            if (!jaChamei)
+            {
+                _context.ChamadosDoMural.Add(new ChamadoDoMural
+                {
+                    DuplaId = duplaId,
+                    CandidatoId = candidatoId.Value,
+                    CriadoEm = DateTime.Now,
+                });
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    // Corrida do clique duplo: o índice segurou a segunda linha, e a resposta
+                    // certa é a mesma do "já chamou".
+                    jaChamei = true;
+                }
+            }
+
+            var candidato = await _context.Jogadores.FindAsync(candidatoId.Value);
+            if (!jaChamei && candidato != null)
+            {
+                // Recado individual, disparado por um clique humano — não é rajada. Sem
+                // e-mail mesmo assim: perder um chamado social não custa conta de ninguém,
+                // e a cota do e-mail já queimou duas vezes.
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(dupla!.Jogador1Id,
+                        MuralDeParceiros.TituloDoAviso,
+                        MuralDeParceiros.CorpoDoAviso(candidato.ComoChamar, torneio!.Nome),
+                        Url.Action("Perfil", "Jogadores", new { id = candidatoId.Value }),
+                        AlcanceDoAviso.AppSemEmail);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao avisar o chamado do mural da dupla {DuplaId}.", duplaId);
+                }
+            }
+
+            TempData["Sucesso"] = jaChamei
+                ? $"Você já tinha chamado — o recado está com {dupla!.Jogador1.ComoChamar}."
+                : $"Recado enviado! Se {dupla!.Jogador1.ComoChamar} topar, quem fecha a dupla é ele(a) — pelo convite da própria inscrição.";
+            return RedirectToAction("Details", "Torneios", new { id = torneio!.Id });
+        }
+
         // Quem saiu precisa saber que saiu; quem entrou, que entrou. Push é acessório:
         // a troca já foi gravada e não pode falhar por causa de notificação.
         private async Task AvisarTrocaDeParceiroAsync(Dupla dupla, Torneio torneio, Jogador? antigo, Jogador novo)

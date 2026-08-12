@@ -172,6 +172,148 @@ public class CartoesController : Controller
         return Png(png, $"meu-ano-{ano}.png");
     }
 
+    // ───────────────────────── O CARD DO JOGADOR ─────────────────────────
+
+    // A carteirinha: foto, nível, lado, números e o que a quadra diz. O card de campeão é de
+    // quem ganhou; este é de TODO MUNDO — e por isso não tem régua mínima de jogos.
+    [HttpGet]
+    public async Task<IActionResult> Jogador(int id)
+    {
+        var dados = await MontarDadosDoJogadorAsync(id);
+        if (dados == null) return NotFound();
+
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        ViewBag.JogadorId = id;
+        return View(dados);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> JogadorImagem(int id)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var dados = await MontarDadosDoJogadorAsync(id);
+        if (dados == null) return NotFound();
+
+        var png = CartaoDoJogador.Desenhar(dados, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"jogador-{Arquivo(dados.Nome)}.png");
+    }
+
+    // A coleta do card do jogador. Devolve nulo pra quem não pode virar card — conta
+    // excluída (LGPD): o nome foi raspado justamente pra deixar de circular.
+    private async Task<DadosDoCardDoJogador?> MontarDadosDoJogadorAsync(int id)
+    {
+        var jogador = await _context.Jogadores.AsNoTracking().FirstOrDefaultAsync(j => j.Id == id);
+        if (jogador == null || jogador.Excluido) return null;
+
+        var resumo = await _estatisticas.ObterResumoJogadorAsync(id);
+
+        // A faixa do padelímetro, com a régua certa: o mesmo número é "5ª" na escada
+        // masculina e "2ª" na feminina — quem decide é a inscrição não-mista mais recente,
+        // exatamente como o perfil faz.
+        string? faixa = null;
+        bool emCalibracao = false;
+        if (jogador.Padelimetro is int nivel)
+        {
+            var categoriaRecente = await _context.Duplas
+                .AsNoTracking()
+                .Where(d => d.Jogador1Id == id || d.Jogador2Id == id)
+                .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
+                .Select(d => d.Categoria.Nome)
+                .ToListAsync();
+            bool feminina = FaixasDePadelimetro.EhFeminina(
+                categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n)));
+
+            var rotulo = FaixasDePadelimetro.DoNivel(nivel, feminina).Rotulo;
+            faixa = rotulo == "Open" ? "Categoria Open" : $"{rotulo} categoria";
+            emCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
+        }
+
+        // Os elogios mais recebidos, com o título do catálogo — tipo que saiu do catálogo
+        // não vira linha de card.
+        var elogios = (await _context.Elogios
+                .AsNoTracking()
+                .Where(e => e.ParaJogadorId == id)
+                .GroupBy(e => e.Tipo)
+                .Select(g => new { Tipo = g.Key, Quantidade = g.Count() })
+                .ToListAsync())
+            .Select(g => (Catalogo: CatalogoElogios.Obter(g.Tipo), g.Quantidade))
+            .Where(x => x.Catalogo != null)
+            .OrderByDescending(x => x.Quantidade)
+            .Take(3)
+            .Select(x => (x.Catalogo!.Titulo, x.Quantidade))
+            .ToList();
+
+        return new DadosDoCardDoJogador
+        {
+            Nome = jogador.ComoChamar,
+            Foto = jogador.FotoPerfil,
+            Cidade = jogador.Cidade,
+            Faixa = faixa,
+            EmCalibracao = emCalibracao,
+            Lado = CartaoDoJogador.RotuloDoLado(jogador.LadoQuadra),
+            Torneios = resumo.TotalTorneios,
+            Titulos = resumo.Titulos,
+            Vitorias = resumo.Vitorias,
+            Elogios = elogios,
+        };
+    }
+
+    // ───────────────────────── O CARD DO DUELO ─────────────────────────
+
+    // O confronto direto, do ponto de vista de QUEM PEDE — por isso exige login: o card é a
+    // provocação de um dos dois, não uma página sobre terceiros.
+    [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> Duelo(int id)
+    {
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (id == meuId) return NotFound();   // duelo consigo mesmo não existe
+
+        // ⚠️ Guarda ANTES do serviço: o ObterHeadToHeadAsync monta o VM com `!` e um oponente
+        // inexistente (ou excluído) estouraria só na view, longe da causa.
+        var oponente = await _context.Jogadores.AsNoTracking().FirstOrDefaultAsync(j => j.Id == id);
+        if (oponente == null || oponente.Excluido) return NotFound();
+
+        var h2h = await _estatisticas.ObterHeadToHeadAsync(meuId, id);
+
+        ViewBag.FonteDisponivel = _fontes.Disponivel;
+        return View(h2h);
+    }
+
+    [HttpGet]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> DueloImagem(int id)
+    {
+        if (!_fontes.Disponivel) return NotFound();
+
+        var meuId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (id == meuId) return NotFound();
+
+        var oponente = await _context.Jogadores.AsNoTracking().FirstOrDefaultAsync(j => j.Id == id);
+        if (oponente == null || oponente.Excluido) return NotFound();
+
+        var h2h = await _estatisticas.ObterHeadToHeadAsync(meuId, id);
+
+        // Sem jogo entre os dois não há placar — e card "0 × 0" é uma provocação que não
+        // aconteceu. A tela explica; a imagem simplesmente não existe.
+        if (h2h.Jogos == 0) return NotFound();
+
+        var dados = new DadosDoCardDoDuelo
+        {
+            Nome1 = h2h.Eu.ComoChamar,
+            Foto1 = h2h.Eu.FotoPerfil,
+            Vitorias1 = h2h.Vitorias,
+            Nome2 = h2h.Oponente.ComoChamar,
+            Foto2 = h2h.Oponente.FotoPerfil,
+            Vitorias2 = h2h.Derrotas,
+            Jogos = h2h.Jogos,
+        };
+
+        var png = CartaoDoDuelo.Desenhar(dados, _fontes, _ambiente.WebRootPath);
+        return Png(png, $"duelo-{Arquivo(dados.Nome1)}-{Arquivo(dados.Nome2)}.png");
+    }
+
     // Nome de arquivo previsível a partir de um texto livre. O nome da categoria vai pro
     // `Content-Disposition`, e cabeçalho HTTP é ASCII: qualquer byte acima de 127 derruba a
     // resposta inteira com `InvalidOperationException` no Kestrel — 500, não header feio.

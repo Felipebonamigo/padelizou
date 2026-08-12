@@ -1,0 +1,98 @@
+@model Padelizou.ViewModels.HeadToHeadVM
+@{
+    var fonteDisponivel = (bool)ViewBag.FonteDisponivel;
+
+    ViewData["Title"] = $"Duelo — {Model.Eu.ComoChamar} × {Model.Oponente.ComoChamar} - Padelizou";
+
+    var imagem = Url.Action("DueloImagem", "Cartoes", new { id = Model.Oponente.Id });
+    var arquivo = "duelo.png";
+
+    @* Sem OgImagem de propósito: a imagem do duelo exige login (ela é de quem pediu), e o
+       servidor da Meta não tem sessão — a prévia sairia quebrada. O card viaja como ARQUIVO,
+       pelo botão de compartilhar, que é como provocação se manda mesmo. *@
+    ViewData["Descricao"] = "O confronto direto, jogo a jogo, no Padelizou.";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 640px;">
+
+    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Oponente.Id"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao perfil
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-lightning-charge-fill text-warning"></i> Duelo
+    </h2>
+    <p class="text-muted">Você × @Model.Oponente.ComoChamar — o confronto direto.</p>
+
+    @if (!fonteDisponivel)
+    {
+        <div class="alert alert-warning rounded-4">
+            <strong>As artes estão desligadas neste servidor.</strong>
+            <div class="small">
+                Falta a fonte em <code>wwwroot/fonts</code> (Poppins). Sem ela o card sairia com
+                todos os textos invisíveis, então nenhum é gerado.
+            </div>
+        </div>
+    }
+    else if (Model.Jogos == 0)
+    {
+        @* Provocação que não aconteceu não vira arte — e a tela diz o que falta, em vez de
+           mostrar um 0 × 0 mudo. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-lightning fs-1 text-muted"></i>
+                <h5 class="fw-bold mt-3 mb-2" style="color: var(--pdz-ink);">
+                    Vocês ainda não se enfrentaram
+                </h5>
+                <p class="text-muted mb-0">
+                    O card do duelo nasce no primeiro jogo de torneio entre vocês dois.
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body">
+                <img src="@imagem" alt="Duelo: @Model.Eu.ComoChamar × @Model.Oponente.ComoChamar"
+                     class="img-fluid rounded-3 d-block mx-auto" style="max-width: 420px;" />
+
+                <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
+                    <a href="@imagem" download="@arquivo" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-primary rounded-pill px-3 pdz-compartilhar"
+                            data-imagem="@imagem" data-arquivo="@arquivo"
+                            data-titulo="Duelo: @Model.Eu.ComoChamar × @Model.Oponente.ComoChamar">
+                        <i class="bi bi-share-fill"></i> Compartilhar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @* O retrospecto em texto — a arte é pra postar, esta lista é pra conferir. *@
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="row text-center g-3">
+                    <div class="col-4">
+                        <div class="fs-3 fw-bold" style="color: var(--pdz-ink);">@Model.Jogos</div>
+                        <div class="small text-muted">@(Model.Jogos == 1 ? "jogo" : "jogos")</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="fs-3 fw-bold text-success">@Model.Vitorias</div>
+                        <div class="small text-muted">suas vitórias</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="fs-3 fw-bold text-danger">@Model.Derrotas</div>
+                        <div class="small text-muted">dele(a)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-card.js" asp-append-version="true"></script>
+}

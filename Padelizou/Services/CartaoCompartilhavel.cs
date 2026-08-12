@@ -322,9 +322,16 @@ public static class CartaoCompartilhavel
     }
 
     // Primeira letra do primeiro e do último nome. Mesma ideia do avatar de iniciais do site.
+    //
+    // ⚠️ Só palavra que COMEÇA COM LETRA conta: o nome que chega aqui costuma ser o
+    // `ComoChamar`, e "Diego Martins (Diguinho)" fazia a inicial do "último nome" ser o
+    // PARÊNTESE — "D(" dentro do círculo, visto olhando a arte, com os testes verdes.
     public static string Iniciais(string? nome)
     {
-        var partes = (nome ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var partes = (nome ?? "")
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => char.IsLetter(p[0]))
+            .ToArray();
         if (partes.Length == 0) return "?";
         if (partes.Length == 1) return partes[0][..1].ToUpperInvariant();
         return (partes[0][..1] + partes[^1][..1]).ToUpperInvariant();
