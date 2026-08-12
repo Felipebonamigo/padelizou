@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **11/08/2026** — 🩺 **AUDITORIA GERAL: segurança, servidor e desempenho** (sessão paralela). Antes, no mesmo dia: 🚀 **`build-524-6a6397a` NO AR EM PROD E EM DEV** + ✏️ **DÁ PRA CORRIGIR E APAGAR O JOGO DA PANELINHA**.
+> Última atualização: **12/08/2026** — 🔎 **SEO: `build-527-29896d1` NO AR**, migalhas na busca, indexação pedida e o **deploy pelo GitHub blindado**.
+>
+> 🚨 **O RANKING TINHA SUBIDO PEDINDO AO GOOGLE QUE NÃO O INDEXASSE.** A allowlist foi escrita com o nome do **arquivo** (`JogadorsController.cs`, sem "e") em vez do nome da **classe** (`JogadoresController`) — e é a classe que vira rota. Resultado: `/Jogadores/Ranking` caiu na regra do desconhecido e foi pro ar com `noindex`; o sitemap entregava `/Jogadors/Ranking`, que responde **404**; e a descrição saía a genérica. **Três sintomas, uma letra.** ✅ Pego a tempo: a inspeção no Search Console ainda dizia *"O URL está no Google"* — na releitura seguinte ele teria saído.
+>
+> 🧪 **O CONSERTO QUE IMPORTA É O TESTE, não a letra.** `Toda_tela_da_allowlist_existe_de_verdade` varre os controllers **por reflexão** e exige que cada entrada exista. Validado do único jeito que vale: **reintroduzindo o erro de propósito** e conferindo que fica vermelho. ⚠️ `TodasAsTelas` junta allowlist **e** descrições — na 1ª versão só a allowlist era conferida, e a mesma grafia errada sobreviveu no dicionário.
+>
+> 🍞 **MIGALHAS (`BreadcrumbList`) no torneio e na cidade**: o resultado passa a mostrar "Padelizou › Torneios › Gravataí" em vez do endereço cru. O último degrau vai **sem link** — ele é a própria página, e apontar pra si mesma faz o buscador desprezar a trilha inteira.
+>
+> 🔐 **O DEPLOY PELO GITHUB FALHOU E FOI BLINDADO.** O `ssh-keyscan` do runner voltou **vazio** e o job saiu com exit 1 (a proteção agindo). Configurado o secret **`VPS_KNOWN_HOSTS`** com a chave pública do servidor — que **não é segredo**, é pública por definição. Além de consertar, é o modo **mais seguro**: fixa a chave em vez de confiar no primeiro contato. O deploy caiu de ~1min pra **22s** e o aviso sumiu.
+>
+> 📌 **Indexação solicitada à mão para 5 URLs** (ranking, home, cidade de Gravataí, NATA PADEL TOUR e a listagem de torneios). ⚠️ **Não existe API pra isso** — a Indexing API do Google só vale pra vaga de emprego e transmissão ao vivo, e a URL Inspection API é **somente leitura**. O botão do Search Console é a única via.
+>
+> 🧪 **3.794 testes, 0 falhas.** ✅ Conferido em produção: as duas trilhas saindo certas, e no torneio convivendo com o `SportsEvent` no mesmo `<head>`.
+>
+> ⏭️ **O relatório de Páginas ainda diz "dados em processamento"** (propriedade nova) — o diagnóstico do Search Console só serve daqui a ~1 dia.
+>
+> Antes, no mesmo dia: 🩺 **AUDITORIA GERAL: segurança, servidor e desempenho** (sessão paralela). Antes: 🚀 **`build-524-6a6397a` NO AR EM PROD E EM DEV** + ✏️ **DÁ PRA CORRIGIR E APAGAR O JOGO DA PANELINHA**.
 >
 > 📊 **O SISTEMA ESTÁ SAUDÁVEL, E O SERVIDOR ESTÁ OCIOSO**: load **0.08** em 2 vCPU, 1,2 GB de 7,8 GB de RAM, banco de produção com **15 MB**, 0 restarts em 21 dias, TTFB de fora **~100 ms**, **3.771 testes verdes**, **zero pacote vulnerável** e nenhum segredo no histórico do git (`git log -S`, não o disco). Cabe crescer uma ordem de grandeza sem tocar em hardware — o gargalo não é técnico.
 >
