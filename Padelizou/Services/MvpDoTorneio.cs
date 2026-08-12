@@ -321,13 +321,70 @@ public static class MvpDoTorneio
         return null;
     }
 
+    // Em quantos torneios este jogador FOI ELEITO o MVP. Serve à conquista do perfil.
+    //
+    // A regra não mora aqui: quem decide "eleito" é o mesmo par de sempre — `Encerrada` (a
+    // janela fechou?) e `Apurar` (empate proclama todos, mínimo de votos). Esta função só
+    // olha menos dados que a `DoTorneioAsync`: parte dos torneios onde ele RECEBEU voto (que
+    // são poucos), e apura só com quem tem voto — candidato com zero voto nunca muda quem
+    // ganha, porque o topo precisa de pelo menos `VotosMinimos`.
+    public static async Task<int> VezesEleitoMvpAsync(DbPadelContext contexto, int jogadorId, DateTime agora)
+    {
+        var torneiosComVotoNele = await contexto.VotosDeMvp
+            .AsNoTracking()
+            .Where(v => v.CandidatoId == jogadorId)
+            .Select(v => v.TorneioId)
+            .Distinct()
+            .ToListAsync();
+
+        int vezes = 0;
+        foreach (var torneioId in torneiosComVotoNele)
+        {
+            var torneio = await contexto.Torneios
+                .AsNoTracking()
+                .Where(t => t.Id == torneioId)
+                .Select(t => new { t.Status, t.UsaVotacaoDeMvp })
+                .FirstOrDefaultAsync();
+            if (torneio == null) continue;
+
+            var fins = await contexto.Partidas
+                .AsNoTracking()
+                .Where(p => p.TorneioId == torneioId && p.VencedorId != null)
+                .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto)
+                .ToListAsync();
+
+            // Votação ainda aberta (ou desligada) não tem eleito — a mesma razão de a tela
+            // não mostrar parcial: MVP só existe depois que fecha.
+            if (!Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, UltimoJogo(fins), agora)) continue;
+
+            var votos = await contexto.VotosDeMvp
+                .AsNoTracking()
+                .Where(v => v.TorneioId == torneioId)
+                .GroupBy(v => v.CandidatoId)
+                .Select(g => new { CandidatoId = g.Key, Votos = g.Count() })
+                .ToListAsync();
+
+            var eleitos = Apurar(votos.Select(v => new CandidatoAMvp
+            {
+                JogadorId = v.CandidatoId,
+                Votos = v.Votos,
+            }));
+
+            if (eleitos.Any(e => e.JogadorId == jogadorId)) vezes++;
+        }
+
+        return vezes;
+    }
+
     // ─────────────────────── O AVISO DE "VOTE NO MVP" ───────────────────────
 
     public const string TituloDoAviso = "Vote no MVP do torneio";
 
+    // O convite leva a enquete junto: é o mesmo aviso que traz a pessoa pra página onde as
+    // duas coisas moram, e um segundo push só pra nota seria ruído.
     public static string CorpoDoAviso(string nomeDoTorneio) =>
-        $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões — "
-        + $"a votação fica aberta por {DiasParaVotar} dias.";
+        $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões e conte "
+        + $"como foi o torneio — vale por {DiasParaVotar} dias.";
 
     // O canal do aviso. Notificação do app e caixa de entrada; **sem e-mail**.
     //

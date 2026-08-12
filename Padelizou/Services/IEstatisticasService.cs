@@ -43,6 +43,8 @@ public interface IEstatisticasService
 
     // Ranking de UM torneio, agregado por jogador (pontos/jogos/vitórias/títulos nesse torneio).
     Task<List<RankingTorneioLinhaVM>> ObterRankingDoTorneioAsync(int torneioId);
+    // O mesmo ranking somando vários torneios — o filtro "todas as edições" de uma série.
+    Task<List<RankingTorneioLinhaVM>> ObterRankingDoTorneioAsync(IReadOnlyCollection<int> torneioIds);
 
     // Nível comprovado por jogador (categoria mais forte onde atingiu o gatilho).
     // Base da regra de elegibilidade de categoria na inscrição. O gatilho ("SaiuChave",

@@ -131,6 +131,7 @@ public partial class DbPadelContext : DbContext
     // O voto pro melhor jogador do torneio, um por pessoa. A apuração é contagem de linhas
     // daqui — nunca um contador numa coluna, que não dá pra auditar nem pra desfazer.
     public DbSet<VotoDeMvp> VotosDeMvp { get; set; }
+    public DbSet<AvaliacaoDoTorneio> AvaliacoesDeTorneio { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -473,6 +474,26 @@ public partial class DbPadelContext : DbContext
             entity.HasOne(v => v.Candidato)
                 .WithMany()
                 .HasForeignKey(v => v.CandidatoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AvaliacaoDoTorneio>(entity =>
+        {
+            // UMA RESPOSTA POR PESSOA POR TORNEIO — o mesmo arranjo do voto de MVP logo acima,
+            // e pelo mesmo motivo: o clique duplo no celular passa duas vezes pela checagem em
+            // C# antes de qualquer gravação. O banco segura a segunda.
+            entity.HasIndex(a => new { a.TorneioId, a.JogadorId }).IsUnique();
+
+            entity.HasOne(a => a.Torneio)
+                .WithMany()
+                .HasForeignKey(a => a.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict, não Cascade: o cascade já desce pelo Torneio, e um segundo caminho por
+            // Jogador criaria os "múltiplos caminhos" que o Postgres recusa.
+            entity.HasOne(a => a.Jogador)
+                .WithMany()
+                .HasForeignKey(a => a.JogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<ConfiguracaoDoSistema>(entity =>
@@ -963,6 +984,13 @@ public partial class DbPadelContext : DbContext
                 .HasMaxLength(150)
                 .IsUnicode(false);
 
+            // A raiz da série de edições (Services/DuplicacaoDeTorneio). SetNull, não Cascade:
+            // apagar o torneio original não pode levar as edições seguintes junto — elas só
+            // perdem o vínculo e viram torneios soltos, que é o que sempre foram por dentro.
+            entity.HasOne<Torneio>()
+                .WithMany()
+                .HasForeignKey(e => e.TorneioOrigemId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Aula>(entity =>

@@ -29,6 +29,24 @@ public class ProfessoresController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(int? cidadeId)
     {
+        var professores = await MontarVitrineAsync(cidadeId);
+        return View(professores);
+    }
+
+    // A PORTA DE QUEM NUNCA JOGOU: "quero começar no padel". Mesma vitrine de professores,
+    // outra conversa — aqui a pessoa não sabe o que é uma bandeja nem o que perguntar; a
+    // página diz os três passos e entrega o professor da cidade como o primeiro deles.
+    // É a única tela do site voltada pra quem ainda NÃO é jogador de padel.
+    [HttpGet]
+    public async Task<IActionResult> Comecar(int? cidadeId)
+    {
+        var professores = await MontarVitrineAsync(cidadeId);
+        return View(professores);
+    }
+
+    // Monta a vitrine (professores + média + menor preço + cidades) pra Index e Comecar.
+    private async Task<List<Jogador>> MontarVitrineAsync(int? cidadeId)
+    {
         var query = _context.Jogadores.Where(j => j.IsProfessor);
 
         // O filtro só oferece cidade que TEM professor: a vitrine listava o catálogo inteiro,
@@ -71,7 +89,7 @@ public class ProfessoresController : Controller
         ViewBag.Cidades = CidadesSemRepetir.Agrupar(cidadesComProfessor);
         ViewBag.CidadeId = cidadeId;
 
-        return View(professores);
+        return professores;
     }
 
     [HttpGet]

@@ -1703,6 +1703,44 @@
                 </div>
             </div>
 
+            @* COMO O TORNEIO FOI AVALIADO — a enquete pós-torneio, vista por quem organiza.
+               A média só aparece com 3+ respostas (EnqueteDoTorneio.MediaVisivel): "5,0
+               estrelas (1 avaliação)" é uma pessoa falando com voz de consenso. *@
+            @{ var enquete = ViewBag.ResumoDaEnquete as Padelizou.Services.ResumoDaEnquete; }
+            @if (enquete != null && enquete.Respostas > 0)
+            {
+                <div class="card bg-light border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-muted text-uppercase mb-2">
+                            <i class="bi bi-chat-square-heart-fill"></i> Como o torneio foi avaliado
+                        </h6>
+                        @if (enquete.TemMedia)
+                        {
+                            <div class="d-flex flex-wrap gap-4">
+                                <div>
+                                    <div class="small text-muted">O clube</div>
+                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaClube?.ToString("0.0")</div>
+                                </div>
+                                <div>
+                                    <div class="small text-muted">A organização</div>
+                                    <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
+                                </div>
+                                <div class="align-self-end small text-muted">
+                                    @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="small text-muted mb-0">
+                                @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
+                                a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                            </p>
+                        }
+                    </div>
+                </div>
+            }
+
             @* CRIAR A PRÓXIMA EDIÇÃO — pro organizador que faz o mesmo torneio todo mês.
                A cópia leva a ESTRUTURA (categorias, preços, formato, quadras, equipe) e nada
                do que aconteceu; a edição nova nasce sem datas e com as inscrições fechadas.

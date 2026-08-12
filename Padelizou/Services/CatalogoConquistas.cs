@@ -15,7 +15,12 @@ public record DadosParaConquistas(
     int TotalTorneios,
     int Vitorias,
     int ElogiosRecebidos,
-    int AulasComoAluno);
+    int AulasComoAluno,
+    // Com valor padrão porque chegaram depois: quem monta o record por posição (os testes
+    // antigos, outra coleta) continua compilando, e zero é a resposta certa pra quem a
+    // coleta não conhece.
+    int VezesMvp = 0,
+    int ClubesDiferentes = 0);
 
 // As conquistas do perfil. Calculadas na hora a partir do que o jogador já fez — não há
 // tabela de conquistas no banco, então nunca há conquista "esquecida de dar": mudou o dado,
@@ -34,6 +39,7 @@ public static class CatalogoConquistas
     public const int TorneiosParaVeterano = 5;
     public const int ElogiosParaQuerido = 5;
     public const int AulasParaAlunoAplicado = 3;
+    public const int ClubesParaExplorador = 3;
 
     // A escada de vitórias em jogos de torneio. O primeiro degrau é o antigo "DezVitorias", e
     // o código dele NÃO muda: conquista que alguém já viu no próprio perfil não pode sumir
@@ -78,6 +84,9 @@ public static class CatalogoConquistas
             new() { Codigo = "Veterano", Titulo = "Veterano", Icone = "bi-patch-check-fill",
                     Conquistada = d.TotalTorneios >= TorneiosParaVeterano,
                     Descricao = $"Dispute {TorneiosParaVeterano} torneios." },
+            new() { Codigo = "Explorador", Titulo = "Explorador", Icone = "bi-compass-fill",
+                    Conquistada = d.ClubesDiferentes >= ClubesParaExplorador,
+                    Descricao = $"Jogue torneios em {ClubesParaExplorador} clubes diferentes." },
         };
 
         // A escada das vitórias entra inteira, na ordem — é ela que dá o que perseguir depois
@@ -113,6 +122,12 @@ public static class CatalogoConquistas
 
         conquistas.AddRange(new List<ConquistaVM>
         {
+            // Eleito pelos rivais, não pelo placar — é a única conquista aqui que outra
+            // pessoa dá. Quem apura é MvpDoTorneio (empate proclama todos, mínimo de votos);
+            // esta linha só pergunta "aconteceu alguma vez?".
+            new() { Codigo = "MvpDeTorneio", Titulo = "MVP", Icone = "bi-star-fill",
+                    Conquistada = d.VezesMvp > 0,
+                    Descricao = "Seja eleito o MVP de um torneio pelos outros jogadores." },
             new() { Codigo = "QueridoDaQuadra", Titulo = "Querido da Quadra", Icone = "bi-heart-fill",
                     Conquistada = d.ElogiosRecebidos >= ElogiosParaQuerido,
                     // "Jogadores diferentes" e não "elogios": desde que virou um elogio por

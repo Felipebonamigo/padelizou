@@ -1,0 +1,193 @@
+@model List<Padelizou.Models.Jogador>
+@using System.Globalization
+@{
+    ViewData["Title"] = "Comece no padel — sua primeira aula";
+    var ptBr = CultureInfo.GetCultureInfo("pt-BR");
+    var medias = ViewBag.Medias as Dictionary<int, (double Media, int Total)> ?? new();
+    var precos = ViewBag.Precos as Dictionary<int, decimal> ?? new();
+    var cidades = ViewBag.Cidades as List<Padelizou.Services.CidadeNaLista> ?? new();
+    var cidadeId = ViewBag.CidadeId as int?;
+
+    // As perguntas de quem nunca jogou — a MESMA lista alimenta a tela e o FAQPage do Google,
+    // de propósito: divergir os dois é como o buscador mostra resposta que a página não tem.
+    var perguntas = new (string P, string R)[]
+    {
+        ("Nunca joguei nada de raquete. Padel é pra mim?",
+         "É — o padel é um dos esportes mais fáceis de começar. A quadra é menor que a de tênis, " +
+         "o saque é por baixo e as paredes mantêm a bola em jogo, então os primeiros pontos " +
+         "acontecem já na primeira aula."),
+        ("Preciso ter raquete pra primeira aula?",
+         "Não. Na aula o professor costuma emprestar raquete e bolas — vá de tênis confortável e " +
+         "roupa de treino. Compre a sua depois, quando souber do que gosta."),
+        ("Quanto custa uma aula?",
+         "Varia por professor e cidade. Aqui embaixo cada professor mostra o preço \"a partir de\" " +
+         "— e o valor exato aparece antes de você confirmar qualquer aula."),
+        ("Em quanto tempo consigo jogar uma partida?",
+         "Com poucas aulas você já joga pontos de verdade. Quando quiser competir, os torneios " +
+         "têm categorias iniciantes — todo mundo da chave está começando também."),
+    };
+}
+
+@section Head {
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "FAQPage",
+        "mainEntity": [
+            @for (var i = 0; i < perguntas.Length; i++)
+            {
+                <text>{
+                    "@@type": "Question",
+                    "name": @Json.Serialize(perguntas[i].P),
+                    "acceptedAnswer": { "@@type": "Answer", "text": @Json.Serialize(perguntas[i].R) }
+                }@(i < perguntas.Length - 1 ? "," : "")</text>
+            }
+        ]
+    }
+    </script>
+}
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+
+    @* ── O convite ─────────────────────────────────────────────────────────────────── *@
+    <div class="text-center py-4">
+        <h1 class="fw-bold" style="color: var(--pdz-ink);">Nunca jogou padel?<br />Comece por aqui.</h1>
+        <p class="text-muted mx-auto mt-3" style="max-width: 560px;">
+            Padel se aprende jogando — e a primeira aula é o caminho mais curto.
+            Sem precisar de raquete, sem precisar de parceiro, sem saber regra nenhuma.
+        </p>
+    </div>
+
+    @* ── Os três passos ────────────────────────────────────────────────────────────── *@
+    <div class="row row-cols-1 row-cols-md-3 g-3 mb-5">
+        @foreach (var (icone, titulo, texto) in new[]
+        {
+            ("bi-1-circle-fill", "Marque uma aula",
+             "Escolha um professor da sua cidade aqui embaixo e marque direto pelo site. Raquete e bolas? O professor leva."),
+            ("bi-2-circle-fill", "Aprenda o básico",
+             "Poucas aulas bastam pros fundamentos: como segurar a raquete, o saque por baixo e o jogo com as paredes."),
+            ("bi-3-circle-fill", "Entre na quadra",
+             "Jogue com a turma da aula, entre num grupo semanal ou encare um torneio de categoria iniciante quando der vontade."),
+        })
+        {
+            <div class="col">
+                <div class="card border-0 shadow-sm rounded-4 h-100 p-3 text-center">
+                    <i class="bi @icone fs-2" style="color: var(--pdz-lima, #A3D827);"></i>
+                    <h6 class="fw-bold mt-2 mb-1">@titulo</h6>
+                    <p class="small text-muted mb-0">@texto</p>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ── Os professores (a mesma vitrine do /Professores, com a conversa de iniciante) ── *@
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+        <div>
+            <h4 class="fw-bold mb-0" style="color: var(--pdz-ink);">
+                <i class="bi bi-mortarboard-fill"></i> Professores pra começar
+            </h4>
+            <small class="text-muted">Todos dão aula pra quem nunca jogou.</small>
+        </div>
+        @if (cidades.Any())
+        {
+            <form method="get" class="m-0">
+                <select name="cidadeId" class="form-select form-select-sm" onchange="this.form.submit()" style="max-width: 220px;">
+                    <option value="">Todas as cidades</option>
+                    @foreach (var c in cidades)
+                    {
+                        <option value="@c.Id" selected="@(cidadeId != null && c.Ids.Contains(cidadeId.Value))">@c.Rotulo</option>
+                    }
+                </select>
+            </form>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-mortarboard fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">
+                @(cidadeId != null
+                    ? "Nenhum professor nessa cidade ainda — tente \"Todas as cidades\"."
+                    : "Os professores estão chegando — enquanto isso, dá pra ver os torneios abertos.")
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 g-3 mb-5">
+            @foreach (var p in Model)
+            {
+                var temNota = medias.TryGetValue(p.Id, out var nota);
+                var temPreco = precos.TryGetValue(p.Id, out var preco);
+                <div class="col">
+                    <a asp-action="Perfil" asp-route-id="@p.Id" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100 p-3 pdz-porta d-flex flex-row align-items-center gap-3">
+                            @if (!string.IsNullOrWhiteSpace(p.FotoPerfil))
+                            {
+                                <img src="@p.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
+                                     style="width: 56px; height: 56px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle fs-1 flex-shrink-0" style="color: var(--pdz-ink); opacity:.45;"></i>
+                            }
+                            <div class="flex-grow-1 overflow-hidden">
+                                <strong class="d-block text-truncate" style="color: var(--pdz-ink);">@p.Nome</strong>
+                                <small class="text-muted d-block">
+                                    @if (temNota)
+                                    {
+                                        <span style="color:#ffc107;">★</span><span> @nota.Media.ToString("0.0", ptBr) (@nota.Total)</span>
+                                    }
+                                    else
+                                    {
+                                        <span>sem avaliações ainda</span>
+                                    }
+                                </small>
+                                @if (temPreco)
+                                {
+                                    <small class="d-block fw-bold" style="color: var(--padel-green);">
+                                        a partir de @preco.ToString("C0", ptBr)
+                                    </small>
+                                }
+                            </div>
+                            <span class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0">Ver horários</span>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+
+    @* ── As perguntas de quem nunca jogou ──────────────────────────────────────────── *@
+    <h4 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-question-circle-fill"></i> Perguntas de quem está começando</h4>
+    <div class="accordion mb-5" id="faqComecar">
+        @for (var i = 0; i < perguntas.Length; i++)
+        {
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button @(i > 0 ? "collapsed" : "")" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#faq-@i">
+                        @perguntas[i].P
+                    </button>
+                </h2>
+                <div id="faq-@i" class="accordion-collapse collapse @(i == 0 ? "show" : "")" data-bs-parent="#faqComecar">
+                    <div class="accordion-body small text-muted">@perguntas[i].R</div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ── E pra quem já joga, a saída certa ─────────────────────────────────────────── *@
+    <div class="text-center py-3">
+        <p class="text-muted mb-2">Já joga padel?</p>
+        <a asp-controller="Torneios" asp-action="Index" class="btn btn-padel rounded-pill px-4">
+            <i class="bi bi-trophy"></i> Ver os torneios abertos
+        </a>
+    </div>
+</div>
+
+<style>
+    .pdz-porta { transition: transform .15s ease, box-shadow .15s ease; }
+    .pdz-porta:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12) !important; }
+</style>

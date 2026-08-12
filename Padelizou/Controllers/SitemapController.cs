@@ -43,6 +43,8 @@ public class SitemapController : Controller
             // URL que responde 404, e ele registra a falha contra o site.
             "/Jogadores/Ranking",
             "/Professores",
+            // A porta de quem ainda não joga — "como começar no padel" é busca de iniciante.
+            "/Professores/Comecar",
         };
 
         // ⚠️ A régua de quem aparece é a MESMA das telas públicas

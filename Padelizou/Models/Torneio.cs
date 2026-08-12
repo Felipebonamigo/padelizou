@@ -378,4 +378,14 @@ public partial class Torneio
     // página vê um "Cancelado" seco.
     public string? MotivoCancelamento { get; set; }
     public DateTime? CanceladoEm { get; set; }
+
+    // ---- Série de edições (Services/DuplicacaoDeTorneio) ----
+    // De qual torneio esta edição foi DUPLICADA. Nulo = não nasceu de duplicação (o caso de
+    // todo torneio criado pelo formulário). Aponta sempre pra RAIZ da série: duplicar uma
+    // edição que já era duplicata herda a origem dela, então "todas as edições" é uma
+    // pergunta de uma consulta só, sem subir corrente.
+    //
+    // É por este campo que o ranking oferece o filtro "todas as edições" — o ranking do
+    // circuito de quem organiza o mesmo torneio todo mês.
+    public int? TorneioOrigemId { get; set; }
 }

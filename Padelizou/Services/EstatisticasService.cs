@@ -783,21 +783,38 @@ public class EstatisticasService : IEstatisticasService
 
     // Ranking de UM torneio, agregado por jogador: pontos (por fase das duplas dele nesse
     // torneio), jogos e vitórias (partidas finalizadas) e títulos (categorias em que foi campeão).
-    public async Task<List<RankingTorneioLinhaVM>> ObterRankingDoTorneioAsync(int torneioId)
+    public Task<List<RankingTorneioLinhaVM>> ObterRankingDoTorneioAsync(int torneioId) =>
+        ObterRankingDoTorneioAsync(new[] { torneioId });
+
+    // A mesma conta servindo dois filtros: um torneio só, ou TODAS as edições de uma série
+    // (o circuito de quem duplica o torneio todo mês). Com mais de um torneio os pontos e os
+    // títulos SOMAM — bicampeão do circuito aparece com 2 títulos, que é a graça do filtro.
+    public async Task<List<RankingTorneioLinhaVM>> ObterRankingDoTorneioAsync(
+        IReadOnlyCollection<int> torneioIds)
     {
+        var ids = torneioIds.ToList();
+
         var duplas = await _context.Duplas
             .Include(d => d.Jogador1)
             .Include(d => d.Jogador2)
-            .Where(d => d.Categoria.TorneioId == torneioId)
+            .Where(d => ids.Contains(d.Categoria.TorneioId))
             .Where(ForaDoSorteio.EstaNaChave)   // lista de espera e sem parceiro não jogaram
             .ToListAsync();
 
-        // O status decide se este torneio já paga ponto. Vem numa consulta própria porque as
-        // duplas acima não trazem o torneio, e um Include só pra ler uma string custaria mais.
-        var statusDoTorneio = await _context.Torneios
-            .Where(t => t.Id == torneioId)
-            .Select(t => t.Status)
-            .FirstOrDefaultAsync();
+        // O status decide se cada torneio já paga ponto — POR torneio, porque numa série a
+        // edição finalizada pontua e a que está com inscrições abertas ainda não. Vem numa
+        // consulta própria porque as duplas acima não trazem o torneio, e um Include só pra
+        // ler uma string custaria mais.
+        var statusPorTorneio = await _context.Torneios
+            .Where(t => ids.Contains(t.Id))
+            .Select(t => new { t.Id, t.Status })
+            .ToDictionaryAsync(t => t.Id, t => t.Status);
+
+        // De qual torneio é cada categoria — é por ela que a dupla acha o status do SEU.
+        var torneioDaCategoria = await _context.Categorias
+            .Where(c => ids.Contains(c.TorneioId))
+            .Select(c => new { c.Id, c.TorneioId })
+            .ToDictionaryAsync(c => c.Id, c => c.TorneioId);
 
         var acc = new Dictionary<int, RankingTorneioLinhaVM>();
 
@@ -812,6 +829,9 @@ public class EstatisticasService : IEstatisticasService
 
         foreach (var d in duplas)
         {
+            var statusDoTorneio = torneioDaCategoria.TryGetValue(d.CategoriaId, out var tId)
+                ? statusPorTorneio.GetValueOrDefault(tId)
+                : null;
             int pts = PontosDoTorneio.Pontos(
                 d.UltimaFase, duplasPorCategoria.GetValueOrDefault(d.CategoriaId), statusDoTorneio);
             bool campeao = d.UltimaFase == "Campeao";
@@ -824,13 +844,13 @@ public class EstatisticasService : IEstatisticasService
             }
         }
 
-        // Jogos e vitórias vêm das partidas finalizadas desse torneio.
+        // Jogos e vitórias vêm das partidas finalizadas desses torneios.
         var partidas = await _context.Partidas
             .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
             .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
             .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
             .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
-            .Where(p => p.Categoria.TorneioId == torneioId && p.VencedorId != null)
+            .Where(p => ids.Contains(p.Categoria.TorneioId) && p.VencedorId != null)
             .ToListAsync();
 
         foreach (var p in partidas)
@@ -1148,6 +1168,17 @@ public class EstatisticasService : IEstatisticasService
         int aulasComoAluno = await _context.Aulas.CountAsync(a => a.AlunoId == jogadorId && a.Status == "Realizada");
         var resumo = await ObterResumoJogadorAsync(jogadorId);
 
+        // Clubes onde o jogador de fato JOGOU torneio: lista de espera e sem-parceiro ficam de
+        // fora (a régua de sempre, ForaDoSorteio), e linha de time não é jogo desta pessoa.
+        int clubesDiferentes = await _context.Duplas
+            .Where(d => d.NomeTime == null && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
+            .Where(ForaDoSorteio.EstaNaChave)
+            .Select(d => d.Categoria.Torneio.ClubeId)
+            .Distinct()
+            .CountAsync();
+
+        int vezesMvp = await MvpDoTorneio.VezesEleitoMvpAsync(_context, jogadorId, DateTime.Now);
+
         // Aqui só se COLETA; a regra de cada conquista mora no CatalogoConquistas, puro.
         return CatalogoConquistas.Montar(new DadosParaConquistas(
             JogouAlgumaVez: temDupla,
@@ -1160,7 +1191,9 @@ public class EstatisticasService : IEstatisticasService
             TotalTorneios: resumo.TotalTorneios,
             Vitorias: resumo.Vitorias,
             ElogiosRecebidos: elogiosRecebidos,
-            AulasComoAluno: aulasComoAluno));
+            AulasComoAluno: aulasComoAluno,
+            VezesMvp: vezesMvp,
+            ClubesDiferentes: clubesDiferentes));
     }
 
     public async Task<HeadToHeadVM> ObterHeadToHeadAsync(int jogadorId, int oponenteId)

@@ -750,4 +750,93 @@ public class MvpDoTorneioTests
         Assert.Null(visitante!.MeuVoto);
         Assert.False(visitante.SouEleitor);
     }
+
+    // ─────────────────────────── A CONQUISTA "MVP" DO PERFIL ───────────────────────────
+
+    // Semeia N votos na campeã, direto na tabela: com a janela fechada o VotarAsync recusa,
+    // e é justamente o cenário fechado que a conquista lê.
+    private static async Task VotarNaCampeaAsync(DbPadelContext ctx, int torneioId, int candidatoId, int votos)
+    {
+        var eleitores = await MvpDoTorneio.EleitoresAsync(ctx, torneioId);
+        foreach (var votanteId in eleitores.Where(e => e != candidatoId).Take(votos))
+        {
+            ctx.VotosDeMvp.Add(new VotoDeMvp
+            {
+                TorneioId = torneioId, VotanteId = votanteId, CandidatoId = candidatoId,
+                CriadoEm = Domingo.AddHours(1),
+            });
+        }
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task A_conquista_conta_so_eleicao_FECHADA_e_com_votos_suficientes()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var vice = ctx.Duplas.First(d => d.UltimaFase == "Final");
+
+        await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos);
+
+        // Com a votação ainda ABERTA não há eleito — mesma razão de a tela esconder o parcial.
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, Domingo.AddDays(1)));
+
+        // Fechou: a campeã tem a conquista, o vice não.
+        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+        Assert.Equal(1, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, vice.Jogador1Id, depoisDeFechar));
+    }
+
+    [Fact]
+    public async Task Abaixo_do_minimo_de_votos_ninguem_ganha_a_conquista()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+
+        await VotarNaCampeaAsync(ctx, torneio.Id, campea.Jogador1Id, MvpDoTorneio.VotosMinimos - 1);
+
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(
+            ctx, campea.Jogador1Id, Domingo.AddDays(MvpDoTorneio.DiasParaVotar)));
+    }
+
+    [Fact]
+    public async Task Empate_da_a_conquista_pros_DOIS_e_desligar_a_votacao_a_recolhe()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var campea = ctx.Duplas.First(d => d.UltimaFase == "Campeao");
+        var depoisDeFechar = Domingo.AddDays(MvpDoTorneio.DiasParaVotar);
+
+        // Cada campeão com o mínimo de votos, empatados no topo. Os votos entram direto na
+        // tabela (a apuração lê a tabela; quem valida eleitor é o VotarAsync, na entrada).
+        for (int i = 0; i < MvpDoTorneio.VotosMinimos * 2; i++)
+        {
+            var votante = new Jogador { Nome = $"Eleitor Extra {i}", Cpf = $"888000000{i:00}" };
+            ctx.Jogadores.Add(votante);
+            await ctx.SaveChangesAsync();
+            ctx.VotosDeMvp.Add(new VotoDeMvp
+            {
+                TorneioId = torneio.Id,
+                VotanteId = votante.Id,
+                CandidatoId = i % 2 == 0 ? campea.Jogador1Id : campea.Jogador2Id!.Value,
+                CriadoEm = Domingo.AddHours(1),
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        // Empate proclama os dois — inventar desempate escolheria um MVP por um motivo que
+        // ninguém combinou.
+        Assert.Equal(1, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
+        Assert.Equal(1, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador2Id!.Value, depoisDeFechar));
+
+        // O organizador desligou a votação: o MVP some da tela E da conquista — o interruptor
+        // é sobre o torneio TER isso. Os votos ficam; religar devolve tudo.
+        var t = ctx.Torneios.First(x => x.Id == torneio.Id);
+        t.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
+    }
 }

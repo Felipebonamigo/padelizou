@@ -33,7 +33,7 @@ public static class MetaDaBusca
         // `noindex`: eu estava pedindo ao Google pra tirar da busca uma das melhores páginas do
         // site, e nada na tela mostrava isso. O teste de reflexão abaixo existe por causa disso.
         "Jogadores/Ranking", "Jogadores/Perfil",
-        "Professores/Index", "Professores/Perfil",
+        "Professores/Index", "Professores/Perfil", "Professores/Comecar",
     };
 
     // Os nomes acima existem de verdade? Estas listas são texto solto: um erro de digitação
@@ -65,6 +65,10 @@ public static class MetaDaBusca
             "Professores de padel disponíveis para aula: cidade, valor, horários livres e avaliação de quem já treinou.",
         ["Professores/Perfil"] =
             "Aulas de padel com este professor: horários livres, valores e agendamento pelo site.",
+        // A página de quem procura "como começar no padel" / "aula de padel para iniciante" —
+        // o único público do site que ainda não joga.
+        ["Professores/Comecar"] =
+            "Como começar no padel: marque sua primeira aula com um professor da sua cidade, sem precisar de raquete nem parceiro. O passo a passo de quem nunca jogou.",
         ["Home/Privacy"] = "Como o Padelizou trata os seus dados.",
         ["Home/Termos"] = "Os termos de uso do Padelizou.",
     };

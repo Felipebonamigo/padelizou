@@ -636,24 +636,8 @@ namespace Padelizou.Controllers
 
             // Avisa quem aprova. Sem isto o pedido ficaria esperando alguém lembrar de abrir o
             // painel — e o organizador esperando um OK que ninguém sabe que precisa dar.
-            try
-            {
-                var admins = await _context.Jogadores
-                    .Where(j => (j.IsAdminGeral || j.IsAdminRaiz) && j.ExcluidoEm == null)
-                    .Select(j => j.Id)
-                    .ToListAsync();
-
-                var urlFila = Url.Action("TorneiosParaAprovar", "Admin");
-                foreach (var adminId in admins)
-                {
-                    await _pushService.EnviarParaJogadorAsync(adminId,
-                        "Torneio esperando aprovação", torneio.Nome, urlFila);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Falha ao avisar admins do torneio {TorneioId} esperando aprovação.", torneio.Id);
-            }
+            // (O mesmo aviso sai da duplicação de torneio, que também entra na fila.)
+            await AvisarAdminsDeTorneioEsperandoAsync(torneio);
 
             return RedirectToAction("Details", new { id = torneio.Id });
         }

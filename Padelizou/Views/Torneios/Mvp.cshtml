@@ -178,4 +178,54 @@
             </div>
         </div>
     </div>
+
+    @* ── A ENQUETE: como foi o torneio? ──────────────────────────────────────────────────
+       Pega carona na página do MVP (e no aviso que traz a pessoa até aqui). Duas notas, um
+       toque cada, sem texto — no celular, respondida em cinco segundos. Quem valida é o
+       servidor (Services/EnqueteDoTorneio); esta seção só aparece pra quem PODE responder. *@
+    @if (ViewBag.EnqueteAberta == true)
+    {
+        var minha = ViewBag.MinhaAvaliacao as Padelizou.Models.AvaliacaoDoTorneio;
+        <div class="card border-0 shadow-sm rounded-4 mt-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1">
+                    <i class="bi bi-chat-square-heart-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+                    Já que você está aqui: como foi o torneio?
+                </h6>
+                <p class="small text-muted mb-3">
+                    Leva cinco segundos e ajuda quem vai escolher onde jogar.
+                    @(minha != null ? " Você já respondeu — dá pra ajustar." : "")
+                </p>
+
+                <form asp-action="AvaliarTorneio" asp-route-id="@Model.TorneioId" method="post">
+                    @foreach (var (campo, rotulo, valorAtual) in new[]
+                    {
+                        ("notaClube", "O clube (quadras, estrutura)", minha?.NotaClube ?? 0),
+                        ("notaOrganizacao", "A organização do torneio", minha?.NotaOrganizacao ?? 0),
+                    })
+                    {
+                        <label class="form-label fw-semibold small d-block mb-1 mt-2">@rotulo</label>
+                        @* Radios com cara de estrela: um toque dá a nota, e a escala inteira
+                           fica à vista — o mesmo arranjo dos botões de nota do Feedback. *@
+                        <div class="d-flex gap-1 pdz-estrelas" data-grupo="@campo">
+                            @for (var n = 1; n <= Padelizou.Services.EnqueteDoTorneio.NotaMaxima; n++)
+                            {
+                                <input type="radio" class="btn-check" name="@campo" value="@n"
+                                       id="@(campo)-@n" autocomplete="off"
+                                       checked="@(valorAtual == n)" required />
+                                <label class="btn btn-outline-secondary px-2 py-1" for="@(campo)-@n"
+                                       title="@n de 5">
+                                    <i class="bi bi-star-fill"></i> @n
+                                </label>
+                            }
+                        </div>
+                    }
+
+                    <button type="submit" class="btn btn-padel rounded-pill px-4 mt-3">
+                        <i class="bi bi-send"></i> @(minha != null ? "Atualizar avaliação" : "Enviar avaliação")
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
 </div>

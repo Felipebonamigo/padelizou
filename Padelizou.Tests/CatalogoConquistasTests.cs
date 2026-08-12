@@ -140,13 +140,12 @@ public class CatalogoConquistasTests
     [Fact]
     public void O_total_e_as_duas_escadas_mais_as_conquistas_soltas()
     {
-        // Eram 12 (3 fileiras exatas de 4). Com as escadas de vitórias e de títulos são 25, e
-        // a última fileira sobra com 1 — por isso a grade do perfil ganhou
-        // `justify-content-center`. Este número não é decoração: se alguém somar conquista sem
-        // olhar a tela, este teste é o aviso.
+        // Eram 25; com Explorador e MVP (12/08/2026) são 27 — a grade do perfil é de 4 por
+        // fileira com `justify-content-center`, então a última fica com 3. Este número não é
+        // decoração: se alguém somar conquista sem olhar a tela, este teste é o aviso.
         var total = CatalogoConquistas.Montar(Ninguem()).Count;
 
-        Assert.Equal(25, total);
+        Assert.Equal(27, total);
         Assert.Equal(6, CatalogoConquistas.EscadaDeVitorias.Length);
         Assert.Equal(9, CatalogoConquistas.EscadaDeCampeao.Length);
     }
@@ -173,6 +172,37 @@ public class CatalogoConquistasTests
         foreach (var antigo in new[] { "Estreia", "Mensalista", "Organizador", "DoTime", "Campeao",
                                        "Professor", "Bicampeao", "DezVitorias" })
             Assert.Contains(antigo, codigos);
+    }
+
+    [Theory]
+    [InlineData(3, true)]
+    [InlineData(2, false)]
+    public void Explorador_pede_3_clubes_diferentes(int clubes, bool esperado)
+    {
+        Assert.Equal(esperado, Tem(Ninguem() with { ClubesDiferentes = clubes }, "Explorador"));
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    public void MVP_acende_com_uma_eleicao_vencida(int vezes, bool esperado)
+    {
+        Assert.Equal(esperado, Tem(Ninguem() with { VezesMvp = vezes }, "MvpDeTorneio"));
+    }
+
+    [Fact]
+    public void Os_campos_novos_do_record_tem_padrao_zero()
+    {
+        // `VezesMvp` e `ClubesDiferentes` chegaram DEPOIS, com valor padrão: quem monta o
+        // record sem conhecê-los (coleta antiga, teste antigo) precisa continuar valendo —
+        // e zero tem que significar "não conquistou", nunca estourar.
+        var d = new DadosParaConquistas(
+            JogouAlgumaVez: true, JogosSemanais: 0, EhOrganizador: false, TemTime: false,
+            EhProfessor: false, Titulos: 0, Finais: 0, TotalTorneios: 0, Vitorias: 0,
+            ElogiosRecebidos: 0, AulasComoAluno: 0);
+
+        Assert.False(Tem(d, "Explorador"));
+        Assert.False(Tem(d, "MvpDeTorneio"));
     }
 
     [Fact]

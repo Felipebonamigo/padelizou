@@ -58,6 +58,13 @@
                 <i class="bi bi-box-arrow-in-right me-1"></i> Já tenho conta
             </a>
         </div>
+        @* A porta de quem ainda NÃO joga — todo o resto da home fala com quem já é jogador.
+           Discreta de propósito: é rota de saída pra outra conversa, não o CTA principal. *@
+        <div class="mt-3">
+            <a asp-controller="Professores" asp-action="Comecar" class="text-decoration-none small">
+                <i class="bi bi-stars"></i> Nunca jogou padel? <span class="text-decoration-underline">Comece por aqui</span>
+            </a>
+        </div>
     </div>
 }
 else
