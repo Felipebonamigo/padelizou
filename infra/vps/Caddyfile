@@ -35,7 +35,32 @@
 #   curl -s -o /dev/null -D - https://padelizou.com.br/         # 200
 #   curl -s -o /dev/null -D - https://admin.padelizou.com.br/   # 302 /Admin/Index
 #
-# Última sincronização com o servidor: 11/08/2026.
+# Última sincronização com o servidor: 11/08/2026 (o CSP entrou nesta).
+#
+# ── SOBRE O Content-Security-Policy, QUE ENTROU EM 11/08/2026 ──────────────────────────
+#
+# ⚠️ Ele vai com 'unsafe-inline' em script e style, e isso é uma escolha, não descuido: o
+# site tem 39 views com <script> inline, 127 handlers on*= e 1.164 style=. **Com
+# 'unsafe-inline' o CSP NÃO barra um XSS injetado na página** — quem disser o contrário está
+# vendendo. O que ele entrega de concreto:
+#   form-action 'self'  um XSS não consegue apontar o POST do LOGIN pra um servidor de fora
+#   base-uri 'self'     bloqueia <base> injetado, que sequestra todo link relativo do site
+#   script-src          o atacante pode injetar inline, mas não CARREGA script do domínio dele
+#   object-src 'none'   sem plugin/embed
+#
+# 🔤 **O `cdn.jsdelivr.net` no `font-src` NÃO é sobra** — foi medido: o `bootstrap-icons.min.css`
+# vem de lá e puxa a **webfont dos ícones** do mesmo domínio. Com `font-src 'self'` apenas,
+# todo ícone do site vira quadradinho. Conferido no navegador com `document.fonts.check()`:
+# Inter, Poppins e bootstrap-icons as três com status "loaded" sob a política.
+#
+# ✅ **Como foi implantado, e é a receita pra mexer nele:** primeiro `Content-Security-Policy-
+# Report-Only` em produção (o navegador REPORTA e não bloqueia — risco zero), navegar home,
+# torneio, cadastro, login e listagem com o Console aberto, e só então trocar pro cabeçalho
+# que bloqueia. Ferramenta: `/root/csp-aplicar.sh <dominio> <report|bloquear|remover>`.
+#
+# 🕳️ Em Report-Only o Chrome escreve no console *"'upgrade-insecure-requests' is ignored when
+# delivered in a report-only policy"*. **Isso NÃO é violação** — é essa diretiva que não vale
+# nesse modo. Ela some sozinha ao trocar pra bloquear.
 # ───────────────────────────────────────────────────────────────────────────────────────
 
 # ⚠️ O ADMIN COMPARTILHA ESTE BLOCO com o site público. Mexer na primeira linha sem ler
@@ -53,6 +78,7 @@ padelizou.com.br, admin.padelizou.com.br {
 		X-Content-Type-Options nosniff
 		X-Frame-Options SAMEORIGIN
 		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
 	}
 
 	encode gzip
@@ -73,6 +99,7 @@ dev.padelizou.com.br {
 		X-Content-Type-Options nosniff
 		X-Frame-Options SAMEORIGIN
 		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
 	}
 
 	encode gzip
