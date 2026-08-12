@@ -29,14 +29,20 @@ public class SeletorDoRankingTests
 
         // O dublê precisa devolver o VM vazio, e não o `null` que o NSubstitute dá de graça:
         // a tela lê as DUAS listas do Americano (individual e duplas) e nenhuma pode faltar.
+        //
+        // ⚠️ Os matchers cobrem os TRÊS argumentos de propósito. A tela pede a lista mais de uma
+        // vez (o recorte do movimento e o dos troféus por período), e um dublê preso ao caso de
+        // um argumento só devolveria nulo justamente na segunda chamada.
         var americano = Substitute.For<IRankingAmericanoService>();
-        americano.ListarAsync(Arg.Any<HashSet<int>?>())
+        americano.ListarAsync(Arg.Any<HashSet<int>?>(), Arg.Any<DateTime?>(), Arg.Any<DateTime?>())
             .Returns(new RankingAmericanoVM(new(), new()));
 
         var view = Assert.IsType<ViewResult>(await controller.Ranking(
             clubeId: null, torneioId: null, cidade: null, estado: null, periodo: null,
             padelimetro: new PadelimetroService(ctx),
-            rankingAmericano: americano));
+            rankingAmericano: americano,
+            portaDosDesafios: TestInfra.PortaDosDesafiosDe(ctx),
+            telaDeDesafios: new TelaDoRankingDeDesafios(ctx)));
 
         return (List<Torneio>)view.ViewData["TorneiosList"]!;
     }

@@ -519,6 +519,9 @@ public class EstatisticasService : IEstatisticasService
         // Período (só afeta vitórias/invencibilidade/troféus; pontos e times são sempre o total).
         vm.Periodo = NormalizarPeriodo(periodo);
         var (dePeriodo, _) = IntervaloPeriodo(vm.Periodo);
+        // Vai junto no VM porque os troféus de Americano obedecem ao MESMO corte e são montados
+        // fora daqui (ver RankingHubVM.PeriodoDe).
+        vm.PeriodoDe = dePeriodo;
 
         // Todas as categorias cadastradas no sistema (para o dropdown da aba "Por categoria").
         vm.TodasCategorias = await _context.Categorias

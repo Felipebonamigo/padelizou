@@ -84,10 +84,20 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
         <div>
             <h2 class="pdz-section-title mb-1"><i class="bi bi-award-fill text-warning"></i> Ranking</h2>
+            @* ⚠️ Esta frase é uma PROMESSA, e ela tem que continuar verdadeira pra quem está
+               lendo. A aba Desafios não sai de torneio — então a exceção só aparece pra quem
+               tem a aba. Pra quem não tem, a promessa é inteira, sem asterisco em nada. *@
             <p class="text-muted mb-0">
                 <i class="bi bi-shield-lock"></i>
                 Tudo abaixo é calculado <strong>só a partir de resultados de torneios</strong>.
                 Aulas, jogos semanais e ajustes manuais não entram.
+                @if (Model.Desafios != null)
+                {
+                    <text>
+                        A única exceção é a aba <strong>Desafios</strong> — jogo combinado entre
+                        duas duplas, e ela avisa isso lá dentro.
+                    </text>
+                }
             </p>
         </div>
         @if (torneiosList.Any())
@@ -202,24 +212,22 @@
         </div>
     }
 
-    @* O ranking de DESAFIOS mora numa tela própria e entra aqui como cartão, não como nona aba:
-       a frase do topo desta página promete que tudo abaixo sai de resultados de TORNEIO, e o
-       desafio é placar combinado entre duas duplas, sem organizador. Enquanto o módulo está em
-       construção o cartão só existe pra admin — quem decide é Services/PortaDosDesafios. *@
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        @await Component.InvokeAsync("MenuDesafios", new { estilo = "Cartao" })
-    }
-
-    <!-- Navegação principal -->
+    @* ============ NAVEGAÇÃO PRINCIPAL ============
+       Oito abas numa fita só não cabiam em tela de celular: "Vitórias (jogadores)", "Vitórias
+       (duplas)" e "Invencibilidade" ocupavam três delas medindo A MESMA COISA por recortes
+       diferentes, e quem abria a primeira não descobria que existiam as outras duas sem arrastar
+       a fita de lado. Agora são uma aba com três sub-abas — a mesma arrumação que o Americano
+       (individual × duplas) já usava aqui. *@
     <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3 mt-2" role="tablist" style="white-space: nowrap;">
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold active" data-bs-toggle="pill" data-bs-target="#tab-pontos" type="button"><i class="bi bi-list-ol"></i> Por categoria</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-padelimetro" type="button"><i class="bi bi-speedometer2"></i> Padelímetro</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-americano" type="button"><i class="bi bi-arrow-repeat"></i> Americano</button></li>
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-trofeus" type="button"><i class="bi bi-trophy-fill"></i> Troféus</button></li>
-        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vjog" type="button"><i class="bi bi-person-check-fill"></i> Vitórias (jogadores)</button></li>
-        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vdup" type="button"><i class="bi bi-people-fill"></i> Vitórias (duplas)</button></li>
-        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-invicto" type="button"><i class="bi bi-fire"></i> Invencibilidade</button></li>
+        <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-vitorias" type="button"><i class="bi bi-check-circle-fill"></i> Vitórias</button></li>
+        @if (Model.Desafios != null)
+        {
+            <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-desafios" type="button">🥊 Desafios</button></li>
+        }
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-times" type="button"><i class="bi bi-shield-fill"></i> Times</button></li>
     </ul>
 
@@ -456,15 +464,18 @@
                e o que sobra é o seu jogo; no de duplas a dupla é fixa, e metade do resultado é
                do parceiro que você escolheu. Numa lista só, os dois números pareceriam a mesma
                medida — e o de duplas premiaria quem escolheu bem, não quem jogou melhor. *@
+            @* Mesmo desenho das sub-abas de Troféus, Vitórias e Desafios: quatro grupos de
+               sub-abas na mesma tela com formatos diferentes fariam a pessoa achar que são
+               controles diferentes. *@
             <ul class="nav nav-pills nav-sm mb-3" role="tablist">
-                <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#sub-am-individual" type="button">
+                <li class="nav-item me-2">
+                    <button class="nav-link rounded-pill active" data-bs-toggle="pill" data-bs-target="#sub-am-individual" type="button">
                         <i class="bi bi-person me-1"></i> Individual
                         <span class="badge bg-light text-dark ms-1">@Model.AmericanoIndividual.Count</span>
                     </button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sub-am-duplas" type="button">
+                    <button class="nav-link rounded-pill" data-bs-toggle="pill" data-bs-target="#sub-am-duplas" type="button">
                         <i class="bi bi-people me-1"></i> Em duplas
                         <span class="badge bg-light text-dark ms-1">@Model.AmericanoDuplas.Count</span>
                     </button>
@@ -489,51 +500,143 @@
             </div>
         </div>
 
-        @* ============================ 2. TROFÉUS POR CATEGORIA ============================ *@
+        @* ============================ 2. TROFÉUS ============================
+           Duas metades, e os TORNEIOS vêm primeiro sempre: título de chave e título de Americano
+           não são a mesma conquista — um é uma campanha de mata-mata, o outro é a colocação num
+           rodízio de uma noite. Numa lista só, os dois apareceriam lado a lado como se valessem
+           igual, que é exatamente o erro que o ranking já não comete (Americano é ranking próprio
+           desde a Trilha C do RANKING.md). Aqui a separação só ficou visível também nos troféus.
+
+           ⚠️ As duas metades obedecem ao MESMO seletor de período — ver o `de` que o controller
+           passa pro RankingAmericanoService. Meia tela em "este mês" e meia em "sempre" seria uma
+           comparação errada que ninguém reporta como defeito. *@
         <div class="tab-pane fade" id="tab-trofeus" role="tabpanel">
-            @Html.Raw(SeletorPeriodo(Model, "#tab-trofeus"))
-            @if (!Model.TrofeusPorCategoria.Any())
-            {
-                <partial name="_RankingVazio" />
-            }
-            else
-            {
-                <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3" role="tablist" style="white-space: nowrap;">
-                    @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+            <ul class="nav nav-pills nav-sm mb-3" role="tablist">
+                <li class="nav-item me-2">
+                    <button class="nav-link rounded-pill active" data-bs-toggle="pill" data-bs-target="#sub-trf-torneios" type="button">
+                        <i class="bi bi-trophy-fill me-1"></i> Torneios
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill" data-bs-toggle="pill" data-bs-target="#sub-trf-americanos" type="button">
+                        <i class="bi bi-arrow-repeat me-1"></i> Americanos
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                @* ── Troféus de torneio de chave ─────────────────────────────────────── *@
+                <div class="tab-pane fade show active" id="sub-trf-torneios" role="tabpanel">
+                    @Html.Raw(SeletorPeriodo(Model, "#sub-trf-torneios"))
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-trophy-fill"></i> Títulos e finais de
+                        <strong>torneio de chave</strong>, por categoria.
+                    </p>
+                    @if (!Model.TrofeusPorCategoria.Any())
                     {
-                        <li class="nav-item me-2"><button class="nav-link rounded-pill @(i == 0 ? "active" : "")" data-bs-toggle="pill" data-bs-target="#trf-@i" type="button">@Model.TrofeusPorCategoria[i].Categoria</button></li>
+                        <partial name="_RankingVazio" />
                     }
-                </ul>
-                <div class="tab-content">
-                    @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+                    else
                     {
-                        var cat = Model.TrofeusPorCategoria[i];
-                        <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="trf-@i" role="tabpanel">
-                            <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-                                <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Finais</th></tr></thead>
-                                <tbody>
-                                    @{ var pos = 1; }
-                                    @foreach (var l in cat.Linhas)
-                                    {
-                                        <tr>
-                                            <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
-                                            <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a></td>
-                                            <td class="text-center"><span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @l.Titulos</span></td>
-                                            <td class="text-center text-muted">@l.Finais</td>
-                                        </tr>
-                                        pos++;
-                                    }
-                                </tbody>
-                            </table></div></div>
+                        <ul class="nav nav-pills flex-nowrap overflow-auto pb-2 mb-3" role="tablist" style="white-space: nowrap;">
+                            @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+                            {
+                                <li class="nav-item me-2"><button class="nav-link rounded-pill @(i == 0 ? "active" : "")" data-bs-toggle="pill" data-bs-target="#trf-@i" type="button">@Model.TrofeusPorCategoria[i].Categoria</button></li>
+                            }
+                        </ul>
+                        <div class="tab-content">
+                            @for (var i = 0; i < Model.TrofeusPorCategoria.Count; i++)
+                            {
+                                var cat = Model.TrofeusPorCategoria[i];
+                                <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="trf-@i" role="tabpanel">
+                                    <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+                                        <thead><tr><th class="text-center" style="width:60px;">#</th><th>Jogador</th><th class="text-center">Títulos</th><th class="text-center">Finais</th></tr></thead>
+                                        <tbody>
+                                            @{ var pos = 1; }
+                                            @foreach (var l in cat.Linhas)
+                                            {
+                                                <tr>
+                                                    <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                                                    <td><a asp-action="Perfil" asp-route-id="@l.Jogador.Id" class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a></td>
+                                                    <td class="text-center"><span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @l.Titulos</span></td>
+                                                    <td class="text-center text-muted">@l.Finais</td>
+                                                </tr>
+                                                pos++;
+                                            }
+                                        </tbody>
+                                    </table></div></div>
+                                </div>
+                            }
                         </div>
                     }
                 </div>
-            }
+
+                @* ── Troféus de Americano ────────────────────────────────────────────── *@
+                <div class="tab-pane fade" id="sub-trf-americanos" role="tabpanel">
+                    @Html.Raw(SeletorPeriodo(Model, "#sub-trf-americanos"))
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-arrow-repeat"></i> Quem <strong>venceu</strong> a etapa —
+                        1º lugar no Americano. <strong>Pódio</strong> é ter terminado entre os três
+                        primeiros. Só contam os Americanos que entraram no ranking próprio, e o
+                        título aqui <strong>não soma</strong> com o de torneio de chave ao lado.
+                    </p>
+                    @* Sem sub-sub-abas: os dois formatos cabem um embaixo do outro, e enterrar o
+                       segundo em mais um clique seria esconder metade da aba. *@
+                    <h5 class="fw-bold mb-2"><i class="bi bi-person text-secondary"></i> Individual</h5>
+                    <p class="text-muted small mb-2">Parceiro trocando a cada rodada — o título é <strong>seu</strong>.</p>
+                    <div class="mb-4">
+                        <partial name="_TrofeusDoAmericano" model='@((Model.TrofeusAmericanoIndividual, "individual"))' />
+                    </div>
+
+                    <h5 class="fw-bold mb-2"><i class="bi bi-people text-secondary"></i> Em duplas</h5>
+                    <p class="text-muted small mb-2">Dupla fixa do começo ao fim — o título é <strong>da dupla</strong>, e os dois o levam.</p>
+                    <partial name="_TrofeusDoAmericano" model='@((Model.TrofeusAmericanoDuplas, "de duplas"))' />
+                </div>
+            </div>
         </div>
 
-        @* ============================ 3+4. VITÓRIAS — JOGADORES ============================ *@
-        <div class="tab-pane fade" id="tab-vjog" role="tabpanel">
-            @Html.Raw(SeletorPeriodo(Model, "#tab-vjog"))
+        @* ============================ 3. VITÓRIAS ============================
+           Uma aba, três recortes: jogador, dupla e a sequência invicta. Eram três abas irmãs na
+           fita de cima e agora são sub-abas aqui — quem abria "Vitórias (jogadores)" não tinha
+           como saber que as outras duas existiam sem arrastar a fita de lado no celular.
+
+           ⚠️ AS TRÊS LEEM AS MESMAS PARTIDAS por recortes diferentes, e nenhuma se soma à outra:
+           a de duplas conta o par fixo, a de jogadores conta o que cada um fez com QUALQUER
+           parceiro, e a de invencibilidade conta sequência, não total. Juntá-las numa aba só
+           tornou o aviso obrigatório — antes elas estavam longe o bastante pra ninguém tentar
+           somar. É o mesmo aviso que o Americano e os Desafios já carregam. *@
+        <div class="tab-pane fade" id="tab-vitorias" role="tabpanel">
+            <ul class="nav nav-pills nav-sm mb-3" role="tablist">
+                <li class="nav-item me-2">
+                    <button class="nav-link rounded-pill active" data-bs-toggle="pill" data-bs-target="#sub-vit-jogadores" type="button">
+                        <i class="bi bi-person-check-fill me-1"></i> Jogadores
+                    </button>
+                </li>
+                <li class="nav-item me-2">
+                    <button class="nav-link rounded-pill" data-bs-toggle="pill" data-bs-target="#sub-vit-duplas" type="button">
+                        <i class="bi bi-people-fill me-1"></i> Duplas
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill" data-bs-toggle="pill" data-bs-target="#sub-vit-invicto" type="button">
+                        <i class="bi bi-fire me-1"></i> Invencibilidade
+                    </button>
+                </li>
+            </ul>
+
+            <p class="small text-muted">
+                <i class="bi bi-info-circle"></i>
+                São os mesmos jogos vistos de três jeitos: <strong>Jogadores</strong> conta o que
+                cada um fez com qualquer parceiro, <strong>Duplas</strong> conta o par fixo, e
+                <strong>Invencibilidade</strong> conta a maior sequência sem perder. Uma tabela
+                não se soma à outra.
+            </p>
+
+            <div class="tab-content">
+
+        @* ── Vitórias por jogador ────────────────────────────────────────────────────── *@
+        <div class="tab-pane fade show active" id="sub-vit-jogadores" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#sub-vit-jogadores"))
             @if (!Model.VitoriasJogadores.Any())
             {
                 <partial name="_RankingVazio" />
@@ -593,9 +696,9 @@
             }
         </div>
 
-        @* ============================ 6+7. VITÓRIAS — DUPLAS ============================ *@
-        <div class="tab-pane fade" id="tab-vdup" role="tabpanel">
-            @Html.Raw(SeletorPeriodo(Model, "#tab-vdup"))
+        @* ── Vitórias por dupla ──────────────────────────────────────────────────────── *@
+        <div class="tab-pane fade" id="sub-vit-duplas" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#sub-vit-duplas"))
             @if (!Model.VitoriasDuplas.Any())
             {
                 <partial name="_RankingVazio" />
@@ -657,9 +760,9 @@
             }
         </div>
 
-        @* ============================ 5+8. INVENCIBILIDADE ============================ *@
-        <div class="tab-pane fade" id="tab-invicto" role="tabpanel">
-            @Html.Raw(SeletorPeriodo(Model, "#tab-invicto"))
+        @* ── Invencibilidade ─────────────────────────────────────────────────────────── *@
+        <div class="tab-pane fade" id="sub-vit-invicto" role="tabpanel">
+            @Html.Raw(SeletorPeriodo(Model, "#sub-vit-invicto"))
             <p class="text-muted small mb-3">Maior sequência de partidas de torneio consecutivas <strong>sem perder</strong>.</p>
             <div class="row g-4">
                 <div class="col-lg-6">
@@ -720,6 +823,134 @@
             </div>
         </div>
 
+            </div>@* /tab-content das sub-abas de Vitórias *@
+        </div>@* /tab-vitorias *@
+
+        @* ============================ 4. DESAFIOS ============================
+           A aba só existe pra quem já enxerga o módulo — a régua é PortaDosDesafios, a mesma do
+           menu e do controller de lá, e ela é aplicada no controller: aqui a lista simplesmente
+           não vem (é nula) e a aba não é desenhada.
+
+           ⚠️ ESTA É A ÚNICA ABA QUE NÃO SAI DE TORNEIO, e por isso ela diz isso na primeira
+           linha. O desafio é placar combinado entre duas duplas, sem organizador e sem chave —
+           quem chega aqui vindo das abas de cima precisa saber que está lendo outra medida. A
+           frase do topo da tela abre a exceção pelo mesmo motivo. *@
+        @if (Model.Desafios is { } desafios)
+        {
+            <div class="tab-pane fade" id="tab-desafios" role="tabpanel">
+                @if (desafios.EmConstrucao)
+                {
+                    <div class="alert alert-warning d-flex align-items-center gap-2 rounded-4 py-2 px-3 small">
+                        <i class="bi bi-cone-striped fs-5"></i>
+                        <div>
+                            <strong>Em construção — só você vê esta aba.</strong>
+                            Pra abrir pros jogadores: <code>Desafios__Habilitado=true</code> no systemd.
+                        </div>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <strong>Isto não é torneio.</strong> Desafio é jogo combinado entre duas
+                        duplas, sem organizador — placar confirmado pelos dois lados, dos últimos
+                        @Padelizou.Services.RankingDeDesafios.MesesQueContam meses. Não soma com
+                        nenhuma outra aba desta tela.
+                    </p>
+                    <a asp-controller="Desafios" asp-action="Ranking" class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0">
+                        Tela cheia (com filtros) <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+
+                @* 🥊 Os cinturões vêm ANTES da tabela, como na tela cheia: a tabela é a
+                   temporada; o cinturão é o hoje, e é o que dá um alvo pra quem está lendo. *@
+                @if (desafios.Cinturoes.Count > 0)
+                {
+                    <div class="row g-3 mb-3">
+                        @foreach (var c in desafios.Cinturoes)
+                        {
+                            var meu = desafios.SouDonoDe(c);
+                            <div class="col-md-6">
+                                <div class="card border-0 shadow-sm rounded-4 h-100"
+                                     style="border-left: 5px solid @(c.EmRisco ? "#dc3545" : "var(--padel-green)") !important;">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="small text-muted text-uppercase fw-bold">🥊 Cinturão · @c.Categoria</div>
+                                        <div class="fw-bold" style="color: var(--pdz-ink);">
+                                            @c.Dupla
+                                            @if (meu)
+                                            {
+                                                <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
+                                            }
+                                        </div>
+                                        <div class="small text-muted">
+                                            @c.Defesas defesa(s) · desde @c.Desde.ToString("dd/MM")
+                                            @if (c.EmRisco)
+                                            {
+                                                @* A regra tem que aparecer ANTES de ser executada — perder o
+                                                   cinturão sem nunca ter sido avisado vira "o site tirou o meu". *@
+                                                <span class="text-danger fw-semibold">
+                                                    · @c.NaoAtendidos sem resposta, faltam @c.FaltamParaPerder
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (desafios.Vazio)
+                {
+                    <div class="text-center py-5 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+                        <i class="bi bi-megaphone display-4 text-muted mb-3"></i>
+                        <h4 class="fw-bold text-secondary">Nenhum desafio confirmado ainda</h4>
+                        <p class="text-muted mb-0">O ranking começa no primeiro placar que as duas duplas confirmarem.</p>
+                    </div>
+                }
+                else
+                {
+                    <ul class="nav nav-pills nav-sm mb-3" role="tablist">
+                        <li class="nav-item me-2">
+                            <button class="nav-link rounded-pill active" data-bs-toggle="pill" data-bs-target="#sub-des-duplas" type="button">
+                                <i class="bi bi-people-fill me-1"></i> Duplas
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill" data-bs-toggle="pill" data-bs-target="#sub-des-jogadores" type="button">
+                                <i class="bi bi-person-check-fill me-1"></i> Jogadores
+                            </button>
+                        </li>
+                    </ul>
+
+                    @* ⚠️ O mesmo aviso da tela cheia, e pela mesma razão: as duas tabelas leem os
+                       MESMOS jogos por recortes diferentes, e quem soma as duas conta a mesma
+                       pessoa duas vezes. *@
+                    <p class="small text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        São os mesmos jogos vistos de dois jeitos: <strong>Duplas</strong> conta o
+                        par fixo, <strong>Jogadores</strong> conta o que cada um fez com qualquer
+                        parceiro. Uma tabela não se soma à outra.
+                    </p>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="sub-des-duplas" role="tabpanel">
+                            <div class="card shadow-sm border-0">
+                                <partial name="_TabelaDoRankingDeDesafios"
+                                         model='@(new TabelaDoRankingVM(desafios.Duplas, desafios.MeuId, "Dupla"))' />
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="sub-des-jogadores" role="tabpanel">
+                            <div class="card shadow-sm border-0">
+                                <partial name="_TabelaDoRankingDeDesafios"
+                                         model='@(new TabelaDoRankingVM(desafios.Jogadores, desafios.MeuId, "Jogador"))' />
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
         @* ============================ 10. RANKING DE TIMES ============================ *@
         <div class="tab-pane fade" id="tab-times" role="tabpanel">
             <p class="text-muted small mb-3">Cada ponto que um jogador conquista em torneio soma para o time dele. Mesma pontuação por fase do ranking individual.</p>
@@ -773,12 +1004,29 @@
 
 <script>
     // Reabre a aba indicada na hash da URL (usado pelos botões de período, que recarregam a página).
+    //
+    // ⚠️ Sobe a árvore ANTES de abrir. Desde que Troféus, Vitórias e Desafios viraram abas com
+    // sub-abas, a hash aponta pra uma sub-aba (#sub-vit-duplas) — e mandar o Bootstrap abrir só
+    // ela deixaria o painel visível DENTRO de uma aba-mãe fechada: a pessoa clicava em "Este mês"
+    // na tabela de duplas, a página recarregava, e voltava em "Por categoria" sem explicação.
     document.addEventListener('DOMContentLoaded', function () {
         var h = location.hash;
-        if (h && h.length > 1) {
-            var btn = document.querySelector('.nav-pills [data-bs-target="' + h + '"]');
-            if (btn && window.bootstrap) { new bootstrap.Tab(btn).show(); }
+        if (!h || h.length < 2 || !window.bootstrap) return;
+
+        var alvo = document.querySelector('.nav-pills [data-bs-target="' + h + '"]');
+        if (!alvo) return;
+
+        // Da mais externa pra mais interna: abrir a filha primeiro e a mãe depois faria a mãe
+        // reabrir na sub-aba padrão dela por cima do que acabamos de mostrar.
+        var cadeia = [alvo];
+        var painel = alvo.closest('.tab-pane');
+        while (painel) {
+            var mae = document.querySelector('.nav-pills [data-bs-target="#' + painel.id + '"]');
+            if (mae) cadeia.unshift(mae);
+            painel = painel.parentElement ? painel.parentElement.closest('.tab-pane') : null;
         }
+
+        cadeia.forEach(function (btn) { new bootstrap.Tab(btn).show(); });
     });
 
     // Buscar jogador dentro do ranking (filtra as linhas visíveis por nome, em todas as tabelas).

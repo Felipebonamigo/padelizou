@@ -26,16 +26,21 @@ public class DesafiosController : Controller
     private readonly DbPadelContext _context;
     private readonly PortaDosDesafios _porta;
     private readonly FechamentoDoDesafio _fechamento;
+    // A montagem do ranking mora fora daqui porque a MESMA tabela também é uma aba do hub de
+    // ranking (/Jogadores/Ranking) — ver Services/TelaDoRankingDeDesafios.
+    private readonly TelaDoRankingDeDesafios _telaDoRanking;
     // Pela fila de avisos, nunca SMTP inline: publicar mandando e-mail dentro da requisição foi
     // o que deixou "Publicando o torneio…" demorando minutos.
     private readonly IPushNotificationService _push;
 
     public DesafiosController(DbPadelContext context, PortaDosDesafios porta,
-        FechamentoDoDesafio fechamento, IPushNotificationService push)
+        FechamentoDoDesafio fechamento, TelaDoRankingDeDesafios telaDoRanking,
+        IPushNotificationService push)
     {
         _context = context;
         _porta = porta;
         _fechamento = fechamento;
+        _telaDoRanking = telaDoRanking;
         _push = push;
     }
 
@@ -392,70 +397,8 @@ public class DesafiosController : Controller
     {
         if (!await PortaAbertaAsync()) return NotFound();
 
-        var agora = DateTime.Now;
-
-        // ⚠️ O "o que conta" (confirmado + últimos 12 meses) sai de RankingDeDesafios.QueContam,
-        // o mesmo que o retrospecto do mural e a linha do perfil usam. Repetir a cláusula aqui
-        // seria a terceira cópia — e a que ficaria pra trás no dia em que nascer um estado novo.
-        var query = RankingDeDesafios.QueContam(_context.Desafios.AsNoTracking(), agora);
-
-        if (categoria is > 0) query = query.Where(d => d.CategoriaPadraoId == categoria);
-        if (clube is > 0) query = query.Where(d => d.ClubeId == clube);
-
-        var confirmados = await query.ToListAsync();
-        var pessoas = await PessoasDosDesafiosAsync(confirmados);
-
-        return View(new RankingDeDesafiosVM(
-            RankingDeDesafios.PorDupla(confirmados, pessoas),
-            RankingDeDesafios.PorJogador(confirmados, pessoas),
-            await CinturoesNoArAsync(agora, categoria),
-            await _context.CategoriasPadrao.Ativas().OrderBy(c => c.Id).ToListAsync(),
-            await ClubesComDesafioAsync(agora),
-            categoria,
-            clube,
-            MeuId(),
-            _porta.EmConstrucao));
-    }
-
-    // Os cinturões de pé agora, com o quanto cada dono está perto de perder por não defender.
-    //
-    // ⚠️ "Quantas faltam" é lido do RELÓGIO aqui, e não de uma coluna: o vigia que executa a
-    // troca roda de 6 em 6 horas, e a tela não pode esperar por ele pra contar a verdade. Vigia
-    // parado atrasa a troca; nunca esconde o estado.
-    private async Task<List<CinturaoNaTela>> CinturoesNoArAsync(DateTime agora, int? categoria)
-    {
-        var donos = await _context.ReinadosNoCinturao
-            .AsNoTracking()
-            .Include(r => r.CategoriaPadrao)
-            .Include(r => r.Jogador1)
-            .Include(r => r.Jogador2)
-            .Where(r => r.TerminouEm == null)
-            .Where(r => categoria == null || r.CategoriaPadraoId == categoria)
-            .ToListAsync();
-
-        if (donos.Count == 0) return new();
-
-        // A janela da regra mais uma folga: um desafio proposto pouco antes dela ainda pode
-        // VENCER dentro dela (a proposta morre 48h depois de nascer).
-        var desdeQuando = agora - Cinturao.JanelaDaDefesa - EstadoDoDesafio.PrazoParaResponder;
-        var categorias = donos.Select(d => d.CategoriaPadraoId).ToList();
-
-        var recentes = await _context.Desafios
-            .AsNoTracking()
-            .Where(d => categorias.Contains(d.CategoriaPadraoId) && d.PropostoEm >= desdeQuando)
-            .ToListAsync();
-
-        return donos
-            .Select(d => new CinturaoNaTela(
-                d.CategoriaPadrao.Nome,
-                DuplaNaTela.Nome(d.Jogador1, d.Jogador2),
-                d.Donos.ToList(),
-                d.ComecouEm,
-                d.Defesas,
-                Cinturao.QuantasFaltamParaPerder(d, recentes, agora)))
-            .OrderByDescending(c => c.Defesas)
-            .ThenBy(c => c.Categoria, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return View(await _telaDoRanking.MontarAsync(
+            MeuId(), _porta.EmConstrucao, DateTime.Now, categoria, clube));
     }
 
     // ─────────────────────────── MEUS DESAFIOS ───────────────────────────
@@ -838,35 +781,6 @@ public class DesafiosController : Controller
         return donos
             .GroupBy(r => ChaveDaDupla.De(r.Jogador1Id, r.Jogador2Id))
             .ToDictionary(g => g.Key, g => g.Select(r => r.CategoriaPadrao.Nome).OrderBy(n => n).ToList());
-    }
-
-    // Os quatro jogadores de cada desafio, pro ranking saber escrever os nomes.
-    private async Task<Dictionary<int, Jogador>> PessoasDosDesafiosAsync(List<Desafio> desafios)
-    {
-        var ids = desafios.SelectMany(d => d.Envolvidos).Distinct().ToList();
-        if (ids.Count == 0) return new();
-
-        return await _context.Jogadores
-            .AsNoTracking()
-            .Where(j => ids.Contains(j.Id))
-            .ToDictionaryAsync(j => j.Id);
-    }
-
-    // Só os clubes que JÁ receberam desafio contado. Oferecer o catálogo inteiro encheria o
-    // filtro de clubes que devolvem tabela vazia — e um filtro que só sabe esvaziar a tela
-    // ensina a pessoa a não usar filtro.
-    private async Task<List<Clube>> ClubesComDesafioAsync(DateTime agora)
-    {
-        var ids = await RankingDeDesafios
-            .QueContam(_context.Desafios.AsNoTracking(), agora)
-            .Select(d => d.ClubeId)
-            .Distinct()
-            .ToListAsync();
-
-        return await _context.Clubes
-            .Where(c => ids.Contains(c.Id))
-            .OrderBy(c => c.Nome)
-            .ToListAsync();
     }
 
     private async Task<HashSet<int>> AnunciosQueJaDesafieiAsync(int meuId, List<int> anuncioIds)

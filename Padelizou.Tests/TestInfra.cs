@@ -312,6 +312,7 @@ public static class TestInfra
             ctx,
             PortaDosDesafiosDe(ctx, habilitado),
             FechamentoDeDesafioDe(ctx, push),
+            new TelaDoRankingDeDesafios(ctx),
             push);
 
         controller.ControllerContext = new ControllerContext

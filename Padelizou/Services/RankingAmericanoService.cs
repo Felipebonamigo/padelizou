@@ -26,7 +26,12 @@ public interface IRankingAmericanoService
     // `ate` = corte de data pro ranking "como estava antes": só entram torneios que começaram
     // até ali. É o que permite dizer quantas posições o último Americano moveu cada um
     // (ver Services/MovimentoNoRanking). Nulo = o ranking de hoje, com tudo.
-    Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null, DateTime? ate = null);
+    //
+    // `de` = o começo da janela, pro seletor "Este mês / Este ano" dos TROFÉUS. Sem ele, a aba
+    // Troféus mostraria os títulos de chave do mês ao lado dos títulos de Americano de sempre —
+    // duas metades da mesma tela medindo períodos diferentes, sem nada na tela dizendo isso.
+    Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null, DateTime? ate = null,
+        DateTime? de = null);
 }
 
 public class RankingAmericanoService : IRankingAmericanoService
@@ -35,7 +40,8 @@ public class RankingAmericanoService : IRankingAmericanoService
 
     public RankingAmericanoService(DbPadelContext context) => _context = context;
 
-    public async Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null, DateTime? ate = null)
+    public async Task<RankingAmericanoVM> ListarAsync(HashSet<int>? jogadoresFiltro = null,
+        DateTime? ate = null, DateTime? de = null)
     {
         // Terminado, contratado e pago. `Status == "Finalizado"` e não "tem partida acabada":
         // a colocação de um Americano só existe quando o último jogo saiu — antes disso a
@@ -44,9 +50,11 @@ public class RankingAmericanoService : IRankingAmericanoService
                 .Where(t => t.PontuaNoRankingAmericano
                          && t.RankingAmericanoPagoEm != null
                          && t.Status == "Finalizado"
-                         // O corte do "antes": torneio sem data fica FORA quando se pede um
-                         // recorte, porque não dá pra afirmar que ele já tinha acontecido.
-                         && (ate == null || (t.DataInicio != null && t.DataInicio <= ate)))
+                         // Os dois cortes do recorte: torneio sem data fica FORA de qualquer um
+                         // deles, porque não dá pra afirmar quando ele aconteceu — nem que já
+                         // tinha acontecido antes do corte, nem que caiu dentro do período.
+                         && (ate == null || (t.DataInicio != null && t.DataInicio <= ate))
+                         && (de == null || (t.DataInicio != null && t.DataInicio >= de)))
                 .Select(t => new { t.Id, t.Nome, t.DataInicio, t.Formato })
                 .ToListAsync())
             // Cinto de segurança: a caixinha "pontua no Ranking Americano" só aparece nos

@@ -4,8 +4,7 @@ using System.Security.Claims;
 
 namespace Padelizou.ViewComponents;
 
-// Onde os Desafios aparecem fora do próprio módulo: o item do menu Jogos e o cartão do hub de
-// ranking.
+// Onde os Desafios aparecem fora do próprio módulo: o item do menu Jogos.
 //
 // Existe como componente pelo mesmo motivo do MenuClube: a resposta depende de uma consulta
 // (quem é admin) e de uma configuração, e nenhuma das duas cabe numa claim carimbada no login.
@@ -14,12 +13,13 @@ namespace Padelizou.ViewComponents;
 // a segunda cópia, e a segunda cópia é como um módulo em construção aparece no menu de todo
 // mundo no dia em que só uma das duas for atualizada.
 //
-// `estilo` só troca o DESENHO — a pergunta e a resposta são as mesmas nos dois lugares. É o
-// mesmo arranjo do SinoDeAvisos, que aparece na barra e dentro do menu.
+// Houve um segundo estilo aqui, o "Cartao": a entrada dos Desafios no hub de ranking. Ele caiu
+// em 12/08/2026, quando os Desafios viraram uma ABA do hub — a lista de lá já vem pronta do
+// JogadorsController, pela mesma PortaDosDesafios, e um cartão levando pra tela cheia ao lado
+// de uma aba com a mesma tabela seriam dois caminhos pro mesmo lugar na mesma página.
 public class MenuDesafiosViewComponent : ViewComponent
 {
     public const string NoMenu = "Default";
-    public const string CartaoDoRanking = "Cartao";
 
     private readonly PortaDosDesafios _porta;
 

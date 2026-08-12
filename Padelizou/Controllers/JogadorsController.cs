@@ -733,7 +733,9 @@ public class JogadoresController : Controller
     [HttpGet]
     public async Task<IActionResult> Ranking(int? clubeId, int? torneioId, string[]? cidade, string? estado, string? periodo,
         [FromServices] IPadelimetroService padelimetro,
-        [FromServices] IRankingAmericanoService rankingAmericano)
+        [FromServices] IRankingAmericanoService rankingAmericano,
+        [FromServices] PortaDosDesafios portaDosDesafios,
+        [FromServices] TelaDoRankingDeDesafios telaDeDesafios)
     {
         // 1. RANKING POR CLUBE
         if (clubeId.HasValue)
@@ -806,6 +808,38 @@ public class JogadoresController : Controller
             MovimentoNoRanking.Aplicar(hub.AmericanoDuplas,
                 antes.Duplas.Select(l => l.Jogador.Id).ToList(),
                 l => l.Jogador.Id, (l, mov) => l.Movimento = mov);
+        }
+
+        // Sub-aba "Americanos" dos Troféus. Ela obedece ao MESMO período que os troféus de chave
+        // ao lado — meia tela em "este mês" e meia em "sempre" é como alguém compara os dois
+        // números e tira a conclusão errada sem nada na tela ter mentido explicitamente.
+        //
+        // Em "sempre" (o padrão) a lista JÁ está pronta acima: uma segunda consulta pra chegar no
+        // mesmo resultado seria trabalho puro de servidor em toda visita à página.
+        if (hub.PeriodoDe is { } deDoPeriodo)
+        {
+            var noPeriodo = await rankingAmericano.ListarAsync(doLocal, de: deDoPeriodo);
+            hub.TrofeusAmericanoIndividual = noPeriodo.Individual;
+            hub.TrofeusAmericanoDuplas = noPeriodo.Duplas;
+        }
+        else
+        {
+            hub.TrofeusAmericanoIndividual = hub.AmericanoIndividual;
+            hub.TrofeusAmericanoDuplas = hub.AmericanoDuplas;
+        }
+
+        // Aba Desafios. A régua de quem enxerga é a MESMA do menu e do /Desafios — PortaDosDesafios,
+        // um lugar só. Sem lista, a aba não é desenhada, e a promessa do topo da tela ("tudo aqui
+        // sai de torneio") continua verdadeira pra quem não a tem.
+        //
+        // ⚠️ Anônimo cai fora antes de qualquer consulta: `FindFirstValue` devolve nulo, o
+        // TryParse falha, e o `&&` curto-circuita. Esta página é PÚBLICA — sem isso, todo
+        // visitante deslogado pagaria as consultas do módulo pra não ver aba nenhuma.
+        if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId)
+            && await portaDosDesafios.PodeUsarAsync(meuId))
+        {
+            hub.Desafios = await telaDeDesafios.MontarAsync(
+                meuId, portaDosDesafios.EmConstrucao, DateTime.Now);
         }
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).

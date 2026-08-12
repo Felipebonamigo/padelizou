@@ -1,0 +1,80 @@
+@using Padelizou.ViewModels
+@model (List<RankingAmericanoLinhaVM> Linhas, string Formato)
+
+@* Os troféus de Americano — a mesma tabela pros dois formatos (individual e de duplas).
+
+   ⚠️ Aqui NÃO se ordena por pontos, e é essa a diferença pra tabela do ranking ao lado: troféu
+   é quantas vezes você GANHOU, e o ranking é quanto você somou. Quem foi 2º em oito etapas tem
+   mais ponto do que quem venceu duas — e lidera o ranking, não os troféus.
+
+   Só entra quem tem alguma coisa: uma lista de participantes com "0 títulos, 0 pódios" seria a
+   lista de presença do Americano, que é outra tela. *@
+
+@functions {
+    // Selo de posição (1º/2º/3º com medalha, restante em cinza). Igual ao das outras abas.
+    static string PosBadge(int pos) => pos switch
+    {
+        1 => "<span class=\"badge bg-warning text-dark\">1º</span>",
+        2 => "<span class=\"badge bg-secondary\">2º</span>",
+        3 => "<span class=\"badge\" style=\"background:#cd7f32;color:#fff;\">3º</span>",
+        _ => $"<span class=\"text-muted\">{pos}º</span>"
+    };
+}
+
+@{
+    var comTrofeu = Model.Linhas
+        .Where(l => l.Vitorias > 0 || l.Podios > 0)
+        .OrderByDescending(l => l.Vitorias)
+        .ThenByDescending(l => l.Podios)
+        .ThenByDescending(l => l.Pontos)
+        // A ordem tem que ser TOTAL: sem o desempate final, dois empatados trocariam de lugar
+        // entre dois carregamentos da mesma página.
+        .ThenBy(l => l.Jogador.Id)
+        .ToList();
+}
+
+@if (comTrofeu.Count == 0)
+{
+    <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">
+        <i class="bi bi-arrow-repeat display-6 text-muted"></i>
+        <p class="text-muted mb-0">Ninguém subiu ao pódio em Americano @Model.Formato neste período.</p>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        @* No celular ficam posição, nome e títulos — pódios e etapas somem, como nas irmãs. *@
+        <thead><tr>
+            <th class="text-center" style="width:60px;">#</th><th>Jogador</th>
+            <th class="text-center">Títulos</th>
+            <th class="text-center d-none d-sm-table-cell">Pódios</th>
+            <th class="text-center d-none d-sm-table-cell">Etapas</th>
+        </tr></thead>
+        <tbody>
+            @{ var pos = 1; }
+            @foreach (var l in comTrofeu)
+            {
+                <tr>
+                    <td class="text-center fw-bold">@Html.Raw(PosBadge(pos))</td>
+                    <td>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@l.Jogador.Id"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Jogador.ComoChamar</a>
+                    </td>
+                    <td class="text-center">
+                        @if (l.Vitorias > 0)
+                        {
+                            <span class="text-warning fw-bold"><i class="bi bi-trophy-fill"></i> @l.Vitorias</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                    <td class="text-center text-muted d-none d-sm-table-cell">@l.Podios</td>
+                    <td class="text-center text-muted d-none d-sm-table-cell">@l.Americanos</td>
+                </tr>
+                pos++;
+            }
+        </tbody>
+    </table></div></div>
+}

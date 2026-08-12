@@ -20,7 +20,8 @@ public class RankingAmericanoTests
     // Monta um Americano fechado: N inscritos, N/2 partidas de uma rodada só, todas
     // finalizadas, com o primeiro jogador somando mais games que os outros.
     private static async Task<Torneio> MontarAmericanoAsync(
-        DbPadelContext ctx, int pessoas, bool contratou, bool pagou, string status = "Finalizado")
+        DbPadelContext ctx, int pessoas, bool contratou, bool pagou, string status = "Finalizado",
+        DateTime? quando = null)
     {
         var torneio = new Torneio
         {
@@ -28,7 +29,7 @@ public class RankingAmericanoTests
             Codigo = "AM" + Guid.NewGuid().ToString("N")[..6].ToUpper(),
             Formato = FormatoDoTorneio.Americano,
             Status = status,
-            DataInicio = new DateTime(2026, 8, 1),
+            DataInicio = quando ?? new DateTime(2026, 8, 1),
             PontuaNoRankingAmericano = contratou,
             RankingAmericanoPagoEm = pagou ? new DateTime(2026, 8, 2) : null,
         };
@@ -182,6 +183,28 @@ public class RankingAmericanoTests
 
         Assert.Equal(pontosDeUm * 2, mesmo.Pontos);
         Assert.Equal(2, mesmo.Americanos);
+    }
+
+    [Fact]
+    public async Task O_recorte_por_periodo_deixa_de_fora_o_Americano_de_antes()
+    {
+        // O `de` é o que a sub-aba "Americanos" dos Troféus usa pra obedecer ao seletor de
+        // período. Sem ele, escolher "Este ano" recortaria só a metade de chave da aba, e as
+        // duas metades — uma do ano, outra de sempre — ficariam lado a lado parecendo
+        // comparáveis.
+        using var ctx = TestInfra.NovoContexto();
+        await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true,
+            quando: new DateTime(2025, 11, 20));
+        await MontarAmericanoAsync(ctx, pessoas: 8, contratou: true, pagou: true,
+            quando: new DateTime(2026, 8, 1));
+
+        // Sem recorte, os dois contam — é o ranking, que é o acumulado da campanha.
+        Assert.Equal(2, (await IndividualAsync(ctx))[0].Americanos);
+
+        var doAno = (await new RankingAmericanoService(ctx)
+            .ListarAsync(de: new DateTime(2026, 1, 1))).Individual;
+
+        Assert.Equal(1, doAno[0].Americanos);
     }
 
     [Fact]

@@ -185,6 +185,14 @@ public class RankingHubVM
     // Pontos e Times ignoram o período (são sempre o total histórico).
     public string Periodo { get; set; } = "sempre";
 
+    // A data em que o `Periodo` acima foi traduzido — nula quando ele é "sempre" (sem corte).
+    //
+    // Viaja junto porque quem obedece ao período já não é só o EstatisticasService: os troféus de
+    // Americano saem de OUTRO serviço, montados no controller. Reler a string lá e recalcular o
+    // corte seria a segunda régua — a que continua cortando no dia 1º depois que esta aprender a
+    // cortar na segunda-feira.
+    public DateTime? PeriodoDe { get; set; }
+
     // Ranking de UM torneio específico, exibido embutido nesta mesma página (não vira outra tela).
     public int? TorneioSelecionadoId { get; set; }
     public string? TorneioSelecionadoNome { get; set; }
@@ -210,6 +218,23 @@ public class RankingHubVM
     // Numa lista só, os dois números pareceriam a mesma medida.
     public List<RankingAmericanoLinhaVM> AmericanoIndividual { get; set; } = new();
     public List<RankingAmericanoLinhaVM> AmericanoDuplas { get; set; } = new();
+
+    // As MESMAS duas listas, recortadas pelo período — é o que a sub-aba "Americanos" dos
+    // Troféus mostra. Iguais às de cima quando o período é "sempre" (e aí não há segunda
+    // consulta: refazer o trabalho pra chegar no mesmo resultado é só conta de servidor).
+    //
+    // ⚠️ Existem separadas porque as de cima NÃO podem obedecer ao período: a aba Americano é
+    // ranking, e ranking de campanha é o acumulado. Quem tem período é a aba Troféus.
+    public List<RankingAmericanoLinhaVM> TrofeusAmericanoIndividual { get; set; } = new();
+    public List<RankingAmericanoLinhaVM> TrofeusAmericanoDuplas { get; set; } = new();
+
+    // A aba Desafios — NULA pra quem ainda não enxerga o módulo, e aí ela nem é desenhada.
+    // Quem decide é PortaDosDesafios, a mesma régua do menu e do controller de lá.
+    //
+    // ⚠️ É a única aba do hub que NÃO sai de resultado de torneio, e por isso a frase do topo da
+    // tela só abre exceção quando esta propriedade existe: prometer "tudo aqui é de torneio" pra
+    // quem não tem a aba seria verdade; prometer pra quem tem seria mentira.
+    public RankingDeDesafiosVM? Desafios { get; set; }
 
     // "Quantas posições o último torneio me fez ganhar ou perder" — o selo verde/vermelho das
     // tabelas. Nulo = nenhum torneio terminou nos últimos 7 dias, e aí a coluna some inteira
