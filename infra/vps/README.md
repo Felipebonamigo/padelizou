@@ -1,13 +1,23 @@
 # Publicar o Padelizou pelo GitHub (dá pra fazer do celular)
 
-Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite.sh`) moram
-no VPS e continuam funcionando do jeito de sempre, por SSH.
+Os scripts desta pasta (`deploy.sh`, `rollback.sh`, `backup.sh`, `backup-offsite.sh`,
+`backup-meio-dia.sh`) moram no VPS e continuam funcionando do jeito de sempre, por SSH.
 
 | Arquivo aqui | Onde fica no servidor | Quando roda |
 |---|---|---|
 | `deploy.sh` · `rollback.sh` | `/opt/padelizou-deploy/` | sob demanda |
-| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 — cópia local |
-| `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 — cópia FORA do servidor |
+| `backup.sh` | `/usr/local/bin/backup-padelizou.sh` | cron, 4h00 UTC — cópia local (banco + fotos) |
+| `backup-offsite.sh` | `/usr/local/bin/backup-drive.sh` | cron, 4h30 UTC — cópia FORA do servidor |
+| `backup-meio-dia.sh` · `cron-backup-meio-dia` | `/usr/local/bin/` · `/etc/cron.d/` | cron, **16h UTC** — só o banco, direto pro cofre |
+
+🕛 **O "meio-dia" é 16h UTC = 13h de Brasília, e o horário não é chute**: o backup completo roda
+às 4h UTC, então 12 horas depois é o único ponto que corta a janela de perda exatamente pela
+metade (24h → 12h). Escrever `0 12` achando que é meio-dia deixaria 8h de um lado e 16h do
+outro — com o buraco maior justo sobre a tarde e a noite, que é quando entra inscrição.
+
+⚠️ **Ele copia SÓ o banco e NÃO grava o carimbo do vigia.** As duas coisas são de propósito e
+estão explicadas no cabeçalho do script — em resumo: o que corre risco entre uma rodada e outra
+é pagamento, não foto; e carimbar aqui esconderia uma falha da rodada completa das 4h30.
 
 ⚠️ O nome no servidor ainda é `backup-drive.sh` por motivo histórico: desde 07/08/2026 ele
 manda pro **Backblaze B2** (principal, chave que não expira) **e** pro Google Drive (reserva).

@@ -1,0 +1,14 @@
+# Segundo dump do dia — corta pela metade a janela entre backups.
+#
+# ⚠️ O RELÓGIO DESTE ARQUIVO É UTC, NÃO BRASÍLIA. O VPS roda em UTC, e o cron obedece ao
+# relógio do sistema: 16:00 aqui são 13:00 em Brasília. O backup completo roda às 04:00 UTC
+# (01:00 em Brasília), então 16:00 UTC é exatamente 12 horas depois — que é o espaçamento
+# que faz a janela de perda cair de 24h para 12h.
+#
+# Escrever "0 12" aqui, achando que é meio-dia, colocaria as duas rodadas a 8h de distância
+# de um lado e 16h do outro — e o buraco maior cairia justo sobre a tarde e a noite, que é
+# quando o site recebe inscrição.
+#
+# O log vai pro mesmo arquivo do backup de fora, de propósito: é uma linha do tempo só pra
+# quem for investigar "quando foi a última cópia boa?".
+0 16 * * * root /usr/local/bin/backup-meio-dia.sh >> /var/log/padelizou-backup-drive.log 2>&1
