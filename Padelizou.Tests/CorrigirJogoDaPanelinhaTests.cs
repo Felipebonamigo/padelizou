@@ -187,19 +187,52 @@ public class CorrigirJogoDaPanelinhaTests
     }
 
     [Fact]
-    public async Task Quem_nao_administra_nem_registrou_NAO_apaga_o_jogo_dos_outros()
+    public async Task Quem_nao_administra_nem_registrou_nem_JOGOU_nao_apaga_o_jogo_dos_outros()
     {
         using var ctx = TestInfra.NovoContexto();
         var (grupo, j) = await MontarAsync(ctx);
 
-        // O administrador (j[0]) lança o jogo.
+        // ⚠️ O DE FORA PRECISA SER UM QUINTO. Os quatro do `MontarAsync` entram na partida, e
+        // quem jogou agora pode corrigir — usar um deles aqui testaria o contrário do nome.
+        var deFora = new Jogador { Nome = "Jogador 5", Cpf = "77700000005", Login = "jog5" };
+        ctx.Jogadores.Add(deFora);
+        await ctx.SaveChangesAsync();
+        ctx.JogadoresGrupo.Add(new JogadorGrupo { GrupoId = grupo.Id, JogadorId = deFora.Id, PontuacaoInterna = 0 });
+        await ctx.SaveChangesAsync();
+
+        // O administrador (j[0]) lança o jogo, e os quatro que jogam são j[0..3].
         var jogo = await RegistrarAsync(Controller(ctx, j[0].Id), ctx, grupo, j, 6, 4, j[0].Id);
 
-        // Um membro qualquer tenta apagar.
-        await Controller(ctx, j[2].Id).ApagarJogo(jogo.Id);
+        // O quinto membro, que não estava na quadra, tenta apagar.
+        await Controller(ctx, deFora.Id).ApagarJogo(jogo.Id);
 
         Assert.NotEmpty(ctx.JogosSemanais.Where(x => x.Id == jogo.Id));
         Assert.Equal(3, await PontosAsync(ctx, grupo.Id, j[0].Id));
+    }
+
+    [Fact]
+    public async Task Quem_JOGOU_corrige_o_placar_mesmo_sem_administrar_nem_ter_lancado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupo, j) = await MontarAsync(ctx);
+
+        // Lança o administrador (j[0]); quem corrige é o j[3], que só estava na quadra.
+        var jogo = await RegistrarAsync(Controller(ctx, j[0].Id), ctx, grupo, j, 6, 4, j[0].Id);
+        Assert.NotEqual(j[3].Id, grupo.AdministradorId);
+        Assert.NotEqual(j[3].Id, jogo.RegistradoPorId);
+
+        await Controller(ctx, j[3].Id).EditarJogo(
+            jogo.Id, new DateTime(2026, 8, 11),
+            j[0].Id, j[1].Id, j[2].Id, j[3].Id,
+            gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
+
+        var salvo = await ctx.JogosSemanais.FirstAsync(x => x.Id == jogo.Id);
+        Assert.Equal(4, salvo.GamesDupla1);
+        Assert.Equal(6, salvo.GamesDupla2);
+
+        // E o ranking virou junto: quem perdeu agora é a dupla 1.
+        Assert.Equal(1, await PontosAsync(ctx, grupo.Id, j[0].Id));
+        Assert.Equal(3, await PontosAsync(ctx, grupo.Id, j[3].Id));
     }
 
     [Fact]

@@ -1,13 +1,12 @@
 ﻿@model GrupoPrivado
-@using System.Security.Claims
 @{
     ViewData["Title"] = $"{Model.Nome} - Padelizou";
-    var userId = User.Identity!.IsAuthenticated ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!) : 0;
     var ranking = (List<JogadorGrupo>)ViewBag.Ranking;
     var rankingMes = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingMes;
     int mesConsulta = ViewBag.MesConsulta;
     int anoConsulta = ViewBag.AnoConsulta;
     var jogosRecentes = (List<JogoSemanal>)ViewBag.JogosRecentes;
+    var podeMexer = (HashSet<int>)ViewBag.JogosQuePodeMexer;
     bool ehAdmin = ViewBag.EhAdmin == true;
     string[] nomesMeses = { "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro" };
 }
@@ -237,7 +236,7 @@
                         <th>Dupla 1</th>
                         <th class="text-center">Placar</th>
                         <th>Dupla 2</th>
-                        <th></th>
+                        <th class="text-end">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -255,25 +254,33 @@
                                 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador1.ComoChamar</a> /
                                 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador2.ComoChamar</a>
                             </td>
-                            @* Corrigir e apagar aparecem pra quem administra a panelinha e pra
-                               quem LANÇOU aquele jogo — o placar errado quase sempre é digitação
-                               de quem lançou, e mandar chamar o administrador pra arrumar um 6x4
-                               faz a correção simplesmente não acontecer. *@
+                            @* Quem pode corrigir vem PRONTO do controller (`PodeMexerNoJogo`), pra
+                               não existir uma segunda cópia da regra aqui dentro.
+
+                               ⚠️ BOTÃO COM PALAVRA, não ícone solto. A primeira versão usava
+                               `btn-link text-muted`: um lápis cinza de 13px numa coluna sem
+                               cabeçalho, que só acendia no `:hover`. Ninguém achava — a
+                               reclamação foi literalmente "estou buscando no escuro com o
+                               mouse". E a borda não salva: no tema escuro a casa desenha
+                               `btn-outline-*` com `--pdz-border`, que é 10% de opacidade
+                               (site.css, "Botão de opção não escolhido"). Quem torna o botão
+                               achável aqui é o texto — que é como o resto do app faz. *@
                             <td class="text-end text-nowrap">
-                                @if (ehAdmin || jogo.RegistradoPorId == userId)
+                                @if (podeMexer.Contains(jogo.Id))
                                 {
                                     <a asp-controller="Grupos" asp-action="EditarJogo" asp-route-id="@jogo.Id"
-                                       class="btn btn-sm btn-link text-muted p-1" title="Corrigir este jogo">
-                                        <i class="bi bi-pencil"></i>
+                                       class="btn btn-sm btn-outline-secondary py-0 px-2" title="Corrigir este jogo">
+                                        <i class="bi bi-pencil"></i> Corrigir
                                     </a>
                                     @* A confirmação sai de `data-confirmar` (wwwroot/js/confirmar.js) e nunca de
                                        um onsubmit escrito na view: o Razor trata `@` colado num caractere como
                                        e-mail e cospe o nome da variável literal na tela. *@
-                                    <form asp-controller="Grupos" asp-action="ApagarJogo" method="post" class="d-inline"
+                                    <form asp-controller="Grupos" asp-action="ApagarJogo" method="post" class="d-inline ms-1"
                                           data-confirmar="Apagar este jogo? Os pontos dele saem do ranking do grupo.">
                                         <input type="hidden" name="id" value="@jogo.Id" />
-                                        <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Apagar este jogo">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                                                title="Apagar este jogo">
+                                            <i class="bi bi-trash"></i> Apagar
                                         </button>
                                     </form>
                                 }

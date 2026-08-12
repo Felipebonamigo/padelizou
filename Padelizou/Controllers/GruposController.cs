@@ -231,7 +231,11 @@ namespace padelizou.Controllers
                 .Include(j => j.Dupla2Jogador1).Include(j => j.Dupla2Jogador2)
                 .Include(j => j.Clube)
                 .Where(j => j.GrupoId == id)
+                // A data é só o DIA, e uma panelinha lança 5 jogos na mesma noite: ordenar só
+                // por ela deixa o desempate com o banco, e a ordem das linhas muda de um F5
+                // pro outro. O Id cresce com o lançamento, então ele é o critério que fecha.
                 .OrderByDescending(j => j.DataJogo)
+                .ThenByDescending(j => j.Id)
                 .Take(15)
                 .ToListAsync();
 
@@ -243,6 +247,13 @@ namespace padelizou.Controllers
             ViewBag.MesConsulta = mesConsulta;
             ViewBag.AnoConsulta = anoConsulta;
             ViewBag.JogosRecentes = jogosRecentes;
+            // A TELA NÃO REPETE A REGRA. Quem responde quem pode corrigir é o mesmo
+            // `PodeMexerNoJogo` que guarda o POST — se a condição vivesse também na view, uma
+            // das duas cópias mudaria sozinha e o botão apareceria pra quem o servidor recusa.
+            ViewBag.JogosQuePodeMexer = jogosRecentes
+                .Where(j => PodeMexerNoJogo(grupo, j, userId))
+                .Select(j => j.Id)
+                .ToHashSet();
             ViewBag.EhAdmin = grupo.AdministradorId == userId;
 
             return View(grupo);
@@ -695,11 +706,24 @@ namespace padelizou.Controllers
             await _context.SaveChangesAsync();
         }
 
-        // Quem pode mexer num jogo já lançado: quem administra a panelinha e quem registrou
-        // aquele jogo. O placar errado quase sempre é digitação de quem lançou, e obrigar a
-        // chamar o administrador pra corrigir um 6x4 faria a correção não acontecer.
-        private static bool PodeMexerNoJogo(GrupoPrivado grupo, JogoSemanal jogo, int userId) =>
-            grupo.AdministradorId == userId || jogo.RegistradoPorId == userId;
+        // Quem pode mexer num jogo já lançado: quem administra a panelinha, quem registrou
+        // aquele jogo e OS QUATRO QUE ESTAVAM NA QUADRA. O placar errado quase sempre é
+        // digitação de quem lançou, e obrigar a chamar o administrador pra corrigir um 6x4
+        // faria a correção não acontecer.
+        //
+        // ⚠️ Quem jogou entra na regra porque a versão estreita (só admin + quem lançou) foi
+        // pro ar e travou na hora: numa panelinha de verdade o jogo é lançado por quem pegou
+        // o celular primeiro, e o erro fica preso até essa pessoa aparecer. Quem estava na
+        // partida sabe o placar, e o ranking é interno ao grupo — o administrador desfaz.
+        //
+        // O administrador do sistema entra como chave-mestra, igual ao resto do app
+        // (`PodeEditarTudo` vira a credencial `IsAdmin`; ver Services/PoderesNoSistema).
+        private bool PodeMexerNoJogo(GrupoPrivado grupo, JogoSemanal jogo, int userId) =>
+            grupo.AdministradorId == userId
+            || jogo.RegistradoPorId == userId
+            || jogo.Dupla1Jogador1Id == userId || jogo.Dupla1Jogador2Id == userId
+            || jogo.Dupla2Jogador1Id == userId || jogo.Dupla2Jogador2Id == userId
+            || User.FindFirstValue("IsAdmin") == "true";
 
         private int ObterUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
