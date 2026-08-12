@@ -22,6 +22,20 @@
         + ": datas, locais, categorias e valor. Inscreva-se pelo site e acompanhe as chaves ao vivo.";
 }
 
+@* O caminho até aqui, pro resultado da busca sair "Padelizou › Torneios › Gravataí" em vez do
+   endereço cru. É a mesma trilha da migalha visual logo abaixo — as duas contam a mesma
+   história de propósito: o buscador compara o que você declara com o que a página mostra. *@
+@section Head {
+    @{
+        var baseDaTrilha = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var trilha = Padelizou.Services.DadosEstruturados.Migalhas(baseDaTrilha,
+            ("Padelizou", "/"),
+            ("Torneios", "/Torneios"),
+            (lugar.Nome, null));
+    }
+    <script type="application/ld+json">@Html.Raw(trilha)</script>
+}
+
 <div class="container mt-4 mb-5">
 
     <nav aria-label="Você está aqui" class="mb-2">

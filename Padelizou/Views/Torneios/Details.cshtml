@@ -118,11 +118,22 @@
         ViewData["OgImagem"] as string,
         ViewData["Descricao"] as string ?? "");
 
-    if (fichaDoEvento != null)
-    {
-        @section Head {
+    @* O caminho até aqui, pro resultado sair "Padelizou › Torneios › NATA PADEL TOUR" em vez
+       do endereço cru — que se lê, e por isso recebe mais clique. *@
+    var trilhaDoTorneio = Padelizou.Services.DadosEstruturados.Migalhas(
+        $"{Context.Request.Scheme}://{Context.Request.Host}",
+        ("Padelizou", "/"),
+        ("Torneios", "/Torneios"),
+        (Model.Nome, null));
+
+    @* Uma seção Head só: Razor não aceita duas com o mesmo nome na mesma view, e os dois
+       blocos JSON-LD convivem numa boa — cada <script> é um grafo independente. *@
+    @section Head {
+        @if (fichaDoEvento != null)
+        {
             <script type="application/ld+json">@Html.Raw(fichaDoEvento)</script>
         }
+        <script type="application/ld+json">@Html.Raw(trilhaDoTorneio)</script>
     }
 }
 

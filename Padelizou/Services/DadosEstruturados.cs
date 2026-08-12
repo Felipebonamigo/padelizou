@@ -55,6 +55,41 @@ public static class DadosEstruturados
         ["inLanguage"] = "pt-BR",
     });
 
+    // O caminho até a página, do jeito que o buscador mostra: em vez da URL crua
+    // ("padelizou.com.br › torneios-de-padel-em-gravatai-rs"), o resultado sai com
+    // "Padelizou › Torneios › Gravataí" — que se lê, e por isso recebe mais clique.
+    //
+    // Cada degrau precisa de nome E endereço; o último é a página atual e vai sem link, que é
+    // como o schema.org espera. Uma trilha de um degrau só não vira nada na busca, então não
+    // faz sentido gerar: quem chama passa a trilha inteira ou não chama.
+    public static string? Migalhas(string baseUrl, params (string Nome, string? Caminho)[] degraus)
+    {
+        if (degraus.Length < 2) return null;
+
+        var itens = degraus.Select((degrau, i) =>
+        {
+            var item = new Dictionary<string, object>
+            {
+                ["@type"] = "ListItem",
+                ["position"] = i + 1,
+                ["name"] = degrau.Nome,
+            };
+
+            // O último não leva "item": ele É a página que está sendo lida, e apontar pra si
+            // mesma é o erro mais comum desse bloco.
+            if (degrau.Caminho != null) item["item"] = baseUrl + degrau.Caminho;
+
+            return item;
+        }).ToList();
+
+        return Serializar(new Dictionary<string, object>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "BreadcrumbList",
+            ["itemListElement"] = itens,
+        });
+    }
+
     // Devolve null quando o torneio não tem data marcada: "startDate" é campo OBRIGATÓRIO de
     // evento pro Google, e bloco incompleto não vira resultado rico — vira aviso de erro no
     // Search Console. Sem data, melhor não afirmar nada.

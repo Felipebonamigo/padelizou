@@ -261,6 +261,46 @@ public class BuscaNoGoogleTests
         Assert.Equal("Torneio \"Rei da Quadra\" & Cia", lido.RootElement.GetProperty("name").GetString());
     }
 
+    // ── As migalhas (BreadcrumbList) ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void A_trilha_numera_os_degraus_em_ordem()
+    {
+        var trilha = DadosEstruturados.Migalhas("https://padelizou.com.br",
+            ("Padelizou", "/"), ("Torneios", "/Torneios"), ("Gravataí", null))!;
+
+        var lido = System.Text.Json.JsonDocument.Parse(trilha).RootElement;
+        var itens = lido.GetProperty("itemListElement");
+
+        Assert.Equal("BreadcrumbList", lido.GetProperty("@type").GetString());
+        Assert.Equal(3, itens.GetArrayLength());
+        Assert.Equal(1, itens[0].GetProperty("position").GetInt32());
+        Assert.Equal(3, itens[2].GetProperty("position").GetInt32());
+        Assert.Equal("Gravataí", itens[2].GetProperty("name").GetString());
+    }
+
+    // O último degrau É a página que está sendo lida. Apontar pra si mesma é o erro mais comum
+    // desse bloco, e faz o buscador desprezar a trilha inteira.
+    [Fact]
+    public void O_ultimo_degrau_nao_aponta_pra_lugar_nenhum()
+    {
+        var trilha = DadosEstruturados.Migalhas("https://padelizou.com.br",
+            ("Padelizou", "/"), ("Torneios", "/Torneios"), ("NATA PADEL TOUR", null))!;
+
+        var itens = System.Text.Json.JsonDocument.Parse(trilha).RootElement.GetProperty("itemListElement");
+
+        Assert.True(itens[0].TryGetProperty("item", out var primeiro));
+        Assert.Equal("https://padelizou.com.br/", primeiro.GetString());
+        Assert.False(itens[2].TryGetProperty("item", out _));
+    }
+
+    // Trilha de um degrau só não vira nada na busca — melhor não afirmar do que afirmar vazio.
+    [Fact]
+    public void Trilha_de_um_degrau_so_nao_gera_bloco()
+    {
+        Assert.Null(DadosEstruturados.Migalhas("https://padelizou.com.br", ("Padelizou", "/")));
+    }
+
     // ── O sitemap ──────────────────────────────────────────────────────────────────────────
 
     private static SitemapController Sitemap(DbPadelContext ctx, string host = "padelizou.com.br")
