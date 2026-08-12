@@ -27,9 +27,25 @@ public static class MetaDaBusca
     {
         "Home/Index", "Home/Privacy", "Home/Termos",
         "Torneios/Index", "Torneios/Details", "Torneios/Jogos", "Torneios/Cidade",
-        "Jogadors/Ranking", "Jogadors/Perfil",
+        // ⚠️ "Jogadores", com E. O ARQUIVO é `Controllers/JogadorsController.cs` (sem E, sobra
+        // do scaffold), mas quem manda na rota é o nome da CLASSE — `JogadoresController`.
+        // Escrito "Jogadors" aqui, o ranking caiu na regra do desconhecido e foi pro ar com
+        // `noindex`: eu estava pedindo ao Google pra tirar da busca uma das melhores páginas do
+        // site, e nada na tela mostrava isso. O teste de reflexão abaixo existe por causa disso.
+        "Jogadores/Ranking", "Jogadores/Perfil",
         "Professores/Index", "Professores/Perfil",
     };
+
+    // Os nomes acima existem de verdade? Estas listas são texto solto: um erro de digitação
+    // não quebra build nem teste — na allowlist ele manda a página pro `noindex`, e aqui no
+    // dicionário ele faz a seção cair na frase genérica. Os dois falham calados, e o sintoma
+    // aparece semanas depois no Google, longe de qualquer log.
+    //
+    // Junta os DOIS de propósito: quando só a allowlist era conferida, o mesmo erro de grafia
+    // sobreviveu no dicionário de descrições e o ranking foi pro ar com a frase de qualquer
+    // página. Um teste de reflexão valida tudo isto contra os controllers de verdade.
+    public static IReadOnlyCollection<string> TodasAsTelas =>
+        NoIndice.Concat(PorTela.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
     // Frase por SEÇÃO, não por tela: o que muda entre dois torneios é o nome, e isso a própria
     // view passa em ViewData["Descricao"]. Aqui fica o que vale pra seção inteira.
@@ -41,9 +57,9 @@ public static class MetaDaBusca
             "Chaves, jogos, classificação e inscrição deste torneio de padel, ao vivo no Padelizou.",
         ["Torneios/Jogos"] =
             "Jogos e resultados deste torneio de padel, atualizados durante a competição.",
-        ["Jogadors/Ranking"] =
+        ["Jogadores/Ranking"] =
             "O ranking de padel do Padelizou: pontuação por torneio, filtros por categoria, clube e cidade, e a evolução de cada jogador.",
-        ["Jogadors/Perfil"] =
+        ["Jogadores/Perfil"] =
             "Perfil do jogador no Padelizou: partidas, torneios disputados, títulos e posição no ranking.",
         ["Professores/Index"] =
             "Professores de padel disponíveis para aula: cidade, valor, horários livres e avaliação de quem já treinou.",

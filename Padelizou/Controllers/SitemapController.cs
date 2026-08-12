@@ -38,7 +38,10 @@ public class SitemapController : Controller
         {
             "/",
             "/Torneios",
-            "/Jogadors/Ranking",
+            // ⚠️ "Jogadores", com E — é o nome da CLASSE que vira rota, não o do arquivo
+            // (`JogadorsController.cs`, sem E). Escrito errado, isto entregava ao Google uma
+            // URL que responde 404, e ele registra a falha contra o site.
+            "/Jogadores/Ranking",
             "/Professores",
         };
 

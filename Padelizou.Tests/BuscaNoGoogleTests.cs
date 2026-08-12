@@ -28,7 +28,7 @@ public class BuscaNoGoogleTests
     [InlineData("Home", "Index")]
     [InlineData("Torneios", "Index")]
     [InlineData("Torneios", "Details")]
-    [InlineData("Jogadors", "Ranking")]
+    [InlineData("Jogadores", "Ranking")]
     [InlineData("Professores", "Index")]
     public void O_conteudo_publico_continua_indexavel(string controller, string action)
     {
@@ -44,13 +44,54 @@ public class BuscaNoGoogleTests
         Assert.True(MetaDaBusca.ForaDoIndice("ModuloQueAindaNaoExiste", "Index"));
     }
 
+    // 🚨 O TESTE QUE FALTAVA, e custou caro: a allowlist é texto solto, então um nome errado
+    // não quebra build nem teste — só manda a página pro `noindex`, calada.
+    //
+    // Aconteceu em 11/08/2026 com `"Jogadors/Ranking"`: o ARQUIVO é `JogadorsController.cs`
+    // (sem "e", sobra do scaffold), mas quem vira rota é o nome da CLASSE,
+    // `JogadoresController`. O ranking subiu pra produção pedindo ao Google que o TIRASSE da
+    // busca, e o sitemap ainda apontava pra uma URL que respondia 404. Nada na tela mostrava.
+    [Fact]
+    public void Toda_tela_da_allowlist_existe_de_verdade()
+    {
+        var controllers = typeof(Padelizou.Controllers.SitemapController).Assembly
+            .GetTypes()
+            .Where(t => typeof(Microsoft.AspNetCore.Mvc.Controller).IsAssignableFrom(t) && !t.IsAbstract)
+            .ToDictionary(
+                t => t.Name[..^"Controller".Length],
+                t => t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
+                      .Select(m => m.Name)
+                      .ToHashSet(StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
+
+        var inexistentes = new List<string>();
+        foreach (var tela in MetaDaBusca.TodasAsTelas)
+        {
+            var partes = tela.Split('/');
+            if (!controllers.TryGetValue(partes[0], out var acoes))
+            {
+                inexistentes.Add($"{tela}  (não existe controller \"{partes[0]}\")");
+                continue;
+            }
+
+            if (!acoes.Contains(partes[1]))
+            {
+                inexistentes.Add($"{tela}  (o {partes[0]} não tem a ação \"{partes[1]}\")");
+            }
+        }
+
+        Assert.True(inexistentes.Count == 0,
+            "Entradas da allowlist que não correspondem a nenhuma tela — a página vai pro ar com "
+            + "noindex e ninguém percebe:\n  " + string.Join("\n  ", inexistentes));
+    }
+
     [Fact]
     public void Cada_secao_publica_tem_frase_propria_e_nenhuma_repete_a_generica()
     {
         var secoes = new[]
         {
             ("Torneios", "Index"), ("Torneios", "Details"),
-            ("Jogadors", "Ranking"), ("Professores", "Index"),
+            ("Jogadores", "Ranking"), ("Professores", "Index"),
         };
 
         foreach (var (controller, action) in secoes)
@@ -293,7 +334,7 @@ public class BuscaNoGoogleTests
 
         Assert.Contains("<loc>https://padelizou.com.br/</loc>", xml);
         Assert.Contains("<loc>https://padelizou.com.br/Torneios</loc>", xml);
-        Assert.Contains("<loc>https://padelizou.com.br/Jogadors/Ranking</loc>", xml);
+        Assert.Contains("<loc>https://padelizou.com.br/Jogadores/Ranking</loc>", xml);
     }
 
     [Fact]
@@ -309,7 +350,7 @@ public class BuscaNoGoogleTests
         Assert.Contains("/Professores/Perfil/1", xml);
         // Perfil de pessoa física numa lista pra buscador é decisão de privacidade, e ela não
         // foi tomada. Enquanto não for, ninguém entra por engano num refactor.
-        Assert.DoesNotContain("/Jogadors/Perfil/2", xml);
+        Assert.DoesNotContain("/Jogadores/Perfil/2", xml);
     }
 
     // O mesmo binário serve três hosts. Entregar a lista no dev seria convidar o buscador a
