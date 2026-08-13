@@ -160,6 +160,33 @@ barrado por uma regra sem tela onde ser desligada. Voltar a oferecer é devolver
 e integração desligada ficam sem nivelamento nenhum. É o preço aceito enquanto o
 Padelímetro não chega na fase 3.
 
+### A mão contrária: eles leem os nossos torneios (12/08/2026)
+
+Até aqui a parceria era de mão única — a gente perguntava, eles respondiam, e eles não tinham
+como saber onde as perguntas iam nascer. O pedido veio deles, com o escopo escrito por eles
+mesmos: *"uma API que libera buscarmos os torneios pontuados no ranking — apenas informações
+dos torneios, como nome, clube, data, foto. Não precisa nenhum dado dos atletas."*
+
+`GET /api/ranking/torneios`, com a chave no cabeçalho `x-api-key`. **O documento que vai pra
+eles é o [API-TORNEIOS.md](API-TORNEIOS.md)** — este parágrafo é só o ponteiro.
+
+Três decisões que valem registro:
+
+- **Quem entra é `ValidarPeloRankingRs` + inscrição aberta + já público no site**
+  (`Services/TorneiosParaOParceiroDoRanking.EntraNaLista`). A primeira condição é a MESMA
+  coluna do acerto de R$ 1 por inscrito, então a lista que eles leem e a conta que a gente
+  paga enxergam o mesmo conjunto de torneios — que é como uma parceria deve se comportar.
+- **A régua de visibilidade é a da vitrine** (`PermissaoDeOrganizador.ApareceParaOPublico`), e
+  não uma cópia. Aqui o estrago de uma cópia desatualizada é maior que numa tela nossa: quem
+  lê é um site de terceiro, que publica o que a gente mandar e não tem como desconfiar.
+- **Nenhum dado de atleta, e isso é teste, não promessa.** Nem a contagem de inscritos — "só um
+  totalzinho" é como escopo combinado vira outro sem ninguém decidir nada. O teste serializa a
+  resposta inteira e a confere contra os dados de quem está inscrito.
+
+⚠️ **São DUAS chaves agora, e elas não se misturam**: `RankingRs__ApiKey` é a chave DELES, que
+a gente manda pra perguntar; `RankingRs__ChaveDoParceiro` é a NOSSA, que eles mandam pra ler.
+Conferir a primeira na nossa porta entregaria a chave deles a quem batesse nela.
+
 ### O Americano não tem trava, e é decisão (06/08/2026)
 
 `TorneiosController.InscreverIndividual` — a inscrição do formato Americano — não chama

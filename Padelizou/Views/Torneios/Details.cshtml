@@ -2505,6 +2505,11 @@
                                     Se o ranking estiver fora do ar, a inscrição passa normalmente — ninguém fica travado por isso.
                                 </div>
 
+                                @* O que ele GANHA ligando isto — a mesma partial da tela de criação.
+                                   Aqui ela importa até mais: quem está editando é quem criou o torneio
+                                   com a caixa desmarcada e nunca soube o que estava deixando na mesa. *@
+                                <partial name="_VantagensDoRanking" />
+
                                 @* O casamento é POR CATEGORIA e não dá pra adivinhar: "6ª Categoria"
                                    não diz se é masculina ou feminina, e o ranking tem as duas. O
                                    select já vem no palpite quando o nome deixa claro. *@

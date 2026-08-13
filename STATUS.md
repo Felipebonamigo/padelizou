@@ -17,6 +17,34 @@
 >
 > 🔒 **A prova de que a versão nova subiu veio do HTML público, não do "Feito" do script**: a home agora serve `~/lib/bootstrap-icons/…` com hash de versão (o `asp-append-version`) e o arquivo responde **200** — isso é do build 538, que **não** estava no ar antes. Home, `/Torneios`, `/Jogadores/Ranking` e `/healthz` em **200**, `/Torneios/Create` em 302 (pede login, como deve). Reconferido minutos depois: **sem deploy concorrente**. ⚠️ **Faltou a conferência pelo servidor** (`readlink -f`, `cwd` do processo, `NRestarts`, journal): o acesso SSH foi **bloqueado nesta sessão**, então a checagem por dentro do VPS não foi feita.
 >
+> Anterior: **12/08/2026** — 🔌 **A PARCERIA COM O RANKING PASSOU A TER MÃO DUPLA** (feito, **ainda não publicado**).
+>
+> 📥 **`GET /api/ranking/torneios`**: a primeira porta deste sistema que um terceiro lê por conta própria. Pedido do dono do Ranking Brasil, com o escopo escrito por ele: *"uma API que libera buscarmos os torneios pontuados no ranking — apenas informações dos torneios, como nome, clube, data, foto. **Não precisa nenhum dado dos atletas**."* Documento pra mandar pra ele: **`API-TORNEIOS.md`**.
+>
+> 🎯 **Quem entra na lista são as três condições juntas** (`Services/TorneiosParaOParceiroDoRanking.EntraNaLista`): aderiu ao ranking (`ValidarPeloRankingRs`) + inscrição aberta (`PortaDaInscricao`) + já é público no site (`PermissaoDeOrganizador.ApareceParaOPublico`). ⚠️ A primeira é a **MESMA coluna do acerto de R$ 1 por inscrito** — a lista que ele lê e a conta que a gente paga enxergam o mesmo conjunto, de propósito.
+>
+> 🚨 **NENHUM DADO DE ATLETA SAI DALI, e isso é teste, não promessa** — nem a **contagem** de inscritos ("só um totalzinho" é como escopo combinado vira outro sem ninguém decidir nada). O teste **serializa o corpo inteiro** e o confere contra o nome, o CPF e o e-mail de quem está inscrito: campo novo que arraste uma navegação junto fica **vermelho** em vez de virar nome de gente publicado no site de outra empresa.
+>
+> 🔑 **SÃO DUAS CHAVES AGORA, e trocá-las é o erro caro**: `RankingRs__ApiKey` é a chave **dele**, que a gente manda pra perguntar; `RankingRs__ChaveDoParceiro` é a **nossa**, que ele manda pra ler. Se a nossa porta conferisse a primeira, bastaria bater nela com a chave dele pra descobrir que é válida. A nova nasce **desligada** (sem ela, 503) e **recusa chave com menos de 20 caracteres** — chave curta protege tão pouco quanto nenhuma, e o jeito de isso passar batido é a API responder normalmente. Comparação de **tempo fixo** (`CryptographicOperations`), não `==`.
+>
+> 🕳️ **O PORTÃO DE ACESSO ANTECIPADO TERIA ENGOLIDO A INTEGRAÇÃO** — quem chama é um servidor, sem cookie e sem tela onde digitar senha: com o portão ligado ele levaria **302 pra uma página HTML de login**, e do lado dele isso apareceria como "o Padelizou respondeu HTML no lugar do JSON". Liberado o prefixo `/api/ranking` (e **só ele**, não `/api` inteiro). ✅ Provado rodando local **com o portão LIGADO**: a home devolveu 302 e a API devolveu 401/200 JSON.
+>
+> ⚠️ **`ControllerBase`, não `Controller`**: sem view, sem TempData, sem sessão — e de quebra os testes de reflexão que varrem as *telas* (antifalsificação, meta de busca) não passam por ali, que é o certo. Trava de 60 chamadas por 5 min (a mesma das consultas do site) e `Cache-Control: no-store`.
+>
+> 🧪 **3.847 testes, 0 falhas** (23 novos). ✅ E conferido no ar local de verdade, não só em teste: torneio que aderiu apareceu com clube, cidade, capa, datas e o de-para das categorias; o que não aderiu ficou de fora.
+>
+> 📤 **O DOCUMENTO E A CHAVE JÁ FORAM PRO PABLO** (WhatsApp, 12/08 às 16:08 — `Padelizou-API-Torneios.pdf` e a chave em mensagem separada). ⚠️ **E O CÓDIGO AINDA NÃO ESTÁ NO AR**: conferido agora, `https://padelizou.com.br/api/ranking/torneios` responde **404 em HTML** (a página amiga de "não encontrado"). Se o dev dele testar antes do deploy, é isso que ele vê — e 404 em HTML parece integração quebrada, não integração pendente.
+>
+> ⏭️ **Falta publicar**: subir o build e pôr `RankingRs__ChaveDoParceiro` no systemd — **só em produção**, por decisão do Felipe (12/08). O dev sobe o mesmo binário e fica **sem chave**, respondendo 503, que é o certo pra um ambiente que ninguém combinou de usar; se um dia fizer falta, é uma linha lá, com valor **diferente** (a mesma chave nos dois faria a de teste abrir a produção). Os três documentos já foram ajustados: prometiam homologação com chave própria, agora dizem "sob pedido".
+>
+> ✨ **13/08 — "VANTAGENS EM HABILITAR O RANKING BRASIL" ENTROU NAS DUAS TELAS** (criar e editar torneio), pedido do Felipe. A caixa só explicava o que ela FAZ (barra quem já pontuou acima) — e ninguém marca uma caixa pelo que ela faz, marca pelo que ganha. O que se ganhava estava só na página deles, que ninguém sabia que existia: agora tem o bloco + o link pra `mundodoatleta.com.br/parceria-clubes` (endereço em `MarcaDoRanking.ParaClubes`, um lugar só, como o nome da marca).
+>
+> ⚠️ **PARTIAL (`_VantagensDoRanking`), não o texto copiado duas vezes** — eles mudam a oferta, uma tela é corrigida e a outra segue prometendo o que não existe mais. E **sem número da página deles** ("15 mil atletas", "15% no hotel"): número de terceiro envelhece calado e vira promessa falsa na NOSSA tela. As vantagens estão escritas como deles ("eles divulgam", "no app deles") — quem entrega é o parceiro.
+>
+> 🖼️ **A LOGO NOVA DELES AINDA NÃO ESTÁ NO REPO.** `MarcaDoRanking.Logo` nasce **vazio** e a view só desenha o `<img>` se houver caminho — ícone de imagem quebrada ao lado do nome do parceiro é pior que logo nenhuma. Ligar é salvar a arte em `wwwroot/image/` e escrever o caminho na constante (há teste guardando o estado "ainda sem arte", que falha de propósito quando alguém ligar).
+>
+> ✅ Conferido nas duas telas com o app rodando (não só em teste): o bloco sai na criação e, na edição, **antes** do de-para de categorias — que é onde a decisão é tomada.
+>
 > Anterior: **12/08/2026** — 🚀 **`build-533-415f133` NO AR EM PROD** (14:52). Publicado a pedido do Felipe: *"ainda não libera os desafios para todo mundo, mas publica o que foi atualizado"*.
 >
 > 🔒 **OS DESAFIOS SUBIRAM E CONTINUAM FECHADOS.** Conferido no servidor: **`Desafios` não aparece no `padelizou.service` nem em nenhum dos 9 drop-ins** — sem `Desafios__Habilitado`, `DesafiosSettings.Habilitado` fica `false` e só admin do Padelizou enxerga. E o HTML público do `/Jogadores/Ranking` traz **zero links `/Desafios`** pra visitante: a única ocorrência da palavra é um **comentário de JavaScript**. Liberar, quando for a hora, é **uma linha no systemd** — não um deploy.
@@ -2872,6 +2900,16 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 📎 Documentos de apoio
+Gerado em 12/08/2026, no repo:
+- **API de torneios (para o Ranking Brasil)** — `API-TORNEIOS.md` (a fonte, em markdown) +
+  `API-TORNEIOS.html` e `Padelizou-API-Torneios.pdf` (6 páginas A4), que é a peça **para mandar
+  ao parceiro**: endereço, chave, resposta completa, campo a campo, quais torneios entram,
+  erros e limite de chamadas. ⚠️ **A chave NÃO está no documento** — ela vai em mensagem
+  separada, porque o PDF é feito pra ser repassado ao desenvolvedor deles.
+  ⚠️ No `@media print` o bloco de código vira claro **e ganha `pre-wrap`**: no papel não há
+  barra de rolagem, e a linha comprida do JSON seria cortada na margem sem deixar rastro.
+  Regerar: Edge headless `--print-to-pdf`.
+
 Gerado em 11/08/2026, no repo:
 - **Programa de Parceiros** — `PARCEIROS.md` (a regra fechada, o contrato de 1 página e o que
   falta construir, para uso INTERNO) + `PARCEIROS.html` (fonte) e `Padelizou-Parceiros.pdf`

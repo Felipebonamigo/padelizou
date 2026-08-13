@@ -1,0 +1,468 @@
+<title>API de torneios do Padelizou — Ranking Brasil</title>
+
+<style>
+  :root {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde: #A3D827;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+    --on-dark: #EEF2F9;
+    --on-dark-soft: #96A2BE;
+    --mono: "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --navy: #0F1626;
+      --navy-2: #17203A;
+      --verde-ink: #A3D827;
+      --ink: #E6EBF5;
+      --ink-soft: #99A5C0;
+      --paper: #121826;
+      --surface: #1A2233;
+      --rule: #2C3650;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --navy: #0F1626;
+    --navy-2: #17203A;
+    --verde-ink: #A3D827;
+    --ink: #E6EBF5;
+    --ink-soft: #99A5C0;
+    --paper: #121826;
+    --surface: #1A2233;
+    --rule: #2C3650;
+  }
+
+  :root[data-theme="light"] {
+    --navy: #1C2742;
+    --navy-2: #232F4E;
+    --verde-ink: #5E7D0F;
+    --ink: #16203A;
+    --ink-soft: #55617D;
+    --paper: #FBFCFE;
+    --surface: #F1F4FA;
+    --rule: #DDE3EF;
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 2.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0.6rem 0 0;
+  }
+
+  h2 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 1.1rem;
+  }
+
+  p { margin: 0 0 0.9rem; max-width: 62ch; }
+  p:last-child { margin-bottom: 0; }
+  .lead { font-size: 1.12rem; color: var(--ink-soft); margin-top: 1.1rem; }
+  strong { font-weight: 700; color: var(--ink); }
+
+  /* ---- Código ---- */
+  pre {
+    background: var(--navy);
+    color: var(--on-dark);
+    margin: 0 0 0.9rem;
+    padding: 1.05rem 1.2rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  pre:last-child { margin-bottom: 0; }
+  pre .verbo { color: var(--verde); font-weight: 700; }
+  pre .chave { color: var(--verde); }
+  pre .nota { color: var(--on-dark-soft); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--surface);
+    color: var(--verde-ink);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .base {
+    background: var(--surface);
+    border-left: 3px solid var(--verde);
+    padding: 1rem 1.25rem;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+    border-radius: 0 4px 4px 0;
+  }
+  .base p { max-width: none; }
+
+  /* ---- Tabelas ---- */
+  .rolagem { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.72rem 0.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  thead th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom-width: 2px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.campo {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--verde-ink);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  td.codigo { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+
+  /* ---- Passos ---- */
+  ol.passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.1rem; counter-reset: p; }
+  ol.passos li {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    counter-increment: p;
+  }
+  ol.passos li::before {
+    content: counter(p);
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--verde-ink);
+    border-bottom: 2px solid var(--verde);
+    padding-bottom: 0.1rem;
+  }
+  ol.passos p { margin: 0; }
+
+  ul.regras { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.85rem; }
+  ul.regras li { padding-left: 1.15rem; position: relative; max-width: 62ch; }
+  ul.regras li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.62em;
+    width: 6px; height: 6px;
+    background: var(--verde);
+    border-radius: 50%;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 34rem) {
+    .wrap { gap: 2.5rem; padding-top: 2rem; }
+    pre { font-size: 0.74rem; }
+  }
+
+  /* ---- Impressão / PDF ----
+     Gerado com Edge headless --print-to-pdf, mesma receita do PARCEIROS.html.
+     Vem POR ÚLTIMO de propósito: o headless pode reportar tema escuro, e estes
+     tokens têm a mesma especificidade do bloco prefers-color-scheme — quem vem
+     depois vence. Sem isto o PDF sai com fundo navy e come tinta à toa. */
+  @media print {
+    :root {
+      --navy: #1C2742;
+      --navy-2: #232F4E;
+      --verde-ink: #5E7D0F;
+      --ink: #16203A;
+      --ink-soft: #4A566F;
+      --paper: #FFFFFF;
+      --surface: #F1F4FA;
+      --rule: #C9D2E4;
+    }
+
+    @page { margin: 14mm 12mm; }
+
+    body { font-size: 10.5pt; }
+    .wrap { max-width: none; padding: 0; gap: 1.5rem; }
+    h1 { font-size: 1.9rem; }
+    .lead { font-size: 1rem; }
+
+    /* ⚠️ No papel o código vira claro: são blocos grandes, e um fundo navy de
+       página inteira só come tinta e atrapalha quem lê o JSON.
+       ⚠️ E QUEBRA LINHA: no papel não existe barra de rolagem — a linha comprida
+       do JSON seria CORTADA na margem, sem deixar rastro de que faltou algo. */
+    pre {
+      background: #FFFFFF;
+      color: var(--ink);
+      border: 1px solid var(--rule);
+      font-size: 8.6pt;
+      padding: 0.7rem 0.85rem;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    pre .verbo, pre .chave { color: var(--verde-ink); }
+    pre .nota { color: var(--ink-soft); }
+    code { background: none; padding: 0; }
+
+    /* Nada de tabela partida no meio da página, nem título órfão no rodapé. */
+    section, table, pre, ol.passos li, ul.regras li { break-inside: avoid; }
+    h2 { break-after: avoid; }
+
+    thead th, .base { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Padelizou × Ranking Brasil</p>
+    <h1>API de torneios</h1>
+    <p class="lead">Uma porta só de leitura: um endereço, um cabeçalho, um JSON. Devolve os
+    torneios do Padelizou que estão com <strong>inscrição aberta</strong> e que escolheram
+    pontuar no ranking de vocês — nome, clube, data, foto e categorias. Nenhum dado de atleta.</p>
+  </header>
+
+  <section>
+    <h2>O endereço</h2>
+<pre><span class="verbo">GET</span> https://padelizou.com.br/api/ranking/torneios</pre>
+    <p>É o único endereço ligado. Existe um ambiente de homologação
+    (<code>dev.padelizou.com.br</code>, com banco e dados próprios), mas ele <strong>não está
+    com chave</strong> — se em algum momento fizer falta testar sem tocar na produção, a gente
+    liga e manda uma chave separada. É só pedir.</p>
+    <p>Não tem paginação nem filtro: a lista é curta por natureza — são os torneios abertos
+    naquele instante.</p>
+  </section>
+
+  <section>
+    <h2>A chave</h2>
+    <p>Vai no cabeçalho <code>x-api-key</code> — o mesmo nome que a API de vocês usa com a
+    gente, de propósito: o código que vocês já têm para nos chamar serve aqui, trocando só a
+    chave.</p>
+<pre>curl -H "<span class="chave">x-api-key</span>: SUA_CHAVE_AQUI" \
+     https://padelizou.com.br/api/ranking/torneios</pre>
+    <p>A chave é entregue pelo Padelizou fora deste documento. Ela identifica vocês e nada
+    mais: não há usuário, não há troca de token, não expira sozinha. Se precisar trocar, a
+    gente troca e avisa — a antiga para de valer na hora.</p>
+    <p>Ela abre a lista sozinha, sem login: guardem como segredo de sistema, não em repositório
+    nem em grupo de mensagem.</p>
+  </section>
+
+  <section>
+    <h2>A resposta</h2>
+<pre>{
+  <span class="chave">"geradoEm"</span>: "2026-08-12T12:47:12-03:00",
+  <span class="chave">"quantidade"</span>: 1,
+  <span class="chave">"torneios"</span>: [
+    {
+      <span class="chave">"id"</span>: 34,
+      <span class="chave">"nome"</span>: "NATA PADEL TOUR",
+      <span class="chave">"link"</span>: "https://padelizou.com.br/Torneios/Details/34",
+      <span class="chave">"foto"</span>: "https://padelizou.com.br/uploads/capas/nata.webp",
+      <span class="chave">"clube"</span>: {
+        <span class="chave">"nome"</span>: "NATA Padel",
+        <span class="chave">"cidade"</span>: "Gravataí",
+        <span class="chave">"estado"</span>: "RS",
+        <span class="chave">"endereco"</span>: "Av. Dorival Cândido de Oliveira, 100"
+      },
+      <span class="chave">"local"</span>: "Quadras cobertas",
+      <span class="chave">"dataInicio"</span>: "2026-08-22",
+      <span class="chave">"dataFim"</span>: "2026-08-24",
+      <span class="chave">"formato"</span>: "Padrao",
+      <span class="chave">"precoInscricao"</span>: 90,
+      <span class="chave">"inscricoesAte"</span>: "2026-08-18",
+      <span class="chave">"inscricaoRestrita"</span>: false,
+      <span class="chave">"categorias"</span>: [
+        {
+          <span class="chave">"nome"</span>: "4ª Categoria Masculina",
+          <span class="chave">"rankingId"</span>: 108,
+          <span class="chave">"rankingNome"</span>: "4ª Masculina"
+        },
+        {
+          <span class="chave">"nome"</span>: "7ª Categoria Masculina",
+          <span class="chave">"rankingId"</span>: null,
+          <span class="chave">"rankingNome"</span>: null
+        }
+      ]
+    }
+  ]
+}</pre>
+  </section>
+
+  <section>
+    <h2>Campo a campo</h2>
+    <div class="rolagem">
+      <table>
+        <thead>
+          <tr><th>Campo</th><th>O que é</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="campo">geradoEm</td><td>Quando esta resposta foi montada, com fuso. Serve para vocês saberem que não estão lendo um cache velho de algum intermediário.</td></tr>
+          <tr><td class="campo">quantidade</td><td>Quantos torneios vieram. É o tamanho da lista, repetido por conveniência.</td></tr>
+          <tr><td class="campo">id</td><td>O identificador do torneio no Padelizou. <strong>Estável</strong> — é por ele que vocês reconhecem o mesmo torneio na chamada seguinte.</td></tr>
+          <tr><td class="campo">nome</td><td>O nome como o organizador publicou.</td></tr>
+          <tr><td class="campo">link</td><td>A página pública do torneio. Pode virar link direto na listagem de vocês.</td></tr>
+          <tr><td class="campo">foto</td><td>A capa do torneio, endereço completo. <strong>Nulo quando o organizador não subiu capa</strong> — a maioria dos torneios começa assim.</td></tr>
+          <tr><td class="campo">clube</td><td>Onde acontece. <strong>Nulo</strong> quando o torneio não tem clube cadastrado; <code>cidade</code>, <code>estado</code> e <code>endereco</code> também podem vir nulos separadamente.</td></tr>
+          <tr><td class="campo">local</td><td>Complemento escrito pelo organizador ("quadras cobertas", "ao lado do estacionamento"). Pode ser nulo.</td></tr>
+          <tr><td class="campo">dataInicio<br>dataFim</td><td><code>AAAA-MM-DD</code>, <strong>sem hora e sem fuso</strong> — é data de calendário, não instante. <code>dataFim</code> pode ser nulo.</td></tr>
+          <tr><td class="campo">formato</td><td><code>Padrao</code> (duplas fixas, grupos + mata-mata), <code>Americano</code> (individual, parceiro troca a cada rodada) ou <code>AmericanoDuplas</code>.</td></tr>
+          <tr><td class="campo">precoInscricao</td><td>Valor <strong>por pessoa</strong>, em reais — é como o torneio anuncia. Uma dupla paga o dobro.</td></tr>
+          <tr><td class="campo">inscricoesAte</td><td>Data prevista de encerramento, quando o organizador publicou uma. É promessa dele, não corte automático: enquanto o torneio estiver nesta lista, ele está aberto.</td></tr>
+          <tr><td class="campo">inscricaoRestrita</td><td><code>true</code> = torneio fechado, só entra quem tem a chave de acesso do organizador. Ele aparece aqui porque também aparece na nossa listagem, mas <strong>não anunciem como aberto a todos</strong>.</td></tr>
+          <tr><td class="campo">categorias[].nome</td><td>O nome da categoria como o organizador escreveu. Texto livre.</td></tr>
+          <tr><td class="campo">categorias[].rankingId</td><td><strong>O de-para com o catálogo de vocês</strong> (100 a 116). É por ele que dá para casar a categoria sem depender do nome digitado.</td></tr>
+          <tr><td class="campo">categorias[].rankingNome</td><td>O nome dessa categoria no catálogo de vocês ("4ª Masculina"), só para conferência humana.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="base" style="margin-top:1.25rem">
+      <p><strong>rankingId nulo é informação, não falha.</strong> Significa que aquela categoria
+      não é conferida contra o ranking — ou porque não existe no catálogo de vocês (7ª,
+      Iniciantes, Mista D), ou porque o organizador não fez o de-para. Atleta que se inscreve
+      nela não passa pela validação.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Quais torneios aparecem</h2>
+    <ol class="passos">
+      <li><p><strong>Aderiu ao ranking.</strong> O organizador marcou "conferir as inscrições no
+      Ranking Brasil" na criação do torneio. É exatamente a mesma marca que faz aquele torneio
+      entrar no acerto de R$ 1 por inscrito: a lista e a conta enxergam o mesmo conjunto.</p></li>
+      <li><p><strong>Inscrições abertas agora.</strong> Torneio que ainda não abriu, que já
+      sorteou as chaves, que está em andamento ou que acabou não vem. Ele some da lista sozinho
+      no dia em que o organizador encerra as inscrições.</p></li>
+      <li><p><strong>Já é público no Padelizou.</strong> Aprovado por nós, não escondido pelo
+      organizador e não cancelado. Todo torneio passa por uma aprovação antes de aparecer em
+      qualquer lugar, e esta API respeita a mesma régua da nossa própria listagem.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>O que a API não devolve</h2>
+    <p><strong>Nenhum dado de atleta.</strong> Nem nome, nem CPF, nem contato — e nem a
+    <strong>contagem</strong> de inscritos. Foi o combinado, e do nosso lado ele está preso por
+    teste automatizado: a resposta inteira é conferida contra os dados de quem está inscrito no
+    torneio, e o teste falha se algum campo novo arrastar isso junto.</p>
+    <p>Também não vai a chave de acesso de torneio restrito, nem nada financeiro além do preço
+    que já é público na página do torneio.</p>
+    <p>Se um dia precisarem de algo que não está aqui, é conversa — não é limitação técnica, é
+    escopo combinado.</p>
+  </section>
+
+  <section>
+    <h2>Erros</h2>
+    <div class="rolagem">
+      <table>
+        <thead>
+          <tr><th>Código</th><th>O que aconteceu</th><th>O que fazer</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="codigo">401</td>
+            <td><code>{"erro":"Chave de API inválida ou ausente."}</code> — o cabeçalho <code>x-api-key</code> não veio, ou veio errado.</td>
+            <td>Conferir a chave e o nome do cabeçalho.</td>
+          </tr>
+          <tr>
+            <td class="codigo">503</td>
+            <td>A integração não está ligada do <strong>nosso</strong> lado.</td>
+            <td>Nos avisar. Não adianta mexer aí.</td>
+          </tr>
+          <tr>
+            <td class="codigo">429</td>
+            <td>Passou do limite de chamadas. Vem com <code>Retry-After</code> em segundos.</td>
+            <td>Esperar e reduzir a frequência.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:1.1rem">O 503 existe separado do 401 de propósito: sem ele, uma
+    configuração que faltasse do nosso lado faria vocês passarem a tarde conferindo uma chave
+    que estava certa.</p>
+  </section>
+
+  <section>
+    <h2>Frequência e estabilidade</h2>
+    <ul class="regras">
+      <li><strong>60 chamadas a cada 5 minutos</strong> por IP — a mesma trava das consultas do
+      site. Na prática, de 5 em 5 minutos é de sobra: torneio não abre nem fecha inscrição de
+      segundo em segundo.</li>
+      <li>A resposta vai com <code>Cache-Control: no-store</code> porque carrega chave. O cache,
+      se quiserem, é do lado de vocês.</li>
+      <li><strong>Campos podem ser acrescentados</strong> sem aviso — o cliente de vocês deve
+      ignorar o que não conhece.</li>
+      <li><strong>Campos existentes não somem nem mudam de significado</strong> sem a gente
+      combinar antes.</li>
+      <li>O endereço <code>/api/ranking/torneios</code> é para durar. Se um dia houver uma versão
+      nova incompatível, ela nasce em outro endereço e as duas convivem.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>O que dá para acrescentar</h2>
+    <p>Nada disto está feito — é só para vocês saberem que é barato, se precisarem:</p>
+    <ul class="regras">
+      <li>Os torneios que <strong>ainda vão abrir</strong> e os que estão acontecendo, como um
+      parâmetro. Hoje a lista é só de inscrição aberta, que foi o pedido.</li>
+      <li><strong>Filtro por cidade ou estado</strong>, se a listagem de vocês for regional.</li>
+      <li><strong>Aviso ativo</strong> (webhook) quando um torneio novo aderir ao ranking, em vez
+      de vocês perguntarem de tempos em tempos.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Padelizou — torneios, aulas e ranking de padel. Dúvidas sobre esta API, ou pedido de
+    campo novo: falar direto com o Felipe.</p>
+  </footer>
+
+</div>

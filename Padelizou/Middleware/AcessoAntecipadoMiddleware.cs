@@ -42,6 +42,15 @@ public class AcessoAntecipadoMiddleware
         // tela de senha, e o buscador leria isso como "a lista de endereços do site é a tela
         // de login". O conteúdo dele já é público — são os endereços que qualquer visitante vê.
         "/sitemap.xml",
+        // A API de torneios do Ranking Brasil. Quem chama é um SERVIDOR: sem cookie, sem conta e
+        // sem tela onde digitar a senha do portão — com o portão religado ele levaria um 302 pra
+        // uma página HTML de login, e do lado deles isso apareceria como "o Padelizou respondeu
+        // um monte de HTML no lugar do JSON". Mesma razão do webhook do Asaas, logo acima.
+        //
+        // ⚠️ O prefixo é ESTE, e não "/api": liberar a família inteira abriria de graça qualquer
+        // porta de API que este projeto venha a ter. Esta aqui não fica desprotegida — ela exige
+        // a chave do parceiro (ver Services/RankingRsSettings.ChaveDoParceiro).
+        "/api/ranking",
         "/Auth/Login", "/Auth/Logout", "/Auth/EsqueciSenha", "/Auth/RedefinirSenha"
     };
 

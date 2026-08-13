@@ -20,4 +20,27 @@ public static class MarcaDoRanking
     // Quem calcula e publica. Fica separado do nome porque aparece em frase corrida
     // ("quem atualiza é o ..."), e não como marca.
     public const string Site = "mundodoatleta.com.br";
+
+    // A página DELES que explica o que o clube/organizador ganha ao habilitar o ranking:
+    // atleta fora de categoria pego antes do torneio, divulgação pra base de atletas deles,
+    // pontuação no ranking nacional, clube de vantagens e etapas oficiais.
+    //
+    // Mora aqui pelo mesmo motivo do nome: endereço de terceiro digitado à mão em duas telas é
+    // o que vira link quebrado em UMA delas no dia em que eles mudarem a rota. São duas hoje
+    // (criar torneio e editar torneio) — a terceira que vier já acha o endereço aqui.
+    //
+    // ⚠️ É a página de VENDA deles, pro organizador. Nada a ver com a nossa API de torneios
+    // (API-TORNEIOS.md), que é conversa entre servidores e não interessa a quem cria torneio.
+    public const string ParaClubes = "https://mundodoatleta.com.br/parceria-clubes";
+
+    // A arte que eles usam hoje, servida por nós (nunca por link direto ao site deles: imagem
+    // de terceiro no nosso HTML quebra quando eles renomeiam o arquivo, e ainda entrega o IP
+    // de quem abriu a nossa tela pro servidor deles).
+    //
+    // ⚠️ NASCE VAZIO. Enquanto ninguém salvar o arquivo em `wwwroot/image/`, a tela mostra só o
+    // texto — que é melhor que o ícone de imagem quebrada ao lado do nome do parceiro. Pra
+    // ligar: salve a arte e escreva o caminho aqui ("/image/ranking-brasil.webp").
+    public const string Logo = "";
+
+    public static bool TemLogo => !string.IsNullOrWhiteSpace(Logo);
 }

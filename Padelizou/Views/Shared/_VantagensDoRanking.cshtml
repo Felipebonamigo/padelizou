@@ -1,0 +1,63 @@
+@using Padelizou.Services
+@*
+    O QUE O ORGANIZADOR GANHA AO LIGAR O RANKING — pedido do Felipe (13/08/2026).
+
+    Até aqui a caixa "Conferir as inscrições no @MarcaDoRanking.Nome" só explicava o que ela
+    FAZ (barra quem já pontuou acima). Ninguém marca uma caixa pelo que ela faz; marca pelo que
+    ganha — e o que se ganha estava só na página deles, que ninguém sabia que existia.
+
+    ⚠️ PARTIAL, e não o texto copiado nas duas telas. Ele aparece em CRIAR e em EDITAR torneio,
+    e texto de parceiro escrito em dois lugares é a mesma armadilha do nome da marca: eles mudam
+    a oferta, uma tela é corrigida, a outra continua prometendo o que não existe mais. Há teste
+    exigindo que as duas telas rendam ESTA partial.
+
+    ⚠️ AS VANTAGENS SÃO DELES, e o texto diz isso ("eles divulgam", "no app deles"). Quem
+    entrega é o Ranking Brasil; escrever como se fosse promessa do Padelizou nos deixaria
+    devendo uma coisa que não está na nossa mão.
+
+    ⚠️ SEM NÚMERO DA PÁGINA DELES de propósito — nada de "15 mil atletas" ou "15% no hotel".
+    Número de terceiro envelhece calado: no dia em que eles trocarem a oferta, a nossa tela
+    continua prometendo o número velho, e quem cobra é o organizador. O que é deles fica no
+    link; aqui fica só o tipo de vantagem.
+*@
+<div class="mt-3 p-3 rounded" style="background-color: var(--pdz-surface-alt);">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        @if (MarcaDoRanking.TemLogo)
+        {
+            <img src="@MarcaDoRanking.Logo" alt="@MarcaDoRanking.Nome" width="40" height="40"
+                 class="rounded flex-shrink-0" style="object-fit: contain;" loading="lazy" />
+        }
+        <div class="fw-bold small">
+            <i class="bi bi-stars"></i> Vantagens em habilitar o @MarcaDoRanking.Nome
+        </div>
+    </div>
+
+    <ul class="small text-muted mb-2 ps-3">
+        <li>
+            <strong>Atleta fora de categoria aparece antes do torneio.</strong> A conferência
+            cruza o histórico de quem se inscreve com o ranking inteiro — não só com quem já
+            jogou aqui.
+        </li>
+        <li>
+            <strong>Eles divulgam o seu torneio</strong> para a base de atletas do
+            @MarcaDoRanking.Nome, nas redes e no app deles.
+        </li>
+        <li>
+            <strong>Quem jogar pontua no ranking nacional</strong> e entra no clube de vantagens
+            deles — descontos em marcas parceiras, hotel e aplicativos.
+        </li>
+        <li>
+            <strong>O clube pode virar sede de etapa oficial</strong> e aparecer em destaque no
+            site deles.
+        </li>
+        <li>
+            <strong>Não custa nada pra você.</strong> Habilitar é marcar esta caixa; o acerto com
+            eles é por nossa conta.
+        </li>
+    </ul>
+
+    <a href="@MarcaDoRanking.ParaClubes" target="_blank" rel="noopener" class="small fw-bold">
+        Ver o que o @MarcaDoRanking.Nome oferece a clubes e organizadores
+        <i class="bi bi-box-arrow-up-right"></i>
+    </a>
+</div>
