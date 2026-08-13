@@ -60,6 +60,33 @@ public static class NovoHorarioDoProfessor
         return new Plano(criar, reativar, jaExistiam, null);
     }
 
+    // EDITAR um horário que já existe passa pela MESMA régua de criar — de propósito. Fim
+    // antes do início e aula que não cabe na janela são erros que só aparecem PRO ALUNO, como
+    // agenda vazia; uma segunda cópia da validação aqui divergiria da de cima na primeira
+    // mudança, e o buraco reabriria só na edição.
+    //
+    // ⚠️ O PRÓPRIO HORÁRIO SAI DA COMPARAÇÃO. Sem isso ele colide consigo mesmo e nada pode
+    // ser salvo — nem trocar só a duração, que é o motivo mais comum pra abrir esta tela.
+    //
+    // Devolve o motivo para NÃO editar, ou null quando pode.
+    public static string? MotivoParaNaoEditar(
+        int idQueEstaSendoEditado, int dia, TimeSpan horaInicio, TimeSpan horaFim,
+        int duracaoMinutos, int localAulaId, IEnumerable<HorarioDisponivel> horariosDoProfessor)
+    {
+        var osOutros = horariosDoProfessor.Where(h => h.Id != idQueEstaSendoEditado);
+        var plano = Planejar(new[] { dia }, horaInicio, horaFim, duracaoMinutos, localAulaId, osOutros);
+
+        if (!plano.Valido) return plano.Erro;
+
+        // Sobrou fora de "criar" quer dizer que já existe um igual (ativo ou pausado): mover
+        // terça pra cima de uma quarta que já existe deixaria duas linhas idênticas na tela.
+        if (plano.DiasParaCriar.Count == 0)
+            return $"Você já tem um horário nesse local na {Nomes[dia]}, "
+                 + $"das {Hora(horaInicio)} às {Hora(horaFim)}.";
+
+        return null;
+    }
+
     // "Horário criado pra segunda, quarta e sexta. Terça já existia e ficou como estava."
     public static string Resumo(Plano plano)
     {

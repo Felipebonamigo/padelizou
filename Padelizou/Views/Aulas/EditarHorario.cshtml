@@ -1,0 +1,83 @@
+@model HorarioDisponivel
+@{
+    ViewData["Title"] = "Corrigir Horário - Padelizou";
+    var locais = (IEnumerable<LocalAula>)ViewBag.Locais;
+    string[] diasSemana = { "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado" };
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0" style="border-top: 4px solid var(--padel-green);">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-pencil-square display-4" style="color: var(--padel-green);"></i>
+                        <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Corrigir Horário</h3>
+                        <p class="text-muted mb-0">Vale pra daqui pra frente. As aulas já marcadas continuam na sua agenda.</p>
+                    </div>
+
+                    @if (TempData["ErroHorario"] != null)
+                    {
+                        <div class="alert alert-warning border-0 shadow-sm py-2">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroHorario"]
+                        </div>
+                    }
+
+                    <form asp-controller="Aulas" asp-action="EditarHorario" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Local</label>
+                            <select name="localAulaId" class="form-select bg-light" required>
+                                @foreach (var l in locais)
+                                {
+                                    <option value="@l.Id" selected="@(Model.LocalAulaId == l.Id)">@l.Nome</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-muted small">Dia da semana</label>
+                            <select name="diaSemana" class="form-select bg-light" required>
+                                @for (var d = 0; d < 7; d++)
+                                {
+                                    <option value="@d" selected="@(Model.DiaSemana == d)">@diasSemana[d]</option>
+                                }
+                            </select>
+                        </div>
+
+                        @* Um dia por vez aqui, ao contrário do cadastro (que aceita vários de
+                           uma vez): esta tela corrige UMA linha. Marcar três dias aqui teria
+                           que decidir se vira três linhas ou move a de origem — e as duas
+                           respostas surpreendem metade das pessoas. *@
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Início</label>
+                                <input type="time" name="horaInicio" class="form-control bg-light" required
+                                       value="@Model.HoraInicio.ToString(@"hh\:mm")" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-muted small">Fim</label>
+                                <input type="time" name="horaFim" class="form-control bg-light" required
+                                       value="@Model.HoraFim.ToString(@"hh\:mm")" />
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Duração de cada aula (min)</label>
+                            <input type="number" name="duracaoMinutos" class="form-control bg-light" required
+                                   min="15" step="15" value="@Model.DuracaoMinutos" />
+                            <div class="form-text">
+                                É o tamanho de cada vaga dentro da janela. Uma aula que não cabe entre o
+                                início e o fim deixa a agenda vazia pro aluno, sem avisar você.
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill">Salvar</button>
+                        <a asp-controller="Aulas" asp-action="MeusHorarios" class="btn btn-link w-100 mt-2">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

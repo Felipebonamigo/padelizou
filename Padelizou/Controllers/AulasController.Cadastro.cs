@@ -542,6 +542,96 @@ namespace padelizou.Controllers
             return RedirectToAction("MeusHorarios");
         }
 
+        // ===================== CORRIGIR E APAGAR UM HORÁRIO =====================
+        //
+        // Até 13/08/2026 só existia Desativar/Reativar. Errar a hora no cadastro (ou o local)
+        // deixava a linha errada lá pra sempre: pausada, ocupando espaço, e sem jeito de virar
+        // a linha certa. O jeito era criar outra e conviver com as duas.
+
+        [HttpGet]
+        public async Task<IActionResult> EditarHorario(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId na consulta é a trava: sem ele, trocar o id na URL abriria (e
+            // salvaria) o horário de outro professor.
+            var horario = await _context.HorariosDisponiveis
+                .FirstOrDefaultAsync(h => h.Id == id && h.ProfessorId == professorId);
+            if (horario == null) return RedirectToAction("MeusHorarios");
+
+            ViewBag.Locais = await _context.LocaisAula
+                .Where(l => l.ProfessorId == professorId && l.Ativo)
+                .OrderBy(l => l.Nome)
+                .ToListAsync();
+
+            return View(horario);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditarHorario(
+            int id, int localAulaId, int diaSemana, TimeSpan horaInicio, TimeSpan horaFim, int duracaoMinutos)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var horario = await _context.HorariosDisponiveis
+                .FirstOrDefaultAsync(h => h.Id == id && h.ProfessorId == professorId);
+            if (horario == null) return RedirectToAction("MeusHorarios");
+
+            // O local também é conferido: um id de local de outro professor entraria por POST
+            // montado à mão e a lista dele passaria a mostrar um horário num lugar que não é seu.
+            var localEhMeu = await _context.LocaisAula.AnyAsync(l => l.Id == localAulaId && l.ProfessorId == professorId);
+            if (!localEhMeu) return RedirectToAction("MeusHorarios");
+
+            var meusHorarios = await _context.HorariosDisponiveis
+                .Where(h => h.ProfessorId == professorId)
+                .ToListAsync();
+
+            var impedimento = NovoHorarioDoProfessor.MotivoParaNaoEditar(
+                id, diaSemana, horaInicio, horaFim, duracaoMinutos, localAulaId, meusHorarios);
+
+            if (impedimento != null)
+            {
+                TempData["ErroHorario"] = impedimento;
+                return RedirectToAction("EditarHorario", new { id });
+            }
+
+            horario.LocalAulaId = localAulaId;
+            horario.DiaSemana = diaSemana;
+            horario.HoraInicio = horaInicio;
+            horario.HoraFim = horaFim;
+            horario.DuracaoMinutos = duracaoMinutos;
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoHorario"] = "Horário corrigido.";
+            return RedirectToAction("MeusHorarios");
+        }
+
+        // ⚠️ APAGAR AQUI NÃO DERRUBA AULA NENHUMA, e isso é fato do modelo, não otimismo:
+        // `Aula` guarda local + data e hora, e NÃO aponta pro HorarioDisponivel. O horário é
+        // só a REGRA que abre vaga pra marcar — some a regra, some a vaga nova; o que já
+        // estava marcado continua na agenda.
+        //
+        // Por isso aqui não há a trava que o `RemocaoDeLocal` tem: lá, apagar levava junto o
+        // histórico de quanto o professor ganhou naquele local.
+        [HttpPost]
+        public async Task<IActionResult> ExcluirHorario(int id)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var horario = await _context.HorariosDisponiveis
+                .FirstOrDefaultAsync(h => h.Id == id && h.ProfessorId == professorId);
+            if (horario == null) return RedirectToAction("MeusHorarios");
+
+            _context.HorariosDisponiveis.Remove(horario);
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoHorario"] = "Horário apagado. As aulas que já estavam marcadas continuam na sua agenda.";
+            return RedirectToAction("MeusHorarios");
+        }
+
         // Para alunos que combinaram a aula fora do sistema (não têm conta). A aula nasce
         // direto como "Confirmada" — sem o fluxo de solicitação/aceite.
 

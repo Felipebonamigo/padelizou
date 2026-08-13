@@ -145,17 +145,43 @@
                                     <span class="badge @(h.Ativo ? "bg-success" : "bg-secondary")">@(h.Ativo ? "Ativo" : "Inativo")</span>
                                 </td>
                                 <td>
-                                    <form asp-controller="Aulas" asp-action="AlternarHorario" method="post">
-                                        <input type="hidden" name="id" value="@h.Id" />
-                                        @* No celular fica só o ícone (com title e aria-label pra
-                                           não virar botão mudo); o texto volta a partir de sm. *@
-                                        <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")"
-                                                title="@(h.Ativo ? "Desativar" : "Reativar")"
-                                                aria-label="@(h.Ativo ? "Desativar horário" : "Reativar horário")">
-                                            <i class="bi @(h.Ativo ? "bi-pause-fill" : "bi-play-fill") d-sm-none"></i>
-                                            <span class="d-none d-sm-inline">@(h.Ativo ? "Desativar" : "Reativar")</span>
-                                        </button>
-                                    </form>
+                                    @* Três ações na mesma célula, e no celular elas viram só
+                                       ícones (com title e aria-label pra não virarem botões
+                                       mudos). O texto volta a partir de sm. *@
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <form asp-controller="Aulas" asp-action="AlternarHorario" method="post">
+                                            <input type="hidden" name="id" value="@h.Id" />
+                                            <button type="submit" class="btn btn-sm @(h.Ativo ? "btn-outline-danger" : "btn-outline-success")"
+                                                    title="@(h.Ativo ? "Desativar" : "Reativar")"
+                                                    aria-label="@(h.Ativo ? "Desativar horário" : "Reativar horário")">
+                                                <i class="bi @(h.Ativo ? "bi-pause-fill" : "bi-play-fill") d-sm-none"></i>
+                                                <span class="d-none d-sm-inline">@(h.Ativo ? "Desativar" : "Reativar")</span>
+                                            </button>
+                                        </form>
+
+                                        <a asp-controller="Aulas" asp-action="EditarHorario" asp-route-id="@h.Id"
+                                           class="btn btn-sm btn-outline-secondary" title="Corrigir" aria-label="Corrigir horário">
+                                            <i class="bi bi-pencil"></i>
+                                            <span class="d-none d-sm-inline">Corrigir</span>
+                                        </a>
+
+                                        @* A confirmação diz o que apagar NÃO leva junto: o medo
+                                           aqui é derrubar aula marcada, e ela não é derrubada
+                                           (Aula guarda local+data, não aponta pro horário). Sem
+                                           essa frase, o professor não aperta e a linha errada
+                                           fica pra sempre — que é o problema que isto resolve. *@
+                                        <form asp-controller="Aulas" asp-action="ExcluirHorario" method="post"
+                                              data-confirmar="Apagar este horário? Ele só fecha a agenda pra NOVAS marcações — as aulas que já estão marcadas continuam na sua agenda."
+                                              data-confirmar-titulo="Apagar o horário?"
+                                              data-confirmar-ok="Apagar"
+                                              data-confirmar-tom="perigo">
+                                            <input type="hidden" name="id" value="@h.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Apagar" aria-label="Apagar horário">
+                                                <i class="bi bi-trash"></i>
+                                                <span class="d-none d-sm-inline">Apagar</span>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         }
