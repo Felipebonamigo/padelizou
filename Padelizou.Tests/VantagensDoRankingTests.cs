@@ -76,18 +76,58 @@ public class VantagensDoRankingTests
         Assert.DoesNotContain("Ranking RS", bloco);
     }
 
-    // ⚠️ Enquanto ninguém salvar a arte, a tela mostra só o texto. O `if` existe pra que a
-    // ausência do arquivo não vire o ícone de imagem quebrada bem ao lado do nome do parceiro —
-    // que é pior que não ter logo nenhuma.
+    // ⚠️ O `if` na view continua existindo mesmo com a arte no lugar: é ele que faz a ausência
+    // do arquivo virar "só o texto" em vez do ícone de imagem quebrada bem ao lado do nome do
+    // parceiro. Apagar o `if` porque "agora tem logo" devolveria esse risco de graça.
     [Fact]
-    public void Sem_a_arte_salva_a_tela_nao_tenta_desenhar_imagem_nenhuma()
+    public void A_tela_so_desenha_a_logo_quando_ela_existe()
     {
         var bloco = SemComentarioRazor(Arquivo(Path.Combine("Views", "Shared", "_VantagensDoRanking.cshtml")));
 
         Assert.Contains("MarcaDoRanking.TemLogo", bloco);
-        Assert.False(MarcaDoRanking.TemLogo,
-            "A logo foi ligada em MarcaDoRanking.Logo — confira que o arquivo existe mesmo em "
-            + "wwwroot e, se existir, atualize este teste: ele guardava o estado \"ainda sem arte\".");
+    }
+
+    // 🚨 O caminho da logo é TEXTO: um erro de digitação não quebra build nem teste, só entrega
+    // um retângulo vazio ao lado do nome do parceiro na tela de criar torneio. Este teste vai ao
+    // disco conferir que o arquivo apontado existe mesmo.
+    [Fact]
+    public void O_arquivo_da_logo_existe_onde_a_constante_diz()
+    {
+        Assert.True(MarcaDoRanking.TemLogo, "A logo foi desligada — se foi de propósito, ajuste este teste.");
+
+        var caminho = Path.Combine(PastaDoProjeto(), "wwwroot",
+            MarcaDoRanking.Logo.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
+        Assert.True(File.Exists(caminho), $"MarcaDoRanking.Logo aponta pra {MarcaDoRanking.Logo}, "
+            + $"que não existe em wwwroot (procurei em {caminho}).");
+    }
+
+    // ⚠️ E o conteúdo tem que bater com a EXTENSÃO. O arquivo chegou como `ranking-brasil.png.jpeg`
+    // — um JPEG com cara de PNG. O Caddy manda `X-Content-Type-Options: nosniff` em toda resposta,
+    // então um JPEG servido como `image/png` é RECUSADO pelo navegador: a logo some e não há erro
+    // em lugar nenhum pra ligar uma coisa à outra.
+    [Fact]
+    public void O_conteudo_da_logo_bate_com_a_extensao_do_arquivo()
+    {
+        var caminho = Path.Combine(PastaDoProjeto(), "wwwroot",
+            MarcaDoRanking.Logo.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        var cabecalho = File.ReadAllBytes(caminho).Take(4).ToArray();
+        var extensao = Path.GetExtension(caminho).ToLowerInvariant();
+
+        var ehJpeg = cabecalho[0] == 0xFF && cabecalho[1] == 0xD8;
+        var ehPng = cabecalho[0] == 0x89 && cabecalho[1] == 0x50;
+        var ehWebp = cabecalho[0] == 0x52 && cabecalho[1] == 0x49;
+
+        var esperado = extensao switch
+        {
+            ".jpg" or ".jpeg" => ehJpeg,
+            ".png" => ehPng,
+            ".webp" => ehWebp,
+            _ => false,
+        };
+
+        Assert.True(esperado, $"O arquivo da logo é {(ehJpeg ? "JPEG" : ehPng ? "PNG" : ehWebp ? "WebP" : "de formato desconhecido")} "
+            + $"mas está gravado como \"{extensao}\". Com nosniff ligado, o navegador recusa a imagem.");
     }
 
     private static string SemComentarioRazor(string texto) =>

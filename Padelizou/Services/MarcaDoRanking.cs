@@ -37,10 +37,16 @@ public static class MarcaDoRanking
     // de terceiro no nosso HTML quebra quando eles renomeiam o arquivo, e ainda entrega o IP
     // de quem abriu a nossa tela pro servidor deles).
     //
-    // ⚠️ NASCE VAZIO. Enquanto ninguém salvar o arquivo em `wwwroot/image/`, a tela mostra só o
-    // texto — que é melhor que o ícone de imagem quebrada ao lado do nome do parceiro. Pra
-    // ligar: salve a arte e escreva o caminho aqui ("/image/ranking-brasil.webp").
-    public const string Logo = "";
+    // ⚠️ VAZIO DESLIGA. Sem arquivo salvo em `wwwroot/image/`, a tela mostra só o texto — que é
+    // melhor que o ícone de imagem quebrada ao lado do nome do parceiro.
+    //
+    // ⚠️ `.jpg` porque o arquivo É um JPEG. Ele chegou salvo como `ranking-brasil.png.jpeg` (o
+    // Explorer escondia a extensão de verdade), e servir JPEG com nome `.png` não é detalhe de
+    // organização: o Caddy manda `X-Content-Type-Options: nosniff` em toda resposta, então o
+    // navegador recusaria a imagem cujo tipo declarado não bate com o conteúdo — e a logo
+    // simplesmente não apareceria, sem erro em lugar nenhum. Há teste conferindo que o arquivo
+    // existe de verdade neste caminho.
+    public const string Logo = "/image/ranking-brasil.jpg";
 
     public static bool TemLogo => !string.IsNullOrWhiteSpace(Logo);
 }
