@@ -14,6 +14,15 @@ public static class WhatsAppLinkHelper
             .Replace(")", "");
     }
 
+    // Um número precisa ter DDD + número pra existir: 10 dígitos (fixo) ou 11 (celular).
+    //
+    // Serve aos DOIS usos, que são diferentes de propósito: o aviso que NÓS mandamos (ver
+    // AvisoPorWhatsApp.PodeReceber, que ainda exige o consentimento em cima disto) e o link
+    // wa.me que a PESSOA clica — aí não há consentimento em jogo, é ela abrindo uma conversa.
+    // O que os dois compartilham é só a pergunta "isto é um número?", e ela mora aqui.
+    public static bool NumeroValido(string? celular) =>
+        LimparNumero(celular).Count(char.IsDigit) is 10 or 11;
+
     // Gera um link wa.me pronto para o usuário clicar e enviar a mensagem pelo próprio WhatsApp.
     public static string GerarLink(string? celular, string mensagem)
     {

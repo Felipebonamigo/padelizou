@@ -127,7 +127,15 @@ public class PwaArquivosTests
         var offline = Regex.Match(sw, @"const PAGINA_OFFLINE = ""(?<v>[^""]+)""");
         Assert.True(offline.Success, "Não achei PAGINA_OFFLINE no sw.js.");
 
-        return lista.Groups[1].Value
+        // ⚠️ COMENTÁRIO DENTRO DA LISTA FORA — e ele existe. A separação é por vírgula, e uma
+        // frase comentada ("...sem o .woff2 guardado, a Mesa de Controle...") virava duas
+        // entradas de mentira, cada uma acusada como "arquivo que não existe no disco". O
+        // teste ficava vermelho apontando pro lugar errado, culpando o arquivo em vez do
+        // próprio parser. Este projeto comenta muito; quem lê o sw.js tem que poder explicar
+        // por que uma linha está ali.
+        var semComentarios = Regex.Replace(lista.Groups[1].Value, @"//[^\n]*", "");
+
+        return semComentarios
             .Split(',')
             .Select(e => e.Trim())
             .Where(e => e.Length > 0)

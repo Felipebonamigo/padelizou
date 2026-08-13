@@ -166,7 +166,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    @* ÍCONES SERVIDOS POR NÓS, não por CDN (13/08/2026). Eram o único asset de terceiro que
+       sobrava — o Bootstrap e o jQuery já moram em wwwroot/lib. Dois motivos, e o segundo é
+       o que decide:
+
+       1. Ícone que não carrega não degrada, SOME. Quase todo controle da barra é só ícone (a
+          seta de voltar, o sino, o tema, o sair), então uma falha do CDN não deixa a tela
+          feia: deixa bolinhas vazias, e a pessoa não descobre que ali havia um botão.
+       2. A MESA DE CONTROLE é feita pra funcionar no ginásio SEM SINAL — o service worker
+          guarda a página de propósito. Mas os 6 ícones dela vinham de fora: offline, a tela
+          que existe pra sobreviver sem rede aparecia sem ícone nenhum.
+
+       O CSS aponta pra `fonts/` ao lado dele, então a pasta `font/fonts/` tem que vir junto. *@
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/Padelizou.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />

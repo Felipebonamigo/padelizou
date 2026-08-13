@@ -61,7 +61,7 @@ public class PushNotificationService : IPushNotificationService
         // O WhatsApp é a exceção: só vai quando o aviso PEDIU (ver AlcanceDoAviso). Ele tem
         // um custo que os outros não têm — a Meta restringe o número — e por isso é o único
         // canal onde o silêncio é o padrão.
-        if (aviso.Alcance == AlcanceDoAviso.AppEWhatsApp)
+        if (aviso.Alcance.VaiNoWhatsApp())
             await EnviarWhatsAppAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
 
         // A CAIXA DE ENTRADA vem PRIMEIRO, e é o único canal que não pode falhar em silêncio.
@@ -72,7 +72,7 @@ public class PushNotificationService : IPushNotificationService
 
         // O e-mail é o único canal que um aviso pode dispensar (ver AlcanceDoAviso.AppSemEmail):
         // bilhete social não vale uma entrada na caixa de e-mail de ninguém.
-        if (aviso.Alcance != AlcanceDoAviso.AppSemEmail)
+        if (aviso.Alcance.VaiNoEmail())
             await EnviarEmailAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);
 
         await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url);

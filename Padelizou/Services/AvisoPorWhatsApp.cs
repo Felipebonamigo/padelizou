@@ -12,11 +12,11 @@ public static class AvisoPorWhatsApp
     {
         if (!aceitaWhatsApp) return false;
 
-        // Um número precisa ter DDD + número pra existir: 10 dígitos (fixo) ou 11 (celular).
-        // Sem esse piso, "51" ou um campo com um traço solto viraria uma tentativa de envio
-        // que só serve pra queimar cota e encher o log.
-        var digitos = new string(WhatsAppLinkHelper.LimparNumero(celular).Where(char.IsDigit).ToArray());
-        return digitos.Length is 10 or 11;
+        // Um número precisa ter DDD + número pra existir. Sem esse piso, "51" ou um campo com
+        // um traço solto viraria uma tentativa de envio que só serve pra queimar cota e encher
+        // o log. A régua mora em WhatsAppLinkHelper: o link que a pessoa clica faz a mesma
+        // pergunta, e duas cópias dela divergiriam no dia em que um formato novo aparecesse.
+        return WhatsAppLinkHelper.NumeroValido(celular);
     }
 
     // O texto que chega no celular. A notificação tem título e corpo separados porque o

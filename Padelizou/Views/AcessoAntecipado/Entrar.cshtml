@@ -11,7 +11,9 @@
     <link rel="icon" type="image/png" sizes="32x32" href="~/image/favicon-32.png" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    @* Esta tela tem <head> PRÓPRIO, fora do _Layout — então a troca do CDN pelos ícones
+       locais (13/08/2026) tinha que ser feita nos dois lugares, não num só. *@
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" asp-append-version="true" />
 </head>
 <body>
     @* Ambiente de TESTE (Beta__AmbienteDeTeste=true no systemd do dev): a tela é OUTRA — toda

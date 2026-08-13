@@ -2,7 +2,7 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v16";
+const CACHE_NAME = "padelizou-static-v17";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
@@ -10,6 +10,11 @@ const STATIC_ASSETS = [
   "/js/site.js",
   "/lib/bootstrap/dist/css/bootstrap.min.css",
   "/lib/bootstrap/dist/js/bootstrap.bundle.min.js",
+  // A FONTE DOS ÍCONES entra aqui desde 13/08/2026, quando saiu do CDN. Ela precisa vir
+  // junto com o CSS: sem o .woff2 guardado, a Mesa de Controle offline abriria com o estilo
+  // certo e um quadradinho no lugar de cada ícone — que é o que já acontecia com o CDN.
+  "/lib/bootstrap-icons/font/bootstrap-icons.min.css",
+  "/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff2",
   "/lib/jquery/dist/jquery.min.js",
   "/image/logo-raquetes.webp",
   "/image/logo-icon.webp",

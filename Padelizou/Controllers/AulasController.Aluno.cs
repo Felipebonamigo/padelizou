@@ -322,11 +322,21 @@ namespace padelizou.Controllers
                     novasAulas.Count == 1
                         ? $"{aluno!.Nome} quer aula em {local.Nome}, {primeira.DataHora:dd/MM 'às' HH:mm}."
                         : $"{aluno!.Nome} pediu {novasAulas.Count} aulas em {local.Nome}, a partir de {primeira.DataHora:dd/MM}.",
-                    // Fora do WhatsApp por decisão do Felipe (09/08/2026). O professor tem o
-                    // painel e o e-mail, e a solicitação fica lá esperando — nada se perde se
-                    // ele vir uma hora depois. Diferente da aula DESMARCADA, que continua no
-                    // WhatsApp: essa faz ele viajar até a quadra à toa.
-                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppSemEmail);
+                    // NO WHATSAPP TAMBÉM, por decisão do Felipe (13/08/2026) — que reverte a
+                    // dele mesmo de 09/08. O argumento de então era que a solicitação fica
+                    // esperando no painel e nada se perde se o professor vir uma hora depois;
+                    // na prática o horário fica travado pro aluno enquanto isso, e o aluno era
+                    // mandado pra um botão de "avisar por WhatsApp também" — ou seja, o recado
+                    // ia pelo WhatsApp de qualquer jeito, só que empurrado pra mão do aluno.
+                    //
+                    // Passa na régua dos três: é PESSOAL (aula dele), URGENTE (o horário fica
+                    // preso até ele responder) e ACIONÁVEL (ele aceita ou recusa).
+                    //
+                    // ⚠️ `AppEWhatsAppSemEmail`, não `AppEWhatsApp`: o e-mail bom — o que leva
+                    // os botões Aceitar e Recusar — já saiu logo acima. O deste serviço chegaria
+                    // atrás, com o mesmo assunto e sem botão. Era isso que o `AppSemEmail`
+                    // evitava, e ele calava o WhatsApp junto.
+                    Url.Action("MinhaAgenda", "Aulas"), AlcanceDoAviso.AppEWhatsAppSemEmail);
             }
             catch (Exception ex)
             {

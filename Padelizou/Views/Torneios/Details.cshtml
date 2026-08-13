@@ -451,8 +451,18 @@
 @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
    chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
    disso — por isso o aviso de acertar o comprovante com o organizador. *@
-@if (!Model.CobraPeloSite && !string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) && Model.PrecoInscricao > 0)
+@if (Padelizou.Services.PixDoOrganizador.Aparece(Model))
 {
+    @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
+       MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
+    var quemRecebe = ViewBag.QuemRecebeOPix as Padelizou.Models.Jogador;
+    var zapDoOrganizador = quemRecebe != null
+        && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(quemRecebe.Celular)
+        ? Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+            quemRecebe.Celular,
+            Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
+        : null;
+
     <div class="alert alert-success border-0">
         <p class="fw-bold mb-1"><i class="bi bi-qr-code"></i> Pix do organizador</p>
         <div class="input-group input-group-sm mb-2" style="max-width: 34rem;">
@@ -460,10 +470,26 @@
                    value="@Model.ChavePixOrganizador" onclick="this.select();" />
             <button class="btn btn-outline-secondary" type="button" onclick="pdzCopiarPix(this);">Copiar</button>
         </div>
-        <p class="small mb-0 text-muted">
+        <p class="small mb-2 text-muted">
             O pagamento é combinado direto com o organizador — o Padelizou não recebe nem
             confere. Mande o comprovante pra ele depois de pagar.
         </p>
+        @* O botão SÓ existe com número válido. Sem ele o texto acima continua pedindo o
+           comprovante — o que é verdade —, mas a tela não promete um caminho que não tem. *@
+        @if (zapDoOrganizador != null)
+        {
+            <a href="@zapDoOrganizador" target="_blank" rel="noopener"
+               class="btn btn-success btn-sm rounded-pill fw-bold">
+                <i class="bi bi-whatsapp me-1"></i>
+                Enviar o comprovante pro @(quemRecebe!.ComoChamar) no WhatsApp
+            </a>
+            <p class="small text-muted mb-0 mt-2">
+                @* O wa.me não anexa arquivo: a conversa abre com o texto pronto e a foto do
+                   comprovante vai pelo próprio WhatsApp. Dizer isso aqui evita a pessoa achar
+                   que o comprovante foi junto e não mandar nada. *@
+                A conversa abre já escrita — é só anexar a foto do comprovante.
+            </p>
+        }
     </div>
 
     <script>

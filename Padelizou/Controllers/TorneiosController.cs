@@ -333,6 +333,16 @@ namespace Padelizou.Controllers
                     .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto)),
                 DateTime.Now);
 
+            // O ranking de palpiteiros só tem o que mostrar depois que um jogo COM palpite
+            // terminou. Pergunta barata (um Any sobre as partidas já carregadas) e é ela que
+            // decide se o link aparece — a página em si devolve 404, como a do MVP.
+            var partidasComResposta = partidasFinalizadas
+                .Where(p => p.VencedorId != null)
+                .Select(p => p.Id)
+                .ToList();
+            ViewBag.TemRankingDePalpiteiros = partidasComResposta.Count > 0
+                && await _context.PalpitesPartida.AnyAsync(v => partidasComResposta.Contains(v.PartidaId));
+
             // 2. Roda a contabilidade grupo por grupo
             foreach (var categoria in torneio.Categorias)
             {
@@ -479,6 +489,14 @@ namespace Padelizou.Controllers
             ViewBag.PrecoTotal = exibicao?.Total;
             ViewBag.TaxaServico = exibicao?.Taxa;
 
+            // PRA QUEM MANDAR O COMPROVANTE. A tela do "por fora" pedia o comprovante e não
+            // dava caminho nenhum — quem já tinha o WhatsApp do organizador resolvia por fora,
+            // e quem não tinha ficava com a inscrição pendurada. Ver Services/PixDoOrganizador.
+            if (PixDoOrganizador.Aparece(torneio))
+            {
+                ViewBag.QuemRecebeOPix = await PixDoOrganizador.QuemRecebeOComprovanteAsync(_context, id);
+            }
+
             // Este torneio consegue cobrar pelo site AGORA? (forma online + conta de
             // recebimento de pé). É o que decide se a inscrição pergunta "pagar agora ou
             // depois" — ver Services/QuandoPagarInscricao.
@@ -557,6 +575,10 @@ namespace Padelizou.Controllers
                     .Include(o => o.Jogador)
                     .Where(o => o.TorneioId == id)
                     .ToListAsync();
+
+                // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
+                // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
+                ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
                 // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens

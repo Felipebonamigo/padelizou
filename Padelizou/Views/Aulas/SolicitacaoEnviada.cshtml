@@ -9,6 +9,15 @@
         ? $"Olá Prof. {primeira.Professor.Nome}! Acabei de solicitar uma série de {Model.Count} aulas com você em {primeira.LocalAula.Nome}, começando dia {primeira.DataHora:dd/MM 'às' HH:mm}, pelo Padelizou. Pode confirmar?"
         : $"Olá Prof. {primeira.Professor.Nome}! Acabei de solicitar uma aula com você em {primeira.LocalAula.Nome} no dia {primeira.DataHora:dd/MM 'às' HH:mm} pelo Padelizou. Pode confirmar?";
     var linkWhatsApp = WhatsAppLinkHelper.GerarLink(primeira.Professor.Celular, mensagem);
+
+    @* A frase tem que dizer o que REALMENTE saiu. O aviso vai pro WhatsApp desde 13/08, mas
+       só chega em quem aceitou o canal e tem número válido — é a mesma régua que o
+       entregador usa (PushNotificationService → AvisoPorWhatsApp.PodeReceber). Prometer
+       "avisamos por WhatsApp" pra um professor que desmarcou a opção seria mentir na tela, e
+       o aluno ficaria esperando uma resposta que ninguém foi cutucado pra dar. *@
+    var avisamosPorZap = AvisoPorWhatsApp.PodeReceber(
+        primeira.Professor.NotificarWhatsApp, primeira.Professor.Celular);
+    var canais = avisamosPorZap ? "um e-mail e uma mensagem no WhatsApp" : "um e-mail";
 }
 
 <div class="container mt-5">
@@ -21,7 +30,7 @@
                 @if (ehSerie)
                 {
                     <p class="text-muted">
-                        Enviamos um e-mail para o Prof. @primeira.Professor.Nome com os detalhes da série de
+                        Enviamos @canais para o Prof. @primeira.Professor.Nome com os detalhes da série de
                         <strong>@Model.Count aula(s)</strong> em <strong>@primeira.LocalAula.Nome</strong>.
                         Assim que ele confirmar (tudo de uma vez ou aula a aula), você recebe um aviso por e-mail.
                     </p>
@@ -39,15 +48,19 @@
                 else
                 {
                     <p class="text-muted">
-                        Enviamos um e-mail para o Prof. @primeira.Professor.Nome com os detalhes da aula em
+                        Enviamos @canais para o Prof. @primeira.Professor.Nome com os detalhes da aula em
                         <strong>@primeira.LocalAula.Nome</strong> no dia
                         <strong>@primeira.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")</strong>.
                         Assim que ele confirmar, você recebe um aviso por e-mail.
                     </p>
                 }
 
+                @* Quando o recado automático já saiu, "avisar TAMBÉM" passa a contradizer a
+                   frase de cima. O botão continua — ele fala pelo número do próprio aluno,
+                   que é outra conversa —, mas deixa de se anunciar como o aviso que falta. *@
                 <a href="@linkWhatsApp" target="_blank" class="btn btn-success rounded-pill fw-bold mt-3">
-                    <i class="bi bi-whatsapp"></i> Avisar o professor por WhatsApp também
+                    <i class="bi bi-whatsapp"></i>
+                    @(avisamosPorZap ? "Falar com o professor no WhatsApp" : "Avisar o professor por WhatsApp também")
                 </a>
 
                 <a asp-controller="Aulas" asp-action="MinhasAulas" class="btn btn-outline-secondary rounded-pill mt-3">
