@@ -4,6 +4,14 @@
     int grupoId = ViewBag.GrupoId;
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
     int? clubeDoGrupoId = ViewBag.ClubeDoGrupoId;
+
+    // Convidado aparece no placar mesmo sem ter aceitado o convite — o lançamento é DEPOIS
+    // do jogo, e a essa altura o "aceitar" não muda mais nada: a pessoa jogou.
+    //
+    // São QUATRO selects com a mesma lista, e é por isso que o rótulo mora numa função só:
+    // quatro cópias da mesma linha é como uma delas fica pra trás.
+    var convidados = ViewBag.Convidados as HashSet<int> ?? new HashSet<int>();
+    Func<Jogador, string> rotulo = j => convidados.Contains(j.Id) ? $"{j.Nome} (convidado)" : j.Nome;
 }
 
 <div class="container mt-5">
@@ -20,7 +28,9 @@
                     @if (membros.Count < 4)
                     {
                         <div class="alert alert-warning">
-                            O grupo precisa de pelo menos 4 membros pra registrar um jogo (2x2). Convide mais gente com o código do grupo.
+                            Precisa de pelo menos 4 pessoas pra registrar um jogo (2x2) — valem os membros
+                            <strong>e quem foi convidado</strong> pro jogo da semana. Chame mais gente pelo
+                            código do grupo ou pelo botão <strong>Convidar</strong> na tela da semana.
                         </div>
                     }
                     else
@@ -73,7 +83,7 @@
                                     <select name="dupla1Jogador1Id" class="form-select bg-light" required>
                                         @foreach (var m in membros)
                                         {
-                                            <option value="@m.Id">@m.Nome</option>
+                                            <option value="@m.Id">@rotulo(m)</option>
                                         }
                                     </select>
                                 </div>
@@ -82,7 +92,7 @@
                                     <select name="dupla1Jogador2Id" class="form-select bg-light" required>
                                         @foreach (var m in membros)
                                         {
-                                            <option value="@m.Id">@m.Nome</option>
+                                            <option value="@m.Id">@rotulo(m)</option>
                                         }
                                     </select>
                                 </div>
@@ -94,7 +104,7 @@
                                     <select name="dupla2Jogador1Id" class="form-select bg-light" required>
                                         @foreach (var m in membros)
                                         {
-                                            <option value="@m.Id">@m.Nome</option>
+                                            <option value="@m.Id">@rotulo(m)</option>
                                         }
                                     </select>
                                 </div>
@@ -103,7 +113,7 @@
                                     <select name="dupla2Jogador2Id" class="form-select bg-light" required>
                                         @foreach (var m in membros)
                                         {
-                                            <option value="@m.Id">@m.Nome</option>
+                                            <option value="@m.Id">@rotulo(m)</option>
                                         }
                                     </select>
                                 </div>

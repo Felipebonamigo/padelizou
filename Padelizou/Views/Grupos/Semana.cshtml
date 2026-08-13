@@ -14,6 +14,7 @@
     var rankingSemana = (List<padelizou.Controllers.RankingMesItem>)ViewBag.RankingSemana;
     DateTime semanaAnterior = ViewBag.SemanaAnterior;
     DateTime proximaSemana = ViewBag.ProximaSemana;
+    bool estouNaSemanaAtual = ViewBag.EstouNaSemanaAtual == true;
 }
 
 <div class="container mt-4 mb-5">
@@ -30,11 +31,16 @@
             </p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            @if (ehAdmin)
+            @* Convidar é de QUALQUER MEMBRO desde 13/08 — quem está sem o quarto às 19h de
+               terça é quem vai jogar, não quem administra. Configurações continua do dono. *@
+            @if (souMembro)
             {
                 <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-success rounded-pill">
-                    <i class="bi bi-whatsapp"></i> Convidar
+                    <i class="bi bi-person-plus"></i> Convidar
                 </a>
+            }
+            @if (ehAdmin)
+            {
                 <a asp-controller="Grupos" asp-action="Configuracoes" asp-route-id="@grupo.Id" class="btn btn-outline-secondary rounded-pill">
                     <i class="bi bi-gear"></i> Configurações
                 </a>
@@ -43,10 +49,31 @@
         </div>
     </div>
 
-    <div class="d-flex justify-content-between mb-4">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-4">
         <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" asp-route-data="@semanaAnterior.ToString("s")" class="btn btn-sm btn-link">
             <i class="bi bi-chevron-left"></i> Semana anterior
         </a>
+
+        @* ⚠️ SEM `asp-route-data` DE PROPÓSITO. Quem decide qual é a semana corrente é o
+           controller, e mandar uma data daqui criaria uma segunda resposta pra mesma
+           pergunta — que passaria a divergir sozinha na virada do dia do jogo.
+
+           Três cliques pra voltar de uma semana longe é o que fazia a pessoa apagar a URL
+           na mão; e clicar em "atual" já estando nela não leva a lugar nenhum, então ali
+           o botão vira texto. *@
+        @if (estouNaSemanaAtual)
+        {
+            <span class="small text-muted text-center">
+                <i class="bi bi-calendar-check"></i> Esta é a semana atual
+            </span>
+        }
+        else
+        {
+            <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-calendar-check"></i> Semana atual
+            </a>
+        }
+
         <a asp-controller="Grupos" asp-action="Semana" asp-route-grupoId="@grupo.Id" asp-route-data="@proximaSemana.ToString("s")" class="btn btn-sm btn-link">
             Próxima semana <i class="bi bi-chevron-right"></i>
         </a>

@@ -4,6 +4,11 @@
     var membros = (List<Jogador>)ViewBag.Membros;
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
     string nomeDoGrupo = ViewBag.NomeDoGrupo;
+
+    // Mesmo rótulo do Registrar Jogo: convidado é marcado como tal nos quatro selects, senão
+    // quem corrige um placar antigo não entende por que há um nome ali que não é do grupo.
+    var convidados = ViewBag.Convidados as HashSet<int> ?? new HashSet<int>();
+    Func<Jogador, string> rotulo = j => convidados.Contains(j.Id) ? $"{j.Nome} (convidado)" : j.Nome;
 }
 
 <div class="container mt-5">
@@ -62,7 +67,7 @@
                                 <select name="dupla1Jogador1Id" class="form-select bg-light" required>
                                     @foreach (var m in membros)
                                     {
-                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador1Id == m.Id)">@m.Nome</option>
+                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador1Id == m.Id)">@rotulo(m)</option>
                                     }
                                 </select>
                             </div>
@@ -71,7 +76,7 @@
                                 <select name="dupla1Jogador2Id" class="form-select bg-light" required>
                                     @foreach (var m in membros)
                                     {
-                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador2Id == m.Id)">@m.Nome</option>
+                                        <option value="@m.Id" selected="@(Model.Dupla1Jogador2Id == m.Id)">@rotulo(m)</option>
                                     }
                                 </select>
                             </div>
@@ -83,7 +88,7 @@
                                 <select name="dupla2Jogador1Id" class="form-select bg-light" required>
                                     @foreach (var m in membros)
                                     {
-                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador1Id == m.Id)">@m.Nome</option>
+                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador1Id == m.Id)">@rotulo(m)</option>
                                     }
                                 </select>
                             </div>
@@ -92,7 +97,7 @@
                                 <select name="dupla2Jogador2Id" class="form-select bg-light" required>
                                     @foreach (var m in membros)
                                     {
-                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador2Id == m.Id)">@m.Nome</option>
+                                        <option value="@m.Id" selected="@(Model.Dupla2Jogador2Id == m.Id)">@rotulo(m)</option>
                                     }
                                 </select>
                             </div>

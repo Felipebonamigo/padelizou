@@ -6,6 +6,9 @@
     DateTime dataSessao = ViewBag.DataSessao;
     string? linkGerado = TempData["WhatsAppLink"] as string;
     string? nomeGerado = TempData["WhatsAppNome"] as string;
+    string busca = ViewBag.Busca as string ?? "";
+    int? achadoPelaBusca = ViewBag.AchadoPelaBusca as int?;
+    string? naoAchei = ViewBag.NaoAcheiPeloIdentificador as string;
 }
 
 <div class="container mt-4 mb-5">
@@ -21,6 +24,40 @@
     {
         <div class="alert alert-warning">@TempData["Erro"]</div>
     }
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    @* ⚠️ DUAS BUSCAS NA MESMA CAIXA, e a diferença importa:
+
+       — enquanto a pessoa DIGITA, o filtro roda no navegador em cima da lista que já está
+         na tela, por NOME e LOGIN. É instantâneo porque não vai a lugar nenhum;
+       — ao APERTAR ENTER, vai ao servidor procurar por CPF ou login INTEIRO, que acha
+         gente que os filtros de categoria/clube/horário deixaram de fora.
+
+       🔒 O CPF não aparece em lugar nenhum desta página — nem em `data-`, nem escondido.
+       Fosse o filtro do navegador cobrir CPF, a página teria que CARREGAR o CPF de todo
+       mundo pra poder comparar, e aí bastaria abrir o código-fonte. *@
+    <form asp-controller="Grupos" asp-action="Convidar" method="get" class="mb-3">
+        <input type="hidden" name="grupoId" value="@grupo.Id" />
+        <input type="hidden" name="data" value="@dataSessao.ToString("s")" />
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" name="busca" id="buscaJogador" value="@busca" autocomplete="off"
+                   class="form-control" placeholder="Filtrar por nome ou login — ou digitar o CPF/login completo e apertar Enter" />
+            <button type="submit" class="btn btn-outline-primary">Procurar</button>
+        </div>
+        <div class="form-text" id="contadorDaBusca"></div>
+    </form>
+
+    @if (naoAchei != null)
+    {
+        <div class="alert alert-warning">
+            Não achei ninguém com <strong>@naoAchei</strong>. O CPF e o login precisam vir
+            inteiros — e quem desligou convites pra jogo no perfil não aparece aqui.
+        </div>
+    }
 
     @if (!string.IsNullOrEmpty(linkGerado))
     {
@@ -31,28 +68,49 @@
     }
 
     <p class="text-muted small">
-        Jogadores do sistema que aceitam convites (categoria, clube e dia/horário compatíveis no perfil deles),
-        que ainda não estão nessa sessão. É só um link pronto — o clique pra enviar é manual, não é automático.
+        A lista sugere quem aceita convites e combina com o jogo (categoria, clube e dia/horário do perfil).
+        Ao convidar, a pessoa <strong>já entra em "Aguardando resposta"</strong> e recebe o aviso pelo app —
+        ela só precisa confirmar quando entrar. O WhatsApp é o recado: o link abre pronto e o clique pra
+        enviar é seu, nunca automático.
     </p>
 
     @if (Model.Any())
     {
         <div class="card shadow-sm border-0">
-            <ul class="list-group list-group-flush">
+            <ul class="list-group list-group-flush" id="listaDeJogadores">
                 @foreach (var jogador in Model)
                 {
-                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogador.Id" class="text-decoration-none text-dark">@jogador.ComoChamar</a>
+                    @* Só nome e login viajam pro atributo — os dois já estão escritos na
+                       linha. É a lista inteira do que o filtro do navegador enxerga. *@
+                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 pdz-jogador"
+                        data-nome="@jogador.ComoChamar" data-login="@jogador.Login">
+                        <span>
+                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogador.Id" class="text-decoration-none text-dark">@jogador.ComoChamar</a>
+                            @if (!string.IsNullOrWhiteSpace(jogador.Login))
+                            {
+                                @* O "@" vai por expressão: colado no nome da variável, o Razor
+                                   lê a linha inteira como e-mail e imprime o texto cru. *@
+                                <span class="text-muted small ms-1">@("@" + jogador.Login)</span>
+                            }
+                            @if (achadoPelaBusca == jogador.Id)
+                            {
+                                <span class="badge bg-primary-subtle text-dark ms-1">achado pela busca</span>
+                            }
+                        </span>
                         <form asp-controller="Grupos" asp-action="ConvidarJogador" method="post">
                             <input type="hidden" name="sessaoId" value="@sessaoId" />
                             <input type="hidden" name="jogadorId" value="@jogador.Id" />
                             <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">
-                                <i class="bi bi-whatsapp"></i> Gerar convite
+                                <i class="bi bi-person-plus"></i> Convidar
                             </button>
                         </form>
                     </li>
                 }
             </ul>
+            <div class="p-3 text-muted small d-none" id="nadaNoFiltro">
+                Ninguém na lista bate com o que você digitou. Se você tem o <strong>CPF</strong> ou o
+                <strong>login completo</strong> da pessoa, aperte Enter pra procurar no Padelizou inteiro.
+            </div>
         </div>
     }
     else
@@ -62,3 +120,47 @@
         </div>
     }
 </div>
+
+<script>
+    (function () {
+        var campo = document.getElementById('buscaJogador');
+        var lista = document.getElementById('listaDeJogadores');
+        if (!campo || !lista) return;
+
+        var linhas = Array.prototype.slice.call(lista.querySelectorAll('.pdz-jogador'));
+        var vazio = document.getElementById('nadaNoFiltro');
+        var contador = document.getElementById('contadorDaBusca');
+
+        // "jose" tem que achar "José". Nome brasileiro é cheio de acento e ninguém digita
+        // acento numa busca — sem isto o filtro parece quebrado justo nos nomes mais comuns.
+        // A marca de acento sai pela CLASSE Diacritic, e não por uma faixa de caracteres
+        // escrita à mão: as marcas de acento são combinantes — colam na letra anterior, ficam
+        // invisíveis no arquivo, somem no diff e mudam de valor se a codificação trocar.
+        function simplificar(texto) {
+            return (texto || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+        }
+
+        function filtrar() {
+            var termo = simplificar(campo.value);
+            var visiveis = 0;
+
+            linhas.forEach(function (linha) {
+                var alvo = simplificar(linha.dataset.nome) + ' ' + simplificar(linha.dataset.login);
+                var bate = termo === '' || alvo.indexOf(termo) !== -1;
+                linha.classList.toggle('d-none', !bate);
+                if (bate) visiveis++;
+            });
+
+            if (vazio) vazio.classList.toggle('d-none', visiveis > 0);
+            if (contador) {
+                contador.textContent = termo === ''
+                    ? ''
+                    : visiveis + (visiveis === 1 ? ' jogador na lista' : ' jogadores na lista')
+                      + ' — Enter procura por CPF ou login completo.';
+            }
+        }
+
+        campo.addEventListener('input', filtrar);
+        filtrar();
+    })();
+</script>

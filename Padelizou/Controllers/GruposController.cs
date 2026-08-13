@@ -266,11 +266,8 @@ namespace padelizou.Controllers
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
 
-            ViewBag.Membros = await _context.JogadoresGrupo
-                .Include(jg => jg.Jogador)
-                .Where(jg => jg.GrupoId == grupoId)
-                .Select(jg => jg.Jogador)
-                .ToListAsync();
+            ViewBag.Membros = await ParticipantesParaResultadoAsync(grupoId);
+            ViewBag.Convidados = await IdsDeConvidadosAsync(grupoId);
             ViewBag.GrupoId = grupoId;
 
             // O local já vem escolhido no clube fixo do grupo — quem jogou fora do de sempre
@@ -291,6 +288,17 @@ namespace padelizou.Controllers
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
+
+            // A LISTA DA TELA NÃO É A TRAVA. Ela some de vista, o POST não: sem conferir aqui,
+            // um id qualquer entraria no placar do grupo — e no recálculo do ranking — por um
+            // formulário montado à mão.
+            var podemJogar = (await ParticipantesParaResultadoAsync(grupoId)).Select(j => j.Id).ToHashSet();
+            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id };
+            if (escolhidos.Any(j => !podemJogar.Contains(j)))
+            {
+                TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
+                return RedirectToAction("RegistrarJogo", new { grupoId });
+            }
 
             // Sem escolha na tela, cai no clube fixo do grupo: o jogo da panelinha é quase
             // sempre lá, e local vazio não vira ranking de clube nenhum.
@@ -333,11 +341,7 @@ namespace padelizou.Controllers
             if (grupo == null) return NotFound();
             if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
 
-            var membros = await _context.JogadoresGrupo
-                .Include(jg => jg.Jogador)
-                .Where(jg => jg.GrupoId == jogo.GrupoId)
-                .Select(jg => jg.Jogador)
-                .ToListAsync();
+            var membros = await ParticipantesParaResultadoAsync(jogo.GrupoId);
 
             // ⚠️ QUEM JOGOU MAS NÃO É MAIS MEMBRO PRECISA ESTAR NA LISTA. Sem isso o <select>
             // abre sem a opção da pessoa, o navegador seleciona o primeiro nome da lista e
@@ -350,6 +354,7 @@ namespace padelizou.Controllers
             }
 
             ViewBag.Membros = membros.OrderBy(m => m.Nome).ToList();
+            ViewBag.Convidados = await IdsDeConvidadosAsync(jogo.GrupoId);
             ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             ViewBag.NomeDoGrupo = grupo.Nome;
 
@@ -370,6 +375,21 @@ namespace padelizou.Controllers
             var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == jogo.GrupoId);
             if (grupo == null) return NotFound();
             if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+
+            // Mesma conferência do registro — mais quem JÁ ESTAVA no jogo. Sem essa segunda
+            // parte, corrigir só o placar de uma partida antiga seria recusado porque um dos
+            // quatro saiu da panelinha desde então.
+            var podemJogar = (await ParticipantesParaResultadoAsync(jogo.GrupoId)).Select(j => j.Id).ToHashSet();
+            foreach (var jaEstava in new[] { jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id })
+            {
+                podemJogar.Add(jaEstava);
+            }
+            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id };
+            if (escolhidos.Any(j => !podemJogar.Contains(j)))
+            {
+                TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
+                return RedirectToAction("EditarJogo", new { id });
+            }
 
             // O GRUPO DO JOGO NÃO SE MEXE. Trocar de grupo levaria os pontos junto pra outro
             // ranking, e o recálculo só passa no grupo que veio no formulário — o de origem
@@ -480,6 +500,16 @@ namespace padelizou.Controllers
             ViewBag.SemanaAnterior = sessao.DataHora.AddDays(-7);
             ViewBag.ProximaSemana = sessao.DataHora.AddDays(7);
 
+            // ⚠️ A CONTA É FEITA AQUI, e não pedindo a sessão de novo, PORQUE PEDIR CRIA. Um
+            // `ObterOuCriarSessaoAsync(grupo, null)` só pra saber a data faria toda visita ao
+            // histórico gravar a sessão da semana corrente de lambuja — com as confirmações
+            // "Pendente" de todo o grupo junto, e o lembrete de 24h em cima delas.
+            //
+            // É a MESMA conta que a tela faz quando ninguém pede data, e por isso o botão não
+            // leva `data` nenhuma: quem responde qual é a semana atual continua sendo um só.
+            var semanaAtual = SessaoGrupoService.ProximaOcorrencia(grupo.DiaSemanaFixo.Value, grupo.HorarioFixo.Value);
+            ViewBag.EstouNaSemanaAtual = sessao.DataHora == semanaAtual;
+
             return View(sessao);
         }
 
@@ -516,16 +546,30 @@ namespace padelizou.Controllers
         // ===================== CONVIDAR JOGADORES DE FORA (link wa.me manual) =====================
 
         [HttpGet]
-        public async Task<IActionResult> Convidar(int grupoId, DateTime? data)
+        public async Task<IActionResult> Convidar(int grupoId, DateTime? data, string? busca)
         {
             var userId = ObterUserId();
             var grupo = await _context.GruposPrivados.Include(g => g.Clube).FirstOrDefaultAsync(g => g.Id == grupoId);
-            if (grupo == null || grupo.AdministradorId != userId) return RedirectToAction("Index");
+            if (grupo == null) return RedirectToAction("Index");
+
+            // ⚠️ QUALQUER MEMBRO CONVIDA, não só quem administra (13/08/2026). É a mesma régua
+            // do `ConvidarParaGrupo` aqui de cima: quem é DO grupo chama gente pro jogo do
+            // grupo. Faltar um pro quarteto às 19h de terça é problema de quem vai jogar, e
+            // depender do administrador aparecer é exatamente como o jogo não acontece.
+            bool souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
+            if (!souMembro) return RedirectToAction("Index");
 
             if (grupo.ClubeId == null || grupo.CategoriaPadraoId == null || grupo.DiaSemanaFixo == null || grupo.HorarioFixo == null)
             {
-                TempData["Erro"] = "Configure clube, categoria, dia e horário do grupo antes de convidar jogadores.";
-                return RedirectToAction("Configuracoes", new { id = grupoId });
+                // Membro comum não abre as Configurações: mandá-lo pra lá seria empurrá-lo
+                // contra uma porta trancada, com a tarefa na mão de quem não pode cumpri-la.
+                bool euConfiguro = grupo.AdministradorId == userId;
+                TempData["Erro"] = euConfiguro
+                    ? "Configure clube, categoria, dia e horário do grupo antes de convidar jogadores."
+                    : "Esta panelinha ainda não tem clube, categoria e dia/horário definidos — quem administra precisa fazer isso antes de sair convite.";
+                return euConfiguro
+                    ? RedirectToAction("Configuracoes", new { id = grupoId })
+                    : RedirectToAction("Detalhes", new { id = grupoId });
             }
 
             var sessao = await _sessaoGrupoService.ObterOuCriarSessaoAsync(grupo, data);
@@ -548,9 +592,44 @@ namespace padelizou.Controllers
                 .OrderBy(j => j.Nome)
                 .ToListAsync();
 
+            // ⚠️ A BUSCA POR CPF/LOGIN É EXATA, E ISSO É A REGRA, NÃO PREGUIÇA. Um "começa
+            // com" viraria caça-níquel de CPF: digitar 111 e ir vendo nomes de gente real
+            // aparecer é varredura da base inteira, uma tecla por vez. Assim só acha quem já
+            // sabe o CPF ou o login INTEIRO de alguém — que é o caso de quem está com a
+            // pessoa do lado tentando fechar o quarteto.
+            //
+            // 🔒 E O CPF NÃO VAI PRA TELA — nem no texto, nem em atributo escondido. O filtro
+            // que roda no navegador enxerga só nome e login, que já estão à vista de todos.
+            var procurado = (busca ?? "").Trim();
+            if (procurado.Length > 0)
+            {
+                var soDigitos = new string(procurado.Where(char.IsDigit).ToArray());
+                var achado = await _context.Jogadores.FirstOrDefaultAsync(j =>
+                    (j.Login == procurado || j.Cpf == procurado || (soDigitos.Length == 11 && j.Cpf == soDigitos))
+                    && !idsJaEnvolvidos.Contains(j.Id)
+                    // Quem desligou convites não é achável por aqui: a chave é dele, e um
+                    // caminho lateral que a ignora esvazia a chave.
+                    && j.AceitaConvitesJogo);
+
+                if (achado != null && elegiveis.All(e => e.Id != achado.Id))
+                {
+                    // Entra no topo mesmo furando os filtros de categoria/clube/horário: os
+                    // filtros existem pra SUGERIR bem, e quem digitou o CPF inteiro não está
+                    // pedindo sugestão — está apontando pra uma pessoa específica.
+                    elegiveis.Insert(0, achado);
+                    ViewBag.AchadoPelaBusca = achado.Id;
+                }
+                else if (achado == null)
+                {
+                    ViewBag.NaoAcheiPeloIdentificador = procurado;
+                }
+            }
+
             ViewBag.Grupo = grupo;
             ViewBag.SessaoId = sessao.Id;
             ViewBag.DataSessao = sessao.DataHora;
+            ViewBag.Busca = procurado;
+            ViewBag.SouOAdministrador = grupo.AdministradorId == userId;
 
             return View(elegiveis);
         }
@@ -562,10 +641,22 @@ namespace padelizou.Controllers
             var sessao = await _context.SessoesGrupo
                 .Include(s => s.Grupo).ThenInclude(g => g.Clube)
                 .FirstOrDefaultAsync(s => s.Id == sessaoId);
-            if (sessao == null || sessao.Grupo.AdministradorId != userId) return RedirectToAction("Index");
+            if (sessao == null) return RedirectToAction("Index");
+
+            // Mesma abertura do GET: convida quem é do grupo, não só quem administra.
+            bool souMembro = await _context.JogadoresGrupo
+                .AnyAsync(jg => jg.GrupoId == sessao.GrupoId && jg.JogadorId == userId);
+            if (!souMembro) return RedirectToAction("Index");
 
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
             if (jogador == null) return NotFound();
+
+            // A trava mora AQUI, não só na lista da tela: a lista some da vista, o POST não.
+            if (!jogador.AceitaConvitesJogo)
+            {
+                TempData["Erro"] = $"{jogador.ComoChamar} desligou os convites pra jogo no perfil dele.";
+                return RedirectToAction("Convidar", new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") });
+            }
 
             var confirmacao = await _context.ConfirmacoesSessao
                 .FirstOrDefaultAsync(c => c.SessaoId == sessaoId && c.JogadorId == jogadorId);
@@ -606,8 +697,21 @@ namespace padelizou.Controllers
                 _logger.LogWarning(ex, "Falha ao enviar push de convite pro jogador {JogadorId}.", jogadorId);
             }
 
-            TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(jogador.Celular, mensagem);
-            TempData["WhatsAppNome"] = jogador.Nome;
+            // ⚠️ O CONVITE JÁ ESTÁ GRAVADO A ESTA ALTURA — o WhatsApp é o recado, não o
+            // convite. Quem foi achado pelo CPF pode não ter celular cadastrado, e montar um
+            // wa.me com número vazio abriria uma conversa com ninguém: parece que o recado
+            // foi, e não foi. Sem número, a pessoa já está na lista de "Aguardando resposta"
+            // e recebe pelo app.
+            if (WhatsAppLinkHelper.NumeroValido(jogador.Celular))
+            {
+                TempData["WhatsAppLink"] = WhatsAppLinkHelper.GerarLink(jogador.Celular, mensagem);
+                TempData["WhatsAppNome"] = jogador.Nome;
+            }
+            else
+            {
+                TempData["Sucesso"] = $"{jogador.ComoChamar} entrou na lista de convidados e recebeu o aviso pelo app. "
+                                    + "Ele não tem WhatsApp cadastrado aqui, então o recado por lá fica com você.";
+            }
 
             return RedirectToAction("Convidar", new { grupoId = grupo.Id, data = sessao.DataHora.ToString("s") });
         }
@@ -683,6 +787,46 @@ namespace padelizou.Controllers
         // Vitória = 3 pts, derrota = 1 pt (participação), empate = 2 pts pra cada lado.
         // A conta em si mora em Services/PontuacaoDaPanelinha — é a MESMA usada pra refazer o
         // ranking gravado, e ter uma cópia aqui é como o placar geral se descolaria da lista.
+        // Quem pode aparecer num placar da panelinha: os membros MAIS os convidados de
+        // qualquer sessão do grupo. Uma pergunta, um lugar — a lista de Registrar, a de
+        // Corrigir e as duas conferências de POST bebem daqui.
+        //
+        // ⚠️ CONVIDADO ENTRA SEM TER ACEITADO O CONVITE (13/08/2026, a pedido do Felipe).
+        // O placar é lançado DEPOIS do jogo, e a essa altura o "aceitar" não decide mais
+        // nada: a pessoa já jogou. Exigir o aceite deixaria o resultado da noite preso a um
+        // botão que ninguém mais vai apertar — e o placar simplesmente não seria lançado.
+        //
+        // ⚠️ E O CONVIDADO NÃO ENTRA NO RANKING DO GRUPO, o que é de propósito e não esquecimento:
+        // `RecalcularPontuacaoAsync` escreve em `JogadorGrupo`, que só existe pra membro. Os
+        // pontos DELE se perdem; os dos outros três saem certos. Convidado é quem tapa buraco
+        // numa noite — subir no ranking interno por isso passaria na frente de mensalista.
+        private async Task<List<Jogador>> ParticipantesParaResultadoAsync(int grupoId)
+        {
+            var membros = await _context.JogadoresGrupo
+                .Where(jg => jg.GrupoId == grupoId)
+                .Select(jg => jg.Jogador)
+                .ToListAsync();
+
+            var convidados = await _context.ConfirmacoesSessao
+                .Where(c => c.Sessao.GrupoId == grupoId && c.Avulso)
+                .Select(c => c.Jogador)
+                .ToListAsync();
+
+            return membros.Concat(convidados)
+                .GroupBy(j => j.Id)
+                .Select(g => g.First())
+                .OrderBy(j => j.Nome)
+                .ToList();
+        }
+
+        // Os ids que vieram como convidado, pra tela poder marcá-los sem repetir a consulta.
+        private async Task<HashSet<int>> IdsDeConvidadosAsync(int grupoId) =>
+            (await _context.ConfirmacoesSessao
+                .Where(c => c.Sessao.GrupoId == grupoId && c.Avulso)
+                .Select(c => c.JogadorId)
+                .ToListAsync())
+            .ToHashSet();
+
         private static void AplicarPontos(Dictionary<int, int> pontos, JogoSemanal jogo) =>
             PontuacaoDaPanelinha.Aplicar(pontos, jogo);
 
