@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/08/2026** — 🚀 **`build-533-415f133` NO AR EM PROD** (14:52). Publicado a pedido do Felipe: *"ainda não libera os desafios para todo mundo, mas publica o que foi atualizado"*.
+> Última atualização: **13/08/2026** — 🚀 **`build-540-e4809dc` NO AR EM PROD** (11:33 de Brasília). Publicado a pedido do Felipe: *"comita e publica se não foi publicado ainda"*. Levou junto tudo o que se acumulou desde ontem à noite: **ícones servidos por nós, aula avisando no WhatsApp, comprovante do Pix com destino** (build 538), **copiar as configurações de um torneio já feito** (539) e a **panelinha** — semana atual num clique, convite com busca, placar aceitando convidado (540).
+>
+> 🪆 **O QUE MOTIVOU O DEPLOY: criar torneio estava quebrado pra quem NÃO é organizador.** O `<form>` do pedido de perfil de organizador estava **dentro** do formulário de criação, e HTML não permite aninhar: o navegador fecha o de fora naquele ponto. O formulário de criação terminava com **10 campos** — `Nome`, `ClubeId`, `PrecoInscricao`, `ChavePixOrganizador`, `DataInicio` e as categorias caíam **todos fora**. A pessoa preenchia a tela inteira e o envio levava **só o `Formato`**. Atingia exatamente o público que o *"Americano é livre: qualquer pessoa cria"* acabou de convidar.
+>
+> 👯 **DUAS SESSÕES CONSERTARAM O MESMO BUG EM PARALELO, e isso é informação — não desperdício.** O que está no ar é o conserto do **`e4809dc`** (sessão da panelinha), que chegou ao `main` primeiro e vem com **um teste que varre todas as views atrás de `<form>` aninhado**. O desenho das duas soluções bateu sem combinação nenhuma: formulário do pedido **fora** do de criação e o botão chegando nele pelo atributo **`form=`**. A segunda sessão descartou o próprio commit em vez de empurrar código repetido — a verificação dela no navegador virou confirmação independente do conserto alheio.
+>
+> ✅ **CONFERIDO NO NAVEGADOR, com um usuário sem perfil de organizador**: `document.querySelector('[name="ChavePixOrganizador"]').form` aponta pro `pdzFormCriacao`, que passou de **10 para 144 campos**; dois formulários na página e **nenhum aninhado**; o botão "Solicitar permissão" dispara o formulário certo e **não cria torneio nenhum** (conferido no banco); e a posição dele na tela **não mudou** — medida antes e depois, idêntica.
+>
+> 🍪 **A ARMADILHA QUE QUASE INVALIDOU O TESTE: cookie de sessão IGNORA a porta.** `localhost:5162` e `localhost:5155` são o **mesmo host** pro navegador, então a instância nova subiu já logada como o usuário da sessão paralela — e o `AcessoAntecipadoMiddleware` só faz o auto-login por CPF quando **não** há autenticação, ou seja o `LoginAutomaticoCpf` configurado foi **silenciosamente ignorado**. A tela abria bonita, com o perfil errado, e o bug ficava invisível. Saída: entrar por **`127.0.0.1`**, que pra cookie é outro host — sem deslogar as sessões do lado.
+>
+> 🕳️ **E a lição que generaliza: `<form>` aninhado NÃO dá erro em lugar nenhum.** Não quebra o build, não quebra o Razor, não aparece no console, e o HTML bruto parece certo — um só par `<form>`/`</form>` com todos os campos dentro, com o `grep` concordando. Quem denuncia é o **DOM**: `document.forms`, `form.elements.length` e, definitivo, **`campo.form`** — que respeita a árvore real e não onde a tag está escrita.
+>
+> ⚠️ **O `43684be` (build-541) NÃO está no ar**: ele entrou no `main` **um minuto** antes do deploy e o CI só empacotou **quatro minutos depois**. O `deploy.sh` sem argumento pegou a release mais nova que existia no instante — o comportamento correto, e nada foi regredido (o que estava no ar era o build-537).
+>
+> 🔒 **A prova de que a versão nova subiu veio do HTML público, não do "Feito" do script**: a home agora serve `~/lib/bootstrap-icons/…` com hash de versão (o `asp-append-version`) e o arquivo responde **200** — isso é do build 538, que **não** estava no ar antes. Home, `/Torneios`, `/Jogadores/Ranking` e `/healthz` em **200**, `/Torneios/Create` em 302 (pede login, como deve). Reconferido minutos depois: **sem deploy concorrente**. ⚠️ **Faltou a conferência pelo servidor** (`readlink -f`, `cwd` do processo, `NRestarts`, journal): o acesso SSH foi **bloqueado nesta sessão**, então a checagem por dentro do VPS não foi feita.
+>
+> Anterior: **12/08/2026** — 🚀 **`build-533-415f133` NO AR EM PROD** (14:52). Publicado a pedido do Felipe: *"ainda não libera os desafios para todo mundo, mas publica o que foi atualizado"*.
 >
 > 🔒 **OS DESAFIOS SUBIRAM E CONTINUAM FECHADOS.** Conferido no servidor: **`Desafios` não aparece no `padelizou.service` nem em nenhum dos 9 drop-ins** — sem `Desafios__Habilitado`, `DesafiosSettings.Habilitado` fica `false` e só admin do Padelizou enxerga. E o HTML público do `/Jogadores/Ranking` traz **zero links `/Desafios`** pra visitante: a única ocorrência da palavra é um **comentário de JavaScript**. Liberar, quando for a hora, é **uma linha no systemd** — não um deploy.
 >
@@ -1317,6 +1333,33 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
+
+### 13/08/2026 — 🪆 Formulário dentro de formulário: criar torneio enviava só o formato
+
+Quem **não** é organizador aprovado abria `/Torneios/Create`, preenchia nome, clube, preço,
+chave Pix, data e categorias — e o envio levava **só o `Formato`**. Todo o resto era descartado
+pelo navegador antes de sair.
+
+**A causa:** o `<form>` do pedido de perfil de organizador (o botão "Solicitar permissão", no
+aviso do formato Oficial travado) estava **aninhado** dentro do `<form>` de criação. HTML não
+permite isso, e a reação do navegador não é erro: ele **fecha o formulário externo no ponto do
+interno**. Tudo que vinha depois — a página inteira — deixava de pertencer a ele.
+
+**Só afetava quem não tem o perfil**, porque o bloco do pedido nem é renderizado pra quem já é
+organizador. Quem testa com a própria conta de admin **nunca vê**. E ficou grave agora: desde
+*"O AMERICANO é livre: qualquer pessoa cria"*, é esse o público que a tela convida.
+
+**O conserto** (no `e4809dc`) tira o formulário do pedido de dentro do de criação e o botão
+chega nele pelo atributo **`form=`**, que dispensa o aninhamento. O estado do pedido virou uma
+conta única no topo da view — o aviso e o formulário agora ficam longe um do outro e não podem
+discordar. Entrou junto um teste que **varre todas as views** atrás de `<form>` aninhado; ele
+acusava o `Create.cshtml` antes do conserto, e precisou aprender a **ignorar comentário**,
+senão nascia vermelho em quatro arquivos certos (vários comentários deste projeto *falam* sobre
+`<form>`).
+
+**A lição que generaliza:** estrutura de formulário só se confere no **DOM**. O fonte tinha um
+só par `<form>`/`</form>` com tudo dentro e o `grep` concordava — foi `document.forms` que
+mostrou 10 campos onde deviam existir 144, e `campo.form` que apontou o culpado.
 
 ### 06/08/2026 (fim da noite) — 🚨 Erro em produção deixou de ser invisível
 
