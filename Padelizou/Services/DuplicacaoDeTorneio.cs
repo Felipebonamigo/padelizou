@@ -138,6 +138,26 @@ public static class DuplicacaoDeTorneio
         return nomeOriginal;
     }
 
+    // A MESMA cópia, mas para PRÉ-PREENCHER O FORMULÁRIO de criação ("copiar configurações do
+    // último torneio"). A diferença com o `CopiarConfiguracao` é de INTENÇÃO, e ela importa:
+    //
+    // · "Criar a próxima edição" (botão dentro do torneio) diz *este torneio de novo* — a
+    //   edição entra na SÉRIE, e o ranking do circuito soma as duas.
+    // · "Copiar configurações" (tela de criar) diz *um torneio novo, do meu jeito de sempre* —
+    //   o nome vai ser outro, e somar isso num circuito juntaria dois eventos diferentes num
+    //   ranking só. Por isso aqui a série NÃO é herdada.
+    //
+    // O nome também não vem: o campo fica em branco de propósito, porque é a primeira coisa
+    // que a pessoa vai escrever — e um nome já preenchido é o jeito mais fácil de publicar
+    // "Copa de Agosto" em setembro sem perceber.
+    public static Torneio ParaOFormularioDeCriacao(Torneio original)
+    {
+        var novo = CopiarConfiguracao(original);
+        novo.TorneioOrigemId = null;
+        novo.Nome = "";
+        return novo;
+    }
+
     // A cópia em si, guiada pela lista — a lista É o comportamento, não uma documentação dele.
     public static Torneio CopiarConfiguracao(Torneio original)
     {

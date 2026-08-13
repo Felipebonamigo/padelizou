@@ -15,9 +15,14 @@ namespace Padelizou.Controllers
     public partial class TorneiosController
     {
         // 1. ABRE A TELA DE CRIAÇÃO (Carrega o Catálogo)
+        //
+        // `copiarDe`: o atalho "copiar configurações de um torneio meu" (pedido do Felipe,
+        // 12/08/2026). Ele apenas PRÉ-PREENCHE o formulário — nada é gravado até publicar, e
+        // a pessoa revisa tudo antes. É diferente de "criar a próxima edição", que fica dentro
+        // do torneio e cria a edição na hora, vinculada à série (ver DuplicacaoDeTorneio).
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create(int? copiarDe)
         {
             // A tela abre pra todo mundo, porque o AMERICANO é livre — qualquer pessoa
             // cadastrada cria o rodízio dela. O que depende de liberação é o torneio Oficial,
@@ -63,11 +68,120 @@ namespace Padelizou.Controllers
             // A forma de pagamento nasce no que ele CONSEGUE fazer. Quem é o marcado quem
             // decide é o asp-for pelo valor do modelo — pôr um `checked` fixo na tela deixaria
             // dois rádios marcados e o resultado dependeria da ordem do HTML.
+            // Os torneios que ELE organiza, do mais novo pro mais velho — a lista do atalho
+            // "copiar configurações". Ordena por Id, não por data: o que interessa aqui é a
+            // configuração montada mais RECENTEMENTE, e torneio criado hoje pra dezembro é
+            // justamente o que tem as preferências atuais dele.
+            var meusTorneioIdsParaCopiar = await _context.TorneioOrganizadores
+                .Where(o => o.JogadorId == eu!.Id)
+                .Select(o => o.TorneioId)
+                .ToListAsync();
+            ViewBag.TorneiosParaCopiar = await _context.Torneios
+                .Where(t => meusTorneioIdsParaCopiar.Contains(t.Id))
+                .OrderByDescending(t => t.Id)
+                // ⚠️ Classe de verdade, nunca tipo anônimo: ele é `internal` e a view compila
+                // em outro assembly, então o bloco some da tela SEM ERRO NENHUM.
+                .Select(t => new TorneioParaCopiarVM { Id = t.Id, Nome = t.Nome, DataInicio = t.DataInicio })
+                .Take(10)
+                .ToListAsync();
+
+            if (copiarDe is int copiarDeId)
+            {
+                // ⚠️ Só torneio DELE — e a lista acima é a régua, não uma consulta nova: um
+                // `?copiarDe=` montado à mão não pode servir de vazamento da configuração
+                // (preço, chave Pix do organizador, limites) de torneio de outra pessoa.
+                if (meusTorneioIdsParaCopiar.Contains(copiarDeId)
+                    && await _context.Torneios.FindAsync(copiarDeId) is { } modelo)
+                {
+                    return View(await PrepararCopiaAsync(modelo, catalogo, conectado));
+                }
+
+                TempData["Erro"] = "Não achei esse torneio na sua lista para copiar.";
+            }
+
             return View(new Torneio
             {
                 PrecoInscricao = 150m,
                 FormaPagamento = conectado ? "OnlinePix" : "Externo"
             });
+        }
+
+        // Monta o formulário já preenchido a partir de um torneio anterior: a configuração
+        // (via DuplicacaoDeTorneio, o mesmo dono da regra do que viaja) mais as FILHAS que a
+        // tela precisa conhecer — categorias marcadas, limite de cada uma, nomes das quadras
+        // e o bloco de times.
+        private async Task<Torneio> PrepararCopiaAsync(
+            Torneio modelo, List<CategoriaPadrao> catalogo, bool recebimentoConectado)
+        {
+            var categoriasDoModelo = await _context.Categorias
+                .Where(c => c.TorneioId == modelo.Id)
+                .OrderBy(c => c.Id)
+                .ToListAsync();
+
+            // A categoria do torneio guarda o `Codigo` que veio do catálogo — é por ele que se
+            // volta ao id do checkbox. Por CÓDIGO e não por nome: o nome do catálogo pode ser
+            // corrigido depois ("2ª Categoria" → "2ª Categoria Masculina") e aí a cópia
+            // silenciosamente deixaria categorias de fora.
+            //
+            // A de TIMES não casa com nada aqui de propósito: o código dela é sorteado, não
+            // vem do catálogo. Ela é tratada logo abaixo, no bloco próprio.
+            var idPorCodigo = catalogo
+                .GroupBy(c => c.Codigo)
+                .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+            var marcadas = new List<int>();
+            var limites = new Dictionary<int, int>();
+            foreach (var categoria in categoriasDoModelo.Where(c => !c.DeTimes))
+            {
+                if (categoria.Codigo == null || !idPorCodigo.TryGetValue(categoria.Codigo, out var idDoCatalogo))
+                    continue;
+
+                marcadas.Add(idDoCatalogo);
+                if (categoria.LimiteDuplas is int limite) limites[idDoCatalogo] = limite;
+            }
+
+            ViewBag.CategoriasSelecionadas = marcadas.ToArray();
+            ViewBag.LimitesCopiados = limites;
+
+            // Os nomes na ORDEM em que nasceram: é a mesma ordem em que o formulário desenha
+            // os campos e a mesma que a preferência de quadra usa pra apontar.
+            ViewBag.NomesDeQuadraCopiados = await _context.Quadras
+                .Where(q => q.TorneioId == modelo.Id)
+                .OrderBy(q => q.Id)
+                .Select(q => q.Nome)
+                .ToListAsync();
+
+            if (categoriasDoModelo.FirstOrDefault(c => c.DeTimes) is { } deTimes)
+            {
+                ViewBag.CategoriaDeTimesCopiada = new CategoriaDeTimesCopiadaVM
+                {
+                    Nome = deTimes.Nome,
+                    Quantidade = deTimes.QuantidadeTimes,
+                    Grupos = deTimes.QuantidadeGrupos,
+                    Classificados = deTimes.ClassificadosPorGrupo,
+                };
+            }
+
+            // A tela avisa de onde veio — sem isso, o organizador abre um formulário
+            // misteriosamente preenchido e não sabe o que conferir.
+            ViewBag.CopiadoDe = modelo.Nome;
+
+            var copia = DuplicacaoDeTorneio.ParaOFormularioDeCriacao(modelo);
+
+            // ⚠️ RECUSA ETERNA, e ela só apareceu tentando publicar de verdade: se o torneio
+            // copiado cobrava PELO SITE e quem está copiando não tem conta de recebimento, a
+            // tela desabilita os rádios "pelo site" — e rádio desabilitado NÃO É ENVIADO pelo
+            // navegador. O POST chegaria sem forma de pagamento, o binder cairia no valor do
+            // modelo (que é "pelo site" de novo) e a recusa se repetiria pra sempre, sem a
+            // pessoa entender o que mudar. É a mesma armadilha que o `Recusar` do POST já
+            // documenta; aqui ela entra pela porta da cópia.
+            if (!recebimentoConectado && copia.CobraPeloSite)
+            {
+                copia.FormaPagamento = FormaDePagamentoDoTorneio.Externo;
+                ViewBag.PagamentoVirouExterno = true;
+            }
+
+            return copia;
         }
 
         // O "vai caber?" da tela de criação, respondido PELO SERVIDOR.

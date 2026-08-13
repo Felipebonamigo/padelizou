@@ -67,7 +67,7 @@ public class CategoriaDesligadaTests
         using var ctx = ContextoComCatalogo();
         var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 1);
 
-        var view = Assert.IsType<ViewResult>(await controller.Create());
+        var view = Assert.IsType<ViewResult>(await controller.Create(copiarDe: null));
 
         var catalogo = Assert.IsType<List<padelizou.Models.CategoriaPadrao>>(view.ViewData["CatalogoCategorias"]);
         Assert.Contains(catalogo, c => c.Id == AtivaId);

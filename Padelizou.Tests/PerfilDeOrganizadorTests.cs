@@ -134,7 +134,7 @@ public class PerfilDeOrganizadorTests
         using var ctx = ContextoCom(new Jogador { Id = 1, Nome = "Comum", Cpf = "1" });
 
         var view = Assert.IsType<ViewResult>(
-            await TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 1).Create());
+            await TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: 1).Create(copiarDe: null));
 
         Assert.Equal(false, view.ViewData["PodeCriarOficial"]);
     }

@@ -24,6 +24,11 @@
     // que a forma de pagamento também recusa — e essa recusa é comum, não rara.
     var categoriasMarcadas = ViewBag.CategoriasSelecionadas as int[] ?? Array.Empty<int>();
 
+    // O limite de vagas de cada categoria, quando o formulário veio copiado de outro torneio.
+    // Sem isto, "copiar configurações" trazia as categorias marcadas e perdia justamente o
+    // número de vagas — que é a parte chata de remontar.
+    var limitesCopiados = ViewBag.LimitesCopiados as Dictionary<int, int> ?? new();
+
     var quemFala = User.Identity?.Name;
     var linkCombinarTaxa = Padelizou.Services.WhatsAppLinkHelper.GerarLink(
         SuporteOpcoes.Value.WhatsApp,
@@ -51,6 +56,76 @@
             {
                 <div class="alert alert-danger" id="pdzErroCriacao" tabindex="-1">
                     <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Erro
+                </div>
+            }
+
+            @* ── COPIAR A CONFIGURAÇÃO DE UM TORNEIO MEU ─────────────────────────────────
+               Quem organiza o mesmo torneio todo mês remontava este formulário inteiro do
+               zero. Aqui ele parte do que já usou e só ajusta o que muda.
+
+               ⚠️ Só PRÉ-PREENCHE — nada é gravado até publicar, e é por isso que o bloco
+               fica ANTES do formulário e leva a página de novo (GET), em vez de mexer nos
+               campos por JavaScript: a montagem é a mesma do servidor, um dono só.
+
+               O formulário de baixo é `asp-action="Create"` por POST; este é um GET próprio,
+               então ele mora FORA dele — form dentro de form o navegador desmancha. *@
+            @{
+                var meusParaCopiar = ViewBag.TorneiosParaCopiar
+                    as List<Padelizou.ViewModels.TorneioParaCopiarVM> ?? new();
+                var copiadoDe = ViewBag.CopiadoDe as string;
+            }
+            @if (meusParaCopiar.Any())
+            {
+                <div class="alert @(copiadoDe != null ? "alert-success" : "alert-light border") rounded-4 d-flex flex-wrap align-items-center gap-2 mb-4">
+                    @if (copiadoDe != null)
+                    {
+                        <div class="w-100">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <strong>Configuração copiada de "@copiadoDe".</strong>
+                            <span class="small">
+                                Confira tudo antes de publicar — e <strong>escreva o nome do torneio novo</strong>,
+                                que ficou em branco de propósito. Datas, inscritos e resultados não vêm junto.
+                            </span>
+                            @if (ViewBag.PagamentoVirouExterno == true)
+                            {
+                                @* Dito na hora da CÓPIA, não na recusa: aquele torneio cobrava
+                                   pelo site, e sem conta de recebimento conectada isso não tem
+                                   como funcionar. Silenciar aqui devolveria a recusa só lá no
+                                   fim, depois do formulário inteiro preenchido. *@
+                                <div class="small mt-2 border-top pt-2">
+                                    <i class="bi bi-info-circle"></i>
+                                    Aquele torneio cobrava <strong>pelo site</strong>, mas sua conta de
+                                    recebimento ainda não está conectada — então a cobrança veio como
+                                    <strong>"recebo por fora"</strong>. Dá pra trocar depois de conectar a conta.
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="w-100">
+                            <i class="bi bi-magic"></i>
+                            <strong>Já organizou torneio aqui?</strong>
+                            <span class="small text-muted">
+                                Traga a configuração de um que você já fez — categorias, valores,
+                                formato e quadras vêm prontos, e você só ajusta o que mudou.
+                            </span>
+                        </div>
+                    }
+
+                    <form asp-action="Create" method="get" class="d-flex flex-wrap gap-2 align-items-center w-100 mt-1">
+                        <select name="copiarDe" class="form-select form-select-sm" style="max-width: 340px;">
+                            @foreach (var t in meusParaCopiar)
+                            {
+                                <option value="@t.Id">
+                                    @t.Nome@(t.DataInicio != null ? $" — {t.DataInicio:dd/MM/yyyy}" : "")
+                                </option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                            <i class="bi bi-copy"></i> @(copiadoDe != null ? "Copiar de outro" : "Copiar configurações")
+                        </button>
+                    </form>
                 </div>
             }
 
@@ -359,8 +434,14 @@
                         @* `name` na mão, sem asp-for: o modelo traz 0 e o asp-for escreveria
                            esse 0 no campo. Campo com 0 dentro é armadilha — quem digita "1"
                            em cima acaba com 10 ou 01 e publica o torneio com a grade errada.
-                           Vazio + `required` pede o número em vez de sugerir um errado. *@
-                        <input type="number" name="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()" />
+                           Vazio + `required` pede o número em vez de sugerir um errado.
+
+                           ⚠️ Quando o formulário vem COPIADO de outro torneio, aí sim o número
+                           é preenchido: ele veio de uma escolha real do organizador, não do
+                           zero do modelo. É a única exceção, e é por isso que a condição
+                           pergunta pelo `> 0`. *@
+                        <input type="number" name="QuantidadeQuadras" id="quantidadeQuadras" min="1" class="form-control bg-light" required placeholder="Ex: 3" oninput="gerarCamposQuadra()"
+                               value="@(Model.QuantidadeQuadras > 0 ? Model.QuantidadeQuadras.ToString() : "")" />
                         <small class="text-muted d-block mt-1">Quantos jogos rodam ao mesmo tempo na grade.</small>
                     </div>
                     <div class="col-md-4 pdz-so-com-horario">
@@ -1077,7 +1158,7 @@
                                     <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
-                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
                             </div>
                         }
                     </div>
@@ -1092,7 +1173,7 @@
                                     <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
-                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
                             </div>
                         }
                     </div>
@@ -1107,7 +1188,7 @@
                                     <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                     <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                 </div>
-                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
+                                <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
                             </div>
                         }
 
@@ -1125,7 +1206,7 @@
                                         <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
                                         <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
                                     </div>
-                                    <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" />
+                                    <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
                                 </div>
                             }
                         }
@@ -1136,10 +1217,18 @@
                    mata-mata, dividindo as mesmas quadras e horários das outras categorias.
                    Jogador não se inscreve nela: os times são cadastrados pelo organizador
                    depois, na tela de times. Escondida no formato Americano (script abaixo). *@
+                @{
+                    @* A categoria de times do torneio copiado, quando houve uma. Ela não é do
+                       catálogo (código sorteado), então não entra pelos checkboxes acima —
+                       reaparece aqui, com a estrutura que o organizador tinha escolhido. *@
+                    var timesCopiado = ViewBag.CategoriaDeTimesCopiada
+                        as Padelizou.ViewModels.CategoriaDeTimesCopiadaVM;
+                    bool temTimesCopiado = timesCopiado != null;
+                }
                 <div class="card bg-light border-0 p-3 mb-2" id="cardCategoriaTimes">
                     <div class="form-check mb-2">
                         <input class="form-check-input border-secondary" type="checkbox" name="categoriaDeTimes"
-                               value="true" id="chkCategoriaTimes"
+                               value="true" id="chkCategoriaTimes" checked="@temTimesCopiado"
                                onchange="document.getElementById('configCategoriaTimes').style.display = this.checked ? 'flex' : 'none';">
                         <label class="form-check-label fw-bold" for="chkCategoriaTimes" style="color: var(--pdz-ink);">
                             <i class="bi bi-people-fill"></i> Categoria de times (times se enfrentando)
@@ -1149,25 +1238,25 @@
                             A conta <strong>grupos × classificados</strong> precisa fechar um quadro de mata-mata (2, 4, 8 ou 16).
                         </div>
                     </div>
-                    <div class="gap-2 flex-wrap align-items-end" id="configCategoriaTimes" style="display: none;">
+                    <div class="gap-2 flex-wrap align-items-end" id="configCategoriaTimes" style="display: @(temTimesCopiado ? "flex" : "none");">
                         <div>
                             <label class="form-label small mb-0">Nome da categoria</label>
-                            <input type="text" name="nomeCategoriaTimes" value="Times" maxlength="80"
+                            <input type="text" name="nomeCategoriaTimes" value="@(temTimesCopiado ? timesCopiado.Nome : "Times")" maxlength="80"
                                    class="form-control form-control-sm" style="width: 160px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Quantos times</label>
-                            <input type="number" name="quantidadeTimes" min="2" max="32" value="8"
+                            <input type="number" name="quantidadeTimes" min="2" max="32" value="@(temTimesCopiado && timesCopiado.Quantidade != null ? timesCopiado.Quantidade : 8)"
                                    class="form-control form-control-sm" style="width: 100px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Quantos grupos</label>
-                            <input type="number" name="quantidadeGruposTimes" min="1" max="8" value="2"
+                            <input type="number" name="quantidadeGruposTimes" min="1" max="8" value="@(temTimesCopiado && timesCopiado.Grupos != null ? timesCopiado.Grupos : 2)"
                                    class="form-control form-control-sm" style="width: 100px;" />
                         </div>
                         <div>
                             <label class="form-label small mb-0">Classificam por grupo</label>
-                            <input type="number" name="classificadosPorGrupoTimes" min="1" max="4" value="2"
+                            <input type="number" name="classificadosPorGrupoTimes" min="1" max="4" value="@(temTimesCopiado && timesCopiado.Classificados != null ? timesCopiado.Classificados : 2)"
                                    class="form-control form-control-sm" style="width: 120px;" />
                         </div>
                     </div>
@@ -1374,6 +1463,12 @@
             + ' jogos, algo em torno de R$ ' + total.toFixed(2).replace('.', ',') + '.';
     }
 
+    // Os nomes das quadras do torneio COPIADO. Vazio no caminho normal — e é por isso que
+    // eles só valem na PRIMEIRA montagem: depois disso quem manda é o que está na tela, senão
+    // apagar um nome copiado o traria de volta no próximo toque em "quantidade de quadras".
+    var pdzNomesCopiados = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        ViewBag.NomesDeQuadraCopiados as List<string> ?? new List<string>()));
+
     function gerarCamposQuadra() {
         var quantidade = Math.max(0, Math.min(26, parseInt(document.getElementById('quantidadeQuadras').value, 10) || 0));
         var container = document.getElementById('camposNomesQuadras');
@@ -1388,7 +1483,7 @@
             input.name = 'nomesQuadras';
             input.className = 'form-control form-control-sm';
             input.placeholder = 'Quadra ' + String.fromCharCode(65 + i);
-            input.value = valoresAtuais[i] || '';
+            input.value = valoresAtuais[i] || pdzNomesCopiados[i] || '';
             // Renomear a quadra tem que se refletir na tabela de preferência: quem escreve
             // "Central" no campo 1 procura "Central" lá embaixo, não "Quadra A".
             input.addEventListener('input', montarPreferenciaDeQuadra);
@@ -1396,8 +1491,17 @@
             container.appendChild(col);
         }
 
+        pdzNomesCopiados = [];
         montarPreferenciaDeQuadra();
     }
+
+    // Formulário copiado já vem com a quantidade preenchida — e os campos de nome nascem do
+    // JS, então sem esta chamada eles ficariam ausentes até alguém tocar no número.
+    document.addEventListener('DOMContentLoaded', function () {
+        if ((parseInt(document.getElementById('quantidadeQuadras').value, 10) || 0) > 0) {
+            gerarCamposQuadra();
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', gerarCamposQuadra);
 
