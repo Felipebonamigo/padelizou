@@ -35,6 +35,13 @@
                terça é quem vai jogar, não quem administra. Configurações continua do dono. *@
             @if (souMembro)
             {
+                @* O placar morava só no Ranking geral, e quem estava OLHANDO o jogo da semana
+                   tinha que sair da tela pra lançar o resultado dele. Aqui a data já é
+                   conhecida, então o formulário abre nela — e depois de salvar a pessoa volta
+                   pra cá, onde o ranking da semana muda na frente dela. *@
+                <a asp-controller="Grupos" asp-action="RegistrarJogo" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-padel rounded-pill">
+                    <i class="bi bi-plus-circle"></i> Registrar Jogo
+                </a>
                 <a asp-controller="Grupos" asp-action="Convidar" asp-route-grupoId="@grupo.Id" asp-route-data="@Model.DataHora.ToString("s")" class="btn btn-outline-success rounded-pill">
                     <i class="bi bi-person-plus"></i> Convidar
                 </a>

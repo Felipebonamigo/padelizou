@@ -12,6 +12,10 @@
     // quatro cópias da mesma linha é como uma delas fica pra trás.
     var convidados = ViewBag.Convidados as HashSet<int> ?? new HashSet<int>();
     Func<Jogador, string> rotulo = j => convidados.Contains(j.Id) ? $"{j.Nome} (convidado)" : j.Nome;
+
+    // Vindo da tela da Semana, a data já é a daquele jogo; vindo do Ranking geral, é hoje.
+    var dataSugerida = ViewBag.DataSugerida as DateTime? ?? DateTime.Today;
+    var voltarParaSemana = ViewBag.VoltarParaSemana as DateTime?;
 }
 
 <div class="container mt-5">
@@ -37,10 +41,26 @@
                     {
                         <form asp-controller="Grupos" asp-action="RegistrarJogo" method="post">
                             <input type="hidden" name="grupoId" value="@grupoId" />
+                            @if (voltarParaSemana != null)
+                            {
+                                <input type="hidden" name="voltarParaSemana" value="@voltarParaSemana.Value.ToString("s")" />
+                            }
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Data do jogo</label>
-                                <input type="date" name="dataJogo" class="form-control bg-light" required value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                                <input type="date" name="dataJogo" class="form-control bg-light" required value="@dataSugerida.ToString("yyyy-MM-dd")" />
+                                @* ⚠️ A data pré-preenchida pode ser FUTURA: é a do jogo marcado
+                                   naquela semana. Lançar um placar com data que ainda não chegou
+                                   joga a partida pra semana seguinte no ranking, e ela some do
+                                   quadro sem erro nenhum. O aviso só aparece quando é o caso. *@
+                                @if (dataSugerida.Date > DateTime.Today)
+                                {
+                                    <div class="form-text text-warning">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        Esse é o jogo marcado pra @dataSugerida.ToString("dd/MM"), que ainda não chegou.
+                                        Se o placar que você vai lançar é de um jogo que já aconteceu, corrija a data.
+                                    </div>
+                                }
                             </div>
 
                             @* Local já vem no clube do grupo; trocar aqui vale só pra ESTE jogo. *@

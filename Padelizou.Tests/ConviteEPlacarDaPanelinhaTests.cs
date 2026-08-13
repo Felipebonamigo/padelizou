@@ -277,7 +277,7 @@ public class ConviteEPlacarDaPanelinhaTests
             .Where(c => c.JogadorId == visita.Id).Select(c => c.Status).FirstAsync());
 
         var controller = Controller(ctx, membros[1].Id);
-        var view = Assert.IsType<ViewResult>(await controller.RegistrarJogo(grupo.Id));
+        var view = Assert.IsType<ViewResult>(await controller.RegistrarJogo(grupo.Id, data: null));
         var oferecidos = (List<Jogador>)view.ViewData["Membros"]!;
 
         Assert.Contains(oferecidos, j => j.Id == visita.Id);
@@ -369,6 +369,92 @@ public class ConviteEPlacarDaPanelinhaTests
             6, 2, clubeId: null);
 
         Assert.Equal(2, (await ctx.JogosSemanais.SingleAsync()).GamesDupla2);
+    }
+
+    // ===================== O BOTÃO DE PLACAR NA TELA DA SEMANA =====================
+
+    // ⚠️ NÃO É COSMÉTICO. O ranking DA SEMANA é fatiado por data (`> início && <= fim`): abrir
+    // o formulário sempre em "hoje" fazia quem lança na quarta o jogo de terça gravar o dia
+    // errado — e um dia a mais joga a partida pra semana seguinte, onde ela some do quadro sem
+    // erro nenhum.
+    [Fact]
+    public async Task Vindo_da_tela_da_semana_o_formulario_abre_na_data_DAQUELE_jogo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupo, membros) = await MontarAsync(ctx);
+        var oJogoDaSemana = new DateTime(2026, 8, 18, 20, 0, 0);
+
+        var controller = Controller(ctx, membros[0].Id);
+        var view = Assert.IsType<ViewResult>(await controller.RegistrarJogo(grupo.Id, oJogoDaSemana));
+
+        Assert.Equal(oJogoDaSemana.Date, view.ViewData["DataSugerida"]);
+        Assert.Equal(oJogoDaSemana, view.ViewData["VoltarParaSemana"]);
+    }
+
+    [Fact]
+    public async Task Vindo_do_ranking_geral_continua_abrindo_em_hoje()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupo, membros) = await MontarAsync(ctx);
+
+        var controller = Controller(ctx, membros[0].Id);
+        var view = Assert.IsType<ViewResult>(await controller.RegistrarJogo(grupo.Id, data: null));
+
+        Assert.Equal(DateTime.Today, view.ViewData["DataSugerida"]);
+        Assert.Null(view.ViewData["VoltarParaSemana"]);
+    }
+
+    // Quem clicou na tela da semana quer VER o ranking daquela semana mudar. Cuspir a pessoa no
+    // ranking geral esconde justamente o efeito do que ela acabou de fazer.
+    [Fact]
+    public async Task Depois_de_salvar_a_pessoa_volta_pra_semana_de_onde_veio()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupo, membros) = await MontarAsync(ctx);
+        var aSemana = new DateTime(2026, 8, 18, 20, 0, 0);
+
+        var controller = Controller(ctx, membros[0].Id);
+        var vindoDaSemana = await controller.RegistrarJogo(
+            grupo.Id, new DateTime(2026, 8, 18),
+            membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id,
+            6, 3, clubeId: null, voltarParaSemana: aSemana);
+
+        var destino = Assert.IsType<RedirectToActionResult>(vindoDaSemana);
+        Assert.Equal("Semana", destino.ActionName);
+        Assert.Equal(grupo.Id, destino.RouteValues!["grupoId"]);
+
+        // E quem veio do ranking geral continua voltando pra lá.
+        var vindoDoRankingGeral = await controller.RegistrarJogo(
+            grupo.Id, new DateTime(2026, 8, 18),
+            membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id,
+            6, 4, clubeId: null);
+
+        Assert.Equal("Detalhes", Assert.IsType<RedirectToActionResult>(vindoDoRankingGeral).ActionName);
+    }
+
+    // A recusa não pode custar a data: mandar de volta pro "hoje" faria a pessoa perder o que
+    // estava lançando junto com o erro.
+    [Fact]
+    public async Task Ao_recusar_o_jogador_de_fora_o_formulario_volta_com_a_data_que_estava()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (grupo, membros) = await MontarAsync(ctx);
+        var aSemana = new DateTime(2026, 8, 18, 20, 0, 0);
+
+        var estranho = NovoJogador(9);
+        ctx.Jogadores.Add(estranho);
+        await ctx.SaveChangesAsync();
+
+        var controller = Controller(ctx, membros[0].Id);
+        var recusa = await controller.RegistrarJogo(
+            grupo.Id, new DateTime(2026, 8, 18),
+            membros[0].Id, estranho.Id, membros[1].Id, membros[2].Id,
+            6, 3, clubeId: null, voltarParaSemana: aSemana);
+
+        var destino = Assert.IsType<RedirectToActionResult>(recusa);
+        Assert.Equal("RegistrarJogo", destino.ActionName);
+        Assert.Equal(aSemana, destino.RouteValues!["data"]);
+        Assert.False(await ctx.JogosSemanais.AnyAsync());
     }
 
     // ===================== A SEMANA ATUAL =====================

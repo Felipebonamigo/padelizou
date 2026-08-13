@@ -260,7 +260,7 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> RegistrarJogo(int grupoId)
+        public async Task<IActionResult> RegistrarJogo(int grupoId, DateTime? data)
         {
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
@@ -269,6 +269,17 @@ namespace padelizou.Controllers
             ViewBag.Membros = await ParticipantesParaResultadoAsync(grupoId);
             ViewBag.Convidados = await IdsDeConvidadosAsync(grupoId);
             ViewBag.GrupoId = grupoId;
+
+            // Quem chega pela tela da Semana já está OLHANDO uma data — o formulário abre nela.
+            // Sem isso ele abre sempre em "hoje", e quem lança na quarta o jogo de terça grava o
+            // dia errado. ⚠️ Isso não é cosmético: o ranking DA SEMANA é fatiado por data
+            // (`DataJogo > início && <= fim`), então um dia a mais joga a partida pra semana
+            // seguinte — ela some do quadro sem erro nenhum, e some do lugar certo também.
+            ViewBag.DataSugerida = (data ?? DateTime.Today).Date;
+
+            // Guardado pra devolver a pessoa de onde ela veio: quem clicou na tela da semana
+            // não quer ser cuspido no ranking geral depois de salvar.
+            ViewBag.VoltarParaSemana = data;
 
             // O local já vem escolhido no clube fixo do grupo — quem jogou fora do de sempre
             // troca ali mesmo, sem precisar mexer nas configurações da panelinha.
@@ -283,7 +294,7 @@ namespace padelizou.Controllers
         public async Task<IActionResult> RegistrarJogo(
             int grupoId, DateTime dataJogo,
             int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
-            int gamesDupla1, int gamesDupla2, int? clubeId)
+            int gamesDupla1, int gamesDupla2, int? clubeId, DateTime? voltarParaSemana = null)
         {
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
@@ -297,7 +308,9 @@ namespace padelizou.Controllers
             if (escolhidos.Any(j => !podemJogar.Contains(j)))
             {
                 TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
-                return RedirectToAction("RegistrarJogo", new { grupoId });
+                // A recusa devolve o formulário no MESMO contexto — voltar pro "hoje" faria a
+                // pessoa perder a data que ela estava lançando junto com o erro.
+                return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
             }
 
             // Sem escolha na tela, cai no clube fixo do grupo: o jogo da panelinha é quase
@@ -324,7 +337,13 @@ namespace padelizou.Controllers
             await RecalcularPontuacaoAsync(grupoId);
 
             TempData["Sucesso"] = "Jogo registrado! Ranking atualizado.";
-            return RedirectToAction("Detalhes", new { id = grupoId });
+
+            // Volta pra onde a pessoa estava. Quem clicou na tela da semana quer ver o ranking
+            // DAQUELA semana mudar — ser cuspido no ranking geral esconde justamente o efeito
+            // do que ela acabou de fazer.
+            return voltarParaSemana != null
+                ? RedirectToAction("Semana", new { grupoId, data = voltarParaSemana.Value.ToString("s") })
+                : RedirectToAction("Detalhes", new { id = grupoId });
         }
 
         // ===================== CORRIGIR UM JOGO JÁ LANÇADO =====================
