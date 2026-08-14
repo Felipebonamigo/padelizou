@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Órbita (200 vitórias): o foguete subindo pelo canto, deixando rastro. -->
+  <g transform="rotate(35 110 26)">
+    <path d="M110 6 C118 14 118 30 110 40 C102 30 102 14 110 6 Z" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+    <circle cx="110" cy="20" r="4.5" fill="#60a5fa" stroke="#1e40af" stroke-width="1.5"/>
+    <path d="M104 30 L96 42 L106 38 Z" fill="#ef4444" stroke="#991b1b" stroke-width="1.5"/>
+    <path d="M116 30 L124 42 L114 38 Z" fill="#ef4444" stroke="#991b1b" stroke-width="1.5"/>
+    <path d="M110 40 C106 48 108 56 110 60 C112 56 114 48 110 40 Z" fill="#fbbf24"/>
+  </g>
+  <circle cx="24" cy="18" r="2" fill="#c4b5fd"/>
+  <circle cx="40" cy="8" r="1.5" fill="#ddd6fe"/>
+  <circle cx="14" cy="34" r="1.5" fill="#a78bfa"/>
+</svg>

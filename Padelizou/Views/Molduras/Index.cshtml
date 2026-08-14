@@ -5,6 +5,11 @@
     ViewData["Title"] = "Molduras - Padelizou";
     var conquistas = (List<ConquistaVM>)ViewBag.Conquistas;
 
+    // As divertidas ficam no cofre até o Felipe definir o modelo delas (14/08/2026): a seção
+    // inteira some quando `Molduras__DivertidasLiberadas` está desligado. Some, não fica
+    // cinza — "em breve, pago" numa vitrine sem preço é promessa que não dá pra cumprir.
+    bool divertidasLiberadas = ViewBag.DivertidasLiberadas == true;
+
     // A conquista correspondente de cada moldura, pra saber se destravou e como se destrava.
     var porCodigo = conquistas.ToDictionary(c => c.Codigo);
 }
@@ -104,13 +109,16 @@
         }
     }
 
-    <h5 class="fw-bold mt-2 mb-2" style="color: var(--pdz-ink);">As divertidas — de fábrica</h5>
-    <div class="row g-3 mb-4">
-        @foreach (var moldura in CatalogoMolduras.Todas.Where(m => m.Livre))
-        {
-            await Cartao(moldura);
-        }
-    </div>
+    @if (divertidasLiberadas)
+    {
+        <h5 class="fw-bold mt-2 mb-2" style="color: var(--pdz-ink);">As divertidas</h5>
+        <div class="row g-3 mb-4">
+            @foreach (var moldura in CatalogoMolduras.Todas.Where(m => m.Livre))
+            {
+                await Cartao(moldura);
+            }
+        </div>
+    }
 
     <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">As das conquistas — cada uma se ganha na quadra</h5>
     <div class="row g-3">

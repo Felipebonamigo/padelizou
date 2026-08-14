@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Explorador: a agulha da bússola apontando o norte, no alto. -->
+  <circle cx="68" cy="20" r="17" fill="#0f766e" stroke="#134e4a" stroke-width="2"/>
+  <path d="M68 8 L74 20 L68 32 L62 20 Z" fill="#f8fafc"/>
+  <path d="M68 8 L74 20 L68 20 Z" fill="#ef4444"/>
+  <circle cx="68" cy="20" r="2.5" fill="#134e4a"/>
+</svg>

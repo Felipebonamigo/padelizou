@@ -55,14 +55,43 @@ public class MolduraDaFotoTests
             "Moldura de fábrica com código de conquista: " + string.Join(", ", colisoes.Select(m => m.Codigo)));
     }
 
-    // A razão de existir das de fábrica: jogador NOVO, zero conquista, já tem o que vestir.
+    // ⚠️ O COFRE DAS DIVERTIDAS (decisão do Felipe, 14/08/2026: molduras por conquista; as
+    // enfeitadas viram produto pago no futuro). O padrão do parâmetro é FECHADO — quem
+    // esquecer de passar a chave recebe a recusa, nunca a liberação.
     [Fact]
-    public void Moldura_de_fabrica_pode_ser_usada_sem_conquista_nenhuma()
+    public void Divertida_guardada_e_recusada_mesmo_com_todas_as_conquistas()
     {
         foreach (var livre in CatalogoMolduras.Todas.Where(m => m.Livre))
         {
-            Assert.Null(CatalogoMolduras.MotivoParaNaoUsar(livre.Codigo, NenhumaConquistada()));
+            var motivo = CatalogoMolduras.MotivoParaNaoUsar(livre.Codigo, TodasConquistadas());
+
+            Assert.NotNull(motivo);
+            Assert.Contains("ainda não está disponível", motivo);
         }
+    }
+
+    // E quando o Felipe liberar, elas passam sem exigir conquista nenhuma — é a razão de
+    // existirem (jogador novo, zero conquista, já tem o que vestir).
+    [Fact]
+    public void Divertida_LIBERADA_dispensa_conquista()
+    {
+        foreach (var livre in CatalogoMolduras.Todas.Where(m => m.Livre))
+        {
+            Assert.Null(CatalogoMolduras.MotivoParaNaoUsar(
+                livre.Codigo, NenhumaConquistada(), divertidasLiberadas: true));
+        }
+    }
+
+    // O cofre não pode vazar pelo outro lado: moldura de CONQUISTA não vira livre porque o
+    // interruptor das divertidas ligou.
+    [Fact]
+    public void Liberar_as_divertidas_nao_solta_as_de_conquista()
+    {
+        var motivo = CatalogoMolduras.MotivoParaNaoUsar(
+            "Decacampeao", NenhumaConquistada(), divertidasLiberadas: true);
+
+        Assert.NotNull(motivo);
+        Assert.Contains("ainda não destravou", motivo);
     }
 
     // ⚠️ Moldura no catálogo sem CSS é INVISÍVEL — a pessoa escolhe e nada muda, sem erro em

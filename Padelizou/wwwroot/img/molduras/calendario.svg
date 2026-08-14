@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Mensalista: a folhinha com o dia marcado, presa no topo. -->
+  <g stroke="#1e3a8a" stroke-width="2" stroke-linejoin="round">
+    <rect x="48" y="6" width="40" height="32" rx="5" fill="#eff6ff"/>
+    <path d="M48 16 h40" />
+  </g>
+  <rect x="48" y="6" width="40" height="10" rx="5" fill="#3E6DB5"/>
+  <g stroke="#1e3a8a" stroke-width="3" stroke-linecap="round">
+    <path d="M58 2 v8"/><path d="M78 2 v8"/>
+  </g>
+  <path d="M56 26 l6 7 12 -12" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

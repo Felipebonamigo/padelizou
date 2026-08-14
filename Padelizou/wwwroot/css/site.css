@@ -3103,6 +3103,16 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-m-Fada { background: linear-gradient(140deg, #93c5fd, #c4b5fd); }
 .pdz-m-Fada::before { background-image: url("/img/molduras/fada.svg"); }
 
+/* Segunda leva de ornamentos (14/08): as escadas que eram só cor ganharam objeto. */
+.pdz-m-Estreia::before { background-image: url("/img/molduras/raquetes.svg"); }
+.pdz-m-Mensalista::before { background-image: url("/img/molduras/calendario.svg"); }
+.pdz-m-Explorador::before { background-image: url("/img/molduras/bussola.svg"); }
+.pdz-m-Finalista::before { background-image: url("/img/molduras/medalha.svg"); }
+.pdz-m-DuzentasVitorias::before { background-image: url("/img/molduras/foguete.svg"); }
+.pdz-m-DoTime::before { background-image: url("/img/molduras/escudo-time.svg"); }
+.pdz-m-Organizador::before { background-image: url("/img/molduras/apito.svg"); }
+.pdz-m-AlunoAplicado::before { background-image: url("/img/molduras/coracao-aula.svg"); }
+
 .pdz-m-Campeao::before { background-image: url("/img/molduras/coroa.svg"); }
 .pdz-m-Bicampeao::before { background-image: url("/img/molduras/gema-rubi.svg"); }
 .pdz-m-Tricampeao::before { background-image: url("/img/molduras/gema-safira.svg"); }

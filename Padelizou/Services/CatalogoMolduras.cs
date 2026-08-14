@@ -89,7 +89,8 @@ public static class CatalogoMolduras
     // ⚠️ A LISTA DA TELA NÃO É A TRAVA: a tela cinza a moldura bloqueada, mas o POST chega
     // com qualquer string. Sem esta conferência, um formulário montado à mão vestiria a
     // moldura de Decacampeão em quem nunca jogou.
-    public static string? MotivoParaNaoUsar(string? codigo, IEnumerable<ConquistaVM> conquistasDoJogador)
+    public static string? MotivoParaNaoUsar(
+        string? codigo, IEnumerable<ConquistaVM> conquistasDoJogador, bool divertidasLiberadas = false)
     {
         // Tirar a moldura (voltar pra foto limpa) é sempre permitido.
         if (string.IsNullOrWhiteSpace(codigo)) return null;
@@ -98,8 +99,11 @@ public static class CatalogoMolduras
         if (moldura == null)
             return "Essa moldura não existe.";
 
-        // De fábrica não pede conquista nenhuma — é dela que o jogador novo vive.
-        if (moldura.Livre) return null;
+        // As divertidas nascem GUARDADAS (decisão do Felipe, 14/08/2026: por conquista já;
+        // enfeitada vira produto pago no futuro). O padrão do parâmetro é o cofre fechado:
+        // quem não perguntar pela chave recebe a recusa — nunca o contrário.
+        if (moldura.Livre)
+            return divertidasLiberadas ? null : "Essa moldura ainda não está disponível.";
 
         var conquista = conquistasDoJogador.FirstOrDefault(c => c.Codigo == codigo);
         if (conquista == null || !conquista.Conquistada)

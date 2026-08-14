@@ -48,6 +48,7 @@ public class MoldurasController : Controller
         if (jogador == null) return RedirectToAction("Perfil", "Auth");
 
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(jogadorId);
+        ViewBag.DivertidasLiberadas = _settings.DivertidasLiberadas;
         return View(jogador);
     }
 
@@ -65,7 +66,7 @@ public class MoldurasController : Controller
         // moldura de Decacampeão em quem nunca jogou. A régua é a MESMA que calcula os badges
         // do perfil (ObterConquistasAsync), não uma segunda conta.
         var conquistas = await _estatisticas.ObterConquistasAsync(jogadorId);
-        var impedimento = CatalogoMolduras.MotivoParaNaoUsar(codigo, conquistas);
+        var impedimento = CatalogoMolduras.MotivoParaNaoUsar(codigo, conquistas, _settings.DivertidasLiberadas);
         if (impedimento != null)
         {
             TempData["Erro"] = impedimento;

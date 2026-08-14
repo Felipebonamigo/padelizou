@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Organizador: o apito na base — quem chama o jogo. -->
+  <g stroke="#334155" stroke-width="2" stroke-linejoin="round">
+    <path d="M46 110 h30 a12 12 0 0 1 0 24 h-30 a10 10 0 0 1 -10 -12 a10 10 0 0 1 10 -12 Z" fill="#A3D827"/>
+    <circle cx="76" cy="122" r="5" fill="#1C2742"/>
+    <path d="M82 112 C92 104 104 104 112 110" fill="none" stroke="#94a3b8" stroke-width="3"/>
+  </g>
+</svg>

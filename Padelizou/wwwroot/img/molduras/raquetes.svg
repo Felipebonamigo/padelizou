@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Estreia: duas raquetes cruzadas na base — o primeiro jogo. -->
+  <g stroke="#3f6212" stroke-width="2" stroke-linecap="round">
+    <path d="M44 132 L60 112" /><path d="M92 132 L76 112" />
+  </g>
+  <g fill="#A3D827" stroke="#3f6212" stroke-width="2">
+    <ellipse cx="56" cy="106" rx="11" ry="14" transform="rotate(38 56 106)"/>
+    <ellipse cx="80" cy="106" rx="11" ry="14" transform="rotate(-38 80 106)"/>
+  </g>
+  <circle cx="68" cy="120" r="4.5" fill="#fef08a" stroke="#a16207" stroke-width="1.5"/>
+</svg>

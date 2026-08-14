@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- Finalista: a medalha de prata pendurada na base, com fita. -->
+  <g stroke="#64748b" stroke-width="1.5">
+    <path d="M58 108 L52 128 L62 124 L66 132 Z" fill="#94a3b8"/>
+    <path d="M78 108 L84 128 L74 124 L70 132 Z" fill="#cbd5e1"/>
+  </g>
+  <circle cx="68" cy="122" r="11" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <path d="M68 115 l2.2 4.6 5 .7 -3.6 3.5 .9 5 -4.5 -2.4 -4.5 2.4 .9 -5 -3.6 -3.5 5 -.7 Z" fill="#94a3b8"/>
+</svg>
