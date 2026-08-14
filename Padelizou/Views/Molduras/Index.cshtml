@@ -1,0 +1,98 @@
+@model Padelizou.Models.Jogador
+@using Padelizou.Services
+@using Padelizou.ViewModels
+@{
+    ViewData["Title"] = "Molduras - Padelizou";
+    var conquistas = (List<ConquistaVM>)ViewBag.Conquistas;
+
+    // A conquista correspondente de cada moldura, pra saber se destravou e como se destrava.
+    var porCodigo = conquistas.ToDictionary(c => c.Codigo);
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-circle-square"></i> Molduras</h2>
+            <p class="text-muted mb-0">
+                Cada conquista destrava uma moldura pra sua foto — e ela aparece em todo lugar
+                onde sua foto aparece: perfil, torneios, rankings.
+            </p>
+        </div>
+        <a asp-controller="Auth" asp-action="Perfil" class="btn btn-outline-secondary rounded-pill">Voltar ao perfil</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning">@TempData["Erro"]</div>
+    }
+
+    @* A opção de sempre: foto limpa. Fica em destaque no topo pra ninguém se sentir preso
+       a uma moldura — e é o estado de quem nunca escolheu nada. *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+            <partial name="_FotoDoJogador" model='new FotoDoJogadorVM(Model.FotoPerfil, null, 64, Model.ComoChamar)' />
+            <div class="flex-grow-1">
+                <strong>Sem moldura</strong>
+                <div class="small text-muted">A foto do jeito que ela é.</div>
+            </div>
+            @if (Model.MolduraEscolhida == null)
+            {
+                <span class="badge bg-success">Em uso</span>
+            }
+            else
+            {
+                <form asp-controller="Molduras" asp-action="Escolher" method="post">
+                    <input type="hidden" name="codigo" value="" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3">Usar</button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="row g-3">
+        @foreach (var moldura in CatalogoMolduras.Todas)
+        {
+            porCodigo.TryGetValue(moldura.Codigo, out var conquista);
+            var destravada = conquista?.Conquistada == true;
+            var emUso = Model.MolduraEscolhida == moldura.Codigo;
+
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card shadow-sm border-0 h-100 text-center p-3 @(destravada ? "" : "opacity-50")">
+                    @* A moldura é mostrada SEMPRE em volta da foto da própria pessoa — ver a
+                       sua cara dentro do ouro é o que faz querer destravar. Bloqueada fica
+                       acinzentada pelo opacity do card, não escondida. *@
+                    <div class="mx-auto mb-2">
+                        <partial name="_FotoDoJogador" model='new FotoDoJogadorVM(Model.FotoPerfil, moldura.Codigo, 72, Model.ComoChamar)' />
+                    </div>
+                    <strong class="d-block">@moldura.Nome</strong>
+                    <small class="text-muted d-block mb-2">
+                        @if (destravada)
+                        {
+                            <i class="bi bi-unlock-fill text-success"></i> @(conquista!.Titulo)
+                        }
+                        else
+                        {
+                            <i class="bi bi-lock-fill"></i> @moldura.ComoDestravar
+                        }
+                    </small>
+
+                    @if (emUso)
+                    {
+                        <span class="badge bg-success align-self-center">Em uso</span>
+                    }
+                    else if (destravada)
+                    {
+                        <form asp-controller="Molduras" asp-action="Escolher" method="post" class="mt-auto">
+                            <input type="hidden" name="codigo" value="@moldura.Codigo" />
+                            <button type="submit" class="btn btn-sm btn-padel rounded-pill px-4">Usar</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>

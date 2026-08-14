@@ -26,9 +26,13 @@
         <!-- Coluna da Esquerda: Resumo do Jogador -->
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 text-center p-4">
-                @if (!string.IsNullOrWhiteSpace(Model.FotoPerfil))
+                @if (!string.IsNullOrWhiteSpace(Model.FotoPerfil) || Model.MolduraEscolhida != null)
                 {
-                    <img src="@Model.FotoPerfil" alt="" class="rounded-circle mx-auto" style="width: 96px; height: 96px; object-fit: cover;" />
+                    @* A foto passa pelo parcial único: é ele que veste a moldura da conquista
+                       (ver Services/CatalogoMolduras). *@
+                    <div class="mx-auto">
+                        <partial name="_FotoDoJogador" model='Padelizou.ViewModels.FotoDoJogadorVM.De(Model, 96)' />
+                    </div>
                 }
                 else
                 {
@@ -125,6 +129,9 @@
                 }
                 <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-pencil-square me-1"></i> Editar Perfil
+                </a>
+                <a asp-controller="Molduras" asp-action="Index" class="btn btn-outline-primary mt-3 rounded-pill w-100">
+                    <i class="bi bi-circle-square me-1"></i> Molduras da foto
                 </a>
                 <a asp-controller="Auth" asp-action="Preferencias" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-sliders me-1"></i> Minhas Preferências

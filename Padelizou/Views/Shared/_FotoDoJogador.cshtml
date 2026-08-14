@@ -1,0 +1,12 @@
+@model Padelizou.ViewModels.FotoDoJogadorVM
+@{
+    // A foto do jogador com a moldura da conquista escolhida — o lugar ÚNICO.
+    //
+    // O código da moldura passa pelo catálogo (Services/CatalogoMolduras): valor inventado
+    // no banco vira classe vazia, nunca uma classe CSS montada com texto de fora.
+    var classeMoldura = Padelizou.Services.CatalogoMolduras.ClasseCss(Model.Moldura);
+    var foto = string.IsNullOrEmpty(Model.FotoUrl) ? "/img/default-avatar.png" : Model.FotoUrl;
+}
+<span class="pdz-foto @classeMoldura @Model.Classe" style="@(Model.Tamanho > 0 ? $"--foto: {Model.Tamanho}px" : null)">
+    <img src="@foto" alt="@Model.Alt" />
+</span>

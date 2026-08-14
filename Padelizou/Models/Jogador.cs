@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Padelizou.Models;
 
 using padelizou.Models;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 [Table("Jogador")]
 public partial class Jogador
@@ -135,6 +136,18 @@ public partial class Jogador
     public string? VersaoDosTermosAceita { get; set; }
 
     public string? FotoPerfil { get; set; }
+
+    // A moldura em volta da foto, em todo lugar onde ela aparece. Guarda o CÓDIGO DA
+    // CONQUISTA que a destravou (ver Services/CatalogoMolduras) — nulo é foto limpa.
+    //
+    // ⚠️ De propósito NÃO há FK nem tabela de molduras: conquista é calculada na hora (não
+    // existe no banco), então a moldura também não pode "existir" — só a ESCOLHA existe. Quem
+    // valida se a escolha ainda é válida é o POST de escolher; se um replay de pontos tirar
+    // a conquista de alguém, a moldura escolhida simplesmente para de ser oferecida de novo,
+    // mas a tela continua honrando a escolha antiga (tirar retroativo é briga que não vale).
+    [StringLength(40)]
+    public string? MolduraEscolhida { get; set; }
+
     public string? Instagram { get; set; }
     // CAMPO MORTO — não é o ranking. Nunca foi alimentado pelo sistema (os valores que
     // existem em produção vieram de SQL manual antigo). Os pontos reais são calculados a

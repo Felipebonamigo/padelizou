@@ -2195,6 +2195,10 @@ button, a, input, select { touch-action: manipulation; }
 /* ── Chip de jogador (avatar + nome + clube) ───────────────────────────────
    Tamanhos por classe (não inline) pra versão compacta poder encolher. */
 .pdz-chip-avatar { width: 36px; height: 36px; object-fit: cover; }
+/* O chip dimensiona por CLASSE (encolhe no modo compacto), não por pixel — então aqui o
+   tamanho da moldura vem da mesma classe, sobrepondo o --foto inline do parcial. */
+.pdz-foto.pdz-chip-avatar { --foto: 36px; width: 36px; height: 36px; }
+.pdz-chip-compacto .pdz-foto.pdz-chip-avatar { --foto: 26px; width: 26px; height: 26px; }
 .pdz-chip-nome { line-height: 1.1; }
 .pdz-chip-clube { line-height: 1.1; }
 
@@ -2854,4 +2858,183 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-linha-campea > td {
     background: color-mix(in srgb, var(--padel-green) 18%, var(--pdz-surface));
     font-weight: 700;
+}
+
+/* ═══════════════════════ MOLDURAS DA FOTO (Services/CatalogoMolduras) ═══════════════════════
+   Uma moldura por conquista, desenhada 100% em CSS — sem imagem nenhuma, de propósito:
+   a mesma moldura aparece de 24px (chip de jogo) a 120px (capa do perfil), e um PNG que é
+   nítido num tamanho vira borrão no outro. Anel em CSS escala de graça e respeita o tema.
+
+   Mecânica: o wrapper .pdz-foto tem o tamanho da foto (--foto) e vira o ANEL — o desenho é o
+   background dele, visível pelo padding; a foto redonda cobre o miolo. O friso entre foto e
+   anel (quando existe) é um box-shadow interno na cor da superfície, então ele acompanha o
+   tema claro/escuro sozinho. Metais (ouro, prata, bronze) são cores absolutas: ouro é ouro
+   nos dois temas.
+
+   ⚠️ Sem moldura, o wrapper NÃO tem padding: a foto ocupa o mesmo pixel que o <img> antigo
+   ocupava — trocar o <img> pelo parcial não pode mexer em layout nenhum. */
+.pdz-foto {
+    --foto: 48px;
+    --anel: max(3px, calc(var(--foto) * 0.065));
+    width: var(--foto);
+    height: var(--foto);
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.pdz-foto > img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    position: relative;
+}
+
+.pdz-foto[class*="pdz-m-"] {
+    padding: var(--anel);
+}
+
+/* O friso: um respiro na cor do fundo entre a foto e o anel, pra moldura não "sujar" a
+   borda da foto. Entra em toda moldura; nas de anel duplo ele é o segundo traço. */
+.pdz-foto[class*="pdz-m-"] > img {
+    box-shadow: 0 0 0 calc(var(--anel) * 0.35) var(--pdz-surface);
+}
+
+/* ── A escada de quem joga ─────────────────────────────────────────────────────────────── */
+/* Primeira Bola: o verde da marca, liso — a primeira moldura de todo mundo. */
+.pdz-m-Estreia { background: var(--padel-green); }
+
+/* Presença: azul de agenda com traço interno mais claro (dois riscos = rotina). */
+.pdz-m-Mensalista {
+    background: #3E6DB5;
+    box-shadow: inset 0 0 0 calc(var(--anel) * 0.45) #7FA8E0;
+}
+
+/* Estrada: bronze fosco de quem já rodou. */
+.pdz-m-Veterano { background: linear-gradient(160deg, #b0793f, #8a5a28 55%, #c98f52); }
+
+/* Rosa dos Ventos: teal com os 4 pontos cardeais claros. */
+.pdz-m-Explorador {
+    background: conic-gradient(#0f766e 0deg 80deg, #6ee7db 90deg, #0f766e 100deg 170deg,
+        #6ee7db 180deg, #0f766e 190deg 260deg, #6ee7db 270deg, #0f766e 280deg 350deg, #6ee7db 360deg);
+}
+
+/* ── A escada das vitórias: esquenta conforme sobe ─────────────────────────────────────── */
+.pdz-m-DezVitorias { background: #5B9BD5; }
+.pdz-m-VinteCincoVitorias { background: linear-gradient(135deg, #2E75B6, #41C5D3); }
+.pdz-m-CinquentaVitorias {
+    background: conic-gradient(#c7ccd6, #f2f4f8, #9aa3b2, #e8ebf0, #b3bac6, #f2f4f8, #c7ccd6);
+}
+.pdz-m-CemVitorias {
+    background: linear-gradient(135deg, #d4a017, #f5d061 45%, #c8951a);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(212, 160, 23, 0.35);
+}
+.pdz-m-CentoCinquentaVitorias {
+    background: linear-gradient(160deg, #f59e0b, #ef4444 70%);
+    box-shadow: 0 0 calc(var(--anel) * 2.4) rgba(239, 68, 68, 0.4);
+}
+.pdz-m-DuzentasVitorias {
+    background: conic-gradient(#6d28d9, #c026d3, #2563eb, #7c3aed, #6d28d9);
+    box-shadow: 0 0 calc(var(--anel) * 2.6) rgba(124, 58, 237, 0.45);
+}
+
+/* ── A escada de quem vence: prata, ouro, e o ouro vai ficando mais trabalhado ─────────── */
+.pdz-m-Finalista {
+    background: linear-gradient(150deg, #c9ced8, #f0f2f6 50%, #aab2bf);
+}
+.pdz-m-Campeao {
+    background: conic-gradient(#d4a017, #f7dd72, #b8860b, #f2cf4e, #d4a017);
+}
+/* Ouro Duplo: o friso interno some e viram DOIS anéis de ouro com fenda no meio. */
+.pdz-m-Bicampeao {
+    background: conic-gradient(#d4a017, #f7dd72, #b8860b, #f2cf4e, #d4a017);
+}
+.pdz-m-Bicampeao > img {
+    box-shadow: 0 0 0 calc(var(--anel) * 0.3) var(--pdz-surface),
+                0 0 0 calc(var(--anel) * 0.55) #d4a017,
+                0 0 0 calc(var(--anel) * 0.8) var(--pdz-surface);
+}
+/* Trança de Ouro: três voltas de ouro alternando claro/escuro. */
+.pdz-m-Tricampeao {
+    background: repeating-conic-gradient(#b8860b 0deg 30deg, #f7dd72 30deg 60deg, #d4a017 60deg 120deg);
+}
+/* Ouro e Diamante: ouro com 4 cravos brancos. */
+.pdz-m-Tetracampeao {
+    background: conic-gradient(#d4a017 0deg 80deg, #ffffff 90deg, #d4a017 100deg 170deg,
+        #ffffff 180deg, #d4a017 190deg 260deg, #ffffff 270deg, #d4a017 280deg 350deg, #ffffff 360deg);
+}
+/* Relâmpago: ouro riscado de branco, com brilho. */
+.pdz-m-Pentacampeao {
+    background: linear-gradient(115deg, #d4a017 30%, #fffbe6 48%, #ffffff 52%, #d4a017 68%);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(245, 208, 97, 0.5);
+}
+/* Colmeia: seis gomos de ouro sobre o navy da marca. */
+.pdz-m-Hexacampeao {
+    background: repeating-conic-gradient(#d4a017 0deg 40deg, #1C2742 40deg 60deg);
+}
+/* Sol: ouro irradiando — o glow é o desenho. */
+.pdz-m-Heptacampeao {
+    background: radial-gradient(circle, #fff3b0 20%, #f5d061 55%, #d4a017);
+    box-shadow: 0 0 calc(var(--anel) * 3) rgba(245, 208, 97, 0.65);
+}
+/* Platina: o metal acima do ouro. */
+.pdz-m-Octacampeao {
+    background: conic-gradient(#dbe4f0, #ffffff, #b8c6dd, #f2f6fc, #cdd9ea, #ffffff, #dbe4f0);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(219, 228, 240, 0.5);
+}
+/* Escudo: platina com o verde da marca cravado. */
+.pdz-m-Nonacampeao {
+    background: conic-gradient(#dbe4f0 0deg 105deg, #A3D827 120deg, #dbe4f0 135deg 225deg,
+        #A3D827 240deg, #dbe4f0 255deg 360deg);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(163, 216, 39, 0.35);
+}
+/* Lenda: a única moldura ANIMADA do catálogo — ouro girando devagar. O anel é um ::before
+   maior que o wrapper (girar o background não existe; girar o elemento sim), e a foto fica
+   por cima. Quem pediu menos movimento no aparelho vê o ouro parado — continua Lenda. */
+.pdz-m-Decacampeao { overflow: hidden; }
+.pdz-m-Decacampeao::before {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(#d4a017, #fff3b0, #b8860b, #f7dd72, #d4a017);
+    animation: pdz-moldura-girar 5s linear infinite;
+}
+@keyframes pdz-moldura-girar {
+    to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pdz-m-Decacampeao::before { animation: none; }
+}
+
+/* ── As sociais ────────────────────────────────────────────────────────────────────────── */
+/* Estrela da Noite: céu navy com as 5 pontas douradas do MVP. */
+.pdz-m-MvpDeTorneio {
+    background: conic-gradient(#141d33 0deg 62deg, #f5d061 72deg, #141d33 82deg 134deg,
+        #f5d061 144deg, #141d33 154deg 206deg, #f5d061 216deg, #141d33 226deg 278deg,
+        #f5d061 288deg, #141d33 298deg 350deg, #f5d061 360deg);
+}
+/* Coração da Torcida: rosa pra vermelho, quente e macio. */
+.pdz-m-QueridoDaQuadra {
+    background: linear-gradient(140deg, #f472b6, #e11d48 70%);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(225, 29, 72, 0.3);
+}
+/* Uniforme: o navy do time com a faixa verde da camisa. */
+.pdz-m-DoTime {
+    background: linear-gradient(115deg, #1C2742 42%, #A3D827 46% 54%, #1C2742 58%);
+}
+/* Caderno: azul pautado — o tracejado é a pauta. */
+.pdz-m-AlunoAplicado {
+    background: repeating-conic-gradient(#3E6DB5 0deg 14deg, #cfe0f5 14deg 20deg);
+}
+/* Prancheta: grafite sério com o clipe verde em cima. */
+.pdz-m-Organizador {
+    background: conic-gradient(#A3D827 0deg 18deg, #4b5563 30deg 330deg, #A3D827 342deg 360deg);
+}
+/* Mestre: o degradê da marca inteira — verde pro navy. A moldura-vitrine do professor. */
+.pdz-m-Professor {
+    background: linear-gradient(140deg, #A3D827, #1C2742 75%);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(163, 216, 39, 0.3);
 }

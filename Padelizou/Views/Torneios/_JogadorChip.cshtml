@@ -17,8 +17,9 @@
 @* Tamanhos por classe (pdz-chip-*): dentro de um `.pdz-chip-compacto` (tabela do
    grupo) o avatar encolhe, o clube some e o nome trunca em vez de quebrar. *@
 <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Id" class="d-flex align-items-center gap-2 text-decoration-none text-dark mb-1">
-    <img src="@(string.IsNullOrEmpty(Model.FotoPerfil) ? "/img/default-avatar.png" : Model.FotoPerfil)"
-         class="rounded-circle flex-shrink-0 pdz-chip-avatar" />
+    @* A foto passa pelo parcial único, que veste a moldura da conquista. Tamanho 0 de
+       propósito: quem dimensiona o chip é a classe (encolhe no modo compacto). *@
+    <partial name="_FotoDoJogador" model='Padelizou.ViewModels.FotoDoJogadorVM.De(Model, 0, "pdz-chip-avatar")' />
     <span class="pdz-chip-texto">
         @* ComoChamar, não Nome: cada um digita como quer (na mesma lista conviviam "ALAN DA
            SILVEIRA MACHADO" e "charls gustavio polese") e nome de três palavras ocupava três
