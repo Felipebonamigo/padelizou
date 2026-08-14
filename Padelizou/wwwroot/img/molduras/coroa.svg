@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A coroa do primeiro titulo: sentada no topo do anel, pontas pra fora. -->
+  <g stroke="#8a6508" stroke-width="2" stroke-linejoin="round">
+    <path d="M44 28 L44 8 L56 18 L68 3 L80 18 L92 8 L92 28 Z" fill="#f2cf4e"/>
+    <rect x="42" y="28" width="52" height="6" rx="3" fill="#d4a017"/>
+  </g>
+  <circle cx="56" cy="14" r="2.2" fill="#fff3b0"/>
+  <circle cx="68" cy="9" r="2.2" fill="#fff3b0"/>
+  <circle cx="80" cy="14" r="2.2" fill="#fff3b0"/>
+</svg>

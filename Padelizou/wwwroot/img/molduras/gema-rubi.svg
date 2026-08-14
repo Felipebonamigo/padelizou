@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A pedra do titulo, lapidada, cravada no topo do anel. -->
+  <g stroke="#4c0519" stroke-width="2" stroke-linejoin="round">
+    <path d="M68 4 L84 16 L68 38 L52 16 Z" fill="#be123c"/>
+  </g>
+  <path d="M68 4 L74 16 L68 38 L62 16 Z" fill="#fda4af"/>
+</svg>

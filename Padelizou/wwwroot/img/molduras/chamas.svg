@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- As labaredas da Brasa, lambendo os dois lados. -->
+  <g stroke="#7f1d1d" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M26 102 C10 88 20 74 10 58 C26 66 22 82 34 88 C38 96 34 104 26 102 Z" fill="#ef4444"/>
+    <path d="M110 102 C126 88 116 74 126 58 C110 66 114 82 102 88 C98 96 102 104 110 102 Z" fill="#ef4444"/>
+  </g>
+  <path d="M25 97 C17 88 23 78 18 68 C27 76 24 84 31 89 C32 94 29 98 25 97 Z" fill="#fbbf24"/>
+  <path d="M111 97 C119 88 113 78 118 68 C109 76 112 84 105 89 C104 94 107 98 111 97 Z" fill="#fbbf24"/>
+</svg>

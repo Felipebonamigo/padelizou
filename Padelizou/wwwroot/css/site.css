@@ -3016,22 +3016,24 @@ button, a, input, select { touch-action: manipulation; }
         #A3D827 240deg, #dbe4f0 255deg 360deg);
     box-shadow: 0 0 calc(var(--anel) * 2) rgba(163, 216, 39, 0.35);
 }
-/* Lenda: a única moldura ANIMADA do catálogo — ouro girando devagar. O anel é um ::before
-   maior que o wrapper (girar o background não existe; girar o elemento sim), e a foto fica
-   por cima. Quem pediu menos movimento no aparelho vê o ouro parado — continua Lenda. */
-.pdz-m-Decacampeao { overflow: hidden; }
-.pdz-m-Decacampeao::before {
-    content: "";
-    position: absolute;
-    inset: -50%;
-    background: conic-gradient(#d4a017, #fff3b0, #b8860b, #f7dd72, #d4a017);
-    animation: pdz-moldura-girar 5s linear infinite;
+/* Lenda: a única moldura ANIMADA do catálogo — ouro girando devagar, agora pelo ângulo do
+   próprio gradiente (@property): o jeito antigo girava um ::before com overflow:hidden, e o
+   corte levaria junto os LOUROS que transbordam. Navegador sem @property vê o ouro parado —
+   continua Lenda. Quem pediu menos movimento no aparelho, idem. */
+@property --pdz-ang {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
 }
-@keyframes pdz-moldura-girar {
-    to { transform: rotate(360deg); }
+.pdz-m-Decacampeao {
+    background: conic-gradient(from var(--pdz-ang), #d4a017, #fff3b0, #b8860b, #f7dd72, #d4a017);
+    animation: pdz-lenda-girar 5s linear infinite;
+}
+@keyframes pdz-lenda-girar {
+    to { --pdz-ang: 360deg; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .pdz-m-Decacampeao::before { animation: none; }
+    .pdz-m-Decacampeao { animation: none; }
 }
 
 /* ── As sociais ────────────────────────────────────────────────────────────────────────── */
@@ -3063,3 +3065,35 @@ button, a, input, select { touch-action: manipulation; }
     background: linear-gradient(140deg, #A3D827, #1C2742 75%);
     box-shadow: 0 0 calc(var(--anel) * 2) rgba(163, 216, 39, 0.3);
 }
+
+/* ── ORNAMENTOS: o que SAI do círculo ──────────────────────────────────────────────────
+   As duas referências do Felipe (14/08) têm isto em comum: moldura de verdade não é só o
+   anel — tem coroa, gema, louro, asa saindo do padrão. O ornamento é um ::before ABSOLUTO
+   e MAIOR que o wrapper: transborda de propósito (pointer-events: none, não ocupa layout,
+   não empurra vizinho nenhum). Cada desenho é um SVG em wwwroot/img/molduras — vetor
+   escala do chip de 26px ao perfil de 120px sem virar borrão, e o PwaArquivosTests confere
+   que todo arquivo citado no service worker existe.
+
+   O canvas de todo ornamento é 136×136 com o círculo da moldura no centro (68,68, r=50):
+   o que estiver fora desse raio é o que aparece "pra fora". Nem toda moldura tem ornamento
+   — ele é o troféu das especiais; as demais ficam só com o anel e o verniz. */
+.pdz-foto[class*="pdz-m-"]::before {
+    content: "";
+    position: absolute;
+    inset: calc(var(--foto) * -0.18);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.pdz-m-Campeao::before { background-image: url("/img/molduras/coroa.svg"); }
+.pdz-m-Bicampeao::before { background-image: url("/img/molduras/gema-rubi.svg"); }
+.pdz-m-Tricampeao::before { background-image: url("/img/molduras/gema-safira.svg"); }
+.pdz-m-Tetracampeao::before { background-image: url("/img/molduras/gema-ametista.svg"); }
+.pdz-m-Pentacampeao::before { background-image: url("/img/molduras/gema-esmeralda.svg"); }
+.pdz-m-Decacampeao::before { background-image: url("/img/molduras/louros.svg"); }
+.pdz-m-CentoCinquentaVitorias::before { background-image: url("/img/molduras/chamas.svg"); }
+.pdz-m-MvpDeTorneio::before { background-image: url("/img/molduras/estrela-mvp.svg"); }
+.pdz-m-QueridoDaQuadra::before { background-image: url("/img/molduras/asas-coracao.svg"); }
