@@ -1,21 +1,215 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/08/2026** — 🚀 **`build-540-e4809dc` NO AR EM PROD** (11:33 de Brasília). Publicado a pedido do Felipe: *"comita e publica se não foi publicado ainda"*. Levou junto tudo o que se acumulou desde ontem à noite: **ícones servidos por nós, aula avisando no WhatsApp, comprovante do Pix com destino** (build 538), **copiar as configurações de um torneio já feito** (539) e a **panelinha** — semana atual num clique, convite com busca, placar aceitando convidado (540).
+> Última atualização: **14/08/2026** — 🔎 **"SUMIU DO GOOGLE": NÃO SUMIU. O DIAGNÓSTICO, e por que o gargalo NÃO é mais código.**
 >
-> 🪆 **O QUE MOTIVOU O DEPLOY: criar torneio estava quebrado pra quem NÃO é organizador.** O `<form>` do pedido de perfil de organizador estava **dentro** do formulário de criação, e HTML não permite aninhar: o navegador fecha o de fora naquele ponto. O formulário de criação terminava com **10 campos** — `Nome`, `ClubeId`, `PrecoInscricao`, `ChavePixOrganizador`, `DataInicio` e as categorias caíam **todos fora**. A pessoa preenchia a tela inteira e o envio levava **só o `Formato`**. Atingia exatamente o público que o *"Americano é livre: qualquer pessoa cria"* acabou de convidar.
+> 🚨 **O alarme foi real e a conclusão é outra.** O Felipe procurou "padelizou" e viu **só Instagram** — o site fora dos resultados. Verificado na hora: `site:padelizou.com.br` devolve **6 páginas de resultados**, com o **título novo já indexado** (*"Padelizou — Torneios de padel, ranking e aulas"*), o ranking com a frase própria, o NATA PADEL TOUR com data e categorias, e páginas que nem existiam antes. HTTP 200, **sem** `noindex`, **sem** `X-Robots-Tag`, robots liberando, canonical certo, e *Ações manuais* = **"Nenhum problema foi detectado"**. **Não é desindexação nem punição — é POSIÇÃO.**
 >
-> 👯 **DUAS SESSÕES CONSERTARAM O MESMO BUG EM PARALELO, e isso é informação — não desperdício.** O que está no ar é o conserto do **`e4809dc`** (sessão da panelinha), que chegou ao `main` primeiro e vem com **um teste que varre todas as views atrás de `<form>` aninhado**. O desenho das duas soluções bateu sem combinação nenhuma: formulário do pedido **fora** do de criação e o botão chegando nele pelo atributo **`form=`**. A segunda sessão descartou o próprio commit em vez de empurrar código repetido — a verificação dela no navegador virou confirmação independente do conserto alheio.
+> 📉 **O QUE REALMENTE ACONTECE: o site perde pro PRÓPRIO Instagram.** Na busca pela marca, os cinco primeiros são posts do `@padelizou` (260 seguidores, publicando toda semana, num domínio de autoridade gigante). O `padelizou.com.br` tem semanas de vida e **quase nenhum link apontando pra ele**. ⚠️ **Nenhuma linha de código muda isso** — todo o trabalho técnico serve pro site ser bem APRESENTADO quando aparece, não pra colocá-lo acima do Instagram.
 >
-> ✅ **CONFERIDO NO NAVEGADOR, com um usuário sem perfil de organizador**: `document.querySelector('[name="ChavePixOrganizador"]').form` aponta pro `pdzFormCriacao`, que passou de **10 para 144 campos**; dois formulários na página e **nenhum aninhado**; o botão "Solicitar permissão" dispara o formulário certo e **não cria torneio nenhum** (conferido no banco); e a posição dele na tela **não mudou** — medida antes e depois, idêntica.
+> ✍️ **A `meta description` é SUGESTÃO, não ordem.** A da home chegou a sair na busca e depois o Google voltou a montar o trecho sozinho, com o texto dos botões. Os perfis idem (saem com o texto das conquistas). Isso é documentado e **não tem conserto por código** — não vale caçar bug aqui.
 >
-> 🍪 **A ARMADILHA QUE QUASE INVALIDOU O TESTE: cookie de sessão IGNORA a porta.** `localhost:5162` e `localhost:5155` são o **mesmo host** pro navegador, então a instância nova subiu já logada como o usuário da sessão paralela — e o `AcessoAntecipadoMiddleware` só faz o auto-login por CPF quando **não** há autenticação, ou seja o `LoginAutomaticoCpf` configurado foi **silenciosamente ignorado**. A tela abria bonita, com o perfil errado, e o bug ficava invisível. Saída: entrar por **`127.0.0.1`**, que pra cookie é outro host — sem deslogar as sessões do lado.
+> ⏭️ **O gargalo virou LINK DE FORA, que é conversa e não deploy**: link na bio do Instagram apontando pro site, clube parceiro escrevendo "inscrições pelo Padelizou" com link, Ranking RS, federação, jornal local cobrindo o NATA PADEL TOUR. Prazo honesto pra marca nova superar perfil social estabelecido: **semanas a meses** — e encurta com link, não com código.
 >
-> 🕳️ **E a lição que generaliza: `<form>` aninhado NÃO dá erro em lugar nenhum.** Não quebra o build, não quebra o Razor, não aparece no console, e o HTML bruto parece certo — um só par `<form>`/`</form>` com todos os campos dentro, com o `grep` concordando. Quem denuncia é o **DOM**: `document.forms`, `form.elements.length` e, definitivo, **`campo.form`** — que respeita a árvore real e não onde a tag está escrita.
+> 🧭 **Pra próxima sessão que ler isto: não procure bug técnico no SEO.** Ele foi conferido de ponta a ponta em 11–14/08 e está correto. O que falta não está no repositório.
 >
-> ⚠️ **O `43684be` (build-541) NÃO está no ar**: ele entrou no `main` **um minuto** antes do deploy e o CI só empacotou **quatro minutos depois**. O `deploy.sh` sem argumento pegou a release mais nova que existia no instante — o comportamento correto, e nada foi regredido (o que estava no ar era o build-537).
+> Antes, no mesmo dia: 🚦 **MOLDURAS: SÓ NO DEV, POR CONQUISTA, E AS DIVERTIDAS NO COFRE** (`build-555-b492665` nos dois ambientes; commits `c572c46` + `b492665`).
 >
-> 🔒 **A prova de que a versão nova subiu veio do HTML público, não do "Feito" do script**: a home agora serve `~/lib/bootstrap-icons/…` com hash de versão (o `asp-append-version`) e o arquivo responde **200** — isso é do build 538, que **não** estava no ar antes. Home, `/Torneios`, `/Jogadores/Ranking` e `/healthz` em **200**, `/Torneios/Create` em 302 (pede login, como deve). Reconferido minutos depois: **sem deploy concorrente**. ⚠️ **Faltou a conferência pelo servidor** (`readlink -f`, `cwd` do processo, `NRestarts`, journal): o acesso SSH foi **bloqueado nesta sessão**, então a checagem por dentro do VPS não foi feita.
+> 🧭 **A DECISÃO DO FELIPE, em três partes**: (1) molduras são **por conquista** — modelo aprovado; (2) as **divertidas** (bichinhos) ficam **guardadas** pra virar **produto pago** no futuro; (3) ⚠️ **nada em PRODUÇÃO por enquanto — só no dev**, nem as de conquista.
+>
+> 🔌 **Dois interruptores** (`Services/MoldurasSettings`): `Molduras__Habilitado` (a tela existe; desligado = **404**, admin entra pra avaliar) e `Molduras__DivertidasLiberadas` (mostra as enfeitadas). Ligados **só no dev**, pelo drop-in `padelizou-dev.service.d/molduras.conf` — **produção não tem o drop-in, de propósito**. ✅ Conferido: `systemctl show -p Environment` devolve **0** ocorrências em prod e **2** no dev.
+>
+> ⚠️ **O padrão do parâmetro é o COFRE FECHADO**: quem chamar `MotivoParaNaoUsar` sem passar a chave recebe a recusa, nunca a liberação. Teste nos dois sentidos + um provando que ligar as divertidas **não** solta as de conquista. E a seção **some** do guarda-roupa em vez de ficar cinza — "em breve, pago" numa vitrine sem preço é promessa que não dá pra cumprir.
+>
+> 🎨 **Mais 8 ornamentos de conquista** (as escadas que eram só cor ganharam objeto): raquetes na Estreia, folhinha no Mensalista, bússola no Explorador, medalha no Finalista, foguete nas 200 vitórias, brasão no Do Time, apito no Organizador, lápis no Aluno Aplicado. **17 das 27** agora têm algo saindo do círculo — as outras 10 ficam só com anel + relevo de propósito (ornamento em tudo vira ruído). **CACHE_NAME v23.**
+>
+> 🧪 **4.093 testes, 0 falhas** (5 novos). ✅ **Conferido**: com o portão fechado no local, `/Molduras` deu **404**; ligado, as duas seções e os 8 ornamentos novos presos certo. Em prod: os dois ambientes na `555`, os 8 SVGs em 200 do domínio, `sw v23`, **zero exceção**, e o portão dentro do `.dll`.
+>
+> ⏭️ **Pendências anotadas**: a foto grande do perfil PÚBLICO ainda não usa o parcial (arquivo em obra na sessão paralela), e o **"ocultar todas as molduras"** por usuário — o Felipe pediu, está desenhado (preferência do observador, lida no `_FotoDoJogador`), não construído.
+>
+> Antes, no mesmo dia: 🐸 **MOLDURAS "DE FÁBRICA": AS DIVERTIDAS DA REFERÊNCIA** (`build-553-15e6b55`, commit `15e6b55`).
+>
+> 🎁 **Seis, desenhadas à mão em SVG a partir da referência do Felipe**: Gatinha (orelhas + guizo), Sapinho (olhos saltados + patas), Raposa, Bruxinha (chapéu + vassoura), Gato Preto (coleira + rabo) e Fada (asas + tiara). Das 8 da imagem, 2 ficaram de fora — variações de orelha+asa repetidas entre elas.
+>
+> 🧠 **Elas consertam um buraco do catálogo**: jogador NOVO, zero conquista, não tinha nenhuma moldura pra vestir. A **de fábrica** é o brinquedo de chegada; a de conquista continua sendo o troféu. O guarda-roupa virou duas seções, e o cartão virou **função local** da view (duas seções com markup duplicado é como uma fica pra trás; o `<partial>` lá dentro é TagHelper → `async Task`, MVC1006).
+>
+> 🔒 **O contrato mudou COM teste**: toda conquista tem moldura; toda moldura **não-livre** tem conquista; e moldura de fábrica **nunca reusa código de conquista** — senão, quando nascesse a conquista "Gatinha", a livre viraria travada sem ninguém decidir. `MotivoParaNaoUsar` devolve null pras seis com **zero** conquista (o motivo de existirem, preso em teste). **CACHE_NAME v22.**
+>
+> 🧪 **4.088 testes, 0 falhas.** ✅ Conferido em prod: os dois ambientes na `553`, os SVGs em 200 do domínio, sw `v22`, "As divertidas" dentro do `.dll` (via `strings -el`, trecho só-ASCII), zero exceção, dados intactos. Antes, no app local: as 6 liberadas com "Usar" e o Sapinho vestido ponta a ponta.
+>
+> 💡 Decisão em aberto pro Felipe: as divertidas são grátis pra sempre, ou viram recompensa leve um dia ("complete o perfil com foto")? A estrutura já separa as duas famílias.
+>
+> Antes, no mesmo dia: 🖼️ **AS MOLDURAS EVOLUÍRAM EM TRÊS RODADAS DE FEEDBACK DO FELIPE, TUDO NO AR** (`build-552-e52f2ef` em prod e dev; commits `d4047b0` + `4ba30b4` + `e52f2ef`).
+>
+> 💎 **Rodada 1 — "tem muitos ouro igual"**: tinha. Do Campeão ao Sol era variação de amarelo, e em 26px virava tudo o mesmo anel. O ouro liso ficou SÓ do primeiro título; do bi ao penta cada título é uma **joia** (Rubi, Safira, Ametista, Esmeralda) e a Centena (100 vitórias) virou **ouro rosé**. Cada pedra tomou cuidado com o vizinho de cor que já existia.
+>
+> ✨ **Rodada 2 — a referência de frames com textura**: entrou o **relevo** — UM verniz pra todas (luz no alto, sombra embaixo, grão de metal escovado, aresta escura), num `::after` só com máscara na faixa do anel. ⚠️ Um verniz, não 27: a COR vem da classe de cada moldura, o MATERIAL é regra única — a lei da regra duplicada aplicada à estética.
+>
+> 👑 **Rodada 3 — "o relevo tem que SAIR do padrão, não fica só o círculo"**: entraram os **ornamentos que transbordam** — 9 SVGs desenhados à mão (`wwwroot/img/molduras/`): **coroa** no Campeão, a **pedra do título** cravada no topo (bi→penta), **louros + estrelas** na Lenda, **chamas** na Brasa (150), a **estrela** do MVP e as **asas com coração** do Querido da Quadra (direto da 2ª referência dele). ⚠️ Nem toda moldura tem ornamento, de propósito: se tudo tem coroa, coroa não diz nada. ⚠️ **A Lenda trocou de motor**: o giro por `overflow:hidden` decapitaria os louros — agora o ângulo do próprio conic anima via `@property`. Os 9 SVGs entraram no `STATIC_ASSETS` (**CACHE_NAME v19→v20→v21** no dia) e o `PwaArquivosTests` confere que existem.
+>
+> ✅ **Conferido em prod**: os dois ambientes na `552`, ornamentos respondendo 200 do domínio, CSS do ar com as 9 referências, sw `v21`, zero exceção, dados intactos. As vitrines v2/v3/v4 foram mandadas pro Felipe como HTML renderizado.
+>
+> Anterior: **14/08/2026** — 🖼️ **MOLDURAS DA FOTO: CADA CONQUISTA DESTRAVA UMA** (commit `a7bd8da`, **`build-549` no ar em prod e dev**). Pedido do Felipe: molduras ao redor da foto, escolhidas no perfil, ganhas por conquista.
+>
+> 🎨 **São 27, gêmeas das conquistas POR CONTRATO**: o código da moldura É o código da conquista, e um teste falha nas duas direções (conquista sem moldura é promessa quebrada; moldura órfã ninguém destrava). Outro teste **lê o site.css**: moldura sem CSS seria invisível — escolhe e nada muda, sem erro. As famílias: a escada de quem joga (verde da marca → bronze), as vitórias esquentando (azul → prata → ouro → fogo → nebulosa), os títulos em ouro cada vez mais trabalhado até a **"Lenda" do Decacampeão — a única ANIMADA, ouro girando** (para com `prefers-reduced-motion`), e as sociais (MVP = céu com 5 pontas douradas, Professor = degradê da marca).
+>
+> ⚠️ **100% CSS, nenhuma imagem**: a mesma moldura vai de 26px (chip compacto) a 120px (perfil) e PNG nítido num tamanho vira borrão no outro. O friso entre foto e anel é `--pdz-surface` — acompanha o tema sozinho. **CACHE_NAME v17→v18** (site.css está no SW).
+>
+> 🔧 **A foto ganhou o lugar único que não tinha**: o `<img>` com fallback estava **copiado em 27 lugares** — nasceu `Shared/_FotoDoJogador` + `FotoDoJogadorVM`; nesta leva assumiu o Meu Perfil e o chip do torneio. ⚠️ O chip dimensiona por CLASSE (compacto encolhe), então `Tamanho=0` = "a classe dimensiona" e o parcial **não** emite `--foto` inline — inline venceria a classe.
+>
+> 🔒 **A trava é no POST** (`/Molduras/Escolher` confere contra `ObterConquistasAsync` — a MESMA régua dos badges) e código inventado no banco **nunca vira classe CSS** (passa pelo catálogo). Controller **próprio** de propósito: o JogadorsController estava em obra na sessão paralela. `MolduraEscolhida` é coluna no Jogador **sem tabela nem FK** — conquista é calculada na hora, então só a ESCOLHA existe.
+>
+> 🧪 **4.086 testes, 0 falhas** (7 novos). ✅ **Conferido no navegador**: /Molduras com 28 fotos (1 limpa + 27), 22 bloqueadas e 5 usáveis na conta de teste; "Primeira Bola" vestida aparecendo no Meu Perfil; **POST forjado com Decacampeão RECUSADO**; 26 chips do torneio 4 no parcial. ✅ **Em produção**: migration `MolduraDoJogador` no histórico, coluna no schema, `pg_dump` antes (108 KB, 84 CREATE TABLE), sw v18 no ar, zero exceção, dados intactos.
+>
+> ⏭️ **Fica pra próxima leva** (arquivo em obra na paralela): a foto grande do perfil PÚBLICO (`Views/Jogadores/Perfil.cshtml`) — o parcial está pronto, é uma troca de `<img>` quando liberar.
+>
+> Anterior: **13/08/2026** — ✏️ **DÁ PRA CORRIGIR E APAGAR UM HORÁRIO DO PROFESSOR** (commit `7bf15be`). Pedido do Felipe olhando o Meus Horários: *"permita editar ou apagar aqui"*. A tela só tinha Desativar/Reativar — errar a hora (ou o local) no cadastro deixava a linha errada **pra sempre**: pausada, ocupando espaço, e sem virar a linha certa. O caminho era criar outra e conviver com as duas.
+>
+> ⚠️ **A PRIMEIRA PERGUNTA FOI O QUE MORRE JUNTO, e a resposta veio do MODELO**: `Aula` guarda `LocalAulaId` + `DataHora` e **não aponta pro `HorarioDisponivel`**. O horário é só a **regra** que abre vaga pra marcar — some a regra, some a vaga NOVA; o que já estava marcado continua na agenda. Por isso aqui **não** existe a trava que o `RemocaoDeLocal` tem (lá, apagar levava junto quanto o professor ganhou naquele local). E a confirmação **diz isso**: o medo de derrubar aula marcada é exatamente o que faria ninguém apertar o botão.
+>
+> 🔁 **A edição passa pela MESMA régua do cadastro** (`NovoHorarioDoProfessor.MotivoParaNaoEditar` chama o `Planejar`), não por uma cópia: fim antes do início e aula que não cabe na janela são erros que só aparecem **pro aluno**, como agenda vazia — uma segunda cópia divergiria na primeira mudança e o buraco reabriria só na edição.
+>
+> ⚠️ **O PRÓPRIO HORÁRIO SAI DA COMPARAÇÃO DE DUPLICATA.** Sem isso ele colide **consigo mesmo** e nada pode ser salvo — nem trocar só a duração, que é o motivo mais comum pra abrir a tela. Tem teste preso nesse caso exato. Mover pra cima de outro que já existe é recusado com o motivo na tela, **inclusive quando o outro está pausado**.
+>
+> 🔒 Travas de dono em tudo: o `ProfessorId` entra **dentro** da consulta (sem ele, trocar o id na URL abriria — e salvaria — o horário de outro professor), e o local escolhido também é conferido.
+>
+> 🧪 **4.050 testes, 0 falhas** (11 novos). ✅ **Conferido no navegador ponta a ponta**, com professor, local e horários criados pela própria tela: as três ações na linha, a correção de 08:00–12:00 pra 07:00–11:00 com 90 min salva, a tentativa de mover a segunda pra cima da quarta **recusada** com as duas linhas intactas, e o apagar deixando só a quarta. **Zero migration.**
+>
+> Antes, no mesmo dia: 🏓 **REGISTRAR JOGO DIRETO DA TELA DA SEMANA, JÁ NA DATA DAQUELE JOGO** (commit `43684be`). Pergunta do Felipe: *"por que aqui não posso adicionar o jogo ou resultado?"* — e eram **dois** motivos, não um: o botão só existia no Ranking geral, **e** a Pinel Gravataí tem 2 membros, então ele bateria no aviso de "precisa de 4 pessoas" logo em seguida (isso o `e4809dc` já resolveu — convidado conta).
+>
+> ⚠️ **A DATA NÃO É DETALHE — o ranking DA SEMANA é fatiado por data** (`DataJogo > início && <= fim`). O formulário abria sempre em "hoje": quem lançava na quarta o jogo de terça gravava o dia errado, e **um dia a mais joga a partida pra semana seguinte** — ela some do quadro daquela semana e aparece na outra, sem erro nenhum. Vindo da tela da semana, o formulário abre na data **daquele** jogo; vindo do Ranking geral, continua em hoje.
+>
+> ⚠️ **A data pré-preenchida pode ser FUTURA** (é o jogo marcado, que ainda não aconteceu). Preencher e calar seria trocar um erro por outro: entrou um aviso que **só aparece nesse caso**, e o campo está do lado, editável.
+>
+> ↩️ **Depois de salvar, a pessoa volta pra semana de onde veio** — quem lançou o placar quer ver o ranking **daquela** semana mudar na frente dela. A recusa também preserva a data: voltar pro "hoje" faria perder o que estava sendo lançado junto com o erro.
+>
+> 🧪 **4.016 testes, 0 falhas** (4 novos). ✅ **Conferido ponta a ponta no navegador**: botão na semana de 18/08, formulário abriu em `2026-08-18` (hoje é 13/08) **com** o aviso de data futura, o POST voltou pra `/Grupos/Semana?data=2026-08-18` e o ranking da semana já mostrava os 3 pontos.
+>
+> Antes, no mesmo dia: 🥅 **PANELINHA: SEMANA ATUAL NUM CLIQUE, CONVITE COM BUSCA, E O PLACAR ACEITA CONVIDADO** (commit `e4809dc`). Junto, o conserto do `<form>` aninhado do Criar Torneio.
+>
+> 🕳️ **O `<form>` DENTRO DO OUTRO ESTAVA QUEBRANDO O CRIAR TORNEIO EM SILÊNCIO.** HTML não deixa aninhar `<form>`, e o navegador "conserta" a marcação **fechando o de fora** naquele ponto: o formulário terminava com **10 campos**, e `Nome`, `ClubeId`, `PrecoInscricao`, `ChavePixOrganizador` e as categorias caíam **todos fora dele**. Quem via aquele aviso — justamente **quem ainda não é organizador aprovado** — preenchia a tela inteira e o POST levava só o formato. ⚠️ Não quebrava build, nem Razor: o servidor recebia um pedido que parecia apenas mal preenchido. O formulário do pedido de perfil saiu **pra fora** e o botão chega nele pelo atributo `form=`.
+>
+> 🧪 **E entrou um teste que varre TODAS as views atrás de `<form>` aninhado** — ele acusava o `Create.cshtml:198` antes do conserto. ⚠️ Precisou aprender a **ignorar comentário**, senão nascia vermelho em **4 arquivos certos**: vários comentários deste projeto *falam* sobre `<form>` (um deles pra dizer "aqui não existe um `<form>`, e há teste garantindo"). É a mesma lição do parser de vírgulas do `PwaArquivosTests`, de dois dias atrás.
+>
+> 🗓️ **"SEMANA ATUAL" no meio das duas setas.** ⚠️ A data é **calculada, não pedida**: um `ObterOuCriarSessaoAsync(grupo, null)` só pra saber a data faria **toda visita ao histórico gravar a sessão da semana corrente de lambuja**, com as confirmações "Pendente" do grupo inteiro e o lembrete de 24h em cima delas. O botão também **não manda `data`** — quem responde qual é a semana atual continua sendo um só.
+>
+> 🙋 **CONVIDAR SAIU DAS MÃOS DE QUEM ADMINISTRA.** Faltar um pro quarteto às 19h de terça é problema de quem vai jogar. É a **mesma régua que o `ConvidarParaGrupo` já usava dez linhas acima**, no mesmo controller. A busca são **duas na mesma caixa**: digitando, filtra no navegador por nome e login; no Enter, o servidor procura por **CPF ou login INTEIRO**, que acha quem os filtros de categoria/clube/horário deixaram de fora.
+>
+> 🔒 **A BUSCA É EXATA DE PROPÓSITO.** Um "começa com" viraria caça-níquel de CPF: digitar 555 e ir vendo nomes de gente real aparecer é varredura da base inteira, uma tecla por vez. E o **CPF não encosta no HTML** — se o filtro do navegador cobrisse CPF, a página teria que **carregar o CPF de todo mundo** pra poder comparar. Quem desligou convites não é achado nem pelo CPF exato, e a trava está **também no POST**.
+>
+> 🏓 **O PLACAR ACEITA CONVIDADO QUE NÃO ACEITOU O CONVITE.** O lançamento é **depois** do jogo, e a essa altura o "aceitar" não decide nada: a pessoa jogou. Exigir o aceite deixava o resultado da noite preso a um botão que ninguém mais ia apertar. ⚠️ **O convidado NÃO entra no ranking do grupo** — decisão, não esquecimento: `RecalcularPontuacaoAsync` escreve em `JogadorGrupo`, que só existe pra membro. De quebra, **os quatro `<select>` passaram a ser conferidos no servidor**: a lista da tela nunca foi trava.
+>
+> 🧪 **4.012 testes, 0 falhas** (18 novos). ✅ **Conferido no navegador**: em semana passada o meio da barra é link **sem `data`**, na corrente vira texto; o filtro foi de **11 pra 1** digitando "ana", pegou "BRU" maiúsculo e mostrou o vazio no "zzz"; e um **6x3 foi lançado com TRÊS convidados "Pendente"** — só o membro pontuou. **Zero migration.**
+>
+> ⚠️ **O que NÃO consegui provar no navegador**: o ramo do Criar Torneio que mostra o aviso de "formato bloqueado" — **todas as contas do banco local são organizador aprovado**, então ele não renderiza aqui. O ramo está coberto pelo teste que lê o arquivo (aninhamento + o par botão↔formulário) e pelo `PerfilDeOrganizadorTests`, que já cobre o `ViewBag`.
+>
+> Anterior: **13/08/2026** — 🚀 **`build-538-8ceaf0a` NO AR EM PROD E EM DEV.** Três queixas do Felipe numa tacada, e a primeira não era o que parecia.
+>
+> 👻 **"OS BOTÕES NÃO APARECEM NO TEMA CLARO" ERA A FONTE DOS ÍCONES NÃO CARREGANDO.** No print do menu aberto, "Início", "Torneio", "Aula", "Jogos", "Ranking" e "Buscar" estavam **todos** sem ícone — o que virou "pílula vazia" foram os controles que são **só** ícone (voltar, sino, tema, sair). ⚠️ **Ícone que não carrega não degrada: SOME**, e ninguém descobre que ali havia um botão. O `bootstrap-icons` era o **último asset de terceiro** do projeto (Bootstrap e jQuery já moravam em `wwwroot/lib`); agora é servido por nós, com o `<link>` trocado nos **DOIS** lugares (`_Layout` e a tela do portão, que tem `<head>` próprio).
+>
+> 🕳️ **E o motivo que decidiu não foi o celular de ninguém: a MESA DE CONTROLE.** Ela existe pra funcionar no ginásio **sem sinal** — o service worker guarda a página de propósito — mas os 6 ícones dela vinham de fora. Offline, a tela feita pra sobreviver sem rede abria **sem ícone nenhum**. O `.woff2` entrou no `STATIC_ASSETS` junto com o CSS e o `CACHE_NAME` subiu pra **v17**.
+>
+> 💬 **SOLICITAÇÃO DE AULA VOLTA PRO WHATSAPP** — reverte a decisão de 09/08, a pedido dele. ⚠️ **A armadilha**: o jeito de evitar o e-mail duplicado era `AppSemEmail`, que **calava o WhatsApp junto** — as duas coisas vinham amarradas sem ninguém ter decidido isso. Entrou `AppEWhatsAppSemEmail` (no **fim** do enum, pra não mexer no número dos outros) e as duas perguntas do entregador viraram função com nome (`VaiNoWhatsApp`/`VaiNoEmail`): o enum já era **2×2 disfarçado de lista**. A tela passou a prometer WhatsApp **só** pra professor que aceitou o canal e tem número válido.
+>
+> 🧾 **O COMPROVANTE DO PIX AGORA TEM PRA QUEM IR.** "Mande o comprovante pra ele depois de pagar" estava na tela sem dizer pra quem nem como — e esse dinheiro **não passa pelo Padelizou**, então não há a quem recorrer. Botão que abre a conversa com o **Criador**, já escrita. ⚠️ Um torneio pode ter **mais de um "Criador"** (nada no cadastro impede): sem ordem **TOTAL**, o jogador mandaria o comprovante pra pessoas diferentes a cada carregamento — um jura que não recebeu, o outro não sabe de nada. Ordena por `Id`. Ajudante organiza, mas quem recebe é quem tem o caixa.
+>
+> 🧪 **3.994 testes, 0 falhas.** Um teste-guarda existente pegou um efeito colateral meu: `PwaArquivosTests` separa o `STATIC_ASSETS` por vírgula, e **meu comentário tinha vírgulas** — cada trecho virava "arquivo que não existe". O teste ficava vermelho apontando pro arquivo em vez do próprio parser; ele passou a **ignorar comentário**, porque este projeto comenta muito.
+>
+> ✅ **Conferido em produção pelos sinais que valem** (`healthz` 200 não basta): symlink **e** `cwd` do processo em `build-538-8ceaf0a`, `NRestarts=0`, home/torneios/ranking em 200, `sw.js` servindo `padelizou-static-v17`, o `.woff2` em 200 **direto do nosso domínio** e **zero** referência a `cdn.jsdelivr.net/npm/bootstrap-icons` no HTML. **Journal sem uma exceção**, dados inteiros (**179 jogadores, 3 torneios, 14 pagamentos, 72 duplas**). O botão novo foi visto renderizado no **torneio 25**: "Enviar o comprovante pro Amadeu Souza no WhatsApp", com `wa.me` válido. **Zero migration.**
+>
+> ⚠️ **O dev estava 5 builds ATRÁS da prod** (531 contra 536) — este deploy emparelhou os dois. E a tag **contém** o que já rodava em prod (`git merge-base --is-ancestor bc0a1ec 8ceaf0a` conferido **antes** de publicar): sem isso, publicar por cima seria a regressão silenciosa que a memória descreve.
+>
+> 🕳️ **ACHADO E NÃO CONSERTADO (não é meu arquivo): `Views/Torneios/Create.cshtml` tem um `<form>` DENTRO do formulário de criação** (o botão "Solicitar permissão"). HTML não permite aninhar, e o navegador **fecha o de fora ali**. Medido no DOM: o formulário fica com **10 campos**, e `Nome`, `ClubeId`, `PrecoInscricao`, `ChavePixOrganizador` e `categoriasSelecionadas` ficam **fora dele** — quem não é organizador aprovado preenche tudo e o envio leva só o formato. Não toquei porque o arquivo estava sendo editado pela sessão paralela (a linha do `<form>` mudou entre duas leituras). Tarefa registrada com a medição.
+>
+> Anterior: **12/08/2026 (noite)** — 🪪 **MAIS TRÊS PORTAS: os dois cards novos e o mural que chama pra fechar dupla** (commit `ed590ca`, **ainda não publicado em prod**). Com isso, **as 5 ideias que o Felipe aprovou à tarde estão todas codadas** (o convite por link saiu pela sessão paralela em `bc0a1ec`).
+>
+> 🚀 **CORREÇÃO DO QUE ESTE MESMO BLOCO DIZIA: o `7866479` JÁ ESTÁ EM PRODUÇÃO.** Ele foi publicado às **20:57 UTC (17:57 de Brasília) pelo deploy que a sessão paralela disparou em `bc0a1ec`** — que tem o meu commit como ancestral. É exatamente a lição registrada: **o deploy do OUTRO publica o SEU código**, e quem escreve "ainda não publicado" no STATUS erra sozinho poucas horas depois. ✅ Conferido de fora, não pelo log do Actions: `/Professores/Comecar` responde **200 com o FAQPage no HTML**, `/Torneios/Details/22`, `/Jogadores/Ranking` e `/Professores` em 200 — e é isso que prova que **as duas migrations (`TorneioOrigem`, `AvaliacaoDoTorneio`) aplicaram**: sem a coluna nova, toda tela que materializa `Torneio` daria 500. `/Cartoes/Jogador/1` responde **404**, que é a contraprova de que o `ed590ca` (cards + mural) **NÃO** subiu.
+>
+> 🪪 **CARD DO JOGADOR** (`/Cartoes/Jogador/{id}`): a carteirinha de TODO MUNDO — foto, nível do padelímetro (com a régua feminina certa, a mesma conta do perfil), lado da quadra, torneios/títulos/vitórias e os elogios mais recebidos ("O QUE A QUADRA DIZ"). Sem régua mínima de jogos, de propósito: é identidade, não retrospectiva. Badge no perfil (**no commit 2** — o Perfil.cshtml está com os palpiteiros da paralela no meio).
+>
+> ⚡ **CARD DO DUELO** (`/Cartoes/Duelo/{id}`): o confronto direto virou arte de provocação — "BRUNO 0 × 1 DIEGO, 1 jogo entre si". **Sempre do ponto de vista de quem pede** (exige login: a provocação é de um dos dois, não uma página sobre terceiros), e **0×0 não vira card**. Sem `OgImagem` de propósito: a imagem exige sessão e o servidor da Meta não tem uma — o card viaja como ARQUIVO pelo botão de compartilhar. Botão na tela de confronto.
+>
+> 👁️ **OLHAR A ARTE PEGOU O QUE OS TESTES NÃO PEGARAM (de novo):** "Diego Martins (Diguinho)" saía com as iniciais **"D("** no círculo — o parêntese do apelido virava "último nome". `Iniciais()` agora só conta palavra que começa com LETRA, e o conserto vale pra TODOS os cards (o de campeão também recebia `ComoChamar`). Teste com o caso exato preso.
+>
+> 🙋 **MURAL "PROCURO DUPLA" — a lista de inscritos virou ação.** Quem está "Procurando parceiro" já aparecia na lista pública; agora qualquer jogador logado manda o **"Quero jogar com fulano"** num clique. O chamado é SÓ O RECADO (push + caixa de avisos, `AppSemEmail`): quem fecha a dupla é o dono da inscrição, pelo **convite por link** que a paralela entregou — o mural não mexe em inscrição de ninguém, e por isso não precisa de regra de preço, vaga ou ranking. **UM chamado por pessoa por inscrição**, índice único no banco (o anti-spam não é a checagem em C#). Tabela `ChamadoDoMural` também mede se o mural forma dupla.
+>
+> 🏟️ **RANKING DA CASA** (`?clubeId=` no ranking): todos os torneios do clube somados — "os melhores da Arena Beira Rio (12 torneios)". Terceiro grupo do MESMO seletor (Circuitos · Casa · Torneios), mesma régua da vitrine. 🕳️ **De quebra, matou um 500 dormindo**: o ramo antigo `?clubeId=` devolvia a view `RankingPorClube`, **que não existe no projeto** — qualquer visita era erro. ⚠️ Codado e conferido, mas **fora do commit** (arquivos dos palpiteiros) — vai no commit 2.
+>
+> 🧪 Suíte verde ao longo do dia (3.958 no último full run). ✅ Conferido no navegador: **as duas artes baixadas e OLHADAS** (foi assim que o "D(" apareceu), chamado do mural gravado no banco e o aviso na caixa do dono com o nome de quem chamou. **1 migration** (`ChamadoDoMural`).
+>
+> 📋 **Aprovadas pelo Felipe e ANOTADAS PRA DEPOIS**: QR na quadra (A4 pro clube), push "abriu inscrição na sua cidade/categoria", vitrine fair play/mais elogiados, vitrine melhor professor. E "indicação com desconto" segue em análise (dele).
+>
+> ⏭️ **Commit 2 continua esperando os palpiteiros**: filtro de circuito + ranking da casa na tela, badges de card no perfil, testes com `serieId` e este STATUS.
+>
+> Anterior: **12/08/2026** — 🚪 **QUATRO PORTAS DE CRESCIMENTO CODADAS** (commit `7866479`, **ainda não publicado em prod**): duplicar torneio, enquete pós-torneio, a página do iniciante e 2 conquistas novas.
+>
+> 🔁 **DUPLICAR TORNEIO — "criar a próxima edição" com um clique** (pedido do Felipe). Só **organizador DESTE torneio** duplica (nem admin entra por aqui — duplicar cria torneio em nome de quem clicou). A cópia leva a ESTRUTURA (categorias com limite, quadras com nome, preferência de quadra remapeada, equipe — quem duplicou vira **Criador**, que é quem recebe) e nada do que aconteceu: sem inscrições, sem datas, **inscrições nascem FECHADAS**, e a edição volta pra **fila de aprovação**. ⚠️ O coração é o par de listas em `Services/DuplicacaoDeTorneio` (`Copiadas`/`NaoViajam`): **a lista É o comportamento** (a cópia itera sobre ela), e um teste de reflexão recusa propriedade nova do `Torneio` que não escolher lado — sem isso, o campo de amanhã entraria na cópia (ou ficaria de fora) em silêncio. Torneio restrito ganha **chave NOVA** (a velha já circulou em grupo); "pelo site" sem conta de quem duplicou **cai pra "por fora" avisando**. `Torneio.TorneioOrigemId` aponta sempre pra **RAIZ** (duplicar duplicata herda a origem) — é a série.
+>
+> 🏆 **FILTRO "TODAS AS EDIÇÕES" NO RANKING** (o circuito): `ObterRankingDoTorneioAsync` agora soma uma lista de torneios — bicampeão do circuito aparece com **2 títulos**. O seletor ganha o optgroup "Circuitos" quando existe série com 2+ edições **visíveis** (`?serieId=` montado à mão não soma torneio oculto). ⚠️ **A parte de tela está codada mas FORA do commit**: `JogadorsController`/`Ranking.cshtml` estão com os palpiteiros da sessão paralela no meio — commitar levaria trabalho dela pela metade. Entra num segundo commit quando ela fechar.
+>
+> ⭐ **ENQUETE PÓS-TORNEIO — a coleta do "Melhor Clube 2027" começou.** Quem jogou dá nota (1–5) pro **clube** e pra **organização**, na tela do MVP, na MESMA janela de 7 dias — o aviso do MVP agora convida pras duas coisas (um push só). ⚠️ **O interruptor `UsaVotacaoDeMvp` NÃO manda na enquete** (decisão): ele é do organizador sobre a disputa entre jogadores; a enquete é coleta NOSSA — sem isso, o dado de 2027 nasceria com buraco justo nos torneios de confraternização. Uma resposta por pessoa (índice único), responder de novo TROCA. **Média só com 3+ respostas**, visível na gestão. Por que agora: cada mês sem coleta é um mês a menos de dado pro prêmio.
+>
+> 🎾 **/Professores/Comecar — a porta de quem NUNCA jogou** (único público do site que ainda não é jogador). Três passos, a mesma vitrine de professores (consulta extraída, um dono só), FAQ com **FAQPage** no `ld+json`, entrada discreta na home de visitante. Na **allowlist** da busca (senão nascia `noindex` — a lição da letra) e no **sitemap**.
+>
+> 🎖️ **DUAS CONQUISTAS NOVAS (25→27): "Explorador"** (torneios em 3 clubes diferentes) e **"MVP"** (eleito pelos rivais — a única conquista que outra pessoa dá). A apuração **compõe** os donos que já existiam (`Encerrada` + `Apurar`): empate dá pros dois, desligar a votação **recolhe** a conquista. ⚠️ Os campos novos do record `DadosParaConquistas` têm **valor padrão** — coleta antiga continua compilando, e zero significa "não conquistou".
+>
+> 🧪 **3.921 testes, 0 falhas** (74 novos). ✅ Conferido no navegador local: duplicação ponta a ponta (modal → edição nova → banco), circuito no seletor com "2 edições", enquete respondida/pré-marcada/média `4,0` na gestão, funil com FAQPage válido, perfil com 7/27. **Duas migrations** (`TorneioOrigem` anulável; `AvaliacaoDoTorneio` tabela nova) aplicadas no LOCAL; prod sobe no deploy.
+>
+> ⏭️ **Falta**: o commit 2 (filtro de série na tela + testes com `serieId`, esperando os palpiteiros), publicar em produção, e a decisão do Felipe sobre as demais ideias propostas (QR na quadra, mural procuro-dupla, convite por link...).
+>
+> Anterior: **12/08/2026** — 📣 **O CARTAZ DO TORNEIO ESTÁ PRONTO** (`d95c9ab`, **ainda não publicado**). É a 1ª das cinco ideias de crescimento que o Felipe aprovou hoje.
+>
+> 🎯 **O que ele resolve:** o organizador divulga de qualquer jeito — hoje ele monta a arte no Canva e posta **uma imagem sem link nenhum**. Quem vê o cartaz no story do amigo fica sabendo do torneio e não tem como chegar até ele: pergunta no WhatsApp, ou desiste. Agora a arte nasce pronta com nome, data, clube, categorias e valor, e com um **QR que leva direto à página do torneio**. Quem divulga continua sendo ele; o que muda é que a divulgação passa a trazer gente pra dentro. Página em **`/Cartoes/Cartaz/{id}`**, botão na página do torneio, e **pública** — cada inscrito que chama a turma no grupo também divulga.
+>
+> ⚖️ **Três regras que o cartaz carrega, e o porquê de cada uma:** **cancelado e finalizado não viram cartaz** (é a peça que mais sobrevive ao próprio contexto — salva na galeria e reencaminhada dias depois, ela levaria gente ao clube num dia em que não há torneio); **o selo acompanha a porta da inscrição** ("INSCRIÇÕES ABERTAS" × "ACOMPANHE AO VIVO", porque anunciar inscrição fechada manda a pessoa apontar a câmera pra procurar um botão que não existe); e **o preço sai "por atleta"** — o padel anuncia por dupla e o valor do sistema é por pessoa, então sem a unidade escrita a dupla chega ao checkout esperando pagar metade, e a discussão sobra pro organizador com o nosso cartaz na mão dela.
+>
+> 👁️ **DOIS DEFEITOS FORAM PEGOS OLHANDO A ARTE, NÃO O CÓDIGO** — os testes estavam verdes nos dois casos. (1) O nome do torneio entrava **dentro da pílula** do selo: somei um CENTRO com uma LINHA DE BASE, o mesmo erro que deitou o card do ano. (2) **"4ª Feminina" quebrava no meio** entre duas linhas — resolvido com **NBSP dentro do nome da categoria**, deixando espaço comum só no separador, e aí a quebra cai onde faz sentido. ⚠️ O NBSP é indistinguível de um espaço no editor: tem comentário em cima avisando e teste com escape prendendo, senão um "isso está repetido" bem-intencionado desfaz a correção sem deixar rastro.
+>
+> 🔳 **O QR É AMPLIADO EM ESCALA INTEIRA E SEM SUAVIZAR**, e é isso que separa um QR que funciona de um que parece funcionar: o filtro bonito (o mesmo Mitchell das fotos) borra a borda de cada módulo, e o código passa a **ler na tela grande do desenvolvedor e falhar na câmera do celular sob a luz do clube**. Com escala inteira, cada módulo recebe exatamente os mesmos N pixels. 🧪 O teste varre o miolo do QR e exige **zero pixel cinza** — e de quebra ele prova que nada do cartaz está desenhado por cima do código.
+>
+> 📐 **O bloco de informação é centralizado no espaço que sobra**, senão o interno de clube ("Interno de Sábado", sem data marcada e sem preço) saía com **550px de navy liso** entre o nome e o QR. ⚠️ E a medida é feita **DESENHANDO num bitmap de 1×1 que vai pro lixo**: uma função separada que "calculasse a altura do miolo" seria uma **segunda cópia das regras de espaçamento**, e no dia em que alguém mexesse num `y +=` sem mexer na outra o cartaz sairia torto sem nenhum teste ficar vermelho.
+>
+> 🧪 **3.908 testes, 0 falhas** (27 novos). ✅ Conferido na arte, nos três casos: torneio cheio, torneio mínimo e torneio com capa — a capa entra sob um véu que devolve o navy antes de o texto começar, senão uma capa clara apagaria o nome do torneio (e isso só apareceria no dia em que alguém subisse uma, muito depois da conferência).
+>
+> 🚀 **JÁ ESTÁ EM PRODUÇÃO** — e não por deploy meu: o push e o deploy da **sessão paralela levaram o commit junto**, que é o padrão conhecido desta casa (*o deploy do OUTRO publica o SEU código*). Conferido no ar: `/Cartoes/Cartaz/22` responde **200**, o botão aparece no HTML público do torneio 22 e o PNG sai com **437 KB, 1080×1350** — ou seja, **a Poppins está no publish e o texto rasterizou no Linux**, que é a única coisa que este recurso tem de realmente frágil.
+>
+> 🐛 **E foi o cartaz REAL que revelou o defeito que nenhum teste pegaria**: a capa do torneio é quase sempre uma arte que **já tem o logotipo do organizador no meio**, e as raquetes do Padelizou caíam exatamente em cima — duas marcas empilhadas, nenhuma legível. ✅ Corrigido em `3ca3b3b`: **com capa, a nossa marca sai do topo** (a faixa lime, o navy, a pílula e o `padelizou.com.br` do rodapé continuam assinando) e a capa ganha o topo inteiro. Sem capa nada muda — lá ela preenche um espaço que sobraria vazio. ⏭️ **Este conserto ainda NÃO está publicado.**
+>
+> ⚠️ **`Views/Torneios/Details.cshtml` subiu com um bloco em andamento da sessão paralela** (ranking de palpiteiros) que não dava pra separar do meu botão. Ele é **inerte** sem o ViewBag do controller dela, que continua fora do commit.
+>
+> Anterior: **12/08/2026** — 🔮 **O PALPITRÔMETRO PASSOU A DIZER QUEM ACERTOU** (feito, **ainda não publicado**).
+>
+> 🎯 **Nasceu de uma pergunta de produto**: *"com o palpitômetro eu posso fazer bolão ou apostas?"* Resposta trabalhada e decidida: **bolão sim, aposta não** — e o que separa os dois não é o nome, é **quem encosta no dinheiro**. Aposta de quota fixa exige autorização da SPA/Fazenda (outorga na casa de R$ 30 mi por 5 anos, `.bet.br`, capital mínimo), e **bolão pago também é ilegal** mesmo sem a casa lucrar: recolher e distribuir o bolo é loteria não autorizada. ⚠️ **Mas o que quebra primeiro não é jurídico, é operacional**: todo gateway brasileiro veda jogo/aposta em contrato, e o bloqueio da conta **levaria junto inscrição de torneio, aula, mensalidade do professor e split do parceiro**. O caminho que sobra — e que foi feito — é **prêmio em status**.
+>
+> 📊 **A régua é QUANTIDADE DE ACERTOS** (`Services/PontosDoPalpite`) — um acerto, um ponto. Decisão do Felipe, e ela veio com o caso que a define: **quem acerta 9 de 11 fica na frente de quem acerta 8 de 8**. O aproveitamento aparece ao lado e **só desempata** (entre dois de 3 acertos, o de 3 palpites errou menos que o de 5). Há um teste com exatamente 9/11 × 8/8: se ele inverter, a regra mudou.
+>
+> ⚠️ **NÃO HÁ PISO MÍNIMO DE PALPITES, e não precisa haver** — quem acertou 1 de 1 tem 1 ponto e cai pro fim da lista sozinho. Era a MÉDIA que exigia piso (com ela, 1/1 = 100% lideraria pra sempre). **Se um dia alguém trocar esta régua por uma média, o piso tem que voltar junto.** 📌 Consequência aceita: **quem palpita em mais jogos leva vantagem** — de propósito, mesmo espírito da presença que pontua nos Desafios.
+>
+> 🔁 **Duas versões caíram antes desta, e a razão de cada queda vale mais que a régua**: (1) **ponderar pelo tamanho da zebra** — a razão técnica era real (o palpite é PÚBLICO, então com ponto fixo a jogada certa é sempre clicar no favorito), mas caiu por **legibilidade**; (2) **aproveitamento puro** — caiu pelo 9/11 × 8/8, e levou junto o piso de 3 que exigia. Nas duas, a mesma escolha: **a régua mais simples de conferir ganha da mais "justa"**.
+>
+> 🚫 **Quem joga a partida não entra na conta dela** — os quatro em quadra são os únicos que podem MUDAR o resultado do próprio palpite. Continua podendo votar (e o voto conta na barra); só não conta no ranking. ⚠️ **Em categoria de TIMES não exclui ninguém**: ali o `Jogador1` é o organizador que cadastrou, não quem entra em quadra — excluir por ali tiraria o acerto de quem nem jogou.
+>
+> 💾 **ZERO coluna nova, ZERO migration**: o acerto sempre esteve gravado (`PalpitePartida.DuplaEscolhidaId` contra `Partida.VencedorId`). Por isso o ranking **nasce com o histórico inteiro**, em vez de começar zerado.
+>
+> 📍 **Três lugares**: aba **Palpiteiros** no torneio (`/Torneios/Palpiteiros/{id}`, com pódio), **selo no perfil** do jogador e **aba no hub do Ranking** — esta obedecendo ao **mesmo filtro regional** das outras. A régua vem escrita ANTES da tabela nas três, com o exemplo do 9/11: sem ela, quem vê um **100% abaixo de um 75%** conclui que a conta quebrou. ⚠️ A frase-promessa do topo do hub (*"tudo aqui sai de resultado de torneio"*) passou a abrir exceção pra ela, como já fazia pros Desafios: **cada aba nova que não medir resultado de chave precisa entrar naquela lista**.
+>
+> 🐛 **Um defeito que só o Postgres pegou, e vale pra qualquer serviço novo**: `.Where(...)` encaixado **depois** do `.Select(...)` de uma projeção o **InMemory dos testes aceita numa boa e o Postgres RECUSA em execução**. Os testes passaram verdes e o **perfil caiu com 500** ao abrir no navegador. Todo filtro entra ANTES da projeção — está escrito em cima do método.
+>
+> 🧪 **3.963 testes, 0 falhas**. ✅ **Conferido no navegador com dado plantado no banco local**: a tabela do torneio 9 sai `3 · 2 · 2 · 2 · 1…`, os três empatados em 2 acertos saem desempatados por aproveitamento (`100% → 66,7% → 50%`) e o jogador que palpitou no **próprio jogo** não aparece.
+>
+> Anterior: **12/08/2026** — 🗓️ **A LISTA DE 2027 SAIU DA CONVERSA E ENTROU NO DOCUMENTO** (planejamento; **nada codado**).
+>
+> 📋 Nova seção **"🗓️ Ideias para 2027 (e o que não precisa esperar)"**, com as **7 ideias fechadas pelo Felipe em 11/08** separadas por um critério só: *depende de um ano inteiro de dados?* As que dependem esperam; as **5 que não dependem** valem já em 2026 — e uma delas (**MVP do torneio**) já está no ar desde 11/08.
+>
+> ⚠️ **A trava de tudo isto não é código, é DADO**: produção tem **zero partidas finalizadas** em torneio que conta pro ranking (conferido 11/08). Qualquer premiação anual codada hoje abriria **vazia** — por isso a fila é essa, e não a ordem de simpatia.
+>
+> ✅ **E o Felipe escolheu CINCO delas na mesma conversa, pra fazer ainda em 2026**: **cartaz do torneio pronto pra postar**, **convite de parceiro por link**, **mural "procuro dupla"**, **"abriu inscrição na sua cidade"** e **ranking da casa**. Ficaram de fora QR na quadra, duelo e card do jogador. **Nada codado ainda.**
+>
+> 🎯 **O mural veio com o desenho dele, e ele conserta um defeito que já existe**: quem se inscreve sem parceiro marca **"aguardando meu parceiro"** ou **"procurando parceiro"**, e só o segundo entra no mural. Hoje `Dupla` com `Jogador2Id` nulo quer dizer **as duas coisas ao mesmo tempo** — um mural montado só nessa coluna publicaria quem já tem dupla combinada, e morreria na segunda semana de gente levando não. A escolha na inscrição separa os estados **e** já é o consentimento, sem virar configuração escondida.
+>
+> ⚠️ **O ranking da casa foi aprovado sabendo que o dado ainda não nasceu** — a estrutura sobe agora e enche conforme os torneios acontecem. O cuidado é a **tela vazia**: clube sem jogo não mostra quadro vazio, pela mesma regra das páginas por cidade.
+>
+> 🧠 **A memória do projeto foi consolidada** (122 → 117 arquivos): saiu ~60 KB vencido, entre ele um procedimento de deploy da época do Azure SQL que mandava rodar `dotnet ef database update` contra um banco que não existe mais.
 >
 > Anterior: **12/08/2026** — 🔌 **A PARCERIA COM O RANKING PASSOU A TER MÃO DUPLA** (feito, **ainda não publicado**).
 >
@@ -35,48 +229,7 @@
 >
 > 📤 **O DOCUMENTO E A CHAVE JÁ FORAM PRO PABLO** (WhatsApp, 12/08 às 16:08 — `Padelizou-API-Torneios.pdf` e a chave em mensagem separada). ⚠️ **E O CÓDIGO AINDA NÃO ESTÁ NO AR**: conferido agora, `https://padelizou.com.br/api/ranking/torneios` responde **404 em HTML** (a página amiga de "não encontrado"). Se o dev dele testar antes do deploy, é isso que ele vê — e 404 em HTML parece integração quebrada, não integração pendente.
 >
-> ✅ **NO AR EM PRODUÇÃO** (13/08/2026, commit `87cd75b`, Deploy #14). Conferido por chamada real, não pelo "Feito" do script: **200** com a chave, **401** sem ela, `Cache-Control: no-store`, e a lista voltou com o **NATA PADEL TOUR** — clube Radar (Gravataí/RS), 10–11/10, R$ 125, capa e **8 categorias com o de-para** (as duas 7ª com `rankingId: null`, que é o certo — elas não existem no catálogo deles).
->
-> 🕳️ **A CHAVE NÃO ENTROU NA PRIMEIRA TENTATIVA, E A CULPA ERA DO POWERSHELL.** Ele **come as barras invertidas** ao repassar o comando pro `ssh`: o `printf "[Service]\nEnvironment=…"` chegou no servidor como `printf "[Service]nEnvironment=…"` e gravou o drop-in **numa linha só**, com `n` no lugar da quebra. O systemd descartou **calado** — o serviço reiniciou normal, e só a API sabia (503). ⚠️ **Comando pra servidor via PowerShell: sem uma barra invertida sequer.** A versão que funcionou usa dois `echo` com `>>`, e o valor vai **sem aspas** (systemd só precisa delas com espaço no valor). Quem denunciou foi `cat -A` — o `# Padelizou — Status e Roadmap
-
-> **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **13/08/2026** — 🚀 **`build-540-e4809dc` NO AR EM PROD** (11:33 de Brasília). Publicado a pedido do Felipe: *"comita e publica se não foi publicado ainda"*. Levou junto tudo o que se acumulou desde ontem à noite: **ícones servidos por nós, aula avisando no WhatsApp, comprovante do Pix com destino** (build 538), **copiar as configurações de um torneio já feito** (539) e a **panelinha** — semana atual num clique, convite com busca, placar aceitando convidado (540).
->
-> 🪆 **O QUE MOTIVOU O DEPLOY: criar torneio estava quebrado pra quem NÃO é organizador.** O `<form>` do pedido de perfil de organizador estava **dentro** do formulário de criação, e HTML não permite aninhar: o navegador fecha o de fora naquele ponto. O formulário de criação terminava com **10 campos** — `Nome`, `ClubeId`, `PrecoInscricao`, `ChavePixOrganizador`, `DataInicio` e as categorias caíam **todos fora**. A pessoa preenchia a tela inteira e o envio levava **só o `Formato`**. Atingia exatamente o público que o *"Americano é livre: qualquer pessoa cria"* acabou de convidar.
->
-> 👯 **DUAS SESSÕES CONSERTARAM O MESMO BUG EM PARALELO, e isso é informação — não desperdício.** O que está no ar é o conserto do **`e4809dc`** (sessão da panelinha), que chegou ao `main` primeiro e vem com **um teste que varre todas as views atrás de `<form>` aninhado**. O desenho das duas soluções bateu sem combinação nenhuma: formulário do pedido **fora** do de criação e o botão chegando nele pelo atributo **`form=`**. A segunda sessão descartou o próprio commit em vez de empurrar código repetido — a verificação dela no navegador virou confirmação independente do conserto alheio.
->
-> ✅ **CONFERIDO NO NAVEGADOR, com um usuário sem perfil de organizador**: `document.querySelector('[name="ChavePixOrganizador"]').form` aponta pro `pdzFormCriacao`, que passou de **10 para 144 campos**; dois formulários na página e **nenhum aninhado**; o botão "Solicitar permissão" dispara o formulário certo e **não cria torneio nenhum** (conferido no banco); e a posição dele na tela **não mudou** — medida antes e depois, idêntica.
->
-> 🍪 **A ARMADILHA QUE QUASE INVALIDOU O TESTE: cookie de sessão IGNORA a porta.** `localhost:5162` e `localhost:5155` são o **mesmo host** pro navegador, então a instância nova subiu já logada como o usuário da sessão paralela — e o `AcessoAntecipadoMiddleware` só faz o auto-login por CPF quando **não** há autenticação, ou seja o `LoginAutomaticoCpf` configurado foi **silenciosamente ignorado**. A tela abria bonita, com o perfil errado, e o bug ficava invisível. Saída: entrar por **`127.0.0.1`**, que pra cookie é outro host — sem deslogar as sessões do lado.
->
-> 🕳️ **E a lição que generaliza: `<form>` aninhado NÃO dá erro em lugar nenhum.** Não quebra o build, não quebra o Razor, não aparece no console, e o HTML bruto parece certo — um só par `<form>`/`</form>` com todos os campos dentro, com o `grep` concordando. Quem denuncia é o **DOM**: `document.forms`, `form.elements.length` e, definitivo, **`campo.form`** — que respeita a árvore real e não onde a tag está escrita.
->
-> ⚠️ **O `43684be` (build-541) NÃO está no ar**: ele entrou no `main` **um minuto** antes do deploy e o CI só empacotou **quatro minutos depois**. O `deploy.sh` sem argumento pegou a release mais nova que existia no instante — o comportamento correto, e nada foi regredido (o que estava no ar era o build-537).
->
-> 🔒 **A prova de que a versão nova subiu veio do HTML público, não do "Feito" do script**: a home agora serve `~/lib/bootstrap-icons/…` com hash de versão (o `asp-append-version`) e o arquivo responde **200** — isso é do build 538, que **não** estava no ar antes. Home, `/Torneios`, `/Jogadores/Ranking` e `/healthz` em **200**, `/Torneios/Create` em 302 (pede login, como deve). Reconferido minutos depois: **sem deploy concorrente**. ⚠️ **Faltou a conferência pelo servidor** (`readlink -f`, `cwd` do processo, `NRestarts`, journal): o acesso SSH foi **bloqueado nesta sessão**, então a checagem por dentro do VPS não foi feita.
->
-> Anterior: **12/08/2026** — 🔌 **A PARCERIA COM O RANKING PASSOU A TER MÃO DUPLA** (feito, **ainda não publicado**).
->
-> 📥 **`GET /api/ranking/torneios`**: a primeira porta deste sistema que um terceiro lê por conta própria. Pedido do dono do Ranking Brasil, com o escopo escrito por ele: *"uma API que libera buscarmos os torneios pontuados no ranking — apenas informações dos torneios, como nome, clube, data, foto. **Não precisa nenhum dado dos atletas**."* Documento pra mandar pra ele: **`API-TORNEIOS.md`**.
->
-> 🎯 **Quem entra na lista são as três condições juntas** (`Services/TorneiosParaOParceiroDoRanking.EntraNaLista`): aderiu ao ranking (`ValidarPeloRankingRs`) + inscrição aberta (`PortaDaInscricao`) + já é público no site (`PermissaoDeOrganizador.ApareceParaOPublico`). ⚠️ A primeira é a **MESMA coluna do acerto de R$ 1 por inscrito** — a lista que ele lê e a conta que a gente paga enxergam o mesmo conjunto, de propósito.
->
-> 🚨 **NENHUM DADO DE ATLETA SAI DALI, e isso é teste, não promessa** — nem a **contagem** de inscritos ("só um totalzinho" é como escopo combinado vira outro sem ninguém decidir nada). O teste **serializa o corpo inteiro** e o confere contra o nome, o CPF e o e-mail de quem está inscrito: campo novo que arraste uma navegação junto fica **vermelho** em vez de virar nome de gente publicado no site de outra empresa.
->
-> 🔑 **SÃO DUAS CHAVES AGORA, e trocá-las é o erro caro**: `RankingRs__ApiKey` é a chave **dele**, que a gente manda pra perguntar; `RankingRs__ChaveDoParceiro` é a **nossa**, que ele manda pra ler. Se a nossa porta conferisse a primeira, bastaria bater nela com a chave dele pra descobrir que é válida. A nova nasce **desligada** (sem ela, 503) e **recusa chave com menos de 20 caracteres** — chave curta protege tão pouco quanto nenhuma, e o jeito de isso passar batido é a API responder normalmente. Comparação de **tempo fixo** (`CryptographicOperations`), não `==`.
->
-> 🕳️ **O PORTÃO DE ACESSO ANTECIPADO TERIA ENGOLIDO A INTEGRAÇÃO** — quem chama é um servidor, sem cookie e sem tela onde digitar senha: com o portão ligado ele levaria **302 pra uma página HTML de login**, e do lado dele isso apareceria como "o Padelizou respondeu HTML no lugar do JSON". Liberado o prefixo `/api/ranking` (e **só ele**, não `/api` inteiro). ✅ Provado rodando local **com o portão LIGADO**: a home devolveu 302 e a API devolveu 401/200 JSON.
->
-> ⚠️ **`ControllerBase`, não `Controller`**: sem view, sem TempData, sem sessão — e de quebra os testes de reflexão que varrem as *telas* (antifalsificação, meta de busca) não passam por ali, que é o certo. Trava de 60 chamadas por 5 min (a mesma das consultas do site) e `Cache-Control: no-store`.
->
-> 🧪 **3.847 testes, 0 falhas** (23 novos). ✅ E conferido no ar local de verdade, não só em teste: torneio que aderiu apareceu com clube, cidade, capa, datas e o de-para das categorias; o que não aderiu ficou de fora.
->
-> 📤 **O DOCUMENTO E A CHAVE JÁ FORAM PRO PABLO** (WhatsApp, 12/08 às 16:08 — `Padelizou-API-Torneios.pdf` e a chave em mensagem separada). ⚠️ **E O CÓDIGO AINDA NÃO ESTÁ NO AR**: conferido agora, `https://padelizou.com.br/api/ranking/torneios` responde **404 em HTML** (a página amiga de "não encontrado"). Se o dev dele testar antes do deploy, é isso que ele vê — e 404 em HTML parece integração quebrada, não integração pendente.
->
- no fim de cada linha prova que são duas — e a variável lida de dentro do processo, em `/proc/<pid>/environ`.
->
-> 🖼️ **A LOGO NOVA DELES ENTROU** — `/image/ranking-brasil.jpg`, ligada em `MarcaDoRanking.Logo`. ⚠️ Ela chegou salva como **`ranking-brasil.png.jpeg`**: um JPEG com nome de PNG, porque o Explorer esconde a extensão de verdade. Servida como `image/png`, o navegador a **recusaria** — o Caddy manda `X-Content-Type-Options: nosniff` em toda resposta, e tipo declarado que não bate com o conteúdo não renderiza. A logo sumiria da tela sem erro em lugar nenhum. Dois testes novos: o arquivo existe onde a constante aponta, e os **bytes** batem com a extensão.
+> ⏭️ **Falta publicar**: subir o build e pôr `RankingRs__ChaveDoParceiro` no systemd — **só em produção**, por decisão do Felipe (12/08). O dev sobe o mesmo binário e fica **sem chave**, respondendo 503, que é o certo pra um ambiente que ninguém combinou de usar; se um dia fizer falta, é uma linha lá, com valor **diferente** (a mesma chave nos dois faria a de teste abrir a produção). Os três documentos já foram ajustados: prometiam homologação com chave própria, agora dizem "sob pedido".
 >
 > ✨ **13/08 — "VANTAGENS EM HABILITAR O RANKING BRASIL" ENTROU NAS DUAS TELAS** (criar e editar torneio), pedido do Felipe. A caixa só explicava o que ela FAZ (barra quem já pontuou acima) — e ninguém marca uma caixa pelo que ela faz, marca pelo que ganha. O que se ganhava estava só na página deles, que ninguém sabia que existia: agora tem o bloco + o link pra `mundodoatleta.com.br/parceria-clubes` (endereço em `MarcaDoRanking.ParaClubes`, um lugar só, como o nome da marca).
 >
@@ -1402,33 +1555,6 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 ---
 
 ## ✅ Feito
-
-### 13/08/2026 — 🪆 Formulário dentro de formulário: criar torneio enviava só o formato
-
-Quem **não** é organizador aprovado abria `/Torneios/Create`, preenchia nome, clube, preço,
-chave Pix, data e categorias — e o envio levava **só o `Formato`**. Todo o resto era descartado
-pelo navegador antes de sair.
-
-**A causa:** o `<form>` do pedido de perfil de organizador (o botão "Solicitar permissão", no
-aviso do formato Oficial travado) estava **aninhado** dentro do `<form>` de criação. HTML não
-permite isso, e a reação do navegador não é erro: ele **fecha o formulário externo no ponto do
-interno**. Tudo que vinha depois — a página inteira — deixava de pertencer a ele.
-
-**Só afetava quem não tem o perfil**, porque o bloco do pedido nem é renderizado pra quem já é
-organizador. Quem testa com a própria conta de admin **nunca vê**. E ficou grave agora: desde
-*"O AMERICANO é livre: qualquer pessoa cria"*, é esse o público que a tela convida.
-
-**O conserto** (no `e4809dc`) tira o formulário do pedido de dentro do de criação e o botão
-chega nele pelo atributo **`form=`**, que dispensa o aninhamento. O estado do pedido virou uma
-conta única no topo da view — o aviso e o formulário agora ficam longe um do outro e não podem
-discordar. Entrou junto um teste que **varre todas as views** atrás de `<form>` aninhado; ele
-acusava o `Create.cshtml` antes do conserto, e precisou aprender a **ignorar comentário**,
-senão nascia vermelho em quatro arquivos certos (vários comentários deste projeto *falam* sobre
-`<form>`).
-
-**A lição que generaliza:** estrutura de formulário só se confere no **DOM**. O fonte tinha um
-só par `<form>`/`</form>` com tudo dentro e o `grep` concordava — foi `document.forms` que
-mostrou 10 campos onde deviam existir 144, e `campo.form` que apontou o culpado.
 
 ### 06/08/2026 (fim da noite) — 🚨 Erro em produção deixou de ser invisível
 
@@ -2887,6 +3013,110 @@ Quase confirmados, em três frentes:
 - [ ] **Play Store** via empacotamento do PWA `1 dia`
 
 💡 = ideia que não estava no diagnóstico original
+
+---
+
+## 🗓️ Ideias para 2027 (e o que não precisa esperar)
+
+**Lista fechada pelo Felipe em 11/08/2026. Nada codado — é planejamento.**
+O corte não é de gosto, é de dado: **premiação anual precisa de um ano inteiro de jogos pra
+existir**. O que não é anual não tem por que esperar.
+
+⚠️ **A trava real de tudo isto não é código, é DADO.** Produção tem **zero partidas finalizadas**
+em torneio que conta pro ranking (conferido 11/08/2026). Uma premiação anual codada hoje abre
+vazia — e prêmio que estreia vazio queima a estreia, que só acontece uma vez.
+
+### Dependem do ciclo anual → 2027
+
+- **Desconto de 30% pro líder** da categoria no ranking. ⏳ **SÓ EM 2027** — é promoção **com
+  prazo**, não regra permanente: a data de fim é **condição de existir**, não observação de
+  marketing. Sem ela vira benefício adquirido, e tirar depois é "aumento" (mesma lição do
+  "até 4 quadras"). Vale pra quem for líder **no dia em que o torneio começa**, o que exige
+  **guardar a foto do ranking daquele dia** — o ranking de hoje muda amanhã e não dá pra
+  recalcular depois quem tinha direito. ❓ Em aberto: **quem banca** (o organizador ou a nossa
+  comissão) e o **sandbagging** que ele incentiva.
+- **Troféu do time líder** + **"Melhor Clube do ano PADELIZOU"**, com votação (quadra,
+  atendimento). A votação pode abrir a qualquer momento; **a apuração é que é anual**.
+- **Padelizou Awards** — MVP, melhor clube, time do ano e o Masters numa data única de
+  encerramento, com página própria. Vira pauta, e clube quer aparecer nela.
+- **Revelação do ano** — quem mais subiu no ranking. É o prêmio do jogador **mediano**, que é a
+  maioria; todo o resto olha só pro topo.
+- **Torneio dos Campeões (Masters)** — os **4 melhores de direita × 4 melhores de esquerda** de
+  cada categoria (3ª à 7ª, feminina e masculina), em duplas cruzadas (1º esq + 4º dir, 2º + 3º…),
+  no estilo convite do ATP Finals. Jogar o ano pra **se classificar** dá propósito contínuo ao
+  ranking. ✅ O lado já existe: `Jogador.LadoQuadra` ("Esquerda"/"Direita").
+- **Cinturão do ano** — quem segurou o cinturão por mais tempo. Sai quase de graça em cima da
+  fase 3 dos Desafios, **já construída e no ar, ainda fechada** por `Desafios__Habilitado`.
+- **Quem mais participou de torneios no ano** (pedido do Felipe, 11/08). É o prêmio de
+  **frequência**, não de resultado — premia quem sustenta o calendário, que é exatamente o
+  cliente que o Padelizou quer. ✅ **O número já existe e já é contado certo**: é o `Torneios` da
+  retrospectiva (`EstatisticasService.ObterRetrospectivaAsync`), que conta torneios **DISTINTOS**
+  (no Americano cada rodada cria uma dupla, e quem entra em duas categorias contaria dobrado) e
+  já exclui lista de espera e quem ficou sem parceiro. **Falta só a vitrine** — é a premiação
+  mais barata da lista inteira.
+
+### Não são anuais → valem já em 2026
+
+- [x] **MVP do torneio** ✅ **no ar desde 11/08/2026** (`build-521`) — quem jogou elege entre os
+      campeões, janela de 7 dias, aviso automático quando o torneio acaba.
+- [ ] **Fair play / mais elogiados** — os elogios já existem no perfil e já têm dado. Como
+      **ranking corrente** funciona hoje; como "do ano" espera dezembro. Falta a vitrine.
+- [ ] **Melhor professor, votado pelos alunos** — as avaliações de aula já existem. Mesma coisa:
+      vitrine agora, prêmio anual depois. É retenção do segmento que **paga plano**.
+- [ ] **Indicação com desconto** ⚠️ *em análise* — não depende de data nenhuma. É a única da
+      lista que **paga por conta nova** em vez de premiar quem já está dentro.
+
+### ✅ Crescimento — **aprovado pelo Felipe em 12/08/2026, pra fazer AINDA EM 2026**
+
+Cinco das oito propostas de 12/08. **Nada codado ainda.**
+
+1. [x] **Cartaz do torneio pronto pra postar** ✅ **feito em 12/08/2026** (`d95c9ab`, ainda não
+   publicado) — ver o topo deste documento. Saiu com **um modelo fixo** usando a capa do
+   torneio e **por botão**, não automático: cartaz que sai sozinho na hora que a inscrição abre
+   pega o torneio antes de o organizador ter revisado os dados. Trocar cor/logo de patrocinador
+   ficou de fora desta primeira versão.
+   📌 O "resumo pro Instagram" do backlog da Fase 6 é o **mesmo motor** virado pro depois do
+   torneio — quando for a hora, é layout novo, não tecnologia nova.
+
+2. **Convite de parceiro por link** (já estava no backlog da Fase 6). Hoje inscrever a dupla
+   **exige o CPF do outro**, o que trava na hora do "me manda seu CPF". Por link,
+   **cada inscrição arrasta uma pessoa de fora pra dentro** — é a máquina de cadastro mais
+   direta que existe aqui. Meio caminho feito: dá pra se inscrever sem parceiro desde o build-17.
+
+3. **Mural "procuro dupla"**, por torneio e categoria — **com a escolha feita NA INSCRIÇÃO**
+   (desenho do Felipe, 12/08): quem entra sem parceiro marca **"aguardando meu parceiro"** ou
+   **"procurando parceiro"**, e **só quem marca *procurando* aparece no mural**.
+   ⚠️ **Isso conserta uma ambiguidade que já existe hoje**: `Dupla` com `Jogador2Id` nulo
+   significa **as duas coisas ao mesmo tempo** — "meu parceiro ainda não confirmou" e "não tenho
+   com quem jogar". Um mural montado só em cima dessa coluna publicaria gente que já tem dupla
+   combinada; quem chamasse levaria não, e o mural morreria na segunda semana. A escolha na
+   inscrição resolve os dois problemas de uma vez: separa os estados **e** já é o consentimento
+   de aparecer, sem virar configuração escondida que ninguém acha.
+   💡 Não ter com quem jogar é o motivo nº 1 de não se inscrever, e cada par formado são **duas**
+   inscrições.
+
+4. **"Abriu inscrição na sua cidade, na sua categoria."** Traz de volta quem se cadastrou por um
+   torneio e sumiu — hoje são 177 contas. Cidade, categoria e push **já existem**.
+   ⚠️ Canal `AppSemEmail`: a lição da cota de e-mail vale aqui igual, e este aviso é do tipo que
+   sai pra muita gente de uma vez.
+
+5. **Ranking da casa** (por clube) — "os melhores do Golden Point". Motivo de voltar ao site pro
+   jogador e argumento de venda do plano pro clube. ⚠️ **Aprovado sabendo que o dado ainda não
+   nasceu** (zero partidas finalizadas em prod): a estrutura sobe agora e enche conforme os
+   torneios acontecem. 🕳️ **O cuidado é a tela vazia** — clube sem jogo nenhum **não mostra
+   quadro vazio**; é a mesma regra das páginas por cidade, onde cidade sem torneio dá 404 em vez
+   de página deserta.
+
+### 💡 Fora desta rodada (propostas de 12/08 que não foram escolhidas)
+
+- **QR na quadra** — A4 imprimível pro clube pendurar. O público mais qualificado que existe está
+  fisicamente na quadra, e é o único canal da lista que não depende de ninguém compartilhar nada.
+  Custo quase zero: HTML→PDF já é ferramenta da casa.
+- **Duelo (head-to-head)** — "você e o Rafa já se enfrentaram 4 vezes: 3 a 1". ⚠️ Depende do dado
+  que falta.
+- **Card do jogador** (padelímetro, categoria, lado, elogios) — o card de **campeão** já existe,
+  mas só serve pra quem ganhou; este valeria pra todo mundo. Quase de graça sobre o que já foi
+  feito.
 
 ---
 
