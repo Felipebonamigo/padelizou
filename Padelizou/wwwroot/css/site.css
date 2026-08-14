@@ -3066,6 +3066,32 @@ button, a, input, select { touch-action: manipulation; }
     box-shadow: 0 0 calc(var(--anel) * 2) rgba(163, 216, 39, 0.3);
 }
 
+/* ── "NÃO QUERO VER MOLDURA NENHUMA" ───────────────────────────────────────────────────
+   Uma regra só, no <html>, e o sistema inteiro fica sem moldura — inclusive as fotos que
+   ainda não passam pelo parcial. É por isso que o desligamento mora no CSS e não no Razor:
+   um `if` na view teria que ser repetido em cada lugar que desenha foto, e o primeiro
+   esquecido seria justamente a tela que a pessoa abriu.
+
+   ⚠️ Zera as TRÊS camadas — anel (padding + background), verniz (::after) e ornamento
+   (::before). Esquecer o ::before deixaria a coroa flutuando sobre uma foto sem anel, que é
+   pior do que a moldura inteira. O `!important` existe porque cada moldura traz o próprio
+   background numa classe de mesma especificidade. */
+:root[data-molduras="off"] .pdz-foto[class*="pdz-m-"] {
+    padding: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+:root[data-molduras="off"] .pdz-foto[class*="pdz-m-"] > img {
+    box-shadow: none !important;
+}
+
+:root[data-molduras="off"] .pdz-foto[class*="pdz-m-"]::before,
+:root[data-molduras="off"] .pdz-foto[class*="pdz-m-"]::after {
+    display: none !important;
+}
+
 /* ── ORNAMENTOS: o que SAI do círculo ──────────────────────────────────────────────────
    As duas referências do Felipe (14/08) têm isto em comum: moldura de verdade não é só o
    anel — tem coroa, gema, louro, asa saindo do padrão. O ornamento é um ::before ABSOLUTO

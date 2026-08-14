@@ -35,6 +35,30 @@
         <div class="alert alert-warning">@TempData["Erro"]</div>
     }
 
+    @* ── "NÃO QUERO VER MOLDURA NENHUMA" ────────────────────────────────────────────────
+       Vem ANTES do guarda-roupa de propósito: quem chegou aqui pra desligar tudo não
+       precisa rolar por 27 molduras pra achar o botão de não vê-las.
+
+       ⚠️ É diferente de "sem moldura" logo abaixo, e a tela precisa dizer isso: aquele
+       tira a SUA; este esconde a de TODO MUNDO, só pra você. Sem essa distinção escrita, a
+       pessoa desliga um achando que desligou o outro. *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+            <i class="bi bi-eye-slash fs-3 text-muted"></i>
+            <div class="flex-grow-1" style="min-width: 12rem;">
+                <strong>Não mostrar molduras pra mim</strong>
+                <div class="small text-muted">
+                    Esconde a moldura de <strong>todo mundo</strong> — a sua e a dos outros — só
+                    na sua tela. Ninguém fica sabendo, e a sua continua vestida pra quem quiser ver.
+                </div>
+            </div>
+            <div class="form-check form-switch fs-5">
+                <input class="form-check-input" type="checkbox" role="switch" id="pdzSemMolduras">
+                <label class="form-check-label visually-hidden" for="pdzSemMolduras">Não mostrar molduras</label>
+            </div>
+        </div>
+    </div>
+
     @* A opção de sempre: foto limpa. Fica em destaque no topo pra ninguém se sentir preso
        a uma moldura — e é o estado de quem nunca escolheu nada. *@
     <div class="card shadow-sm border-0 mb-4">
@@ -128,3 +152,29 @@
         }
     </div>
 </div>
+
+<script>
+    (function () {
+        var chave = document.getElementById('pdzSemMolduras');
+        if (!chave) return;
+
+        // A MESMA chave que o _Layout lê no <head> antes do primeiro pixel — se os dois
+        // nomes divergirem, o interruptor liga e a tela seguinte volta a mostrar tudo.
+        var CHAVE = 'pdz-molduras';
+        var raiz = document.documentElement;
+
+        chave.checked = localStorage.getItem(CHAVE) === 'off';
+
+        chave.addEventListener('change', function () {
+            if (chave.checked) {
+                localStorage.setItem(CHAVE, 'off');
+                raiz.setAttribute('data-molduras', 'off');
+            } else {
+                // Removido em vez de gravar "on": a ausência da chave já É o padrão, e uma
+                // terceira grafia ("on") seria mais um valor pro <head> ter que entender.
+                localStorage.removeItem(CHAVE);
+                raiz.removeAttribute('data-molduras');
+            }
+        });
+    })();
+</script>
