@@ -85,6 +85,10 @@ builder.Services.Configure<MarcarJogoSettings>(builder.Configuration.GetSection(
 // As MOLDURAS ficam guardadas enquanto o Felipe decide o modelo (conquista × paga) —
 // ver Services/MoldurasSettings.
 builder.Services.Configure<MoldurasSettings>(builder.Configuration.GetSection("Molduras"));
+// ⚠️ E a regra de quem ENXERGA moldura mora num lugar só: a tela de escolha e quem desenha a
+// foto perguntam pro mesmo objeto. Portão fechado tem que apagar a moldura de quem já
+// escolheu — senão 404 na porta e a moldura na cara de todo mundo (ver PortaDasMolduras).
+builder.Services.AddSingleton<PortaDasMolduras>();
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).

@@ -213,6 +213,85 @@ public class MolduraDaFotoTests
     // ar" em "ninguém vê": desligado, a tela devolve 404 pra jogador comum. Ligar é uma linha
     // no systemd, não um deploy.
 
+    private static PortaDasMolduras PortaCom(bool habilitado, bool divertidas = false) =>
+        new(Microsoft.Extensions.Options.Options.Create(
+            new MoldurasSettings { Habilitado = habilitado, DivertidasLiberadas = divertidas }));
+
+    private static System.Security.Claims.ClaimsPrincipal Quem(bool admin)
+    {
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new(System.Security.Claims.ClaimTypes.NameIdentifier, "1"),
+        };
+        if (admin) claims.Add(new("IsAdmin", "true"));
+        return new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(claims, "Teste"));
+    }
+
+    // ⚠️ ESTE É O BURACO QUE PRODUÇÃO MOSTROU (14/08/2026): o portão fechava a PORTA e não a
+    // VITRINE. A tela dava 404, e a moldura de quem tinha escolhido antes do interruptor
+    // continuava DESENHADA em toda tela — a consulta em prod achou 1 jogador assim.
+    //
+    // A porta e o desenho têm que responder à mesma pergunta, e é isso que estes testes fixam.
+    [Fact]
+    public void Portao_fechado_esconde_a_moldura_de_quem_JA_escolheu()
+    {
+        var fechada = PortaCom(habilitado: false);
+
+        Assert.True(fechada.Fechada(Quem(admin: false)));
+
+        // O admin continua vendo — é assim que o Felipe avalia ao vivo antes de decidir.
+        Assert.False(fechada.Fechada(Quem(admin: true)));
+
+        // Ligado, todo mundo vê.
+        Assert.False(PortaCom(habilitado: true).Fechada(Quem(admin: false)));
+
+        // Visitante deslogado (o parcial desenha foto em tela pública) não pode explodir nem
+        // virar admin por acidente: sem claim, a porta está fechada.
+        Assert.True(fechada.Fechada(null));
+    }
+
+    // O teste acima prova a REGRA; este prova que quem DESENHA pergunta por ela. Sem isto, a
+    // regra continuaria certa e sozinha — que foi exatamente o estado que chegou em produção.
+    [Fact]
+    public void O_parcial_da_foto_consulta_o_portao_antes_de_montar_a_classe()
+    {
+        var parcial = File.ReadAllText(Path.Combine(
+            RaizDoRepo(), "Padelizou", "Views", "Shared", "_FotoDoJogador.cshtml"));
+
+        Assert.Contains("PortaDasMolduras", parcial);
+        Assert.Contains("Fechada(User)", parcial);
+    }
+
+    // ⚠️ `@inject` numa view só quebra em RUNTIME, na hora de desenhar: serviço não registrado
+    // derruba toda tela que mostra foto, com o app subindo saudável e o healthz em 200. Como
+    // o parcial passou a injetar o portão, o registro virou parte do contrato.
+    [Fact]
+    public void O_portao_esta_registrado_no_container()
+    {
+        var program = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "Program.cs"));
+
+        Assert.Contains("AddSingleton<PortaDasMolduras>", program);
+        Assert.Contains("Configure<MoldurasSettings>", program);
+    }
+
+    // E o parcial precisa continuar sendo o ÚNICO que desenha moldura: uma view que monte a
+    // classe pdz-m- por conta própria escapa do portão sem ninguém perceber.
+    [Fact]
+    public void Nenhuma_outra_view_desenha_moldura_por_fora_do_parcial()
+    {
+        var views = Path.Combine(RaizDoRepo(), "Padelizou", "Views");
+
+        var forasteiras = Directory.GetFiles(views, "*.cshtml", SearchOption.AllDirectories)
+            .Where(a => !a.EndsWith("_FotoDoJogador.cshtml"))
+            .Where(a => Regex.IsMatch(File.ReadAllText(a), @"pdz-m-[a-zA-Z]"))
+            .Select(a => Path.GetFileName(a))
+            .ToList();
+
+        Assert.True(forasteiras.Count == 0,
+            "View desenhando moldura sem passar pelo portão: " + string.Join(", ", forasteiras));
+    }
+
     private static padelizou.Controllers.MoldurasController ControllerMolduras(
         Padelizou.Models.DbPadelContext ctx, int euId, bool habilitado, bool admin = false)
     {
@@ -226,8 +305,7 @@ public class MolduraDaFotoTests
         if (admin) claims.Add(new("IsAdmin", "true"));
 
         var controller = new padelizou.Controllers.MoldurasController(
-            ctx, estatisticas,
-            Microsoft.Extensions.Options.Options.Create(new MoldurasSettings { Habilitado = habilitado }))
+            ctx, estatisticas, PortaCom(habilitado))
         {
             ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
             {
