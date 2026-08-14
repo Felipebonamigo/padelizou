@@ -1,0 +1,141 @@
+@using Padelizou.Services
+@model Padelizou.ViewModels.TransferenciasVM
+@{
+    ViewData["Title"] = "Transferências recentes";
+    var sentido = Model.Sentido;
+}
+
+<div class="container mt-4">
+    <div class="mb-3">
+        <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-arrow-left-right"></i> Transferências</h2>
+        <p class="text-muted small mb-0">Quem trocou de camisa por aí.</p>
+    </div>
+
+    <partial name="_AbasBusca" />
+    <partial name="_AbasTimes" />
+
+    @* Filtro no SERVIDOR, e não escondendo linha com JS: a lista é cortada em
+       TransferenciasDeTime.QuantidadePadrao, então filtrar na tela só esconderia parte de um
+       pedaço — quem procura alguém que ficou fora do corte não acharia e concluiria que a
+       pessoa nunca trocou de time. *@
+    <form method="get" class="card border-0 shadow-sm mb-4">
+        <div class="card-body row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label small fw-semibold mb-1" for="filtroTime">Time</label>
+                <select class="form-select" id="filtroTime" name="timeId">
+                    <option value="">Todos os times</option>
+                    @foreach (var t in Model.Times)
+                    {
+                        <option value="@t.Id" selected="@(Model.TimeId == t.Id)">@t.Nome</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1" for="filtroSentido">Movimento</label>
+                @* Com um time escolhido, "entradas" são os reforços dele e "saídas" quem o
+                   deixou. Sem time, valem pra qualquer um — ver o comentário do enum. *@
+                <select class="form-select" id="filtroSentido" name="sentido">
+                    <option value="">Entradas e saídas</option>
+                    <option value="entradas" selected="@(sentido == TransferenciasDeTime.Sentido.Entradas)">Só entradas</option>
+                    <option value="saidas" selected="@(sentido == TransferenciasDeTime.Sentido.Saidas)">Só saídas</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-5">
+                <label class="form-label small fw-semibold mb-1" for="filtroJogador">Jogador</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" id="filtroJogador" name="q"
+                           value="@Model.Busca" placeholder="Nome ou apelido..." autocomplete="off" />
+                    <button type="submit" class="btn btn-padel px-4">Filtrar</button>
+                </div>
+            </div>
+
+            @if (Model.TemFiltro)
+            {
+                <div class="col-12">
+                    <a asp-action="Transferencias" class="btn btn-sm btn-link text-muted px-0">
+                        <i class="bi bi-x-lg"></i> limpar filtros
+                    </a>
+                </div>
+            }
+        </div>
+    </form>
+
+    @if (!Model.Movimentos.Any())
+    {
+        @if (Model.TemFiltro)
+        {
+            @* Busca sem resultado em texto seco: quem filtrou precisa mexer no filtro, e o
+               mascote só empurraria os campos pra fora da tela. *@
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-arrow-left-right fs-1 d-block mb-2 opacity-50"></i>
+                <p class="mb-0">Nenhuma transferência com esses filtros.</p>
+            </div>
+        }
+        else
+        {
+            @* O estado do primeiro dia: o histórico começa a existir a partir da primeira
+               troca depois desta tela entrar no ar — não dá pra inventar o passado, porque o
+               `Jogador.TimeId` sobrescrevia a camisa anterior sem guardar nada. *@
+            <partial name="_Vazio" model='@(new EstadoVazio("Ainda não houve transferência nenhuma por aqui. Quem trocar de time a partir de agora aparece nesta lista.", "Ver os times", "Times", "Index"))' />
+        }
+    }
+    else
+    {
+        <div class="list-group shadow-sm">
+            @foreach (var m in Model.Movimentos)
+            {
+                <div class="list-group-item d-flex align-items-center gap-3 py-3">
+                    @if (!string.IsNullOrWhiteSpace(m.Jogador?.FotoPerfil))
+                    {
+                        <img src="@m.Jogador.FotoPerfil" alt="" class="rounded-circle flex-shrink-0"
+                             style="width: 44px; height: 44px; object-fit: cover;" />
+                    }
+                    else
+                    {
+                        <i class="bi bi-person-circle fs-2 flex-shrink-0" style="color: var(--pdz-ink); opacity:.5;"></i>
+                    }
+
+                    <div class="flex-grow-1 overflow-hidden">
+                        @* O movimento vem do serviço: é a mesma frase em duas telas, e um `@if`
+                           aninhado aqui seria a segunda cópia da regra — a que ninguém testa. *@
+                        <div style="color: var(--pdz-ink);">
+                            @if (m.Jogador != null)
+                            {
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@m.Jogador.Id"
+                                   class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">@m.Jogador.ComoChamar</a>
+                            }
+                            <span>@TransferenciasDeTime.Movimento(m)</span>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> @TempoRelativo.Curto(m.Em)
+                        </small>
+                    </div>
+
+                    @if (m.TimeNovo != null)
+                    {
+                        <a asp-action="Detalhes" asp-route-id="@m.TimeNovo.Id"
+                           class="badge rounded-pill text-decoration-none flex-shrink-0"
+                           style="background: var(--pdz-navy-fixed); color: #fff;">
+                            <i class="bi bi-shield-fill"></i> @m.TimeNovo.Nome
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="badge rounded-pill bg-light text-muted flex-shrink-0">sem time</span>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (Model.Movimentos.Count >= TransferenciasDeTime.QuantidadePadrao)
+        {
+            <p class="small text-muted mt-3 mb-0">
+                Mostrando as @TransferenciasDeTime.QuantidadePadrao mais recentes. Use os filtros
+                pra chegar a uma troca específica.
+            </p>
+        }
+    }
+</div>

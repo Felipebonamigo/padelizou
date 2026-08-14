@@ -46,5 +46,7 @@ public class Clube
 
     // Relacionamentos
     public ICollection<Torneio> Torneios { get; set; } = new List<Torneio>();
-    public ICollection<Time> Times { get; set; } = new List<Time>();
+    // Times que têm sede aqui. Vira lista de vínculos (e não de times) desde que a sede
+    // deixou de ser uma coluna no Time — ver Models/TimeSede.
+    public ICollection<TimeSede> TimesComSedeAqui { get; set; } = new List<TimeSede>();
 }

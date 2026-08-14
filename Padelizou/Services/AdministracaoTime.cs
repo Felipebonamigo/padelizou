@@ -70,8 +70,30 @@ public static class AdministracaoTime
             ConcedidoEm = DateTime.Now,
         });
 
-        if (novo.TimeId != timeId) novo.TimeId = timeId;
+        // Vestir a camisa é uma TRANSFERÊNCIA como qualquer outra, e passa pelo mesmo lugar:
+        // quem vinha de outro time aparece na janela de transferências igual a quem trocou
+        // pelo perfil. Ver Services/TransferenciasDeTime — ele já ignora quem sai e entra no
+        // mesmo time, então não precisa do "if" que havia aqui.
+        TransferenciasDeTime.Registrar(context, novo, timeId);
     }
+
+    // O PRESIDENTE: o administrador mais antigo do time.
+    //
+    // Não é uma coluna nova, e isso é decisão, não preguiça. `Time.DonoId` já existiu e foi
+    // derrubado justamente por criar uma segunda resposta pra "quem manda neste time?" —
+    // ressuscitá-lo com outro nome reabriria o mesmo buraco, agora com a pergunta valendo em
+    // duas tabelas ao mesmo tempo.
+    //
+    // O administrador mais antigo É o presidente na prática: quem cria o time vira o primeiro
+    // administrador dele (AuthController), e nos 44 times importados do ranking o primeiro é
+    // quem um admin do Padelizou escolheu pra comandar. Todos continuam com o MESMO poder —
+    // presidência aqui é quem representa o time na vitrine, não um poder a mais.
+    //
+    // Null quando o time não tem administrador nenhum, que é o estado da maioria dos
+    // importados: a tela diz que não há presidente em vez de eleger alguém por conta própria.
+    public static T? Presidente<T>(IEnumerable<T> administradores, Func<T, DateTime> concedidoEm)
+        where T : class =>
+        administradores.OrderBy(concedidoEm).FirstOrDefault();
 
     public static Task<bool> EhAdministradorAsync(DbPadelContext context, int timeId, int jogadorId) =>
         context.Set<TimeAdministrador>().AnyAsync(a => a.TimeId == timeId && a.JogadorId == jogadorId);

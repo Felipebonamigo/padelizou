@@ -4,6 +4,9 @@
     var meuTimeDono = ViewBag.MeuTimeDono as Padelizou.Models.Time;
     var timesDisponiveis = ViewBag.Times as List<Padelizou.Models.Time> ?? new List<Padelizou.Models.Time>();
     var clubesDisponiveis = ViewBag.Clubes as List<Padelizou.Models.Clube> ?? new List<Padelizou.Models.Clube>();
+    // As sedes que já estão marcadas. Sem isto, salvar o perfil sem tocar na seção do time
+    // apagaria as sedes — o formulário manda a lista inteira, e vazia quer dizer "nenhuma".
+    var sedesDoMeuTime = ViewBag.SedesDoMeuTime as List<int> ?? new List<int>();
     bool ehDonoAtual = meuTimeDono != null;
 }
 
@@ -269,9 +272,10 @@
                                 <label class="form-label fw-bold text-muted small">Logo do time</label>
                                 <input type="file" name="logoTime" class="form-control mb-2" accept="image/*" />
 
-                                <label class="form-label fw-bold text-muted small">Clube sede (opcional)</label>
-                                <select name="clubeSedeId" class="form-select bg-light">
-                                    <option value="">— Sem clube —</option>
+                                <label class="form-label fw-bold text-muted small">
+                                    Clubes sede (opcional, pode ser mais de um)
+                                </label>
+                                <select name="clubeSedeIds" class="form-select bg-light" multiple size="5">
                                     @* Agrupado por cidade: o navegador desenha o título do grupo
                                        sozinho, e num seletor grande é o que separa duas "Arena
                                        Central" de cidades diferentes sem uma linha de JS. *@
@@ -280,11 +284,15 @@
                                         <optgroup label="@grupo.Key">
                                             @foreach (var c in grupo)
                                             {
-                                                <option value="@c.Id" selected="@(meuTimeDono?.ClubeId == c.Id)">@c.Nome</option>
+                                                <option value="@c.Id" selected="@(sedesDoMeuTime.Contains(c.Id))">@c.Nome</option>
                                             }
                                         </optgroup>
                                     }
                                 </select>
+                                <div class="form-text">
+                                    Segure Ctrl (⌘ no Mac) pra marcar mais de um. Nenhum marcado =
+                                    time sem sede; no máximo @Padelizou.Services.SedesDoTime.MaximoDeSedes.
+                                </div>
                             </div>
                         </div>
 

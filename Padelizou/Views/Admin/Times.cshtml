@@ -44,12 +44,15 @@
                            placeholder="Ex.: Nata Padel" required autocomplete="off" />
                 </div>
                 <div class="col-12 col-md-4">
-                    <label class="form-label small text-muted mb-1" for="clubeSede">Clube sede <span class="fw-normal">(opcional)</span></label>
+                    <label class="form-label small text-muted mb-1" for="clubeSede">
+                        Clubes sede <span class="fw-normal">(opcional, pode ser mais de um)</span>
+                    </label>
                     @* Agrupado por cidade, e só com os clubes que estão no catálogo: a lista
                        crua trazia junto a sobra de teste ("Clube Teste CSRF 1785325726351") e
                        duas "Arena Central" indistinguíveis. Quem varre isso é /Admin/Clubes. *@
-                    <select class="form-select" id="clubeSede" name="clubeId">
-                        <option value="">Sem clube sede</option>
+                    @* `multiple` em vez de várias caixinhas: aqui é painel admin, a lista de
+                       clubes é longa e quem usa esta tela é uma pessoa só, no computador. *@
+                    <select class="form-select" id="clubeSede" name="clubeIds" multiple size="4">
                         @foreach (var grupo in Padelizou.Services.CatalogoLocais.AgrupadosPorCidade(clubes))
                         {
                             <optgroup label="@grupo.Key">
@@ -60,6 +63,7 @@
                             </optgroup>
                         }
                     </select>
+                    <div class="form-text">Nenhum marcado = time sem sede.</div>
                 </div>
                 <div class="col-12 col-md-2 d-grid">
                     <button type="submit" class="btn btn-primary">Criar</button>
@@ -117,10 +121,10 @@
                                 }
                                 <div>
                                     <span class="fw-bold">@time.Nome</span>
-                                    @if (time.Clube != null)
+                                    @if (linha.Sedes.Any())
                                     {
                                         <div class="text-muted" style="font-size: .75rem;">
-                                            <i class="bi bi-shop"></i> @time.Clube.Nome
+                                            <i class="bi bi-shop"></i> @string.Join(" · ", linha.Sedes)
                                         </div>
                                     }
                                 </div>

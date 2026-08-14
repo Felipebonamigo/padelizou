@@ -5,9 +5,10 @@ public class Time
     public int Id { get; set; }
     public string Nome { get; set; } = string.Empty; // Ex: "Nata Padel"
 
-    // Clube "sede" do time — opcional (o dono pode ou não informar).
-    public int? ClubeId { get; set; }
-    public Clube? Clube { get; set; }
+    // Onde o time joga em casa. Pode ser MAIS DE UM clube, e pode ser nenhum (o dono informa
+    // se quiser). Era uma coluna `ClubeId` só — ver o comentário de TimeSede sobre por que ela
+    // não sobreviveu. Leia/escreva por Services/SedesDoTime.
+    public ICollection<TimeSede> Sedes { get; set; } = new List<TimeSede>();
 
     // Caminho da imagem do logo (ex: "/uploads/logos-time/xxx.png").
     public string? Logo { get; set; }
