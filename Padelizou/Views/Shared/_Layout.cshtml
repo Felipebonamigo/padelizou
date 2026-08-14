@@ -54,6 +54,19 @@
                 tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
             document.documentElement.setAttribute('data-bs-theme', tema);
+
+            // QUEM NÃO QUER VER MOLDURA NENHUMA (pedido do Felipe, 14/08/2026). Mora aqui, ao
+            // lado do tema e pelo mesmo motivo: é preferência de EXIBIÇÃO de quem OLHA, não do
+            // dono da foto — e precisa valer antes do primeiro pixel, senão a moldura pisca
+            // na tela de quem pediu pra não vê-la.
+            //
+            // ⚠️ Guardado no aparelho (localStorage), não no banco, e isso é decisão: o alvo
+            // é TODA foto do sistema, inclusive as que ainda não passam pelo parcial. Um
+            // atributo no <html> desliga tudo com UMA regra de CSS; pelo banco seria uma
+            // consulta a mais por página (ou uma claim que envelhece) pra fazer menos.
+            if (localStorage.getItem('pdz-molduras') === 'off') {
+                document.documentElement.setAttribute('data-molduras', 'off');
+            }
         })();
     </script>
     <meta charset="utf-8" />

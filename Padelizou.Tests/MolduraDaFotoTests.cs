@@ -155,6 +155,57 @@ public class MolduraDaFotoTests
         Assert.Equal("pdz-m-Campeao", CatalogoMolduras.ClasseCss("Campeao"));
     }
 
+    // ===================== "NÃO QUERO VER MOLDURA NENHUMA" =====================
+    //
+    // 14/08/2026, pedido do Felipe. A preferência é de quem OLHA (não do dono da foto) e mora
+    // no aparelho, ao lado do tema: um atributo no <html> desliga o sistema inteiro com uma
+    // regra de CSS — inclusive as fotos que ainda não passam pelo parcial.
+
+    private static string RaizDoRepo()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Padelizou", "wwwroot", "css", "site.css")))
+            dir = dir.Parent;
+        Assert.True(dir != null, "Não achei a raiz do repo.");
+        return dir!.FullName;
+    }
+
+    // ⚠️ ESQUECER UMA DAS TRÊS CAMADAS É O BUG SILENCIOSO DESTA FEATURE: sem o `::before` a
+    // coroa fica FLUTUANDO sobre uma foto sem anel — pior do que a moldura inteira.
+    [Fact]
+    public void Desligar_as_molduras_zera_anel_verniz_E_ornamento()
+    {
+        var css = File.ReadAllText(Path.Combine(RaizDoRepo(), "Padelizou", "wwwroot", "css", "site.css"));
+
+        var bloco = Regex.Match(css,
+            @":root\[data-molduras=""off""\].*?(?=\n/\* ──|\n\.pdz-m-)", RegexOptions.Singleline);
+        Assert.True(bloco.Success, "Sumiu a regra que desliga as molduras (:root[data-molduras=\"off\"]).");
+
+        var regra = bloco.Value;
+        Assert.Contains("padding: 0", regra);          // o anel
+        Assert.Contains("background: none", regra);    // a cor da moldura
+        Assert.Contains("::before", regra);            // o ornamento que transborda
+        Assert.Contains("::after", regra);             // o verniz
+        Assert.Contains("animation: none", regra);     // a Lenda para de girar
+    }
+
+    // O <head> lê a chave antes do primeiro pixel; a tela de Molduras escreve nela. Nomes
+    // diferentes = o interruptor liga e a próxima página volta a mostrar tudo, sem erro nenhum.
+    [Fact]
+    public void A_chave_do_aparelho_tem_o_mesmo_nome_nos_dois_lugares()
+    {
+        var raiz = RaizDoRepo();
+        var layout = File.ReadAllText(Path.Combine(raiz, "Padelizou", "Views", "Shared", "_Layout.cshtml"));
+        var tela = File.ReadAllText(Path.Combine(raiz, "Padelizou", "Views", "Molduras", "Index.cshtml"));
+
+        Assert.Contains("'pdz-molduras'", layout);
+        Assert.Contains("'pdz-molduras'", tela);
+
+        // E o atributo que o CSS espera é o mesmo que o <head> escreve.
+        Assert.Contains("data-molduras", layout);
+        Assert.Contains("data-molduras", tela);
+    }
+
     // ===================== O INTERRUPTOR =====================
     //
     // 14/08/2026: o Felipe pediu pra SEGURAR as molduras enquanto decide o modelo (conquista ×
