@@ -13,13 +13,15 @@ public class EvolutionApiService : IWhatsAppService
 {
     private readonly HttpClient _httpClient;
     private readonly EvolutionSettings _settings;
+    private readonly PorteiroDaSaida _porteiro;
     private readonly ILogger<EvolutionApiService> _logger;
 
     public EvolutionApiService(HttpClient httpClient, IOptions<EvolutionSettings> settings,
-        ILogger<EvolutionApiService> logger)
+        PorteiroDaSaida porteiro, ILogger<EvolutionApiService> logger)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
+        _porteiro = porteiro;
         _logger = logger;
     }
 
@@ -27,6 +29,14 @@ public class EvolutionApiService : IWhatsAppService
 
     public async Task<bool> EnviarAsync(string? celular, string mensagem)
     {
+        // A saída do ambiente vem ANTES de tudo — antes do canal estar configurado, antes de o
+        // número ser válido. Se a mensagem não pode deixar este ambiente, nada mais importa.
+        if (!_porteiro.PodeSair(celular))
+        {
+            _logger.LogInformation("Saída restrita: WhatsApp para {Celular} NÃO foi enviado.", celular);
+            return false;
+        }
+
         // Debug, não Warning: hoje TODA notificação passa por aqui, e no localhost/dev o canal
         // é desligado de propósito. Em Warning isso viraria ruído que esconde problema real.
         if (!_settings.Configurado)

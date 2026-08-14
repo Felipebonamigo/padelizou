@@ -53,6 +53,7 @@ public class TesteDeNotificacaoTests
             new FilaDeAvisos(NullLogger<FilaDeAvisos>.Instance),
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
+            PorteiroDeTeste.Com(),
             NullLogger<PushNotificationService>.Instance);
 
     private static IWhatsAppService WhatsLigado(bool envioDaCerto = true)

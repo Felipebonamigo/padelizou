@@ -100,5 +100,6 @@ public class AvisoNaoSeguraOCliqueTests
             fila,
             email,
             Options.Create(new SiteSettings { Url = "https://padelizou.com.br" }),
+            PorteiroDeTeste.Com(),
             NullLogger<PushNotificationService>.Instance);
 }

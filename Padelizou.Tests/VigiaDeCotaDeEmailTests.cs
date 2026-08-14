@@ -166,7 +166,7 @@ public class VigiaDeCotaDeEmailTests
             RemetenteEmail = "nao-responda@padelizou.com.br",
             RemetenteSenhaApp = "chave",
             RemetenteNome = "Padelizou",
-        }), volume, NullLogger<EmailService>.Instance);
+        }), volume, PorteiroDeTeste.Com(), NullLogger<EmailService>.Instance);
 
     private static (VigiaDoEmailBackgroundService vigia, DbPadelContext ctx,
         IPushNotificationService push, Jogador admin) Cenario(int envios, int falhas = 0)

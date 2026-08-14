@@ -9,12 +9,15 @@ public class EmailService : IEmailService
 {
     private readonly EmailSettings _settings;
     private readonly VolumeDoEmail _volume;
+    private readonly PorteiroDaSaida _porteiro;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailSettings> settings, VolumeDoEmail volume, ILogger<EmailService> logger)
+    public EmailService(IOptions<EmailSettings> settings, VolumeDoEmail volume, PorteiroDaSaida porteiro,
+        ILogger<EmailService> logger)
     {
         _settings = settings.Value;
         _volume = volume;
+        _porteiro = porteiro;
         _logger = logger;
     }
 
@@ -40,6 +43,19 @@ public class EmailService : IEmailService
     {
         if (string.IsNullOrWhiteSpace(paraEmail))
         {
+            return;
+        }
+
+        // A saída do ambiente é perguntada AQUI porque este é o único ponto por onde todo
+        // e-mail do sistema passa — o do funil de avisos e os diretos (senha, aula, parceiro,
+        // alerta do MEI). Uma trava lá no funil deixaria a recuperação de senha escapando.
+        //
+        // Em Information, com o endereço: no dev o que se quer saber é exatamente PRA QUEM o
+        // sistema teria escrito, e a lista do log é a prova de que ninguém foi incomodado.
+        if (!_porteiro.PodeSair(paraEmail))
+        {
+            _logger.LogInformation("Saída restrita: e-mail para {ParaEmail} NÃO foi enviado (assunto: {Assunto}).",
+                paraEmail, assunto);
             return;
         }
 

@@ -15,11 +15,12 @@ public class PushNotificationService : IPushNotificationService
     private readonly FilaDeAvisos _filaDeAvisos;
     private readonly IEmailService _email;
     private readonly SiteSettings _site;
+    private readonly PorteiroDaSaida _porteiro;
     private readonly ILogger<PushNotificationService> _logger;
 
     public PushNotificationService(DbPadelContext context, IOptions<VapidSettings> vapidOptions,
         IWhatsAppService whatsApp, FilaDeWhatsApp fila, FilaDeAvisos filaDeAvisos, IEmailService email,
-        IOptions<SiteSettings> siteOptions, ILogger<PushNotificationService> logger)
+        IOptions<SiteSettings> siteOptions, PorteiroDaSaida porteiro, ILogger<PushNotificationService> logger)
     {
         _context = context;
         _whatsApp = whatsApp;
@@ -27,6 +28,7 @@ public class PushNotificationService : IPushNotificationService
         _filaDeAvisos = filaDeAvisos;
         _email = email;
         _site = siteOptions.Value;
+        _porteiro = porteiro;
         _logger = logger;
         var settings = vapidOptions.Value;
         _vapidDetails = new VapidDetails(settings.Subject, settings.PublicKey, settings.PrivateKey);
@@ -131,6 +133,16 @@ public class PushNotificationService : IPushNotificationService
     // existe aparelho cadastrado seria mentir justamente na tela feita pra conferir a verdade.
     private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url)
     {
+        // O push é o único canal que não sabe pra QUEM está mandando: a inscrição é de um
+        // aparelho. Então aqui a pergunta custa uma consulta — e ela só é feita quando o
+        // ambiente restringe. Em produção a lista é vazia, o `Restringindo` é false e este
+        // trecho inteiro não chega a tocar no banco.
+        if (_porteiro.Restringindo && !await PodeSairParaOJogadorAsync(jogadorId))
+        {
+            _logger.LogInformation("Saída restrita: push pro jogador {JogadorId} NÃO foi enviado.", jogadorId);
+            return 0;
+        }
+
         var subscriptions = await _context.Set<PushSubscriptionJogador>()
             .Where(s => s.JogadorId == jogadorId)
             .ToListAsync();
@@ -161,6 +173,18 @@ public class PushNotificationService : IPushNotificationService
 
         await _context.SaveChangesAsync();
         return entregues;
+    }
+
+    // O dono do aparelho, pro porteiro. Qualquer um dos dois contatos serve: a lista do
+    // ambiente é escrita com o que a pessoa tem à mão — às vezes o e-mail, às vezes o número.
+    private async Task<bool> PodeSairParaOJogadorAsync(int jogadorId)
+    {
+        var dono = await _context.Jogadores
+            .Where(j => j.Id == jogadorId)
+            .Select(j => new { j.Email, j.Celular })
+            .FirstOrDefaultAsync();
+
+        return dono != null && _porteiro.PodeSairParaAlgum(dono.Email, dono.Celular);
     }
 
     // Enfileira, não envia. Quem entrega é o EntregadorDeWhatsAppBackgroundService, uma
@@ -194,8 +218,13 @@ public class PushNotificationService : IPushNotificationService
     {
         var jogador = await _context.Jogadores
             .Where(j => j.Id == jogadorId)
-            .Select(j => new { j.Celular, j.NotificarWhatsApp })
+            .Select(j => new { j.Email, j.Celular, j.NotificarWhatsApp })
             .FirstOrDefaultAsync();
+
+        // O porteiro do ambiente é perguntado UMA vez, aqui, e vale pros dois canais: sem
+        // isto a tela diria "o provedor recusou" pra uma mensagem que nem chegou a ser
+        // tentada — e o admin iria caçar um problema de rede que não existe.
+        var barradoPelaSaida = !_porteiro.PodeSairParaAlgum(jogador?.Email, jogador?.Celular);
 
         var push = ResultadoDoCanal.NaoPedido;
         var aparelhos = 0;
@@ -205,7 +234,11 @@ public class PushNotificationService : IPushNotificationService
             var cadastrados = await _context.Set<PushSubscriptionJogador>()
                 .CountAsync(s => s.JogadorId == jogadorId);
 
-            if (cadastrados == 0)
+            if (barradoPelaSaida)
+            {
+                push = ResultadoDoCanal.SaidaRestritaNesteAmbiente;
+            }
+            else if (cadastrados == 0)
             {
                 push = ResultadoDoCanal.SemAppInstalado;
             }
@@ -224,8 +257,11 @@ public class PushNotificationService : IPushNotificationService
         if (porWhatsApp)
         {
             // A ordem das recusas é a ordem em que o admin consegue AGIR: o que ele muda no
-            // servidor vem antes do que depende do jogador.
-            if (!_whatsApp.Configurado)
+            // servidor vem antes do que depende do jogador. A lista de saída é a mais de
+            // servidor de todas — é uma linha do systemd —, então vem primeiro.
+            if (barradoPelaSaida)
+                whats = ResultadoDoCanal.SaidaRestritaNesteAmbiente;
+            else if (!_whatsApp.Configurado)
                 whats = ResultadoDoCanal.CanalDesligadoNesteAmbiente;
             else if (jogador == null || !jogador.NotificarWhatsApp)
                 whats = ResultadoDoCanal.PreferenciaDesmarcada;

@@ -13,6 +13,14 @@ public enum ResultadoDoCanal
     PreferenciaDesmarcada,
     CanalDesligadoNesteAmbiente,
     FalhouNoEnvio,
+
+    // ⚠️ Último de propósito: os anteriores mantêm o número que sempre tiveram.
+    //
+    // Não é o mesmo que `CanalDesligadoNesteAmbiente`. Ali o canal inteiro está desligado;
+    // aqui ele está de pé e funcionando, e é ESTA PESSOA que não está na lista de quem pode
+    // receber (ver Services/PorteiroDaSaida). Sem um valor próprio, a tela diria "o provedor
+    // recusou" e mandaria o admin caçar um problema de rede que não existe.
+    SaidaRestritaNesteAmbiente,
 }
 
 public record ResultadoTesteNotificacao
@@ -50,6 +58,9 @@ public static class TextoDoTeste
             "o canal está desligado neste ambiente — é assim no dev e no localhost, de propósito.",
         ResultadoDoCanal.FalhouNoEnvio =>
             "o provedor recusou o envio. Veja o log do servidor e se a instância está conectada.",
+        ResultadoDoCanal.SaidaRestritaNesteAmbiente =>
+            "este ambiente só entrega pra quem está na lista Entrega:SoPara — esse jogador não está nela, "
+            + "então nada saiu pro celular nem pro e-mail dele.",
         _ => "resultado desconhecido.",
     };
 

@@ -61,6 +61,10 @@ builder.Services.Configure<RegistroResultadosSettings>(builder.Configuration.Get
 builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSection("PlanoProfessor"));
 builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
+// Nasce SEM restrição: lista vazia = todo mundo recebe, que é o comportamento da produção.
+// Quem restringe é o dev, com `Entrega__SoPara__0=...` no systemd — ver Services/EntregaSettings
+// pro porquê de o padrão ser o envio e não o silêncio.
+builder.Services.Configure<EntregaSettings>(builder.Configuration.GetSection("Entrega"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 // Nasce DESLIGADO: sem impressão digital configurada o /.well-known/assetlinks.json responde
 // 404, que é a resposta honesta enquanto não existe app na Play Store (ver Services/AndroidSettings).
@@ -160,6 +164,10 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
             }));
 });
+// SINGLETON: a lista é lida uma vez, no start, e o aviso de "saída restrita" precisa sair UMA
+// vez no log — não a cada e-mail. Fica antes do EmailService de propósito: os três canais
+// dependem dele, e é ele que mantém o dev mudo pra quem não está ensaiando.
+builder.Services.AddSingleton<PorteiroDaSaida>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
@@ -328,6 +336,14 @@ builder.Services.AddControllersWithViews(options =>
 });
 
 var app = builder.Build();
+
+// O porteiro da saída é acordado AQUI, de propósito, e não no primeiro e-mail.
+//
+// Ele é singleton e o aviso de "saída restrita" sai no construtor dele — resolvido só na
+// primeira mensagem, esse aviso apareceria no meio do log de um dia qualquer, ou não
+// apareceria nunca num ambiente que passou a semana sem gerar aviso. Um ambiente que engole
+// mensagem tem que dizer isso na PRIMEIRA tela do log, ao lado de quem sobe.
+app.Services.GetRequiredService<PorteiroDaSaida>();
 
 // Garante que o catálogo fixo de categorias existe no banco (idempotente, casa pelo Nome — é o
 // que decide se aparece duplicado pro usuário; Codigo é só um identificador interno, sem
