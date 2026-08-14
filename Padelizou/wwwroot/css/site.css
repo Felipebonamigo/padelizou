@@ -2928,9 +2928,11 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-m-CinquentaVitorias {
     background: conic-gradient(#c7ccd6, #f2f4f8, #9aa3b2, #e8ebf0, #b3bac6, #f2f4f8, #c7ccd6);
 }
+/* Centena: ouro ROSÉ — precioso sem brigar com o ouro do Campeão (era ouro igual, e o
+   Felipe olhou a vitrine e disse "tem muitos ouro igual"; tinha). */
 .pdz-m-CemVitorias {
-    background: linear-gradient(135deg, #d4a017, #f5d061 45%, #c8951a);
-    box-shadow: 0 0 calc(var(--anel) * 2) rgba(212, 160, 23, 0.35);
+    background: linear-gradient(135deg, #c9836a, #f2c6ad 45%, #b06f52);
+    box-shadow: 0 0 calc(var(--anel) * 2) rgba(201, 131, 106, 0.4);
 }
 .pdz-m-CentoCinquentaVitorias {
     background: linear-gradient(160deg, #f59e0b, #ef4444 70%);
@@ -2948,28 +2950,28 @@ button, a, input, select { touch-action: manipulation; }
 .pdz-m-Campeao {
     background: conic-gradient(#d4a017, #f7dd72, #b8860b, #f2cf4e, #d4a017);
 }
-/* Ouro Duplo: o friso interno some e viram DOIS anéis de ouro com fenda no meio. */
+/* Do bi ao penta cada título é uma JOIA diferente — era tudo variação de ouro, e em 26px
+   virava tudo "anel dourado" (reclamação do Felipe na vitrine, 14/08). O ouro liso fica
+   sendo só do primeiro título, que é O ouro. */
+/* Rubi: vinho profundo com o lampejo da pedra — mais escuro que o coração do Querido. */
 .pdz-m-Bicampeao {
-    background: conic-gradient(#d4a017, #f7dd72, #b8860b, #f2cf4e, #d4a017);
+    background: conic-gradient(#7f1d1d, #e11d48 30%, #4c0519 55%, #be123c 80%, #7f1d1d);
+    box-shadow: 0 0 calc(var(--anel) * 1.6) rgba(190, 18, 60, 0.4);
 }
-.pdz-m-Bicampeao > img {
-    box-shadow: 0 0 0 calc(var(--anel) * 0.3) var(--pdz-surface),
-                0 0 0 calc(var(--anel) * 0.55) #d4a017,
-                0 0 0 calc(var(--anel) * 0.8) var(--pdz-surface);
-}
-/* Trança de Ouro: três voltas de ouro alternando claro/escuro. */
+/* Safira: azul-joia com o brilho girado — não é o azul chapado das vitórias. */
 .pdz-m-Tricampeao {
-    background: repeating-conic-gradient(#b8860b 0deg 30deg, #f7dd72 30deg 60deg, #d4a017 60deg 120deg);
+    background: conic-gradient(#1e40af, #60a5fa 25%, #172554 55%, #93c5fd 80%, #1e40af);
+    box-shadow: 0 0 calc(var(--anel) * 1.6) rgba(59, 130, 246, 0.4);
 }
-/* Ouro e Diamante: ouro com 4 cravos brancos. */
+/* Ametista: lilás claro lapidado — a nebulosa das 200 vitórias é escura; esta é luz. */
 .pdz-m-Tetracampeao {
-    background: conic-gradient(#d4a017 0deg 80deg, #ffffff 90deg, #d4a017 100deg 170deg,
-        #ffffff 180deg, #d4a017 190deg 260deg, #ffffff 270deg, #d4a017 280deg 350deg, #ffffff 360deg);
+    background: conic-gradient(#7c3aed, #c4b5fd 30%, #8b5cf6 55%, #ede9fe 80%, #7c3aed);
+    box-shadow: 0 0 calc(var(--anel) * 1.6) rgba(139, 92, 246, 0.4);
 }
-/* Relâmpago: ouro riscado de branco, com brilho. */
+/* Esmeralda: verde-joia azulado — o verde da marca (Estreia) é amarelado, este é pedra. */
 .pdz-m-Pentacampeao {
-    background: linear-gradient(115deg, #d4a017 30%, #fffbe6 48%, #ffffff 52%, #d4a017 68%);
-    box-shadow: 0 0 calc(var(--anel) * 2) rgba(245, 208, 97, 0.5);
+    background: conic-gradient(#065f46, #34d399 30%, #064e3b 55%, #6ee7b7 80%, #065f46);
+    box-shadow: 0 0 calc(var(--anel) * 1.6) rgba(16, 185, 129, 0.4);
 }
 /* Colmeia: seis gomos de ouro sobre o navy da marca. */
 .pdz-m-Hexacampeao {

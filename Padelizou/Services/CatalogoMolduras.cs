@@ -34,18 +34,20 @@ public static class CatalogoMolduras
         new("CentoCinquentaVitorias", "Brasa",      "Vença 150 jogos de torneio."),
         new("DuzentasVitorias",       "Órbita",     "Vença 200 jogos de torneio."),
 
-        // A escada de quem vence — prata, ouro, e o ouro vai ficando mais trabalhado
-        new("Finalista",    "Prata",           "Chegue a uma final."),
-        new("Campeao",      "Ouro",            "Vença um torneio."),
-        new("Bicampeao",    "Ouro Duplo",      "Vença 2 torneios."),
-        new("Tricampeao",   "Trança de Ouro",  "Vença 3 torneios."),
-        new("Tetracampeao", "Ouro e Diamante", "Vença 4 torneios."),
-        new("Pentacampeao", "Relâmpago",       "Vença 5 torneios."),
-        new("Hexacampeao",  "Colmeia",         "Vença 6 torneios."),
-        new("Heptacampeao", "Sol",             "Vença 7 torneios."),
-        new("Octacampeao",  "Platina",         "Vença 8 torneios."),
-        new("Nonacampeao",  "Escudo",          "Vença 9 torneios."),
-        new("Decacampeao",  "Lenda",           "Vença 10 torneios."),
+        // A escada de quem vence — prata, o ouro do primeiro título, e daí em diante cada
+        // título é uma JOIA diferente. Era tudo variação de ouro e, na vitrine, o Felipe
+        // resumiu (14/08): "tem muitos ouro igual". Tinha — em 26px virava tudo o mesmo anel.
+        new("Finalista",    "Prata",     "Chegue a uma final."),
+        new("Campeao",      "Ouro",      "Vença um torneio."),
+        new("Bicampeao",    "Rubi",      "Vença 2 torneios."),
+        new("Tricampeao",   "Safira",    "Vença 3 torneios."),
+        new("Tetracampeao", "Ametista",  "Vença 4 torneios."),
+        new("Pentacampeao", "Esmeralda", "Vença 5 torneios."),
+        new("Hexacampeao",  "Colmeia",   "Vença 6 torneios."),
+        new("Heptacampeao", "Sol",       "Vença 7 torneios."),
+        new("Octacampeao",  "Platina",   "Vença 8 torneios."),
+        new("Nonacampeao",  "Escudo",    "Vença 9 torneios."),
+        new("Decacampeao",  "Lenda",     "Vença 10 torneios."),
 
         // As sociais
         new("MvpDeTorneio",    "Estrela da Noite",   "Seja eleito o MVP de um torneio."),
