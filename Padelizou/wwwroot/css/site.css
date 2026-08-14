@@ -2903,6 +2903,29 @@ button, a, input, select { touch-action: manipulation; }
     box-shadow: 0 0 0 calc(var(--anel) * 0.35) var(--pdz-surface);
 }
 
+/* O RELEVO: um verniz por cima de TODA moldura — luz entrando pelo alto, sombra saindo por
+   baixo, grão fino de metal escovado e a aresta externa escura. É o que tira o anel do
+   "adesivo chapado" e aproxima dos frames de jogo da referência do Felipe (14/08): a COR de
+   cada moldura continua vindo da classe dela; o material é este verniz, um só pra todas.
+
+   A máscara deixa o verniz SÓ na faixa do anel — o miolo (a foto) fica limpo. */
+.pdz-foto[class*="pdz-m-"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    border: 1px solid rgba(0, 0, 0, 0.28);
+    background:
+        repeating-conic-gradient(rgba(255, 255, 255, 0.07) 0deg 0.9deg, transparent 0.9deg 2.4deg),
+        linear-gradient(145deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.05) 35%,
+            transparent 55%, rgba(0, 0, 0, 0.30) 88%);
+    -webkit-mask: radial-gradient(farthest-side,
+        transparent calc(100% - var(--anel) * 1.25), #000 calc(100% - var(--anel)));
+    mask: radial-gradient(farthest-side,
+        transparent calc(100% - var(--anel) * 1.25), #000 calc(100% - var(--anel)));
+}
+
 /* ── A escada de quem joga ─────────────────────────────────────────────────────────────── */
 /* Primeira Bola: o verde da marca, liso — a primeira moldura de todo mundo. */
 .pdz-m-Estreia { background: var(--padel-green); }
