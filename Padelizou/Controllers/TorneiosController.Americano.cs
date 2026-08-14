@@ -540,18 +540,50 @@ namespace Padelizou.Controllers
                 listaClassificacao.Add(stats);
             }
 
-            // 4. O Agrupamento e a Regra de Desempate (Muito importante!)
-            // Agrupamos por Letra do Grupo e ordenamos primeiro por Vitória e depois por Saldo de Games
-            var classificacaoFinal = listaClassificacao
-                .GroupBy(c => c.Grupo)
+            // 4. A ORDEM SAI DA RÉGUA ÚNICA (Services/ClassificacaoDeGrupos), não daqui.
+            //
+            // ⚠️ Até 13/08/2026 esta tela ordenava por conta própria — vitórias e saldo, SEM o
+            // terceiro critério. Era a cópia que sobrou da regra que o `ClassificacaoDeGrupos`
+            // existe pra unificar, e viva justamente onde o jogador olha: num empate que
+            // sobrevivesse ao saldo, a tela mostrava um 2º colocado e o chaveamento montava a
+            // chave com OUTRO. Agora as duas respondem a mesma coisa por construção.
+            var porGrupo = listaClassificacao.ToDictionary(c => c.Dupla.Id);
+            var classificacaoFinal = duplas
+                .GroupBy(d => d.Grupo!)
                 .OrderBy(g => g.Key)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.SaldoGames).ToList()
+                    g => ClassificacaoDeGrupos.Ordenar(g.ToList(), partidas)
+                            .Select(linha => porGrupo[linha.Dupla.Id])
+                            .ToList()
                 );
+
+            // 5. "O que cada um precisa pra classificar" — só existe no grupo em que falta UM
+            // jogo. As partidas aqui incluem as NÃO finalizadas de propósito: é a que falta
+            // que o painel simula.
+            var todasAsPartidas = await _context.Partidas
+                .Where(p => p.TorneioId == id && p.CategoriaId == categoriaId
+                         && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
+                .ToListAsync();
+
+            int passam = Math.Max(1, torneio.ClassificadosPorGrupo);
+            var formato = FormatoDaPartida.De(torneio, "Fase de Grupos");
+            var quadros = new Dictionary<string, OQuePrecisaParaClassificar.Quadro>();
+
+            foreach (var grupo in duplas.GroupBy(d => d.Grupo!))
+            {
+                var idsDoGrupo = grupo.Select(d => d.Id).ToHashSet();
+                var doGrupo = todasAsPartidas
+                    .Where(p => idsDoGrupo.Contains(p.Dupla1Id) && idsDoGrupo.Contains(p.Dupla2Id))
+                    .ToList();
+
+                var quadro = OQuePrecisaParaClassificar.Montar(grupo.ToList(), doGrupo, passam, formato);
+                if (quadro != null) quadros[grupo.Key] = quadro;
+            }
 
             ViewBag.Torneio = torneio;
             ViewBag.RegraClassificados = torneio.ClassificadosPorGrupo; // Para pintar de verde quem passa de fase
+            ViewBag.OQueFalta = quadros;
 
             return View(classificacaoFinal);
         }

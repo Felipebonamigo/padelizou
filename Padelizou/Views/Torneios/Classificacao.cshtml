@@ -3,6 +3,17 @@
     ViewData["Title"] = "Classificação";
     var torneio = ViewBag.Torneio;
     int classificadosPorGrupo = ViewBag.RegraClassificados;
+
+    var oQueFalta = ViewBag.OQueFalta as Dictionary<string, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>
+        ?? new Dictionary<string, Padelizou.Services.OQuePrecisaParaClassificar.Quadro>();
+
+    // O nome curto que cabe numa linha de cenário: time pelo nome, dupla pelo 1º jogador.
+    // Escrever os dois nomes ali deixaria "Fulano/Beltrano vencer por 3 games ou mais" — a
+    // frase que ninguém lê até o fim.
+    string NomeDaDupla(Padelizou.Models.Dupla d) =>
+        d.EhTime && !string.IsNullOrWhiteSpace(d.NomeTime)
+            ? d.NomeTime!
+            : d.Jogador1?.ComoChamar ?? $"Dupla {d.Id}";
 }
 
 <div class="container mt-4">
@@ -60,6 +71,78 @@
                             </tbody>
                         </table>
                     </div>
+
+                    @* ── O QUE CADA UM PRECISA PRA CLASSIFICAR ─────────────────────────────
+                       Só aparece no grupo em que falta UM jogo — antes disso não há resposta
+                       pra dar, e depois o grupo já acabou. Nasce fechado: quem só quer ver a
+                       tabela não precisa passar por cima de um bloco de cenários. *@
+                    @if (oQueFalta.TryGetValue(grupo.Key, out var quadro))
+                    {
+                        var alvo = $"oQuePrecisa{grupo.Key.Replace(" ", "")}";
+                        <div class="card-footer bg-body border-top">
+                            <button class="btn btn-sm btn-outline-primary w-100 rounded-pill"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#@alvo"
+                                    aria-expanded="false" aria-controls="@alvo">
+                                <i class="bi bi-question-circle"></i>
+                                O que cada um precisa pra classificar
+                            </button>
+
+                            <div class="collapse mt-3" id="@alvo">
+                                <p class="small text-muted mb-2">
+                                    Falta um jogo:
+                                    <strong>@NomeDaDupla(quadro.Lado1) x @NomeDaDupla(quadro.Lado2)</strong>.
+                                </p>
+
+                                @if (quadro.JaClassificados.Any())
+                                {
+                                    <p class="small mb-2">
+                                        <span class="badge bg-success">Já classificado</span>
+                                        @string.Join(", ", quadro.JaClassificados.Select(NomeDaDupla))
+                                        — passa em qualquer resultado.
+                                    </p>
+                                }
+                                @if (quadro.SemChance.Any())
+                                {
+                                    <p class="small mb-2">
+                                        <span class="badge bg-secondary">Sem chance</span>
+                                        @string.Join(", ", quadro.SemChance.Select(NomeDaDupla))
+                                        — não depende mais deste jogo.
+                                    </p>
+                                }
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0 align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="text-start">Se acontecer</th>
+                                                <th class="text-start">Classificam</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var cenario in quadro.Cenarios)
+                                            {
+                                                <tr>
+                                                    <td class="text-start">@cenario.Resultado</td>
+                                                    <td class="text-start fw-bold">
+                                                        @string.Join(", ", cenario.ClassificadosIds
+                                                            .Select(cid => grupo.Value.FirstOrDefault(s => s.Dupla.Id == cid))
+                                                            .Where(s => s != null)
+                                                            .Select(s => NomeDaDupla(s!.Dupla)))
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @* A régua é a mesma do chaveamento — dizer isso aqui evita a
+                                   pergunta "e se o sistema calcular diferente na hora?". *@
+                                <p class="small text-muted mt-2 mb-0">
+                                    Critério: vitórias, depois saldo de games, depois games a favor.
+                                </p>
+                            </div>
+                        </div>
+                    }
                 </div>
             </div>
         }
