@@ -21,10 +21,18 @@ public static class DadosDemo
         db.Clubes.AddRange(arena, garden, smash);
         db.SaveChanges();
 
-        // Times (com clube sede)
-        var nata = new Time { Nome = "Nata Padel", ClubeId = arena.Id };
-        var feras = new Time { Nome = "Clube dos Feras", ClubeId = garden.Id };
+        // Times
+        var nata = new Time { Nome = "Nata Padel" };
+        var feras = new Time { Nome = "Clube dos Feras" };
         db.Times.AddRange(nata, feras);
+        db.SaveChanges();
+
+        // As sedes — mais de uma por time, que é o caso que a tela precisa mostrar de verdade
+        // (o Nata treina na Arena na terça e no Smash no sábado).
+        db.TimeSedes.AddRange(
+            new TimeSede { TimeId = nata.Id, ClubeId = arena.Id },
+            new TimeSede { TimeId = nata.Id, ClubeId = smash.Id },
+            new TimeSede { TimeId = feras.Id, ClubeId = garden.Id });
         db.SaveChanges();
 
         Jogador NovoJogador(string nome, string cpf, int timeId) => new Jogador

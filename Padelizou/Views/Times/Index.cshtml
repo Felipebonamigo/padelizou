@@ -17,6 +17,7 @@
 
     @* "Buscar jogadores" era um botão aqui do lado; virou aba, junto com esta tela. *@
     <partial name="_AbasBusca" />
+    <partial name="_AbasTimes" />
 
     @* Busca no servidor: a lista de times tende a crescer bastante menos que a de jogadores. *@
     <form method="get" class="mb-4">
@@ -77,9 +78,14 @@
                                         <span>· @t.Pontos pts</span>
                                     }
                                 </small>
-                                @if (!string.IsNullOrWhiteSpace(t.Clube))
+                                @if (t.Sedes.Any())
                                 {
-                                    <small class="text-muted d-block text-truncate"><i class="bi bi-geo-alt"></i> @t.Clube</small>
+                                    @* As sedes numa linha só. Um time com quatro delas não pode
+                                       esticar o cartão pra quatro alturas e desalinhar a grade —
+                                       o resto se lê na página do time. *@
+                                    <small class="text-muted d-block text-truncate" title="@string.Join(" · ", t.Sedes)">
+                                        <i class="bi bi-geo-alt"></i> @string.Join(" · ", t.Sedes)
+                                    </small>
                                 }
                             </div>
                         </div>

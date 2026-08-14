@@ -25,13 +25,11 @@ public class TimesController : Controller
     public async Task<IActionResult> Index(string? q)
     {
         var times = await _context.Times
-            .Include(t => t.Clube)
             .Select(t => new TimeResumoVM
             {
                 Id = t.Id,
                 Nome = t.Nome,
                 Logo = t.Logo,
-                Clube = t.Clube != null ? t.Clube.Nome : null,
                 Membros = _context.Jogadores.Count(j => j.TimeId == t.Id),
             })
             .ToListAsync();
@@ -40,9 +38,14 @@ public class TimesController : Controller
         var pontosPorTime = (await _estatisticas.ObterRankingTimesAsync())
             .ToDictionary(r => r.TimeId, r => r.Pontos);
 
+        // As sedes de todos os times numa consulta só — são várias por time agora, e uma
+        // consulta por cartão faria dezenas de idas ao banco pra desenhar a vitrine.
+        var sedesPorTime = await SedesDoTime.PorTimeAsync(_context, times.Select(t => t.Id));
+
         foreach (var t in times)
         {
             t.Pontos = pontosPorTime.GetValueOrDefault(t.Id);
+            t.Sedes = sedesPorTime.GetValueOrDefault(t.Id) ?? new List<string>();
         }
 
         if (!string.IsNullOrWhiteSpace(q))
@@ -58,12 +61,33 @@ public class TimesController : Controller
             .ToList());
     }
 
+    // A aba "Transferências recentes": quem trocou de camisa, com filtro por time, por
+    // sentido (entradas/saídas) e busca por jogador.
+    //
+    // ⚠️ Tela pública e SEM login, igual à vitrine ao lado — quem muda de time é informação
+    // que já aparece no perfil e no ranking. Quem pediu exclusão de conta pela LGPD fica de
+    // fora da busca por nome (é o BuscaJogador.Filtrar que garante isso).
+    [HttpGet]
+    public async Task<IActionResult> Transferencias(int? timeId, string? sentido, string? q)
+    {
+        var escolhido = TransferenciasDeTime.SentidoDe(sentido);
+
+        var vm = new TransferenciasVM
+        {
+            TimeId = timeId,
+            Sentido = escolhido,
+            Busca = q,
+            Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync(),
+            Movimentos = await TransferenciasDeTime.RecentesAsync(_context, timeId, escolhido, q),
+        };
+
+        return View(vm);
+    }
+
     [HttpGet]
     public async Task<IActionResult> Detalhes(int id)
     {
-        var time = await _context.Times
-            .Include(t => t.Clube)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var time = await _context.Times.FirstOrDefaultAsync(t => t.Id == id);
 
         if (time == null) return NotFound();
 
@@ -72,7 +96,21 @@ public class TimesController : Controller
             .OrderBy(j => j.Nome)
             .ToListAsync();
 
-        var pontos = await _estatisticas.ObterPontosPorJogadorAsync(membros.Select(j => j.Id));
+        var idsDosMembros = membros.Select(j => j.Id).ToList();
+
+        var pontos = await _estatisticas.ObterPontosPorJogadorAsync(idsDosMembros);
+
+        // As categorias que cada um aceita jogar — é o que reparte o elenco na tela. Numa
+        // consulta só, e não uma por jogador: um time grande faria dezenas de idas ao banco.
+        var categoriasPorJogador = (await _context.JogadorCategorias
+                .AsNoTracking()
+                .Where(jc => idsDosMembros.Contains(jc.JogadorId))
+                .Select(jc => new { jc.JogadorId, Nome = jc.CategoriaPadrao.Nome })
+                .ToListAsync())
+            .GroupBy(x => x.JogadorId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Nome).ToList());
+
+        var trofeus = await TitulosDoTime.TrofeusPorJogadorAsync(_context, idsDosMembros);
 
         var administradores = await _context.TimeAdministradores
             .Include(a => a.Jogador)
@@ -97,6 +135,8 @@ public class TimesController : Controller
                     Jogador = j,
                     Pontos = pontos.GetValueOrDefault(j.Id),
                     EhAdministrador = idsAdmin.Contains(j.Id),
+                    Categorias = categoriasPorJogador.GetValueOrDefault(j.Id) ?? new List<string>(),
+                    Trofeus = trofeus.GetValueOrDefault(j.Id),
                 })
                 .OrderByDescending(m => m.EhAdministrador)   // quem administra aparece primeiro
                 .ThenByDescending(m => m.Pontos)
@@ -113,8 +153,20 @@ public class TimesController : Controller
                 })
                 .OrderBy(a => a.ConcedidoEm)
                 .ToList(),
+            Sedes = await SedesDoTime.DoTimeAsync(_context, id),
+            Titulos = await TitulosDoTime.DoTimeAsync(_context, id),
+            MaioresVencedores = TitulosDoTime.MaioresVencedores(membros, trofeus),
+            // Só o que passou por ESTE vestiário, e pouca coisa: a tela do time mostra um
+            // resumo, e a aba de transferências é quem lista a janela inteira.
+            Transferencias = await TransferenciasDeTime.RecentesAsync(_context, id, quantidade: 8),
             SouAdminDoSistema = await SouAdminDoSistemaAsync(meuId),
         };
+
+        // O elenco repartido por categoria sai dos membros JÁ ordenados acima — assim a ordem
+        // dentro de cada grupo é a mesma da lista corrida, e não uma segunda regra de ordem.
+        vm.Elenco = ElencoPorCategoria.Agrupar(vm.Membros, m => m.Categorias);
+
+        vm.Presidente = AdministracaoTime.Presidente(vm.Administradores, a => a.ConcedidoEm);
 
         vm.PossoGerenciar = AdministracaoTime.PodeGerenciar(
             vm.SouAdminDoSistema, meuId != null && idsAdmin.Contains(meuId.Value));

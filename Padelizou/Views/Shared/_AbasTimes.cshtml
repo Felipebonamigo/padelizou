@@ -1,0 +1,31 @@
+@*
+    As sub abas do assunto TIMES, um degrau abaixo do _AbasBusca (Jogadores | Times).
+
+    A janela de transferências é a mesma matéria da vitrine — quem veste cada camisa — só que
+    no tempo em vez de no presente. Como aba, ela é uma tela que se descobre estando ali; como
+    item de menu, seria a vigésima linha de um menu que já é longo.
+
+    A aba ativa sai da AÇÃO da vez, e não de um parâmetro: assim nenhuma das duas telas pode
+    esquecer de passar o certo.
+*@
+@{
+    var naDeTransferencias = ViewContext.RouteData.Values["action"]?.ToString() == "Transferencias";
+}
+
+<ul class="nav nav-pills nav-pills-sm mb-4 gap-2">
+    <li class="nav-item">
+        <a class="nav-link @(naDeTransferencias ? "" : "active")" asp-controller="Times" asp-action="Index">
+            <i class="bi bi-shield-fill me-1"></i> Times
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(naDeTransferencias ? "active" : "")" asp-controller="Times" asp-action="Transferencias">
+            <i class="bi bi-arrow-left-right me-1"></i> Transferências recentes
+        </a>
+    </li>
+</ul>
+
+<style>
+    /* Um degrau menor que as abas de cima, pra hierarquia se ler sem ninguém explicar. */
+    .nav-pills-sm .nav-link { padding: .3rem .85rem; font-size: .875rem; }
+</style>

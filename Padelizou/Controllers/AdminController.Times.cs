@@ -24,9 +24,12 @@ namespace padelizou.Controllers
             if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
 
             var times = await _context.Times
-                .Include(t => t.Clube)
                 .OrderBy(t => t.Nome)
                 .ToListAsync();
+
+            // As sedes de todos os times numa consulta só — a sede virou lista (Models/TimeSede)
+            // e um `Include` por linha traria a tabela de clubes inteira várias vezes.
+            var sedesPorTime = await SedesDoTime.PorTimeAsync(_context, times.Select(t => t.Id));
 
             // Uma consulta pra cada contagem, e não uma por linha: são 44 times importados do
             // ranking mais os criados por jogador — por linha seriam ~90 idas ao banco só pra
@@ -63,6 +66,7 @@ namespace padelizou.Controllers
                 Time = t,
                 Membros = membrosPorTime.GetValueOrDefault(t.Id),
                 DuplasEmTorneios = duplasPorTime.GetValueOrDefault(t.Id),
+                Sedes = sedesPorTime.GetValueOrDefault(t.Id) ?? new List<string>(),
                 Administradores = administradores
                     .Where(a => a.TimeId == t.Id)
                     .Select(a => new AdministradorTimeVM
@@ -84,7 +88,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CriarTime(string nome, int? clubeId)
+        public async Task<IActionResult> CriarTime(string nome, int[]? clubeIds)
         {
             if (await ObterJogadorAdminAsync() == null) return Forbid();
 
@@ -114,11 +118,13 @@ namespace padelizou.Controllers
                 return RedirectToAction("Times");
             }
 
-            // Clube sede é opcional, e um id que não existe vira "sem sede" em vez de estourar
-            // a gravação com erro de chave estrangeira.
-            var sede = clubeId is > 0 && await _context.Clubes.AnyAsync(c => c.Id == clubeId) ? clubeId : null;
+            var time = new Time { Nome = nome };
+            _context.Times.Add(time);
+            await _context.SaveChangesAsync();   // o vínculo de sede precisa do Id
 
-            _context.Times.Add(new Time { Nome = nome, ClubeId = sede });
+            // Sede é opcional e pode ser mais de uma. Id que não existe é descartado lá dentro,
+            // em vez de estourar a gravação com erro de chave estrangeira.
+            await SedesDoTime.DefinirAsync(_context, time.Id, clubeIds);
             await _context.SaveChangesAsync();
 
             // Nasce SEM administrador, de propósito — igual aos 44 importados do ranking. Quem

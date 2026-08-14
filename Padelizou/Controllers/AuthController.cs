@@ -422,13 +422,22 @@ namespace padelizou.Controllers
         }
 
         // Dados para a seção "Meu time" do editar perfil: times disponíveis (quem não
-        // administra nenhum escolhe da lista), clubes (sede opcional) e o time que este
-        // jogador administra (se houver).
+        // administra nenhum escolhe da lista), clubes (as sedes, opcionais e mais de uma) e o
+        // time que este jogador administra (se houver).
         private async Task PopularDadosTimeAsync(int jogadorId)
         {
             ViewBag.Times = await _context.Times.OrderBy(t => t.Nome).ToListAsync();
             ViewBag.Clubes = await _context.Clubes.ParaEscolher().ToListAsync();
-            ViewBag.MeuTimeDono = await MeuTimeAsync(jogadorId);
+
+            var meuTime = await MeuTimeAsync(jogadorId);
+            ViewBag.MeuTimeDono = meuTime;
+
+            // Quais clubes já são sede — é o que deixa as caixinhas marcadas ao reabrir a
+            // tela. Sem isto, salvar o perfil sem tocar na seção apagaria as sedes.
+            ViewBag.SedesDoMeuTime = meuTime == null
+                ? new List<int>()
+                : await _context.TimeSedes.Where(s => s.TimeId == meuTime.Id)
+                    .Select(s => s.ClubeId).ToListAsync();
         }
 
         // O time que este jogador administra. Um time pode ter vários administradores, mas
@@ -459,7 +468,11 @@ namespace padelizou.Controllers
         public async Task<IActionResult> EditarPerfil(
             string nome, string email, string? celular, string? cidade, string? estado, bool isProfessor, IFormFile? foto,
             string? apelido = null,
-            bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null, int? clubeSedeId = null,
+            bool ehDonoTime = false, int? timeId = null, string? nomeTime = null, IFormFile? logoTime = null,
+            // As sedes do time — VÁRIAS desde 14/08/2026 (era um `clubeSedeId` só). Nulo = o
+            // formulário não mandou nenhuma marcada, e o time fica sem sede declarada, que é
+            // um estado legítimo. Ver Services/SedesDoTime.
+            int[]? clubeSedeIds = null,
             // Nulo = a aba veio de antes deste campo existir. Aí o que está gravado FICA: quem
             // já informou o sexo não pode perdê-lo por causa de um formulário em cache.
             string? sexo = null,
@@ -616,7 +629,6 @@ namespace padelizou.Controllers
                 {
                     meuTime.Nome = nomeTime.Trim();
                 }
-                meuTime.ClubeId = clubeSedeId; // clube sede é opcional
                 if (logoTime != null && logoTime.Length > 0)
                 {
                     // Se o processamento falhar, o logo que já estava lá continua — trocar por
@@ -626,6 +638,10 @@ namespace padelizou.Controllers
                     else if (logoSalvo.DeuErro) TempData["ErroImagem"] = logoSalvo.Erro;
                 }
                 await _context.SaveChangesAsync(); // garante o Id do time recém-criado
+
+                // As sedes só podem ser gravadas DEPOIS do SaveChanges acima: o vínculo
+                // precisa do Id do time, e num time recém-criado ele acabou de nascer.
+                await SedesDoTime.DefinirAsync(_context, meuTime.Id, clubeSedeIds);
 
                 // Quem cria o time é o primeiro administrador dele. Só vale pra time NOVO:
                 // os 44 importados do ranking já existem, e entrar num deles pelo nome não
@@ -641,12 +657,15 @@ namespace padelizou.Controllers
                     });
                 }
 
-                jogador.TimeId = meuTime.Id;       // quem administra também veste a camisa
+                // Quem administra também veste a camisa — e a troca passa pelo registro de
+                // transferências, como toda troca de time no sistema.
+                TransferenciasDeTime.Registrar(_context, jogador, meuTime.Id);
             }
             else
             {
-                // Não é dono: entra num time existente (ou em nenhum).
-                jogador.TimeId = timeId;
+                // Não é dono: entra num time existente (ou em nenhum). `timeId` nulo aqui é
+                // uma SAÍDA de verdade — tirou a camisa — e o histórico registra isso.
+                TransferenciasDeTime.Registrar(_context, jogador, timeId);
             }
 
             await _context.SaveChangesAsync();
@@ -1260,7 +1279,7 @@ namespace padelizou.Controllers
                     // Alguém já criou um time com esse nome: entra nele em vez de duplicar.
                     // Sem cargo nenhum — é isto que impede que digitar "SINDAQUA" no cadastro
                     // dê a alguém o comando de um dos times importados do ranking.
-                    jogador.TimeId = existente.Id;
+                    TransferenciasDeTime.Registrar(_context, jogador, existente.Id);
                 }
                 else
                 {
@@ -1279,12 +1298,12 @@ namespace padelizou.Controllers
                         ConcedidoPorId = jogador.Id,
                         ConcedidoEm = DateTime.Now,
                     });
-                    jogador.TimeId = time.Id;
+                    TransferenciasDeTime.Registrar(_context, jogador, time.Id);
                 }
             }
             else if (timeId.HasValue && await _context.Times.AnyAsync(t => t.Id == timeId.Value))
             {
-                jogador.TimeId = timeId.Value;
+                TransferenciasDeTime.Registrar(_context, jogador, timeId.Value);
             }
 
             await _context.SaveChangesAsync();

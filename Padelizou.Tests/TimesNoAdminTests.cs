@@ -59,10 +59,10 @@ public class TimesNoAdminTests
     {
         using var ctx = Cenario();
 
-        await Admin(ctx, usuarioLogadoId: 9).CriarTime("  Nata Padel Team  ", clubeId: 1);
+        await Admin(ctx, usuarioLogadoId: 9).CriarTime("  Nata Padel Team  ", clubeIds: new[] { 1 });
 
         var criado = ctx.Times.Single(t => t.Nome == "Nata Padel Team");
-        Assert.Equal(1, criado.ClubeId);
+        Assert.Equal(1, ctx.TimeSedes.Single(s => s.TimeId == criado.Id).ClubeId);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class TimesNoAdminTests
         // Criar não faz do admin do sistema o dono: o comando é designado no passo seguinte.
         using var ctx = Cenario();
 
-        await Admin(ctx, usuarioLogadoId: 9).CriarTime("Time Novo", clubeId: null);
+        await Admin(ctx, usuarioLogadoId: 9).CriarTime("Time Novo", clubeIds: null);
 
         var criado = ctx.Times.Single(t => t.Nome == "Time Novo");
         Assert.Empty(ctx.TimeAdministradores.Where(a => a.TimeId == criado.Id));
@@ -85,7 +85,7 @@ public class TimesNoAdminTests
         // com dois "SINDAQUA" na base, cada pessoa cai num dos dois pelo acaso da consulta.
         using var ctx = Cenario();
 
-        await Admin(ctx, usuarioLogadoId: 9).CriarTime("sindaqua", clubeId: null);
+        await Admin(ctx, usuarioLogadoId: 9).CriarTime("sindaqua", clubeIds: null);
 
         Assert.Equal(1, await ctx.Times.CountAsync());
     }
@@ -95,7 +95,7 @@ public class TimesNoAdminTests
     {
         using var ctx = Cenario();
 
-        await Admin(ctx, usuarioLogadoId: 9).CriarTime("   ", clubeId: null);
+        await Admin(ctx, usuarioLogadoId: 9).CriarTime("   ", clubeIds: null);
 
         Assert.Equal(1, await ctx.Times.CountAsync());
     }
@@ -105,9 +105,10 @@ public class TimesNoAdminTests
     {
         using var ctx = Cenario();
 
-        await Admin(ctx, usuarioLogadoId: 9).CriarTime("Time Sem Sede", clubeId: 4242);
+        await Admin(ctx, usuarioLogadoId: 9).CriarTime("Time Sem Sede", clubeIds: new[] { 4242 });
 
-        Assert.Null(ctx.Times.Single(t => t.Nome == "Time Sem Sede").ClubeId);
+        var criado = ctx.Times.Single(t => t.Nome == "Time Sem Sede");
+        Assert.Empty(ctx.TimeSedes.Where(s => s.TimeId == criado.Id));
     }
 
     [Fact]
@@ -115,7 +116,7 @@ public class TimesNoAdminTests
     {
         using var ctx = Cenario();
 
-        var resposta = await Admin(ctx, usuarioLogadoId: 1).CriarTime("Time do Penetra", clubeId: null);
+        var resposta = await Admin(ctx, usuarioLogadoId: 1).CriarTime("Time do Penetra", clubeIds: null);
 
         Assert.IsType<ForbidResult>(resposta);
         Assert.Equal(1, await ctx.Times.CountAsync());

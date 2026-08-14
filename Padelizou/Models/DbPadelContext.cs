@@ -32,6 +32,10 @@ public partial class DbPadelContext : DbContext
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
+    // As sedes do time (pode ser mais de uma) e a janela de transferências. Ver os
+    // comentários dos dois modelos.
+    public DbSet<TimeSede> TimeSedes { get; set; }
+    public DbSet<TransferenciaDeTime> TransferenciasDeTime { get; set; }
     public DbSet<LeadComercial> LeadsComerciais { get; set; }
     public DbSet<RepasseAoParceiro> RepassesAoParceiro { get; set; }
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
@@ -190,6 +194,54 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.JogadorId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TimeSede>(entity =>
+        {
+            // Chave composta: o mesmo clube não entra duas vezes como sede do mesmo time.
+            entity.HasKey(e => new { e.TimeId, e.ClubeId });
+
+            // Cascade pelo TIME: sem o time, o vínculo não quer dizer nada.
+            entity.HasOne(e => e.Time)
+                .WithMany(t => t.Sedes)
+                .HasForeignKey(e => e.TimeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Cascade pelo CLUBE também, e aqui é seguro: a sede é uma preferência de hoje,
+            // não histórico. Apagar o clube tira a linha do endereço — não apaga jogo, nem
+            // título, nem transferência nenhuma.
+            entity.HasOne(e => e.Clube)
+                .WithMany(c => c.TimesComSedeAqui)
+                .HasForeignKey(e => e.ClubeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TransferenciaDeTime>(entity =>
+        {
+            // A aba lista da mais recente pra mais antiga, e quase sempre filtrando por um
+            // time. Sem estes índices a varredura é na tabela inteira, que só cresce.
+            entity.HasIndex(e => e.Em);
+            entity.HasIndex(e => new { e.TimeNovoId, e.Em });
+            entity.HasIndex(e => new { e.TimeAnteriorId, e.Em });
+
+            entity.HasOne(e => e.Jogador)
+                .WithMany()
+                .HasForeignKey(e => e.JogadorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ⚠️ SetNull nos dois times, NÃO cascade: apagar um time do cadastro não pode
+            // apagar a história de quem passou por ele — é a mesma lição de Dupla.TimeId. A
+            // linha sobrevive com o lado apagado em branco, e a tela mostra "time removido"
+            // em vez de perder a transferência inteira.
+            entity.HasOne(e => e.TimeAnterior)
+                .WithMany()
+                .HasForeignKey(e => e.TimeAnteriorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.TimeNovo)
+                .WithMany()
+                .HasForeignKey(e => e.TimeNovoId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<LeadComercial>(entity =>
