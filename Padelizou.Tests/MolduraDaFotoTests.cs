@@ -1,3 +1,4 @@
+using NSubstitute;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 using System.Text.RegularExpressions;
@@ -123,6 +124,88 @@ public class MolduraDaFotoTests
         Assert.Equal("", CatalogoMolduras.ClasseCss("HackDoRecreio"));
         Assert.Equal("", CatalogoMolduras.ClasseCss(null));
         Assert.Equal("pdz-m-Campeao", CatalogoMolduras.ClasseCss("Campeao"));
+    }
+
+    // ===================== O INTERRUPTOR =====================
+    //
+    // 14/08/2026: o Felipe pediu pra SEGURAR as molduras enquanto decide o modelo (conquista ×
+    // paga) — e o pedido chegou com tudo já publicado. O portão é o que transforma "está no
+    // ar" em "ninguém vê": desligado, a tela devolve 404 pra jogador comum. Ligar é uma linha
+    // no systemd, não um deploy.
+
+    private static padelizou.Controllers.MoldurasController ControllerMolduras(
+        Padelizou.Models.DbPadelContext ctx, int euId, bool habilitado, bool admin = false)
+    {
+        var estatisticas = NSubstitute.Substitute.For<IEstatisticasService>();
+        estatisticas.ObterConquistasAsync(euId).Returns(NenhumaConquistada());
+
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new(System.Security.Claims.ClaimTypes.NameIdentifier, euId.ToString()),
+        };
+        if (admin) claims.Add(new("IsAdmin", "true"));
+
+        var controller = new padelizou.Controllers.MoldurasController(
+            ctx, estatisticas,
+            Microsoft.Extensions.Options.Options.Create(new MoldurasSettings { Habilitado = habilitado }))
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(
+                        new System.Security.Claims.ClaimsIdentity(claims, "Teste")),
+                },
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext,
+            NSubstitute.Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        return controller;
+    }
+
+    [Fact]
+    public async Task Com_o_interruptor_DESLIGADO_a_tela_nao_existe_pra_jogador_comum()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var jogador = new Padelizou.Models.Jogador { Nome = "Comum", Cpf = "44400000001", Login = "comum" };
+        ctx.Jogadores.Add(jogador);
+        await ctx.SaveChangesAsync();
+
+        var controller = ControllerMolduras(ctx, jogador.Id, habilitado: false);
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(await controller.Index());
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(await controller.Escolher("Gatinha"));
+
+        // E o POST barrado não gravou nada — 404 de fachada com efeito por baixo seria pior.
+        Assert.Null((await ctx.Jogadores.FindAsync(jogador.Id))!.MolduraEscolhida);
+    }
+
+    // O admin entra mesmo desligado — é assim que o Felipe avalia ao vivo antes de decidir.
+    [Fact]
+    public async Task Admin_entra_mesmo_com_o_interruptor_desligado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var admin = new Padelizou.Models.Jogador { Nome = "Admin", Cpf = "44400000002", Login = "adm" };
+        ctx.Jogadores.Add(admin);
+        await ctx.SaveChangesAsync();
+
+        var controller = ControllerMolduras(ctx, admin.Id, habilitado: false, admin: true);
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(await controller.Index());
+    }
+
+    [Fact]
+    public async Task Com_o_interruptor_LIGADO_o_jogador_comum_entra()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var jogador = new Padelizou.Models.Jogador { Nome = "Comum", Cpf = "44400000003", Login = "comum3" };
+        ctx.Jogadores.Add(jogador);
+        await ctx.SaveChangesAsync();
+
+        var controller = ControllerMolduras(ctx, jogador.Id, habilitado: true);
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(await controller.Index());
     }
 
     // O VM do parcial: tamanho zero significa "quem dimensiona é a classe" (o chip compacto) —

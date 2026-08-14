@@ -1,6 +1,12 @@
 ﻿@model Padelizou.Models.Jogador
 @using Padelizou.ViewModels
+@using System.Security.Claims
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.MoldurasSettings> MoldurasOpcoes
 @{
+    // As molduras estão atrás de interruptor enquanto o Felipe decide o modelo (14/08/2026):
+    // desligado, o link some pra todo mundo menos o admin — a MESMA condição da porta do
+    // controller (MoldurasController.PortaFechada), sem variação.
+    var moldurasVisiveis = MoldurasOpcoes.Value.Habilitado || User.FindFirstValue("IsAdmin") == "true";
     ViewData["Title"] = "Meu Perfil";
     var resumo = (ResumoJogadorVM)ViewBag.Resumo;
     var historicoTorneios = (List<Padelizou.Models.Dupla>)ViewBag.HistoricoTorneios;
@@ -130,9 +136,12 @@
                 <a asp-controller="Auth" asp-action="EditarPerfil" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-pencil-square me-1"></i> Editar Perfil
                 </a>
-                <a asp-controller="Molduras" asp-action="Index" class="btn btn-outline-primary mt-3 rounded-pill w-100">
-                    <i class="bi bi-circle-square me-1"></i> Molduras da foto
-                </a>
+                @if (moldurasVisiveis)
+                {
+                    <a asp-controller="Molduras" asp-action="Index" class="btn btn-outline-primary mt-3 rounded-pill w-100">
+                        <i class="bi bi-circle-square me-1"></i> Molduras da foto
+                    </a>
+                }
                 <a asp-controller="Auth" asp-action="Preferencias" class="btn btn-outline-primary mt-3 rounded-pill w-100">
                     <i class="bi bi-sliders me-1"></i> Minhas Preferências
                 </a>

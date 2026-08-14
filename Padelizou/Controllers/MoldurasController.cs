@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
@@ -18,18 +19,30 @@ public class MoldurasController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly IEstatisticasService _estatisticas;
+    private readonly MoldurasSettings _settings;
 
-    public MoldurasController(DbPadelContext context, IEstatisticasService estatisticas)
+    public MoldurasController(DbPadelContext context, IEstatisticasService estatisticas,
+        IOptions<MoldurasSettings> settings)
     {
         _context = context;
         _estatisticas = estatisticas;
+        _settings = settings.Value;
     }
+
+    // ⚠️ O INTERRUPTOR (14/08/2026): o Felipe pediu pra segurar as molduras enquanto decide o
+    // modelo (conquista × paga) — e o pedido chegou com tudo JÁ publicado. O portão fecha a
+    // porta inteira: desligado, só admin do Padelizou entra (pra avaliar ao vivo); pra todo
+    // mundo a tela não existe. Ninguém em produção tinha escolhido moldura quando fechou.
+    private bool PortaFechada() =>
+        !_settings.Habilitado && User.FindFirstValue("IsAdmin") != "true";
 
     // GET /Molduras — o guarda-roupa: TODAS as molduras em volta da foto da própria pessoa,
     // as destravadas escolhíveis e as bloqueadas em cinza dizendo como destravar (a mesma
     // regra dos badges: bloqueada sem explicação é decoração, não incentivo).
     public async Task<IActionResult> Index()
     {
+        if (PortaFechada()) return NotFound();
+
         var jogadorId = ObterUserId();
         var jogador = await _context.Jogadores.FindAsync(jogadorId);
         if (jogador == null) return RedirectToAction("Perfil", "Auth");
@@ -41,6 +54,8 @@ public class MoldurasController : Controller
     [HttpPost]
     public async Task<IActionResult> Escolher(string? codigo)
     {
+        if (PortaFechada()) return NotFound();
+
         var jogadorId = ObterUserId();
         var jogador = await _context.Jogadores.FindAsync(jogadorId);
         if (jogador == null) return RedirectToAction("Perfil", "Auth");

@@ -82,6 +82,9 @@ builder.Services.Configure<DesafiosSettings>(builder.Configuration.GetSection("D
 // Mesma prateleira, motivo diferente: o Marcar Jogo está PRONTO e escondido até termos um
 // clube com agenda de quadras. Vitrine vazia vende contra a gente — ver Services/MarcarJogoSettings.
 builder.Services.Configure<MarcarJogoSettings>(builder.Configuration.GetSection("MarcarJogo"));
+// As MOLDURAS ficam guardadas enquanto o Felipe decide o modelo (conquista × paga) —
+// ver Services/MoldurasSettings.
+builder.Services.Configure<MoldurasSettings>(builder.Configuration.GetSection("Molduras"));
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).
