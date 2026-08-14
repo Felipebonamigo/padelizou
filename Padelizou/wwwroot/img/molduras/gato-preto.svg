@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- O gato preto: orelhas escuras de miolo rosa, coleira vermelha com guizo. -->
+  <g stroke="#0b1220" stroke-width="2" stroke-linejoin="round">
+    <path d="M32 32 L28 2 L56 14 Z" fill="#1e293b"/>
+    <path d="M104 32 L108 2 L80 14 Z" fill="#1e293b"/>
+  </g>
+  <path d="M34 26 L31 9 L47 16 Z" fill="#f472b6"/>
+  <path d="M102 26 L105 9 L89 16 Z" fill="#f472b6"/>
+  <path d="M44 116 A50 50 0 0 0 92 116 L90 124 A54 54 0 0 1 46 124 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5"/>
+  <circle cx="68" cy="124" r="7" fill="#f5d061" stroke="#8a6508" stroke-width="1.5"/>
+  <path d="M68 126 L68 130" stroke="#8a6508" stroke-width="1.5"/>
+  <path d="M112 96 C124 92 130 82 128 72" stroke="#1e293b" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

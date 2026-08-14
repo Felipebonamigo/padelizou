@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A raposa: orelhas grandes de ponta escura e as bochechas brancas. -->
+  <g stroke="#9a3412" stroke-width="2" stroke-linejoin="round">
+    <path d="M26 40 L14 2 L54 14 Z" fill="#fb923c"/>
+    <path d="M110 40 L122 2 L82 14 Z" fill="#fb923c"/>
+  </g>
+  <path d="M22 15 L14 2 L28 6 Z" fill="#431407"/>
+  <path d="M114 15 L122 2 L108 6 Z" fill="#431407"/>
+  <path d="M27 34 L21 12 L44 19 Z" fill="#ffedd5"/>
+  <path d="M109 34 L115 12 L92 19 Z" fill="#ffedd5"/>
+  <path d="M16 52 C8 58 4 68 6 76 C14 74 20 66 22 58 Z" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+  <path d="M120 52 C128 58 132 68 130 76 C122 74 116 66 114 58 Z" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+</svg>

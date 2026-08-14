@@ -2,7 +2,7 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v21";
+const CACHE_NAME = "padelizou-static-v22";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
@@ -32,6 +32,12 @@ const STATIC_ASSETS = [
   "/img/molduras/chamas.svg",
   "/img/molduras/estrela-mvp.svg",
   "/img/molduras/asas-coracao.svg",
+  "/img/molduras/gatinha.svg",
+  "/img/molduras/sapinho.svg",
+  "/img/molduras/raposa.svg",
+  "/img/molduras/bruxinha.svg",
+  "/img/molduras/gato-preto.svg",
+  "/img/molduras/fada.svg",
 ];
 
 self.addEventListener("install", (event) => {

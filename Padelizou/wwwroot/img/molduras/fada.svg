@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A fada: asas grandes abertas e a tiara de pontas com gemas. -->
+  <g stroke="#94a3b8" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M46 84 C28 60 10 50 0 54 C10 70 26 84 48 94 Z" fill="#dbeafe"/>
+    <path d="M46 94 C28 78 10 74 2 80 C14 92 30 100 48 104 Z" fill="#eff6ff"/>
+    <path d="M46 102 C30 94 14 96 6 106 C18 110 34 110 48 110 Z" fill="#ffffff"/>
+    <path d="M90 84 C108 60 126 50 136 54 C126 70 110 84 88 94 Z" fill="#dbeafe"/>
+    <path d="M90 94 C108 78 126 74 134 80 C122 92 106 100 88 104 Z" fill="#eff6ff"/>
+    <path d="M90 102 C106 94 122 96 130 106 C118 110 102 110 88 110 Z" fill="#ffffff"/>
+  </g>
+  <g stroke="#8a6508" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M48 26 L52 8 L60 20 L68 4 L76 20 L84 8 L88 26 Z" fill="#f5d061"/>
+  </g>
+  <circle cx="68" cy="14" r="3" fill="#e11d48" stroke="#9f1239"/>
+  <circle cx="56" cy="18" r="2" fill="#2563eb" stroke="#172554"/>
+  <circle cx="80" cy="18" r="2" fill="#2563eb" stroke="#172554"/>
+</svg>

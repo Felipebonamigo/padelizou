@@ -14,12 +14,26 @@ namespace Padelizou.Services;
 // responde três perguntas: quais existem, como se chamam, e se ESTE jogador pode usar AQUELA.
 public static class CatalogoMolduras
 {
-    public record Moldura(string Codigo, string Nome, string ComoDestravar);
+    // `Livre` = de fábrica: liberada pra todo mundo desde o primeiro dia, sem conquista.
+    // Existe por dois motivos (14/08/2026): o Felipe pediu as molduras divertidas da
+    // referência dele, e o jogador NOVO — zero conquista — não tinha nenhuma pra vestir.
+    // A de fábrica é o brinquedo de chegada; a de conquista continua sendo o troféu.
+    public record Moldura(string Codigo, string Nome, string ComoDestravar, bool Livre = false);
 
     // Na ordem do catálogo de conquistas — a tela de escolha mostra na mesma ordem em que o
     // perfil mostra os badges, e ordem diferente nas duas telas parece catálogo diferente.
+    // As de fábrica vêm primeiro: são as que TODO MUNDO pode vestir já.
     public static readonly IReadOnlyList<Moldura> Todas = new List<Moldura>
     {
+        // As de fábrica (da referência do Felipe: orelhas, sapo, chapéu — o que É moldura
+        // de jogo). Sem gancho de conquista, e o teste de sincronia sabe disso.
+        new("Gatinha",   "Gatinha",    "De fábrica — sua desde o primeiro dia.", Livre: true),
+        new("Sapinho",   "Sapinho",    "De fábrica — sua desde o primeiro dia.", Livre: true),
+        new("Raposa",    "Raposa",     "De fábrica — sua desde o primeiro dia.", Livre: true),
+        new("Bruxinha",  "Bruxinha",   "De fábrica — sua desde o primeiro dia.", Livre: true),
+        new("GatoPreto", "Gato Preto", "De fábrica — sua desde o primeiro dia.", Livre: true),
+        new("Fada",      "Fada",       "De fábrica — sua desde o primeiro dia.", Livre: true),
+
         // A escada de quem joga
         new("Estreia",       "Primeira Bola",   "Entre no seu primeiro jogo ou torneio."),
         new("Mensalista",    "Presença",        "Jogue 4 jogos fixos de grupo."),
@@ -80,8 +94,12 @@ public static class CatalogoMolduras
         // Tirar a moldura (voltar pra foto limpa) é sempre permitido.
         if (string.IsNullOrWhiteSpace(codigo)) return null;
 
-        if (PorCodigo(codigo) == null)
+        var moldura = PorCodigo(codigo);
+        if (moldura == null)
             return "Essa moldura não existe.";
+
+        // De fábrica não pede conquista nenhuma — é dela que o jogador novo vive.
+        if (moldura.Livre) return null;
 
         var conquista = conquistasDoJogador.FirstOrDefault(c => c.Codigo == codigo);
         if (conquista == null || !conquista.Conquistada)

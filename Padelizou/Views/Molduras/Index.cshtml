@@ -53,24 +53,32 @@
         </div>
     </div>
 
-    <div class="row g-3">
-        @foreach (var moldura in CatalogoMolduras.Todas)
+    @{
+        // O cartão de UMA moldura — função local porque agora são DUAS seções (de fábrica e
+        // conquistas), e duplicar o markup é como uma delas fica pra trás na primeira mudança.
+        // async Task porque o <partial> lá dentro é TagHelper — o Razor exige (MVC1006).
+        async Task Cartao(CatalogoMolduras.Moldura moldura)
         {
             porCodigo.TryGetValue(moldura.Codigo, out var conquista);
-            var destravada = conquista?.Conquistada == true;
+            var destravada = moldura.Livre || conquista?.Conquistada == true;
             var emUso = Model.MolduraEscolhida == moldura.Codigo;
 
             <div class="col-6 col-md-4 col-lg-3">
                 <div class="card shadow-sm border-0 h-100 text-center p-3 @(destravada ? "" : "opacity-50")">
                     @* A moldura é mostrada SEMPRE em volta da foto da própria pessoa — ver a
                        sua cara dentro do ouro é o que faz querer destravar. Bloqueada fica
-                       acinzentada pelo opacity do card, não escondida. *@
-                    <div class="mx-auto mb-2">
+                       acinzentada pelo opacity do card, não escondida. Os ornamentos
+                       transbordam de propósito; o padding da seção dá o respiro. *@
+                    <div class="mx-auto mb-2 mt-3">
                         <partial name="_FotoDoJogador" model='new FotoDoJogadorVM(Model.FotoPerfil, moldura.Codigo, 72, Model.ComoChamar)' />
                     </div>
                     <strong class="d-block">@moldura.Nome</strong>
                     <small class="text-muted d-block mb-2">
-                        @if (destravada)
+                        @if (moldura.Livre)
+                        {
+                            <i class="bi bi-stars text-info"></i> @:De fábrica — todo mundo pode.
+                        }
+                        else if (destravada)
                         {
                             <i class="bi bi-unlock-fill text-success"></i> @(conquista!.Titulo)
                         }
@@ -93,6 +101,22 @@
                     }
                 </div>
             </div>
+        }
+    }
+
+    <h5 class="fw-bold mt-2 mb-2" style="color: var(--pdz-ink);">As divertidas — de fábrica</h5>
+    <div class="row g-3 mb-4">
+        @foreach (var moldura in CatalogoMolduras.Todas.Where(m => m.Livre))
+        {
+            await Cartao(moldura);
+        }
+    </div>
+
+    <h5 class="fw-bold mb-2" style="color: var(--pdz-ink);">As das conquistas — cada uma se ganha na quadra</h5>
+    <div class="row g-3">
+        @foreach (var moldura in CatalogoMolduras.Todas.Where(m => !m.Livre))
+        {
+            await Cartao(moldura);
         }
     </div>
 </div>

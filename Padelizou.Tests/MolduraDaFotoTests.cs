@@ -23,11 +23,14 @@ public class MolduraDaFotoTests
         CatalogoConquistas.Montar(new DadosParaConquistas(
             false, 0, false, false, false, 0, 0, 0, 0, 0, 0));
 
+    // As DE FÁBRICA (Livre) ficam fora da sincronia de propósito: elas existem justamente
+    // pra quem não tem conquista nenhuma. O contrato passa a ser: toda conquista tem moldura,
+    // e toda moldura NÃO-livre tem conquista.
     [Fact]
-    public void Toda_conquista_tem_moldura_e_toda_moldura_tem_conquista()
+    public void Toda_conquista_tem_moldura_e_toda_moldura_de_conquista_tem_conquista()
     {
         var conquistas = TodasConquistadas().Select(c => c.Codigo).ToHashSet();
-        var molduras = CatalogoMolduras.Todas.Select(m => m.Codigo).ToHashSet();
+        var molduras = CatalogoMolduras.Todas.Where(m => !m.Livre).Select(m => m.Codigo).ToHashSet();
 
         var conquistaSemMoldura = conquistas.Except(molduras).ToList();
         var molduraSemConquista = molduras.Except(conquistas).ToList();
@@ -37,6 +40,28 @@ public class MolduraDaFotoTests
             + string.Join(", ", conquistaSemMoldura));
         Assert.True(molduraSemConquista.Count == 0,
             "Moldura órfã — não há conquista que a destrave: " + string.Join(", ", molduraSemConquista));
+    }
+
+    // ⚠️ E uma DE FÁBRICA não pode usar código de conquista: no dia em que uma conquista
+    // "Gatinha" nascesse, a moldura livre viraria travada (ou vice-versa) sem ninguém decidir.
+    [Fact]
+    public void Moldura_de_fabrica_nao_reusa_codigo_de_conquista()
+    {
+        var conquistas = TodasConquistadas().Select(c => c.Codigo).ToHashSet();
+        var colisoes = CatalogoMolduras.Todas.Where(m => m.Livre && conquistas.Contains(m.Codigo)).ToList();
+
+        Assert.True(colisoes.Count == 0,
+            "Moldura de fábrica com código de conquista: " + string.Join(", ", colisoes.Select(m => m.Codigo)));
+    }
+
+    // A razão de existir das de fábrica: jogador NOVO, zero conquista, já tem o que vestir.
+    [Fact]
+    public void Moldura_de_fabrica_pode_ser_usada_sem_conquista_nenhuma()
+    {
+        foreach (var livre in CatalogoMolduras.Todas.Where(m => m.Livre))
+        {
+            Assert.Null(CatalogoMolduras.MotivoParaNaoUsar(livre.Codigo, NenhumaConquistada()));
+        }
     }
 
     // ⚠️ Moldura no catálogo sem CSS é INVISÍVEL — a pessoa escolhe e nada muda, sem erro em

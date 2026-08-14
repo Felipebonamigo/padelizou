@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A gatinha: orelhas rosa no alto, coleira com guizo na base. -->
+  <g stroke="#be185d" stroke-width="2" stroke-linejoin="round">
+    <path d="M30 34 L24 4 L52 16 Z" fill="#f9a8d4"/>
+    <path d="M106 34 L112 4 L84 16 Z" fill="#f9a8d4"/>
+  </g>
+  <path d="M31 28 L28 10 L45 17 Z" fill="#fdf2f8"/>
+  <path d="M105 28 L108 10 L91 17 Z" fill="#fdf2f8"/>
+  <path d="M44 116 A50 50 0 0 0 92 116 L90 124 A54 54 0 0 1 46 124 Z" fill="#e11d48" stroke="#9f1239" stroke-width="1.5"/>
+  <circle cx="68" cy="124" r="7" fill="#f5d061" stroke="#8a6508" stroke-width="1.5"/>
+  <circle cx="66" cy="122" r="1.6" fill="#8a6508"/>
+  <path d="M68 126 L68 130" stroke="#8a6508" stroke-width="1.5"/>
+</svg>

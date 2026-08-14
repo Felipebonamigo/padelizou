@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- A bruxinha: chapelau torto no alto, vassoura atravessada embaixo. -->
+  <g stroke="#3b0764" stroke-width="2" stroke-linejoin="round">
+    <path d="M22 34 C40 26 82 24 100 30 C96 22 88 20 84 19 C80 8 66 -2 52 3 C42 6 36 14 36 19 C28 22 24 28 22 34 Z" fill="#6d28d9"/>
+    <path d="M14 36 C44 24 92 22 112 32 C112 38 106 40 98 40 C70 34 40 36 22 42 C16 42 14 39 14 36 Z" fill="#581c87"/>
+  </g>
+  <path d="M40 21 C52 17 72 16 82 19 L80 26 C68 22 52 23 42 27 Z" fill="#a78bfa"/>
+  <circle cx="62" cy="22" r="3" fill="#f5d061" stroke="#8a6508"/>
+  <g stroke="#7c2d12" stroke-width="4" stroke-linecap="round">
+    <path d="M52 128 L100 106"/>
+  </g>
+  <path d="M46 134 C38 132 30 126 28 120 C36 118 46 120 54 124 L58 126 L52 132 Z" fill="#d97706" stroke="#92400e" stroke-width="1.5"/>
+</svg>

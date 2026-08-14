@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 136">
+  <!-- O sapinho: olhos saltados no alto, patas na base. -->
+  <g stroke="#15803d" stroke-width="2">
+    <circle cx="44" cy="14" r="12" fill="#4ade80"/>
+    <circle cx="92" cy="14" r="12" fill="#4ade80"/>
+  </g>
+  <circle cx="44" cy="14" r="7" fill="#fefce8"/>
+  <circle cx="92" cy="14" r="7" fill="#fefce8"/>
+  <circle cx="45" cy="15" r="3.2" fill="#14532d"/>
+  <circle cx="91" cy="15" r="3.2" fill="#14532d"/>
+  <g fill="#4ade80" stroke="#15803d" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M30 112 C22 118 14 128 18 132 C24 134 30 128 32 124 Z"/>
+    <path d="M34 118 C32 126 34 132 40 133 C44 132 42 124 40 120 Z"/>
+    <path d="M106 112 C114 118 122 128 118 132 C112 134 106 128 104 124 Z"/>
+    <path d="M102 118 C104 126 102 132 96 133 C92 132 94 124 96 120 Z"/>
+  </g>
+</svg>

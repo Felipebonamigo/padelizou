@@ -3088,6 +3088,21 @@ button, a, input, select { touch-action: manipulation; }
     z-index: 2;
 }
 
+/* ── As DE FÁBRICA: os bichinhos da referência do Felipe — anel na cor do personagem,
+   ornamento grande por cima (orelhas, olhos de sapo, chapéu, asas). ─────────────────── */
+.pdz-m-Gatinha { background: linear-gradient(140deg, #f9a8d4, #f472b6); }
+.pdz-m-Gatinha::before { background-image: url("/img/molduras/gatinha.svg"); }
+.pdz-m-Sapinho { background: linear-gradient(140deg, #4ade80, #16a34a); }
+.pdz-m-Sapinho::before { background-image: url("/img/molduras/sapinho.svg"); }
+.pdz-m-Raposa { background: linear-gradient(140deg, #fb923c, #ea580c); }
+.pdz-m-Raposa::before { background-image: url("/img/molduras/raposa.svg"); }
+.pdz-m-Bruxinha { background: linear-gradient(140deg, #7c3aed, #3b0764); }
+.pdz-m-Bruxinha::before { background-image: url("/img/molduras/bruxinha.svg"); }
+.pdz-m-GatoPreto { background: linear-gradient(140deg, #334155, #0f172a); }
+.pdz-m-GatoPreto::before { background-image: url("/img/molduras/gato-preto.svg"); }
+.pdz-m-Fada { background: linear-gradient(140deg, #93c5fd, #c4b5fd); }
+.pdz-m-Fada::before { background-image: url("/img/molduras/fada.svg"); }
+
 .pdz-m-Campeao::before { background-image: url("/img/molduras/coroa.svg"); }
 .pdz-m-Bicampeao::before { background-image: url("/img/molduras/gema-rubi.svg"); }
 .pdz-m-Tricampeao::before { background-image: url("/img/molduras/gema-safira.svg"); }
