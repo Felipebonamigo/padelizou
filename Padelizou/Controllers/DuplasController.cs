@@ -129,7 +129,10 @@ namespace Padelizou.Controllers
             string? quandoPagar = null,
             // Parceiro escolhido pelo NOME, na lista de sugestões — quem já tem conta é
             // achado por aqui, e ninguém precisa saber o CPF dele pra inscrever a dupla.
-            int? jogador2Id = null)
+            int? jogador2Id = null,
+            // O MESMO pro jogador 1 (pedido do Felipe, 14/08/2026): quem inscreve outra
+            // pessoa sabe o nome, não o CPF. Antes só o parceiro tinha essa porta.
+            int? jogador1Id = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -169,6 +172,27 @@ namespace Padelizou.Controllers
 
                 cpf2 = escolhido.Cpf;
                 nome2 = escolhido.Nome;
+            }
+
+            // JOGADOR 1 ESCOLHIDO PELA LISTA DE NOMES — mesma porta, mesmo motivo, e de novo
+            // preenchendo cpf1/nome1 AQUI em cima pra tudo daqui pra baixo continuar sendo a
+            // inscrição por CPF de sempre: a checagem de CPF válido, o nome que parece nome, a
+            // inscrição repetida, o juntar com a solo. Caminho paralelo seria repetir as quatro.
+            if (jogador1Id is int idJogador1)
+            {
+                var escolhido = await _context.Jogadores
+                    .Where(j => j.Id == idJogador1)
+                    .Select(j => new { j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+
+                if (escolhido == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse jogador. Escolha de novo na lista ou informe o CPF.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                cpf1 = escolhido.Cpf;
+                nome1 = escolhido.Nome;
             }
 
             // Marcou "ainda não tenho parceiro"? Então tudo do jogador 2 é ignorado — mesmo

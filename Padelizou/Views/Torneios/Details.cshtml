@@ -1117,6 +1117,34 @@
                                     <i class="bi bi-person-check-fill"></i> Sou eu
                                 </button>
                             }
+                            @* ACHAR O JOGADOR 1 PELO NOME — a mesma busca que o parceiro já tinha.
+                               Quem inscreve outra pessoa (organizador na secretaria, amigo que
+                               junta a dupla) esbarrava aqui: sabe o nome, não sabe o CPF.
+
+                               A lista devolve só Id, nome e foto (Services/BuscaJogador). CPF,
+                               celular e cidade de terceiro NÃO saem do servidor — com eles na
+                               resposta, três letras varreriam a base. Escolhido o nome, quem
+                               completa o cadastro é o servidor, pelo Id. *@
+                            <div class="position-relative mb-2" id="pdzBuscaJog1">
+                                <input type="text" class="form-control" id="pdzJog1Nome"
+                                       placeholder="Procure pelo nome ou apelido"
+                                       autocomplete="off" spellcheck="false" />
+                                <div class="small text-muted mt-1" id="pdzJog1Dica">
+                                    Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
+                                </div>
+                                <input type="hidden" name="jogador1Id" id="pdzJog1Id" />
+                                <div class="list-group position-absolute w-100 shadow d-none"
+                                     id="pdzJog1Lista" style="z-index: 1080; max-height: 15rem; overflow-y: auto;"></div>
+                            </div>
+
+                            @* Escolhido pela lista, o bloco do CPF some: os dados vêm do cadastro
+                               de quem foi escolhido, e pedir de novo seria pedir pra digitar errado. *@
+                            <div id="pdzJog1Escolhido" class="alert alert-success py-2 px-3 d-none d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-check-circle-fill"></i> <strong id="pdzJog1EscolhidoNome"></strong></span>
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="pdzJog1Trocar">trocar</button>
+                            </div>
+
+                            <div id="pdzCamposPorCpf1">
                             <input type="text" name="cpf1" class="form-control mb-1 js-cpf" data-alvo="1"
                                    placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                             <div class="small mb-2 js-cpf-status" data-alvo="1"></div>
@@ -1127,6 +1155,7 @@
                                 <div class="col-8"><input type="text" name="cidade1" class="form-control" placeholder="Cidade" required /></div>
                                 <div class="col-4"><input type="text" name="estado1" class="form-control" placeholder="UF" required /></div>
                             </div>
+                            </div> @* fim do pdzCamposPorCpf1 *@
                         </div>
                     </div>
                 </div>
@@ -4131,6 +4160,11 @@
 
         if (botao) {
             botao.addEventListener('click', function () {
+                // Desfaz uma escolha por nome antes: os dois caminhos gravam a mesma pessoa,
+                // e o Id vence o CPF no servidor — o CPF preenchido aqui seria ignorado em
+                // silêncio, com a tela mostrando "Sou eu" e o nome de outra pessoa ao lado.
+                if (window.pdzBuscaJog1) window.pdzBuscaJog1.limpar();
+
                 cpf1.value = meuCpf;
                 // 'input' formata a máscara E dispara a consulta que preenche o resto.
                 cpf1.dispatchEvent(new Event('input', { bubbles: true }));
@@ -4164,24 +4198,30 @@
         });
     })();
 
-    // ── Achar o parceiro pelo NOME ──────────────────────────────────────────────────────
+    // ── Achar o jogador pelo NOME ───────────────────────────────────────────────────────
     //
-    // Quase ninguém sabe o CPF do parceiro de cabeça, e a inscrição parava no meio esperando
-    // uma mensagem no WhatsApp. Três letras e a lista aparece; escolhido o nome, o servidor
+    // Quase ninguém sabe o CPF do outro de cabeça, e a inscrição parava no meio esperando uma
+    // mensagem no WhatsApp. Três letras e a lista aparece; escolhido o nome, o servidor
     // completa o resto pelo Id (DuplasController.Create).
     //
     // A busca devolve só Id, nome e foto — CPF e celular de terceiro não saem do servidor.
-    (function () {
-        var campo = document.getElementById('pdzParceiroNome');
+    //
+    // ⚠️ UMA função pros DOIS lados da dupla (o Felipe pediu o mesmo pro jogador 1 em
+    // 14/08/2026). Copiar o bloco e trocar os ids seria a segunda cópia da mesma regra: o
+    // dia em que a busca mudasse — outro endpoint, outro mínimo de letras, outro jeito de
+    // esconder o CPF — um dos dois lados ficaria pra trás, e ninguém repara logo.
+    function pdzLigarBuscaPorNome(ids) {
+        var campo = document.getElementById(ids.campo);
         if (!campo) return;
 
-        var lista = document.getElementById('pdzParceiroLista');
-        var idOculto = document.getElementById('pdzParceiroId');
-        var escolhido = document.getElementById('pdzParceiroEscolhido');
-        var escolhidoNome = document.getElementById('pdzParceiroEscolhidoNome');
-        var trocar = document.getElementById('pdzParceiroTrocar');
-        var porCpf = document.getElementById('pdzCamposPorCpf');
-        var dica = document.getElementById('pdzParceiroDica');
+        var lista = document.getElementById(ids.lista);
+        var idOculto = document.getElementById(ids.idOculto);
+        var escolhido = document.getElementById(ids.escolhido);
+        var escolhidoNome = document.getElementById(ids.escolhidoNome);
+        var trocar = document.getElementById(ids.trocar);
+        var porCpf = document.getElementById(ids.porCpf);
+        var dica = document.getElementById(ids.dica);
+        var caixa = document.getElementById(ids.caixa);
         var url = '@Url.Action("BuscarJogadorParaOrganizador", "Torneios")';
         var timer = null;
 
@@ -4264,9 +4304,27 @@
 
         // Clique fora fecha — a lista flutua sobre o formulário.
         document.addEventListener('click', function (e) {
-            if (!document.getElementById('pdzBuscaParceiro').contains(e.target)) fecharLista();
+            if (caixa && !caixa.contains(e.target)) fecharLista();
         });
-    })();
+
+        // O "Sou eu" precisa desfazer uma escolha por nome antes de preencher o CPF: os dois
+        // caminhos gravam a MESMA pessoa, e deixar os dois marcados ao mesmo tempo deixaria
+        // na tela um nome escolhido que o servidor ia ignorar (o Id vence o CPF).
+        return { limpar: function () { if (!escolhido.classList.contains('d-none')) trocar.click(); } };
+    }
+
+    // Em window porque quem precisa dela é o "Sou eu", que vive noutro bloco acima.
+    window.pdzBuscaJog1 = pdzLigarBuscaPorNome({
+        caixa: 'pdzBuscaJog1', campo: 'pdzJog1Nome', lista: 'pdzJog1Lista', idOculto: 'pdzJog1Id',
+        escolhido: 'pdzJog1Escolhido', escolhidoNome: 'pdzJog1EscolhidoNome',
+        trocar: 'pdzJog1Trocar', porCpf: 'pdzCamposPorCpf1', dica: 'pdzJog1Dica',
+    });
+
+    pdzLigarBuscaPorNome({
+        caixa: 'pdzBuscaParceiro', campo: 'pdzParceiroNome', lista: 'pdzParceiroLista', idOculto: 'pdzParceiroId',
+        escolhido: 'pdzParceiroEscolhido', escolhidoNome: 'pdzParceiroEscolhidoNome',
+        trocar: 'pdzParceiroTrocar', porCpf: 'pdzCamposPorCpf', dica: 'pdzParceiroDica',
+    });
 
     // "Ainda não tenho parceiro": esconde os campos do jogador 2. O required precisa sair
     // junto, senão o navegador recusa o envio apontando pra um campo invisível.
