@@ -138,9 +138,44 @@ namespace padelizou.Controllers
         [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
         public async Task<IActionResult> EsqueciSenha(string email)
         {
-            var jogador = await BuscaJogador.PorIdentificadorAsync(_context, email);
+            // Aceita CPF também, além de e-mail e login (ver BuscaJogador.ParaRecuperarSenhaAsync).
+            var jogador = await BuscaJogador.ParaRecuperarSenhaAsync(_context, email);
 
-            if (jogador != null && !string.IsNullOrWhiteSpace(jogador.Email))
+            // Conta excluída não recebe tratamento nenhum: cai na mesma resposta de quem não
+            // existe. Hoje ela é inalcançável na busca acima, mas os dois ramos seguintes leem
+            // "sem senha" — e a exclusão é a única outra coisa no sistema que zera o SenhaHash.
+            // Sem esta linha, o dia em que alguém afrouxar a anonimização faz uma conta que
+            // pediu pra sair reaparecer numa tela dizendo o que fazer pra voltar.
+            if (jogador?.Excluido == true) jogador = null;
+
+            // PRÉ-CADASTRO: a conta existe, com o histórico de torneios dentro, mas nunca teve
+            // senha — não há o que recuperar. Dizer "link a caminho" aqui era o pior desfecho
+            // possível, porque manda a pessoa esperar (e depois procurar no spam) um e-mail que
+            // nunca foi gerado, quando o que falta é CRIAR a conta com aquele mesmo CPF — e o
+            // Cadastro reivindica a linha existente, com o histórico junto.
+            //
+            // ⚠️ Este ramo ROMPE de propósito a resposta uniforme do resto da ação (decisão do
+            // Felipe em 17/08/2026). O que ele conta — "esse CPF está na base e ainda não tem
+            // senha" — o formulário de cadastro já contava, porque lá o CPF com senha é recusado
+            // e o CPF sem senha passa. Não é um vazamento novo: é o mesmo fato, dito na tela
+            // onde a pessoa está parada.
+            if (jogador?.EhPreCadastro == true)
+            {
+                ViewBag.PrecisaCriarConta = true;
+                return View();
+            }
+
+            // Tem senha, mas não tem e-mail pra onde mandar o link. Acontece com quem assumiu um
+            // pré-cadastro sem preencher e-mail, e é um beco sem saída de verdade — a única saída
+            // é falar com a gente. Sem este ramo, a pessoa via a caixa verde e ia caçar no spam
+            // um e-mail que não tinha destinatário.
+            if (jogador != null && string.IsNullOrWhiteSpace(jogador.Email))
+            {
+                ViewBag.SemEmail = true;
+                return View();
+            }
+
+            if (jogador != null)
             {
                 RecuperacaoSenha.Emitir(jogador, DateTime.Now);
                 await _context.SaveChangesAsync();
@@ -163,7 +198,9 @@ namespace padelizou.Controllers
             }
 
             // Mesma resposta com ou sem conta: dizer "esse e-mail não existe" entregaria de
-            // graça quem está cadastrado no site.
+            // graça quem está cadastrado no site. Continua valendo pra TODA conta recuperável —
+            // os dois ramos acima são estados em que não existe recuperação nenhuma pra fazer,
+            // e calar sobre eles não protegia ninguém: só deixava a pessoa esperando.
             ViewBag.Enviado = true;
             return View();
         }

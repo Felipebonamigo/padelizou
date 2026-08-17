@@ -1,4 +1,5 @@
 @inject Microsoft.Extensions.Options.IOptions<EmailSettings> ConfigDeEmail
+@inject Microsoft.Extensions.Options.IOptions<SuporteSettings> ConfigDeSuporte
 @{
     ViewData["Title"] = "Esqueci minha senha - Padelizou";
 
@@ -6,6 +7,11 @@
     // systemd (ver EMAIL.md) e já mudou uma vez. Endereço cravado aqui viraria mentira na tela
     // no dia da próxima troca — e mentira justamente na frase que manda a pessoa procurar.
     var remetente = ConfigDeEmail.Value.RemetenteEmail;
+
+    // Mesmo motivo: o número do suporte já foi trocado uma vez (ver SuporteSettings).
+    var suporte = ConfigDeSuporte.Value;
+    var linkDoSuporte = Padelizou.Services.WhatsAppLinkHelper.GerarLink(suporte.WhatsApp,
+        "Olá! Não consigo recuperar minha senha no Padelizou — minha conta está sem e-mail cadastrado.");
 }
 
 <div class="container mt-5 mb-5">
@@ -16,12 +22,64 @@
                 <div class="card-body p-4 p-sm-5">
                     <h3 class="fw-bold mb-2" style="color: var(--pdz-ink);">Esqueci minha senha</h3>
 
-                    @if (ViewBag.Enviado == true)
+                    @* PRÉ-CADASTRO: a conta existe (alguém a inscreveu num torneio), mas nunca
+                       teve senha. Antes esta pessoa caía na caixa verde e ia esperar pra sempre
+                       um e-mail que o servidor nem tentou mandar — ver AuthController.EsqueciSenha. *@
+                    @if (ViewBag.PrecisaCriarConta == true)
+                    {
+                        <div class="alert alert-info">
+                            <strong><i class="bi bi-person-plus"></i> Essa conta ainda não tem senha.</strong>
+                            <p class="mb-0 mt-2">
+                                Você já está no Padelizou — alguém te inscreveu num torneio e seu
+                                histórico está guardado aqui. Só a senha nunca foi criada, então não
+                                há o que recuperar.
+                            </p>
+                        </div>
+
+                        @* O CPF é o que liga a conta nova ao histórico (ver o pré-cadastro em
+                           AuthController.Cadastro), por isso a frase insiste no "mesmo CPF": quem
+                           usa outro número nasce numa conta vazia e perde o que já jogou. *@
+                        <p class="text-muted">
+                            Crie sua conta usando o <strong>mesmo CPF</strong> e seu histórico vem junto.
+                        </p>
+
+                        <a asp-action="Cadastro" class="btn btn-padel btn-lg w-100 rounded-pill">
+                            Criar minha conta
+                        </a>
+                        <div class="text-center mt-3">
+                            <a asp-action="Login" class="small">Voltar pra entrada</a>
+                        </div>
+                    }
+                    else if (ViewBag.SemEmail == true)
+                    {
+                        @* Beco sem saída de verdade: tem senha, mas não tem e-mail pra onde mandar
+                           o link. Falar com a gente é a ÚNICA saída — e dizer isso é melhor que a
+                           caixa verde, que mandava caçar no spam um e-mail sem destinatário. *@
+                        <div class="alert alert-warning">
+                            <strong><i class="bi bi-envelope-slash"></i> Essa conta está sem e-mail cadastrado.</strong>
+                            <p class="mb-0 mt-2">
+                                O link pra criar senha nova só chega por e-mail, então não temos pra
+                                onde mandar. A gente resolve isso pra você numa conversa.
+                            </p>
+                        </div>
+
+                        <a href="@linkDoSuporte" target="_blank" rel="noopener"
+                           class="btn btn-padel btn-lg w-100 rounded-pill">
+                            <i class="bi bi-whatsapp"></i> Falar com a gente
+                        </a>
+                        <p class="small text-muted text-center mt-2 mb-0">
+                            WhatsApp <strong>@suporte.WhatsAppFormatado</strong>
+                        </p>
+                        <div class="text-center mt-3">
+                            <a asp-action="Login" class="small">Voltar pra entrada</a>
+                        </div>
+                    }
+                    else if (ViewBag.Enviado == true)
                     {
                         <div class="alert alert-success">
                             <i class="bi bi-envelope-check"></i>
-                            Se existir uma conta com esse e-mail ou login, o link pra criar uma senha
-                            nova já está a caminho. Ele vale por 1 hora.
+                            Se existir uma conta com esse e-mail, login ou CPF, o link pra criar uma
+                            senha nova já está a caminho. Ele vale por 1 hora.
                         </div>
 
                         @* O aviso de spam era uma nota de rodapé em cinza claro, e nota de rodapé
@@ -48,8 +106,12 @@
                             </div>
                         </div>
 
+                        @* Mandar tentar pelo CPF é o conselho mais útil que cabe aqui: o e-mail da
+                           conta pode ter sido digitado por OUTRA pessoa (o organizador que inscreveu
+                           a dupla), então "confira se é o mesmo e-mail" nem sempre tem resposta. *@
                         <p class="small text-muted">
-                            Continua sem achar? Confirme se digitou o mesmo e-mail do cadastro.
+                            Continua sem achar? Confirme se digitou o mesmo e-mail do cadastro — ou
+                            tente de novo pelo seu CPF.
                         </p>
                         <a asp-action="Login" class="btn btn-outline-secondary rounded-pill w-100">Voltar</a>
                     }
@@ -60,14 +122,19 @@
                             <div class="alert alert-danger">@ViewBag.Erro</div>
                         }
 
-                        <p class="text-muted">Escreva seu e-mail ou login e a gente manda um link pra você criar uma senha nova.</p>
+                        <p class="text-muted">Escreva seu e-mail, seu login ou seu CPF e a gente manda um link pra você criar uma senha nova.</p>
 
+                        @* ⚠️ O CPF PRECISA aparecer escrito aqui. A busca passou a aceitá-lo em
+                           17/08/2026, e aceitar em silêncio não resolve nada: quem só sabe o
+                           próprio CPF é justamente quem NÃO vai adivinhar que pode digitá-lo num
+                           campo que diz "e-mail ou login" — e era essa pessoa que ficava sem
+                           caminho. Ver BuscaJogador.ParaRecuperarSenhaAsync. *@
                         <form asp-action="EsqueciSenha" method="post">
                             @Html.AntiForgeryToken()
-                            <label class="form-label fw-bold text-muted">E-mail ou login</label>
+                            <label class="form-label fw-bold text-muted">E-mail, login ou CPF</label>
                             <input type="text" name="email" class="form-control form-control-lg" required
                                    autocapitalize="none" autocomplete="username"
-                                   placeholder="seu@email.com ou seu login" />
+                                   placeholder="seu@email.com, seu login ou seu CPF" />
 
                             <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-3">
                                 Enviar link

@@ -30,11 +30,20 @@ public class AvisoDeSpamNaRecuperacaoDeSenhaTests
         // `alert-warning` é o que faz a pessoa parar e ler. Se isto quebrar porque o aviso virou
         // `small text-muted` de novo, o teste está certo em quebrar: em cinza claro embaixo da
         // caixa verde, ele não cumpre função nenhuma.
+        //
+        // ⚠️ Ancorado no TEXTO do spam, não no primeiro `alert-warning` da tela. Desde
+        // 17/08/2026 existe outra caixa amarela ANTES desta (a de conta sem e-mail cadastrado),
+        // e a versão anterior deste teste — "primeiro alert-warning, e depois dele em algum
+        // lugar aparece 'spam'" — passou a medir a caixa errada: ficaria verde com o aviso de
+        // spam de volta na letra miúda, que é exatamente o que ele existe pra impedir.
         var tela = Tela();
-        var alerta = tela.IndexOf("alert-warning", StringComparison.Ordinal);
+        var spam = tela.IndexOf("caixa de spam", StringComparison.OrdinalIgnoreCase);
+        Assert.True(spam >= 0, "O aviso de spam saiu da tela de recuperar senha.");
 
-        Assert.True(alerta >= 0, "O aviso de spam saiu do destaque (alert-warning) na tela de recuperar senha.");
-        Assert.Contains("spam", tela[alerta..], StringComparison.OrdinalIgnoreCase);
+        // A classe da caixa que ENVOLVE o aviso: o `alert-` mais próximo antes do texto.
+        var caixaQueOEnvolve = tela[..spam].LastIndexOf("alert-", StringComparison.Ordinal);
+        Assert.True(caixaQueOEnvolve >= 0, "O aviso de spam não está dentro de caixa nenhuma.");
+        Assert.StartsWith("alert-warning", tela[caixaQueOEnvolve..], StringComparison.Ordinal);
     }
 
     [Fact]
