@@ -117,13 +117,12 @@ public class AvisoDoMvpBackgroundService : BackgroundService
             // no AMERICANO — que não elege MVP —, ela não existe.
             bool temMvp = votacao.Aberta && votacao.Candidatos.Count > 0;
 
-            // ⚠️ Mas a ENQUETE do clube existe em qualquer formato, e é ela que sustenta o
-            // "Melhor Clube do ano". Sem esta segunda razão pra avisar, o Americano — que é
-            // provavelmente o formato mais comum aqui — teria a enquete no ar e NINGUÉM
-            // convidado a responder: ela nasceria morta, e o buraco no dado de 2027 só
-            // apareceria em dezembro, quando não dá mais pra recuperar.
+            // ⚠️ A ENQUETE é a SEGUNDA razão pra avisar, e ela não segue o interruptor: o
+            // torneio normal cujo organizador desligou a eleição continua sendo avaliado, e
+            // sem esta linha ninguém seria convidado — a enquete dele nasceria morta.
+            // (No Americano as duas são falsas desde 17/08/2026, e o torneio não recebe aviso.)
             bool temEnquete = EnqueteDoTorneio.Aberta(
-                votacao.StatusDoTorneio, votacao.UltimoJogo, agora);
+                votacao.StatusDoTorneio, votacao.UltimoJogo, agora, votacao.Formato);
 
             if (!temMvp && !temEnquete) continue;
 

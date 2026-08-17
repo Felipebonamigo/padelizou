@@ -910,28 +910,59 @@ public class MvpDoTorneioTests
         Assert.True(MvpDoTorneio.ElegeMvp(null));
     }
 
-    [Fact]
-    public async Task No_Americano_a_ENQUETE_do_clube_continua_valendo()
+    [Theory]
+    [InlineData(FormatoDoTorneio.Americano)]
+    [InlineData(FormatoDoTorneio.AmericanoDeDuplas)]
+    public async Task No_Americano_a_ENQUETE_do_clube_tambem_NAO_vale(string formato)
     {
-        // ⚠️ A enquete NÃO segue o MVP: ela é coleta nossa pro "Melhor Clube do ano", e o
-        // rodízio de sábado é evento de clube como qualquer outro — provavelmente o formato
-        // mais comum aqui. Amarrá-la ao MVP abriria um buraco no dado de 2027 exatamente
-        // onde há mais eventos.
+        // ⚠️ ISTO JÁ FOI O CONTRÁRIO, e por pouco tempo: entre 16 e 17/08/2026 a enquete
+        // valia no Americano, pra não abrir buraco no dado do "Melhor Clube do ano". O Felipe
+        // decidiu que o rodízio fica fora das duas coisas — decisão de produto dele, tomada
+        // sabendo que a coleta de 2027 passa a sair só dos torneios normais.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
         var doBanco = ctx.Torneios.First(t => t.Id == torneio.Id);
-        doBanco.Formato = FormatoDoTorneio.Americano;
+        doBanco.Formato = formato;
         await ctx.SaveChangesAsync();
 
         var votacao = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, null, Domingo.AddHours(1));
 
-        // Sem eleição…
+        // Nem eleição…
         Assert.False(votacao!.Aberta);
         Assert.False(votacao.Encerrada);
         Assert.False(votacao.TemVotacao);
 
-        // …mas com a janela da enquete aberta, e ela grava.
-        Assert.True(EnqueteDoTorneio.Aberta(votacao.StatusDoTorneio, votacao.UltimoJogo, Domingo.AddHours(1)));
+        // …nem avaliação.
+        Assert.False(EnqueteDoTorneio.Aberta(
+            votacao.StatusDoTorneio, votacao.UltimoJogo, Domingo.AddHours(1), votacao.Formato));
+
+        // ⚠️ E o SERVIDOR recusa, não só a tela esconde: quem montar o POST à mão não passa
+        // por view nenhuma.
+        var quemJogou = (await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id)).First();
+        var recusa = await EnqueteDoTorneio.AvaliarAsync(
+            ctx, torneio.Id, quemJogou, notaClube: 5, notaOrganizacao: 4, Domingo.AddHours(2));
+
+        Assert.NotNull(recusa);
+        Assert.Empty(ctx.AvaliacoesDeTorneio);
+    }
+
+    [Fact]
+    public async Task No_torneio_normal_com_o_MVP_DESLIGADO_a_enquete_continua()
+    {
+        // A enquete segue o FORMATO, não o INTERRUPTOR: desligar a eleição é dizer "não quero
+        // disputa entre os jogadores", não "não quero que falem do meu clube". É aqui que a
+        // tela existe só pra enquete — o caso que sustenta o desenho dela.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var doBanco = ctx.Torneios.First(t => t.Id == torneio.Id);
+        doBanco.UsaVotacaoDeMvp = false;
+        await ctx.SaveChangesAsync();
+
+        var votacao = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, null, Domingo.AddHours(1));
+        Assert.False(votacao!.TemVotacao);
+
+        Assert.True(EnqueteDoTorneio.Aberta(
+            votacao.StatusDoTorneio, votacao.UltimoJogo, Domingo.AddHours(1), votacao.Formato));
 
         var quemJogou = (await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id)).First();
         var recusa = await EnqueteDoTorneio.AvaliarAsync(
