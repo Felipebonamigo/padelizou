@@ -25,11 +25,11 @@ namespace Padelizou.Controllers
             var votacao = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now);
             if (votacao == null) return NotFound();
 
-            // A ENQUETE tem janela PRÓPRIA: ela vale em qualquer formato, inclusive no
-            // Americano — que desde 16/08/2026 não elege MVP. Por isso a pergunta é feita
-            // aqui, e não pendurada no `votacao.Aberta`.
+            // A ENQUETE é perguntada à parte, e não pendurada no `votacao.Aberta`, porque ela
+            // ignora o INTERRUPTOR do organizador: no torneio normal com a eleição desligada
+            // ela é a única coisa da tela. (No Americano não há nem uma nem outra.)
             var enqueteAberta = EnqueteDoTorneio.Aberta(
-                votacao.StatusDoTorneio, votacao.UltimoJogo, DateTime.Now);
+                votacao.StatusDoTorneio, votacao.UltimoJogo, DateTime.Now, votacao.Formato);
 
             // ⚠️ 404 e não uma tela vazia: torneio que ainda não acabou não tem NADA pra
             // mostrar, e uma página dizendo "nada aqui" é um link que só sabe decepcionar.
