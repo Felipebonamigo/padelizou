@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 📲 **PLACAR AO VIVO NA TELA DE BLOQUEIO** (`build-563-74a6229` nos dois ambientes), e antes disso a **busca por nome na inscrição** (`561`) e o **merge da página de Times** (`560`).
+> Última atualização: **17/08/2026** — 🤝 **O AVISO DE "QUER FECHAR DUPLA" AGORA TERMINA EM DECISÃO** (`build-565-060a856`, nos dois ambientes).
+>
+> 📩 **O aviso acabava numa TAREFA MANUAL.** Ele levava pro PERFIL do candidato e o texto dizia *"mande o convite por link da sua inscrição"* — ou seja: voltar pro torneio, gerar link, mandar no WhatsApp, torcer pro outro abrir e aceitar. A dupla dependia de o dono lembrar de fazer tudo isso. Agora o toque cai em `/Duplas/Chamados`: a lista de quem chamou, com foto, link pro perfil (que é o que dá lastro pra decidir) e os botões **Aceitar** e **Recusar**.
+>
+> ⚠️ **FECHAR A DUPLA FICOU NUM LUGAR SÓ** (`FecharDuplaComAsync`). São **dois** caminhos que fecham uma dupla sozinha — o convite por link (o parceiro aceita) e o chamado do mural (o dono aceita). Portas opostas, mesmo efeito no banco: preço recontado **com teto**, token queimado, os dois lados avisados. Duplicar é como um caminho passaria a cobrar diferente do outro sem ninguém perceber. As regras de QUEM pode entrar seguem no `MotivoParaNaoSerParceiroAsync`, que os dois já usavam.
+>
+> ⚠️ **Aceitar um DERRUBA os outros pedidos**: deixá-los de pé daria ao dono uma lista de gente pra "aceitar" numa vaga que não existe mais — e o segundo aceite trocaria o parceiro sem ninguém ter pedido. ⚠️ **E não dá pra aceitar quem NUNCA CHAMOU** — sem essa checagem, a ação vira porta lateral pra colocar qualquer pessoa na própria dupla.
+>
+> 🤐 **RECUSAR É SILENCIOSO, e isso é decisão**: *"fulano recusou você"* é aviso que só machuca — não há nada que a pessoa faça com ele. Quem chamou continua vendo a inscrição no mural; se a dupla fechar com outro, ela some de lá sozinha, como no mundo real.
+>
+> 🧪 **4.118 testes, 0 falhas** (11 novos). A trava de dono foi **falsificada**: removida, dois testes reprovaram — inclusive o de caminho inteiro, que pega um candidato **se auto-aceitando na dupla alheia**. ✅ Em prod: `NRestarts 0`, zero exceção, `AceitarChamado` dentro do `.dll` e `/Duplas/Chamados` respondendo **302 pro login** (a rota existe e o `[Authorize]` protege).
+>
+> 💡 **Descoberta do caminho, que vale pras próximas views**: o `dotnet build` **valida as views** deste projeto — conferido plantando um erro de Razor de propósito e vendo o build acusar. Mas as views **não entram no `.dll`** (compilação em runtime), então `strings` no binário não prova que uma tela existe; quem prova é a rota respondendo.
+>
+> ⏭️ **O que falta e só você pode fazer**: abrir a tela LOGADO. O portão local pede senha compartilhada, que eu não digito. Em produção você já tem sessão — quando alguém te chamar, o toque no aviso fecha a prova.
+>
+> Antes, no mesmo dia: 📲 **PLACAR AO VIVO NA TELA DE BLOQUEIO** (`build-563-74a6229` nos dois ambientes), e antes disso a **busca por nome na inscrição** (`561`) e o **merge da página de Times** (`560`).
 >
 > 🔔 **"SEGUIR ESTE JOGO"** (`5132e31`). O Felipe mandou o print de um jogo do Brasileirão na tela de bloqueio do iPhone: *"conseguimos fazer algo parecido para os nossos ao vivos?"*. **A resposta honesta é NÃO pro widget dele** — aquilo é Live Activity (iOS ActivityKit), que exige **app nativo**, e o nosso Android é PWA/TWA (a página web dentro de uma casca) e no iPhone nem instalado como app está. O que dá pra fazer HOJE, e foi feito: **uma notificação por jogo que se ATUALIZA sozinha** a cada game, em vez de empilhar uma por ponto.
 >
