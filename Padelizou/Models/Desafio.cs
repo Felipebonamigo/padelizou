@@ -29,9 +29,17 @@ public class Desafio
     // Contou. É o único estado que vale ponto.
     public const string Confirmado = "Confirmado";
 
-    // As duas duplas discordam do placar. NINGUÉM pontua e a linha fica visível pro admin:
+    // As duas duplas discordam do placar. NINGUÉM pontua e a linha vai pra /Admin/DesafiosEmDisputa:
     // duas duplas discordando é problema humano, e o sistema não escolhe um lado sozinho.
     public const string EmDisputa = "Em disputa";
+
+    // O admin olhou a disputa e decidiu que o jogo não vale. Ninguém pontua, e a linha fica no
+    // histórico com quem decidiu e por quê.
+    //
+    // ⚠️ Não é `Cancelado`: cancelado é jogo que NÃO ACONTECEU (alguém desmarcou). Aqui o jogo
+    // aconteceu e o placar é que não pôde ser estabelecido — misturar os dois faria o histórico
+    // do jogador dizer que ele furou um compromisso que na verdade ele jogou.
+    public const string Anulado = "Anulado";
 
     // Marcaram e alguém não apareceu. Zero ponto, e o selo fica no histórico.
     public const string SemComparecimento = "Sem comparecimento";
@@ -83,6 +91,18 @@ public class Desafio
 
     // Por que a outra dupla contestou. Vai pra tela do admin.
     public string? MotivoDaDisputa { get; set; }
+
+    // ---- Como a disputa foi resolvida ----
+    //
+    // ⚠️ Existe porque decisão humana sobre briga entre usuários PRECISA ter autor e
+    // justificativa. "Por que esse placar virou 6x4 se eu contestei?" é a primeira pergunta que
+    // chega, e responder "o admin mudou" sem saber QUEM nem POR QUÊ é como se perde a confiança
+    // no ranking inteiro.
+    //
+    // `MotivoDaDisputa` NÃO é sobrescrito: ele é o que a dupla alegou, e continua ao lado do
+    // que o admin decidiu. Guardar os dois é o que permite reler a história depois.
+    public int? ResolvidoPorId { get; set; }
+    public string? ResolucaoDaDisputa { get; set; }
 
     // ---- Os pontos, congelados ----
     // Gravados no encerramento, nunca recalculados na leitura — mesmo padrão do

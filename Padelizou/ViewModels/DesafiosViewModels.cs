@@ -164,6 +164,27 @@ public record RankingDeDesafiosVM(
     public bool SouEu(LinhaDoRankingDeDesafios linha) => linha.JogadorIds.Contains(MeuId);
 }
 
+// Um placar contestado, do jeito que ele chega na mesa do admin.
+//
+// Traz os dois lados escritos e QUEM lançou o placar: a tela precisa dizer de quem é a versão
+// que está sendo julgada, senão o admin decide sem saber quem alegou o quê.
+public record DisputaNaTela(
+    Desafio Desafio,
+    string DuplaDesafiante,
+    string DuplaDesafiada,
+    string? QuemLancou)
+{
+    public string Placar => PlacarDoDesafio.Texto(Desafio);
+
+    public bool PedeSets => FormatoDoDesafio.PedeSets(Desafio.Formato);
+}
+
+public record DesafiosEmDisputaVM(
+    IReadOnlyList<DisputaNaTela> EmDisputa,
+    // As últimas resolvidas: é o que permite conferir uma decisão antiga quando alguém reclama
+    // semanas depois — sem isso, a resolução some da tela no instante em que acontece.
+    IReadOnlyList<DisputaNaTela> Resolvidas);
+
 // Uma tabela do ranking, pronta pra partial. As duas abas usam a MESMA — o cabeçalho muda uma
 // palavra, e duas partials quase iguais é como uma delas ganha uma coluna e a outra não.
 public record TabelaDoRankingVM(

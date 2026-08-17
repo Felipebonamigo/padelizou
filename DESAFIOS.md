@@ -127,8 +127,33 @@ Duas travas, e nenhuma é detalhe:
 Exigir o "sim" do perdedor faria com que **sumir** fosse a jogada ótima: bastaria não responder
 para congelar o ranking de quem te ganhou. Por isso 72h sem resposta confirmam sozinhas.
 
-**Contestar, porém, zera os dois lados** e a linha fica visível para o admin resolver. Duas
+**Contestar, porém, zera os dois lados** e a linha vai para **`/Admin/DesafiosEmDisputa`**. Duas
 duplas que discordam do placar são um problema humano; o sistema não escolhe um lado sozinho.
+
+Nessa tela o admin tem duas saídas, e as duas exigem **justificativa escrita**:
+
+- **Validar o placar** — o que estava lançado, ou corrigido ali mesmo. Fecha pelo
+  `FechamentoDoDesafio`, o mesmo caminho do botão da outra dupla e do relógio: pontua, congela e
+  move o cinturão.
+- **Anular** — o jogo aconteceu, mas o placar não pôde ser estabelecido. Ninguém pontua.
+
+> ⚠️ **`Anulado` não é `Cancelado`.** Cancelado é jogo que **não aconteceu** (alguém desmarcou);
+> anulado é jogo que aconteceu e cujo placar não se estabeleceu. Misturar os dois faria o
+> histórico do jogador dizer que ele furou um compromisso que na verdade ele jogou.
+>
+> ⚠️ **A justificativa é obrigatória e o que a dupla alegou não é apagado.** `MotivoDaDisputa`
+> (o que ela disse) fica ao lado de `ResolucaoDaDisputa` + `ResolvidoPorId` (o que o admin
+> decidiu, e quem). *"Por que meu placar virou 6x4?"* é a primeira pergunta que chega, e
+> responder "o admin mudou" sem saber quem nem por quê é como se perde a confiança no ranking.
+>
+> ⚠️ **Só o que está `Em disputa` entra.** Desafio já confirmado não volta para a mesa por esta
+> porta — reabrir jogo fechado é reescrever ranking sem ninguém ver.
+>
+> Os **quatro** envolvidos são avisados do desfecho, inclusive quem "ganhou" a disputa: decisão
+> sobre briga que ninguém comunica é a próxima reclamação.
+>
+> A tela mora no **painel** (`/Admin`), e não em `/Desafios`, porque dentro de
+> `admin.padelizou.com.br` o middleware serve só `/Admin` e `/Auth` — é a lição do `/Admin/Times`.
 
 ### 🚫 O anti-farm (obrigatório, não polimento)
 
