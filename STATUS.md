@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
+> Última atualização: **17/08/2026** — 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits.
+>
+> 🎾 **QUEM PROCURA PARCEIRO AGORA DIZ DE QUE LADO JOGA.** A lista do THE LAST DANCE tinha 9 inscrições sozinhas, todas dizendo só "Procurando parceiro" — o lado é o que separa uma da outra, e sem ele a conversa começa por *"de que lado tu joga?"*. O seletor aparece só na inscrição SOZINHA e vem **pré-selecionado com o perfil**: campo que já chega certo é campo que ninguém erra.
+>
+> ⚠️ **A DECISÃO DE MODELAGEM, que é o que vale guardar**: `Dupla.LadoJogador1` **NULO não é "tanto faz"** — é *"nunca escolheu aqui"*, e aí vale o lado do PERFIL (`Services/LadoNaQuadra.Efetivo`). Foi o pedido do Felipe ("os que já estão inscritos, coloca o que ele tem no perfil") e resolve **sem UPDATE nenhum**: as 9 inscrições antigas aparecem certas na primeira vez que a tela abre. E quem escolhe "tanto faz" grava `"Ambos"` — escolha explícita, que NÃO é sobrescrita por um perfil dizendo "Direita". Se os dois fossem a mesma coisa, esse caso viraria "joga na direita" sem ninguém ter pedido.
+>
+> ⚠️ **REUSO EM VEZ DE QUARTA CÓPIA**: `Jogador.LadoQuadra` já era texto livre comparado por `StartsWith("esq")` em TRÊS lugares (perfil, panelinha, cartão). O quarto uso nasceu com a régua compartilhada — prefixo repetido em vários lugares é como um deles passa a discordar sem nada quebrar.
+>
+> 📩 **QUEM CHAMA PRA DUPLA AGORA RECEBE RESPOSTA — decisão do Felipe revertendo a minha.** Eu tinha feito a recusa SILENCIOSA ("avisar só machuca"); o motivo dele é melhor: **quem chamou fica esperando**, não sabe se ainda tem chance e não procura outro parceiro — o silêncio custa a vaga dela. São **dois** textos, separados de propósito: *"Não deu dessa vez"* (o dono recusou) e *"A vaga já foi preenchida"* (ninguém recusou ninguém — outro chegou antes). Um texto só diria "recusou" pra quem só perdeu a corrida.
+>
+> 🎨 **O DROPDOWN DA BUSCA POR NOME ESTAVA TRANSPARENTE** (print do Felipe: dava pra ler o CPF através dos nomes). ⚠️ A causa não era falta de estilo: era uma regra CERTA no lugar errado — o tema escuro deixa todo `.list-group-item` transparente de propósito, o que vale pra lista DENTRO de um card, e não pra uma que FLUTUA sobre o formulário. Valia pros dois lados da dupla; o do parceiro estava assim desde sempre.
+>
+> 🧪 **4.145 testes, 0 falhas.** ⚠️ **A falsificação pegou um erro no PRÓPRIO TESTE**: a primeira versão do teste de CSS procurava o seletor como texto solto e PASSOU com a regra principal desligada, porque a linha do `:hover` contém o mesmo trecho. Fundo certo só no hover é o mesmo defeito — transparente até passar o dedo.
+>
+> 🚨 **O CI CAIU POR CULPA DO GITHUB, e isso segurou SEIS commits** (os meus e os da sessão paralela). Ele nem chegava a compilar: morria baixando a própria ação `actions/setup-dotnet` com **429 Too Many Requests**, em ~1 minuto. ⚠️ **O sintoma engana**: a tag não sai e parece build quebrado nosso. O jeito de saber é `gh run view --log-failed` — se a falha está em "Set up job", não é o nosso código. Recuperou sozinho; se voltar a repetir, o endurecimento é fixar a ação em cache ou usar o .NET já instalado na imagem.
+>
+> ✅ **Conferido em prod**: `NRestarts 0`, zero exceção, `healthz` 200, migration `LadoDeQuemProcuraParceiro` aplicada, coluna `LadoJogador1` existindo, `sw v26` e as 5 regras do dropdown sólido servidas.
+>
+> ⏭️ **Fica em aberto (decisão do Felipe)**: dois commits de DESAFIOS prontos na `main` local e **não publicados** — *"Toda vitória no desafio vale o mesmo"* e *"Placar contestado deixa de ser beco sem saída"*, este com migration nova (`ResolucaoDaDisputaDoDesafio`). São de outra sessão; publicar é decisão dele, não minha.
+>
+> Antes, no mesmo dia: 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
 >
 > 🕳️ **O relato**: um jogador não conseguia recuperar a senha. Lendo o caminho inteiro apareceram **três** jeitos de falhar **em silêncio**, todos com a mesma resposta *"link a caminho"* — por isso não havia como distinguir um do outro por fora. (1) O **CPF nunca foi identificador aceito**: `BuscaJogador.PorIdentificadorAsync` compara só e-mail e login, então quem digitava o CPF não era achado e a tela dizia que o link tinha saído. (2) **Pré-cadastro** (inscrito num torneio por outra pessoa, nunca teve senha) não tem o que recuperar: o que falta é **criar** a conta, e o Cadastro reivindica a linha pelo CPF com o histórico junto. (3) Conta **com senha e sem e-mail** não tem pra onde mandar o link — a tela mandava caçar no spam um e-mail que nunca teve destinatário.
 >
