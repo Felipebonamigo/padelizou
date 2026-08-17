@@ -208,34 +208,36 @@ public class DesafiosRegrasTests
     // ── Os pontos ─────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Dupla_sem_padelimetro_vale_os_dez_do_meio()
+    public void Toda_vitoria_vale_o_mesmo()
     {
-        Assert.Equal(PontosDoDesafio.ExpectativaNeutra, PontosDoDesafio.Expectativa(null, 500, 500, 500));
-        Assert.Equal(10, PontosDoDesafio.DaVitoria(PontosDoDesafio.ExpectativaNeutra));
+        // ⚠️ A expectativa (o fator Elo que fazia a vitória valer entre 5 e 20 conforme o nível
+        // do adversário) SAIU em 17/08/2026, por decisão do Felipe. Duas razões:
+        //
+        //  · o Padelímetro nasce só de TORNEIO, então quem nunca jogou um caía no valor neutro —
+        //    a mesma vitória valia 9 pra uns e 10 pra outros por um motivo invisível na tela;
+        //  · lê-lo aqui reamarrava as duas trilhas que a espec separou de propósito.
+        //
+        // Este teste existe pra que voltar a diferenciar seja uma DECISÃO, e não um efeito
+        // colateral de alguém "melhorar" a conta.
+        Assert.Equal(10, PontosDoDesafio.DaVitoria());
+        Assert.Equal(PontosDoDesafio.Vitoria, PontosDoDesafio.DaVitoria());
     }
 
     [Fact]
-    public void Ganhar_de_quem_e_melhor_vale_mais_e_os_extremos_ficam_presos_na_faixa()
+    public void O_desafio_nao_le_nem_escreve_padelimetro()
     {
-        var zebra = PontosDoDesafio.DaVitoria(0.0);      // não tinham chance nenhuma
-        var passeio = PontosDoDesafio.DaVitoria(1.0);    // era barbada
+        // A trilha é separada de verdade: a assinatura da conta não tem por onde receber nível.
+        var conta = typeof(PontosDoDesafio).GetMethod(nameof(PontosDoDesafio.Do))!;
 
-        Assert.True(zebra > passeio);
-        Assert.Equal(PontosDoDesafio.MaximoDaVitoria, zebra);
-
-        // ⚠️ O piso: sem ele, ganhar de dupla mais fraca daria ZERO — e isso desestimularia
-        // justamente quem topa jogar com gente nova.
-        Assert.Equal(PontosDoDesafio.MinimoDaVitoria, passeio);
-
-        // E a faixa não promete o que a conta não alcança: `20 × (1 − e)` não passa de 20.
-        Assert.Equal(PontosDoDesafio.BaseDaVitoria, PontosDoDesafio.MaximoDaVitoria);
+        Assert.DoesNotContain(conta.GetParameters(), p => p.ParameterType == typeof(double));
+        Assert.Null(typeof(PontosDoDesafio).GetMethod("Expectativa"));
     }
 
     [Fact]
     public void Perder_nunca_tira_ponto_e_quem_jogou_leva_a_presenca()
     {
         var (desafiante, desafiado) = PontosDoDesafio.Do(
-            ladoVencedor: 1, expectativaDoDesafiante: 0.5, confrontosAnterioresNoMes: 0);
+            ladoVencedor: 1, confrontosAnterioresNoMes: 0);
 
         Assert.Equal(PontosDoDesafio.Presenca + 10, desafiante);
         Assert.Equal(PontosDoDesafio.Presenca, desafiado);
@@ -257,7 +259,7 @@ public class DesafiosRegrasTests
     [Fact]
     public void No_terceiro_confronto_do_mes_sobra_so_a_presenca()
     {
-        var (desafiante, desafiado) = PontosDoDesafio.Do(1, 0.5, confrontosAnterioresNoMes: 2);
+        var (desafiante, desafiado) = PontosDoDesafio.Do(1, confrontosAnterioresNoMes: 2);
 
         Assert.Equal(PontosDoDesafio.Presenca, desafiante);
         Assert.Equal(PontosDoDesafio.Presenca, desafiado);

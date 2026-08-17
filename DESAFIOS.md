@@ -192,17 +192,23 @@ material para o índice do Google.
 | Situação | Pontos |
 |---|---|
 | Jogou (qualquer resultado) | **+1 de presença** |
-| Venceu | **`round(20 × (1 − expectativa))`**, limitado entre **5** e **20** |
+| Venceu | **+10**, sempre |
 | Perdeu | 0 (fica com a presença) |
 | Não compareceu | 0, e leva o selo de falta |
 
-A `expectativa` sai de **`Services/Padelimetro.Expectativa`** — a classe é matemática pura, sem
-banco. O Desafio **lê** dali e **nunca escreve**. Dupla sem Padelímetro entra com expectativa
-0,5 → **10 pontos**, o valor neutro.
-
-Na prática: ganhar de quem é muito melhor vale até **20**; ganhar de quem é muito pior vale
-**5**; entre iguais, **10**. O piso de 5 existe pra que ganhar de dupla mais fraca não vire
-zero — seria desestimular justamente quem topa jogar com gente nova.
+> 🔌 **A expectativa saiu em 17/08/2026** (decisão do Felipe). Até ali a vitória valia entre 5 e
+> 20 conforme o nível do adversário, lendo `Padelimetro.Expectativa`. Duas razões derrubaram isso,
+> e as duas apontam para o mesmo lugar:
+>
+> - **O Padelímetro nasce só de torneio.** Quem nunca jogou um não tem número e caía no valor
+>   neutro — ou seja, boa parte das duplas já pontuava pelo fixo, e as outras não. A mesma
+>   vitória valia 9 para uns e 10 para outros por um motivo que a tela não mostrava.
+> - **Ler o Padelímetro aqui reamarrava as duas trilhas** que esta espec tinha separado de
+>   propósito. Agora o Desafio não lê **nem** escreve o nível de ninguém.
+>
+> Os 10 são exatamente o valor que já era o neutro: a escala do ranking não mudou, ele só parou
+> de tratar duas vitórias iguais de forma diferente. Há teste travando isso, para que voltar a
+> diferenciar seja uma decisão e não o efeito colateral de alguém "melhorar" a conta.
 
 **Os pontos são gravados no desafio no momento do encerramento**, não recalculados na leitura —
 mesmo padrão do `PrecoPorJogoCotado`. Sem isso, mexer na fórmula em novembro reescreveria o

@@ -7,55 +7,34 @@ namespace Padelizou.Services;
 // desenho do Padelímetro, e pelo mesmo motivo — cada conta precisa caber num teste sem subir
 // meio sistema junto.
 //
-// ⚠️ ESTES PONTOS NÃO SÃO PADELÍMETRO, e não podem virar. O Padelímetro decide em que
-// categoria a pessoa pode se INSCREVER, e um placar sem testemunha não pode mexer nisso: já
-// vimos três amigos fabricarem ranking num Americano lançando os placares que quisessem. O
-// desafio tem o mesmo furo e maior — bastam quatro pessoas e nenhum organizador. Por isso
-// trilha própria, exatamente como o Americano virou a Trilha C.
+// ⚠️ ESTES PONTOS NÃO SÃO PADELÍMETRO, e não podem virar. O Padelímetro decide em que categoria
+// a pessoa pode se INSCREVER, e um placar sem testemunha não pode mexer nisso: já vimos três
+// amigos fabricarem ranking num Americano lançando os placares que quisessem. O desafio tem o
+// mesmo furo e maior — bastam quatro pessoas e nenhum organizador. Por isso trilha própria,
+// exatamente como o Americano virou a Trilha C.
 //
-// O que este arquivo LÊ do Padelímetro é só a expectativa (Padelimetro.Expectativa), que é
-// matemática pura. Nada aqui escreve nível de ninguém.
+// 🔌 E DESDE 17/08/2026 A TRILHA É MESMO SEPARADA: a expectativa (o fator Elo que fazia a
+// vitória valer entre 5 e 20 conforme o nível do adversário) SAIU, por decisão do Felipe.
+// Duas razões, e as duas apontam pro mesmo lugar:
+//
+//   • O Padelímetro nasce só de TORNEIO. Quem nunca jogou um não tem número, e caía no valor
+//     neutro — ou seja, boa parte das duplas já pontuava pelo fixo, e as outras não. A mesma
+//     vitória valia 9 pra uns e 10 pra outros por um motivo que a tela não mostrava.
+//   • Ler o Padelímetro aqui reamarrava as duas trilhas que a espec tinha separado de
+//     propósito. Agora o desafio não lê NEM escreve o nível de ninguém.
 public static class PontosDoDesafio
 {
     // Jogar já vale. É o que faz o ranking premiar quem aparece, e não só quem ganha —
     // e é o que sobra pro terceiro confronto seguido contra a mesma dupla.
     public const int Presenca = 1;
 
-    // A vitória vale 20 × (1 − chance que a dupla tinha), presa entre 5 e 20:
-    //   • ganhar de quem é muito melhor  → 20
-    //   • ganhar de quem é igual         → 10
-    //   • ganhar de quem é muito pior    →  5
+    // A vitória vale o mesmo pra todo mundo: 10.
     //
-    // O piso existe pra que ganhar de quem é mais fraco não vire zero: seria desestimular
-    // justamente quem topa jogar com dupla nova. O teto é o próprio limite da conta —
-    // `20 × (1 − expectativa)` não passa de 20 — e está escrito como constante pra ninguém
-    // mexer na base achando que a faixa continua a mesma.
-    public const int BaseDaVitoria = 20;
-    public const int MinimoDaVitoria = 5;
-    public const int MaximoDaVitoria = BaseDaVitoria;
+    // É o valor que já era o neutro quando a conta olhava o nível do adversário — então o
+    // ranking não muda de escala, ele só para de tratar duas vitórias iguais de forma diferente.
+    public const int Vitoria = 10;
 
-    // Nível de quem ainda não tem Padelímetro. A dupla sem número nenhum entra com expectativa
-    // 0,5 (jogo equilibrado) e a vitória vale os 10 do meio — é o valor honesto pra "não sei".
-    public const double ExpectativaNeutra = 0.5;
-
-    // Chance que a dupla do lado A tinha, pelos níveis dos quatro. Nulo em qualquer jogador =
-    // não dá pra comparar, e o palpite neutro é melhor do que somar zero e transformar quem
-    // não tem número em freguês.
-    public static double Expectativa(int? a1, int? a2, int? b1, int? b2)
-    {
-        if (a1 == null || a2 == null || b1 == null || b2 == null) return ExpectativaNeutra;
-
-        var nivelA = Padelimetro.NivelDaDupla(a1.Value, a2.Value);
-        var nivelB = Padelimetro.NivelDaDupla(b1.Value, b2.Value);
-        return Padelimetro.Expectativa(nivelA, nivelB);
-    }
-
-    public static int DaVitoria(double expectativaDoVencedor)
-    {
-        var bruto = (int)Math.Round(BaseDaVitoria * (1.0 - expectativaDoVencedor),
-            MidpointRounding.AwayFromZero);
-        return Math.Clamp(bruto, MinimoDaVitoria, MaximoDaVitoria);
-    }
+    public static int DaVitoria() => Vitoria;
 
     // ── O anti-farm ────────────────────────────────────────────────────────────────────
     //
@@ -78,16 +57,11 @@ public static class PontosDoDesafio
     // ladoVencedor: 1 = desafiante, 2 = desafiado (ver EstadoDoDesafio.LadoVencedor).
     // Empate não existe aqui — o placar não fecha sem vencedor —, mas se chegar um, os dois
     // levam só a presença em vez de o método inventar um campeão.
-    public static (int Desafiante, int Desafiado) Do(
-        int? ladoVencedor, double expectativaDoDesafiante, int confrontosAnterioresNoMes)
+    public static (int Desafiante, int Desafiado) Do(int? ladoVencedor, int confrontosAnterioresNoMes)
     {
         if (ladoVencedor is not (1 or 2)) return (Presenca, Presenca);
 
-        var expectativaDoVencedor = ladoVencedor == 1
-            ? expectativaDoDesafiante
-            : 1.0 - expectativaDoDesafiante;
-
-        var vitoria = ComDescontoDeRepeticao(DaVitoria(expectativaDoVencedor), confrontosAnterioresNoMes);
+        var vitoria = ComDescontoDeRepeticao(DaVitoria(), confrontosAnterioresNoMes);
 
         return ladoVencedor == 1
             ? (Presenca + vitoria, Presenca)
