@@ -27,7 +27,28 @@ public static class MuralDeParceiros
 
     public const string TituloDoAviso = "Alguém quer fechar dupla com você";
 
+    // ⚠️ O texto mudou junto com o destino do aviso (17/08/2026): ele apontava pro PERFIL do
+    // candidato e mandava "mande o convite por link da sua inscrição" — o aviso terminava
+    // numa tarefa manual. Agora o toque cai na tela de Chamados, que tem Aceitar e Recusar,
+    // e o texto precisa prometer exatamente o que a tela entrega.
     public static string CorpoDoAviso(string candidato, string torneio) =>
-        $"{candidato} quer jogar o {torneio} com você. Veja o perfil — e, se topar, " +
-        "mande o convite por link da sua inscrição.";
+        $"{candidato} quer jogar o {torneio} com você. Toque pra ver o perfil e responder.";
+
+    // Por que este candidato não pode mais ser aceito. Null = pode fechar a dupla com ele.
+    //
+    // Vive aqui, e não no controller, porque a tela também pergunta: ela precisa saber se
+    // desenha o botão Aceitar ou uma explicação no lugar dele. Duas cópias e a tela ofereceria
+    // um botão que o servidor recusa — desleixo que o usuário paga.
+    public static string? MotivoParaNaoAceitar(Dupla? dupla, string? statusDoTorneio, int donoLogadoId)
+    {
+        if (dupla == null) return "Inscrição não encontrada.";
+        if (dupla.Jogador1Id != donoLogadoId) return "Essa inscrição não é sua.";
+        if (dupla.EhTime) return "Linha de time não tem parceiro pra escolher.";
+        if (dupla.Jogador2Id != null) return "Essa dupla já fechou.";
+
+        // Inscrição fechada, decisão fechada: aceitar aqui colocaria alguém num torneio que
+        // não aceita mais dupla — e o chaveamento já pode ter saído.
+        if (statusDoTorneio != PortaDaInscricao.Aberta) return "As inscrições deste torneio já fecharam.";
+        return null;
+    }
 }

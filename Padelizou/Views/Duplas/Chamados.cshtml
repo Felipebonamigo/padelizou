@@ -1,0 +1,125 @@
+@model List<Padelizou.Models.ChamadoDoMural>
+@using Padelizou.ViewModels
+@{
+    ViewData["Title"] = "Quem quer jogar com você - Padelizou";
+    var dupla = (Padelizou.Models.Dupla)ViewBag.Dupla;
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    string? motivoParaNaoAceitar = ViewBag.MotivoParaNaoAceitar as string;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 34rem;">
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                <i class="bi bi-people-fill"></i> Quem quer jogar com você
+            </h4>
+            <p class="text-muted small mb-0">@torneio.Nome · @dupla.Categoria.Nome</p>
+        </div>
+        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@torneio.Id"
+           class="btn btn-outline-secondary rounded-pill">Voltar ao torneio</a>
+    </div>
+
+    @* Por que não dá pra aceitar, quando não dá. Aparece NO LUGAR dos botões, não junto:
+       oferecer um "Aceitar" que o servidor vai recusar é desleixo que o usuário paga. *@
+    @if (motivoParaNaoAceitar != null)
+    {
+        <div class="alert alert-warning">
+            @motivoParaNaoAceitar
+            @if (dupla.Jogador2Id != null)
+            {
+                <text> Seu parceiro é <strong>@(dupla.Jogador2?.ComoChamar ?? "outro jogador")</strong>.</text>
+            }
+        </div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="mb-1 mt-2"><strong>Ninguém chamou ainda.</strong></p>
+                <p class="text-muted small mb-0">
+                    Sua inscrição aparece na lista do torneio como "procurando parceiro" —
+                    quem se interessar chama por lá, e o pedido cai aqui.
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small">
+            @Model.Count pessoa(s) chamaram. Aceitar fecha a dupla na hora — os outros pedidos somem junto.
+        </p>
+
+        foreach (var chamado in Model)
+        {
+            <div class="card shadow-sm border-0 mb-2">
+                <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                    <partial name="_FotoDoJogador" model='FotoDoJogadorVM.De(chamado.Candidato, 56)' />
+
+                    <div class="flex-grow-1" style="min-width: 10rem;">
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@chamado.CandidatoId"
+                           class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">
+                            @chamado.Candidato.ComoChamar
+                        </a>
+                        <div class="small text-muted">
+                            @* O perfil é o que dá lastro pra decisão — nível, histórico, elogios.
+                               Fica como link no nome E como texto aqui: numa lista de nomes que a
+                               pessoa não conhece, "ver o perfil" precisa estar dito. *@
+                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@chamado.CandidatoId">
+                                ver o perfil
+                            </a>
+                            · chamou @Padelizou.Services.TempoRelativo.Curto(chamado.CriadoEm)
+                        </div>
+                    </div>
+
+                    @if (motivoParaNaoAceitar == null)
+                    {
+                        <div class="d-flex gap-2">
+                            @* Confirmação no Aceitar porque ele FECHA a dupla e derruba os
+                               outros pedidos — é a ação irreversível desta tela. Recusar só
+                               apaga uma linha da própria lista. *@
+                            <form asp-action="AceitarChamado" method="post"
+                                  data-confirmar="A dupla fecha com @chamado.Candidato.ComoChamar e os outros pedidos somem. Ele(a) é avisado."
+                                  data-confirmar-titulo="Fechar dupla?"
+                                  data-confirmar-ok="Fechar dupla">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                <input type="hidden" name="candidatoId" value="@chamado.CandidatoId" />
+                                <button type="submit" class="btn btn-padel rounded-pill px-3 fw-bold">
+                                    <i class="bi bi-check-lg"></i> Aceitar
+                                </button>
+                            </form>
+
+                            <form asp-action="RecusarChamado" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                <input type="hidden" name="candidatoId" value="@chamado.CandidatoId" />
+                                <button type="submit" class="btn btn-outline-secondary rounded-pill px-3"
+                                        title="Recusar (ele não é avisado)">
+                                    Recusar
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (motivoParaNaoAceitar == null)
+        {
+            <p class="text-muted small mt-3 mb-0">
+                Recusar é silencioso: quem chamou <strong>não</strong> recebe aviso nenhum.
+            </p>
+        }
+    }
+</div>
