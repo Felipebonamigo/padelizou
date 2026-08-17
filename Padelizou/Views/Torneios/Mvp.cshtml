@@ -1,6 +1,11 @@
 @model Padelizou.Services.VotacaoDeMvp
 @{
-    ViewData["Title"] = $"MVP — {Model.Torneio} - Padelizou";
+    @* A MESMA tela serve dois assuntos: a eleição de MVP e a enquete do clube. O Americano
+       não elege MVP (MvpDoTorneio.ElegeMvp), então lá ela é só a enquete — e o título tem
+       que dizer isso, senão a pessoa abre "MVP do torneio" e não encontra MVP nenhum. *@
+    ViewData["Title"] = Model.TemVotacao
+        ? $"MVP — {Model.Torneio} - Padelizou"
+        : $"Como foi o torneio? — {Model.Torneio} - Padelizou";
 }
 
 <div class="container mt-4 mb-5" style="max-width: 720px;">
@@ -10,9 +15,19 @@
         <i class="bi bi-arrow-left"></i> Voltar ao torneio
     </a>
 
-    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-        <i class="bi bi-star-fill text-warning"></i> MVP do torneio
-    </h2>
+    @if (Model.TemVotacao)
+    {
+        <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+            <i class="bi bi-star-fill text-warning"></i> MVP do torneio
+        </h2>
+    }
+    else
+    {
+        <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+            <i class="bi bi-chat-square-heart-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+            Como foi o torneio?
+        </h2>
+    }
     <p class="text-muted">@Model.Torneio</p>
 
     @if (TempData["Erro"] != null)
@@ -70,7 +85,13 @@
 
     @* ── A CÉDULA ───────────────────────────────────────────────────────────────────────
        A lista aparece nos dois estados: aberta (pra votar) e encerrada (pra conferir o
-       apanhado). O que muda é o botão. *@
+       apanhado). O que muda é o botão.
+
+       ⚠️ E não aparece quando não HÁ eleição — no Americano, que não elege MVP, este cartão
+       sairia vazio, com o rodapé dizendo "0 de 0 jogadores votaram" numa votação que não
+       existe. Lá a tela é só a enquete. *@
+    @if (Model.TemVotacao)
+    {
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body">
 
@@ -178,15 +199,19 @@
             </div>
         </div>
     </div>
+    }
 
     @* ── A ENQUETE: como foi o torneio? ──────────────────────────────────────────────────
        Pega carona na página do MVP (e no aviso que traz a pessoa até aqui). Duas notas, um
        toque cada, sem texto — no celular, respondida em cinco segundos. Quem valida é o
-       servidor (Services/EnqueteDoTorneio); esta seção só aparece pra quem PODE responder. *@
+       servidor (Services/EnqueteDoTorneio); esta seção só aparece pra quem PODE responder.
+
+       ⚠️ No Americano ela é a ÚNICA coisa da tela — por isso o `mt-3` some quando não há
+       cédula acima, senão o cartão nasce descolado do título. *@
     @if (ViewBag.EnqueteAberta == true)
     {
         var minha = ViewBag.MinhaAvaliacao as Padelizou.Models.AvaliacaoDoTorneio;
-        <div class="card border-0 shadow-sm rounded-4 mt-3">
+        <div class="card border-0 shadow-sm rounded-4 @(Model.TemVotacao ? "mt-3" : "")">
             <div class="card-body">
                 <h6 class="fw-bold mb-1">
                     <i class="bi bi-chat-square-heart-fill" style="color: var(--pdz-lima, #A3D827);"></i>

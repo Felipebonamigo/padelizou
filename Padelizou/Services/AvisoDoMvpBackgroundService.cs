@@ -110,15 +110,27 @@ public class AvisoDoMvpBackgroundService : BackgroundService
             await context.SaveChangesAsync(stoppingToken);
 
             var votacao = await MvpDoTorneio.DoTorneioAsync(context, torneio.Id, null, agora);
+            if (votacao == null) continue;
 
-            // Fora da janela (torneio que acabou faz mais de uma semana, ou sem jogo nenhum
-            // pra contar a partir de), ou sem campeão pra votar: não há votação de verdade.
-            if (votacao == null || !votacao.Aberta || votacao.Candidatos.Count == 0) continue;
+            // A eleição de MVP existe neste torneio? Fora da janela (acabou faz mais de uma
+            // semana, ou sem jogo nenhum pra contar a partir de), sem campeão pra votar, ou
+            // no AMERICANO — que não elege MVP —, ela não existe.
+            bool temMvp = votacao.Aberta && votacao.Candidatos.Count > 0;
+
+            // ⚠️ Mas a ENQUETE do clube existe em qualquer formato, e é ela que sustenta o
+            // "Melhor Clube do ano". Sem esta segunda razão pra avisar, o Americano — que é
+            // provavelmente o formato mais comum aqui — teria a enquete no ar e NINGUÉM
+            // convidado a responder: ela nasceria morta, e o buraco no dado de 2027 só
+            // apareceria em dezembro, quando não dá mais pra recuperar.
+            bool temEnquete = EnqueteDoTorneio.Aberta(
+                votacao.StatusDoTorneio, votacao.UltimoJogo, agora);
+
+            if (!temMvp && !temEnquete) continue;
 
             var eleitores = await MvpDoTorneio.EleitoresAsync(context, torneio.Id);
             if (eleitores.Count == 0) continue;
 
-            var corpo = MvpDoTorneio.CorpoDoAviso(torneio.Nome);
+            var corpo = MvpDoTorneio.CorpoDoAviso(torneio.Nome, temMvp);
             var url = $"/Torneios/Mvp/{torneio.Id}";
 
             foreach (var jogadorId in eleitores)
@@ -126,7 +138,7 @@ public class AvisoDoMvpBackgroundService : BackgroundService
                 // Só ENFILEIRA — a FilaDeAvisos entrega por fora. Entregar aqui dentro seguraria
                 // a varredura por centenas de envios.
                 await push.EnviarParaJogadorAsync(jogadorId,
-                    MvpDoTorneio.TituloDoAviso, corpo, url, MvpDoTorneio.CanalDoAviso);
+                    MvpDoTorneio.TituloDoAvisoPara(temMvp), corpo, url, MvpDoTorneio.CanalDoAviso);
             }
 
             avisados++;

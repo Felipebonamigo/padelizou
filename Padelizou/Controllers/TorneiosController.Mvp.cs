@@ -25,14 +25,19 @@ namespace Padelizou.Controllers
             var votacao = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now);
             if (votacao == null) return NotFound();
 
-            // ⚠️ 404 e não uma tela vazia: torneio que ainda não acabou não tem votação pra
-            // mostrar, e uma página dizendo "nada aqui" é um link que só sabe decepcionar.
-            if (!votacao.Aberta && !votacao.Encerrada) return NotFound();
+            // A ENQUETE tem janela PRÓPRIA: ela vale em qualquer formato, inclusive no
+            // Americano — que desde 16/08/2026 não elege MVP. Por isso a pergunta é feita
+            // aqui, e não pendurada no `votacao.Aberta`.
+            var enqueteAberta = EnqueteDoTorneio.Aberta(
+                votacao.StatusDoTorneio, votacao.UltimoJogo, DateTime.Now);
 
-            // A ENQUETE pega carona na página (e no aviso): quem jogou dá nota pro clube e pra
-            // organização enquanto a janela está aberta. Ver Services/EnqueteDoTorneio — ela
-            // usa a mesma janela do MVP, mas é coleta nossa, pro "Melhor Clube do ano".
-            if (meuId != null && votacao.SouEleitor && votacao.Aberta)
+            // ⚠️ 404 e não uma tela vazia: torneio que ainda não acabou não tem NADA pra
+            // mostrar, e uma página dizendo "nada aqui" é um link que só sabe decepcionar.
+            // ⚠️ Mas basta UMA das duas coisas existir — senão o Americano, que só tem a
+            // enquete, cairia no 404 e a coleta do "Melhor Clube" morreria calada nele.
+            if (!votacao.Aberta && !votacao.Encerrada && !enqueteAberta) return NotFound();
+
+            if (meuId != null && votacao.SouEleitor && enqueteAberta)
             {
                 ViewBag.EnqueteAberta = true;
                 ViewBag.MinhaAvaliacao = await _context.AvaliacoesDeTorneio

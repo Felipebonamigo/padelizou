@@ -330,6 +330,9 @@
 @* ⚠️ Quem responde "já tem votação?" é o CONTROLLER (ViewBag), e não uma conta aqui: a
    view não tem as partidas do torneio em mãos — `Categoria.Partidas` chega vazia porque o
    Include não a traz — e a conta feita aqui esconderia o botão em silêncio, sempre. *@
+@* ⚠️ A MESMA TELA serve duas coisas, e o botão diz qual: o MVP (que o Americano NÃO tem —
+   ver MvpDoTorneio.ElegeMvp) e a enquete do clube (que vale em qualquer formato). Sem o
+   segundo caso, o rodízio de sábado ficaria sem NENHUM caminho até a avaliação. *@
 @if (ViewBag.TemVotacaoDeMvp == true)
 {
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -338,6 +341,17 @@
         </a>
         <small class="text-muted">
             Quem jogou vota no melhor entre os campeões.
+        </small>
+    </div>
+}
+else if (ViewBag.TemEnqueteDoTorneio == true)
+{
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a asp-action="Mvp" asp-route-id="@Model.Id" class="btn btn-outline-primary rounded-pill px-3">
+            <i class="bi bi-chat-square-heart-fill"></i> Como foi o torneio?
+        </a>
+        <small class="text-muted">
+            Quem jogou dá nota pro clube e pra organização.
         </small>
     </div>
 }
