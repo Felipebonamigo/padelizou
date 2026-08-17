@@ -219,6 +219,9 @@ builder.Services.AddScoped<EncerramentoDaPartida>();
 builder.Services.AddScoped<AvisoDeInscricaoNoTorneio>();
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
+// Placar AO VIVO na tela de bloqueio: quem segue um jogo (Models/SeguidorDePartida) recebe UMA
+// notificação por jogo que se atualiza sozinha — ver Services/AvisoDePlacarAoVivo.
+builder.Services.AddScoped<AvisoDePlacarAoVivo>();
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
 // A fonte dos cards compartilháveis (campeão do torneio e "seu ano no padel").

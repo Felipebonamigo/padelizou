@@ -58,7 +58,15 @@ namespace Padelizou.Controllers
             var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
                 DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime);
 
-            if (resultado.Aplicado) await _context.SaveChangesAsync();
+            if (resultado.Aplicado)
+            {
+                await _context.SaveChangesAsync();
+                // PLACAR AO VIVO: quem segue este jogo recebe a atualização. Só enfileira
+                // (Services/AvisoDePlacarAoVivo) — não custa a latência da Mesa, que é o
+                // ponto de partida deste caminho (offline-first, um toque por vez).
+                await _avisoDePlacar.AvisarSeguidoresAsync(partidaId,
+                    Url.Action("Details", "Torneios", new { id = partida.TorneioId }));
+            }
 
             // Recusa também responde 200 com o placar vigente: pro aparelho da fila, "o
             // servidor já tem coisa mais nova" é sucesso — pode esvaziar a fila em paz.
@@ -124,6 +132,9 @@ namespace Padelizou.Controllers
                 .ToListAsync();
 
             int mexidos = 0;
+            // Só os jogos que REALMENTE mudaram — avisar quem segue os outros 4 do lote
+            // seria acordar gente pra um placar que não se moveu.
+            var partidasMudadas = new List<int>();
             for (int i = 0; i < partidaId.Length; i++)
             {
                 var partida = doTorneio.FirstOrDefault(p => p.Id == partidaId[i]);
@@ -144,9 +155,18 @@ namespace Padelizou.Controllers
                 partida.GamesDupla1 = g1;
                 partida.GamesDupla2 = g2;
                 mexidos++;
+                partidasMudadas.Add(partida.Id);
             }
 
-            if (mexidos > 0) await _context.SaveChangesAsync();
+            if (mexidos > 0)
+            {
+                await _context.SaveChangesAsync();
+
+                // PLACAR AO VIVO: um aviso por jogo que de fato mudou, não um por linha do lote.
+                foreach (var partidaMudadaId in partidasMudadas)
+                    await _avisoDePlacar.AvisarSeguidoresAsync(partidaMudadaId,
+                        Url.Action("Details", "Torneios", new { id }));
+            }
 
             if (porFetch)
             {
@@ -262,6 +282,11 @@ namespace Padelizou.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // PLACAR AO VIVO: manda o placar FINAL — a última atualização da notificação
+                // que vinha trocando de conteúdo — e para de seguir (Services/AvisoDePlacarAoVivo).
+                await _avisoDePlacar.AvisarFimEPararDeSeguirAsync(partida.Id,
+                    Url.Action("Details", "Torneios", new { id = partida.TorneioId }));
+
                 // ⚠️ DAQUI PRA FRENTE É O ENCERRAMENTO ÚNICO (Services/EncerramentoDaPartida):
                 // Padelímetro, robôs de chaveamento, aviso de resultado e chamada do próximo
                 // par da quadra. Esta tela tinha a própria versão disso, e faltavam nela a
@@ -277,6 +302,62 @@ namespace Padelizou.Controllers
         private EncerramentoDaPartida.LinksDoAviso LinksDoAviso(int? torneioId) => new(
             Url.Action("Details", "Torneios", new { id = torneioId }),
             Url.Action("Jogos", "Torneios", new { id = torneioId }));
+
+        // ── PLACAR AO VIVO NA TELA DE BLOQUEIO ──────────────────────────────────────────────
+        //
+        // "Seguir este jogo": quem está de fora, sem abrir o app, quer o placar chegando
+        // sozinho (Felipe, 16/08/2026 — "algo parecido com o placar que o Google mostra na
+        // tela de bloqueio"). Ver Models/SeguidorDePartida e Services/AvisoDePlacarAoVivo.
+        //
+        // Só JSON, sem alternativa de formulário: o botão só existe pra quem já concedeu push,
+        // e sem JavaScript a notificação nunca chegaria de qualquer jeito — não há "modo sem
+        // JS" que faça sentido pra esta ação específica.
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> SeguirPartidaAoVivo(int partidaId)
+        {
+            var jogadorId = ObterJogadorIdLogado();
+            if (jogadorId == null) return Forbid();
+
+            // Só jogo EM QUADRA agora: seguir uma partida agendada ou já finalizada é uma
+            // requisição velha de tela em cache, e não há placar mudando pra avisar.
+            var aoVivo = await _context.Partidas
+                .Where(p => p.Id == partidaId)
+                .Select(p => p.Status == "AoVivo")
+                .FirstOrDefaultAsync();
+            if (!aoVivo) return NotFound();
+
+            var jaSegue = await _context.Set<SeguidorDePartida>()
+                .AnyAsync(s => s.JogadorId == jogadorId && s.PartidaId == partidaId);
+
+            if (!jaSegue)
+            {
+                _context.Add(new SeguidorDePartida { JogadorId = jogadorId.Value, PartidaId = partidaId });
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { seguindo = true });
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> PararDeSeguirPartidaAoVivo(int partidaId)
+        {
+            var jogadorId = ObterJogadorIdLogado();
+            if (jogadorId == null) return Forbid();
+
+            var seguindo = await _context.Set<SeguidorDePartida>()
+                .Where(s => s.JogadorId == jogadorId && s.PartidaId == partidaId)
+                .ToListAsync();
+
+            if (seguindo.Count > 0)
+            {
+                _context.RemoveRange(seguindo);
+                await _context.SaveChangesAsync();
+            }
+
+            return Json(new { seguindo = false });
+        }
 
         // ===================== FINANCEIRO DO TORNEIO =====================
 

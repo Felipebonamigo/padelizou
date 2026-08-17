@@ -19,4 +19,10 @@ public interface IPushNotificationService
     // e quem está testando precisa saber por que não chegou.
     Task<ResultadoTesteNotificacao> EnviarTesteAsync(int jogadorId, bool porPush, bool porWhatsApp,
         string titulo, string corpo, string? url = null);
+
+    // Atualização de placar AO VIVO. `tag` faz o navegador SUBSTITUIR a notificação anterior
+    // do mesmo jogo (mesma tag = mesmo aviso trocando de conteúdo, não empilhando) — sem ela
+    // cada game viraria um aviso novo na tela de bloqueio. Não passa pela Caixa de Avisos nem
+    // manda e-mail: ver Services/AvisoDePlacarAoVivo pro porquê e pra quem chama isto.
+    Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag);
 }

@@ -55,6 +55,16 @@ public class PushNotificationService : IPushNotificationService
     // deveria chamar isto direto — de dentro de uma requisição, use EnviarParaJogadorAsync.
     public async Task EntregarAgoraAsync(AvisoPendente aviso)
     {
+        // PLACAR AO VIVO sai por um caminho À PARTE, mais curto: só o push, com a TAG que
+        // substitui o aviso anterior do mesmo jogo. Sem este desvio, um jogo de 9 games viraria
+        // 9 linhas na Caixa de Avisos e 9 e-mails — a régua dos outros canais (caixa sempre,
+        // e-mail por padrão) foi pensada pra recado, não pra um placar que se atualiza sozinho.
+        if (aviso.ApenasPush)
+        {
+            await EnviarPushAsync(aviso.JogadorId, aviso.Titulo, aviso.Corpo, aviso.Url, aviso.Tag);
+            return;
+        }
+
         // E-mail e push saem ANTES do return de quem não tem push, e de propósito: quem não
         // instalou o app não tem inscrição nenhuma, e é exatamente essa pessoa que os outros
         // canais existem pra alcançar. Ficam aqui, num lugar só, em vez de nos ~30 pontos que
@@ -131,7 +141,12 @@ public class PushNotificationService : IPushNotificationService
     // Devolve em QUANTOS aparelhos a entrega deu certo. O envio normal ignora o número (é
     // "tenta e segue a vida"), mas o teste do painel precisa dele: dizer "enviado" só porque
     // existe aparelho cadastrado seria mentir justamente na tela feita pra conferir a verdade.
-    private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url)
+    //
+    // `tag` só existe pro placar ao vivo — o sw.js usa ela pra SUBSTITUIR a notificação
+    // anterior do mesmo jogo (mesma tag) em vez de empilhar, e pra tocar o aparelho em
+    // silêncio nas atualizações (ver wwwroot/sw.js). Nula, o comportamento de sempre.
+    private async Task<int> EnviarPushAsync(int jogadorId, string titulo, string corpo, string? url,
+        string? tag = null)
     {
         // O push é o único canal que não sabe pra QUEM está mandando: a inscrição é de um
         // aparelho. Então aqui a pergunta custa uma consulta — e ela só é feita quando o
@@ -149,7 +164,7 @@ public class PushNotificationService : IPushNotificationService
 
         if (subscriptions.Count == 0) return 0;
 
-        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/" });
+        var payload = JsonSerializer.Serialize(new { title = titulo, body = corpo, url = url ?? "/", tag });
         var client = new WebPushClient();
         var entregues = 0;
 
@@ -284,6 +299,16 @@ public class PushNotificationService : IPushNotificationService
             WhatsApp = whats,
             Numero = whats == ResultadoDoCanal.Enviado ? numero : null,
         };
+    }
+
+    // Enfileira, não envia — mesmo motivo do EnviarParaJogadorAsync: quem marca um game não
+    // pode ficar esperando N chamadas de push por seguidor antes da tela voltar. `ApenasPush`
+    // é o que muda o caminho na entrega (ver EntregarAgoraAsync).
+    public Task EnviarPlacarAoVivoAsync(int jogadorId, string titulo, string corpo, string url, string tag)
+    {
+        _filaDeAvisos.Enfileirar(new AvisoPendente(jogadorId, titulo, corpo, url, AlcanceDoAviso.SoApp,
+            Tag: tag, ApenasPush: true));
+        return Task.CompletedTask;
     }
 
     // Só push, sem WhatsApp — de propósito. O único uso disto é o botão de notificação de

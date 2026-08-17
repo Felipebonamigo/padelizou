@@ -27,6 +27,7 @@ namespace Padelizou.Controllers
         private readonly IPadelimetroService _padelimetro;
         private readonly EncerramentoDaPartida _encerramento;
         private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
+        private readonly AvisoDePlacarAoVivo _avisoDePlacar;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
@@ -34,9 +35,11 @@ namespace Padelizou.Controllers
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
-            EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao)
+            EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao,
+            AvisoDePlacarAoVivo avisoDePlacar)
         {
             _avisoDeInscricao = avisoDeInscricao;
+            _avisoDePlacar = avisoDePlacar;
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
@@ -979,6 +982,18 @@ namespace Padelizou.Controllers
                 partidas = partidas.Where(p => EstouNesteJogo(p, meuJogadorId!.Value)).ToList();
 
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
+
+            // PLACAR AO VIVO NA TELA DE BLOQUEIO: quais desses jogos EU já sigo — precisa vir
+            // do servidor, não só de estado no JavaScript, porque o card AO VIVO se REDESENHA
+            // sozinho a cada 20s (js/jogos-ao-vivo-atualiza.js): sem isto o botão voltaria a
+            // dizer "Seguir" no tique seguinte pra quem já estava seguindo.
+            var idsAoVivo = ((List<Partida>)ViewBag.AoVivo).Select(p => p.Id).ToList();
+            ViewBag.PartidasQueSigo = meuJogadorId != null && idsAoVivo.Count > 0
+                ? (await _context.Set<SeguidorDePartida>()
+                    .Where(s => s.JogadorId == meuJogadorId && idsAoVivo.Contains(s.PartidaId))
+                    .Select(s => s.PartidaId)
+                    .ToListAsync()).ToHashSet()
+                : new HashSet<int>();
             // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
             // de flutuar em ordem arbitrária no meio da lista.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")

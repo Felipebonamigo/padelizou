@@ -757,6 +757,31 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-live-cronometro { color: #fff; white-space: nowrap; }
 
+/* "Seguir este jogo": placar chegando no celular sem manter o site aberto. Discreto igual ao
+   badge AO VIVO até virar "Seguindo" — aí ganha a cor lima, a mesma linguagem do resto do
+   cartão pra "isto está ativo". */
+.pdz-live-seguir {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: rgba(255, 255, 255, .1);
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    font-size: .75rem;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    transition: background-color .15s ease, color .15s ease;
+}
+.pdz-live-seguir:hover { background: rgba(255, 255, 255, .18); }
+.pdz-live-seguir.pdz-live-seguindo {
+    background: rgba(163, 216, 39, .18);
+    color: var(--pdz-lime);
+}
+/* O clique já mudou o ícone/texto na hora (js/seguir-partida-ao-vivo.js) — este estado é só
+   pra quando o fetch ainda não voltou, pra ninguém achar que travou. */
+.pdz-live-seguir[disabled] { opacity: .6; pointer-events: none; }
+
 /* `gap` porque o nome e o placar são irmãos num flex: sem ele o nome longo encosta no
    número e, em alguns cards, na própria borda do quadro. `min-width: 0` deixa o bloco do
    nome encolher — sem isso o flex respeita a largura do conteúdo e empurra o placar pra
