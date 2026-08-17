@@ -104,8 +104,11 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                 <input type="hidden" name="candidatoId" value="@chamado.CandidatoId" />
+                                @* O título diz a verdade sobre o efeito: quem recusa precisa
+                                   saber que a outra pessoa recebe um aviso — decidir sem saber
+                                   disso é decidir no escuro. *@
                                 <button type="submit" class="btn btn-outline-secondary rounded-pill px-3"
-                                        title="Recusar (ele não é avisado)">
+                                        title="Recusar (ele(a) recebe um aviso de que não deu)">
                                     Recusar
                                 </button>
                             </form>

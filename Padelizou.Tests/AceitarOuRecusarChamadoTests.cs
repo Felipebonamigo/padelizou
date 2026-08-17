@@ -286,8 +286,12 @@ public class AceitarOuRecusarChamadoTests
 
     // ═══════════════════ RECUSAR ═══════════════════
 
+    // ⚠️ A REGRA MUDOU EM 17/08/2026, por decisão do Felipe. A primeira versão calava a
+    // recusa ("avisar só machuca"); ele decidiu avisar, e o motivo é melhor: quem chamou fica
+    // ESPERANDO. Sem resposta, a pessoa não sabe se ainda tem chance e não procura outro
+    // parceiro — o silêncio custa a vaga dela num torneio com prazo.
     [Fact]
-    public async Task Recusar_apaga_so_aquele_chamado_e_nao_avisa_ninguem()
+    public async Task Recusar_apaga_so_aquele_chamado_e_AVISA_quem_chamou()
     {
         var (ctx, solo, dono, a, b) = Cenario();
         using var _ = ctx;
@@ -299,13 +303,60 @@ public class AceitarOuRecusarChamadoTests
         Assert.Single(sobraram);
         Assert.Equal(b.Id, sobraram[0].CandidatoId);
 
-        // ⚠️ "Fulano recusou você" é aviso que só machuca — não há nada que a pessoa faça com
-        // ele. O silêncio é decisão, não esquecimento.
-        await push.DidNotReceiveWithAnyArgs().EnviarParaJogadorAsync(
-            default, default!, default!, default, default);
+        // Quem foi recusado recebe — e o texto aponta pra saída ("outras inscrições
+        // procurando"), que é a única coisa acionável que existe pra quem lê.
+        await push.Received(1).EnviarParaJogadorAsync(a.Id,
+            MuralDeParceiros.TituloDaRecusa,
+            Arg.Is<string>(c => c.Contains("procurando parceiro")),
+            Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
+
+        // ⚠️ E SÓ ELE: quem não foi recusado não pode receber nada.
+        await push.DidNotReceive().EnviarParaJogadorAsync(b.Id,
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<AlcanceDoAviso>());
 
         // Recusar não fecha nem mexe na dupla.
         Assert.Null((await ctx.Duplas.FindAsync(solo.Id))!.Jogador2Id);
+    }
+
+    // Dois toques no mesmo botão (ou duas abas) não podem virar dois avisos: o segundo já não
+    // acha o chamado, e sem essa amarra ele mandaria o recado de novo.
+    [Fact]
+    public async Task Recusar_duas_vezes_avisa_uma_vez_so()
+    {
+        var (ctx, solo, dono, a, _) = Cenario();
+        using var _1 = ctx;
+        var push = Substitute.For<IPushNotificationService>();
+        var controller = Controller(ctx, dono.Id, push);
+
+        await controller.RecusarChamado(solo.Id, a.Id);
+        await controller.RecusarChamado(solo.Id, a.Id);
+
+        await push.Received(1).EnviarParaJogadorAsync(a.Id,
+            MuralDeParceiros.TituloDaRecusa, Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<AlcanceDoAviso>());
+    }
+
+    // ⚠️ QUEM PERDEU A VAGA TAMBÉM É AVISADO — e com TEXTO PRÓPRIO. Aqui ninguém recusou
+    // ninguém: outra pessoa chegou antes. Dizer "recusou" pra quem só perdeu a corrida é falso.
+    [Fact]
+    public async Task Aceitar_avisa_quem_ficou_de_fora_que_a_vaga_foi_preenchida()
+    {
+        var (ctx, solo, dono, a, b) = Cenario();
+        using var _ = ctx;
+        var push = Substitute.For<IPushNotificationService>();
+
+        await Controller(ctx, dono.Id, push).AceitarChamado(solo.Id, a.Id);
+
+        // O escolhido NÃO recebe "a vaga foi preenchida" — ele recebe o aviso de dupla fechada.
+        await push.DidNotReceive().EnviarParaJogadorAsync(a.Id,
+            MuralDeParceiros.TituloDaVagaPreenchida, Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<AlcanceDoAviso>());
+
+        // Quem ficou de fora recebe, uma vez.
+        await push.Received(1).EnviarParaJogadorAsync(b.Id,
+            MuralDeParceiros.TituloDaVagaPreenchida,
+            Arg.Is<string>(c => c.Contains("outra pessoa")),
+            Arg.Any<string>(), AlcanceDoAviso.AppSemEmail);
     }
 
     [Fact]

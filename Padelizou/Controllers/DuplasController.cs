@@ -937,11 +937,22 @@ namespace Padelizou.Controllers
             var chamadosPendentes = await _context.ChamadosDoMural
                 .Where(c => c.DuplaId == dupla.Id)
                 .ToListAsync();
+
+            // ⚠️ QUEM FICOU DE FORA É AVISADO (Felipe, 17/08/2026). Sem isto a pessoa segue
+            // esperando uma resposta que nunca vem, e não procura outro parceiro — o silêncio
+            // custa a vaga dela. Os ids são lidos ANTES do RemoveRange: depois dele a lista
+            // some, e não haveria mais a quem avisar.
+            var ficaramDeFora = chamadosPendentes
+                .Select(c => c.CandidatoId)
+                .Where(id => id != novoParceiro.Id)
+                .ToList();
+
             if (chamadosPendentes.Count > 0) _context.ChamadosDoMural.RemoveRange(chamadosPendentes);
 
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, null, novoParceiro);
+            await AvisarQueAVagaFoiPreenchidaAsync(dupla, torneio, ficaramDeFora);
         }
 
         // ── O chamado do mural ("quero jogar com você") ────────────────────────────────
@@ -1136,7 +1147,10 @@ namespace Padelizou.Controllers
 
             // Recusar não depende de o torneio estar aberto: limpar a própria lista é sempre
             // permitido ao dono, e é o oposto de uma ação com efeito sobre terceiros.
-            var dupla = await _context.Duplas.FirstOrDefaultAsync(d => d.Id == duplaId);
+            var dupla = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
             if (dupla == null) return NotFound();
             if (dupla.Jogador1Id != donoId) return Forbid();
 
@@ -1147,14 +1161,73 @@ namespace Padelizou.Controllers
             {
                 _context.ChamadosDoMural.Remove(chamado);
                 await _context.SaveChangesAsync();
+
+                // ⚠️ QUEM CHAMOU É AVISADO (decisão do Felipe, 17/08/2026 — a primeira versão
+                // calava, com o argumento de que "avisar só machuca"). O motivo dele é melhor:
+                // quem chamou fica ESPERANDO. Sem resposta, a pessoa não sabe se ainda tem
+                // chance e não procura outro parceiro — o silêncio custa a vaga dela.
+                //
+                // Só avisa se o chamado EXISTIA: recusar duas vezes (dois toques, duas abas)
+                // não pode mandar dois avisos.
+                await AvisarRecusaAsync(dupla, candidatoId);
             }
 
-            // ⚠️ NINGUÉM É AVISADO DA RECUSA, e isso é decisão: "fulano recusou você" é um
-            // aviso que só machuca — não há nada que a pessoa faça com ele. Quem chamou
-            // continua vendo a inscrição no mural; se a dupla fechar com outro, ela some de lá
-            // sozinha, que é como o mundo real já funciona.
-            TempData["Sucesso"] = "Recusado. Ele(a) não é avisado disso.";
+            TempData["Sucesso"] = "Recusado. Avisamos ele(a) que não deu dessa vez.";
             return RedirectToAction(nameof(Chamados), new { duplaId });
+        }
+
+        // "Não deu dessa vez", pra quem foi recusado. Mesmo alcance e mesmo cuidado do aviso
+        // de vaga preenchida: sem e-mail, e falha aqui não desfaz a recusa (que já está gravada).
+        private async Task AvisarRecusaAsync(Dupla dupla, int candidatoId)
+        {
+            var torneio = dupla.Categoria?.Torneio;
+            if (torneio == null) return;
+
+            try
+            {
+                var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+                var dono = dupla.Jogador1?.ComoChamar ?? "A pessoa";
+
+                await _pushService.EnviarParaJogadorAsync(candidatoId,
+                    MuralDeParceiros.TituloDaRecusa,
+                    MuralDeParceiros.CorpoDaRecusa(dono, torneio.Nome),
+                    url, AlcanceDoAviso.AppSemEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar a recusa do candidato {CandidatoId}.", candidatoId);
+            }
+        }
+
+        // "A vaga já foi preenchida", pra quem chamou e não foi o escolhido.
+        //
+        // ⚠️ Texto PRÓPRIO, diferente do da recusa: aqui ninguém recusou ninguém — outra pessoa
+        // chegou antes. Dizer "recusou" pra quem só perdeu a corrida é falso e dói à toa.
+        //
+        // Sem e-mail (AppSemEmail): é recado social, não pede resposta e é rajada em potencial
+        // (uma inscrição concorrida avisa vários de uma vez). Mesma régua do resultado de
+        // partida — ver AlcanceDoAviso.
+        private async Task AvisarQueAVagaFoiPreenchidaAsync(Dupla dupla, Torneio torneio, IReadOnlyList<int> candidatos)
+        {
+            if (candidatos.Count == 0) return;
+
+            try
+            {
+                var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+                var dono = dupla.Jogador1?.ComoChamar ?? "A pessoa";
+                var corpo = MuralDeParceiros.CorpoDaVagaPreenchida(dono, torneio.Nome);
+
+                foreach (var candidatoId in candidatos)
+                {
+                    await _pushService.EnviarParaJogadorAsync(candidatoId,
+                        MuralDeParceiros.TituloDaVagaPreenchida, corpo, url, AlcanceDoAviso.AppSemEmail);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Aviso é acessório: a dupla já fechou e não pode ser desfeita por causa disso.
+                _logger.LogWarning(ex, "Falha ao avisar quem ficou de fora da dupla {DuplaId}.", dupla.Id);
+            }
         }
 
         // Quem saiu precisa saber que saiu; quem entrou, que entrou. Push é acessório:
