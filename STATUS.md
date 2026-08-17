@@ -1,7 +1,31 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/08/2026** — 🚨 **O INTERRUPTOR DAS MOLDURAS FECHAVA A PORTA E DEIXAVA A VITRINE ACESA** (`build-556-854f15a` e `build-557-1a615ee`, nos dois ambientes).
+> Última atualização: **17/08/2026** — 📲 **PLACAR AO VIVO NA TELA DE BLOQUEIO** (`build-563-74a6229` nos dois ambientes), e antes disso a **busca por nome na inscrição** (`561`) e o **merge da página de Times** (`560`).
+>
+> 🔔 **"SEGUIR ESTE JOGO"** (`5132e31`). O Felipe mandou o print de um jogo do Brasileirão na tela de bloqueio do iPhone: *"conseguimos fazer algo parecido para os nossos ao vivos?"*. **A resposta honesta é NÃO pro widget dele** — aquilo é Live Activity (iOS ActivityKit), que exige **app nativo**, e o nosso Android é PWA/TWA (a página web dentro de uma casca) e no iPhone nem instalado como app está. O que dá pra fazer HOJE, e foi feito: **uma notificação por jogo que se ATUALIZA sozinha** a cada game, em vez de empilhar uma por ponto.
+>
+> 🏷️ **O mecanismo é a `tag` do push**: mesma tag = mesma notificação trocando de conteúdo. E `renotify:false` + `silent:true` no `sw.js` fazem a troca ser **MUDA** — sem isso o celular vibraria a cada game, e ninguém quer o telefone tremendo ponto a ponto. Quando o jogo acaba, vai o placar FINAL e o "seguir" se apaga sozinho: não há mais ao vivo pra acompanhar.
+>
+> ⚠️ **O AVISO NÃO PASSA PELO CAMINHO NORMAL, DE PROPÓSITO** (`AvisoPendente.ApenasPush`): um jogo de 9 games viraria **9 linhas na Caixa de Avisos e 9 e-mails**. A régua dos outros canais (caixa sempre, e-mail por omissão) foi pensada pra RECADO — placar que se atualiza sozinho não é recado. Nada de canal novo: a fila e o envio de push são os mesmos, só ganharam `Tag` e `ApenasPush`.
+>
+> 🧩 **O gancho vive em TRÊS lugares porque são as três portas por onde um placar muda**: Mesa de Controle (`SincronizarPlacar`), o lote da lista AO VIVO (`SalvarPlacaresAoVivo`) e o `FinalizarPartida`. Os três chamam o MESMO serviço (`Services/AvisoDePlacarAoVivo`) — é a lição da regra duplicada aplicada antes de o bug existir. ⚠️ E o estado "já sigo" vem do **SERVIDOR**, não do JS: o cartão AO VIVO se redesenha sozinho a cada 20s (`jogos-ao-vivo-atualiza.js`), e sem isso o botão voltaria a dizer "Seguir" pra quem já seguia.
+>
+> 🧪 **4.107 testes, 0 falhas** (12 novos). O gancho da Mesa foi **falsificado**: removido, o teste reprovou; restaurado, passou. ✅ Em prod: `NRestarts 0`, zero exceção, migration aplicada nos dois bancos, `sw v25`, e o `seguir-partida-ao-vivo.js` servindo 200 do domínio.
+>
+> ⏭️ **O que falta e só você pode fazer**: tocar o botão com um jogo DE VERDADE em quadra — permissão de notificação, "Seguindo", e o placar chegando sem vibrar. Não havia jogo ao vivo em produção na hora do deploy, então o cartão que carrega o botão nem existia pra inspecionar. Não é sinal de defeito; é ausência de dado pra observar.
+>
+> Antes, no mesmo dia: 🔎 **ACHAR O JOGADOR 1 PELO NOME, NÃO SÓ PELO CPF** (`build-561-480a6af`, commit `480a6af`). O parceiro já podia ser escolhido pelo nome; o **jogador 1**, não — e ele é justamente quem o organizador preenche ao inscrever alguém no balcão do clube: sabe o nome, não sabe o CPF, e a inscrição parava ali.
+>
+> ⚠️ **UMA função pros dois lados** (`pdzLigarBuscaPorNome`), não duas cópias: no dia em que a busca mudasse (outro endpoint, outro mínimo de letras), um dos lados ficaria pra trás. E o **servidor** é quem completa CPF e nome pelo Id, porque a busca devolve só Id, nome e foto — **CPF e celular de terceiro NÃO saem do servidor**, senão três letras varreriam a base. O preenchimento acontece no TOPO do `Create`, pra tudo abaixo continuar sendo a inscrição por CPF de sempre.
+>
+> 💡 **O "Sou eu" agora desfaz uma escolha por nome antes de preencher**: os dois caminhos gravam a MESMA pessoa e o Id vence o CPF — sem isso a tela mostraria "Sou eu" com o nome de outra pessoa ao lado, e o servidor ignoraria o CPF em silêncio. **6 testes novos**, que cobrem também o `jogador2Id` (que estava sem nenhum) — inclusive que escolher pela lista **não apaga o celular** de quem já tem cadastro.
+>
+> 🐛 **E um teste que só quebrava aos DOMINGOS À NOITE** (`bbf3947`): ele publicava anúncio de desafio "esta semana" e marcava o jogo pra `Now.AddHours(6)`. Num domingo 18h, essas 6 horas caem na SEGUNDA — já fora do prazo — e o `Desafiar` recusava (certíssimo). Verde a semana toda, vermelho no domingo, apontando pra um lugar sem defeito nenhum. ⚠️ **A causa de fundo fica anotada**: o `DesafiosController` lê `DateTime.Now` direto, sem relógio injetável — enquanto for assim, todo teste de prazo de lá depende do dia em que roda.
+>
+> Antes, em 16/08: 🔀 **A BRANCH `pagina-de-times` ENTROU NA MAIN** (`build-560-a375d7f`), trazendo a página do clube com a janela de transferências. Só o `STATUS.md` conflitou — nenhum arquivo de código. ⚠️ **O segundo conflito foi de INFORMAÇÃO, não de texto**: a main dizia que a chave do parceiro do Ranking estava *no ar*, a branch dizia *"falta publicar"*. Quem decidiu foi o **servidor** (`systemctl show` mostra a chave lá), não o texto mais bonito.
+>
+> Antes, em 14/08: 🚨 **O INTERRUPTOR DAS MOLDURAS FECHAVA A PORTA E DEIXAVA A VITRINE ACESA** (`build-556-854f15a` e `build-557-1a615ee`, nos dois ambientes).
 >
 > 🙈 **Primeiro o que o Felipe pediu: "não mostrar molduras pra mim"** (`854f15a`). Interruptor no topo do guarda-roupa: ligado, some a moldura de **todo mundo** — a própria e a dos outros — **só na tela de quem ligou**. Quem vestiu continua vestido pra quem quiser ver.
 >
