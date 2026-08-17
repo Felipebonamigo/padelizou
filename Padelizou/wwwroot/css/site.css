@@ -1214,6 +1214,33 @@ button, a, input, select { touch-action: manipulation; }
     border-color: var(--pdz-border);
 }
 
+/* A LISTA DE SUGESTÕES DA BUSCA POR NOME (os dois lados da dupla, na inscrição).
+   ⚠️ Fundo SÓLIDO, e a exceção é obrigatória: a regra logo acima deixa todo
+   `.list-group-item` TRANSPARENTE no tema escuro — o que está certo pra lista DENTRO de um
+   card, onde o fundo do card é que deve aparecer. Mas esta lista FLUTUA sobre o formulário
+   (`position-absolute`), e transparente ela deixa ler o CPF e os campos por baixo: o nome
+   que a pessoa procura fica embolado com o texto de trás, ilegível justamente na hora de
+   escolher. Reportado pelo Felipe em 17/08/2026, com print.
+   `--pdz-surface` existe nos dois temas (branco no claro, #1a2338 no escuro), então uma
+   regra só resolve os dois — sem repetir o seletor por tema. */
+.pdz-busca-lista {
+    z-index: 1080;
+    max-height: 15rem;
+    overflow-y: auto;
+    background-color: var(--pdz-surface);
+    border-radius: var(--radius);
+}
+/* Especificidade acima da regra de tema: sem a classe no seletor, o `transparent` de lá
+   continuaria vencendo dentro do dropdown. */
+.pdz-busca-lista .list-group-item,
+:root[data-bs-theme="dark"] .pdz-busca-lista .list-group-item {
+    background-color: var(--pdz-surface);
+}
+.pdz-busca-lista .list-group-item:hover,
+:root[data-bs-theme="dark"] .pdz-busca-lista .list-group-item:hover {
+    background-color: var(--pdz-surface-alt);
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Cartão-linha: um item de lista com selo, texto e UMA ação (Home: "Seus
    torneios" e "Acontecendo agora"; serve pra qualquer lista parecida).

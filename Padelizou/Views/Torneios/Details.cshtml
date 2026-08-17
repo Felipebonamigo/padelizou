@@ -1168,8 +1168,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
                                 </div>
                                 <input type="hidden" name="jogador1Id" id="pdzJog1Id" />
-                                <div class="list-group position-absolute w-100 shadow d-none"
-                                     id="pdzJog1Lista" style="z-index: 1080; max-height: 15rem; overflow-y: auto;"></div>
+                                @* `pdz-busca-lista` NÃO é enfeite: ela dá o fundo sólido. Sem a
+                                   classe, o tema escuro deixa a lista transparente e o CPF de
+                                   baixo aparece através dos nomes (ver site.css). *@
+                                <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista"
+                                     id="pdzJog1Lista"></div>
                             </div>
 
                             @* Escolhido pela lista, o bloco do CPF some: os dados vêm do cadastro
@@ -1231,8 +1234,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
                                     </div>
                                     <input type="hidden" name="jogador2Id" id="pdzParceiroId" />
-                                    <div class="list-group position-absolute w-100 shadow d-none"
-                                         id="pdzParceiroLista" style="z-index: 1080; max-height: 15rem; overflow-y: auto;"></div>
+                                    @* Mesma classe do jogador 1 — o fundo transparente valia
+                                       pros DOIS lados da dupla, só ninguém tinha reparado aqui. *@
+                                    <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista"
+                                         id="pdzParceiroLista"></div>
                                 </div>
 
                                 @* Escolhido pela lista, o bloco do CPF some: os dados vêm do
