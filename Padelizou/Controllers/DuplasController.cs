@@ -132,7 +132,10 @@ namespace Padelizou.Controllers
             int? jogador2Id = null,
             // O MESMO pro jogador 1 (pedido do Felipe, 14/08/2026): quem inscreve outra
             // pessoa sabe o nome, não o CPF. Antes só o parceiro tinha essa porta.
-            int? jogador1Id = null)
+            int? jogador1Id = null,
+            // De que lado o jogador 1 joga — só vale na inscrição SEM parceiro. A tela manda
+            // pré-selecionado com o lado do perfil; nulo cai em "Ambos" na normalização.
+            string? ladoJogador1 = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -465,6 +468,11 @@ namespace Padelizou.Controllers
                 CategoriaId = categoriaId,
                 Jogador1Id = jogador1.Id,
                 Jogador2Id = jogador2?.Id,   // nulo = ainda procurando parceiro
+                // De que lado o jogador 1 joga, pra quem procura parceiro ver na lista.
+                // ⚠️ Só na inscrição SOZINHA: com parceiro definido a pergunta não foi feita
+                // (a tela esconde o campo), e gravar o que veio no POST seria guardar um
+                // palpite. Ver Models/Dupla.LadoJogador1 e Services/LadoNaQuadra.
+                LadoJogador1 = semParceiro ? LadoNaQuadra.Normalizar(ladoJogador1) : null,
                 ImpedimentoQuintaNoite = impQuintaNoite,
                 ImpedimentoSextaNoite = impSextaNoite,
                 ImpedimentoSabadoManha = impSabadoManha,

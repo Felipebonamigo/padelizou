@@ -483,11 +483,14 @@ namespace Padelizou.Controllers
             {
                 var eu = await _context.Jogadores
                     .Where(j => j.Id == jogadorLogadoId.Value)
-                    .Select(j => new { j.Id, j.Cpf, j.Nome })
+                    .Select(j => new { j.Id, j.Cpf, j.Nome, j.LadoQuadra })
                     .FirstOrDefaultAsync();
                 ViewBag.MeuJogadorId = eu?.Id;
                 ViewBag.MeuCpf = eu?.Cpf;
                 ViewBag.MeuNome = eu?.Nome;
+                // Pré-seleciona o "de que lado você joga?" da inscrição sem parceiro com o que
+                // já está no cadastro — no caso comum a pessoa não precisa mexer em nada.
+                ViewBag.MeuLadoQuadra = eu?.LadoQuadra;
 
                 // QUANTOS ME CHAMARAM, por inscrição minha (Felipe, 17/08/2026).
                 //

@@ -832,6 +832,24 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         <span class="d-flex align-items-center gap-2 text-muted small">
                                             <i class="bi bi-person-plus" style="font-size: 1.4rem;"></i>
                                             Procurando parceiro
+                                            @* DE QUE LADO ELE JOGA — é o que separa uma inscrição
+                                               da outra numa lista de 9 "procurando parceiro".
+                                               ⚠️ Sai do LadoNaQuadra.Efetivo: inscrição sem
+                                               escolha (feita antes disto existir) cai no lado do
+                                               PERFIL, e "Ambos" não vira selo — repetido em nove
+                                               linhas seria ruído empurrando pra baixo o que
+                                               distingue. *@
+                                            @{
+                                                var ladoDele = Padelizou.Services.LadoNaQuadra.Rotulo(
+                                                    Padelizou.Services.LadoNaQuadra.Efetivo(
+                                                        dupla.LadoJogador1, dupla.Jogador1?.LadoQuadra));
+                                            }
+                                            @if (ladoDele != null)
+                                            {
+                                                <span class="badge rounded-pill text-bg-secondary fw-normal">
+                                                    <i class="bi bi-arrow-left-right"></i> @ladoDele
+                                                </span>
+                                            }
                                         </span>
 
                                         @* O MURAL EM AÇÃO: "quero jogar com você", pra quem está
@@ -1214,6 +1232,36 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <label class="form-check-label fw-bold" for="pdzSemParceiro">
                                     <i class="bi bi-person-plus"></i> Ainda não tenho parceiro
                                 </label>
+                            </div>
+
+                            @* DE QUE LADO VOCÊ JOGA — só faz sentido pra quem está SOZINHO, e é
+                               por isso que só aparece com o check marcado (o JS cuida disso).
+                               Numa lista de 9 inscrições procurando parceiro, o lado é o que
+                               separa uma da outra: sem ele a escolha é no escuro e a conversa
+                               começa por "de que lado tu joga?".
+
+                               ⚠️ Vem PRÉ-SELECIONADO com o lado do perfil (Felipe, 17/08/2026),
+                               porque no caso comum a pessoa não vai mexer — e campo que já
+                               chega certo é campo que ninguém erra. Continua trocável: o lado
+                               pode ser deste torneio, não da vida. *@
+                            <div id="pdzLadoSolo" class="mb-3" style="display:none;">
+                                <label class="form-label small fw-bold mb-1" for="pdzLadoJogador1">
+                                    <i class="bi bi-arrow-left-right"></i> De que lado você joga?
+                                </label>
+                                <select class="form-select" name="ladoJogador1" id="pdzLadoJogador1">
+                                    @{
+                                        // Do PERFIL de quem está logado. Sem perfil preenchido, o
+                                        // `Normalizar` devolve "Ambos" — o lado seguro: quem não
+                                        // disse nada não é descartado por ninguém.
+                                        var meuLado = Padelizou.Services.LadoNaQuadra.Normalizar(
+                                            ViewBag.MeuLadoQuadra as string);
+                                    }
+                                    @foreach (var (valor, texto) in Padelizou.Services.LadoNaQuadra.Opcoes)
+                                    {
+                                        <option value="@valor" selected="@(valor == meuLado)">@texto</option>
+                                    }
+                                </select>
+                                <div class="form-text">Aparece pra quem estiver procurando dupla.</div>
                             </div>
 
                             <div id="pdzCamposParceiro">
@@ -4376,12 +4424,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var campos = document.getElementById('pdzCamposParceiro');
         var aviso = document.getElementById('pdzAvisoSemParceiro');
         var badge = document.getElementById('pdzBadgeSemParceiro');
+        // "De que lado você joga?" é pergunta de quem está SOZINHO: com o parceiro definido,
+        // a dupla se organiza por fora e o campo vira ruído no formulário.
+        var lado = document.getElementById('pdzLadoSolo');
 
         function aplicar() {
             var solo = check.checked;
             campos.style.display = solo ? 'none' : '';
             aviso.style.display = solo ? '' : 'none';
             badge.style.display = solo ? '' : 'none';
+            if (lado) lado.style.display = solo ? '' : 'none';
 
             campos.querySelectorAll('input').forEach(function (input) {
                 if (solo) {

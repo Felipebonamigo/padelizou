@@ -112,6 +112,21 @@ public partial class Dupla
     public int? TimeId { get; set; }
     public virtual Time? Time { get; set; }
 
+    // DE QUE LADO O JOGADOR 1 VAI JOGAR NESTE TORNEIO (Felipe, 17/08/2026). Serve pra quem
+    // procura parceiro: numa lista de 9 inscrições sozinhas, saber quem joga na direita e quem
+    // joga na esquerda é o que faz alguém escolher — sem isso a conversa começa por "de que
+    // lado tu joga?".
+    //
+    // ⚠️ NULO NÃO É "TANTO FAZ": é "nunca escolheu aqui" — inscrição feita antes desta coluna
+    // existir. Aí vale o `Jogador.LadoQuadra` do perfil (ver Services/LadoNaQuadra.Efetivo),
+    // que era o pedido: quem já está inscrito entra com o lado do cadastro, sem UPDATE nenhum
+    // no banco. Quem escolhe "tanto faz" na inscrição grava "Ambos", e essa escolha explícita
+    // não é sobrescrita por um perfil que diga outra coisa.
+    //
+    // Só do jogador 1 de propósito: a coluna existe pro caso SEM PARCEIRO, e quando a dupla
+    // fecha ela deixa de importar — quem já tem parceiro não está procurando.
+    public string? LadoJogador1 { get; set; }
+
     [NotMapped]
     public bool EhTime => NomeTime != null;
 
