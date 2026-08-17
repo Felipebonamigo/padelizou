@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits.
+> Última atualização: **17/08/2026** — 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits, e a publicação da **`build-574-2ad6a9d`**, que levou os DESAFIOS pra produção **invisíveis**.
 >
 > 🎾 **QUEM PROCURA PARCEIRO AGORA DIZ DE QUE LADO JOGA.** A lista do THE LAST DANCE tinha 9 inscrições sozinhas, todas dizendo só "Procurando parceiro" — o lado é o que separa uma da outra, e sem ele a conversa começa por *"de que lado tu joga?"*. O seletor aparece só na inscrição SOZINHA e vem **pré-selecionado com o perfil**: campo que já chega certo é campo que ninguém erra.
 >
@@ -19,7 +19,9 @@
 >
 > ✅ **Conferido em prod**: `NRestarts 0`, zero exceção, `healthz` 200, migration `LadoDeQuemProcuraParceiro` aplicada, coluna `LadoJogador1` existindo, `sw v26` e as 5 regras do dropdown sólido servidas.
 >
-> ⏭️ **Fica em aberto (decisão do Felipe)**: dois commits de DESAFIOS prontos na `main` local e **não publicados** — *"Toda vitória no desafio vale o mesmo"* e *"Placar contestado deixa de ser beco sem saída"*, este com migration nova (`ResolucaoDaDisputaDoDesafio`). São de outra sessão; publicar é decisão dele, não minha.
+> ✅ **OS DOIS COMMITS DE DESAFIOS FORAM PUBLICADOS** — decisão do Felipe, `build-574-2ad6a9d` em dev e prod: *"Toda vitória no desafio vale o mesmo"* e *"Placar contestado deixa de ser beco sem saída"*. A migration `ResolucaoDaDisputaDoDesafio` aplicou nos **dois** bancos (colunas `MotivoDaDisputa` e `ResolucaoDaDisputa` em `Desafio`). Eram de outra sessão, e por isso o *push* foi pedido separado do *deploy*: autorizar um não é autorizar o outro — a diferença entre os dois é o banco de produção.
+>
+> ⚠️ **COMO SE PROVA QUE UM MÓDULO CHEGOU EM PRODUÇÃO INVISÍVEL** — vale igual pro Bar e pras Molduras. Ler o código **não** conclui nada: o que decide é o servidor. `Desafios__Habilitado` não existe em **nenhum** dos três lugares que poderiam ligá-lo — não está no `Environment=` do unit, não há `EnvironmentFile`, e não há seção `Desafios` em `appsettings` nenhum da release. É a ausência **nos três** que faz valer o padrão da classe (`DesafiosSettings.Habilitado = false`). Conferir só um deles não prova coisa alguma: qualquer um sozinho teria aberto o módulo pra todo mundo.
 >
 > Antes, no mesmo dia: 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
 >
