@@ -47,14 +47,19 @@ public static class PainelAdminAgrupado
                 new("Jogadores por região", "Regioes", "bi-geo-alt"),
             }),
 
+        // ⚠️ "Placares contestados" entrou AQUI, e não num grupo próprio: um grupo de uma aba
+        // só vira um cartão que promete abas e abre numa tela sem nenhuma (tem teste). E o
+        // assunto é o mesmo dos outros dois — o que precisa de alguém olhar e decidir sobre uma
+        // briga entre pessoas.
         new(
-            Titulo: "O que os jogadores escrevem",
-            Descricao: "As opiniões sobre o site, com nota de 0 a 10, e o que foi sinalizado nos perfis.",
+            Titulo: "O que precisa da sua palavra",
+            Descricao: "As opiniões sobre o site, o que foi sinalizado nos perfis, e o placar que as duas duplas não acertaram.",
             Icone: "bi-chat-heart",
             Abas: new AbaDoPainel[]
             {
                 new("Opiniões", "Feedbacks", "bi-chat-heart"),
                 new("Comentários denunciados", "Denuncias", "bi-flag"),
+                new("Placares contestados", "DesafiosEmDisputa", "bi-exclamation-diamond"),
             }),
 
         new(

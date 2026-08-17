@@ -127,8 +127,33 @@ Duas travas, e nenhuma é detalhe:
 Exigir o "sim" do perdedor faria com que **sumir** fosse a jogada ótima: bastaria não responder
 para congelar o ranking de quem te ganhou. Por isso 72h sem resposta confirmam sozinhas.
 
-**Contestar, porém, zera os dois lados** e a linha fica visível para o admin resolver. Duas
+**Contestar, porém, zera os dois lados** e a linha vai para **`/Admin/DesafiosEmDisputa`**. Duas
 duplas que discordam do placar são um problema humano; o sistema não escolhe um lado sozinho.
+
+Nessa tela o admin tem duas saídas, e as duas exigem **justificativa escrita**:
+
+- **Validar o placar** — o que estava lançado, ou corrigido ali mesmo. Fecha pelo
+  `FechamentoDoDesafio`, o mesmo caminho do botão da outra dupla e do relógio: pontua, congela e
+  move o cinturão.
+- **Anular** — o jogo aconteceu, mas o placar não pôde ser estabelecido. Ninguém pontua.
+
+> ⚠️ **`Anulado` não é `Cancelado`.** Cancelado é jogo que **não aconteceu** (alguém desmarcou);
+> anulado é jogo que aconteceu e cujo placar não se estabeleceu. Misturar os dois faria o
+> histórico do jogador dizer que ele furou um compromisso que na verdade ele jogou.
+>
+> ⚠️ **A justificativa é obrigatória e o que a dupla alegou não é apagado.** `MotivoDaDisputa`
+> (o que ela disse) fica ao lado de `ResolucaoDaDisputa` + `ResolvidoPorId` (o que o admin
+> decidiu, e quem). *"Por que meu placar virou 6x4?"* é a primeira pergunta que chega, e
+> responder "o admin mudou" sem saber quem nem por quê é como se perde a confiança no ranking.
+>
+> ⚠️ **Só o que está `Em disputa` entra.** Desafio já confirmado não volta para a mesa por esta
+> porta — reabrir jogo fechado é reescrever ranking sem ninguém ver.
+>
+> Os **quatro** envolvidos são avisados do desfecho, inclusive quem "ganhou" a disputa: decisão
+> sobre briga que ninguém comunica é a próxima reclamação.
+>
+> A tela mora no **painel** (`/Admin`), e não em `/Desafios`, porque dentro de
+> `admin.padelizou.com.br` o middleware serve só `/Admin` e `/Auth` — é a lição do `/Admin/Times`.
 
 ### 🚫 O anti-farm (obrigatório, não polimento)
 
@@ -167,17 +192,23 @@ material para o índice do Google.
 | Situação | Pontos |
 |---|---|
 | Jogou (qualquer resultado) | **+1 de presença** |
-| Venceu | **`round(20 × (1 − expectativa))`**, limitado entre **5** e **20** |
+| Venceu | **+10**, sempre |
 | Perdeu | 0 (fica com a presença) |
 | Não compareceu | 0, e leva o selo de falta |
 
-A `expectativa` sai de **`Services/Padelimetro.Expectativa`** — a classe é matemática pura, sem
-banco. O Desafio **lê** dali e **nunca escreve**. Dupla sem Padelímetro entra com expectativa
-0,5 → **10 pontos**, o valor neutro.
-
-Na prática: ganhar de quem é muito melhor vale até **20**; ganhar de quem é muito pior vale
-**5**; entre iguais, **10**. O piso de 5 existe pra que ganhar de dupla mais fraca não vire
-zero — seria desestimular justamente quem topa jogar com gente nova.
+> 🔌 **A expectativa saiu em 17/08/2026** (decisão do Felipe). Até ali a vitória valia entre 5 e
+> 20 conforme o nível do adversário, lendo `Padelimetro.Expectativa`. Duas razões derrubaram isso,
+> e as duas apontam para o mesmo lugar:
+>
+> - **O Padelímetro nasce só de torneio.** Quem nunca jogou um não tem número e caía no valor
+>   neutro — ou seja, boa parte das duplas já pontuava pelo fixo, e as outras não. A mesma
+>   vitória valia 9 para uns e 10 para outros por um motivo que a tela não mostrava.
+> - **Ler o Padelímetro aqui reamarrava as duas trilhas** que esta espec tinha separado de
+>   propósito. Agora o Desafio não lê **nem** escreve o nível de ninguém.
+>
+> Os 10 são exatamente o valor que já era o neutro: a escala do ranking não mudou, ele só parou
+> de tratar duas vitórias iguais de forma diferente. Há teste travando isso, para que voltar a
+> diferenciar seja uma decisão e não o efeito colateral de alguém "melhorar" a conta.
 
 **Os pontos são gravados no desafio no momento do encerramento**, não recalculados na leitura —
 mesmo padrão do `PrecoPorJogoCotado`. Sem isso, mexer na fórmula em novembro reescreveria o

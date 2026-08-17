@@ -32,18 +32,13 @@ public class FechamentoDoDesafio
     public async Task<EfeitoNoCinturao> FecharAsync(Desafio desafio, int? confirmadoPorId, DateTime agora,
         CancellationToken cancelationToken = default)
     {
-        var niveis = await NiveisAsync(desafio, cancelationToken);
-
-        var expectativaDoDesafiante = PontosDoDesafio.Expectativa(
-            niveis.GetValueOrDefault(desafio.DesafianteJogador1Id),
-            niveis.GetValueOrDefault(desafio.DesafianteJogador2Id),
-            niveis.GetValueOrDefault(desafio.DesafiadoJogador1Id),
-            niveis.GetValueOrDefault(desafio.DesafiadoJogador2Id));
-
+        // ⚠️ O nível dos jogadores NÃO é lido aqui desde 17/08/2026: a expectativa saiu da conta
+        // (ver PontosDoDesafio). O desafio não lê nem escreve Padelímetro — as duas trilhas
+        // ficaram de fato separadas.
         var repeticoes = await ConfrontosAnterioresNoMesAsync(desafio, agora, cancelationToken);
 
         var (desafiante, desafiado) = PontosDoDesafio.Do(
-            EstadoDoDesafio.LadoVencedor(desafio), expectativaDoDesafiante, repeticoes);
+            EstadoDoDesafio.LadoVencedor(desafio), repeticoes);
 
         desafio.PontosDesafiante = desafiante;
         desafio.PontosDesafiado = desafiado;
@@ -105,13 +100,4 @@ public class FechamentoDoDesafio
         return duplasDeA.OrderBy(c => c).SequenceEqual(duplasDeB.OrderBy(c => c));
     }
 
-    private async Task<Dictionary<int, int?>> NiveisAsync(Desafio desafio, CancellationToken cancelationToken)
-    {
-        var ids = desafio.Envolvidos.Distinct().ToList();
-
-        return await _context.Jogadores
-            .AsNoTracking()
-            .Where(j => ids.Contains(j.Id))
-            .ToDictionaryAsync(j => j.Id, j => j.Padelimetro, cancelationToken);
-    }
 }

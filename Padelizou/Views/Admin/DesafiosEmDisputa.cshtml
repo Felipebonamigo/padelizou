@@ -1,0 +1,175 @@
+@model Padelizou.ViewModels.DesafiosEmDisputaVM
+@{
+    ViewData["Title"] = "Placares contestados - Painel Admin - Padelizou";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+    <partial name="_AbasDoPainel" />
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--pdz-ink);">Placares contestados</h2>
+            <p class="text-muted mb-0">
+                Quando as duas duplas discordam do placar, ninguém pontua até alguém decidir.
+                Esta é a mesa onde isso acontece.
+            </p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary rounded-pill">Voltar</a>
+    </div>
+
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
+    @if (Model.EmDisputa.Count == 0)
+    {
+        <div class="text-center py-5">
+            <p class="text-muted mb-0">Nenhum placar contestado. 🎉</p>
+            <p class="text-muted small">
+                Placar lançado que ninguém contesta em 72h vale sozinho — nada aqui precisa de você.
+            </p>
+        </div>
+    }
+
+    @foreach (var d in Model.EmDisputa)
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="border-left: 5px solid #dc3545 !important;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            @d.DuplaDesafiante <span class="text-muted fw-normal">x</span> @d.DuplaDesafiada
+                        </h5>
+                        <div class="small text-muted">
+                            <i class="bi bi-trophy"></i> @d.Desafio.CategoriaPadrao.Nome
+                            · <i class="bi bi-geo-alt"></i> @d.Desafio.Clube.Nome
+                            · <i class="bi bi-clock"></i> @d.Desafio.DataHora.ToString("dd/MM/yyyy 'às' HH'h'mm")
+                            · @d.Desafio.Formato
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Placar lançado</div>
+                        <div class="fw-bold fs-4" style="color: var(--pdz-ink);">@d.Placar</div>
+                        @if (d.QuemLancou != null)
+                        {
+                            <div class="small text-muted">por @d.QuemLancou</div>
+                        }
+                    </div>
+                </div>
+
+                @* Os dois lados na tela: o que a dupla alegou fica visível na hora de decidir. *@
+                <div class="alert alert-danger small rounded-4 py-2">
+                    <strong>Contestação:</strong>
+                    @(string.IsNullOrWhiteSpace(d.Desafio.MotivoDaDisputa)
+                        ? "a outra dupla contestou sem escrever o motivo."
+                        : d.Desafio.MotivoDaDisputa)
+                </div>
+
+                <form asp-action="ResolverDisputa" method="post" class="border-top pt-3">
+                    <input type="hidden" name="id" value="@d.Desafio.Id" />
+
+                    <div class="small fw-bold mb-2">Corrigir o placar (deixe em branco pra manter o que está lançado)</div>
+                    <div class="row g-2 mb-3">
+                        @if (d.PedeSets)
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small mb-0">Sets @d.DuplaDesafiante</label>
+                                <input type="number" min="0" max="3" class="form-control form-control-sm"
+                                       name="setsDesafiante" value="@d.Desafio.SetsDesafiante" />
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small mb-0">Sets @d.DuplaDesafiada</label>
+                                <input type="number" min="0" max="3" class="form-control form-control-sm"
+                                       name="setsDesafiado" value="@d.Desafio.SetsDesafiado" />
+                            </div>
+                        }
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0">Games @d.DuplaDesafiante</label>
+                            <input type="number" min="0" max="99" class="form-control form-control-sm"
+                                   name="gamesDesafiante" value="@d.Desafio.GamesDesafiante" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0">Games @d.DuplaDesafiada</label>
+                            <input type="number" min="0" max="99" class="form-control form-control-sm"
+                                   name="gamesDesafiado" value="@d.Desafio.GamesDesafiado" />
+                        </div>
+                    </div>
+
+                    @* A justificativa é obrigatória de propósito: é o que responde
+                       "por que meu placar virou 6x4?" três semanas depois. *@
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold" for="just@(d.Desafio.Id)">
+                            O que foi decidido, e por quê <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control rounded-4" name="justificativa" id="just@(d.Desafio.Id)"
+                                  rows="2" maxlength="400" required
+                                  placeholder="Ex.: falei com os quatro; os dois confirmaram 6x4 pro Rafael."></textarea>
+                        <div class="form-text">Fica gravado com o seu nome, ao lado do que a dupla alegou.</div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" name="desfecho" value="validar"
+                                class="btn btn-sm btn-padel rounded-pill fw-bold flex-grow-1">
+                            <i class="bi bi-check-lg"></i> Validar o placar e pontuar
+                        </button>
+                        <button type="submit" name="desfecho" value="anular"
+                                class="btn btn-sm btn-outline-danger rounded-pill flex-grow-1"
+                                data-confirmar="O jogo fica no histórico, mas ninguém pontua por ele."
+                                data-confirmar-titulo="Anular o desafio?"
+                                data-confirmar-ok="Anular"
+                                data-confirmar-tom="perigo">
+                            Anular — não dá pra saber o placar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (Model.Resolvidas.Count > 0)
+    {
+        <h5 class="fw-bold mt-5 mb-3" style="color: var(--pdz-ink);">
+            <i class="bi bi-clock-history"></i> Últimas resolvidas
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr class="text-muted small">
+                        <th>Desafio</th>
+                        <th>Placar</th>
+                        <th>Decisão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Resolvidas)
+                    {
+                        <tr>
+                            <td class="small">
+                                @d.DuplaDesafiante x @d.DuplaDesafiada
+                                <div class="text-muted">@d.Desafio.DataHora.ToString("dd/MM/yyyy")</div>
+                            </td>
+                            <td class="fw-bold">
+                                @(d.Desafio.Status == Padelizou.Models.Desafio.Anulado ? "—" : d.Placar)
+                            </td>
+                            <td class="small">
+                                <span class="badge @(d.Desafio.Status == Padelizou.Models.Desafio.Anulado
+                                    ? "bg-secondary-subtle text-secondary-emphasis"
+                                    : "bg-success-subtle text-success-emphasis")">@d.Desafio.Status</span>
+                                <div class="text-muted">@d.Desafio.ResolucaoDaDisputa</div>
+                                @if (!string.IsNullOrWhiteSpace(d.Desafio.MotivoDaDisputa))
+                                {
+                                    <div class="text-muted fst-italic">Alegado: "@d.Desafio.MotivoDaDisputa"</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

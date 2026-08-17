@@ -54,6 +54,17 @@ public static class AvisoDoDesafio
         new("Placar contestado",
             $"{quem} não concordou com o placar. Ninguém pontua até isso ser resolvido.");
 
+    // ⚠️ Os quatro são avisados, inclusive quem "ganhou" a disputa. Decisão sobre briga entre
+    // usuários que ninguém comunica é a próxima reclamação — e o silêncio faz o placar parecer
+    // ter mudado sozinho.
+    public static TextoDoAviso DisputaResolvida(string placar) =>
+        new("A disputa do placar foi resolvida",
+            $"O desafio fechou em {placar}, e os pontos entraram no ranking.");
+
+    public static TextoDoAviso DisputaAnulada() =>
+        new("O desafio foi anulado",
+            "Não deu pra estabelecer o placar, então ninguém pontuou por esse jogo.");
+
     // O convite pro parceiro entra aqui e não no AvisoSocial porque não é bilhete: sem o "sim"
     // dele o anúncio não vai pro mural, então este aviso é a única coisa que destrava a dupla.
     public static TextoDoAviso ConvitePraDupla(string quem) =>
