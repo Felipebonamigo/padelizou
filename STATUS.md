@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🤝 **O AVISO DE "QUER FECHAR DUPLA" AGORA TERMINA EM DECISÃO** (`build-565-060a856`, nos dois ambientes).
+> Última atualização: **17/08/2026** — 🔗 **UM CLIQUE DO FELIPE ACHOU O BURACO: a tela de aceitar dupla só existia PELO AVISO** (`build-567-6a29e6f`, nos dois ambientes) — mais **4 avisos antigos corrigidos no banco de produção**.
+>
+> 🕵️ **O RELATO ERA "cliquei e fui parar no perfil, não na tela de aceite" — e NÃO era o código novo falhando.** A investigação foi no banco de prod, não no palpite: a coluna `Url` mostrou o aviso das **10:30** apontando pro perfil e o das **10:54** já indo pra `/Duplas/Chamados`. ⚠️ **A URL de um aviso é GRAVADA quando ele nasce** — avisos anteriores ao deploy ficam congelados no link velho para sempre, por mais certo que o código esteja hoje. O texto do aviso confirmou: o dele ainda dizia *"mande o convite por link"*, frase que já tinha sido apagada.
+>
+> 🕳️ **Mas o clique expôs um buraco de verdade: a tela SÓ era alcançável pelo aviso.** Quem apagasse a notificação perdia o caminho, e a própria inscrição não dizia que havia gente esperando resposta. ⚠️ **Aviso é lembrete, não pode ser a única porta** — o que existe no sistema precisa estar visível de dentro dele. Agora a inscrição SOZINHA mostra **"N querem jogar com você"**, em destaque e ANTES do "Convidar por link": é gente esperando, e responder fecha a dupla na hora — vale mais que gerar link pra mandar por fora.
+>
+> ⚠️ **A contagem é de QUEM ESTÁ LOGADO e só das inscrições DELE.** Sem esse recorte, a tela mostraria na inscrição de terceiro quantos chamaram, e o botão levaria a um `Forbid`.
+>
+> 🧰 **4 AVISOS ANTIGOS CORRIGIDOS EM PRODUÇÃO** (dado, não código), dentro de transação e com o depois conferido antes do `COMMIT`. O casamento foi **exato, não por proximidade**: a URL velha guarda o Id do CANDIDATO e o `ChamadoDoMural` amarra candidato + inscrição do dono — então cada aviso tinha um destino só. Só entraram os que ainda fazem sentido (inscrição ainda sozinha, torneio ainda aberto).
+>
+> ⚠️ **Um ficou de fora DE PROPÓSITO** (aviso 536): o chamado dele não existe mais no banco — conferido, não suposto. Mandá-lo pra lista abriria uma tela onde aquela pessoa não aparece, o que é pior que o perfil. Os valores antigos ficaram no cabeçalho do script, então o rollback é trivial.
+>
+> 🧪 **4.120 testes, 0 falhas** (2 novos). O da contagem foi **falsificado**: desliguei o `ViewBag` e ele reprovou. ✅ Em prod: `NRestarts 0`, zero exceção, `healthz` 200, e a coluna `Url` mostrando **5 de 6** avisos apontando pra `/Duplas/Chamados`.
+>
+> 💡 **Pra próxima vez que um aviso mudar de destino**: mudar o código só vale pros avisos NOVOS. Se os antigos importam, é `UPDATE` — e o casamento tem que ser exato, senão manda a pessoa pra tela errada.
+>
+> Antes, no mesmo dia: 🤝 **O AVISO DE "QUER FECHAR DUPLA" AGORA TERMINA EM DECISÃO** (`build-565-060a856`, nos dois ambientes).
 >
 > 📩 **O aviso acabava numa TAREFA MANUAL.** Ele levava pro PERFIL do candidato e o texto dizia *"mande o convite por link da sua inscrição"* — ou seja: voltar pro torneio, gerar link, mandar no WhatsApp, torcer pro outro abrir e aceitar. A dupla dependia de o dono lembrar de fazer tudo isso. Agora o toque cai em `/Duplas/Chamados`: a lista de quem chamou, com foto, link pro perfil (que é o que dá lastro pra decidir) e os botões **Aceitar** e **Recusar**.
 >
