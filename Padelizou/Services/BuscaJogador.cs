@@ -76,6 +76,39 @@ public static class BuscaJogador
             (j.Login != null && j.Login.ToLower() == alvo));
     }
 
+    // Quem está pedindo senha nova? Aceita e-mail, login OU **CPF** — e a entrada, de
+    // propósito, NÃO aceita o CPF. A assimetria é o ponto:
+    //
+    //   · no login, aceitar o CPF transformaria um número que não é segredo no Brasil em
+    //     metade das credenciais de todo mundo;
+    //   · aqui ele é inofensivo, porque o que sai desta ação é um link mandado pro e-mail JÁ
+    //     gravado na conta. Quem sabe o seu CPF e pede recuperação não recebe nada — só faz
+    //     chegar um e-mail na SUA caixa.
+    //
+    // Existe porque até 17/08/2026 quem só sabia o próprio CPF não tinha caminho nenhum: a
+    // busca devolvia null e a tela respondia "link a caminho" do mesmo jeito, então a pessoa
+    // ficava esperando um e-mail que nunca foi mandado. E o CPF é justamente a identidade de
+    // quem entrou por pré-cadastro — é o único dado que ELA não escolheu, porque foi o
+    // organizador que digitou por ela.
+    public static async Task<Jogador?> ParaRecuperarSenhaAsync(
+        DbPadelContext context, string? identificador)
+    {
+        // E-mail e login primeiro: são o que a pessoa escolheu, e um login que por acaso seja
+        // só números não pode ser atropelado pela busca de CPF.
+        var pelaIdentidade = await PorIdentificadorAsync(context, identificador);
+        if (pelaIdentidade != null) return pelaIdentidade;
+
+        // CPF COMPLETO, nunca parcial (ver PareceCpf): sem isso, "esqueci minha senha" viraria
+        // uma varredura de documentos da base, um pedaço por vez.
+        if (!PareceCpf(identificador)) return null;
+
+        // Conta excluída (LGPD) não chega aqui, e não é por sorte: a anonimização troca o CPF
+        // por "EX000000123" (ver ExclusaoDeConta.CpfDeQuemSaiu), que tem letra — PareceCpf
+        // recusa acima, e a igualdade abaixo nunca casaria.
+        var digitos = Documentos.SomenteDigitos(identificador);
+        return await context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == digitos);
+    }
+
     // Acha quem vai receber uma ação administrativa dirigida a UMA pessoa (hoje: o teste de
     // aviso do painel). Aceita o que o admin tem na mão — login, e-mail, nome, apelido ou CPF.
     //

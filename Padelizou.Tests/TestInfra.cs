@@ -45,15 +45,19 @@ public static class TestInfra
 
     // AuthController pronto pra testar cadastro e edição de perfil, do começo ao fim — o
     // SignInAsync do final feliz roda contra o dublê acima.
+    //
+    // `email` fica aberto porque na recuperação de senha o e-mail não é acessório: "mandou o
+    // link" e "não mandou nada" são desfechos DIFERENTES que terminam na mesma tela, e sem
+    // enxergar o dublê o teste não distingue os dois.
     public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0,
-        TravaDeEntrada? trava = null, IConsultaDeCep? cep = null)
+        TravaDeEntrada? trava = null, IConsultaDeCep? cep = null, IEmailService? email = null)
     {
         var controller = new AuthController(
             ctx,
             Substitute.For<IWebHostEnvironment>(),
             new Microsoft.AspNetCore.Identity.PasswordHasher<Jogador>(),
             new EstatisticasService(ctx),
-            Substitute.For<IEmailService>(),
+            email ?? Substitute.For<IEmailService>(),
             NullLogger<AuthController>.Instance,
             Microsoft.Extensions.Options.Options.Create(new SuporteSettings()),
             trava ?? new TravaDeEntrada(),

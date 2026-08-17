@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/08/2026** — 🔎 **"SUMIU DO GOOGLE": NÃO SUMIU. O DIAGNÓSTICO, e por que o gargalo NÃO é mais código.**
+> Última atualização: **17/08/2026** — 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
+>
+> 🕳️ **O relato**: o jogador do CPF `019.947.840-67` não conseguia recuperar a senha. Lendo o caminho inteiro apareceram **três** jeitos de falhar **em silêncio**, todos com a mesma resposta *"link a caminho"* na tela — por isso não havia como distinguir um do outro por fora. (1) O **CPF nunca foi identificador aceito**: `BuscaJogador.PorIdentificadorAsync` compara só e-mail e login, então quem digitava o CPF não era achado — e a tela dizia que o link tinha saído. (2) **Pré-cadastro** (quem foi inscrito num torneio por outra pessoa e nunca teve senha) não tem o que recuperar: o que falta é **criar** a conta, e o Cadastro reivindica a linha pelo CPF com o histórico junto. A tela mandava esperar e-mail. (3) Conta **com senha e sem e-mail** não tem pra onde mandar o link — a tela mandava caçar no spam um e-mail que nunca teve destinatário.
+>
+> ✅ **O que passou a acontecer** (decisão do Felipe): a recuperação **aceita CPF**, o pré-cadastro é mandado **pro Cadastro** com a frase certa ("crie sua conta com o mesmo CPF e o histórico vem junto"), e a conta sem e-mail recebe o **WhatsApp do suporte** em vez de uma caixa verde mentirosa. O campo e o placeholder agora **dizem** "E-mail, login ou CPF" — aceitar em silêncio não resolveria nada, porque quem só sabe o próprio CPF é exatamente quem não adivinharia que pode digitá-lo.
+>
+> 🔒 **A ENTRADA continua NÃO aceitando CPF, e isso tem teste próprio.** A assimetria é o ponto: no login, aceitar o CPF transformaria um número que não é segredo no Brasil em metade da credencial de todo mundo; na recuperação ele é inofensivo, porque o que sai dali é um link mandado pro e-mail **já gravado** na conta. Se alguém "unificar as duas buscas por simetria" um dia, o teste quebra.
+>
+> ⚖️ **A resposta uniforme foi rompida DE PROPÓSITO, e só onde não existe recuperação nenhuma pra fazer.** CPF desconhecido continua indistinguível de conta que recebeu o link. O que o ramo novo conta — "esse CPF está na base e ainda não tem senha" — o formulário de **cadastro já contava**, porque lá CPF com senha é recusado e CPF sem senha passa. Não é vazamento novo.
+>
+> 🧪 **4.139 testes, 0 falhas (19 novos).** ✅ Conferido no app local, servidor de verdade, os quatro desfechos: pré-cadastro → "essa conta ainda não tem senha" + botão pro `/Auth/Cadastro`; conta normal pelo CPF **com máscara** → caixa verde **e token gravado no banco**; conta sem e-mail → aviso + WhatsApp; CPF desconhecido → resposta uniforme. E o token nasceu **só** na conta que podia receber. Um teste antigo foi **reancorado**: o do aviso de spam procurava o *primeiro* `alert-warning` da tela, e a caixa nova passou a vir antes dele — ficaria verde com o aviso de spam de volta na letra miúda.
+>
+> ⚠️ **DUAS PENDÊNCIAS, e a primeira importa pro jogador que reclamou**: (1) **não foi confirmado no banco de produção QUAL dos três becos pegou aquele CPF** — o `ssh` pra prod foi bloqueado nesta sessão, e a consulta (`SELECT "Email", "SenhaHash" IS NULL ... FROM "Jogador" WHERE "CPF" = '01994784067'`) segue **pendente**. Se a conta dele for pré-cadastro ou estiver sem e-mail, o caminho dele muda. (2) **Nada disso está no ar** — falta build + `deploy.yml`.
+>
+> Antes, em 14/08/2026: 🔎 **"SUMIU DO GOOGLE": NÃO SUMIU. O DIAGNÓSTICO, e por que o gargalo NÃO é mais código.**
 >
 > 🚨 **O alarme foi real e a conclusão é outra.** O Felipe procurou "padelizou" e viu **só Instagram** — o site fora dos resultados. Verificado na hora: `site:padelizou.com.br` devolve **6 páginas de resultados**, com o **título novo já indexado** (*"Padelizou — Torneios de padel, ranking e aulas"*), o ranking com a frase própria, o NATA PADEL TOUR com data e categorias, e páginas que nem existiam antes. HTTP 200, **sem** `noindex`, **sem** `X-Robots-Tag`, robots liberando, canonical certo, e *Ações manuais* = **"Nenhum problema foi detectado"**. **Não é desindexação nem punição — é POSIÇÃO.**
 >
