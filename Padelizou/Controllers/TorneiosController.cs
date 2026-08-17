@@ -325,13 +325,22 @@ namespace Padelizou.Controllers
             // do torneio traz categorias, duplas e grupos, e `Categoria.Partidas` chegaria
             // VAZIA. O botão simplesmente não apareceria, sem erro nenhum, em todo torneio do
             // sistema. Aqui a lista já está carregada e a conta sai de graça.
+            var ultimoJogoDoTorneio = MvpDoTorneio.UltimoJogo(partidasFinalizadas
+                .Where(p => p.VencedorId != null)
+                .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto));
+
             ViewBag.TemVotacaoDeMvp = MvpDoTorneio.TemVotacao(
                 torneio.UsaVotacaoDeMvp,
                 torneio.Status,
-                MvpDoTorneio.UltimoJogo(partidasFinalizadas
-                    .Where(p => p.VencedorId != null)
-                    .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto)),
-                DateTime.Now);
+                ultimoJogoDoTorneio,
+                DateTime.Now,
+                torneio.Formato);
+
+            // A ENQUETE do clube tem janela própria — ela vale até no Americano, que não elege
+            // MVP. Sem esta linha, o link pra tela sumiria justamente nos torneios em que só
+            // existe a enquete, e a coleta do "Melhor Clube" morreria calada neles.
+            ViewBag.TemEnqueteDoTorneio = EnqueteDoTorneio.Aberta(
+                torneio.Status, ultimoJogoDoTorneio, DateTime.Now);
 
             // O ranking de palpiteiros só tem o que mostrar depois que um jogo COM palpite
             // terminou. Pergunta barata (um Any sobre as partidas já carregadas) e é ela que
