@@ -336,11 +336,11 @@ namespace Padelizou.Controllers
                 DateTime.Now,
                 torneio.Formato);
 
-            // A ENQUETE do clube tem janela própria — ela vale até no Americano, que não elege
-            // MVP. Sem esta linha, o link pra tela sumiria justamente nos torneios em que só
-            // existe a enquete, e a coleta do "Melhor Clube" morreria calada neles.
+            // A ENQUETE do clube segue o mesmo corte de FORMATO do MVP (nada no Americano),
+            // mas ignora o INTERRUPTOR: torneio normal com a eleição desligada continua
+            // avaliando, e é aí que este link é a única porta pra tela.
             ViewBag.TemEnqueteDoTorneio = EnqueteDoTorneio.Aberta(
-                torneio.Status, ultimoJogoDoTorneio, DateTime.Now);
+                torneio.Status, ultimoJogoDoTorneio, DateTime.Now, torneio.Formato);
 
             // O ranking de palpiteiros só tem o que mostrar depois que um jogo COM palpite
             // terminou. Pergunta barata (um Any sobre as partidas já carregadas) e é ela que

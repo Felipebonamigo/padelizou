@@ -11,13 +11,13 @@ namespace Padelizou.Services;
 //
 // Decisões de desenho:
 // - A enquete mora na tela do MVP e usa a MESMA janela de 7 dias (o dono da janela é
-//   MvpDoTorneio.DentroDaJanela) — mas NÃO obedece ao interruptor UsaVotacaoDeMvp nem ao
-//   FORMATO: o interruptor e o formato são sobre a disputa entre jogadores; a enquete é coleta
-//   NOSSA sobre o clube.
-// - ⚠️ É por isso que o AMERICANO, que desde 16/08/2026 não elege MVP, continua avaliando o
-//   clube: o rodízio de sábado é evento de clube como qualquer outro, e é provavelmente o
-//   formato mais comum aqui. Amarrar a enquete ao MVP abriria um buraco no dado do "Melhor
-//   Clube do ano" exatamente onde há mais eventos.
+//   MvpDoTorneio.DentroDaJanela).
+// - ⚠️ **O AMERICANO NÃO AVALIA** (decisão do Felipe, 17/08/2026): a enquete acompanha o MVP
+//   no que diz respeito ao FORMATO. A coleta do "Melhor Clube do ano" passa a sair só dos
+//   torneios normais — menos dado, e essa é a escolha dele, feita sabendo do trade-off.
+// - Mas ela continua NÃO obedecendo ao interruptor `UsaVotacaoDeMvp`: esse é do organizador
+//   sobre a DISPUTA entre jogadores, e desligar a eleição não é dizer "não quero que falem do
+//   meu clube". Torneio normal com MVP desligado avalia igual.
 // - Quem responde é quem JOGOU (a régua do eleitorado do MVP, um dono só).
 // - A média só aparece com 3+ respostas — "5,0 estrelas (1 avaliação)" é uma pessoa falando
 //   com voz de consenso, o mesmo furo do "1º lugar com 0 pontos".
@@ -29,11 +29,16 @@ public static class EnqueteDoTorneio
     // Mesmo espírito do MvpDoTorneio.VotosMinimos: abaixo disso não há "média", há uma pessoa.
     public const int RespostasParaMostrarMedia = 3;
 
-    // A janela é A MESMA do MVP, e só ela: `DentroDaJanela` não pergunta interruptor nem
-    // formato, então esta linha É a decisão do cabeçalho — sem `true` mágico pra alguém
-    // interpretar errado depois.
-    public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
-        MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
+    // A janela é A MESMA do MVP, mais a régua do formato — e o `formato` é PARÂMETRO
+    // OBRIGATÓRIO pela mesma razão que ele é obrigatório lá: são quatro lugares que perguntam
+    // pela enquete (a tela, o POST da nota, o botão da página do torneio e o varredor do
+    // aviso), e um deles esquecer não daria erro nenhum — daria enquete aberta num Americano.
+    //
+    // ⚠️ O que NÃO entra aqui é o interruptor `UsaVotacaoDeMvp`: ver o cabeçalho da classe.
+    public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora,
+        string? formato) =>
+        FormatoDoTorneio.TemPosTorneio(formato)
+        && MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
 
     public static bool MediaVisivel(int respostas) => respostas >= RespostasParaMostrarMedia;
 
@@ -59,7 +64,7 @@ public static class EnqueteDoTorneio
         var torneio = await contexto.Torneios
             .AsNoTracking()
             .Where(t => t.Id == torneioId)
-            .Select(t => new { t.Status })
+            .Select(t => new { t.Status, t.Formato })
             .FirstOrDefaultAsync();
         if (torneio == null) return "Torneio não encontrado.";
 
@@ -69,7 +74,10 @@ public static class EnqueteDoTorneio
             .Select(p => p.HorarioFimReal ?? p.HorarioInicioReal ?? p.HorarioPrevisto)
             .ToListAsync();
 
-        if (!Aberta(torneio.Status, MvpDoTorneio.UltimoJogo(fins), agora))
+        // ⚠️ O formato é conferido AQUI, no servidor, e não só escondido na tela: quem quiser
+        // avaliar um Americano precisa montar o POST à mão, e POST montado à mão não passa por
+        // view nenhuma. Sem esta linha a régua nova seria só cosmética.
+        if (!Aberta(torneio.Status, MvpDoTorneio.UltimoJogo(fins), agora, torneio.Formato))
             return "A avaliação deste torneio não está aberta — ela vale na semana seguinte ao fim.";
 
         var eleitores = await MvpDoTorneio.EleitoresAsync(contexto, torneioId);

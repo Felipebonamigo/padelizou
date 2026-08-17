@@ -31,4 +31,18 @@ public static class FormatoDoTorneio
 
     public static bool Existe(string? formato) =>
         formato is Padrao or Americano or AmericanoDeDuplas;
+
+    // ⚠️ O QUE VEM DEPOIS DO TORNEIO — eleição de MVP e avaliação do clube — é só do torneio
+    // NORMAL (decisão do Felipe: 16/08/2026 pro MVP, 17/08 pra enquete). O rodízio acaba e
+    // todo mundo vai embora; não há final, não há dupla fixa, e num sábado de 8 pessoas essas
+    // telas seriam quatro amigos respondendo entre eles.
+    //
+    // ⚠️ UM predicado pros dois de propósito: são a mesma decisão de produto, e regra assim
+    // escrita duas vezes é como uma delas fica pra trás na próxima mudança — o defeito mais
+    // caro deste projeto tem esse nome.
+    //
+    // ⚠️ Formato NULO tem pós-torneio: é o torneio antigo, gravado antes de a coluna existir,
+    // e ele é Padrão por natureza (o Americano veio depois). Tratá-lo como rodízio tiraria o
+    // MVP de torneios reais que já o tinham.
+    public static bool TemPosTorneio(string? formato) => !EhAmericano(formato);
 }

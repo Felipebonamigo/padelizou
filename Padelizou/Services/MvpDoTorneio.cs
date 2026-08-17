@@ -75,14 +75,14 @@ public static class MvpDoTorneio
     }
 
     // ⚠️ AMERICANO NÃO ELEGE MVP (decisão do Felipe, 16/08/2026) — "é apenas para os torneios
-    // normais". A razão estava no desenho desde o começo e agora virou regra: no rodízio a
-    // cédula encolhe a quase nada (todo mundo joga com todo mundo, não há final nem dupla
-    // fixa), e num sábado de 8 pessoas "o melhor do torneio" seria escolhido por quatro amigos
-    // entre eles. O Americano já tem trilha própria — o Ranking Americano.
+    // normais". No rodízio a cédula encolhe a quase nada: todo mundo joga com todo mundo, não
+    // há final nem dupla fixa, e num sábado de 8 pessoas o MVP seria escolhido por quatro
+    // amigos entre eles. O Americano já tem trilha própria — o Ranking Americano.
     //
-    // ⚠️ Vale pros DOIS do rodízio (individual e de duplas): a régua é `FormatoDoTorneio
-    // .EhAmericano`, o mesmo dono que o resto do sistema usa pra essa pergunta.
-    public static bool ElegeMvp(string? formato) => !FormatoDoTorneio.EhAmericano(formato);
+    // Quem MANDA na régua é `FormatoDoTorneio.TemPosTorneio`, compartilhada com a enquete do
+    // clube (que desde 17/08 segue o mesmo corte). Este nome existe pra quem lê o MVP não
+    // precisar traduzir "pós-torneio" na cabeça.
+    public static bool ElegeMvp(string? formato) => FormatoDoTorneio.TemPosTorneio(formato);
 
     // A JANELA PURA: o torneio acabou e ainda faz menos de 7 dias do último jogo. Separada de
     // propósito — quem pergunta por ela não é só o MVP: a ENQUETE do clube usa a mesma janela
@@ -194,6 +194,7 @@ public static class MvpDoTorneio
             FechaEm = FechaEm(ultimoJogo),
             StatusDoTorneio = torneio.Status,
             UltimoJogo = ultimoJogo,
+            Formato = torneio.Formato,
             Candidatos = candidatos,
             TotalDeVotos = votos.Count,
             Eleitores = eleitores.Count,
@@ -506,10 +507,11 @@ public sealed class VotacaoDeMvp
     public bool Empatou => Vencedores.Count > 1;
 
     // O estado do torneio, pra quem precisa responder outra pergunta sobre a MESMA janela —
-    // hoje a enquete do clube, que vale até onde o MVP não existe (Americano). Sem isto o
-    // controller teria que ir ao banco de novo pelas mesmas duas informações.
+    // hoje a enquete do clube, que vale onde o MVP foi DESLIGADO pelo organizador. Sem isto o
+    // controller teria que ir ao banco de novo pelas mesmas informações.
     public string? StatusDoTorneio { get; set; }
     public DateTime? UltimoJogo { get; set; }
+    public string? Formato { get; set; }
 
     // Este torneio TEM eleição de MVP? Falso no Americano e em quem desligou o interruptor —
     // e é o que faz a tela decidir entre "MVP do torneio" e só a enquete.
