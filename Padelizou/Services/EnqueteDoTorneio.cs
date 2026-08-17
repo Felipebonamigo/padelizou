@@ -10,9 +10,14 @@ namespace Padelizou.Services;
 // — a mesma razão que fez o MVP sair em 2026.
 //
 // Decisões de desenho:
-// - A enquete mora na tela do MVP e usa a MESMA janela de 7 dias (o dono da regra da janela é
-//   MvpDoTorneio.Aberta) — mas NÃO obedece ao interruptor UsaVotacaoDeMvp: o interruptor é do
-//   organizador sobre a disputa entre jogadores; a enquete é coleta NOSSA sobre o clube.
+// - A enquete mora na tela do MVP e usa a MESMA janela de 7 dias (o dono da janela é
+//   MvpDoTorneio.DentroDaJanela) — mas NÃO obedece ao interruptor UsaVotacaoDeMvp nem ao
+//   FORMATO: o interruptor e o formato são sobre a disputa entre jogadores; a enquete é coleta
+//   NOSSA sobre o clube.
+// - ⚠️ É por isso que o AMERICANO, que desde 16/08/2026 não elege MVP, continua avaliando o
+//   clube: o rodízio de sábado é evento de clube como qualquer outro, e é provavelmente o
+//   formato mais comum aqui. Amarrar a enquete ao MVP abriria um buraco no dado do "Melhor
+//   Clube do ano" exatamente onde há mais eventos.
 // - Quem responde é quem JOGOU (a régua do eleitorado do MVP, um dono só).
 // - A média só aparece com 3+ respostas — "5,0 estrelas (1 avaliação)" é uma pessoa falando
 //   com voz de consenso, o mesmo furo do "1º lugar com 0 pontos".
@@ -24,10 +29,11 @@ public static class EnqueteDoTorneio
     // Mesmo espírito do MvpDoTorneio.VotosMinimos: abaixo disso não há "média", há uma pessoa.
     public const int RespostasParaMostrarMedia = 3;
 
-    // A janela é A MESMA do MVP — o `true` fixo é a decisão de que o interruptor do MVP não
-    // manda aqui (ver o cabeçalho da classe).
+    // A janela é A MESMA do MVP, e só ela: `DentroDaJanela` não pergunta interruptor nem
+    // formato, então esta linha É a decisão do cabeçalho — sem `true` mágico pra alguém
+    // interpretar errado depois.
     public static bool Aberta(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
-        MvpDoTorneio.Aberta(true, statusDoTorneio, ultimoJogo, agora);
+        MvpDoTorneio.DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
 
     public static bool MediaVisivel(int respostas) => respostas >= RespostasParaMostrarMedia;
 

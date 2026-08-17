@@ -18,20 +18,36 @@ public class MvpDoTorneioTests
 {
     private static readonly DateTime Domingo = new(2026, 8, 9, 20, 0, 0);
 
+    // Os testes desta classe falam do torneio NORMAL — o único que elege MVP desde
+    // 16/08/2026. Estes três atalhos põem o formato Padrão por omissão pra a intenção de cada
+    // teste continuar legível; o Americano tem bloco próprio no fim do arquivo, chamando o
+    // serviço direto.
+    private static bool Aberta(bool usa, string? status, DateTime? ultimo, DateTime agora,
+        string? formato = FormatoDoTorneio.Padrao)
+        => MvpDoTorneio.Aberta(usa, status, ultimo, agora, formato);
+
+    private static bool Encerrada(bool usa, string? status, DateTime? ultimo, DateTime agora,
+        string? formato = FormatoDoTorneio.Padrao)
+        => MvpDoTorneio.Encerrada(usa, status, ultimo, agora, formato);
+
+    private static bool TemVotacao(bool usa, string? status, DateTime? ultimo, DateTime agora,
+        string? formato = FormatoDoTorneio.Padrao)
+        => MvpDoTorneio.TemVotacao(usa, status, ultimo, agora, formato);
+
     // ─────────────────────────── A JANELA ───────────────────────────
 
     [Fact]
     public void A_votacao_abre_com_o_torneio_finalizado_e_fecha_sete_dias_depois_do_ultimo_jogo()
     {
         // Logo depois do último jogo: aberta.
-        Assert.True(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1)));
 
         // No sexto dia ainda dá.
-        Assert.True(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddDays(6)));
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(6)));
 
         // No sétimo, fecha — e a partir daí o resultado aparece.
-        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", Domingo, Domingo.AddDays(7)));
-        Assert.True(MvpDoTorneio.Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.True(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(7)));
     }
 
     [Fact]
@@ -40,9 +56,9 @@ public class MvpDoTorneioTests
         // Pedido do Felipe: "a votação é feita após finalizar o torneio".
         foreach (var status in new[] { "Fase de Grupos", "Mata-Mata", "Inscrições Abertas", "Chaves em Sorteio" })
         {
-            Assert.False(MvpDoTorneio.Aberta(true, status, Domingo, Domingo.AddHours(1)), status);
-            Assert.False(MvpDoTorneio.Encerrada(true, status, Domingo, Domingo.AddHours(1)), status);
-            Assert.False(MvpDoTorneio.TemVotacao(true, status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(Aberta(true, status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(Encerrada(true, status, Domingo, Domingo.AddHours(1)), status);
+            Assert.False(TemVotacao(true, status, Domingo, Domingo.AddHours(1)), status);
         }
     }
 
@@ -50,8 +66,8 @@ public class MvpDoTorneioTests
     public void Torneio_CANCELADO_nao_tem_MVP()
     {
         // Mesma régua do card de campeão e do ponto de ranking: o evento não aconteceu.
-        Assert.False(MvpDoTorneio.Aberta(true, "Cancelado", Domingo, Domingo.AddHours(1)));
-        Assert.False(MvpDoTorneio.TemVotacao(true, "Cancelado", Domingo, Domingo.AddHours(1)));
+        Assert.False(Aberta(true, "Cancelado", Domingo, Domingo.AddHours(1)));
+        Assert.False(TemVotacao(true, "Cancelado", Domingo, Domingo.AddHours(1)));
     }
 
     [Fact]
@@ -62,8 +78,8 @@ public class MvpDoTorneioTests
         // mês passado simplesmente já está fora da janela.
         var mesPassado = Domingo.AddDays(-40);
 
-        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", mesPassado, Domingo));
-        Assert.True(MvpDoTorneio.Encerrada(true, "Finalizado", mesPassado, Domingo));
+        Assert.False(Aberta(true, "Finalizado", mesPassado, Domingo));
+        Assert.True(Encerrada(true, "Finalizado", mesPassado, Domingo));
     }
 
     [Fact]
@@ -72,8 +88,8 @@ public class MvpDoTorneioTests
         // Sem última bola não há de onde contar a semana. Torneio marcado como finalizado na
         // mão, sem placar nenhum, não elege ninguém.
         Assert.Null(MvpDoTorneio.UltimoJogo(new DateTime?[] { null, null }));
-        Assert.False(MvpDoTorneio.Aberta(true, "Finalizado", null, Domingo));
-        Assert.False(MvpDoTorneio.Encerrada(true, "Finalizado", null, Domingo));
+        Assert.False(Aberta(true, "Finalizado", null, Domingo));
+        Assert.False(Encerrada(true, "Finalizado", null, Domingo));
     }
 
     [Fact]
@@ -184,10 +200,10 @@ public class MvpDoTorneioTests
     {
         // Nem cédula, nem resultado. O interruptor é sobre o torneio TER MVP, não sobre "parar
         // de receber voto" — um torneio que desligou não mostra vencedor nenhum.
-        Assert.False(MvpDoTorneio.Aberta(false, "Finalizado", Domingo, Domingo.AddHours(1)));
-        Assert.False(MvpDoTorneio.Encerrada(false, "Finalizado", Domingo, Domingo.AddDays(7)));
-        Assert.False(MvpDoTorneio.TemVotacao(false, "Finalizado", Domingo, Domingo.AddHours(1)));
-        Assert.False(MvpDoTorneio.TemVotacao(false, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.False(Aberta(false, "Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.False(Encerrada(false, "Finalizado", Domingo, Domingo.AddDays(7)));
+        Assert.False(TemVotacao(false, "Finalizado", Domingo, Domingo.AddHours(1)));
+        Assert.False(TemVotacao(false, "Finalizado", Domingo, Domingo.AddDays(7)));
     }
 
     [Fact]
@@ -253,12 +269,18 @@ public class MvpDoTorneioTests
         Substitute.For<IPushNotificationService>();
 
     // Quantos avisos de MVP o dublê recebeu, e pra quem.
-    private static List<int> QuemFoiAvisado(IPushNotificationService push) =>
-        push.ReceivedCalls()
+    // Quem recebeu o aviso, filtrando pelo TÍTULO — que desde 16/08/2026 tem duas versões: a
+    // do MVP e a da enquete sozinha (Americano, ou torneio sem campeão). Passar o título
+    // errado devolve lista vazia e o teste vira falso negativo, então ele é explícito.
+    private static List<int> QuemFoiAvisado(IPushNotificationService push, string? titulo = null)
+    {
+        titulo ??= MvpDoTorneio.TituloDoAviso;
+        return push.ReceivedCalls()
             .Where(c => c.GetMethodInfo().Name == nameof(IPushNotificationService.EnviarParaJogadorAsync)
-                     && (string)c.GetArguments()[1]! == MvpDoTorneio.TituloDoAviso)
+                     && (string)c.GetArguments()[1]! == titulo)
             .Select(c => (int)c.GetArguments()[0]!)
             .ToList();
+    }
 
     [Fact]
     public async Task Quando_o_torneio_acaba_TODO_MUNDO_que_jogou_e_avisado()
@@ -349,18 +371,33 @@ public class MvpDoTorneioTests
     }
 
     [Fact]
-    public async Task Torneio_SEM_campeao_nao_avisa_porque_nao_ha_cedula()
+    public async Task Torneio_SEM_campeao_avisa_pela_ENQUETE_e_nao_promete_MVP()
     {
+        // ⚠️ Este teste dizia "não avisa" até 16/08/2026, e a mudança foi de propósito: sem
+        // cédula não há MVP, mas a ENQUETE do clube continua aberta — as pessoas jogaram no
+        // clube, e é disso que ela trata. O que não pode é o aviso prometer uma votação que
+        // não existe naquele torneio.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
 
-        // Tira a coroa: sobra torneio finalizado sem ninguém pra votar.
+        // Tira a coroa: sobra torneio finalizado sem ninguém pra eleger.
         foreach (var d in ctx.Duplas.Where(d => d.UltimaFase == "Campeao").ToList()) d.UltimaFase = "Final";
         await ctx.SaveChangesAsync();
 
         var push = PushDublado();
-        Assert.Equal(0, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+        Assert.Equal(1, await AvisoDoMvpBackgroundService.VarrerAsync(ctx, push, Domingo.AddMinutes(5)));
+
+        // Quem jogou foi convidado pela ENQUETE — e ninguém recebeu o convite do MVP.
+        Assert.NotEmpty(QuemFoiAvisado(push, MvpDoTorneio.TituloDoAvisoPara(temMvp: false)));
         Assert.Empty(QuemFoiAvisado(push));
+
+        // E o corpo não promete votação nenhuma.
+        await push.Received().EnviarParaJogadorAsync(
+            Arg.Any<int>(),
+            Arg.Any<string>(),
+            Arg.Is<string>(corpo => !corpo.Contains("melhor jogador")),
+            Arg.Any<string?>(),
+            Arg.Any<AlcanceDoAviso>());
     }
 
     [Fact]
@@ -838,5 +875,85 @@ public class MvpDoTorneioTests
         await ctx.SaveChangesAsync();
 
         Assert.Equal(0, await MvpDoTorneio.VezesEleitoMvpAsync(ctx, campea.Jogador1Id, depoisDeFechar));
+    }
+
+    // ─────────────────────── O AMERICANO NÃO ELEGE MVP (16/08/2026) ───────────────────────
+
+    [Theory]
+    [InlineData(FormatoDoTorneio.Americano)]
+    [InlineData(FormatoDoTorneio.AmericanoDeDuplas)]
+    public void Americano_nao_tem_votacao_de_MVP_em_estado_nenhum(string formato)
+    {
+        // Decisão do Felipe: "é apenas para os torneios normais". No rodízio não há final nem
+        // dupla fixa, e a cédula encolheria a um punhado de amigos escolhendo entre si.
+        Assert.False(MvpDoTorneio.ElegeMvp(formato));
+
+        // Nem durante a janela…
+        Assert.False(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1), formato));
+        Assert.False(TemVotacao(true, "Finalizado", Domingo, Domingo.AddHours(1), formato));
+
+        // …nem DEPOIS dela: sem isto, um Americano encerrado abriria a tela dizendo "este
+        // torneio não elegeu um MVP" — falando de uma eleição que nunca existiu ali.
+        Assert.False(Encerrada(true, "Finalizado", Domingo, Domingo.AddDays(8), formato));
+        Assert.False(TemVotacao(true, "Finalizado", Domingo, Domingo.AddDays(8), formato));
+    }
+
+    [Fact]
+    public void O_torneio_normal_continua_elegendo()
+    {
+        Assert.True(MvpDoTorneio.ElegeMvp(FormatoDoTorneio.Padrao));
+        Assert.True(Aberta(true, "Finalizado", Domingo, Domingo.AddHours(1), FormatoDoTorneio.Padrao));
+
+        // ⚠️ Formato nulo é o torneio ANTIGO, gravado antes de a coluna existir — e ele é
+        // Padrão por natureza (o Americano veio depois). Tratar nulo como "não elege" tiraria
+        // o MVP de torneios reais que já o tinham.
+        Assert.True(MvpDoTorneio.ElegeMvp(null));
+    }
+
+    [Fact]
+    public async Task No_Americano_a_ENQUETE_do_clube_continua_valendo()
+    {
+        // ⚠️ A enquete NÃO segue o MVP: ela é coleta nossa pro "Melhor Clube do ano", e o
+        // rodízio de sábado é evento de clube como qualquer outro — provavelmente o formato
+        // mais comum aqui. Amarrá-la ao MVP abriria um buraco no dado de 2027 exatamente
+        // onde há mais eventos.
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = await MontarTorneioFinalizadoAsync(ctx, Domingo);
+        var doBanco = ctx.Torneios.First(t => t.Id == torneio.Id);
+        doBanco.Formato = FormatoDoTorneio.Americano;
+        await ctx.SaveChangesAsync();
+
+        var votacao = await MvpDoTorneio.DoTorneioAsync(ctx, torneio.Id, null, Domingo.AddHours(1));
+
+        // Sem eleição…
+        Assert.False(votacao!.Aberta);
+        Assert.False(votacao.Encerrada);
+        Assert.False(votacao.TemVotacao);
+
+        // …mas com a janela da enquete aberta, e ela grava.
+        Assert.True(EnqueteDoTorneio.Aberta(votacao.StatusDoTorneio, votacao.UltimoJogo, Domingo.AddHours(1)));
+
+        var quemJogou = (await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id)).First();
+        var recusa = await EnqueteDoTorneio.AvaliarAsync(
+            ctx, torneio.Id, quemJogou, notaClube: 5, notaOrganizacao: 4, Domingo.AddHours(2));
+
+        Assert.Null(recusa);
+        Assert.Single(ctx.AvaliacoesDeTorneio);
+    }
+
+    [Fact]
+    public void O_aviso_do_Americano_NAO_promete_votacao()
+    {
+        // Prometer "escolha o melhor jogador" e levar a uma tela sem cédula é o jeito mais
+        // rápido de ensinar que o nosso aviso mente.
+        var comMvp = MvpDoTorneio.CorpoDoAviso("Copa do Clube", temMvp: true);
+        var soEnquete = MvpDoTorneio.CorpoDoAviso("Rodizio de Sabado", temMvp: false);
+
+        Assert.Contains("melhor jogador", comMvp);
+        Assert.DoesNotContain("melhor jogador", soEnquete);
+        Assert.Contains("nota", soEnquete);
+
+        Assert.Equal(MvpDoTorneio.TituloDoAviso, MvpDoTorneio.TituloDoAvisoPara(true));
+        Assert.NotEqual(MvpDoTorneio.TituloDoAviso, MvpDoTorneio.TituloDoAvisoPara(false));
     }
 }

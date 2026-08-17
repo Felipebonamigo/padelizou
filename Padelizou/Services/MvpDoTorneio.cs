@@ -65,9 +65,30 @@ public static class MvpDoTorneio
     // `Status` é UMA coluna, então torneio cancelado vale "Cancelado" e nunca "Finalizado" —
     // exigir o segundo já exclui o primeiro. Um `EstaCancelado` a mais aqui seria linha morta
     // com cara de regra, que é pior do que não ter: o próximo leitor confia nela.
-    public static bool Aberta(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora)
+    public static bool Aberta(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo,
+        DateTime agora, string? formato)
     {
         if (!usaVotacao) return false;
+        if (!ElegeMvp(formato)) return false;
+
+        return DentroDaJanela(statusDoTorneio, ultimoJogo, agora);
+    }
+
+    // ⚠️ AMERICANO NÃO ELEGE MVP (decisão do Felipe, 16/08/2026) — "é apenas para os torneios
+    // normais". A razão estava no desenho desde o começo e agora virou regra: no rodízio a
+    // cédula encolhe a quase nada (todo mundo joga com todo mundo, não há final nem dupla
+    // fixa), e num sábado de 8 pessoas "o melhor do torneio" seria escolhido por quatro amigos
+    // entre eles. O Americano já tem trilha própria — o Ranking Americano.
+    //
+    // ⚠️ Vale pros DOIS do rodízio (individual e de duplas): a régua é `FormatoDoTorneio
+    // .EhAmericano`, o mesmo dono que o resto do sistema usa pra essa pergunta.
+    public static bool ElegeMvp(string? formato) => !FormatoDoTorneio.EhAmericano(formato);
+
+    // A JANELA PURA: o torneio acabou e ainda faz menos de 7 dias do último jogo. Separada de
+    // propósito — quem pergunta por ela não é só o MVP: a ENQUETE do clube usa a mesma janela
+    // e NÃO obedece nem ao interruptor nem ao formato (ver Services/EnqueteDoTorneio).
+    public static bool DentroDaJanela(string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora)
+    {
         if (statusDoTorneio != StatusFinalizado) return false;
 
         var fecha = FechaEm(ultimoJogo);
@@ -80,8 +101,14 @@ public static class MvpDoTorneio
     // já elegeu MVP e depois teve a votação desligada volta a não ter MVP nenhum na tela: o
     // interruptor é sobre o torneio TER isso, não sobre "parar de receber voto". Os votos
     // continuam gravados — religar devolve o resultado inteiro, e nada é apagado.
-    public static bool Encerrada(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
+    //
+    // ⚠️ O FORMATO entra aqui também, e não só na `Aberta`: sem isso, um Americano que já
+    // acabou apareceria com o RESULTADO da votação ("este torneio não elegeu um MVP") — uma
+    // tela falando de uma eleição que nunca existiu naquele formato.
+    public static bool Encerrada(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo,
+        DateTime agora, string? formato) =>
         usaVotacao
+        && ElegeMvp(formato)
         && statusDoTorneio == StatusFinalizado
         && FechaEm(ultimoJogo) is { } fecha
         && agora >= fecha;
@@ -121,7 +148,7 @@ public static class MvpDoTorneio
             .Where(t => t.Id == torneioId)
             // ⚠️ Só colunas do próprio torneio: navegação obrigatória em projeção vira INNER
             // JOIN e some com a linha inteira — foi o que fez o card de campeão sumir.
-            .Select(t => new { t.Id, t.Nome, t.Status, t.UsaVotacaoDeMvp })
+            .Select(t => new { t.Id, t.Nome, t.Status, t.UsaVotacaoDeMvp, t.Formato })
             .FirstOrDefaultAsync();
 
         if (torneio == null) return null;
@@ -135,8 +162,8 @@ public static class MvpDoTorneio
             .ToListAsync();
 
         var ultimoJogo = UltimoJogo(fins);
-        var aberta = Aberta(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora);
-        var encerrada = Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora);
+        var aberta = Aberta(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora, torneio.Formato);
+        var encerrada = Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, ultimoJogo, agora, torneio.Formato);
 
         var candidatos = await CandidatosAsync(contexto, torneioId);
         var votos = await contexto.VotosDeMvp
@@ -165,6 +192,8 @@ public static class MvpDoTorneio
             Aberta = aberta,
             Encerrada = encerrada,
             FechaEm = FechaEm(ultimoJogo),
+            StatusDoTorneio = torneio.Status,
+            UltimoJogo = ultimoJogo,
             Candidatos = candidatos,
             TotalDeVotos = votos.Count,
             Eleitores = eleitores.Count,
@@ -343,7 +372,7 @@ public static class MvpDoTorneio
             var torneio = await contexto.Torneios
                 .AsNoTracking()
                 .Where(t => t.Id == torneioId)
-                .Select(t => new { t.Status, t.UsaVotacaoDeMvp })
+                .Select(t => new { t.Status, t.UsaVotacaoDeMvp, t.Formato })
                 .FirstOrDefaultAsync();
             if (torneio == null) continue;
 
@@ -355,7 +384,8 @@ public static class MvpDoTorneio
 
             // Votação ainda aberta (ou desligada) não tem eleito — a mesma razão de a tela
             // não mostrar parcial: MVP só existe depois que fecha.
-            if (!Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, UltimoJogo(fins), agora)) continue;
+            if (!Encerrada(torneio.UsaVotacaoDeMvp, torneio.Status, UltimoJogo(fins), agora, torneio.Formato))
+                continue;
 
             var votos = await contexto.VotosDeMvp
                 .AsNoTracking()
@@ -382,9 +412,20 @@ public static class MvpDoTorneio
 
     // O convite leva a enquete junto: é o mesmo aviso que traz a pessoa pra página onde as
     // duas coisas moram, e um segundo push só pra nota seria ruído.
-    public static string CorpoDoAviso(string nomeDoTorneio) =>
-        $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões e conte "
-        + $"como foi o torneio — vale por {DiasParaVotar} dias.";
+    //
+    // ⚠️ `temMvp` NÃO é enfeite: no Americano não há eleição (ver ElegeMvp), e prometer
+    // "escolha o melhor jogador" levaria a pessoa a uma tela que não tem cédula nenhuma —
+    // o jeito mais rápido de ensinar que o nosso aviso mente.
+    public static string CorpoDoAviso(string nomeDoTorneio, bool temMvp = true) =>
+        temMvp
+            ? $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões e conte "
+              + $"como foi o torneio — vale por {DiasParaVotar} dias."
+            : $"O {nomeDoTorneio} acabou! Conte como foi: dê sua nota pro clube e pra "
+              + $"organização — leva cinco segundos e vale por {DiasParaVotar} dias.";
+
+    // O título acompanha o corpo, pelo mesmo motivo.
+    public static string TituloDoAvisoPara(bool temMvp) =>
+        temMvp ? TituloDoAviso : "Como foi o torneio?";
 
     // O canal do aviso. Notificação do app e caixa de entrada; **sem e-mail**.
     //
@@ -417,9 +458,10 @@ public static class MvpDoTorneio
     // Aparece enquanto a votação está aberta E depois que encerra (pra mostrar o eleito). O que
     // não existe é a tela de um torneio que nunca chegou a ter votação — ela abriria dizendo
     // apenas que não há nada, que é ruído na página de todo torneio em andamento.
-    public static bool TemVotacao(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo, DateTime agora) =>
-        Aberta(usaVotacao, statusDoTorneio, ultimoJogo, agora)
-        || Encerrada(usaVotacao, statusDoTorneio, ultimoJogo, agora);
+    public static bool TemVotacao(bool usaVotacao, string? statusDoTorneio, DateTime? ultimoJogo,
+        DateTime agora, string? formato) =>
+        Aberta(usaVotacao, statusDoTorneio, ultimoJogo, agora, formato)
+        || Encerrada(usaVotacao, statusDoTorneio, ultimoJogo, agora, formato);
 }
 
 // Um nome na cédula.
@@ -462,4 +504,14 @@ public sealed class VotacaoDeMvp
 
     public bool TemVencedor => Vencedores.Count > 0;
     public bool Empatou => Vencedores.Count > 1;
+
+    // O estado do torneio, pra quem precisa responder outra pergunta sobre a MESMA janela —
+    // hoje a enquete do clube, que vale até onde o MVP não existe (Americano). Sem isto o
+    // controller teria que ir ao banco de novo pelas mesmas duas informações.
+    public string? StatusDoTorneio { get; set; }
+    public DateTime? UltimoJogo { get; set; }
+
+    // Este torneio TEM eleição de MVP? Falso no Americano e em quem desligou o interruptor —
+    // e é o que faz a tela decidir entre "MVP do torneio" e só a enquete.
+    public bool TemVotacao => Aberta || Encerrada;
 }
