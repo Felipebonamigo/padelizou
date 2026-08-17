@@ -134,6 +134,45 @@ public class AceitarOuRecusarChamadoTests
         Assert.IsType<ForbidResult>(await Controller(ctx, a.Id).Chamados(solo.Id));
     }
 
+    // ⚠️ A TELA NÃO PODE SER ALCANÇÁVEL SÓ PELO AVISO. Quem apagasse a notificação perdia o
+    // caminho — e a própria inscrição não dizia que havia gente esperando resposta. Aviso é
+    // lembrete; o que existe no sistema precisa estar visível de dentro dele.
+    //
+    // A tela do torneio recebe a contagem por inscrição (ViewBag.ChamadosPorInscricao) e
+    // desenha o botão "N querem jogar com você" na inscrição da própria pessoa.
+    [Fact]
+    public async Task A_tela_do_torneio_diz_quantos_me_chamaram_na_MINHA_inscricao()
+    {
+        var (ctx, solo, dono, _, _) = Cenario();
+        using var _1 = ctx;
+
+        var torneioId = (await ctx.Categorias.FindAsync(solo.CategoriaId))!.TorneioId;
+        var controller = TestInfra.NovoTorneiosController(ctx, dono.Id);
+
+        await controller.Details(torneioId, timeFiltroId: null, categoriaFiltroIds: null);
+
+        var contagem = Assert.IsType<Dictionary<int, int>>(controller.ViewBag.ChamadosPorInscricao);
+        Assert.Equal(2, contagem[solo.Id]);
+    }
+
+    // A contagem é de QUEM ESTÁ LOGADO. Sem isso, a tela mostraria na inscrição de um jogador
+    // que outras pessoas foram chamadas — e o botão levaria a um Forbid.
+    [Fact]
+    public async Task A_contagem_nao_vaza_pra_quem_nao_e_dono_da_inscricao()
+    {
+        var (ctx, solo, _, a, _) = Cenario();
+        using var _1 = ctx;
+
+        var torneioId = (await ctx.Categorias.FindAsync(solo.CategoriaId))!.TorneioId;
+        var controller = TestInfra.NovoTorneiosController(ctx, a.Id);
+
+        await controller.Details(torneioId, timeFiltroId: null, categoriaFiltroIds: null);
+
+        var contagem = Assert.IsType<Dictionary<int, int>>(controller.ViewBag.ChamadosPorInscricao);
+        Assert.False(contagem.ContainsKey(solo.Id),
+            "a inscrição de outra pessoa apareceu na contagem de quem me chamou");
+    }
+
     // ═══════════════════ ACEITAR ═══════════════════
 
     [Fact]

@@ -488,6 +488,20 @@ namespace Padelizou.Controllers
                 ViewBag.MeuJogadorId = eu?.Id;
                 ViewBag.MeuCpf = eu?.Cpf;
                 ViewBag.MeuNome = eu?.Nome;
+
+                // QUANTOS ME CHAMARAM, por inscrição minha (Felipe, 17/08/2026).
+                //
+                // ⚠️ Sem isto, a tela de aceitar/recusar só era alcançável PELO AVISO — quem
+                // apagasse a notificação perdia o caminho, e a própria inscrição não dizia
+                // que havia gente esperando resposta. Aviso é lembrete, não deve ser a única
+                // porta: o que existe no sistema precisa estar visível de dentro dele.
+                ViewBag.ChamadosPorInscricao = await _context.ChamadosDoMural
+                    .Where(c => c.Dupla.Jogador1Id == jogadorLogadoId.Value
+                                && c.Dupla.Categoria.TorneioId == id
+                                && c.Dupla.Jogador2Id == null)
+                    .GroupBy(c => c.DuplaId)
+                    .Select(g => new { DuplaId = g.Key, Quantos = g.Count() })
+                    .ToDictionaryAsync(x => x.DuplaId, x => x.Quantos);
             }
 
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será

@@ -876,6 +876,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         @if (!dupla.EhTime)
                                         {
                                             <div class="d-flex flex-wrap gap-2 mt-2">
+                                                @* QUEM ME CHAMOU, na própria inscrição.
+                                                   ⚠️ Vem PRIMEIRO e em destaque: é gente esperando
+                                                   resposta, e responder fecha a dupla na hora — vale
+                                                   mais que gerar link pra mandar por fora.
+                                                   Sem este botão a tela de aceitar só era alcançável
+                                                   pelo AVISO, e quem apagasse a notificação perdia o
+                                                   caminho: a inscrição não dizia que havia alguém
+                                                   esperando. *@
+                                                @{
+                                                    var chamadosPorInscricao = ViewBag.ChamadosPorInscricao
+                                                        as Dictionary<int, int> ?? new Dictionary<int, int>();
+                                                    chamadosPorInscricao.TryGetValue(dupla.Id, out var quantosMeChamaram);
+                                                }
+                                                @if (sozinho && quantosMeChamaram > 0)
+                                                {
+                                                    <a asp-controller="Duplas" asp-action="Chamados" asp-route-duplaId="@dupla.Id"
+                                                       class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                                                        <i class="bi bi-people-fill"></i>
+                                                        @quantosMeChamaram quer@(quantosMeChamaram > 1 ? "em" : "") jogar com você
+                                                    </a>
+                                                }
                                                 @if (sozinho)
                                                 {
                                                     @* Vem antes do CPF porque é o caminho que a maioria
