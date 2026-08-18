@@ -141,12 +141,16 @@ namespace padelizou.Controllers
             // Aceita CPF também, além de e-mail e login (ver BuscaJogador.ParaRecuperarSenhaAsync).
             var jogador = await BuscaJogador.ParaRecuperarSenhaAsync(_context, email);
 
-            // Conta excluída não recebe tratamento nenhum: cai na mesma resposta de quem não
-            // existe. Hoje ela é inalcançável na busca acima, mas os dois ramos seguintes leem
-            // "sem senha" — e a exclusão é a única outra coisa no sistema que zera o SenhaHash.
-            // Sem esta linha, o dia em que alguém afrouxar a anonimização faz uma conta que
-            // pediu pra sair reaparecer numa tela dizendo o que fazer pra voltar.
-            if (jogador?.Excluido == true) jogador = null;
+            // POR QUE ela não entra. As quatro respostas moram em Services/DiagnosticoDeAcesso,
+            // e não em três `if` aqui dentro: a tela do admin (/Admin/Acesso) faz a MESMA leitura
+            // pra dizer ao Felipe o que responder no WhatsApp, e com a regra escrita nos dois
+            // lugares o site e o painel passariam a discordar sobre a mesma conta.
+            //
+            // A conta EXCLUÍDA é quem mais depende disso: ela cai na resposta uniforme junto com
+            // "não existe", porque a exclusão é a única outra coisa no sistema que zera o
+            // SenhaHash — na ordem errada ela leria como pré-cadastro, e quem pediu pra sair
+            // reapareceria numa tela dizendo o que fazer pra voltar.
+            var situacao = DiagnosticoDeAcesso.De(jogador);
 
             // PRÉ-CADASTRO: a conta existe, com o histórico de torneios dentro, mas nunca teve
             // senha — não há o que recuperar. Dizer "link a caminho" aqui era o pior desfecho
@@ -159,7 +163,7 @@ namespace padelizou.Controllers
             // senha" — o formulário de cadastro já contava, porque lá o CPF com senha é recusado
             // e o CPF sem senha passa. Não é um vazamento novo: é o mesmo fato, dito na tela
             // onde a pessoa está parada.
-            if (jogador?.EhPreCadastro == true)
+            if (situacao == SituacaoDeAcesso.PreCadastro)
             {
                 ViewBag.PrecisaCriarConta = true;
                 return View();
@@ -169,13 +173,15 @@ namespace padelizou.Controllers
             // pré-cadastro sem preencher e-mail, e é um beco sem saída de verdade — a única saída
             // é falar com a gente. Sem este ramo, a pessoa via a caixa verde e ia caçar no spam
             // um e-mail que não tinha destinatário.
-            if (jogador != null && string.IsNullOrWhiteSpace(jogador.Email))
+            if (situacao == SituacaoDeAcesso.SemEmail)
             {
                 ViewBag.SemEmail = true;
                 return View();
             }
 
-            if (jogador != null)
+            // O `jogador != null` é redundante com a situação — PodeRecuperar só sai de conta que
+            // existe — mas é o que o compilador precisa pra soltar o `jogador.Email` abaixo.
+            if (situacao == SituacaoDeAcesso.PodeRecuperar && jogador != null)
             {
                 RecuperacaoSenha.Emitir(jogador, DateTime.Now);
                 await _context.SaveChangesAsync();
