@@ -258,7 +258,8 @@
 
     @* ── ELENCO POR CATEGORIA ─────────────────────────────────────────────────────────
        A pergunta de quem monta dupla pra um interno: "quem aqui joga a minha categoria?".
-       A mesma pessoa aparece em mais de um grupo de propósito — ver o serviço. *@
+       Cada pessoa aparece UMA vez, no degrau mais forte da escada dela; o resto do que ela
+       aceita vira etiqueta na própria linha — ver o serviço. *@
     <h5 class="fw-bold mb-3" style="color: var(--pdz-ink);">Quem veste a camisa</h5>
 
     @if (!Model.Membros.Any())
@@ -320,6 +321,25 @@
                                         <span class="ms-2"><i class="bi bi-arrow-left-right"></i> @m.Jogador.LadoQuadra</span>
                                     }
                                 </small>
+                                @* As OUTRAS categorias que a pessoa aceita. Ela aparece num grupo só (o mais
+                                   forte da escada dela), então sem estas etiquetas quem procura parceiro na
+                                   4ª não descobriria que o cara da 3ª também joga a 4ª. *@
+                                @{
+                                    var outras = m.Categorias
+                                        .Where(c => c != grupo.Categoria)
+                                        .OrderBy(Padelizou.Services.CategoriaNaTela.Ordem)
+                                        .ToList();
+                                }
+                                @if (outras.Count > 0)
+                                {
+                                    <small class="d-block text-muted">
+                                        joga também
+                                        @foreach (var outra in outras)
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted fw-normal ms-1">@Padelizou.Services.CategoriaNaTela.Curto(outra)</span>
+                                        }
+                                    </small>
+                                }
                             </div>
                             <span class="badge rounded-pill bg-light text-dark flex-shrink-0">@m.Pontos pts</span>
                         </a>
