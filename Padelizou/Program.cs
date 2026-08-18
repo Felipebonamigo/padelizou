@@ -542,6 +542,7 @@ app.UseStaticFiles();
 // Antes do portão de propósito: com o portão religado, o robots.txt precisa continuar
 // legível pros buscadores em vez de virar redirect pra tela de senha.
 app.UseMiddleware<RobotsMiddleware>();
+app.UseMiddleware<RegistroDeAcessoMiddleware>();
 app.UseMiddleware<AcessoAntecipadoMiddleware>();
 app.UseMiddleware<AdminHostMiddleware>();
 app.UseRouting();

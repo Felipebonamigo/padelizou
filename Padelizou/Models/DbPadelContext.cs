@@ -138,6 +138,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<VotoDeMvp> VotosDeMvp { get; set; }
     public DbSet<AvaliacaoDoTorneio> AvaliacoesDeTorneio { get; set; }
     public DbSet<ChamadoDoMural> ChamadosDoMural { get; set; }
+    public DbSet<AcessoAoSite> AcessosAoSite { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -1493,6 +1494,14 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.JogadorId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Toda leitura das Métricas filtra por "Quando >= hoje" — sem índice, a tabela cresce
+        // (é registro de tráfego, sem limpeza) e cada visita à tela de Métricas passa a varrer
+        // linha por linha pra achar o corte do dia.
+        modelBuilder.Entity<AcessoAoSite>(entity =>
+        {
+            entity.HasIndex(e => e.Quando);
         });
 
         OnModelCreatingPartial(modelBuilder);

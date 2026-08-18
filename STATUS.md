@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🗓️ **MARCAR AULA DEIXOU DE COMEÇAR PELO PROFESSOR: DIA, HORA, PROFESSOR E LOCAL FILTRAM UNS AOS OUTROS.**
+> Última atualização: **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
+>
+> 📊 **O PEDIDO DO FELIPE**: duas colunas novas na tela de Métricas, "acessos hoje" e "máximo de acessos simultâneos". ⚠️ **Não era só tela**: até aqui o Padelizou não guardava rastro NENHUM de visita — nem um "último acesso" no `Jogador`, nem log de requisição. As duas perguntas exigiram construir o alicerce primeiro.
+>
+> 🕳️ **"MÁXIMO DE ACESSOS SIMULTÂNEOS" NÃO É O QUE O NOME PARECE DIZER, e isso foi decisão consciente, não limitação escondida.** O site não tem conexão persistente (sem WebSocket, sem SignalR) — não existe como saber quantas ABAS estão abertas agora. O que dá pra medir é DENSIDADE: quantos acessos caíram dentro do mesmo MINUTO-RELÓGIO, no pior caso do dia. Por isso o card na tela chama "pico de acessos no minuto", não "simultâneos" — chamar de "simultâneos" leria como contador de presença, que não é o que isto mede, e o `title` do card explica isso pra quem passar o mouse.
+>
+> 🍃 **A PEÇA NOVA: `AcessoAoSite`, uma tabela DELIBERADAMENTE anônima.** Só `Id` e `Quando` — sem `JogadorId`, sem IP, sem sessão. As duas perguntas são sobre VOLUME, não sobre QUEM; guardar identidade seria coletar dado que a régua de privacidade deste projeto não pede (nunca IP, nunca compilar informação sem necessidade), e as duas contas saem inteiras de um timestamp sozinho.
+>
+> 🎯 **O FILTRO É `Sec-Fetch-Mode: navigate` — A MESMA DISTINÇÃO QUE O `sw.js` JÁ FAZIA DO LADO DO CLIENTE** (`request.mode === "navigate"`), agora do lado do servidor. É o cabeçalho que o navegador manda quando a pessoa clica um link ou digita o endereço, e NÃO manda pra asset, nem pro `fetch` de polling — e o placar ao vivo se atualiza sozinho a cada 20s. Sem o filtro, "acessos hoje" mediria robô, não gente: um único jogador acompanhando uma partida geraria 180 "acessos" por hora sozinho.
+>
+> 🚪 **DEV E ADMIN FICAM DE FORA** (mesma régua de host que o `RobotsMiddleware` já usa). "Acessos hoje" é sobre o produto sendo usado de verdade; teste no dev e o próprio raiz clicando no painel administrativo não são tráfego do site, e contá-los infla o número sem dizer nada sobre quanta gente está jogando padel.
+>
+> 🧪 **4.369 testes, 0 falhas (13 novos).** ✅ Falsificação em dois pontos: tirando o filtro de `Sec-Fetch-Mode`, 2 dos 7 testes do middleware caem; trocando "agrupar por minuto e pegar o maior" por "somar tudo", 2 dos 6 testes da métrica caem — inclusive o que prova que 3 acessos no MESMO minuto e 3 acessos em minutos DIFERENTES não são o mesmo pico.
+>
+> ⚠️ **Migration é tabela NOVA (`CreateTable`), não coluna em tabela existente** — o alerta de sempre sobre `defaultValue` zero não se aplica aqui: não há linha pra herdar um zero errado, a tabela nasce vazia.
+>
+> ⏭️ **Não publicado ainda.** Sem dado acumulado até publicar — "acessos hoje" começa em zero no minuto em que subir, e só passa a valer a partir dali.
+>
+> Antes, no mesmo dia: 🗓️ **MARCAR AULA DEIXOU DE COMEÇAR PELO PROFESSOR: DIA, HORA, PROFESSOR E LOCAL FILTRAM UNS AOS OUTROS.**
 >
 > 🗣️ **O pedido do Felipe**: *"às vezes tem pessoas que escolhem pelo horário, e não pelo professor específico — vamos permitir que o usuário monte seu horário com o que tem disponível"*. A tela era uma **escada obrigatória** (cidade → professor → local → horário): quem tinha só a terça de manhã livre precisava adivinhar o professor certo e ir tentando um por um, e só descobria os horários no **quarto** passo.
 >

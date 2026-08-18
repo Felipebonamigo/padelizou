@@ -24,6 +24,12 @@ public class MetricasAdminVM
     public int TorneiosAtivos { get; set; }
     public int TorneiosTotal { get; set; }
 
+    // Tráfego (Services/MetricasDeAcesso) — só site público, dev e admin ficam de fora.
+    public int AcessosHoje { get; set; }
+    // ⚠️ NÃO é presença ("gente online agora"): é o minuto mais cheio do dia, sem WebSocket
+    // pra saber quantas abas estão abertas. Ver o porquê em MetricasDeAcesso.
+    public int PicoDeAcessosNoMinuto { get; set; }
+
     // MEI — comissão da plataforma no ano corrente contra o teto anual
     public decimal ComissaoAno { get; set; }
     public decimal TetoMei { get; set; }

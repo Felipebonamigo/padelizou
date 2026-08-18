@@ -885,6 +885,9 @@ namespace padelizou.Controllers
                     .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioAno)
                     .SumAsync(p => (decimal?)p.Comissao) ?? 0,
                 TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
+
+                AcessosHoje = await MetricasDeAcesso.AcessosHojeAsync(_context, agora.Date),
+                PicoDeAcessosNoMinuto = await MetricasDeAcesso.PicoDeAcessosNoMinutoAsync(_context, agora.Date),
             };
 
             // Estado do backup fora do servidor, lido do mesmo carimbo que o vigia usa. Vem
