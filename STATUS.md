@@ -15,7 +15,11 @@
 >
 > 🧪 **4.167 testes, 0 falhas (17 novos).** ✅ Conferido no navegador, servidor de verdade, contra os 81 jogadores do banco local: as **quatro** situações renderizando certo, a lista de homônimos, o "não achei" (que explica os **três** motivos possíveis, porque responder "você não tem cadastro" pra quem excluiu a conta é dizer uma falsidade com toda a confiança), e a tela pública de recuperação **concordando** com o painel sobre o mesmo CPF — que é o ponto do serviço compartilhado.
 >
-> ⚠️ **Pendência**: **não está no ar** — falta build + `deploy.yml`. Vai junto com a recuperação por CPF de 17/08, que também segue sem subir.
+> 🚀 **NO AR em produção: `build-591-314ceb4`** (18/08, 15:23). Levou junto os **24 commits** parados desde o `build-573-54a225a` de 17/08 — inclusive a recuperação por CPF, que estava anotada como pendente e agora está publicada.
+>
+> 🔍 **Como foi PROVADO que subiu** (o workflow verde não prova, e o `healthz` só devolve `ok`): a tela `/Admin/Acesso` não serve de sonda, porque **todo `/Admin/*` devolve 404 pra quem está deslogado** — conferido com `/Admin/Erros`, que já existia e responde igual. A prova saiu de uma mudança **visível sem login** que só existe a partir deste build: o campo de "esqueci minha senha" em produção passou a dizer **"seu@email.com, seu login ou seu CPF"**. O build 573 é anterior a esse commit.
+>
+> ⚠️ **PENDÊNCIA DE INFRA — o deploy pro `dev` está QUEBRADO, e não é de hoje.** O environment **`dev` não tem segredo nenhum**: `VPS_HOST`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` existem **só no `prod`**, e não há segredo no nível do repositório. Por isso `deploy.yml -f ambiente=dev` morre em 9s em "Preparar o acesso ao VPS", com as três variáveis vazias — nada a ver com o código publicado. Enquanto os três não forem copiados pro environment `dev`, **o dev só é publicável por SSH, na mão**. ⚠️ E o environment `prod` **não tem trava de aprovação** (`protection_rules` vazio): quem dispara o deploy publica **no ato**, sem ninguém pra confirmar.
 >
 > Antes, no mesmo dia: 🔢 **TODO POST COM ERRO CHEGAVA COMO 400, ESCONDENDO O STATUS DE VERDADE** — inclusive o webhook de pagamento, que respondia 400 no lugar de 401.
 >
