@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
+> Última atualização: **18/08/2026** — 🔢 **A TELA DE ERRO OBEDECIA AO NÚMERO DIGITADO NA URL** — inclusive um 200.
+>
+> 🔢 **O QUE ESTAVA ERRADO**: `HomeController.NaoEncontrado(int codigo = 404)` fazia `Response.StatusCode = codigo` com o valor cru da query string. Quem preenche esse `codigo` é o `UseStatusCodePagesWithReExecute` do `Program.cs` — mas query string **é a barra de endereço**, e lá quem digita é qualquer um. Medido num app de laboratório com a mesma action: `?codigo=99999` fez o Kestrel escrever **999** na linha de status, e `?codigo=200` fez uma URL do site responder **200 OK** exibindo a tela de "essa bola saiu".
+>
+> ⚠️ **O 200 é o que dói, e o estrago é de BUSCA, não de invasão**: nada grava, nada vaza, ninguém entra em lugar nenhum — dá pra ler a mesma tela pública com outro número na frente. Só que status é o que o robô do Google e o monitoramento acreditam, e "página inexistente respondendo 200" é exatamente o que o comentário da própria action já dizia que não podia acontecer. A regra estava **escrita e não aplicada**: o comentário explicava por que devolver o status original, e ninguém conferia de onde o original vinha. A régua que faltava é de uma linha — fora de **400–599**, vira 404.
+>
+> 🔎 **Não foi o trabalho de hoje**: a linha nasceu em **28/07** (`5e5a62a`, "Pnatinha vira parte do produto"), muito antes da isenção de antiforgery das telas de erro. Perguntei ao `git log -S`, não à memória.
+>
+> 🧪 **4.226 testes, 0 falhas (19 novos)** em `StatusDaTelaDeErroTests`. ✅ Falsificação: tirando as duas linhas da trava, os **8** casos fora da faixa (200, 302, 399, 600, 999, 99999, 0, -1) falham e os **10** de erro de verdade (400, 401, 403, 404, 405, 410, 429, 500, 503, 599) seguem verdes — prova que a trava não mexeu no caminho normal, que é o único jeito de ela passar despercebida em produção.
+>
+> ⚠️ **O teste que parece bobo e é o que segura**: um `Assert.Matches` no `Program.cs` conferindo que a linha ainda passa `"?codigo={0}"`. Se essa string mudar de forma, a action passa a responder **sempre 404** e nenhum teste de regra pega — 401 e 429 virariam "não encontrada" em silêncio, porque a regra estaria certa e quem falhou é o transporte.
+>
+> ⏭️ **Ainda não publicado** — mudança de uma linha no controller, sem migration e sem tocar em tela.
+>
+> Antes, no mesmo dia: 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
 >
 > 🎲 **O PEDIDO**: *"que as duplas não sejam sempre as mesmas"*. Em panelinha semanal quem chega junto joga junto, e em poucas semanas são sempre os mesmos quatro confrontos. Botão **Sortear duplas** na tela da semana, com a opção **"respeitar o lado de cada um"** ligada por padrão. Só o admin do grupo sorteia — o resultado vale pra todos, e dois membros clicando alternado virariam duplas trocando a cada F5.
 >
