@@ -15,7 +15,7 @@
 >
 > 🧪 **4.154 testes, 0 falhas** (21 novos em `AdminNaoVeDinheiroTests`). Um teste antigo **mudou de lado**: o do assistente em `/Admin/Comissoes` afirmava que ele *via* e não gravava — agora afirma que ele **não vê**. ✅ **Conferido no navegador**, com três contas do banco local: **admin nomeado puro** (nenhum `R$` em Métricas, Professores e no relatório do Ranking; Comissões/Registro/Financeiro/Pix/Taxa recusados; Financeiro do torneio abre sem valores), **admin nomeado que também é parceiro do Ranking** (continua vendo os valores da parceria — é dele) e **raiz** (tudo exatamente como era).
 >
-> ⏭️ **Pendência**: nada disso está no ar — falta build + `deploy.yml`.
+> 🚀 **NO AR em produção: `build-595-2c5a60d`** (18/08, 15:45). Provado como manda a régua: o `cwd` do processo é a release nova, `NRestarts=0`, `active/running`, `/healthz` 200, zero exceção no journal, e **`PodeVerDinheiro` aparece 6× dentro do `Padelizou.dll` publicado** (o `PodeOlharTudo` continua lá 1×, que é o certo — ele ainda responde "enxerga a operação?"). O `.historico` não tem duas linhas no mesmo minuto: sem colisão de deploy.
 >
 > Antes, no mesmo dia: 🚧 **IMPEDIMENTO: A TELA PASSOU A DIZER O QUE O CÓDIGO JÁ FAZIA** — e a edição do torneio ganhou os campos que só existiam na criação (`build-590` e `build-592`, nos dois ambientes).
 >
