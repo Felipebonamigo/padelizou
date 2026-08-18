@@ -1011,6 +1011,12 @@ namespace Padelizou.Controllers
             // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
             decimal? taxaPorImpedimento = null,
+            // PARIDADE COM A TELA DE CRIAÇÃO (Felipe, 18/08/2026). Todos opcionais: aba antiga
+            // em cache não manda o campo, e nulo aqui quer dizer "mantém o que está gravado" —
+            // nunca "apaga". As regras de quando PODE mudar moram em MudancaDepoisDeAberto.
+            int? limiteDuplasTotal = null, bool? limiteSemTeto = null,
+            bool? permiteMultiplasCategorias = null, bool? pontuaNoRankingAmericano = null,
+            bool? desempateAmericano = null, bool? excluirSeNaoPagar = null,
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
             // Convite do grupo no WhatsApp. Segue a mesma regra dos dois de cima: campo em
             // branco APAGA o link (e com ele o botão), que é como o organizador desfaz um
@@ -1340,6 +1346,42 @@ namespace Padelizou.Controllers
 
                 torneio.TaxaPorImpedimento = novaTaxa;
             }
+
+            // ── PARIDADE COM A CRIAÇÃO ────────────────────────────────────────────────────
+            // Nulo = campo não veio (aba antiga): mantém o gravado. Nunca apaga por omissão.
+            int inscricoesJaFeitas =
+                await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == id)
+                + await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == id);
+
+            // ⚠️ O limite tem trava própria: baixar abaixo de quem já entrou não apaga
+            // ninguém — faz o torneio se comportar como lotado, em silêncio.
+            // `limiteSemTeto` existe porque "vazio" no número já quer dizer "não veio o campo";
+            // sem um sinal separado não daria pra TIRAR o limite depois de posto.
+            if (limiteSemTeto == true)
+            {
+                torneio.LimiteDuplasTotal = null;
+            }
+            else if (limiteDuplasTotal.HasValue)
+            {
+                if (MudancaDepoisDeAberto.ProblemaComOLimite(limiteDuplasTotal, inscricoesJaFeitas) is { } problemaLimite)
+                {
+                    TempData["Erro"] = problemaLimite;
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.LimiteDuplasTotal = limiteDuplasTotal;
+            }
+
+            if (permiteMultiplasCategorias.HasValue)
+            {
+                torneio.PermiteMultiplasCategorias = permiteMultiplasCategorias.Value;
+                // Mesma amarração da criação: sem múltiplas categorias não existe segundo preço.
+                if (!torneio.PermiteMultiplasCategorias) torneio.PrecoSegundaInscricao = null;
+            }
+
+            if (pontuaNoRankingAmericano.HasValue) torneio.PontuaNoRankingAmericano = pontuaNoRankingAmericano.Value;
+            if (excluirSeNaoPagar.HasValue) torneio.ExcluirSeNaoPagar = excluirSeNaoPagar.Value;
+            if (desempateAmericano.HasValue) torneio.DesempateAmericano = desempateAmericano.Value;
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.ValidarPeloRankingRs = validarPeloRankingRs;
             await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);

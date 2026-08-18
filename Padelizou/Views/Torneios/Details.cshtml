@@ -2178,6 +2178,62 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         Uma vez <strong>por dupla</strong>, não por jogador. Zero = não cobra.
                                     </small>
                                 </div>
+                                @* ── PARIDADE COM A TELA DE CRIAÇÃO ────────────────────────
+                                   Campo que só existe no cadastro vira beco: já aconteceu com a
+                                   forma de recebimento, com reabrir inscrições e com "só
+                                   confirmo depois de pago". As travas de quando PODE mudar
+                                   moram em Services/MudancaDepoisDeAberto. *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Limite de duplas</label>
+                                    <input type="number" min="0" name="limiteDuplasTotal" class="form-control"
+                                           value="@(Model.LimiteDuplasTotal?.ToString() ?? "")" placeholder="sem limite" />
+                                    <div class="form-check mt-1">
+                                        @* Sinal separado porque "vazio" no número já quer dizer
+                                           "campo não veio" — sem isto não daria pra TIRAR o
+                                           limite depois de posto. *@
+                                        <input class="form-check-input" type="checkbox" name="limiteSemTeto" value="true" id="editSemTeto" />
+                                        <label class="form-check-label small" for="editSemTeto">Sem limite</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="permiteMultiplasCategorias" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="permiteMultiplasCategorias" value="true"
+                                               id="editMultiplasCat" checked="@Model.PermiteMultiplasCategorias" />
+                                        <label class="form-check-label small" for="editMultiplasCat">
+                                            Permitir o mesmo jogador em mais de uma categoria
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="excluirSeNaoPagar" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="excluirSeNaoPagar" value="true"
+                                               id="editExcluirSeNaoPagar" checked="@Model.ExcluirSeNaoPagar" />
+                                        <label class="form-check-label small" for="editExcluirSeNaoPagar">
+                                            Excluir inscrição não paga no prazo
+                                        </label>
+                                    </div>
+                                    @if (Model.Formato == Padelizou.Services.FormatoDoTorneio.Americano
+                                      || Model.Formato == Padelizou.Services.FormatoDoTorneio.AmericanoDeDuplas)
+                                    {
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="pontuaNoRankingAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="pontuaNoRankingAmericano" value="true"
+                                                   id="editPontuaAmericano" checked="@Model.PontuaNoRankingAmericano" />
+                                            <label class="form-check-label small" for="editPontuaAmericano">
+                                                Pontua no ranking de Americano
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="desempateAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="desempateAmericano" value="true"
+                                                   id="editDesempateAmericano" checked="@Model.DesempateAmericano" />
+                                            <label class="form-check-label small" for="editDesempateAmericano">
+                                                Jogo de desempate no Americano
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
                                 @* ⚠️ O AVISO QUE O FELIPE PEDIU. Cada inscrição guarda o que ELA
                                    custou (Dupla.ValorInscricao): mudar o valor aqui não reescreve
                                    nenhuma. Sem dizer isso, o organizador faz uma de duas contas
