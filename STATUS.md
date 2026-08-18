@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
+> Última atualização: **18/08/2026** — 🚧 **IMPEDIMENTO: A TELA PASSOU A DIZER O QUE O CÓDIGO JÁ FAZIA** — e a edição do torneio ganhou os campos que só existiam na criação (`build-590` e `build-592`, nos dois ambientes).
+>
+> 🚧 **O PEDIDO ERA DE TEXTO, E DOIS TERÇOS DELE JÁ ESTAVAM FEITOS NO CÓDIGO.** (1) Na criação, agora está escrito que aqueles são os turnos **disponíveis** e que **cada dupla escolhe só um** — a trava já existia no servidor (`ImpedimentoUnico`); a tela é que não contava, e liberar os três lia como "a dupla pode ficar fora dos três". (2) A cobrança **já era por dupla**: em `PrecoDaInscricao.Total` a taxa entra FORA do laço que soma pessoa por pessoa, porque o impedimento consome uma janela da grade, não um atleta.
+>
+> ⚠️ **O QUE EU DE FATO ACRESCENTEI FOI TESTE — e a ausência dele era o risco real.** Não havia NENHUM teste sobre isso: bastava alguém mover a soma da taxa pra dentro do laço "pra ficar tudo junto" e o preço **dobraria** sem nada reclamar. São 5 testes, e um deles amarra as duas pontas — se afrouxarem o `ImpedimentoUnico`, o texto que a tela promete sobre dinheiro passa a mentir.
+>
+> 💰 **Preço e taxa agora mudam com o torneio ABERTO**, com o aviso pedido: *"N inscrições já foram feitas com os valores atuais — mudar vale só pra quem entrar daqui pra frente"*. ⚠️ Cada inscrição guarda o que ELA custou (`Dupla.ValorInscricao`); sem o aviso o organizador faz uma de duas contas erradas, e as duas doem: cobra a diferença de quem já pagou, ou conta com dinheiro que não vem. O contador soma as DUAS tabelas (chave e Americano) — contar só uma faria o aviso sumir num Americano lotado.
+>
+> 🔁 **PARIDADE CRIAÇÃO × EDIÇÃO**: entraram limite de duplas (com "sem limite"), múltiplas categorias, excluir se não pagar, e os dois do Americano. O motivo é história repetida aqui — campo que só existe no cadastro vira beco, e já aconteceu com forma de recebimento, reabrir inscrições e "só confirmo depois de pago".
+>
+> ⚠️ **MAS "VER TUDO" NÃO É "PODER TUDO", e as duas travas novas (`Services/MudancaDepoisDeAberto`) são o conteúdo desta entrega.** Baixar o limite de 32 pra 8 com 20 duplas inscritas **não apaga ninguém** — é pior: o torneio passa a se comportar como LOTADO, as 20 continuam lá, e o organizador só percebe porque param de chegar inscrições. E trocar o FORMATO com gente inscrita deixaria as inscrições órfãs, porque chave e Americano gravam em tabelas diferentes — e isso não aparece na tela até alguém abrir o chaveamento.
+>
+> ⏭️ **Fica de fora, de propósito**: as 5 configurações de categoria de TIMES (estrutura de criação, pede trava própria) e o `prazoPagamento` — este já tem regra no projeto (**o prazo só ESTICA, nunca encurta**), e repeti-la nesta tela seria a segunda cópia que causa os bugs graves daqui.
+>
+> 🧪 **4.278 testes, 0 falhas.** ✅ Falsificação: desligando a comparação do limite, cai o teste certo.
+>
+> ✅ **Confirmo por experiência a pendência de infra apontada na entrada anterior**: publiquei em dev sete vezes hoje, todas por **SSH na mão** (`deploy.sh dev <tag>`), e todas funcionaram. O que está quebrado é o **workflow** do Actions pro `dev`, por falta dos segredos naquele environment — não o deploy em si. A saída anotada lá é a que venho usando.
+>
+> Antes, no mesmo dia: 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
 >
 > 🕳️ **O relato**: chegou um CPF no WhatsApp — a pessoa não sabia login, e-mail nem senha. **Não havia tela nenhuma** pra responder isso: a busca de `/Admin/Organizadores` acha pelo CPF completo mas imprime **só o nome**, sem nenhum contato. A única saída era abrir SSH no VPS e rodar `SELECT` no banco de produção, no meio de uma conversa de WhatsApp.
 >
