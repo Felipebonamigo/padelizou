@@ -39,10 +39,15 @@ public class PadelimetroService : IPadelimetroService
     // - restrito fora (mesma razão do EstatisticasService.ContaNoRanking);
     // - categoria de times e dupla-TIME fora (o Jogador1Id de um time aponta pro
     //   organizador que cadastrou, não pra quem jogou);
-    // - sem placar ou sem os 4 jogadores, não há o que medir.
+    // - sem placar ou sem os 4 jogadores, não há o que medir;
+    // - W.O. fora: o placar existe, mas ninguém entrou em quadra. Esta linha é nova de
+    //   18/08/2026 e fechou um buraco que o comentário do EncerramentoDaPartida já dizia
+    //   estar fechado — antes não havia como distinguir um W.O. de um 6x0 jogado, e o nível
+    //   dos quatro se mexia por um jogo que não aconteceu (ver Services/EncerramentoPorWo).
     public static bool Conta(Partida partida, Categoria categoria, Dupla dupla1, Dupla dupla2) =>
         partida.Status == "Finalizada"
         && partida.GamesDupla1 != null && partida.GamesDupla2 != null
+        && !EncerramentoPorWo.Foi(partida)
         && EstatisticasService.ContaNoRanking(categoria.Torneio)
         && !categoria.DeTimes
         && !dupla1.EhTime && !dupla2.EhTime

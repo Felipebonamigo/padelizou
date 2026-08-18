@@ -74,4 +74,14 @@ public partial class Partida
     // acontecendo. Quem controla é o organizador, na mesma tela em que marca o placar —
     // ele é quem está olhando pra quadra.
     public int? DuplaSacandoId { get; set; }
+
+    // POR QUE o jogo terminou. Nulo é o caso normal: jogou-se e alguém venceu.
+    //
+    // Hoje o único valor é "WO" (alguém não compareceu) — ver Services/EncerramentoPorWo,
+    // que é quem grava e quem lê. ⚠️ Não dá pra deduzir isso do placar: o W.O. é gravado
+    // com o placar convencional da fase, justamente pra que a classificação de grupos e o
+    // chaveamento continuem funcionando. Por fora ele fica idêntico a um 6x0 jogado, e esta
+    // coluna é a única coisa que separa os dois — é ela que mantém o W.O. fora do
+    // Padelímetro, que mede como a pessoa JOGA.
+    public string? MotivoDoEncerramento { get; set; }
 }

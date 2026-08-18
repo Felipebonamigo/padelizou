@@ -198,6 +198,64 @@
                             <button type="submit" class="btn btn-success fw-bold px-5">💾 Salvar Alterações</button>
                         </div>
                     </form>
+
+                    @* ══ W.O.: ALGUÉM NÃO APARECEU ══════════════════════════════════════
+                       ⚠️ FORA do <form> de cima, e isso NÃO é preferência: form dentro de
+                       form é inválido em HTML e o navegador fecha o de fora no primeiro
+                       </form> — os campos do de baixo somem do envio, sem erro nenhum. Já
+                       aconteceu neste projeto (a criação de torneio perdia campos assim).
+
+                       Fica no fim da tela, e não junto do placar, porque é o caminho
+                       excepcional: quem abre esta tela quase sempre veio marcar games. *@
+                    <hr class="my-4" />
+                    @if (Padelizou.Services.EncerramentoPorWo.Foi(Model))
+                    {
+                        <div class="alert alert-warning d-flex align-items-start gap-2 mb-0">
+                            <i class="bi bi-person-x-fill fs-5"></i>
+                            <div>
+                                <strong>Este jogo terminou em W.O.</strong>
+                                <span class="d-block small">
+                                    O placar acima é o convencional da fase — ele existe pra valer na
+                                    classificação e na chave. <strong>Ninguém teve o Padelímetro alterado.</strong>
+                                    Se na verdade o jogo aconteceu, corrija o placar e salve: a marca de
+                                    W.O. sai sozinha.
+                                </span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <details>
+                            <summary class="fw-bold text-body-secondary" style="cursor:pointer">
+                                <i class="bi bi-person-x"></i> Alguém não compareceu? Registrar W.O.
+                            </summary>
+                            <div class="mt-3 p-3 rounded-3 border">
+                                <p class="small text-body-secondary">
+                                    O W.O. encerra o jogo com o placar convencional desta fase, dá a vitória
+                                    a quem apareceu e segue a chave normalmente — mas
+                                    <strong>não mexe no Padelímetro de ninguém</strong>, porque não se jogou.
+                                </p>
+                                <form asp-action="RegistrarWo" method="post" class="d-grid gap-2">
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <input type="hidden" name="voltarPara" value="@(Context.Request.Query["voltarPara"])" />
+
+                                    <label class="form-label fw-bold mb-1" for="pdzDuplaQueFaltou">Quem NÃO compareceu?</label>
+                                    <select name="duplaQueNaoCompareceuId" id="pdzDuplaQueFaltou" class="form-select" required>
+                                        <option value="">Escolha a dupla que faltou...</option>
+                                        <option value="@Model.Dupla1Id">@Model.Dupla1.NomeDeExibicao</option>
+                                        <option value="@Model.Dupla2Id">@Model.Dupla2.NomeDeExibicao</option>
+                                    </select>
+
+                                    <button type="submit" class="btn btn-outline-warning fw-bold"
+                                            data-confirmar="O jogo é encerrado agora com o placar convencional da fase, e a dupla que compareceu segue na chave. O Padelímetro dos quatro NÃO se mexe."
+                                            data-confirmar-titulo="Registrar W.O.?"
+                                            data-confirmar-ok="Registrar W.O.">
+                                        Registrar W.O.
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    }
                 </div>
             </div>
         </div>

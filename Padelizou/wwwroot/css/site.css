@@ -2623,6 +2623,20 @@ button, a, input, select { touch-action: manipulation; }
     border: 1px dashed var(--pdz-border);
 }
 
+/* W.O. — a etiqueta que impede o resultado de se passar por jogo jogado. Cor de AVISO e
+   não de erro: o resultado vale, o que não houve foi partida. */
+.pdz-jl-wo {
+    color: #7a4b00;
+    background: #ffe9b8;
+    border: 1px solid #e0aa3e;
+}
+
+:root[data-bs-theme="dark"] .pdz-jl-wo {
+    color: #ffd88a;
+    background: rgba(224, 170, 62, .16);
+    border-color: rgba(224, 170, 62, .5);
+}
+
 .pdz-jl-acoes {
     display: flex;
     align-items: center;

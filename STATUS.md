@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🔐 **A PORTA DO WEBHOOK DE PAGAMENTO CONFERIA O TOKEN COM `==`, E O RELÓGIO ENTREGAVA O SEGREDO** — mais 💀 **o susto de ver trabalho não commitado sumir de um worktree**.
+> Última atualização: **18/08/2026** — 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
+>
+> 🚷 **O PEDIDO DO FELIPE**: *"temos a opção de vencer por W.O.? quando o atleta não comparece ao jogo?"* Não tínhamos. Quem ficava sem adversário em quadra digitava 6x0 e seguia, porque `QuemVenceu.MotivoParaNaoFinalizar` exige games pra deixar encerrar. Funcionava pro chaveamento e mentia pro resto.
+>
+> ⚠️ **A REGRA QUE SÓ EXISTIA NO COMENTÁRIO.** `EncerramentoDaPartida` dizia, em texto, que o serviço filtrava *"restrito/time/W.O."*. Os dois primeiros ele filtrava mesmo. O W.O. **não** — e não tinha como, porque nada no banco distinguia um W.O. de um 6x0 jogado. É o defeito clássico daqui ao contrário: em vez de a regra estar escrita DUAS vezes e as cópias discordarem, ela estava escrita **zero** vez e documentada como se existisse. Achar isso exigiu ir do comentário até o `Conta()` de verdade — comentário não é prova.
+>
+> 💥 **O ESTRAGO QUE ISSO FAZIA**: o Padelímetro mede COMO a pessoa joga, e um W.O. mexia no nível dos quatro. Quem venceu sem entrar em quadra subia; quem faltou descia. A única defesa era indireta — o teto de 6 no `FatorDeGames`, que existe "pra que um 9x0 de W.O. disfarçado não exploda a conta". Teto limita o estrago; não impede o erro.
+>
+> ⚠️ **A DECISÃO DE MODELAGEM, que é o que vale guardar: O W.O. GRAVA PLACAR DE VERDADE.** É contraintuitivo, e a "simplificação" óbvia — deixar games nulos, afinal ninguém jogou — quebraria a classificação em silêncio: quem responde "essa dupla venceu?" é `QuemVenceu`, que **lê o placar**, e 0x0 é empate. O W.O. não daria vitória a ninguém, a dupla que compareceu perderia a vaga no mata-mata e nada acusaria. Então o W.O. anota o placar convencional **da fase** (`FormatoDaPartida`, não um 6x0 cravado), e o que separa ele de um 6x0 jogado é só a coluna `Partida.MotivoDoEncerramento`. Tem teste dos dois lados: o W.O. vale na tabela do grupo E não move o Padelímetro.
+>
+> 🔁 **E a marca SAI sozinha** quando alguém corrige o placar ou reabre o jogo — a dupla chegou atrasada e o jogo aconteceu. Sem isso, aquele jogo ficaria com placar de verdade e fora do Padelímetro **para sempre**, sem nenhuma tela explicando por quê.
+>
+> 🧪 **4.191 testes, 0 falhas (9 novos).** ✅ Falsificação: tirando a linha do filtro, `Wo_nao_mexe_no_padelimetro_de_ninguem` falha e os outros 8 seguem verdes. E o par que protege a modelagem: o MESMO placar, sem a marca, move o nível dos quatro — prova que quem exclui é a marca, não o placar.
+>
+> ⏭️ **NÃO conferido no navegador, e o motivo**: `ControlePlacar` exige organizador ou admin, e a sessão local não é de nenhum torneio do banco de dev. Provado por outro caminho: Razor compila (o build quebraria), e as tags `<form>` estão em sequência, não aninhadas — o form do W.O. fica FORA do de cima de propósito, porque form dentro de form faz o navegador engolir os campos (já aconteceu aqui na criação de torneio).
+>
+> ⏭️ **Fica de fora, de propósito**: "desistência" (abandonar no meio) segue sendo placar comum — lá se jogou, e o Padelímetro deve contar. Só o W.O. é ausência.
+>
+> Antes: 🔐 **A PORTA DO WEBHOOK DE PAGAMENTO CONFERIA O TOKEN COM `==`, E O RELÓGIO ENTREGAVA O SEGREDO** — mais 💀 **o susto de ver trabalho não commitado sumir de um worktree**.
 >
 > 🔐 **O QUE ESTAVA ERRADO.** `POST /Pagamentos/Webhook` é o único ponto do sistema sem login, sem cookie e sem antiforgery — quem chama é o meio de pagamento, de fora. O que separa esse endpoint do mundo inteiro é UM token no cabeçalho `asaas-access-token`, e a conferência usava `==`. O `==` de string **para no primeiro caractere diferente**: o tempo de resposta cresce conforme o prefixo vai acertando, e dá pra descobrir o token **um caractere por vez**, com chamadas repetidas, sem nunca ter acertado ele inteiro. ⚠️ E este é o endpoint que **CONFIRMA PAGAMENTO** — quem descobre o token marca inscrição como paga sem pagar nada. Agora é `CryptographicOperations.FixedTimeEquals`, a mesma comparação de `ConviteDeParceiro.TokenConfere`.
 >
