@@ -19,6 +19,19 @@ public class ProtecaoAntifalsificacaoTests
         ["PagamentosController.Webhook"] =
             "Quem chama é o meio de pagamento, de fora, sem cookie e sem página nossa — " +
             "não existe carimbo pra ele mandar. Protegido pelo próprio token no lugar disso.",
+
+        // As duas telas de erro, pelo mesmo motivo: quem as chama não é um cliente, é o
+        // FRAMEWORK reexecutando o pipeline — e o re-execute preserva o método da requisição
+        // original. Um POST que dá 404 vira um POST /Home/NaoEncontrado; um POST que estoura
+        // vira um POST /Home/Error. Com o carimbo valendo ali, o filtro recusa a reexecução e o
+        // 400 dele substitui o status de verdade na resposta ao cliente.
+        ["HomeController.NaoEncontrado"] =
+            "Reexecutada pelo UseStatusCodePagesWithReExecute mantendo o método. Não grava " +
+            "nada e não devolve dado de ninguém — só desenha a tela e repete o status original.",
+
+        ["HomeController.Error"] =
+            "Reexecutada pelo UseExceptionHandler mantendo o método. Mesma tela sem estado: " +
+            "isentar não abre porta nenhuma, e sem isentar todo erro de POST chega como 400.",
     };
 
     private static IEnumerable<(string Nome, MethodInfo Metodo)> AcoesIsentas()
@@ -63,10 +76,16 @@ public class ProtecaoAntifalsificacaoTests
     }
 
     [Fact]
-    public void O_webhook_do_meio_de_pagamento_continua_sendo_a_unica_excecao()
+    public void So_existem_dois_tipos_de_isencao_e_nenhum_deles_grava_nada()
     {
-        // Prende o número. Passar de 1 para 2 tem que ser uma decisão consciente, não o efeito
-        // colateral de um teste que já estava verde e continuou verde.
-        Assert.Single(IsencoesPermitidas);
+        // Prende o número. Crescer tem que ser uma decisão consciente, não o efeito colateral de
+        // um teste que já estava verde e continuou verde.
+        //
+        // São TRÊS isenções de DOIS tipos, e nenhum deles é "ação que grava": (1) a porta que o
+        // meio de pagamento chama de fora, sem cookie e sem carimbo possível; (2) as duas telas
+        // de erro, que quem chama é o próprio framework reexecutando o pipeline. Uma quarta
+        // isenção que não caiba nesses dois tipos é sinal de que alguém calou um erro de
+        // carimbo numa ação que grava — que é exatamente o buraco que o filtro global fecha.
+        Assert.Equal(3, IsencoesPermitidas.Count);
     }
 }
