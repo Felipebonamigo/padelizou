@@ -25,6 +25,15 @@ namespace Padelizou.Controllers
             var votacao = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now);
             if (votacao == null) return NotFound();
 
+            // Mesma porta do Details: torneio oculto não tem página pública nenhuma. Vale
+            // pouco na prática (a votação só abre depois do torneio acabar), mas deixar UMA
+            // porta de fora é como o torneio escondido reaparece — e o custo é uma consulta
+            // que só o torneio oculto paga.
+            var torneioDaVotacao = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+            if (torneioDaVotacao == null
+                || !await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneioDaVotacao, meuId))
+                return NotFound();
+
             // A ENQUETE é perguntada à parte, e não pendurada no `votacao.Aberta`, porque ela
             // ignora o INTERRUPTOR do organizador: no torneio normal com a eleição desligada
             // ela é a única coisa da tela. (No Americano não há nem uma nem outra.)

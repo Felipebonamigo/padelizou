@@ -215,6 +215,21 @@ public partial class Torneio
 
     public int? AprovadoPorId { get; set; }
 
+    // Quando o "Novo torneio aberto" foi disparado pra base. Nulo = ainda não saiu.
+    //
+    // ⚠️ Nasceu em 18/08/2026 porque o aviso passou a ter DOIS gatilhos: a aprovação do admin e
+    // a PUBLICAÇÃO de um torneio que estava oculto (ver Services/AvisoDeTorneioNovo). Com um
+    // gatilho só, "já avisei?" era a mesma pergunta que "já aprovei?"; com dois, esconder e
+    // publicar de novo mandaria o anúncio à base inteira a cada volta. É a mesma lição do
+    // `AvisoDeMvpEnviadoEm` e do `PerguntaDeNaoPagosEm`: prazo se lê do relógio, mas ENVIO se
+    // carimba.
+    //
+    // ⚠️ A migração carimba os torneios JÁ APROVADOS E VISÍVEIS com a data de aprovação deles:
+    // pra esses o aviso já saiu de verdade, e deixá-los nulos faria a primeira publicação de
+    // cada um reanunciar torneio velho pra todo mundo. Os aprovados e OCULTOS ficam nulos de
+    // propósito — são justamente os que ainda esperam o anúncio.
+    public DateTime? AvisoDeTorneioNovoEm { get; set; }
+
     // Quando o acerto dos R$ 5 por pessoa foi confirmado. Nulo = contratado mas ainda não pago.
     //
     // ⚠️ O ponto só entra no ranking depois disto. Contratar é intenção; o que vale é o
@@ -270,8 +285,21 @@ public partial class Torneio
     public bool Restrito { get; set; }
     public string? ChaveAcesso { get; set; }
 
-    // Some da listagem pública (Torneios/Index) — só acessível por quem tem o link direto
-    // ou é organizador. Não afeta a inscrição em si (isso é papel de Restrito/ChaveAcesso).
+    // O torneio ainda NÃO FOI DIVULGADO: só quem cuida dele (e quem já está inscrito) enxerga
+    // qualquer coisa. Ele some da listagem, da Home, das páginas de cidade e do Google — e a
+    // página dele responde 404 pra qualquer outra pessoa, mesmo com o link na mão.
+    //
+    // É o estado de quem monta o torneio dias antes do anúncio (Felipe, 18/08/2026: "ainda
+    // vamos divulgar, e só aí permitir que o pessoal veja"). Publicar é um botão.
+    //
+    // ⚠️ MUDOU DE SIGNIFICADO em 18/08/2026: antes era só "some da listagem", e o link direto
+    // abria normalmente. Quem decide quem entra é Services/VisibilidadeDoTorneio — é lá que
+    // está escrito o porquê de cada escape, inclusive o do inscrito.
+    //
+    // ⚠️ NÃO se confunde com `Restrito`: aquele tranca a INSCRIÇÃO (exige chave) num torneio
+    // que todo mundo vê; este esconde o TORNEIO INTEIRO. Eram amarrados um ao outro até
+    // 18/08/2026 (só dava pra ocultar o restrito), o que deixava sem resposta justamente o
+    // caso comum — o torneio aberto que ainda não foi anunciado.
     public bool Oculto { get; set; }
 
     // O mesmo jogador pode entrar em mais de uma categoria deste torneio?

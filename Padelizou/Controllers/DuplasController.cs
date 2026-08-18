@@ -241,6 +241,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // Torneio OCULTO: quem não pode nem ABRIR a página também não se inscreve por ela.
+            // A tela some inteira pra essa pessoa (o Details devolve 404), então quem chega
+            // aqui é POST montado à mão ou aba aberta antes de o organizador esconder — e o
+            // organizador inscrevendo alguém à mão continua passando, porque ele cuida do
+            // torneio. Régua única em Services/VisibilidadeDoTorneio.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
+
             // 1. Verifica se os JOGADORES já existem (por CPF) — ainda NÃO cria ninguém,
             //    porque a regra anti-sandbagging precisa checar o histórico antes.
             var jogador1 = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf1);

@@ -304,6 +304,17 @@ namespace Padelizou.Controllers
 
             if (torneio == null) return NotFound();
 
+            // ── A PORTA DO TORNEIO OCULTO ──────────────────────────────────────────────
+            // Não é "some da lista": o torneio que ainda não foi divulgado não abre nem com o
+            // link na mão. Os escapes (organizador, admin, inscrito) e o porquê do 404 estão
+            // em Services/VisibilidadeDoTorneio.
+            //
+            // ⚠️ Fica AQUI, logo na entrada, e não junto do `PodeGerenciar` lá embaixo: a
+            // página monta classificação, chaves, histórico e palpite antes daquele ponto, e
+            // recusar depois seria pagar a página inteira pra jogá-la fora.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
+
             // O clube e a cidade dele alimentam a descrição que o Google mostra e a ficha de
             // evento (Services/DadosEstruturados) — é o "em Arena Beira Rio, Porto Alegre" que
             // faz este torneio responder a "torneio de padel em <cidade>".
@@ -781,6 +792,10 @@ namespace Padelizou.Controllers
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
+            // Mesma porta do Details: a grade de jogos de um torneio escondido conta o torneio
+            // inteiro (nomes, horários, quadras) pra quem não deveria nem saber que ele existe.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
 
             await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
             ViewBag.Torneio = torneio;

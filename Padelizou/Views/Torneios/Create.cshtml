@@ -994,14 +994,25 @@
                             </small>
                         </div>
 
-                        <div id="opcaoOculto" class="ps-4 mt-2" style="display: none;">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" asp-for="Oculto" id="ocultoCheck">
-                                <label class="form-check-label" for="ocultoCheck">
-                                    <i class="bi bi-eye-slash"></i> Ocultar este torneio da listagem pública (só quem tiver o link direto consegue ver)
-                                </label>
-                            </div>
+                        @* ── CRIAR JÁ ESCONDIDO ────────────────────────────────────────────
+                           Saiu de dentro do "torneio restrito" em 18/08/2026 (era o `id
+                           ="opcaoOculto"`, revelado pelo JS junto com o campo da chave). Estar
+                           lá dentro fazia esconder depender de trancar a inscrição — e quem
+                           precisa esconder é justamente o torneio ABERTO que ainda vai ser
+                           divulgado: monta-se hoje, anuncia-se no dia certo. São coisas
+                           diferentes e agora vivem separadas. *@
+                        <div class="form-check form-switch mt-3 border-top pt-3">
+                            <input class="form-check-input" type="checkbox" asp-for="Oculto" id="ocultoCheck"
+                                   style="transform: scale(1.3); margin-right: 10px;">
+                            <label class="form-check-label fw-bold text-muted" for="ocultoCheck">
+                                <i class="bi bi-eye-slash"></i> Criar oculto (ninguém vê até você publicar)
+                            </label>
                         </div>
+                        <small class="text-muted d-block ps-4">
+                            Pra montar o torneio com calma antes de divulgar: ele não aparece na lista, na
+                            página inicial nem no Google, e quem receber o link não consegue abrir. Só você e
+                            os outros organizadores veem. Publicar depois é um botão na página do torneio.
+                        </small>
                     </div>
                 </div>
 
@@ -1449,12 +1460,13 @@
         });
     })();
 
+    // O nome ficou de quando esta função também revelava a caixa "ocultar" — ela não mexe
+    // mais nisso (esconder o torneio deixou de depender do restrito em 18/08/2026). Hoje
+    // cuida só do campo da chave de acesso.
     function toggleOculto() {
         var restrito = document.getElementById('restritoSwitch').checked;
-        document.getElementById('opcaoOculto').style.display = restrito ? 'block' : 'none';
         document.getElementById('campoChaveAcesso').style.display = restrito ? 'block' : 'none';
         if (!restrito) {
-            document.getElementById('ocultoCheck').checked = false;
             // Some da tela E deixa de ir no POST: chave digitada e depois escondida viraria
             // chave de um torneio que não é mais restrito.
             document.getElementById('chaveAcessoEscolhida').value = '';

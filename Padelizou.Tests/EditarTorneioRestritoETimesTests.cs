@@ -22,7 +22,7 @@ public class EditarTorneioRestritoETimesTests
     }
 
     private static Task<IActionResult> EditarAsync(
-        DbPadelContext ctx, Torneio torneio, int organizadorId, bool restrito, string? chave = null, bool oculto = false)
+        DbPadelContext ctx, Torneio torneio, int organizadorId, bool restrito, string? chave = null)
         => TestInfra.NovoTorneiosController(ctx, organizadorId).Editar(
             id: torneio.Id, nome: torneio.Nome, localTorneio: null, dataInicio: torneio.DataInicio,
             precoInscricao: torneio.PrecoInscricao, clubeId: torneio.ClubeId,
@@ -30,7 +30,7 @@ public class EditarTorneioRestritoETimesTests
             permiteImpedimentos: false, permiteImpedimentoSextaNoite: false,
             permiteImpedimentoSabadoManha: false, permiteImpedimentoSabadoTarde: false,
             restricaoCategoria: "Livre", capa: null,
-            restrito: restrito, chaveAcessoEscolhida: chave, oculto: oculto);
+            restrito: restrito, chaveAcessoEscolhida: chave);
 
     [Fact]
     public async Task Ligar_restrito_no_editar_gera_chave_sozinho()
@@ -102,15 +102,25 @@ public class EditarTorneioRestritoETimesTests
     }
 
     [Fact]
-    public async Task Oculto_so_vale_dentro_do_restrito()
+    public async Task Desligar_o_restrito_NAO_publica_o_torneio_que_estava_escondido()
     {
-        // Torneio aberto e invisível é torneio que ninguém acha pra se inscrever.
+        // ⚠️ ESTE TESTE TROCOU DE LADO EM 18/08/2026. Ele era o "Oculto_so_vale_dentro_do
+        // _restrito": esconder dependia de o torneio ser restrito, e desligar o restrito
+        // publicava o torneio junto. A regra caiu porque quem precisa esconder é quase sempre
+        // o torneio ABERTO que ainda não foi divulgado (ver TorneioOcultoTests).
+        //
+        // O que ficou no lugar é o contrário: o Editar não encosta na visibilidade. Mexer na
+        // chave de acesso não pode revelar ao mundo um torneio que o organizador escondeu.
         using var ctx = TestInfra.NovoContexto();
-        var (torneio, organizador) = await MontarAsync(ctx);
+        var (torneio, organizador) = await MontarAsync(ctx, restrito: true, chave: "virgili10");
+        torneio.Oculto = true;
+        await ctx.SaveChangesAsync();
 
-        await EditarAsync(ctx, torneio, organizador.Id, restrito: false, oculto: true);
+        await EditarAsync(ctx, torneio, organizador.Id, restrito: false);
 
-        Assert.False((await ctx.Torneios.FindAsync(torneio.Id))!.Oculto);
+        var salvo = await ctx.Torneios.FindAsync(torneio.Id);
+        Assert.False(salvo!.Restrito);
+        Assert.True(salvo.Oculto);
     }
 
     // ---- Estrutura da categoria de times no Editar ----

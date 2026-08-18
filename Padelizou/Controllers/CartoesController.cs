@@ -39,6 +39,24 @@ public class CartoesController : Controller
     // pra um grupo de WhatsApp inteiro abrir a mesma prévia sem redesenhar.
     private const int SegundosDeCache = 3600;
 
+    // "Este torneio pode virar arte pra qualquer um?" — a porta do torneio OCULTO, na borda
+    // que menos parece uma porta.
+    //
+    // ⚠️ O cartaz é PENSADO pra circular fora do site, e é justamente por isso que ele precisa
+    // desta pergunta: sem ela, o torneio que o organizador escondeu continuaria saindo em PNG,
+    // com nome, data, local, preço e um QR apontando pra uma página que responde 404. A régua é
+    // a mesma do Details (Services/VisibilidadeDoTorneio) — copiar a condição aqui seria o
+    // segundo lugar onde ela mora, e o segundo lugar é o que fica pra trás.
+    private async Task<bool> PodeVirarArteAsync(int torneioId)
+    {
+        var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == torneioId);
+        if (torneio == null) return false;
+
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await VisibilidadeDoTorneio.PodeAbrirAsync(
+            _context, torneio, int.TryParse(claim, out var meuId) ? meuId : null);
+    }
+
     private FileContentResult Png(byte[] bytes, string nomeDoArquivo)
     {
         Response.Headers.CacheControl = $"public, max-age={SegundosDeCache}";
@@ -60,6 +78,7 @@ public class CartoesController : Controller
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == id);
         if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
 
         var campeoes = await CampeoesDoTorneio.DoTorneioAsync(_context, id);
 
@@ -79,6 +98,7 @@ public class CartoesController : Controller
 
         var campeao = await CampeoesDoTorneio.DaCategoriaAsync(_context, id, categoriaId);
         if (campeao == null || !campeao.TemOQueMostrar) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
 
         var png = CartaoDeCampeao.Desenhar(campeao, _fontes, _ambiente.WebRootPath);
         return Png(png, $"campeoes-{Arquivo(campeao.Categoria)}.png");
@@ -97,6 +117,7 @@ public class CartoesController : Controller
     {
         var torneio = await DivulgacaoDoTorneio.DoTorneioAsync(_context, id);
         if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
 
         ViewBag.FonteDisponivel = _fontes.Disponivel;
         return View(torneio);
@@ -112,6 +133,7 @@ public class CartoesController : Controller
 
         var torneio = await DivulgacaoDoTorneio.DoTorneioAsync(_context, id);
         if (torneio == null) return NotFound();
+        if (!await PodeVirarArteAsync(id)) return NotFound();
 
         // ⚠️ ABSOLUTO, e é o que faz o cartaz valer. O QR é lido por uma câmera que não tem a
         // menor ideia de qual é o nosso domínio — um caminho relativo viraria um código que não

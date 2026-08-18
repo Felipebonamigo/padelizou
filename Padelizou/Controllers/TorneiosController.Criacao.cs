@@ -1024,7 +1024,11 @@ namespace Padelizou.Controllers
             // votação de todo torneio salvo por uma aba antiga, sem ninguém pedir. Nulo =
             // mantém o que está gravado, igual ao permiteImpedimentoQuintaNoite.
             bool? usaVotacaoDeMvp = null,
-            bool restrito = false, string? chaveAcessoEscolhida = null, bool oculto = false,
+            // ⚠️ SEM `oculto` aqui, desde 18/08/2026: publicar e esconder o torneio saiu do
+            // formulão de edição e virou botão próprio (AlternarVisibilidade). Caixa marcada
+            // dentro de um form de 40 campos é caixa que se desmarca sem querer — e o que ela
+            // desmarcava era o torneio inteiro sumindo, ou pior, aparecendo antes da hora.
+            bool restrito = false, string? chaveAcessoEscolhida = null,
             // Formato das partidas. Nulo = aba antiga (sem os campos) ou campo em branco:
             // nesse caso o que está gravado FICA, em vez de virar zero e deixar a Mesa sem
             // limite nenhum.
@@ -1362,9 +1366,12 @@ namespace Padelizou.Controllers
                 torneio.ChaveAcesso = null;
             }
 
-            // "Sumir da listagem" mora dentro do restrito, igual à criação: torneio aberto e
-            // invisível é torneio que ninguém acha pra se inscrever.
-            torneio.Oculto = restrito && oculto;
+            // ⚠️ `Oculto` NÃO se mexe aqui, de propósito. Era `torneio.Oculto = restrito &&
+            // oculto`, e essa linha fazia duas coisas erradas de uma vez: prendia o esconder ao
+            // restrito (o torneio ABERTO que ainda não foi divulgado — o caso comum — não tinha
+            // como ficar escondido) e deixava um salvamento qualquer da edição publicar o
+            // torneio sem ninguém pedir. Agora quem manda na visibilidade é o botão
+            // AlternarVisibilidade, e desligar o restrito não revela mais nada sozinho.
 
             if (capa != null && capa.Length > 0)
             {

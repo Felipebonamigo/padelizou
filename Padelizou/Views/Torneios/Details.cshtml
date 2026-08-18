@@ -137,6 +137,50 @@
     }
 }
 
+@* ── TORNEIO OCULTO: A FAIXA QUE AVISA ─────────────────────────────────────────────────
+   Quem chega aqui com o torneio oculto já passou pela porta (organizador, admin ou inscrito)
+   — o resto do mundo levou 404 no controller. Mas passar pela porta não é saber que ela
+   existe: sem esta faixa, o organizador vê uma página normal, manda o link no grupo e
+   descobre pelo silêncio que ninguém conseguiu abrir.
+
+   Vem ANTES do nome do torneio de propósito: é a primeira coisa que muda o que ele vai fazer
+   na página. E fala duas línguas — pra quem manda no torneio, com o botão de publicar; pra
+   quem só está inscrito, explicando por que ele consegue ver uma coisa que os amigos não
+   acham. *@
+@if (Model.Oculto)
+{
+    var mandaNoTorneio = ViewBag.PodeGerenciar == true && ViewBag.GestaoSoLeitura != true;
+    <div class="alert @(mandaNoTorneio ? "alert-warning border-warning" : "alert-secondary") d-flex flex-wrap gap-3 align-items-center justify-content-between shadow-sm">
+        <div>
+            <strong><i class="bi bi-eye-slash-fill"></i> Torneio oculto — ninguém de fora está vendo isto</strong>
+            <div class="small mt-1">
+                @if (mandaNoTorneio)
+                {
+                    @Padelizou.Services.VisibilidadeDoTorneio.AvisoDeOculto
+                    <span class="d-block mt-1">@Padelizou.Services.VisibilidadeDoTorneio.ConviteParaPublicar</span>
+                }
+                else
+                {
+                    <text>
+                        Este torneio ainda não foi divulgado: ele não aparece na lista nem no Google, e
+                        quem receber o link não consegue abrir. Você está vendo porque já está inscrito.
+                    </text>
+                }
+            </div>
+        </div>
+        @if (mandaNoTorneio)
+        {
+            <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="ocultar" value="false" />
+                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                    <i class="bi bi-megaphone-fill"></i> Publicar agora
+                </button>
+            </form>
+        }
+    </div>
+}
+
 <!-- Cabeçalho do Torneio -->
 <div class="mb-4">
     <h2 class="fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h2>
@@ -1415,10 +1459,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <div>
                                 <strong>Torneio restrito</strong> — chave de acesso: <span class="fw-bold fs-5 font-monospace">@Model.ChaveAcesso</span>
                                 <br /><small class="text-muted">Compartilhe essa chave só com quem você quer que consiga se inscrever.</small>
-                                @if (Model.Oculto)
-                                {
-                                    <br /><small class="text-muted"><i class="bi bi-eye-slash"></i> Este torneio também está <strong>oculto</strong> da listagem pública — só quem tem o link direto consegue ver.</small>
-                                }
+                                @* O "e também está oculto" saiu daqui em 18/08/2026: ele dizia
+                                   "só quem tem o link direto consegue ver", que virou mentira
+                                   quando o oculto passou a fechar a página. Quem conta isso
+                                   agora é a faixa no topo, que aparece em torneio restrito ou
+                                   não — dizer a mesma coisa em dois lugares é como um dos dois
+                                   fica pra trás. *@
                             </div>
                         </div>
                     }
@@ -2004,6 +2050,51 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             </div>
 
+            @* ── DIVULGAÇÃO: PUBLICAR OU ESCONDER ──────────────────────────────────────
+               ⚠️ FICA FORA do formulário de edição, e isso não é arrumação: `<form>` dentro
+               de `<form>` some com campos no navegador (o de dentro fecha o de fora), e o que
+               sumiria aqui era metade da edição do torneio.
+
+               É também por isso que o interruptor deixou de ser uma caixinha lá dentro: a
+               caixa só valia depois de "Salvar Alterações", junto de mais 40 campos, e vivia
+               escondida dentro da seção do "torneio restrito" — o torneio ABERTO que ainda não
+               foi divulgado, que é o caso comum, não tinha como ficar escondido de jeito
+               nenhum. Aqui é um botão, um clique, e vale na hora. *@
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-uppercase text-muted mb-2">
+                        <i class="bi bi-megaphone"></i> Divulgação
+                    </h6>
+                    @if (Model.Oculto)
+                    {
+                        <p class="small mb-3">@Padelizou.Services.VisibilidadeDoTorneio.AvisoDeOculto</p>
+                        <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="ocultar" value="false" />
+                            <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                                <i class="bi bi-megaphone-fill"></i> Publicar torneio
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="small mb-3">
+                            Este torneio está <strong>visível</strong>: aparece na lista de torneios, na página
+                            inicial e no Google, e quem receber o link consegue abrir e se inscrever.
+                            Escondendo, ele some de tudo isso na hora — só você, os outros organizadores e
+                            quem já está inscrito continuam vendo. Dá pra publicar de novo quando quiser.
+                        </p>
+                        <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="ocultar" value="true" />
+                            <button type="submit" class="btn btn-outline-secondary fw-bold">
+                                <i class="bi bi-eye-slash-fill"></i> Ocultar do público
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
             <!-- EDITAR DADOS DO TORNEIO -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">
@@ -2491,13 +2582,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         }
                                     </small>
 
-                                    <div class="form-check mt-2">
-                                        <input class="form-check-input" type="checkbox" name="oculto" value="true"
-                                               id="editOcultoCheck" @(Model.Oculto ? "checked" : "")>
-                                        <label class="form-check-label small" for="editOcultoCheck">
-                                            <i class="bi bi-eye-slash"></i> Sumir da listagem pública (só quem tem o link direto acha)
-                                        </label>
-                                    </div>
+                                    @* A caixa "sumir da listagem" morava AQUI e saiu em
+                                       18/08/2026: esconder o torneio virou o botão do bloco
+                                       "Divulgação", logo acima deste formulário. Ela não podia
+                                       ficar por dois motivos — estava presa ao restrito (e
+                                       quem precisa esconder é quase sempre o torneio ABERTO
+                                       que ainda não foi anunciado), e salvar esta edição
+                                       regravava o campo, então mexer no preço publicava o
+                                       torneio sem ninguém pedir. *@
                                 </div>
                             </div>
 
