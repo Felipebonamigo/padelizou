@@ -9,6 +9,7 @@
     var pagadores = (Dictionary<int, string>)ViewBag.Pagadores;
     string periodo = ViewBag.Periodo;
     var torneiosAbertos = (IEnumerable<dynamic>)ViewBag.TorneiosComTaxaAberta;
+    var professores = (IEnumerable<dynamic>)ViewBag.Professores;
 
     string UrlPeriodo(string p) => "/Admin/Financeiro" + (p == "sempre" ? "" : "?periodo=" + p);
 
@@ -136,9 +137,17 @@
                             </select>
                         </div>
                         <div class="col-12" id="campo-pagador">
-                            <label class="form-label small fw-bold" for="reg-pagador">Quem pagou (login, e-mail ou CPF)</label>
-                            <input type="text" name="pagador" id="reg-pagador" class="form-control"
-                                   placeholder="Ex.: joao@email.com" />
+                            <label class="form-label small fw-bold" for="reg-pagador">Qual professor</label>
+                            <select name="pagador" id="reg-pagador" class="form-select">
+                                @if (!professores.Any())
+                                {
+                                    <option value="">Nenhum professor cadastrado</option>
+                                }
+                                @foreach (var p in professores)
+                                {
+                                    <option value="@p.Email">@p.Nome</option>
+                                }
+                            </select>
                         </div>
                         @* O ciclo tem que ser DITO: o valor não serve de pista, porque anual
                            negociado ("fechei em 450") existe e creditaria 1 mês calado. *@
