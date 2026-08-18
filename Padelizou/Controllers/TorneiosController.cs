@@ -129,12 +129,17 @@ namespace Padelizou.Controllers
                 .Select(o => o.NivelAcesso)
                 .FirstOrDefaultAsync();
 
-            // O assistente do sistema também enxerga o caixa (decisão do Felipe: ele vê TUDO,
-            // financeiro incluído). Aqui a pergunta é só de leitura — quem MEXE em dinheiro
-            // são os POSTs, e nenhum deles passa por esta função.
+            // ⚠️ MUDOU EM 18/08/2026: era `PodeOlharTudo`, e por isso o administrador nomeado e
+            // o assistente liam o caixa de QUALQUER torneio do sistema. Agora é `PodeVerDinheiro`
+            // — só o raiz. Quem organiza continua entrando pelo NÍVEL DE ACESSO, que é a régua
+            // de sempre: o caixa do torneio dele não passa por aqui.
+            //
+            // O que o admin nomeado perde junto: socorrer organizador em questão de dinheiro.
+            // A porta da gestão continua aberta pra ele (PodeOlharAGestaoAsync) — o que some
+            // são os valores dentro dela.
             var quem = await _context.Jogadores.FindAsync(jogadorId);
 
-            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, PoderesNoSistema.PodeOlharTudo(quem));
+            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, PoderesNoSistema.PodeVerDinheiro(quem));
         }
 
         // "Consegue ABRIR a gestão deste torneio?" — separada de EhOrganizadorAsync de

@@ -157,16 +157,18 @@ public class RepasseAoParceiroTests
     }
 
     [Fact]
-    public async Task O_assistente_do_sistema_ve_mas_nao_registra()
+    public async Task O_assistente_do_sistema_NAO_ve_nem_registra()
     {
-        // A trava do assistente é o VERBO: ele passa no GET e é barrado no POST.
+        // ⚠️ MUDOU EM 18/08/2026. Antes o assistente ABRIA esta tela (a trava dele era o
+        // verbo: passava no GET, barrado no POST). Agora dinheiro é só do raiz, e a carteira
+        // dos parceiros é a primeira coisa que sai da vista de quem não é dono da conta.
         using var ctx = await CenarioAsync();
         var foka = new Jogador { Nome = "Foka", Cpf = "99900000077", IsAssistente = true };
         ctx.Jogadores.Add(foka);
         await ctx.SaveChangesAsync();
         var ana = ctx.Jogadores.Single(j => j.Nome == "Ana Vendedora");
 
-        Assert.IsType<ViewResult>(await Controlador(ctx, foka.Id).Comissoes(null));
+        Assert.IsType<RedirectToActionResult>(await Controlador(ctx, foka.Id).Comissoes(null));
 
         var resposta = await Controlador(ctx, foka.Id).RegistrarRepasse(ana.Id, 30m, null, null);
         Assert.IsType<ForbidResult>(resposta);

@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
+> Última atualização: **18/08/2026** — 💰 **DINHEIRO É SÓ DO RAIZ: O ADMINISTRADOR NOMEADO E O ASSISTENTE PARARAM DE VER FINANCEIRO.**
+>
+> 🧭 **A decisão do Felipe**: "adm não vê nada de financeiro, somente eu" — e o mesmo corte vale pro **assistente do sistema**, que até ontem via TUDO, caixa incluído.
+>
+> 🕳️ **A CAUSA era UMA FUNÇÃO RESPONDENDO DUAS PERGUNTAS.** `PodeOlharTudo` significava ao mesmo tempo "enxerga a operação?" e "enxerga o caixa?", e por isso o administrador nomeado lia o **faturamento do MEI**, a **carteira de cada parceiro**, **quanto cada professor pagou**, a **margem** do registro de resultados, o **caixa de qualquer torneio** e até a **fatura Pix de qualquer pessoa**. Nasceu `PoderesNoSistema.PodeVerDinheiro` — só `IsAdminRaiz`, com sobrecarga que lê o crachá pras views. ⚠️ **Não é `PodeEditarTudo` com outro nome**: o nomeado continua editando o sistema inteiro e não vê um real.
+>
+> 🚪 **Fechou a porta** (redirect/Forbid): `/Admin/Comissoes` e os dois POSTs de repasse, `/Admin/RegistroResultados` e suas respostas (a tela mostra nosso **custo e margem** — sem os números o formulário não teria como cotar), `/Torneios/TaxaPlataforma` + `RegistrarNegociacaoTaxa`, e o Pix/QR de **cobrança alheia**.
+>
+> 👁️ **Escondeu o número, manteve a tela** (o corte é no VALOR, não no acesso): Métricas perde o medidor do MEI, o card de "pagos em 30 dias" e as colunas Pagamentos/Valor; Professores perde "Assinatura recebida", a tabela por mês e a coluna "Já pagou" — **e a ordem padrão vira movimento de aula**, porque a lista inteira ordenada por faturamento é o valor vazando pela porta dos fundos; o relatório do Ranking perde a coluna de valor, **menos pro parceiro, que é a conta dele**; e o caixa do torneio abre sem os valores, como já era pra quem só ajuda na mesa.
+>
+> 🃏 **O painel não mente**: o cartão "Parceiros" continua de pé com a aba **Indicações** (aba nova ganhou `SoRaiz`, senão o grupo inteiro sumiria junto), e o cartão **abre na primeira aba VISÍVEL** — apontando pra `Abas[0]` o nomeado levaria Forbid clicando no próprio cartão. As descrições que falavam em dinheiro têm agora uma versão pro raiz e outra pros demais.
+>
+> 🧪 **4.154 testes, 0 falhas** (21 novos em `AdminNaoVeDinheiroTests`). Um teste antigo **mudou de lado**: o do assistente em `/Admin/Comissoes` afirmava que ele *via* e não gravava — agora afirma que ele **não vê**. ✅ **Conferido no navegador**, com três contas do banco local: **admin nomeado puro** (nenhum `R$` em Métricas, Professores e no relatório do Ranking; Comissões/Registro/Financeiro/Pix/Taxa recusados; Financeiro do torneio abre sem valores), **admin nomeado que também é parceiro do Ranking** (continua vendo os valores da parceria — é dele) e **raiz** (tudo exatamente como era).
+>
+> ⏭️ **Pendência**: nada disso está no ar — falta build + `deploy.yml`.
+>
+> Antes, no mesmo dia: 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
 >
 > 🕳️ **O relato**: chegou um CPF no WhatsApp — a pessoa não sabia login, e-mail nem senha. **Não havia tela nenhuma** pra responder isso: a busca de `/Admin/Organizadores` acha pelo CPF completo mas imprime **só o nome**, sem nenhum contato. A única saída era abrir SSH no VPS e rodar `SELECT` no banco de produção, no meio de uma conversa de WhatsApp.
 >

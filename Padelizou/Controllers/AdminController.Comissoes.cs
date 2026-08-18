@@ -127,15 +127,15 @@ namespace padelizou.Controllers
         // REGISTRA que ele fez, pra que "quanto eu já te paguei?" tenha resposta sem abrir o
         // extrato. O texto da tela diz isso com todas as letras, de propósito.
         //
-        // 🔒 Quem pode gravar: só admin de verdade. O parceiro comercial não passa por
-        // `ObterJogadorAdminAsync`, e o assistente do sistema também não — a trava dele é o
-        // VERBO, e esta é a única gravação nova desta frente.
+        // 🔒 Quem pode gravar: só o RAIZ (18/08/2026). Era `ObterJogadorAdminAsync`, e mudou
+        // junto com a tela: se o administrador nomeado não enxerga mais o saldo de parceiro
+        // nenhum, deixá-lo registrando repasse seria dar a caneta a quem não vê o papel.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RegistrarRepasse(int parceiroId, decimal valor,
             DateTime? pagoEm, string? observacao)
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return Forbid();
 
             var parceiro = await _context.Jogadores.FindAsync(parceiroId);
@@ -180,7 +180,7 @@ namespace padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExcluirRepasse(int repasseId)
         {
-            if (await ObterJogadorAdminAsync() == null) return Forbid();
+            if (await ObterJogadorAdminRaizAsync() == null) return Forbid();
 
             var repasse = await _context.RepassesAoParceiro
                 .Include(r => r.Parceiro)

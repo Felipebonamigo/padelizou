@@ -22,7 +22,15 @@ namespace padelizou.Controllers
         {
             // Tela de leitura, como a de Métricas: qualquer administrador entra, e o assistente
             // do sistema também (a trava dele é o verbo, e aqui não há gravação nenhuma).
-            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+            //
+            // MISTA, também como a de Métricas: quem dá aula e em que pé está o plano é
+            // operação; QUANTO cada um pagou é dinheiro, e some pra quem não é raiz
+            // (18/08/2026). A situação do plano ("Assinante", "Vencido") fica pra todos de
+            // propósito — é ela que diz se o professor pode dar aula, não o valor.
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            ViewBag.PodeVerDinheiro = PoderesNoSistema.PodeVerDinheiro(admin);
 
             var agora = DateTime.Now;
 
@@ -51,6 +59,16 @@ namespace padelizou.Controllers
 
             var linhas = ProfessoresNoAdmin.Montar(professores, assinaturas, aulas, agora, plano.Value);
             var meses = ProfessoresNoAdmin.PorMes(assinaturas);
+
+            // A ordem PADRÃO é por quanto cada um pagou — quem sustenta a conta primeiro. Pra
+            // quem não vê dinheiro, essa ordem seria o valor vazando pela porta dos fundos (a
+            // lista inteira em ordem de faturamento), então a régua vira movimento de aula. É o
+            // que a frase da tela promete nos dois casos.
+            if (!PoderesNoSistema.PodeVerDinheiro(admin))
+                linhas = linhas
+                    .OrderByDescending(l => l.AulasNoTotal)
+                    .ThenBy(l => l.Nome)
+                    .ToList();
 
             ViewBag.Resumo = ProfessoresNoAdmin.Resumir(linhas, meses, agora);
             ViewBag.Meses = meses;

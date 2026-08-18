@@ -9,6 +9,11 @@
     bool cpfInteiro = ViewBag.CpfInteiro ?? false;
     bool soVeORelatorio = ViewBag.SoVeORelatorio ?? false;
 
+    // Os valores da parceria são do raiz e do próprio parceiro (é a conta dele) — o
+    // administrador nomeado e o assistente leem o mesmo relatório sem a coluna de dinheiro
+    // (18/08/2026). Quem aderiu, quem foi barrado e quem passou continua igual pra todos.
+    bool podeVerValores = ViewBag.PodeVerValores ?? false;
+
     var barrados = linhas.SelectMany(l => l.Barrados).OrderByDescending(b => b.Bloqueio.CriadoEm).ToList();
 
     // O selo acompanha o que o resultado significa PRA PARCERIA: verde é o filtro tendo
@@ -260,7 +265,10 @@
                                são os que a gente PERGUNTOU e o ranking não conhece. *@
                             <th class="text-center">Não constam</th>
                             <th class="text-center">Barrados</th>
-                            <th class="text-end">Valor</th>
+                            @if (podeVerValores)
+                            {
+                                <th class="text-end">Valor</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -331,19 +339,22 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="text-end">
-                                    <div class="fw-bold">@linha.Valor.ToString("C")</div>
-                                    @if (linha.Acertado)
-                                    {
-                                        <span class="badge bg-success">
-                                            acertado em @linha.Acerto!.AcertadoEm.ToString("dd/MM/yyyy")
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted" style="font-size: .75rem;">em aberto</span>
-                                    }
-                                </td>
+                                @if (podeVerValores)
+                                {
+                                    <td class="text-end">
+                                        <div class="fw-bold">@linha.Valor.ToString("C")</div>
+                                        @if (linha.Acertado)
+                                        {
+                                            <span class="badge bg-success">
+                                                acertado em @linha.Acerto!.AcertadoEm.ToString("dd/MM/yyyy")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted" style="font-size: .75rem;">em aberto</span>
+                                        }
+                                    </td>
+                                }
                             </tr>
                         }
                     </tbody>
@@ -355,18 +366,24 @@
                             <td class="text-center text-success">@totais.Aprovados</td>
                             <td class="text-center">@totais.NaoConstamNoRanking</td>
                             <td class="text-center text-danger">@totais.Barrados</td>
-                            <td class="text-end">@totais.ValorTotal.ToString("C")</td>
+                            @if (podeVerValores)
+                            {
+                                <td class="text-end">@totais.ValorTotal.ToString("C")</td>
+                            }
                         </tr>
                     </tfoot>
                 </table>
             </div>
-            <div class="card-footer bg-white small text-muted">
-                <i class="bi bi-cash-coin"></i>
-                <strong>@custo.ToString("C") por pessoa inscrita</strong> —
-                @totais.ValorEmAberto.ToString("C") em aberto e
-                @totais.ValorJaAcertado.ToString("C") já acertado.
-                O valor de torneio com inscrição aberta ainda pode subir.
-            </div>
+            @if (podeVerValores)
+            {
+                <div class="card-footer bg-white small text-muted">
+                    <i class="bi bi-cash-coin"></i>
+                    <strong>@custo.ToString("C") por pessoa inscrita</strong> —
+                    @totais.ValorEmAberto.ToString("C") em aberto e
+                    @totais.ValorJaAcertado.ToString("C") já acertado.
+                    O valor de torneio com inscrição aberta ainda pode subir.
+                </div>
+            }
         </div>
     }
 
