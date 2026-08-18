@@ -407,6 +407,11 @@ using (var scope = app.Services.CreateScope())
         //
         // `Codigo` e `Tipo` continuam "CASAL": é por Tipo que as telas agrupam a categoria, e
         // mexer neles quebraria o bloco do coração na criação sem melhorar nada.
+        //
+        // E foi o que aconteceu: a linha antiga "Categoria Casal" (singular) ficou de pé nos
+        // bancos que já rodavam, e a criação de torneio passou a oferecer as duas. Quem desliga
+        // ela é a migração CategoriaCasalDuplicada — NÃO a devolva a esta lista, ou o start
+        // seguinte a recria ligada e a duplicata volta.
         ("Categoria Casais", "CASAL", "Casal", true),
     };
 

@@ -526,9 +526,13 @@ namespace Padelizou.Controllers
 
             // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário
             // inteiro perdido. Melhor recusar aqui, explicando o que fazer.
+            //
+            // O -1 é a opção "Meu clube não está na lista" (ver Create.cshtml) escolhida sem
+            // escrever o nome: cai aqui igual ao 0 de quem não escolheu nada.
             if (torneio.ClubeId <= 0)
             {
-                return await Recusar("Escolha o clube responsável, ou escreva o nome dele no campo abaixo do seletor.");
+                return await Recusar("Escolha o local na lista — ou, se ele não estiver lá, escolha "
+                    + "\"Meu clube não está na lista\" e escreva o nome.");
             }
 
             // O local do torneio é o clube: pedir os dois era pedir o mesmo dado duas vezes.
