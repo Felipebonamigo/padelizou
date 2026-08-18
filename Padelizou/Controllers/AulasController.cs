@@ -20,7 +20,16 @@ namespace padelizou.Controllers
         private readonly ILogger<AulasController> _logger;
 
         private const int DuracaoPadraoMinutos = 60;
-        private const int DiasDeJanelaBusca = 14;
+
+        // Quanto tempo pra frente a busca de aula enxerga. Eram 14 dias, e isso prendia o aluno
+        // ao mês corrente: quem quer marcar "dia 5 do mês que vem" não achava a data porque ela
+        // não existia na resposta — não era limite de tela, era de dados.
+        //
+        // 60 dias cobrem o mês seguinte inteiro a partir de QUALQUER dia do mês (mesmo no dia
+        // 31 ainda sobram 30). A grade do professor é semanal e se repete, então esticar não
+        // inventa horário nenhum: o custo é só tamanho de resposta — uma cidade com 68 horários
+        // em 14 dias fica na casa dos 300, que é JSON de dezenas de KB.
+        private const int DiasDeJanelaBusca = 60;
 
         public AulasController(
             DbPadelContext context,

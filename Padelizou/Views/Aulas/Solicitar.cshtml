@@ -125,12 +125,22 @@
                                 <label class="form-label fw-bold text-muted small pdz-passo">Dia</label>
                                 <input type="hidden" id="select-dia" value="" />
                                 <div class="border rounded p-2" style="background:var(--pdz-surface-alt);">
+                                    @* As setas trocam de MÊS, não de semana: aula pro mês que vem
+                                       é pedido normal, e sem elas a pessoa só enxergava o mês em
+                                       que estava. Cada uma se desliga na ponta da janela — seta
+                                       que não leva a lugar nenhum promete data que não existe. *@
                                     <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                id="cal-anterior" aria-label="Mês anterior">‹</button>
                                         <span class="small fw-bold text-muted" id="cal-mes"></span>
-                                        <button type="button" class="btn btn-sm btn-link p-0 small" id="cal-limpar">Qualquer dia</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                id="cal-proximo" aria-label="Próximo mês">›</button>
                                     </div>
                                     <div class="pdz-cal-grade small text-muted mb-1" id="cal-cabecalho"></div>
                                     <div class="pdz-cal-grade" id="cal-dias"></div>
+                                    <div class="text-center mt-2">
+                                        <button type="button" class="btn btn-sm btn-link p-0 small" id="cal-limpar">Qualquer dia</button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -355,7 +365,7 @@
                     $.each(dados.locais || [], function (i, l) { locaisPorId[l.id] = l; });
 
                     if (!ofertas.length) {
-                        mostrarVazio('Nenhum horário livre nessa cidade nos próximos 14 dias.');
+                        mostrarVazio('Nenhum horário livre nessa cidade nos próximos dois meses.');
                         return;
                     }
 
@@ -377,6 +387,10 @@
                 $('#hidden-pacote-id').val('');
                 $('#hidden-professor-id, #hidden-local-id, #hidden-data-hora').val('');
                 $dia.val('');
+                // Trocar de cidade recomeça o calendário: o mês guardado era da janela ANTERIOR
+                // e abriria numa data que a cidade nova pode nem ter.
+                mesVisivel = null;
+                ultimoDiaEscolhido = '';
                 $('#cal-dias, #cal-cabecalho').empty();
                 $('#cal-mes').text('');
                 $btn.prop('disabled', true);
@@ -501,9 +515,41 @@
 
             var diasDaSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
-            // O calendário, desenhado a partir dos dias que ainda têm vaga. O intervalo é o das
-            // próprias ofertas (de hoje até o fim da janela do servidor), completado até fechar
-            // semanas inteiras — coluna torta é o que faz a pessoa se perder no dia da semana.
+            // Qual mês o calendário está mostrando. Fica FORA do desenho porque o desenho roda a
+            // cada mexida em qualquer filtro: guardado dentro, escolher um horário jogaria a
+            // pessoa de volta pro mês de hoje no meio da navegação.
+            var mesVisivel = null;
+
+            // O último dia escolhido, pra saber se a escolha MUDOU. Sem essa memória, cada
+            // redesenho puxaria o calendário de volta pro mês da data escolhida — e virar o mês
+            // com um dia já marcado seria impossível: a seta andava e o desenho desandava.
+            var ultimoDiaEscolhido = '';
+
+            // Os limites da janela do servidor, em chave "aaaa-mm-dd". É o que decide até onde
+            // as setas andam — e o que separa "dia sem vaga" de "dia que a busca nem cobre".
+            function janelaDasOfertas() {
+                var dias = {};
+                $.each(ofertas, function (i, o) { dias[o.valor.substring(0, 10)] = true; });
+                var chaves = $.map(dias, function (v, k) { return k; }).sort();
+                return chaves.length ? { primeiro: chaves[0], ultimo: chaves[chaves.length - 1] } : null;
+            }
+
+            // O primeiro dia do mês de uma chave, como Date — a unidade em que as setas andam.
+            function mesDe(chave) {
+                var d = comoData(chave);
+                return new Date(d.getFullYear(), d.getMonth(), 1);
+            }
+
+            function mesmoMes(a, b) {
+                return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+            }
+
+            // UM mês por vez, como qualquer seletor de data de celular. Antes a tela despejava a
+            // janela inteira numa grade só: com 14 dias dava três semanas e passava; com 60, viram
+            // nove semanas empilhadas, e aí não é mais calendário, é lista com cara de calendário.
+            //
+            // O dia sem vaga aparece APAGADO em vez de sumir — é ele que mostra que a semana
+            // existe e que aquele dia simplesmente não tem horário livre.
             function desenharCalendario(comVaga, escolhida) {
                 if (!$('#cal-cabecalho').children().length) {
                     var cabecalho = '';
@@ -511,49 +557,76 @@
                     $('#cal-cabecalho').html(cabecalho);
                 }
 
-                // A moldura é a janela INTEIRA da cidade, não só o que sobrou do filtro: é ela
-                // que dá o "dia apagado". Desenhar só os dias com vaga encolheria o calendário a
-                // cada clique, e o que a pessoa veria seria o mês mudando de tamanho sozinho.
-                var todosOsDias = {};
-                $.each(ofertas, function (i, o) { todosOsDias[o.valor.substring(0, 10)] = true; });
-                var chaves = $.map(todosOsDias, function (v, k) { return k; }).sort();
-                if (!chaves.length) { $('#cal-dias').empty(); return; }
+                var janela = janelaDasOfertas();
+                if (!janela) { $('#cal-dias').empty(); $('#cal-mes').text(''); return; }
+
+                var primeiroMes = mesDe(janela.primeiro);
+                var ultimoMes = mesDe(janela.ultimo);
+
+                // Pular pro mês da data só quando a ESCOLHA muda — não a cada redesenho, senão a
+                // seta não conseguiria sair do mês do dia já marcado.
+                if (escolhida && escolhida !== ultimoDiaEscolhido) mesVisivel = mesDe(escolhida);
+                ultimoDiaEscolhido = escolhida;
+
+                // E se o mês guardado saiu do ar (trocar de cidade encurta a janela), volta pro
+                // começo em vez de desenhar um mês vazio.
+                if (!mesVisivel || mesVisivel < primeiroMes || mesVisivel > ultimoMes) mesVisivel = primeiroMes;
 
                 var comVagaAgora = {};
                 $.each(comVaga, function (i, k) { comVagaAgora[k] = true; });
 
-                var primeiro = comoData(chaves[0]);
-                var ultimo = comoData(chaves[chaves.length - 1]);
-                // Recua até o domingo e avança até o sábado: sem isso as colunas não batem com
-                // o cabeçalho D S T Q Q S S.
-                var cursor = new Date(primeiro.getFullYear(), primeiro.getMonth(), primeiro.getDate() - primeiro.getDay());
-                var fim = new Date(ultimo.getFullYear(), ultimo.getMonth(), ultimo.getDate() + (6 - ultimo.getDay()));
+                var ano = mesVisivel.getFullYear();
+                var mes = mesVisivel.getMonth();
+                var diasNoMes = new Date(ano, mes + 1, 0).getDate();
 
                 var html = '';
-                var meses = {};
+                // Quadradinhos invisíveis até o dia 1 cair na coluna certa: mês quase nunca
+                // começa no domingo, e sem eles a grade inteira anda e a pessoa lê o dia da
+                // semana errado — que é justamente o que o calendário veio consertar.
+                for (var vazio = 0; vazio < new Date(ano, mes, 1).getDay(); vazio++) {
+                    html += '<div class="pdz-cal-vazio">&nbsp;</div>';
+                }
 
-                while (cursor <= fim) {
-                    var chave = comoChave(cursor);
-                    var dentroDaJanela = chave >= chaves[0] && chave <= chaves[chaves.length - 1];
+                for (var dia = 1; dia <= diasNoMes; dia++) {
+                    var chave = comoChave(new Date(ano, mes, dia));
+                    // Fora da janela da busca (ontem, ou depois do alcance do servidor): fica
+                    // apagado igual, porque pra quem olha é a mesma coisa — não dá pra marcar.
+                    var dentroDaJanela = chave >= janela.primeiro && chave <= janela.ultimo;
+                    var livre = dentroDaJanela && comVagaAgora[chave] === true;
 
-                    if (!dentroDaJanela) {
-                        html += '<div class="pdz-cal-vazio">&nbsp;</div>';
-                    } else {
-                        meses[cursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })] = true;
-                        var livre = comVagaAgora[chave] === true;
-                        html += '<button type="button" class="pdz-cal-dia'
-                            + (chave === escolhida ? ' pdz-cal-escolhido' : '')
-                            + '" data-dia="' + chave + '"'
-                            + (livre ? '' : ' disabled')
-                            + ' title="' + rotuloDoDia(chave) + '">' + cursor.getDate() + '</button>';
-                    }
-
-                    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+                    html += '<button type="button" class="pdz-cal-dia'
+                        + (chave === escolhida ? ' pdz-cal-escolhido' : '')
+                        + '" data-dia="' + chave + '"'
+                        + (livre ? '' : ' disabled')
+                        + ' title="' + rotuloDoDia(chave) + '">' + dia + '</button>';
                 }
 
                 $('#cal-dias').html(html);
-                // "agosto de 2026" — ou os dois meses, quando a janela vira o mês no meio.
-                $('#cal-mes').text($.map(meses, function (v, k) { return k; }).join(' · '));
+                $('#cal-mes').text(mesVisivel.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
+
+                // Seta que não leva a lugar nenhum promete data que não existe.
+                $('#cal-anterior').prop('disabled', mesmoMes(mesVisivel, primeiroMes));
+                $('#cal-proximo').prop('disabled', mesmoMes(mesVisivel, ultimoMes));
+            }
+
+            // Andar de mês é só redesenhar: nenhum filtro muda, então a escolha atual continua
+            // de pé e o resumo lá embaixo não pisca.
+            function andarMes(passo) {
+                if (!mesVisivel) return;
+                mesVisivel = new Date(mesVisivel.getFullYear(), mesVisivel.getMonth() + passo, 1);
+                desenharCalendario(diasComVaga(), $dia.val() || '');
+            }
+
+            // Os dias que sobreviveram aos OUTROS filtros — a mesma conta que a varredura faz
+            // pro calendário, isolada aqui porque virar o mês precisa dela sem redesenhar tudo.
+            function diasComVaga() {
+                var vistos = {};
+                var chaves = [];
+                $.each(filtrar('dia'), function (i, o) {
+                    var chave = dimensoes.dia.campo(o);
+                    if (!vistos[chave]) { vistos[chave] = true; chaves.push(chave); }
+                });
+                return chaves.sort();
             }
 
             // Redesenha os quatro filtros. Cada um mostra só o que ainda é possível diante dos
@@ -684,6 +757,11 @@
                 $dia.val('');
                 atualizar();
             });
+
+            // Virar o mês NÃO mexe em filtro nenhum — é só olhar mais pra frente. Chamar
+            // atualizar() aqui reescreveria os outros seletores à toa e faria o resumo piscar.
+            $('#cal-anterior').on('click', function () { andarMes(-1); });
+            $('#cal-proximo').on('click', function () { andarMes(1); });
 
             // ------------------------------------------------------------------
             // O que depende do LOCAL: pacotes, recorrência e preço por tamanho

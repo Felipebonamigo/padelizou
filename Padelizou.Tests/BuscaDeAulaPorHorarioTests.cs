@@ -17,10 +17,11 @@ namespace Padelizou.Tests;
 // oferecer professor que não tem nada a oferecer.
 public class BuscaDeAulaPorHorarioTests
 {
-    // ⚠️ A janela do servidor é de 14 dias, então TODA regra de grade rende o mesmo dia da
-    // semana DUAS vezes (amanhã e amanhã + 7). Os testes olham só a primeira ocorrência — é a
-    // que os cenários montam — mas quem escrever teste novo aqui precisa saber disso: contar
-    // "os horários do professor" sem escolher o dia devolve o dobro do que parece.
+    // ⚠️ A janela do servidor é de 60 dias, então TODA regra de grade rende o mesmo dia da
+    // semana OITO ou NOVE vezes (amanhã, amanhã + 7, amanhã + 14...). Os testes olham só a
+    // primeira ocorrência — é a que os cenários montam — mas quem escrever teste novo aqui
+    // precisa saber disso: contar "os horários do professor" sem escolher o dia devolve quase
+    // uma ordem de grandeza a mais do que parece.
     private static DateTime Amanha => DateTime.Today.AddDays(1);
 
     // O mesmo apelido que o MVC usa ao responder um `Json(...)`: camelCase. Serializar com o
@@ -167,6 +168,28 @@ public class BuscaDeAulaPorHorarioTests
         Assert.Equal(JsonValueKind.Null, noJson.GetProperty("precoTrio").ValueKind);
         Assert.Equal(4, Assert.Single(noJson.GetProperty("pacotes").EnumerateArray())
             .GetProperty("quantidadeAulas").GetInt32());
+    }
+
+    // Marcar pro mês que vem é pedido normal — e antes NÃO era limite de tela, era de dados:
+    // com a janela de 14 dias, a data do mês seguinte simplesmente não vinha na resposta, e o
+    // calendário não tinha o que desenhar. Este teste é o que segura a janela larga: encurtá-la
+    // de volta apaga o mês que vem da tela sem quebrar mais nada.
+    [Fact]
+    public async Task A_busca_alcanca_o_mes_que_vem()
+    {
+        var (ctx, cidade, aluno) = Cenario();
+        using var _ = ctx;
+
+        Professor(ctx, cidade, "Jonatas", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0));
+
+        var dias = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "ofertas")
+            .Select(o => DateTime.Parse(o.GetProperty("valor").GetString()!).Date)
+            .ToList();
+
+        // O mês seguinte ao de hoje tem que aparecer, venha o dia 1 ou o dia 30 — é isso que
+        // "o aluno consegue marcar pro mês que vem" significa.
+        var mesQueVem = DateTime.Today.AddMonths(1);
+        Assert.Contains(dias, d => d.Year == mesQueVem.Year && d.Month == mesQueVem.Month);
     }
 
     // ===================== O QUE NÃO PODE APARECER =====================
