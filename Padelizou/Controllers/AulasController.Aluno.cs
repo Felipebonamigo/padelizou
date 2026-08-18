@@ -9,12 +9,17 @@ using System.Security.Claims;
 
 namespace padelizou.Controllers
 {
-    // O lado do ALUNO: a escada de marcar aula (cidade -> professor -> local -> tipo -> horário),
-    // a solicitação, "Minhas Aulas" e o cancelamento pela política de 24h.
+    // O lado do ALUNO: a busca de aula (estado -> cidade -> dia/horário/professor/local, que se
+    // filtram entre si), a solicitação, "Minhas Aulas" e o cancelamento pela política de 24h.
     // O [Authorize] da classe fica no arquivo principal (AulasController.cs).
     public partial class AulasController
     {
-        // 1. TELA DE BUSCA (cidade -> professor -> local -> horário)
+        // 1. TELA DE BUSCA — estado -> cidade, e daí uma grade só, filtrável por qualquer lado.
+        //
+        // A escada antiga (professor -> local -> horário) obrigava a escolher O PROFESSOR
+        // primeiro. Só que muita gente escolhe pelo HORÁRIO: tem a terça de manhã livre e
+        // aceita quem estiver disponível. Agora dia, horário, professor e local filtram uns aos
+        // outros — mexer em qualquer um deles enxuga os demais.
         [HttpGet]
         public async Task<IActionResult> Solicitar()
         {
@@ -29,8 +34,16 @@ namespace padelizou.Controllers
             return View(new SolicitarViewModel { Cidades = CidadesSemRepetir.Agrupar(cidadesComProfessor) });
         }
 
+        // Tudo o que a cidade tem pra oferecer nos próximos dias, de uma vez: professores,
+        // locais (com preço e pacotes) e cada horário livre.
+        //
+        // POR QUE DE UMA VEZ: o filtro é cruzado — escolher o dia tem que enxugar a lista de
+        // professores, e escolher o professor tem que enxugar a lista de dias. Ida ao servidor
+        // a cada mexida pediria uma rota nova por combinação, cada uma repetindo a conta do que
+        // está livre. Com a grade da cidade na mão, a tela responde na hora e a regra mora num
+        // lugar só (Services/OfertasDeAula).
         [HttpGet]
-        public async Task<IActionResult> ObterProfessoresPorCidade(int cidadeId)
+        public async Task<IActionResult> ObterOfertas(int cidadeId)
         {
             // ⚠️ Todos os ids da mesma cidade: com duas linhas de catálogo pra "Gravataí", o
             // aluno escolhia uma e metade dos professores não aparecia — sem erro nenhum.
@@ -39,20 +52,18 @@ namespace padelizou.Controllers
             var professores = await _context.ProfessorCidades
                 .Where(pc => idsDaCidade.Contains(pc.CidadeId) && pc.Professor.IsProfessor)
                 .Select(pc => new { pc.Professor.Id, pc.Professor.Nome })
+                .Distinct()
                 .OrderBy(p => p.Nome)
                 .ToListAsync();
 
-            return Json(professores);
-        }
+            var idsProfessores = professores.Select(p => p.Id).ToList();
 
-        [HttpGet]
-        public async Task<IActionResult> ObterLocais(int professorId)
-        {
             var locais = await _context.LocaisAula
-                .Where(l => l.ProfessorId == professorId && l.Ativo)
+                .Where(l => idsProfessores.Contains(l.ProfessorId) && l.Ativo)
                 .Select(l => new
                 {
                     l.Id,
+                    l.ProfessorId,
                     l.Nome,
                     l.Endereco,
                     l.PrecoPadrao,
@@ -69,68 +80,44 @@ namespace padelizou.Controllers
                 })
                 .ToListAsync();
 
-            return Json(locais);
-        }
+            var idsLocais = locais.Select(l => l.Id).ToList();
 
-        [HttpGet]
-        public async Task<IActionResult> ObterHorarios(int professorId, int localId)
-        {
             var regras = await _context.HorariosDisponiveis
-                .Where(h => h.ProfessorId == professorId && h.LocalAulaId == localId && h.Ativo)
+                .Where(h => idsLocais.Contains(h.LocalAulaId) && h.Ativo)
                 .ToListAsync();
-
-            if (regras.Count == 0)
-            {
-                return Json(Array.Empty<object>());
-            }
 
             // O que já está marcado, com a duração de cada um: aula de 2h ocupa DOIS slots de
             // uma hora, e comparar só o horário de início oferecia ao aluno o segundo deles.
-            var aulasOcupadas = (await _context.Aulas
-                .Where(a => a.ProfessorId == professorId &&
-                            (a.Status == "Pendente" || a.Status == "Confirmada") &&
+            var ocupadas = (await _context.Aulas
+                .Where(a => idsProfessores.Contains(a.ProfessorId) &&
+                            (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada) &&
                             a.DataHora >= DateTime.Today)
-                .Select(a => new { a.DataHora, a.DuracaoMinutos })
+                .Select(a => new { a.ProfessorId, a.DataHora, a.DuracaoMinutos })
                 .ToListAsync())
-                .Select(a => (a.DataHora, a.DuracaoMinutos))
+                .Select(a => (a.ProfessorId, a.DataHora, a.DuracaoMinutos))
                 .ToList();
 
-            var slots = new List<(DateTime Quando, int Duracao)>();
-            var hoje = DateTime.Today;
+            var ofertas = OfertasDeAula.Gerar(regras, ocupadas, DateTime.Now, DiasDeJanelaBusca);
 
-            for (var dia = 0; dia < DiasDeJanelaBusca; dia++)
+            // Só quem sobrou vai pra tela: professor com a agenda cheia (ou local sem grade)
+            // vira opção que não leva a lugar nenhum — o aluno escolhe e não acha horário.
+            var professorComOferta = ofertas.Select(o => o.ProfessorId).ToHashSet();
+            var localComOferta = ofertas.Select(o => o.LocalId).ToHashSet();
+
+            return Json(new
             {
-                var data = hoje.AddDays(dia);
-                var regrasDoDia = regras.Where(r => (int)data.DayOfWeek == r.DiaSemana);
-
-                foreach (var regra in regrasDoDia)
+                professores = professores.Where(p => professorComOferta.Contains(p.Id)),
+                locais = locais.Where(l => localComOferta.Contains(l.Id)),
+                ofertas = ofertas.Select(o => new
                 {
-                    var horario = data.Add(regra.HoraInicio);
-                    var fimJanela = data.Add(regra.HoraFim);
-
-                    while (horario.AddMinutes(regra.DuracaoMinutos) <= fimJanela)
-                    {
-                        var livre = !aulasOcupadas.Any(o =>
-                            DuracaoDaAula.Conflita(horario, regra.DuracaoMinutos, o.DataHora, o.DuracaoMinutos));
-
-                        if (horario > DateTime.Now && livre)
-                        {
-                            slots.Add((horario, regra.DuracaoMinutos));
-                        }
-                        horario = horario.AddMinutes(regra.DuracaoMinutos);
-                    }
-                }
-            }
-
-            return Json(slots
-                .OrderBy(s => s.Quando)
-                .Select(s => new
-                {
-                    valor = s.Quando.ToString("yyyy-MM-ddTHH:mm:ss"),
-                    // A tela mostra a duração junto do horário: "sáb 15/08 09:00 (1h30)". O que
-                    // vale mesmo é o que o servidor recalcula no POST — isto é só o rótulo.
-                    duracao = DuracaoDaAula.Rotulo(s.Duracao),
-                }));
+                    professorId = o.ProfessorId,
+                    localId = o.LocalId,
+                    valor = o.Quando.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    // A tela mostra a duração junto do horário: "09:00 (1h30)". O que vale mesmo
+                    // é o que o servidor recalcula no POST — isto é só o rótulo.
+                    duracao = DuracaoDaAula.Rotulo(o.DuracaoMinutos),
+                }),
+            });
         }
 
         // 2. SALVA A SOLICITAÇÃO (fica Pendente até o professor confirmar) — pode gerar uma aula
