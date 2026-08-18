@@ -21,6 +21,16 @@
 >
 > 🧪 **4.222 testes, 0 falhas (15 novos).** ✅ Falsificação: voltando o vencedor a ser deduzido do placar, caem 3 — entre eles o `Jogo_sem_placar_pontua_como_vitoria_e_nao_como_empate`, que é exatamente o bug que a migração existe pra evitar. ⚠️ **Dois testes ANTIGOS quebraram e estavam certos em quebrar**: montavam `JogoSemanal` na mão e contavam com o vencedor calculado. Foram o alarme de que existiam call sites fora do controller — conferi que em produção só existe UMA construção de `JogoSemanal`, e ela passa pela régua.
 >
+> ✅ **No ar nos dois ambientes** (`build-582-ff64916`): `NRestarts 0`, zero exceção, `healthz` 200, `GamesDupla1/2` agora `nullable`.
+>
+> ✅ **A PROVA DO BACKFILL, e por que ela é significativa**: os 6 jogos de produção ficaram **5 pra dupla 1 e 1 pra dupla 2 — nenhum empate**. Se o `UPDATE` da migração não tivesse rodado, os 6 estariam em `0`, que é empate: a distribuição sozinha já denunciaria. Somado a isso, **zero** jogos com vencedor divergente do próprio placar.
+>
+> ✅ **E a conferência que fecha o caso**: recalculei em SQL os pontos de cada jogador a partir dos vencedores agora gravados e comparei com o `PontuacaoInterna` que já estava guardado — **zero divergências**. O ranking que os jogadores veem hoje é exatamente o que o sistema vai recalcular no próximo registrar/editar/apagar. ⚠️ **Vale como régua pra toda migração que mexe em dado DERIVADO: não basta conferir a coluna nova — tem que conferir o que é calculado A PARTIR dela.** Sem isso, a migração poderia ter deixado uma bomba armada pro primeiro jogo lançado, e nada apareceria até lá.
+>
+> ⏭️ **NÃO conferido**: a tela nova no celular, que é justamente o ponto da mudança. A sessão local não é membro de panelinha nenhuma no dev, então os botões não foram tocados por mim.
+>
+> ⚠️ **O `main` está À FRENTE do que está publicado**: a `build-582` é do `ff64916`, e depois dela entraram os 4 commits da sessão paralela (a trava da tela de erro, `d13cf16`). Isso NÃO está em produção.
+>
 > Antes, no mesmo dia: 🔢 **A TELA DE ERRO OBEDECIA AO NÚMERO DIGITADO NA URL** — inclusive um 200.
 >
 > 🔢 **O QUE ESTAVA ERRADO**: `HomeController.NaoEncontrado(int codigo = 404)` fazia `Response.StatusCode = codigo` com o valor cru da query string. Quem preenche esse `codigo` é o `UseStatusCodePagesWithReExecute` do `Program.cs` — mas query string **é a barra de endereço**, e lá quem digita é qualquer um. Medido num app de laboratório com a mesma action: `?codigo=99999` fez o Kestrel escrever **999** na linha de status, e `?codigo=200` fez uma URL do site responder **200 OK** exibindo a tela de "essa bola saiu".
