@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
+> Última atualização: **18/08/2026** — 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
+>
+> 🕳️ **O relato**: chegou um CPF no WhatsApp — a pessoa não sabia login, e-mail nem senha. **Não havia tela nenhuma** pra responder isso: a busca de `/Admin/Organizadores` acha pelo CPF completo mas imprime **só o nome**, sem nenhum contato. A única saída era abrir SSH no VPS e rodar `SELECT` no banco de produção, no meio de uma conversa de WhatsApp.
+>
+> 🔒 **E a senha não sai — nem por SSH.** O banco guarda só o hash (`IPasswordHasher` do ASP.NET, PBKDF2 com sal). Não existe "consultar a senha" em lugar nenhum do sistema; existe **definir uma nova**. A tela diz isso com todas as letras, porque a pergunta vai voltar.
+>
+> ✅ **A tela**: procura por **CPF completo, login, e-mail, nome ou apelido** (a mesma `BuscaJogador.ParaAcaoAdministrativaAsync` do teste de aviso — não nasceu régua nova) e responde **por quê**, não só *quem*. São **quatro** situações e **três delas NÃO se resolvem com "esqueci minha senha"**: conta normal (manda no fluxo, com o CPF), **pré-cadastro** (precisa **criar** a conta com o mesmo CPF), **com senha e sem e-mail** (beco sem saída: alguém da casa tem que gravar um e-mail) e **conta excluída** (não há acesso a devolver). Homônimos viram lista pra escolher — responder ao Lucas errado é pior que não responder, porque o admin conclui que resolveu.
+>
+> ♻️ **A regra saiu de dentro do controller.** Aquelas quatro situações eram três `if` escritos à mão no `AuthController.EsqueciSenha`. Copiá-los pra cá teria criado **a segunda cópia** — e a segunda cópia é como o site passa a dizer uma coisa pra pessoa e outra pro admin **sobre a mesma conta**. Agora as duas telas perguntam pra `Services/DiagnosticoDeAcesso`. ⚠️ A **ordem** dentro dele importa: conta excluída vem antes de pré-cadastro, porque a exclusão **também** zera o `SenhaHash` — invertido, quem pediu pra sair apareceria como "é só se cadastrar de novo".
+>
+> 🛡️ **SÓ LEITURA, de propósito — não é etapa que faltou.** Uma tela de suporte que também **edita** a conta alheia é a tela que, num dia corrido, troca o e-mail da pessoa errada — e trocar o e-mail de uma conta **é entregar a conta**. O único desfecho que ainda precisa de mão está escrito na tela pra ser feito de olho aberto. De quebra, ser só-GET mantém de graça a premissa do **assistente do sistema** (vê tudo, edita nada). O **CPF aparece mascarado** (`•••.456.789-••`): uma busca por nome devolve até dez pessoas, e os onze dígitos transformariam a tela de suporte num **extrator de documentos**. O CPF `EX...` de quem excluiu a conta sai inteiro — mascará-lo esconderia justo o que ele denuncia.
+>
+> 🧪 **4.167 testes, 0 falhas (17 novos).** ✅ Conferido no navegador, servidor de verdade, contra os 81 jogadores do banco local: as **quatro** situações renderizando certo, a lista de homônimos, o "não achei" (que explica os **três** motivos possíveis, porque responder "você não tem cadastro" pra quem excluiu a conta é dizer uma falsidade com toda a confiança), e a tela pública de recuperação **concordando** com o painel sobre o mesmo CPF — que é o ponto do serviço compartilhado.
+>
+> ⚠️ **Pendência**: **não está no ar** — falta build + `deploy.yml`. Vai junto com a recuperação por CPF de 17/08, que também segue sem subir.
+>
+> Antes, em 17/08/2026: 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
 >
 > 🕳️ **O relato**: o jogador do CPF `019.947.840-67` não conseguia recuperar a senha. Lendo o caminho inteiro apareceram **três** jeitos de falhar **em silêncio**, todos com a mesma resposta *"link a caminho"* na tela — por isso não havia como distinguir um do outro por fora. (1) O **CPF nunca foi identificador aceito**: `BuscaJogador.PorIdentificadorAsync` compara só e-mail e login, então quem digitava o CPF não era achado — e a tela dizia que o link tinha saído. (2) **Pré-cadastro** (quem foi inscrito num torneio por outra pessoa e nunca teve senha) não tem o que recuperar: o que falta é **criar** a conta, e o Cadastro reivindica a linha pelo CPF com o histórico junto. A tela mandava esperar e-mail. (3) Conta **com senha e sem e-mail** não tem pra onde mandar o link — a tela mandava caçar no spam um e-mail que nunca teve destinatário.
 >
