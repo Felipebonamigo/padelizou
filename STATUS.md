@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/08/2026** — 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits, e a publicação da **`build-574-2ad6a9d`**, que levou os DESAFIOS pra produção **invisíveis**.
+> Última atualização: **17/08/2026** — 🔐 **A PORTA DO WEBHOOK DE PAGAMENTO CONFERIA O TOKEN COM `==`, E O RELÓGIO ENTREGAVA O SEGREDO** — mais 💀 **o susto de ver trabalho não commitado sumir de um worktree**.
+>
+> 🔐 **O QUE ESTAVA ERRADO.** `POST /Pagamentos/Webhook` é o único ponto do sistema sem login, sem cookie e sem antiforgery — quem chama é o meio de pagamento, de fora. O que separa esse endpoint do mundo inteiro é UM token no cabeçalho `asaas-access-token`, e a conferência usava `==`. O `==` de string **para no primeiro caractere diferente**: o tempo de resposta cresce conforme o prefixo vai acertando, e dá pra descobrir o token **um caractere por vez**, com chamadas repetidas, sem nunca ter acertado ele inteiro. ⚠️ E este é o endpoint que **CONFIRMA PAGAMENTO** — quem descobre o token marca inscrição como paga sem pagar nada. Agora é `CryptographicOperations.FixedTimeEquals`, a mesma comparação de `ConviteDeParceiro.TokenConfere`.
+>
+> ⚠️ **VAZAMENTO POR TEMPO NÃO APARECE EM TESTE DE COMPORTAMENTO — e a falsificação mediu isso.** Com o `==` de volta, **5 dos 6** testes de comportamento continuaram VERDES: token errado seguia dando 401, cabeçalho ausente seguia dando 401, prefixo certo seguia dando 401. A resposta HTTP é idêntica nos dois mundos; o que muda é só o relógio. Por isso existe um teste que **lê o código-fonte** (`A_comparacao_do_token_e_em_tempo_fixo`), pelo mesmo motivo do teste de CSS do dropdown: sem ele, alguém "simplifica" a linha numa limpeza, tudo segue verde e o buraco volta calado.
+>
+> ⚠️ **O teste quase nasceu errado, e o defeito era fino**: o comentário do método fala em *"o `==` do .NET"*, então um teste que procurasse `==` solto acusaria erro **com o código certo**. Ele procura `== _settings.WebhookToken` e lê **só o corpo do método**, sem as linhas de comentário e parando no fecha-chaves — senão um `FixedTimeEquals` de qualquer outro método faria a asserção passar sem esta porta estar protegida.
+>
+> 💀 **TRABALHO NÃO COMMITADO SUMIU DE UM `.claude/worktrees/` — este conserto quase morreu junto.** Limpando os worktrees antigos, achei o `relaxed-babbage-42beca` com este conserto do webhook e um teste de 111 linhas, **sem commit desde 10/08**; deixei a pasta de pé justamente por isso e avisei. Minutos depois ela estava **limpa**: o reflog mostra `reset: moving to HEAD` e um `checkout`, o controller com data de minutos atrás e o teste **apagado do disco**. Não foi `stash` (não está lá), não sobrou objeto solto (`git fsck` varrido) e o arquivo não existe em lugar nenhum da máquina (`find`). ⚠️ **Não sei o que disparou** — não rodei `reset` nem `checkout` ali; rodei `git worktree remove` em OUTRAS três pastas e um `prune`. **A lição não depende de descobrir a causa**: pasta de worktree de sessão não é cofre. Só o commit numa branch faz o trabalho sobreviver ao fim da sessão.
+>
+> ✅ **Deu pra reconstituir** porque eu tinha imprimido o diff inteiro do controller na conversa **antes** de a pasta esvaziar. O teste de 111 linhas não voltou; o que está no repo é novo, com 7 casos.
+>
+> 🧹 **Worktrees**: três removidos (limpos e com o HEAD já contido na `origin/main`), sobraram os dois em uso. Ficam 6 branches locais já inteiras na `origin/main`, ainda não apagadas.
+>
+> 🧪 **4.182 testes, 0 falhas** (7 novos).
+>
+> Antes, no mesmo dia: 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits, e a publicação da **`build-574-2ad6a9d`**, que levou os DESAFIOS pra produção **invisíveis**.
 >
 > 🎾 **QUEM PROCURA PARCEIRO AGORA DIZ DE QUE LADO JOGA.** A lista do THE LAST DANCE tinha 9 inscrições sozinhas, todas dizendo só "Procurando parceiro" — o lado é o que separa uma da outra, e sem ele a conversa começa por *"de que lado tu joga?"*. O seletor aparece só na inscrição SOZINHA e vem **pré-selecionado com o perfil**: campo que já chega certo é campo que ninguém erra.
 >

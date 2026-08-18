@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Padelizou.Controllers;
@@ -687,7 +689,15 @@ public class PagamentosController : Controller
         // aceitar chamada anônima como confirmação de pagamento.
         if (string.IsNullOrWhiteSpace(_settings.WebhookToken)) return false;
 
-        return Request.Headers.TryGetValue("asaas-access-token", out var recebido)
-            && recebido.ToString() == _settings.WebhookToken;
+        if (!Request.Headers.TryGetValue("asaas-access-token", out var recebido)) return false;
+
+        // Comparação em tempo fixo, a mesma de ConviteDeParceiro.TokenConfere: o == do .NET
+        // para no primeiro caractere diferente, e o tempo de resposta entrega quantos
+        // caracteres iniciais já estavam certos — dá pra adivinhar o token um caractere por
+        // vez, com chamadas repetidas. E este é o endpoint que CONFIRMA PAGAMENTO: quem
+        // descobre o token marca inscrição como paga sem pagar.
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(recebido.ToString().Trim()),
+            Encoding.UTF8.GetBytes(_settings.WebhookToken.Trim()));
     }
 }
