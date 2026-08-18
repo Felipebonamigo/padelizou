@@ -495,7 +495,22 @@ if (!app.Environment.IsDevelopment())
 // caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.
 // "ReExecute" reexecuta o pipeline mantendo a URL que a pessoa digitou na barra, em vez de
 // redirecionar: quem chegou por um link errado consegue ver qual era o link errado.
-app.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}");
+//
+// ⚠️ SÓ PARA GET/HEAD, e isso conserta um 400 que enganava o diagnóstico.
+//
+// O ReExecute preserva o MÉTODO. Então um POST que dava erro virava um POST para
+// /Home/NaoEncontrado, esse POST passava pelo filtro global de antiforgery
+// (AutoValidateAntiforgeryTokenAttribute, lá em cima), não tinha token — e o cliente recebia
+// **400** no lugar do status real. Media-se `POST /rota-que-nao-existe` e vinha 400; o
+// webhook de pagamento recusado por token devolvia 400 em vez de 401.
+//
+// O sintoma é pior que o número errado: quem for investigar um dia começa procurando corpo
+// malformado, que é o que 400 quer dizer, quando o problema era rota inexistente ou
+// credencial. Página de erro é para GENTE NAVEGANDO; quem chama por POST é formulário, app
+// ou serviço, e o que serve para eles é o status cru, não uma tela HTML.
+app.UseWhen(
+    ctx => HttpMethods.IsGet(ctx.Request.Method) || HttpMethods.IsHead(ctx.Request.Method),
+    ramo => ramo.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}"));
 
 app.UseHttpsRedirection();
 // MapStaticAssets() (abaixo) só serve os arquivos que já existiam em wwwroot no momento do

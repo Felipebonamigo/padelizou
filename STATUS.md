@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🧹 **TRÊS COISAS QUE O FELIPE VIU NA TELA, E DUAS DELAS NÃO ESTAVAM NO CÓDIGO DA TELA.**
+> Última atualização: **18/08/2026** — 🔢 **TODO POST COM ERRO CHEGAVA COMO 400, ESCONDENDO O STATUS DE VERDADE** — inclusive o webhook de pagamento, que respondia 400 no lugar de 401.
+>
+> 🔢 **O SINTOMA, medido em produção**: `GET /rota-que-nao-existe` devolvia 404 certinho e **`POST` na MESMA rota devolvia 400**. Pior: `POST /Pagamentos/Webhook` sem token respondia **400**, embora o controller retorne `Unauthorized()` e o log registre a recusa direitinho. A divergência só aparecia de fora.
+>
+> ⚠️ **A CAUSA NÃO ESTAVA EM CONTROLLER NENHUM — era ordem de pipeline.** `UseStatusCodePagesWithReExecute` **preserva o método**, então o 404/401 virava um POST para `/Home/NaoEncontrado`, esse POST batia no filtro global de antiforgery e era recusado com 400 — e 400 era o que sobrava na resposta. Nenhum teste de controller pegaria: o `NaoEncontrado` sempre devolveu o status certo, e quem trocava era a camada ACIMA dele.
+>
+> 💊 **O conserto**: a tela de erro passa a valer só para **GET/HEAD** (`app.UseWhen`). Página de erro é para GENTE NAVEGANDO; quem chama por POST é formulário, app ou serviço, e para esses o que serve é o status cru, não uma tela HTML.
+>
+> ⚠️ **POR QUE ISSO IMPORTA MAIS QUE UM NÚMERO ERRADO**: 400 quer dizer "corpo malformado". No dia em que o token do webhook estiver errado de verdade, quem investigar começa procurando JSON quebrado — quando o problema é credencial. O status é a primeira pista de qualquer diagnóstico, e esse mandava para o lado errado.
+>
+> ✅ **PROVADO RODANDO, lado a lado, com todo o resto igual**: prod (`build-586`, sem o conserto) → webhook sem token **400**, POST em rota inexistente **400**. Local (com o conserto) → webhook **401**, POST em rota inexistente **405** (rota existe para GET; método não permitido — o status honesto). E o que não podia quebrar não quebrou: home 200, `?codigo=410` segue 410, `?codigo=200` segue virando 404 (a trava dos colegas, intacta).
+>
+> 🧪 **4.246 testes, 0 falhas (2 novos).** ⚠️ São testes de CÓDIGO-FONTE, e é o único jeito honesto aqui — o defeito é de ORDEM DO PIPELINE, e teste de controller passa nos dois mundos. Um cobra que o `ReExecute` esteja dentro do ramo de GET/HEAD; o outro cobra que **não sobrou nenhuma chamada solta**, senão um merge malfeito reintroduz a linha original e o primeiro teste continuaria verde.
+>
+> 🤝 Os 19 testes dos colegas (`StatusDaTelaDeErroTests`) seguem passando — inclusive o `Assert.Matches` que guarda a FORMA da chamada, que foi conferido de propósito antes de mexer.
+>
+> ⚠️ **SUSTO DE GIT, e a lição vale mais que o susto**: usei `git stash push -m ... <caminhos>` achando que guardaria só os meus dois arquivos; o push não pegou, e o `pop` seguinte puxou **o stash de OUTRA sessão** (`quadra-semana-wip`, o financeiro do professor), com conflito em três arquivos que eu nunca toquei. Nada se perdeu — o stash continua na lista e desfiz devolvendo os três ao HEAD. **Régua: em worktree compartilhada, `stash` é área comum, não gaveta pessoal.** Já havia regra de não usar `stash` aqui; ela existe justamente por isso.
+>
+> Antes, no mesmo dia: 🧹 **TRÊS COISAS QUE O FELIPE VIU NA TELA, E DUAS DELAS NÃO ESTAVAM NO CÓDIGO DA TELA.**
 >
 > 👀 **As três vieram de olhar o site, não de ler código** — criar torneio oferecendo "Categoria Casais" **e** "Categoria Casal" lado a lado, o campo "Não achou?" sempre à mostra, e o elenco do ER Padel com a **mesma jogadora cinco vezes seguidas**. Publicadas nas builds `build-586-79ead32` e `build-587-22c9074`.
 >
