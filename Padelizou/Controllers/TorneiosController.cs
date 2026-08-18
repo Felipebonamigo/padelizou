@@ -442,6 +442,18 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // QUANTAS INSCRIÇÕES JÁ FORAM FEITAS — serve só pra avisar quem vai mexer no preço
+            // na aba "Gerenciar Torneio". Cada inscrição guarda o que ELA custou, então mudar
+            // o valor não reescreve nenhuma; o aviso existe pra isso não ser descoberto no
+            // bolso (ver Services/AvisoDeMudancaDePreco).
+            //
+            // ⚠️ As DUAS tabelas: torneio de chave grava em `Dupla` e Americano em
+            // `InscricaoAmericana`. Contar só uma daria "ninguém inscrito" num Americano
+            // lotado, e o aviso sumiria justamente onde havia mais gente a prejudicar.
+            ViewBag.InscricoesJaFeitas =
+                await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == id)
+                + await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == id);
+
             // Só quem está em TorneioOrganizadores deste torneio pode ver/usar a aba "Gerenciar Torneio"
             var jogadorLogadoId = ObterJogadorIdLogado();
 

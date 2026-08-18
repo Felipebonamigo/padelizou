@@ -1010,6 +1010,7 @@ namespace Padelizou.Controllers
             IFormFile? capa,
             // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
+            decimal? taxaPorImpedimento = null,
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
             // Convite do grupo no WhatsApp. Segue a mesma regra dos dois de cima: campo em
             // branco APAGA o link (e com ele o botão), que é como o organizador desfaz um
@@ -1318,6 +1319,27 @@ namespace Padelizou.Controllers
             if (clubeEscolhido != null) torneio.LocalTorneio = clubeEscolhido.Nome;
             torneio.QuantidadeQuadras = quantidadeQuadras;
             torneio.PermiteImpedimentos = permiteImpedimentos;
+
+            // A TAXA DE IMPEDIMENTO passou a ser editável com o torneio já aberto (Felipe,
+            // 18/08/2026) — o preço da inscrição já era, e deixar só ela presa na tela de
+            // criação era o mesmo beco de sempre: interruptor que só existe no cadastro vira
+            // "não dá pra mudar".
+            //
+            // ⚠️ Nulo = campo não veio (aba antiga em cache), e aí mantém o que está gravado.
+            // Zero é escolha explícita: "parei de cobrar por impedimento".
+            //
+            // ⚠️ Como o preço da inscrição, isto NÃO reescreve inscrição que já existe — cada
+            // uma guarda o que custou. Quem avisa disso na tela é Services/AvisoDeMudancaDePreco.
+            if (taxaPorImpedimento is decimal novaTaxa)
+            {
+                if (novaTaxa < 0)
+                {
+                    TempData["Erro"] = "A taxa por impedimento não pode ser negativa.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.TaxaPorImpedimento = novaTaxa;
+            }
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.ValidarPeloRankingRs = validarPeloRankingRs;
             await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);

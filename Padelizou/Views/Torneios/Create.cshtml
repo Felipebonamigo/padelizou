@@ -941,7 +941,16 @@
                             <label class="form-check-label fw-bold text-muted" for="impSwitch">Permitir Impedimentos de Horário?</label>
                         </div>
                         <div id="turnosImpedimento" class="ps-4" style="display: none;">
-                            <p class="small text-muted mb-2">Quais turnos as duplas podem marcar como impedimento?</p>
+                            @* ⚠️ O organizador escolhe QUAIS turnos ficam disponíveis; a dupla
+                               escolhe UM deles. Sem dizer isso aqui, liberar os três lê como
+                               "a dupla pode ficar fora dos três" — e é o contrário. A trava do
+                               "só um" mora em Services/ImpedimentoUnico, no servidor. *@
+                            <p class="small text-muted mb-1">Quais turnos as duplas podem marcar como impedimento?</p>
+                            <p class="small text-info mb-2">
+                                <i class="bi bi-info-circle"></i>
+                                Estes são os turnos que ficam <strong>disponíveis</strong> — cada dupla escolhe
+                                <strong>apenas um deles</strong>.
+                            </p>
                             @* A quinta só vale pra torneio que COMEÇA na quinta — a linha
                                aparece e some conforme a data escolhida (ver o script no fim
                                da página). Num fim de semana comum, oferecer o turno seria
@@ -978,9 +987,16 @@
                                     <input type="number" name="TaxaPorImpedimento" id="taxaImpedimento"
                                            step="0.01" min="0" class="form-control pdz-dinheiro" placeholder="0,00" />
                                 </div>
+                                @* ⚠️ "Por dupla" não é promessa nova — é o que o código já faz.
+                                   Em Services/PrecoDaInscricao.Total a taxa entra FORA do laço
+                                   que soma pessoa por pessoa, porque o impedimento é da
+                                   INSCRIÇÃO: o que se perde é uma janela da grade, não um
+                                   atleta. Faltava a tela dizer, e sem dizer o organizador
+                                   supõe que multiplica por 2. *@
                                 <small class="text-muted d-block mt-1">
-                                    Cobrado <strong>por impedimento marcado</strong>, somado à inscrição.
-                                    Deixe zerado pra não cobrar nada.
+                                    Cobrado <strong>uma vez por dupla</strong> (não por jogador), somado à
+                                    inscrição. Como cada dupla marca no máximo um impedimento, este é o
+                                    valor máximo que se soma. Deixe zerado pra não cobrar nada.
                                 </small>
                             </div>
                         </div>

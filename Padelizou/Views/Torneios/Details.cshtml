@@ -2167,6 +2167,32 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <input type="number" step="0.01" name="precoInscricao" class="form-control"
                                            value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.PrecoInscricao)" required />
                                 </div>
+                                @* A taxa de impedimento passou a ser editável aqui (18/08/2026):
+                                   estava presa na tela de criação, e interruptor que só existe
+                                   no cadastro vira "não dá pra mudar". *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Taxa por impedimento</label>
+                                    <input type="number" step="0.01" min="0" name="taxaPorImpedimento" class="form-control"
+                                           value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.TaxaPorImpedimento)" />
+                                    <small class="text-muted d-block mt-1">
+                                        Uma vez <strong>por dupla</strong>, não por jogador. Zero = não cobra.
+                                    </small>
+                                </div>
+                                @* ⚠️ O AVISO QUE O FELIPE PEDIU. Cada inscrição guarda o que ELA
+                                   custou (Dupla.ValorInscricao): mudar o valor aqui não reescreve
+                                   nenhuma. Sem dizer isso, o organizador faz uma de duas contas
+                                   erradas — cobra a diferença de quem já pagou, ou conta com um
+                                   dinheiro que não vem. Texto único em AvisoDeMudancaDePreco. *@
+                                @if (Padelizou.Services.AvisoDeMudancaDePreco.Texto(
+                                        ViewBag.InscricoesJaFeitas as int? ?? 0) is string avisoDePreco)
+                                {
+                                    <div class="col-12">
+                                        <div class="alert alert-warning py-2 px-3 small mb-0 d-flex gap-2 align-items-start">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                            <span>@avisoDePreco</span>
+                                        </div>
+                                    </div>
+                                }
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold small">Qtd. de Quadras</label>
                                     <input type="number" id="editQuantidadeQuadras" name="quantidadeQuadras" class="form-control" value="@Model.QuantidadeQuadras" required oninput="gerarCamposQuadraEdicao()" />
