@@ -54,10 +54,11 @@ namespace Padelizou.Controllers
                     .Take(6)
                     .Select(f => new DepoimentoVM
                     {
-                        PrimeiroNome = f.Jogador.Nome,
-                        Cidade = f.Jogador.Cidade,
+                        PrimeiroNome = f.Anonimo ? "" : f.Jogador.Nome,
+                        Cidade = f.Anonimo ? null : f.Jogador.Cidade,
                         Nota = f.Nota,
-                        Texto = f.Texto
+                        Texto = f.Texto,
+                        Anonimo = f.Anonimo
                     })
                     .ToListAsync(),
             };
@@ -505,6 +506,13 @@ namespace Padelizou.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult NaoEncontrado(int codigo = 404)
         {
+            // O `codigo` chega pela barra de endereço, então qualquer um digita o que quiser:
+            // `?codigo=99999` fazia o Kestrel escrever o número cru na linha de status, e
+            // `?codigo=200` fazia uma URL do site responder 200 exibindo esta tela — buscador e
+            // monitoramento leriam "página boa". Só a faixa de erro passa; o resto vira 404.
+            if (codigo < 400 || codigo > 599)
+                codigo = 404;
+
             ViewBag.Codigo = codigo;
 
             // Devolve o status original: se respondesse 200, buscador e monitoramento passariam a

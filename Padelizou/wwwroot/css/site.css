@@ -757,6 +757,31 @@ a:hover { color: var(--pdz-lime-600); }
 }
 .pdz-live-cronometro { color: #fff; white-space: nowrap; }
 
+/* "Seguir este jogo": placar chegando no celular sem manter o site aberto. Discreto igual ao
+   badge AO VIVO até virar "Seguindo" — aí ganha a cor lima, a mesma linguagem do resto do
+   cartão pra "isto está ativo". */
+.pdz-live-seguir {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: rgba(255, 255, 255, .1);
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    font-size: .75rem;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    transition: background-color .15s ease, color .15s ease;
+}
+.pdz-live-seguir:hover { background: rgba(255, 255, 255, .18); }
+.pdz-live-seguir.pdz-live-seguindo {
+    background: rgba(163, 216, 39, .18);
+    color: var(--pdz-lime);
+}
+/* O clique já mudou o ícone/texto na hora (js/seguir-partida-ao-vivo.js) — este estado é só
+   pra quando o fetch ainda não voltou, pra ninguém achar que travou. */
+.pdz-live-seguir[disabled] { opacity: .6; pointer-events: none; }
+
 /* `gap` porque o nome e o placar são irmãos num flex: sem ele o nome longo encosta no
    número e, em alguns cards, na própria borda do quadro. `min-width: 0` deixa o bloco do
    nome encolher — sem isso o flex respeita a largura do conteúdo e empurra o placar pra
@@ -1187,6 +1212,33 @@ button, a, input, select { touch-action: manipulation; }
     background-color: transparent;
     color: var(--pdz-ink);
     border-color: var(--pdz-border);
+}
+
+/* A LISTA DE SUGESTÕES DA BUSCA POR NOME (os dois lados da dupla, na inscrição).
+   ⚠️ Fundo SÓLIDO, e a exceção é obrigatória: a regra logo acima deixa todo
+   `.list-group-item` TRANSPARENTE no tema escuro — o que está certo pra lista DENTRO de um
+   card, onde o fundo do card é que deve aparecer. Mas esta lista FLUTUA sobre o formulário
+   (`position-absolute`), e transparente ela deixa ler o CPF e os campos por baixo: o nome
+   que a pessoa procura fica embolado com o texto de trás, ilegível justamente na hora de
+   escolher. Reportado pelo Felipe em 17/08/2026, com print.
+   `--pdz-surface` existe nos dois temas (branco no claro, #1a2338 no escuro), então uma
+   regra só resolve os dois — sem repetir o seletor por tema. */
+.pdz-busca-lista {
+    z-index: 1080;
+    max-height: 15rem;
+    overflow-y: auto;
+    background-color: var(--pdz-surface);
+    border-radius: var(--radius);
+}
+/* Especificidade acima da regra de tema: sem a classe no seletor, o `transparent` de lá
+   continuaria vencendo dentro do dropdown. */
+.pdz-busca-lista .list-group-item,
+:root[data-bs-theme="dark"] .pdz-busca-lista .list-group-item {
+    background-color: var(--pdz-surface);
+}
+.pdz-busca-lista .list-group-item:hover,
+:root[data-bs-theme="dark"] .pdz-busca-lista .list-group-item:hover {
+    background-color: var(--pdz-surface-alt);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2569,6 +2621,33 @@ button, a, input, select { touch-action: manipulation; }
     color: var(--pdz-muted);
     background: transparent;
     border: 1px dashed var(--pdz-border);
+}
+
+/* O pontinho de "confirmou presença" no botão de jogador, na tela de registrar jogo.
+   É DESTAQUE, não filtro: quem não confirmou aparece na lista do mesmo jeito, porque quem
+   jogou e esqueceu de tocar em "vou" no app precisa poder ser lançado. */
+.pdz-ponto-confirmado {
+    display: inline-block;
+    width: .45rem;
+    height: .45rem;
+    border-radius: 50%;
+    background: var(--padel-green, #7ac943);
+    margin-right: .35rem;
+    vertical-align: middle;
+}
+
+/* W.O. — a etiqueta que impede o resultado de se passar por jogo jogado. Cor de AVISO e
+   não de erro: o resultado vale, o que não houve foi partida. */
+.pdz-jl-wo {
+    color: #7a4b00;
+    background: #ffe9b8;
+    border: 1px solid #e0aa3e;
+}
+
+:root[data-bs-theme="dark"] .pdz-jl-wo {
+    color: #ffd88a;
+    background: rgba(224, 170, 62, .16);
+    border-color: rgba(224, 170, 62, .5);
 }
 
 .pdz-jl-acoes {

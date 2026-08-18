@@ -120,8 +120,19 @@ public class DesafiosDuplaEPrazoTests
         var c = Montar();
         using var _ = c.Ctx;
 
-        await PublicarComParceiroAsync(c, c.Jogadores[0], c.Jogadores[1], PrazoDoAnuncio.EstaSemana);
-        var alvo = await PublicarComParceiroAsync(c, c.Jogadores[2], c.Jogadores[3], PrazoDoAnuncio.EstaSemana);
+        // ⚠️ PRÓXIMA semana, não esta — e o motivo é o relógio de parede, não a regra.
+        // O controller lê `DateTime.Now` direto, e "esta semana" acaba no domingo 23:59:59.
+        // Rodando num DOMINGO à noite, o jogo de "+6 horas" caía na segunda, JÁ FORA do prazo
+        // do anúncio: o `Desafiar` recusava, nenhum desafio nascia e o `SingleAsync` abaixo
+        // estourava — um teste vermelho que não tinha nada a ver com o que ele testa.
+        // A próxima semana comporta as 6 horas em qualquer dia e hora. (Descoberto num
+        // domingo 18h22 de 16/08/2026, com o CI prestes a rodar.)
+        //
+        // O que este teste prova segue igual: anúncio COM DATA não fecha ao aceitar — quem
+        // fecha é só o "até alguém aceitar" (FecharAnuncioSemPrazoAsync olha `ValeAte` nulo,
+        // não qual das duas semanas foi escolhida).
+        await PublicarComParceiroAsync(c, c.Jogadores[0], c.Jogadores[1], PrazoDoAnuncio.ProximaSemana);
+        var alvo = await PublicarComParceiroAsync(c, c.Jogadores[2], c.Jogadores[3], PrazoDoAnuncio.ProximaSemana);
 
         var desafiante = TestInfra.NovoDesafiosController(c.Ctx, c.Jogadores[0], push: c.Push);
         await desafiante.Desafiar(alvo.Id, c.CategoriaId, c.ClubeId,

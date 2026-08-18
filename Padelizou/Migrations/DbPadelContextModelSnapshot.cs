@@ -250,8 +250,19 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Anonimo")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("AtualizadoEm")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ComentarioClube")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<string>("ComentarioOrganizacao")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
 
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp without time zone");
@@ -263,6 +274,15 @@ namespace Padelizou.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("NotaOrganizacao")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NotaSistema")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PublicadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("PublicadoPorId")
                         .HasColumnType("integer");
 
                     b.Property<int>("TorneioId")
@@ -1194,6 +1214,9 @@ namespace Padelizou.Migrations
                     b.Property<int?>("Jogador2Id")
                         .HasColumnType("integer");
 
+                    b.Property<string>("LadoJogador1")
+                        .HasColumnType("text");
+
                     b.Property<string>("NomeTime")
                         .HasColumnType("text");
 
@@ -1321,6 +1344,9 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Anonimo")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -1343,9 +1369,14 @@ namespace Padelizou.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("TorneioId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("JogadorId");
+
+                    b.HasIndex("TorneioId");
 
                     b.ToTable("FeedbacksSite");
                 });
@@ -1959,16 +1990,19 @@ namespace Padelizou.Migrations
                     b.Property<int>("Dupla2Jogador2Id")
                         .HasColumnType("integer");
 
-                    b.Property<int>("GamesDupla1")
+                    b.Property<int?>("GamesDupla1")
                         .HasColumnType("integer");
 
-                    b.Property<int>("GamesDupla2")
+                    b.Property<int?>("GamesDupla2")
                         .HasColumnType("integer");
 
                     b.Property<int>("GrupoId")
                         .HasColumnType("integer");
 
                     b.Property<int>("RegistradoPorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VencedorLado")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -2523,6 +2557,9 @@ namespace Padelizou.Migrations
                     b.Property<string>("LinkTransmissao")
                         .HasColumnType("text");
 
+                    b.Property<string>("MotivoDoEncerramento")
+                        .HasColumnType("text");
+
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
@@ -2840,6 +2877,33 @@ namespace Padelizou.Migrations
                     b.HasIndex("ParceiroId");
 
                     b.ToTable("RepassesAoParceiro");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.SeguidorDePartida", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PartidaId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartidaId");
+
+                    b.HasIndex("JogadorId", "PartidaId")
+                        .IsUnique();
+
+                    b.ToTable("SeguidorDePartida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.SeguidorJogador", b =>
@@ -4192,7 +4256,14 @@ namespace Padelizou.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                        .WithMany()
+                        .HasForeignKey("TorneioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Jogador");
+
+                    b.Navigation("Torneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.FundamentoDoProfessor", b =>
@@ -4782,6 +4853,25 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("Parceiro");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.SeguidorDePartida", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Partida", "Partida")
+                        .WithMany()
+                        .HasForeignKey("PartidaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Partida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.SeguidorJogador", b =>

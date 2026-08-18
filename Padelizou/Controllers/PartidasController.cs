@@ -251,6 +251,71 @@ namespace Padelizou.Controllers
         // A recusa vem de Services/DesfazerDoJogo: se algo que veio depois já saiu do papel,
         // não se reabre — nesse ponto a correção virou decisão de quem organiza, e o caminho
         // certo é corrigir o placar.
+        // W.O.: ALGUÉM NÃO APARECEU.
+        //
+        // Passa pelo MESMO `EncerramentoDaPartida` de qualquer outro fim de jogo — é a regra
+        // deste projeto desde 06/08/2026, e o motivo é que encerramento escrito no chamador é
+        // encerramento que uma das telas não tem. Aqui isso importa em concreto: sem o
+        // serviço, o W.O. da última partida de uma fase não geraria a fase seguinte, e o
+        // torneio ficaria parado esperando um jogo que nenhum robô ia criar.
+        //
+        // Quem decide o placar e o vencedor é Services/EncerramentoPorWo; este método só
+        // acha o formato da fase, chama a régua e avisa.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarWo(int id, int duplaQueNaoCompareceuId, string? voltarPara = null)
+        {
+            var partida = await _context.Partidas
+                .Include(p => p.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (partida == null) return NotFound();
+            if (!await PodeControlarPlacarAsync(partida)) return Forbid();
+
+            if (EncerramentoPorWo.MotivoParaNaoRegistrar(partida, duplaQueNaoCompareceuId) is { } impedimento)
+            {
+                TempData["Erro"] = impedimento;
+                return RedirectToAction(nameof(ControlePlacar), new { id, voltarPara });
+            }
+
+            bool acabouDeTerminar = partida.Status != "Finalizada";
+
+            EncerramentoPorWo.Registrar(partida, duplaQueNaoCompareceuId,
+                FormatoDaPartida.De(partida.Categoria?.Torneio, partida.Fase));
+
+            partida.HorarioInicioReal ??= DateTime.Now;
+            partida.HorarioFimReal ??= DateTime.Now;
+            partida.SendoTransmitida = false;
+
+            // O carimbo de em que fase o perdedor caiu — o mesmo que o encerramento normal
+            // faz. Quem levou W.O. foi eliminado ali igual a quem perdeu jogando.
+            int perdedorId = duplaQueNaoCompareceuId;
+            if (!FasesTorneio.EhFaseDeGrupos(partida.Fase))
+            {
+                var perdedor = await _context.Duplas.FindAsync(perdedorId);
+                if (perdedor != null) perdedor.UltimaFase = partida.Fase;
+            }
+
+            await _context.SaveChangesAsync();
+
+            if (partida.TorneioId.HasValue)
+            {
+                await _encerramento.AplicarAsync(partida, acabouDeTerminar,
+                    new EncerramentoDaPartida.LinksDoAviso(
+                        Url.Action("Details", "Torneios", new { id = partida.TorneioId }),
+                        Url.Action("Jogos", "Torneios", new { id = partida.TorneioId })));
+            }
+
+            var faltou = await _context.Duplas.FindAsync(duplaQueNaoCompareceuId);
+            TempData["Sucesso"] = $"W.O. registrado no jogo {partida.Codigo}: "
+                + $"{faltou?.NomeDeExibicao ?? "a dupla"} não compareceu. "
+                + "O resultado vale pra chave e pra classificação, e NÃO mexe no Padelímetro de ninguém.";
+
+            return partida.TorneioId.HasValue
+                ? RedirectToAction("Jogos", "Torneios", new { id = partida.TorneioId.Value })
+                : RedirectToAction(nameof(ControlePlacar), new { id });
+        }
+
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
@@ -328,6 +393,10 @@ namespace Padelizou.Controllers
             partida.HorarioFimReal = null;
             partida.HorarioInicioReal ??= DateTime.Now;
 
+            // Reabrir um W.O. desfaz o W.O. junto: o jogo volta a ser um jogo por acontecer,
+            // e o placar convencional que ficou na tela é pra ser corrigido, não mantido.
+            EncerramentoPorWo.Limpar(partida);
+
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"O jogo {partida.Codigo} voltou pra AO VIVO. " +
@@ -366,6 +435,11 @@ namespace Padelizou.Controllers
             partida.GamesDupla2 = gamesDupla2;
             partida.NomeQuadra = nomeQuadra;
             partida.LinkTransmissao = linkTransmissao;
+
+            // ⚠️ PLACAR DIGITADO AQUI DESFAZ O W.O. — a dupla apareceu e o jogo aconteceu.
+            // Sem esta linha o jogo ficaria com placar de verdade e marca de W.O. pra sempre,
+            // fora do Padelímetro, sem nenhuma tela explicando por quê.
+            EncerramentoPorWo.Limpar(partida);
 
             // ⚠️ SET VELHO NÃO DECIDE JOGO CORRIGIDO.
             //

@@ -25,6 +25,9 @@
 }
 @{
     var aoVivoList = ViewBag.AoVivo as List<Partida> ?? new();
+    // Placar ao vivo na tela de bloqueio — quais destes jogos EU já sigo (server, não JS: ver
+    // TorneiosController.CarregarViewBagJogosAsync pro porquê).
+    var partidasQueSigo = ViewBag.PartidasQueSigo as HashSet<int> ?? new HashSet<int>();
     var agendadasList = ViewBag.Agendadas as List<Partida> ?? new();
     var finalizadasList = ViewBag.Finalizadas as List<Partida> ?? new();
     // As fases do mata-mata que ainda não existem no banco (Semifinal, Final): o motor só
@@ -285,6 +288,21 @@
                                    está olhando pro número que acabou de mexer, e um aviso fora
                                    da vista não avisa ninguém. Vazio até alguém editar. *@
                                 <span class="pdz-live-salvo" role="status" aria-live="polite"></span>
+                                @* "Seguir este jogo": placar chegando no celular sem precisar
+                                   manter o site aberto (Felipe, 16/08/2026 — "algo parecido com
+                                   o placar que o Google mostra na tela de bloqueio"). Só pra
+                                   quem tem conta: o aviso é push, e push é sempre de um
+                                   jogador logado (Models/SeguidorDePartida). *@
+                                @if (User.Identity?.IsAuthenticated == true)
+                                {
+                                    bool sigoEste = partidasQueSigo.Contains(jogo.Id);
+                                    <button type="button" class="pdz-live-seguir @(sigoEste ? "pdz-live-seguindo" : "")"
+                                            data-partida-id="@jogo.Id" data-seguindo="@sigoEste.ToString().ToLower()"
+                                            aria-pressed="@sigoEste.ToString().ToLower()">
+                                        <i class="bi @(sigoEste ? "bi-bell-fill" : "bi-bell")"></i>
+                                        <span class="pdz-live-seguir-texto">@(sigoEste ? "Seguindo" : "Seguir este jogo")</span>
+                                    </button>
+                                }
                                 @if (temTransmissao)
                                 {
                                     <a href="@jogo.LinkTransmissao" target="_blank" rel="noopener" class="pdz-live-transmissao-btn">

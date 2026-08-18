@@ -717,6 +717,9 @@ namespace padelizou.Controllers
 
             var feedbacks = await _context.FeedbacksSite
                 .Include(f => f.Jogador)
+                // De onde veio: o rodapé do site não tem torneio, a enquete de fim de torneio
+                // tem. Sem isto o admin lê "faltou aviso da chave" sem saber de qual torneio.
+                .Include(f => f.Torneio)
                 .OrderByDescending(f => f.CriadoEm)
                 .ToListAsync();
 

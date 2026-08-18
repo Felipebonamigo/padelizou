@@ -129,7 +129,13 @@ namespace Padelizou.Controllers
             string? quandoPagar = null,
             // Parceiro escolhido pelo NOME, na lista de sugestões — quem já tem conta é
             // achado por aqui, e ninguém precisa saber o CPF dele pra inscrever a dupla.
-            int? jogador2Id = null)
+            int? jogador2Id = null,
+            // O MESMO pro jogador 1 (pedido do Felipe, 14/08/2026): quem inscreve outra
+            // pessoa sabe o nome, não o CPF. Antes só o parceiro tinha essa porta.
+            int? jogador1Id = null,
+            // De que lado o jogador 1 joga — só vale na inscrição SEM parceiro. A tela manda
+            // pré-selecionado com o lado do perfil; nulo cai em "Ambos" na normalização.
+            string? ladoJogador1 = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -169,6 +175,27 @@ namespace Padelizou.Controllers
 
                 cpf2 = escolhido.Cpf;
                 nome2 = escolhido.Nome;
+            }
+
+            // JOGADOR 1 ESCOLHIDO PELA LISTA DE NOMES — mesma porta, mesmo motivo, e de novo
+            // preenchendo cpf1/nome1 AQUI em cima pra tudo daqui pra baixo continuar sendo a
+            // inscrição por CPF de sempre: a checagem de CPF válido, o nome que parece nome, a
+            // inscrição repetida, o juntar com a solo. Caminho paralelo seria repetir as quatro.
+            if (jogador1Id is int idJogador1)
+            {
+                var escolhido = await _context.Jogadores
+                    .Where(j => j.Id == idJogador1)
+                    .Select(j => new { j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+
+                if (escolhido == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse jogador. Escolha de novo na lista ou informe o CPF.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                cpf1 = escolhido.Cpf;
+                nome1 = escolhido.Nome;
             }
 
             // Marcou "ainda não tenho parceiro"? Então tudo do jogador 2 é ignorado — mesmo
@@ -449,6 +476,11 @@ namespace Padelizou.Controllers
                 CategoriaId = categoriaId,
                 Jogador1Id = jogador1.Id,
                 Jogador2Id = jogador2?.Id,   // nulo = ainda procurando parceiro
+                // De que lado o jogador 1 joga, pra quem procura parceiro ver na lista.
+                // ⚠️ Só na inscrição SOZINHA: com parceiro definido a pergunta não foi feita
+                // (a tela esconde o campo), e gravar o que veio no POST seria guardar um
+                // palpite. Ver Models/Dupla.LadoJogador1 e Services/LadoNaQuadra.
+                LadoJogador1 = semParceiro ? LadoNaQuadra.Normalizar(ladoJogador1) : null,
                 ImpedimentoQuintaNoite = impQuintaNoite,
                 ImpedimentoSextaNoite = impSextaNoite,
                 ImpedimentoSabadoManha = impSabadoManha,
@@ -873,29 +905,7 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Convite), new { token });
             }
 
-            // Mesma conta da troca por CPF, e pelo mesmo motivo: perguntada ANTES de gravar,
-            // senão esta inscrição faria a pessoa ganhar o preço de segunda por causa de si
-            // mesma. Ver TrocarParceiro.
-            var euRepito = await QuemJaEstaNoTorneio.EstaAsync(_context, torneio!.Id, eu.Id);
-
-            dupla.Jogador2Id = eu.Id;
-
-            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas, com o mesmo
-            // TETO da troca por CPF — o caminho é outro, a regra é a mesma, e é exatamente por
-            // isso que ela mora no PrecoDaInscricao e não aqui.
-            if (dupla.ValorInscricao is decimal valorAntesDoConvite)
-            {
-                dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
-                    torneio, valorAntesDoConvite, euRepito, ImpedimentosDa(dupla));
-            }
-
-            // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
-            // se o parceiro saísse depois.
-            dupla.ConviteToken = null;
-            dupla.ConviteCriadoEm = null;
-            await _context.SaveChangesAsync();
-
-            await AvisarTrocaDeParceiroAsync(dupla, torneio!, null, eu);
+            await FecharDuplaComAsync(dupla, torneio!, eu);
 
             TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}.";
 
@@ -906,10 +916,65 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
         }
 
+        // A GRAVAÇÃO de "esta dupla fechou com fulano", num lugar só.
+        //
+        // ⚠️ Existem DOIS caminhos que fecham uma dupla sozinha: o convite por link (o
+        // parceiro aceita) e o chamado do mural (o dono aceita). São portas opostas — em uma
+        // decide quem entra, na outra decide quem já está —, mas o que acontece com o BANCO é
+        // idêntico: preço recontado com teto, token queimado e os dois lados avisados.
+        // Duplicar isso é como um dos caminhos passaria a cobrar diferente do outro sem
+        // ninguém perceber. As regras de QUEM pode entrar continuam no
+        // MotivoParaNaoSerParceiroAsync; aqui é só o efeito.
+        private async Task FecharDuplaComAsync(Dupla dupla, Torneio torneio, Jogador novoParceiro)
+        {
+            // ⚠️ Perguntado ANTES de gravar: depois, esta própria inscrição já coloca a pessoa
+            // "no torneio", e ela ganharia o preço de segunda inscrição por causa de si mesma.
+            var repete = await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novoParceiro.Id);
+
+            dupla.Jogador2Id = novoParceiro.Id;
+
+            // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas, com TETO
+            // — quem se inscreveu antes de 08/08/2026 já pagou pelos dois. A regra mora no
+            // PrecoDaInscricao justamente porque mais de um caminho chega até ela.
+            if (dupla.ValorInscricao is decimal valorAntes)
+            {
+                dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
+                    torneio, valorAntes, repete, ImpedimentosDa(dupla));
+            }
+
+            // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
+            // se o parceiro saísse depois.
+            dupla.ConviteToken = null;
+            dupla.ConviteCriadoEm = null;
+
+            // A dupla fechou: os OUTROS chamados desta inscrição não têm mais o que responder.
+            // Deixá-los de pé daria ao dono uma lista de gente pra "aceitar" numa vaga que não
+            // existe mais — e o segundo aceite trocaria o parceiro sem ninguém ter pedido.
+            var chamadosPendentes = await _context.ChamadosDoMural
+                .Where(c => c.DuplaId == dupla.Id)
+                .ToListAsync();
+
+            // ⚠️ QUEM FICOU DE FORA É AVISADO (Felipe, 17/08/2026). Sem isto a pessoa segue
+            // esperando uma resposta que nunca vem, e não procura outro parceiro — o silêncio
+            // custa a vaga dela. Os ids são lidos ANTES do RemoveRange: depois dele a lista
+            // some, e não haveria mais a quem avisar.
+            var ficaramDeFora = chamadosPendentes
+                .Select(c => c.CandidatoId)
+                .Where(id => id != novoParceiro.Id)
+                .ToList();
+
+            if (chamadosPendentes.Count > 0) _context.ChamadosDoMural.RemoveRange(chamadosPendentes);
+
+            await _context.SaveChangesAsync();
+
+            await AvisarTrocaDeParceiroAsync(dupla, torneio, null, novoParceiro);
+            await AvisarQueAVagaFoiPreenchidaAsync(dupla, torneio, ficaramDeFora);
+        }
+
         // ── O chamado do mural ("quero jogar com você") ────────────────────────────────
         // A lista de inscritos já mostra quem está SEM PARCEIRO; este POST é a ação em cima
-        // dela. Só manda o recado — quem fecha a dupla é o dono da inscrição, pelo convite
-        // por link logo acima. Regras em Services/MuralDeParceiros.
+        // dela. O recado vai pro dono da inscrição, que aceita ou recusa na tela de Chamados
+        // (logo abaixo). Regras em Services/MuralDeParceiros.
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> ChamarParaDupla(int duplaId)
@@ -965,10 +1030,16 @@ namespace Padelizou.Controllers
                 // e a cota do e-mail já queimou duas vezes.
                 try
                 {
+                    // ⚠️ O aviso leva pra tela de DECIDIR, não pro perfil do candidato
+                    // (Felipe, 17/08/2026). Antes ele largava a pessoa no perfil e o texto
+                    // mandava "mande o convite por link da sua inscrição" — ou seja, o aviso
+                    // terminava em tarefa manual: voltar pro torneio, gerar link, mandar por
+                    // WhatsApp, esperar o outro abrir. Agora o toque no aviso cai onde tem
+                    // Aceitar e Recusar.
                     await _pushService.EnviarParaJogadorAsync(dupla!.Jogador1Id,
                         MuralDeParceiros.TituloDoAviso,
                         MuralDeParceiros.CorpoDoAviso(candidato.ComoChamar, torneio!.Nome),
-                        Url.Action("Perfil", "Jogadores", new { id = candidatoId.Value }),
+                        Url.Action("Chamados", "Duplas", new { duplaId }),
                         AlcanceDoAviso.AppSemEmail);
                 }
                 catch (Exception ex)
@@ -981,6 +1052,198 @@ namespace Padelizou.Controllers
                 ? $"Você já tinha chamado — o recado está com {dupla!.Jogador1.ComoChamar}."
                 : $"Recado enviado! Se {dupla!.Jogador1.ComoChamar} topar, quem fecha a dupla é ele(a) — pelo convite da própria inscrição.";
             return RedirectToAction("Details", "Torneios", new { id = torneio!.Id });
+        }
+
+        // ── ACEITAR OU RECUSAR QUEM CHAMOU ─────────────────────────────────────────────
+        //
+        // É pra cá que o aviso "Alguém quer fechar dupla com você" leva (Felipe, 17/08/2026).
+        // Antes ele largava a pessoa no perfil do candidato e pedia pra ela mandar o convite
+        // por link — o aviso terminava em tarefa manual, e a dupla dependia de o dono lembrar
+        // de voltar, gerar o link e mandar por WhatsApp.
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Chamados(int duplaId)
+        {
+            var donoId = ObterJogadorIdLogado();
+            if (donoId == null) return Forbid();
+
+            var dupla = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+
+            if (dupla == null) return NotFound();
+            // Só o DONO da inscrição decide. Sem isto, qualquer um veria a lista de quem
+            // chamou quem — e a rota é o que protege, não a tela.
+            if (dupla.Jogador1Id != donoId) return Forbid();
+
+            var chamados = await _context.ChamadosDoMural
+                .Include(c => c.Candidato)
+                .Where(c => c.DuplaId == duplaId)
+                .OrderBy(c => c.CriadoEm)
+                .ToListAsync();
+
+            ViewBag.Dupla = dupla;
+            ViewBag.Torneio = dupla.Categoria.Torneio;
+            // Por que não dá pra aceitar (dupla já fechou, inscrição encerrada): a tela mostra
+            // o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
+            ViewBag.MotivoParaNaoAceitar = MuralDeParceiros.MotivoParaNaoAceitar(
+                dupla, dupla.Categoria.Torneio?.Status, donoId.Value);
+
+            return View(chamados);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AceitarChamado(int duplaId, int candidatoId, bool juntarComInscricaoSolo = false)
+        {
+            var donoId = ObterJogadorIdLogado();
+            if (donoId == null) return Forbid();
+
+            var dupla = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+
+            var torneio = dupla?.Categoria.Torneio;
+
+            // A MESMA régua da tela, conferida de novo aqui: entre abrir a lista e tocar em
+            // aceitar, o torneio pode ter fechado ou a dupla pode ter sido fechada por outro
+            // caminho (o convite por link continua existindo).
+            if (MuralDeParceiros.MotivoParaNaoAceitar(dupla, torneio?.Status, donoId.Value) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return torneio == null
+                    ? RedirectToAction("Index", "Torneios")
+                    : RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            }
+
+            // O chamado precisa EXISTIR: aceitar sem ele seria uma porta lateral pra colocar
+            // qualquer pessoa na própria dupla sem que ela tenha se oferecido.
+            var chamado = await _context.ChamadosDoMural
+                .FirstOrDefaultAsync(c => c.DuplaId == duplaId && c.CandidatoId == candidatoId);
+
+            if (chamado == null)
+            {
+                TempData["Erro"] = "Esse chamado não existe mais.";
+                return RedirectToAction(nameof(Chamados), new { duplaId });
+            }
+
+            var candidato = await _context.Jogadores.FindAsync(candidatoId);
+            if (candidato == null)
+            {
+                TempData["Erro"] = "Não encontrei esse jogador.";
+                return RedirectToAction(nameof(Chamados), new { duplaId });
+            }
+
+            // As MESMAS regras de quem pode entrar numa dupla que o convite por link usa
+            // (categoria, sexo da Mista, anti-sandbagging, Ranking RS, inscrição repetida).
+            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla!, torneio!, candidato, juntarComInscricaoSolo);
+            if (impedimento != null)
+            {
+                TempData["Erro"] = impedimento;
+                return RedirectToAction(nameof(Chamados), new { duplaId });
+            }
+
+            await FecharDuplaComAsync(dupla!, torneio!, candidato);
+
+            TempData["Sucesso"] = $"Dupla fechada com {candidato.ComoChamar}!";
+            return RedirectToAction("Details", "Torneios", new { id = torneio!.Id });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecusarChamado(int duplaId, int candidatoId)
+        {
+            var donoId = ObterJogadorIdLogado();
+            if (donoId == null) return Forbid();
+
+            // Recusar não depende de o torneio estar aberto: limpar a própria lista é sempre
+            // permitido ao dono, e é o oposto de uma ação com efeito sobre terceiros.
+            var dupla = await _context.Duplas
+                .Include(d => d.Jogador1)
+                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+            if (dupla.Jogador1Id != donoId) return Forbid();
+
+            var chamado = await _context.ChamadosDoMural
+                .FirstOrDefaultAsync(c => c.DuplaId == duplaId && c.CandidatoId == candidatoId);
+
+            if (chamado != null)
+            {
+                _context.ChamadosDoMural.Remove(chamado);
+                await _context.SaveChangesAsync();
+
+                // ⚠️ QUEM CHAMOU É AVISADO (decisão do Felipe, 17/08/2026 — a primeira versão
+                // calava, com o argumento de que "avisar só machuca"). O motivo dele é melhor:
+                // quem chamou fica ESPERANDO. Sem resposta, a pessoa não sabe se ainda tem
+                // chance e não procura outro parceiro — o silêncio custa a vaga dela.
+                //
+                // Só avisa se o chamado EXISTIA: recusar duas vezes (dois toques, duas abas)
+                // não pode mandar dois avisos.
+                await AvisarRecusaAsync(dupla, candidatoId);
+            }
+
+            TempData["Sucesso"] = "Recusado. Avisamos ele(a) que não deu dessa vez.";
+            return RedirectToAction(nameof(Chamados), new { duplaId });
+        }
+
+        // "Não deu dessa vez", pra quem foi recusado. Mesmo alcance e mesmo cuidado do aviso
+        // de vaga preenchida: sem e-mail, e falha aqui não desfaz a recusa (que já está gravada).
+        private async Task AvisarRecusaAsync(Dupla dupla, int candidatoId)
+        {
+            var torneio = dupla.Categoria?.Torneio;
+            if (torneio == null) return;
+
+            try
+            {
+                var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+                var dono = dupla.Jogador1?.ComoChamar ?? "A pessoa";
+
+                await _pushService.EnviarParaJogadorAsync(candidatoId,
+                    MuralDeParceiros.TituloDaRecusa,
+                    MuralDeParceiros.CorpoDaRecusa(dono, torneio.Nome),
+                    url, AlcanceDoAviso.AppSemEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao avisar a recusa do candidato {CandidatoId}.", candidatoId);
+            }
+        }
+
+        // "A vaga já foi preenchida", pra quem chamou e não foi o escolhido.
+        //
+        // ⚠️ Texto PRÓPRIO, diferente do da recusa: aqui ninguém recusou ninguém — outra pessoa
+        // chegou antes. Dizer "recusou" pra quem só perdeu a corrida é falso e dói à toa.
+        //
+        // Sem e-mail (AppSemEmail): é recado social, não pede resposta e é rajada em potencial
+        // (uma inscrição concorrida avisa vários de uma vez). Mesma régua do resultado de
+        // partida — ver AlcanceDoAviso.
+        private async Task AvisarQueAVagaFoiPreenchidaAsync(Dupla dupla, Torneio torneio, IReadOnlyList<int> candidatos)
+        {
+            if (candidatos.Count == 0) return;
+
+            try
+            {
+                var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+                var dono = dupla.Jogador1?.ComoChamar ?? "A pessoa";
+                var corpo = MuralDeParceiros.CorpoDaVagaPreenchida(dono, torneio.Nome);
+
+                foreach (var candidatoId in candidatos)
+                {
+                    await _pushService.EnviarParaJogadorAsync(candidatoId,
+                        MuralDeParceiros.TituloDaVagaPreenchida, corpo, url, AlcanceDoAviso.AppSemEmail);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Aviso é acessório: a dupla já fechou e não pode ser desfeita por causa disso.
+                _logger.LogWarning(ex, "Falha ao avisar quem ficou de fora da dupla {DuplaId}.", dupla.Id);
+            }
         }
 
         // Quem saiu precisa saber que saiu; quem entrou, que entrou. Push é acessório:

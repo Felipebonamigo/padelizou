@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🙈 **TORNEIO OCULTO: DÁ PRA MONTAR ANTES DE DIVULGAR — E O AVISO SEGUE A REBOQUE.**
+> Última atualização: **18/08/2026** — 🗓️ **MARCAR AULA DEIXOU DE COMEÇAR PELO PROFESSOR: DIA, HORA, PROFESSOR E LOCAL FILTRAM UNS AOS OUTROS.**
+>
+> 🗣️ **O pedido do Felipe**: *"às vezes tem pessoas que escolhem pelo horário, e não pelo professor específico — vamos permitir que o usuário monte seu horário com o que tem disponível"*. A tela era uma **escada obrigatória** (cidade → professor → local → horário): quem tinha só a terça de manhã livre precisava adivinhar o professor certo e ir tentando um por um, e só descobria os horários no **quarto** passo.
+>
+> 🔀 **Agora a cidade entrega a grade INTEIRA de uma vez** (`ObterOfertas`, um endpoint no lugar de três) e os quatro filtros se conversam: mexer em qualquer um enxuga os outros, em qualquer ordem. Quando sobra **uma** opção ela se marca sozinha — escolher "terça às 9h" já preenche o professor, se só existir um livre. Cada oferta carrega professor + local + horário **na mesma linha**; separados, escolher as 9h não teria como dizer quem dá aula às 9h.
+>
+> 📅 **O dia virou CALENDÁRIO, com os dias sem vaga apagados** (pedido dele, com print do seletor do Android). Numa lista de datas, *"quinta 21/08"* e *"quinta 28/08"* são duas linhas quase iguais e a pessoa se perde na semana. ⚠️ O calendário é o único filtro que **não** se marca sozinho: quadradinho aceso no meio do mês parece data que a pessoa escolheu e não escolheu.
+>
+> 🗺️ **Entrou o ESTADO antes da cidade**, e ele **some quando só existe uma UF** — escolher entre uma opção não é escolha. Cidade cadastrada sem UF (o campo é opcional pro professor) ganhou opção própria, senão sumiria da tela pra quem filtrasse pela própria UF.
+>
+> 🧮 **A conta de "quais horários existem" saiu do controller pra `Services/OfertasDeAula`**: ela agora roda pra cidade inteira, e deixada no lugar antigo nasceria a segunda cópia que é a origem dos bugs graves daqui. A trava de sobreposição continua sendo a mesma do resto do sistema — aula de 2h derruba os DOIS slots de uma hora — e quem trava o horário é a agenda do **professor**, não a do local: ele não pode estar em duas quadras às 9h.
+>
+> 🧪 **4.167 testes, 0 falhas (13 novos), rodados numa worktree isolada** — só o meu recorte. ⚠️ **NÃO conferido no navegador**: subi o app local, mas a tela exige login e eu não digito senha. O que a suíte não cobre é tradução de query do EF; o risco é baixo porque os três `Where` novos usam só construções que já rodavam nesse mesmo arquivo em produção.
+>
+> 🌀 **Duas vezes o trabalho foi apagado no meio** por `git reset --hard` de sessão paralela (só os arquivos **rastreados** voltavam; os novos sobreviviam). A saída foi refazer e **commitar na hora, com caminho explícito** — commit sobrevive a reset, working tree não.
+>
+> Antes, no mesmo dia: 🙈 **TORNEIO OCULTO: DÁ PRA MONTAR ANTES DE DIVULGAR — E O AVISO SEGUE A REBOQUE.**
 >
 > 🗣️ **O pedido do Felipe**: *"preciso poder ocultar e exibir os torneios criados — esse do Er ainda vamos divulgar, e só aí permitir que o pessoal veja"*. O campo `Torneio.Oculto` já existia desde 24/07 e **não servia pra isso** por dois motivos. (1) Ele vivia **preso ao torneio RESTRITO**: `Oculto = restrito && oculto` na criação e na edição, e a caixinha só aparecia na tela quando o restrito estava ligado — ou seja, esconder exigia **trancar a inscrição** com chave de acesso. O torneio do Er é aberto: ele quer que qualquer um se inscreva **depois** que ele anunciar. (2) "Oculto" significava só **"some da listagem"** — quem tivesse o link abria a página inteira e se inscrevia.
 >
@@ -17,6 +33,30 @@
 >
 > ⚠️ **COMMITADO, NÃO PUBLICADO** (`0a3a8a2`, no `pagina-de-times`) — falta build + `deploy.yml`. 🌀 **O commit saiu de uma worktree isolada** (`git worktree add --detach`), não do diretório principal: no meio do trabalho, outra sessão deu `stash -u` + reset no working tree compartilhado, e uma terceira trocou o branch checado de `pagina-de-times` pra `main` por alguns minutos. Nada se perdeu (o stash guardou tudo), mas o commit final teve que separar hunk por hunk os meus arquivos dos da feature do mural/enquete (que estava misturada nos mesmos 4 arquivos) — e a migration teve que ser **regerada do zero**, porque a original tinha nascido encadeada na migration deles.
 >
+> Antes, no mesmo dia: 💬 **DEPOIS DO TORNEIO, QUEM JOGOU PASSA A ESCREVER — E ESCOLHE SE ASSINA.**
+>
+> ⭐ **O pedido do Felipe**: junto com o MVP, deixar quem jogou avaliar **o sistema, o clube e o torneio**, com **comentário** pra cada um, e poder ser **anônimo ou público**. A enquete de 12/08 já coletava duas notas (clube e organização) — faltavam **o sistema** e **o texto**.
+>
+> 🎛️ **A escolha é UMA só pra resposta inteira** (decisão dele): *com o meu nome* × *sem o meu nome*. **Assinado vai pro mural do torneio na hora**; **sem identificação chega só a quem recebe** — organizador, dono do clube e Padelizou — e **não entra no mural sozinho**. Se acharem que ajuda outros jogadores, publicam — e aí sai **sem o nome**, que é o que a tela promete **antes** de a pessoa escrever.
+>
+> 🕵️ **O nome de quem não assinou não aparece em tela nenhuma, nem pra quem recebe.** Não é esquecimento de UI: o serviço **não entrega** autor quando a resposta é anônima (`Autor`/`AutorId`/`FotoDoAutor` chegam nulos), então nenhuma view pode "esquecer" de esconder — não há o que esconder. A coluna `JogadorId` fica porque é a trava de *uma resposta por pessoa*, não permissão pra exibir.
+>
+> 🧾 **O texto sobre o PADELIZOU não fica na avaliação: vira uma linha na caixa de Feedback** que já existe, com a moderação dela (nasce invisível) e agora com **de qual torneio veio**. Uma segunda caixa de opinião sobre o sistema seria a regra duplicada de sempre — duas listas, e o admin lendo uma. ⚠️ E vai **SEM NOTA**: lá a escala é 0-10 (NPS) e aqui é 1-5; converter faria "3 estrelas", que é o meio, virar **detrator**.
+>
+> 🔢 **A média do sistema tem contagem PRÓPRIA.** `NotaSistema` é **nulável** de propósito: coluna nova nasce zero, e as respostas de agosto apareceriam com **nota 0 pro Padelizou** — fora da escala e derrubando a média de uma pergunta que elas nunca viram.
+>
+> 🚧 **Duas travas que parecem detalhe**: trocar de assinado pra anônimo **tira do mural** (a pessoa voltou atrás), e **o que o moderador escondeu não volta sozinho** quando ela reenvia — senão editar uma vírgula seria o jeito de furar a moderação.
+>
+> 🤬 **O filtro de palavrões só vale pro que vai DIRETO ao mural.** Anônimo é conversa privada com quem organiza: recusar ali seria calar exatamente a crítica que a enquete existe pra ouvir — e ela só alcança outras pessoas se um humano publicar.
+>
+> 🖥️ **Onde aparece**: o mural na página do torneio; a lista de moderação (com o que é anônimo) na gestão; **"o que disseram do seu clube"** no painel do clube, atravessando os torneios da casa; e a home mostrando depoimento anônimo como *"um jogador do Padelizou"* — sem nome **e sem cidade**, que juntos identificam gente numa base pequena.
+>
+> 🧪 **4.313 testes, 0 falhas (14 novos).** ⚠️ A verificação passou por DUAS árvores: uma cópia local (que deu 4.190) porque o repositório compartilhado tinha trabalho simultâneo de outra sessão no meio da checagem, e de novo depois de trazer o trabalho pro `origin/main` atualizado (4.313 — a diferença é só o que a outra sessão já tinha commitado). ✅ **Conferido no navegador, servidor de verdade, contra o Postgres local**: resposta anônima gravando com `PublicadoEm` nulo e o mural **sem** ela; a gestão mostrando o texto **sem nome nenhum**; publicada, saindo como *"Um jogador do torneio"*; reenvio assinado **não** ressuscitando o que o moderador tirou; o texto do sistema virando feedback invisível, sem nota, com o torneio de origem; e a home com o depoimento anônimo. Os dados de teste foram apagados do banco local depois.
+>
+> ⚠️ **Pendência**: **commitado, não publicado** — falta build + `deploy.yml`. A migration `ComentariosNaAvaliacaoDoTorneio` foi gerada em worktree limpo e confere (`has-pending-model-changes` sem pendência).
+>
+> Antes, no mesmo dia: 💰 **DINHEIRO É SÓ DO RAIZ: O ADMINISTRADOR NOMEADO E O ASSISTENTE PARARAM DE VER FINANCEIRO.**
+>
 > 🧭 **A decisão do Felipe**: "adm não vê nada de financeiro, somente eu" — e o mesmo corte vale pro **assistente do sistema**, que até ontem via TUDO, caixa incluído.
 >
 > 🕳️ **A CAUSA era UMA FUNÇÃO RESPONDENDO DUAS PERGUNTAS.** `PodeOlharTudo` significava ao mesmo tempo "enxerga a operação?" e "enxerga o caixa?", e por isso o administrador nomeado lia o **faturamento do MEI**, a **carteira de cada parceiro**, **quanto cada professor pagou**, a **margem** do registro de resultados, o **caixa de qualquer torneio** e até a **fatura Pix de qualquer pessoa**. Nasceu `PoderesNoSistema.PodeVerDinheiro` — só `IsAdminRaiz`, com sobrecarga que lê o crachá pras views. ⚠️ **Não é `PodeEditarTudo` com outro nome**: o nomeado continua editando o sistema inteiro e não vê um real.
@@ -29,7 +69,27 @@
 >
 > 🧪 **4.154 testes, 0 falhas** (21 novos em `AdminNaoVeDinheiroTests`). Um teste antigo **mudou de lado**: o do assistente em `/Admin/Comissoes` afirmava que ele *via* e não gravava — agora afirma que ele **não vê**. ✅ **Conferido no navegador**, com três contas do banco local: **admin nomeado puro** (nenhum `R$` em Métricas, Professores e no relatório do Ranking; Comissões/Registro/Financeiro/Pix/Taxa recusados; Financeiro do torneio abre sem valores), **admin nomeado que também é parceiro do Ranking** (continua vendo os valores da parceria — é dele) e **raiz** (tudo exatamente como era).
 >
-> ⏭️ **Pendência**: nada disso está no ar — falta build + `deploy.yml`.
+> 🚀 **NO AR em produção: `build-595-2c5a60d`** (18/08, 15:45). Provado como manda a régua: o `cwd` do processo é a release nova, `NRestarts=0`, `active/running`, `/healthz` 200, zero exceção no journal, e **`PodeVerDinheiro` aparece 6× dentro do `Padelizou.dll` publicado** (o `PodeOlharTudo` continua lá 1×, que é o certo — ele ainda responde "enxerga a operação?"). O `.historico` não tem duas linhas no mesmo minuto: sem colisão de deploy.
+>
+> ✅ **`dev` sincronizado com a mesma `build-595-2c5a60d`** (estava atrás, na `build-592`). `NRestarts=0`, `active`, `/healthz` 200, zero exceção — os dois ambientes na mesma tag agora.
+>
+> Antes, no mesmo dia: 🚧 **IMPEDIMENTO: A TELA PASSOU A DIZER O QUE O CÓDIGO JÁ FAZIA** — e a edição do torneio ganhou os campos que só existiam na criação (`build-590` e `build-592`, nos dois ambientes).
+>
+> 🚧 **O PEDIDO ERA DE TEXTO, E DOIS TERÇOS DELE JÁ ESTAVAM FEITOS NO CÓDIGO.** (1) Na criação, agora está escrito que aqueles são os turnos **disponíveis** e que **cada dupla escolhe só um** — a trava já existia no servidor (`ImpedimentoUnico`); a tela é que não contava, e liberar os três lia como "a dupla pode ficar fora dos três". (2) A cobrança **já era por dupla**: em `PrecoDaInscricao.Total` a taxa entra FORA do laço que soma pessoa por pessoa, porque o impedimento consome uma janela da grade, não um atleta.
+>
+> ⚠️ **O QUE EU DE FATO ACRESCENTEI FOI TESTE — e a ausência dele era o risco real.** Não havia NENHUM teste sobre isso: bastava alguém mover a soma da taxa pra dentro do laço "pra ficar tudo junto" e o preço **dobraria** sem nada reclamar. São 5 testes, e um deles amarra as duas pontas — se afrouxarem o `ImpedimentoUnico`, o texto que a tela promete sobre dinheiro passa a mentir.
+>
+> 💰 **Preço e taxa agora mudam com o torneio ABERTO**, com o aviso pedido: *"N inscrições já foram feitas com os valores atuais — mudar vale só pra quem entrar daqui pra frente"*. ⚠️ Cada inscrição guarda o que ELA custou (`Dupla.ValorInscricao`); sem o aviso o organizador faz uma de duas contas erradas, e as duas doem: cobra a diferença de quem já pagou, ou conta com dinheiro que não vem. O contador soma as DUAS tabelas (chave e Americano) — contar só uma faria o aviso sumir num Americano lotado.
+>
+> 🔁 **PARIDADE CRIAÇÃO × EDIÇÃO**: entraram limite de duplas (com "sem limite"), múltiplas categorias, excluir se não pagar, e os dois do Americano. O motivo é história repetida aqui — campo que só existe no cadastro vira beco, e já aconteceu com forma de recebimento, reabrir inscrições e "só confirmo depois de pago".
+>
+> ⚠️ **MAS "VER TUDO" NÃO É "PODER TUDO", e as duas travas novas (`Services/MudancaDepoisDeAberto`) são o conteúdo desta entrega.** Baixar o limite de 32 pra 8 com 20 duplas inscritas **não apaga ninguém** — é pior: o torneio passa a se comportar como LOTADO, as 20 continuam lá, e o organizador só percebe porque param de chegar inscrições. E trocar o FORMATO com gente inscrita deixaria as inscrições órfãs, porque chave e Americano gravam em tabelas diferentes — e isso não aparece na tela até alguém abrir o chaveamento.
+>
+> ⏭️ **Fica de fora, de propósito**: as 5 configurações de categoria de TIMES (estrutura de criação, pede trava própria) e o `prazoPagamento` — este já tem regra no projeto (**o prazo só ESTICA, nunca encurta**), e repeti-la nesta tela seria a segunda cópia que causa os bugs graves daqui.
+>
+> 🧪 **4.278 testes, 0 falhas.** ✅ Falsificação: desligando a comparação do limite, cai o teste certo.
+>
+> ✅ **Confirmo por experiência a pendência de infra apontada na entrada anterior**: publiquei em dev sete vezes hoje, todas por **SSH na mão** (`deploy.sh dev <tag>`), e todas funcionaram. O que está quebrado é o **workflow** do Actions pro `dev`, por falta dos segredos naquele environment — não o deploy em si. A saída anotada lá é a que venho usando.
 >
 > Antes, no mesmo dia: 🆘 **"NÃO CONSIGO ENTRAR" DEIXOU DE EXIGIR SSH: NASCEU `/Admin/Acesso`.**
 >
@@ -45,25 +105,279 @@
 >
 > 🧪 **4.167 testes, 0 falhas (17 novos).** ✅ Conferido no navegador, servidor de verdade, contra os 81 jogadores do banco local: as **quatro** situações renderizando certo, a lista de homônimos, o "não achei" (que explica os **três** motivos possíveis, porque responder "você não tem cadastro" pra quem excluiu a conta é dizer uma falsidade com toda a confiança), e a tela pública de recuperação **concordando** com o painel sobre o mesmo CPF — que é o ponto do serviço compartilhado.
 >
-> ⚠️ **Pendência**: **não está no ar** — falta build + `deploy.yml`. Vai junto com a recuperação por CPF de 17/08, que também segue sem subir.
+> 🚀 **NO AR em produção: `build-591-314ceb4`** (18/08, 15:23). Levou junto os **24 commits** parados desde o `build-573-54a225a` de 17/08 — inclusive a recuperação por CPF, que estava anotada como pendente e agora está publicada.
 >
-> Antes, em 17/08/2026: 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
+> 🔍 **Como foi PROVADO que subiu** (o workflow verde não prova, e o `healthz` só devolve `ok`): a tela `/Admin/Acesso` não serve de sonda, porque **todo `/Admin/*` devolve 404 pra quem está deslogado** — conferido com `/Admin/Erros`, que já existia e responde igual. A prova saiu de uma mudança **visível sem login** que só existe a partir deste build: o campo de "esqueci minha senha" em produção passou a dizer **"seu@email.com, seu login ou seu CPF"**. O build 573 é anterior a esse commit.
 >
-> 🕳️ **O relato**: o jogador do CPF `019.947.840-67` não conseguia recuperar a senha. Lendo o caminho inteiro apareceram **três** jeitos de falhar **em silêncio**, todos com a mesma resposta *"link a caminho"* na tela — por isso não havia como distinguir um do outro por fora. (1) O **CPF nunca foi identificador aceito**: `BuscaJogador.PorIdentificadorAsync` compara só e-mail e login, então quem digitava o CPF não era achado — e a tela dizia que o link tinha saído. (2) **Pré-cadastro** (quem foi inscrito num torneio por outra pessoa e nunca teve senha) não tem o que recuperar: o que falta é **criar** a conta, e o Cadastro reivindica a linha pelo CPF com o histórico junto. A tela mandava esperar e-mail. (3) Conta **com senha e sem e-mail** não tem pra onde mandar o link — a tela mandava caçar no spam um e-mail que nunca teve destinatário.
+> ⚠️ **PENDÊNCIA DE INFRA — o deploy pro `dev` está QUEBRADO, e não é de hoje.** O environment **`dev` não tem segredo nenhum**: `VPS_HOST`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS` existem **só no `prod`**, e não há segredo no nível do repositório. Por isso `deploy.yml -f ambiente=dev` morre em 9s em "Preparar o acesso ao VPS", com as três variáveis vazias — nada a ver com o código publicado. Enquanto os três não forem copiados pro environment `dev`, **o dev só é publicável por SSH, na mão**. ⚠️ E o environment `prod` **não tem trava de aprovação** (`protection_rules` vazio): quem dispara o deploy publica **no ato**, sem ninguém pra confirmar.
 >
-> ✅ **O que passou a acontecer** (decisão do Felipe): a recuperação **aceita CPF**, o pré-cadastro é mandado **pro Cadastro** com a frase certa ("crie sua conta com o mesmo CPF e o histórico vem junto"), e a conta sem e-mail recebe o **WhatsApp do suporte** em vez de uma caixa verde mentirosa. O campo e o placeholder agora **dizem** "E-mail, login ou CPF" — aceitar em silêncio não resolveria nada, porque quem só sabe o próprio CPF é exatamente quem não adivinharia que pode digitá-lo.
+> Antes, no mesmo dia: 🔢 **TODO POST COM ERRO CHEGAVA COMO 400, ESCONDENDO O STATUS DE VERDADE** — inclusive o webhook de pagamento, que respondia 400 no lugar de 401.
 >
-> 🔒 **A ENTRADA continua NÃO aceitando CPF, e isso tem teste próprio.** A assimetria é o ponto: no login, aceitar o CPF transformaria um número que não é segredo no Brasil em metade da credencial de todo mundo; na recuperação ele é inofensivo, porque o que sai dali é um link mandado pro e-mail **já gravado** na conta. Se alguém "unificar as duas buscas por simetria" um dia, o teste quebra.
+> 🔢 **O SINTOMA, medido em produção**: `GET /rota-que-nao-existe` devolvia 404 certinho e **`POST` na MESMA rota devolvia 400**. Pior: `POST /Pagamentos/Webhook` sem token respondia **400**, embora o controller retorne `Unauthorized()` e o log registre a recusa direitinho. A divergência só aparecia de fora.
 >
-> ⚖️ **A resposta uniforme foi rompida DE PROPÓSITO, e só onde não existe recuperação nenhuma pra fazer.** CPF desconhecido continua indistinguível de conta que recebeu o link. O que o ramo novo conta — "esse CPF está na base e ainda não tem senha" — o formulário de **cadastro já contava**, porque lá CPF com senha é recusado e CPF sem senha passa. Não é vazamento novo.
+> ⚠️ **A CAUSA NÃO ESTAVA EM CONTROLLER NENHUM — era ordem de pipeline.** `UseStatusCodePagesWithReExecute` **preserva o método**, então o 404/401 virava um POST para `/Home/NaoEncontrado`, esse POST batia no filtro global de antiforgery e era recusado com 400 — e 400 era o que sobrava na resposta. Nenhum teste de controller pegaria: o `NaoEncontrado` sempre devolveu o status certo, e quem trocava era a camada ACIMA dele.
 >
-> 🧪 **4.139 testes, 0 falhas (19 novos).** ✅ Conferido no app local, servidor de verdade, os quatro desfechos: pré-cadastro → "essa conta ainda não tem senha" + botão pro `/Auth/Cadastro`; conta normal pelo CPF **com máscara** → caixa verde **e token gravado no banco**; conta sem e-mail → aviso + WhatsApp; CPF desconhecido → resposta uniforme. E o token nasceu **só** na conta que podia receber. Um teste antigo foi **reancorado**: o do aviso de spam procurava o *primeiro* `alert-warning` da tela, e a caixa nova passou a vir antes dele — ficaria verde com o aviso de spam de volta na letra miúda.
+> 💊 **O conserto**: a tela de erro passa a valer só para **GET/HEAD** (`app.UseWhen`). Página de erro é para GENTE NAVEGANDO; quem chama por POST é formulário, app ou serviço, e para esses o que serve é o status cru, não uma tela HTML.
 >
-> ✅ **CONFIRMADO NO BANCO DE PRODUÇÃO: era o beco nº 1.** É o jogador de **Id 78**, conta criada em 04/08/2026, **com senha**, **não** excluída, e com **e-mail e login válidos** (o endereço não vai escrito aqui de propósito — este repo é PÚBLICO; quem precisar, consulta o banco). **O que fecha o caso é o `TokenRecuperacao` NULO**: o token é gravado ANTES do envio e só é limpo quando alguém troca a senha de fato — expirar não apaga. Se ele tivesse submetido o formulário uma única vez com identificador válido, haveria um token velho parado ali. Não havia. **Ele nunca passou da busca** — estava digitando o CPF (ou um e-mail errado), e o servidor nunca tentou mandar nada. O envio está saudável: **0 falhas em 7 dias** no journal, Resend de pé. ⏭️ Recado pra ele **hoje, sem deploy**: digitar o **e-mail do cadastro** (ou o login — caixa não importa) em vez do CPF, e olhar o spam.
+> ⚠️ **POR QUE ISSO IMPORTA MAIS QUE UM NÚMERO ERRADO**: 400 quer dizer "corpo malformado". No dia em que o token do webhook estiver errado de verdade, quem investigar começa procurando JSON quebrado — quando o problema é credencial. O status é a primeira pista de qualquer diagnóstico, e esse mandava para o lado errado.
 >
-> ⚠️ **Pendência**: **nada disso está no ar** — falta build + `deploy.yml`. Enquanto não subir, quem digitar o CPF continua recebendo a caixa verde mentirosa.
+> ✅ **PROVADO RODANDO, lado a lado, com todo o resto igual**: prod (`build-586`, sem o conserto) → webhook sem token **400**, POST em rota inexistente **400**. Local (com o conserto) → webhook **401**, POST em rota inexistente **405** (rota existe para GET; método não permitido — o status honesto). E o que não podia quebrar não quebrou: home 200, `?codigo=410` segue 410, `?codigo=200` segue virando 404 (a trava dos colegas, intacta).
 >
-> Antes, em 14/08/2026: 🔎 **"SUMIU DO GOOGLE": NÃO SUMIU. O DIAGNÓSTICO, e por que o gargalo NÃO é mais código.**
+> 🧪 **4.246 testes, 0 falhas (2 novos).** ⚠️ São testes de CÓDIGO-FONTE, e é o único jeito honesto aqui — o defeito é de ORDEM DO PIPELINE, e teste de controller passa nos dois mundos. Um cobra que o `ReExecute` esteja dentro do ramo de GET/HEAD; o outro cobra que **não sobrou nenhuma chamada solta**, senão um merge malfeito reintroduz a linha original e o primeiro teste continuaria verde.
+>
+> 🤝 Os 19 testes dos colegas (`StatusDaTelaDeErroTests`) seguem passando — inclusive o `Assert.Matches` que guarda a FORMA da chamada, que foi conferido de propósito antes de mexer.
+>
+> ⚠️ **SUSTO DE GIT, e a lição vale mais que o susto**: usei `git stash push -m ... <caminhos>` achando que guardaria só os meus dois arquivos; o push não pegou, e o `pop` seguinte puxou **o stash de OUTRA sessão** (`quadra-semana-wip`, o financeiro do professor), com conflito em três arquivos que eu nunca toquei. Nada se perdeu — o stash continua na lista e desfiz devolvendo os três ao HEAD. **Régua: em worktree compartilhada, `stash` é área comum, não gaveta pessoal.** Já havia regra de não usar `stash` aqui; ela existe justamente por isso.
+>
+> Antes, no mesmo dia: 🧹 **TRÊS COISAS QUE O FELIPE VIU NA TELA, E DUAS DELAS NÃO ESTAVAM NO CÓDIGO DA TELA.**
+>
+> 👀 **As três vieram de olhar o site, não de ler código** — criar torneio oferecendo "Categoria Casais" **e** "Categoria Casal" lado a lado, o campo "Não achou?" sempre à mostra, e o elenco do ER Padel com a **mesma jogadora cinco vezes seguidas**. Publicadas nas builds `build-586-79ead32` e `build-587-22c9074`.
+>
+> 💣 **A CATEGORIA DUPLICADA NÃO ESTAVA NA LISTA DO CÓDIGO — ESTAVA NO BANCO, E O SEED É QUE A PÔS LÁ.** O catálogo do `Program.cs` tem UMA entrada de casal, e mesmo assim a tela mostrava duas. O seed cria por **NOME** (`nomesExistentes`): quando o nome virou "Casais" (plural) em 08/08, ele não renomeou nada — criou a linha nova e deixou a antiga de pé, ligada. ⚠️ **É a armadilha de todo seed idempotente-por-nome: renomear é sempre criar+abandonar.** O comentário do próprio arquivo já previa isso e a duplicata aconteceu do mesmo jeito, porque previsão não desliga linha nenhuma.
+>
+> ⚠️ **A MIGRAÇÃO CASA POR NOME, E ISSO NÃO É DETALHE: AS DUAS LINHAS TÊM O MESMO `Codigo` "CASAL".** Filtrar por código — o reflexo natural, e o que a migração das "Iniciantes" fez — desligaria a categoria de casal **inteira**, e o sintoma seria "sumiu casal do sistema" numa tela que ninguém abriu ainda. E desliga (`Ativa = false`) em vez de apagar, porque torneio, preferência e aviso guardam o **Id** dela: apagar levaria junto o histórico de quem já jogou. Tem um `EXISTS` de seguro, pra não desligar a antiga num banco onde a nova ainda não nasceu.
+>
+> ✅ **Provado no banco de produção**, não na tela: `21|Categoria Casais|CASAL|t` e `22|Categoria Casal|CASAL|f`.
+>
+> ⚠️ **O CAMPO ESCONDIDO PRECISOU SER DESATIVADO, NÃO SÓ ESCONDIDO — e é aqui que essa mudança tinha como estragar torneio.** "Não achou? Escreva o nome do local" virou a opção **"-- Meu clube não está na lista --"** dentro do próprio seletor. Só que no servidor o nome escrito **sobrepõe** o `ClubeId` (`AcharOuCriarClubeAsync`): quem digitasse um nome, mudasse de ideia e escolhesse um clube da lista veria um clube na tela e criaria o torneio em **outro**. Navegador não envia campo desativado — então o bloco escondido some do POST inteiro. Desativar em vez de apagar guarda o que a pessoa escreveu, caso ela volte.
+>
+> ⚠️ **O valor da opção é `-1`, e não um texto tipo "novo"**: `ClubeId` é `int`, texto ali quebra o binding e o formulário volta com erro. O `-1` cai no `ClubeId <= 0` que o controller **já** recusava — a régua velha cobre o caso novo, e a mensagem de recusa foi reescrita porque falava de um "campo abaixo do seletor" que não existe mais.
+>
+> 👥 **O ELENCO REPETIA GENTE DE PROPÓSITO — e a intenção estava certa, a leitura é que não.** `JogadorCategoria` é o que a pessoa **aceita** jogar, e a tela mostrava cada um em cada categoria pra responder *"quem aqui joga a minha?"*. Só que a Camila (id 276) marcou cinco: numa lista de doze linhas, metade era o mesmo nome, e isso lê como bug mesmo sendo desenho. Agora cada um aparece **uma vez**, no degrau mais forte da escada dele, e o resto vira etiqueta **"joga também"** na própria linha — a pergunta original continua respondida, sem a repetição.
+>
+> ⚠️ **O SEXO ENTROU NA CONTA POR CAUSA DE UM DADO QUE NÃO DEVERIA EXISTIR, E QUE EXISTE.** A Camila tem **5ª e 6ª Masculina** marcadas junto com as femininas (engano no cadastro de preferências, que o site aceita). Como a escada masculina vem primeiro na ordem de tela, "a mais forte" das cinco é sempre uma masculina — e ela terminaria **sozinha na 5ª Masculina**, trocando um bug visível por outro. Com o sexo, cai na 2ª Feminina. ⚠️ E a guarda que quase faltou: só filtra com sexo **conhecido**, senão o `null` de quem não informou casaria com o `null` de Mista/Casais (que não são de sexo nenhum) e a Mista roubaria o lugar da categoria de verdade.
+>
+> ✅ **Provado na página pública** (`/Times/Detalhes/8` responde 200 sem login): "Camila Lopes (Camila)" aparecia **6 vezes** e agora aparece **2** — uma no elenco, uma nas idas e vindas. Três jogadoras ganharam a linha "joga também".
+>
+> 🧪 **4.244 testes, 0 falhas.** O teste que guardava o comportamento antigo (`Quem_aceita_duas_categorias_aparece_nas_duas`) foi **substituído**, não apagado em silêncio — o novo diz o contrário e explica por quê. Três novos, um deles com o caso real da Camila escrito na mão.
+>
+> ✅ **O `main` e a produção voltaram a ser a mesma coisa.** A `build-586` levou junto o que estava mergeado e não publicado desde a `build-582` (a trava da tela de erro, `d13cf16`) — o descompasso anotado no bloco de baixo está fechado.
+>
+> ⏭️ **NÃO conferido no navegador**: a tela de criar torneio exige login, e eu não entro em conta de ninguém. O que mudou lá é markup + JS, compilado e com os testes verdes, mas a interação (escolher a opção, o bloco abrir, o `required` entrar) foi lida no código, não clicada. 💡 Pra próxima isso deixa de ser desculpa: o `.claude/launch.json` tem configs com `--AcessoAntecipado:LoginAutomaticoCpf`, ou seja, dá pra subir o app local **já logado**.
+>
+> ⚠️ **Ficou de fora de propósito**: as duas categorias masculinas no cadastro da Camila. É dado dela, e quem apaga preferência de jogador é o jogador — mas se aparecer mais gente assim, o cadastro de preferências é que deveria parar de oferecer a escada do outro sexo.
+>
+> Antes, no mesmo dia: 📲 **REGISTRAR JOGO DA PANELINHA EM ~6 TOQUES** — e o placar virou opcional, o que **não era mudança de tela**.
+>
+> 📲 **VEIO DE UMA SUGESTÃO DE USUÁRIO**, detalhada, com layout e fluxo. A tela era um formulário com quatro `<select>` de jogador e dois campos de placar obrigatórios — e o registro é coisa que se faz no celular, em pé, ao lado da quadra. Quem chega ali veio do jogo da semana, então o sistema **já sabe** grupo, data, clube e quem joga. Agora: 2 toques (dupla 1) + 2 (dupla 2) + 1 (vencedor) + 1 (salvar).
+>
+> ⚠️ **O ITEM QUE PARECIA TELA E ERA MODELO — e teria estragado o ranking em silêncio.** `JogoSemanal` **não tinha coluna de vencedor**: quem venceu era DEDUZIDO do placar (`GamesDupla1 > GamesDupla2`). Salvar sem placar gravaria 0 x 0 — e 0 x 0 **é empate**, 2 pontos pra cada um. Toda partida lançada sem placar entraria como empate, o `RecalcularPontuacaoAsync` espalharia isso pro ranking gravado, e o sintoma apareceria semanas depois como *"o ranking está estranho"*. O fato **inverteu de lugar**: o VENCEDOR passou a ser gravado e o placar virou detalhe opcional.
+>
+> 🔁 **É a decisão CONTRÁRIA à do W.O., tomada no mesmo dia — e de propósito.** No torneio eu mantive o placar porque tudo lê o placar (classificação de grupo, chaveamento); na panelinha quem lê é só a pontuação, e ela passou a ler o vencedor direto. Mesma pergunta, respostas opostas, porque o que muda é **quem consome o dado**.
+>
+> 💣 **A MIGRAÇÃO QUASE REESCREVEU O RANKING DE TODAS AS PANELINHAS.** O EF gerou a coluna com `defaultValue: 0` — e aqui **0 é EMPATE**, não "vazio". Sem backfill, todo jogo já existente viraria empate. Escrevi o `UPDATE` na migração usando a mesma conta que a propriedade calculada fazia, e ela é exata porque até aqui as duas colunas de games eram NOT NULL: todo jogo antigo tem placar, então o vencedor de todos é dedutível sem perda. ⚠️ É a terceira vez que "coluna nova nasce com zero" morde neste projeto — a diferença é que desta vez o zero tinha SIGNIFICADO.
+>
+> ⚠️ **CONTRADIÇÃO É RECUSADA, NÃO "CORRIGIDA".** Marcar "Dupla 1 venceu" e digitar 3 x 6 devolve erro em vez de escolher um dos dois — os dois vieram da mesma tela e da mesma pessoa, um dos cliques foi errado e o sistema não sabe qual. Escolher sozinho grava resultado que ninguém pediu, que foi como uma final de torneio saiu com o campeão errado aqui (ver `QuemVenceu`).
+>
+> ⚠️ **EDITAR PRECISOU DO CAMPO TAMBÉM.** Enquanto o vencedor era calculado, corrigir o placar acertava o vencedor de graça. Agora um editar que só escrevesse games deixaria o jogo mostrando 6x3 com a **outra** dupla gravada como vencedora — e o ranking segue o vencedor. Registrar e editar passam pela MESMA régua (`Services/ResultadoDoJogoSemanal`).
+>
+> ✅ **Dois itens da proposta eu NÃO implementei, por motivos diferentes.** "Não restringir a quem confirmou" **já era assim** — a tela sempre ofereceu todos os membros + convidados; o que faltava era só o destaque, que entrou (pontinho verde). E o "+ Outro jogador" virou um link pro **Convidar**: escolher um estranho direto aqui exigiria furar a conferência do POST, que existe pra impedir que um formulário montado à mão injete qualquer pessoa no ranking do grupo.
+>
+> 🎨 Resto conforme pedido: data e clube numa linha só com "Alterar", **alerta de data futura fora do bloco escondido** (aviso que só aparece depois de clicar não avisa ninguém), botões até 6 opções e seletor acima disso — **régua reavaliada a cada escolha**, então panelinha de 8 começa no seletor e a dupla 2 já cai nos botões. Empate ficou discreto, mas existe: ele vale 2 pontos e sumiria numa tela de dois botões.
+>
+> 🧪 **4.222 testes, 0 falhas (15 novos).** ✅ Falsificação: voltando o vencedor a ser deduzido do placar, caem 3 — entre eles o `Jogo_sem_placar_pontua_como_vitoria_e_nao_como_empate`, que é exatamente o bug que a migração existe pra evitar. ⚠️ **Dois testes ANTIGOS quebraram e estavam certos em quebrar**: montavam `JogoSemanal` na mão e contavam com o vencedor calculado. Foram o alarme de que existiam call sites fora do controller — conferi que em produção só existe UMA construção de `JogoSemanal`, e ela passa pela régua.
+>
+> ✅ **No ar nos dois ambientes** (`build-582-ff64916`): `NRestarts 0`, zero exceção, `healthz` 200, `GamesDupla1/2` agora `nullable`.
+>
+> ✅ **A PROVA DO BACKFILL, e por que ela é significativa**: os 6 jogos de produção ficaram **5 pra dupla 1 e 1 pra dupla 2 — nenhum empate**. Se o `UPDATE` da migração não tivesse rodado, os 6 estariam em `0`, que é empate: a distribuição sozinha já denunciaria. Somado a isso, **zero** jogos com vencedor divergente do próprio placar.
+>
+> ✅ **E a conferência que fecha o caso**: recalculei em SQL os pontos de cada jogador a partir dos vencedores agora gravados e comparei com o `PontuacaoInterna` que já estava guardado — **zero divergências**. O ranking que os jogadores veem hoje é exatamente o que o sistema vai recalcular no próximo registrar/editar/apagar. ⚠️ **Vale como régua pra toda migração que mexe em dado DERIVADO: não basta conferir a coluna nova — tem que conferir o que é calculado A PARTIR dela.** Sem isso, a migração poderia ter deixado uma bomba armada pro primeiro jogo lançado, e nada apareceria até lá.
+>
+> ⏭️ **NÃO conferido**: a tela nova no celular, que é justamente o ponto da mudança. A sessão local não é membro de panelinha nenhuma no dev, então os botões não foram tocados por mim.
+>
+> ⚠️ **O `main` está À FRENTE do que está publicado**: a `build-582` é do `ff64916`, e depois dela entraram os 4 commits da sessão paralela (a trava da tela de erro, `d13cf16`). Isso NÃO está em produção.
+>
+> Antes, no mesmo dia: 🔢 **A TELA DE ERRO OBEDECIA AO NÚMERO DIGITADO NA URL** — inclusive um 200.
+>
+> 🔢 **O QUE ESTAVA ERRADO**: `HomeController.NaoEncontrado(int codigo = 404)` fazia `Response.StatusCode = codigo` com o valor cru da query string. Quem preenche esse `codigo` é o `UseStatusCodePagesWithReExecute` do `Program.cs` — mas query string **é a barra de endereço**, e lá quem digita é qualquer um. Medido num app de laboratório com a mesma action: `?codigo=99999` fez o Kestrel escrever **999** na linha de status, e `?codigo=200` fez uma URL do site responder **200 OK** exibindo a tela de "essa bola saiu".
+>
+> ⚠️ **O 200 é o que dói, e o estrago é de BUSCA, não de invasão**: nada grava, nada vaza, ninguém entra em lugar nenhum — dá pra ler a mesma tela pública com outro número na frente. Só que status é o que o robô do Google e o monitoramento acreditam, e "página inexistente respondendo 200" é exatamente o que o comentário da própria action já dizia que não podia acontecer. A regra estava **escrita e não aplicada**: o comentário explicava por que devolver o status original, e ninguém conferia de onde o original vinha. A régua que faltava é de uma linha — fora de **400–599**, vira 404.
+>
+> 🔎 **Não foi o trabalho de hoje**: a linha nasceu em **28/07** (`5e5a62a`, "Pnatinha vira parte do produto"), muito antes da isenção de antiforgery das telas de erro. Perguntei ao `git log -S`, não à memória.
+>
+> 🧪 **19 testes novos** em `StatusDaTelaDeErroTests` — 4.241 no total, 0 falhas, já com a panelinha do bloco de cima junto. ✅ Falsificação: tirando as duas linhas da trava, os **8** casos fora da faixa (200, 302, 399, 600, 999, 99999, 0, -1) falham e os **10** de erro de verdade (400, 401, 403, 404, 405, 410, 429, 500, 503, 599) seguem verdes — prova que a trava não mexeu no caminho normal, que é o único jeito de ela passar despercebida em produção.
+>
+> ⚠️ **O teste que parece bobo e é o que segura**: um `Assert.Matches` no `Program.cs` conferindo que a linha ainda passa `"?codigo={0}"`. Se essa string mudar de forma, a action passa a responder **sempre 404** e nenhum teste de regra pega — 401 e 429 virariam "não encontrada" em silêncio, porque a regra estaria certa e quem falhou é o transporte.
+>
+> ⏭️ **Ainda não publicado** — mudança de uma linha no controller, sem migration e sem tocar em tela.
+>
+> Antes, no mesmo dia: 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
+>
+> 🎲 **O PEDIDO**: *"que as duplas não sejam sempre as mesmas"*. Em panelinha semanal quem chega junto joga junto, e em poucas semanas são sempre os mesmos quatro confrontos. Botão **Sortear duplas** na tela da semana, com a opção **"respeitar o lado de cada um"** ligada por padrão. Só o admin do grupo sorteia — o resultado vale pra todos, e dois membros clicando alternado virariam duplas trocando a cada F5.
+>
+> ⚠️ **DUAS REGRAS QUE PUXAM PRA LADOS OPOSTOS, E A ORDEM ENTRE ELAS É O PRODUTO**: o LADO manda (dupla de padel tem um na direita e um na esquerda, isso é físico), e só DENTRO do que o lado permite é que se sorteia evitando parceria repetida. Quem é "Direita" fica na direita, quem é "Esquerda" na esquerda, e **quem joga dos dois lados é o coringa que tapa os buracos** — nessa ordem, que é literalmente o pedido.
+>
+> ⚠️ **QUANDO NÃO FECHA, NÃO SE RECUSA A SORTEAR.** Seis destros e nenhum canhoto é o normal de uma panelinha, não erro do usuário — recusar deixaria a tela inútil no caso mais comum. Sorteia assim mesmo, desloca só quem for inevitável, avisa **qual lado faltou e quantos**, e marca de amarelo **pessoa a pessoa** quem vai jogar trocado. Sem a marca individual, o jogador só descobre na quadra.
+>
+> ⚠️ **O ERRO QUE EU MESMO COMETI E O TESTE MATOU — vale mais que a feature.** A primeira versão do pareamento era GULOSA: cada jogador da direita pegava o parceiro com quem menos tinha jogado. Parece certo e não é — a escolha ótima de um pode ENCURRALAR o último par. Com D1 que já jogou 5× com E1, o guloso casa D2+E2 primeiro (custo zero, "ótimo" naquele passo) e sobra exatamente D1+E1, a única dupla que se queria evitar. **Ótimo local em cada passo, péssimo no total.** Troquei por sortear o conjunto INTEIRO 200 vezes e ficar com o de menor repetição — 10 linhas, e a conta é sempre do sorteio completo. ✅ Falsificado: com 1 tentativa em vez de 200, o teste `Nao_repete_a_parceria_que_ja_jogou_junto` cai.
+>
+> ⚠️ **Janela de 8 semanas no histórico, não o grupo inteiro**: em panelinha antiga todo mundo já jogou com todo mundo, os custos empatam e o histórico deixa de separar qualquer coisa. Oito semanas é o passado que as pessoas ainda sentem como *"de novo esses dois juntos"*.
+>
+> 🎲 **E o empate é sorteado DE VERDADE** (reservoir sampling): entre os sorteios que empatam no melhor custo, cada um tem a mesma chance. Ficar com o primeiro faria o botão devolver sempre a mesma formação em grupo sem histórico — que é justamente o grupo novo, e justamente o que era pra evitar.
+>
+> 🧪 **4.207 testes, 0 falhas (16 novos).** Entre eles a invariante que mais custaria caro na quadra e que menos aparece numa conferência visual: **ninguém joga em duas duplas ao mesmo tempo e ninguém some** (4, 6, 8 e 9 confirmados). E o teste do **contrato com a tela**: o resultado não é gravado em tabela nenhuma — vai em JSON pelo TempData e volta do outro lado do redirect. Se essa ida e volta quebrasse, o botão ficaria MUDO, sem erro em lugar nenhum, e nenhum teste de regra pegaria — porque a regra estaria certa e quem falha é o transporte.
+>
+> ⏭️ **O sorteio não grava nada** — é sugestão pra mesa, e dá pra clicar de novo quantas vezes quiser. Registrar o jogo segue sendo em "Registrar jogo", como sempre.
+>
+> ✅ **No ar nos dois ambientes** (`build-579-68c075b`): `NRestarts 0`, zero exceção, `healthz` 200. **Sem migration** — a feature não guarda nada, o banco não mudou.
+>
+> ⚠️ **CAÍ NUMA ARMADILHA QUE JÁ ESTAVA ESCRITA — o `strings -el` parte a frase no acento.** Sem poder abrir a tela (a sessão local não é admin de grupo nenhum no dev), conferi os textos dentro do `.dll` publicado: `"Sortear duplas"` apareceu, e `"Não tem gente suficiente pra"` deu **ZERO** — que é indistinguível de "o deploy não subiu". O `strings -el` varre sequências UTF-16 de caracteres **ASCII imprimíveis** e corta no primeiro que não é: o `ã` de "Não" parte a frase em duas. Com `"tem gente suficiente pra"` apareceu na hora.
+>
+> 🔁 **O que interessa aqui não é a armadilha, é ter caído nela**: isso está documentado desde 13/08 (`build-541`, mesma pegadinha com "ainda não chegou"), com a regra pronta — **escolher sempre um trecho só-ASCII, e nunca concluir "não subiu" a partir de um zero sem tentar outro pedaço**. A conferência funcionou porque eu duvidei do zero, não porque lembrei da regra. Sinal de que "verificar em vez de deduzir" segura melhor do que decorar caso a caso.
+>
+> Antes, no mesmo dia: 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
+>
+> 🚷 **O PEDIDO DO FELIPE**: *"temos a opção de vencer por W.O.? quando o atleta não comparece ao jogo?"* Não tínhamos. Quem ficava sem adversário em quadra digitava 6x0 e seguia, porque `QuemVenceu.MotivoParaNaoFinalizar` exige games pra deixar encerrar. Funcionava pro chaveamento e mentia pro resto.
+>
+> ⚠️ **A REGRA QUE SÓ EXISTIA NO COMENTÁRIO.** `EncerramentoDaPartida` dizia, em texto, que o serviço filtrava *"restrito/time/W.O."*. Os dois primeiros ele filtrava mesmo. O W.O. **não** — e não tinha como, porque nada no banco distinguia um W.O. de um 6x0 jogado. É o defeito clássico daqui ao contrário: em vez de a regra estar escrita DUAS vezes e as cópias discordarem, ela estava escrita **zero** vez e documentada como se existisse. Achar isso exigiu ir do comentário até o `Conta()` de verdade — comentário não é prova.
+>
+> 💥 **O ESTRAGO QUE ISSO FAZIA**: o Padelímetro mede COMO a pessoa joga, e um W.O. mexia no nível dos quatro. Quem venceu sem entrar em quadra subia; quem faltou descia. A única defesa era indireta — o teto de 6 no `FatorDeGames`, que existe "pra que um 9x0 de W.O. disfarçado não exploda a conta". Teto limita o estrago; não impede o erro.
+>
+> ⚠️ **A DECISÃO DE MODELAGEM, que é o que vale guardar: O W.O. GRAVA PLACAR DE VERDADE.** É contraintuitivo, e a "simplificação" óbvia — deixar games nulos, afinal ninguém jogou — quebraria a classificação em silêncio: quem responde "essa dupla venceu?" é `QuemVenceu`, que **lê o placar**, e 0x0 é empate. O W.O. não daria vitória a ninguém, a dupla que compareceu perderia a vaga no mata-mata e nada acusaria. Então o W.O. anota o placar convencional **da fase** (`FormatoDaPartida`, não um 6x0 cravado), e o que separa ele de um 6x0 jogado é só a coluna `Partida.MotivoDoEncerramento`. Tem teste dos dois lados: o W.O. vale na tabela do grupo E não move o Padelímetro.
+>
+> 🔁 **E a marca SAI sozinha** quando alguém corrige o placar ou reabre o jogo — a dupla chegou atrasada e o jogo aconteceu. Sem isso, aquele jogo ficaria com placar de verdade e fora do Padelímetro **para sempre**, sem nenhuma tela explicando por quê.
+>
+> 🧪 **4.191 testes, 0 falhas (9 novos).** ✅ Falsificação: tirando a linha do filtro, `Wo_nao_mexe_no_padelimetro_de_ninguem` falha e os outros 8 seguem verdes. E o par que protege a modelagem: o MESMO placar, sem a marca, move o nível dos quatro — prova que quem exclui é a marca, não o placar.
+>
+> ⏭️ **NÃO conferido no navegador, e o motivo**: `ControlePlacar` exige organizador ou admin, e a sessão local não é de nenhum torneio do banco de dev. Provado por outro caminho: Razor compila (o build quebraria), e as tags `<form>` estão em sequência, não aninhadas — o form do W.O. fica FORA do de cima de propósito, porque form dentro de form faz o navegador engolir os campos (já aconteceu aqui na criação de torneio).
+>
+> ⏭️ **Fica de fora, de propósito**: "desistência" (abandonar no meio) segue sendo placar comum — lá se jogou, e o Padelímetro deve contar. Só o W.O. é ausência.
+>
+> ✅ **No ar nos dois ambientes** (`build-577-3e2f567`): `NRestarts 0`, zero exceção, `healthz` 200, coluna `MotivoDoEncerramento` criada **nula e sem default** nos dois bancos, e **zero** partida marcada como W.O. em produção. Nula sem default é o que faz todo jogo antigo continuar querendo dizer "jogou-se normalmente" — nenhum resultado histórico mudou de sentido e não houve backfill.
+>
+> ⚠️ **PUBLIQUEI A TAG DO MEU COMMIT, NÃO A MAIS NOVA.** Tinha uma sessão paralela trabalhando (o 400/401 do POST), e uma tag posterior poderia carregar o trabalho dela junto — código que eu não validei indo pra produção de carona. Vale como regra: quando há sessão paralela viva, publicar é `build-N-<meu sha>`, não "a última".
+>
+> ⚠️ **`asp-append-version` DISPENSA subir o `CACHE_NAME` — e isso corrige um entendimento errado que eu vinha aplicando.** Mexi no `site.css`, que está no `STATIC_ASSETS` do service worker, e NÃO subi o `CACHE_NAME`. Fui conferir em vez de assumir o pior: o layout pede `~/css/site.css` com `asp-append-version="true"`, então a URL leva um hash que muda junto com o arquivo, e `caches.match` **considera a query** (`ignoreSearch` é falso por padrão). O cache velho simplesmente não é encontrado, e o navegador busca o arquivo novo. ✅ Provado em prod: o CSS servido já tem as duas regras do selo e a home aponta pra `site.css?v=ShWpWJ`, com o `CACHE_NAME` ainda em `v26`. A entrada pré-cacheada sem query nunca chega a ser pedida por ninguém. **Quando o `CACHE_NAME` importa mesmo**: o `sw.js` em si e qualquer asset pedido por URL FIXA (o `fetch` de dentro do próprio SW, `manifest`, ícones) — esses não passam pelo TagHelper.
+>
+> Antes: 🔐 **A PORTA DO WEBHOOK DE PAGAMENTO CONFERIA O TOKEN COM `==`, E O RELÓGIO ENTREGAVA O SEGREDO** — mais 💀 **o susto de ver trabalho não commitado sumir de um worktree**.
+>
+> 🔐 **O QUE ESTAVA ERRADO.** `POST /Pagamentos/Webhook` é o único ponto do sistema sem login, sem cookie e sem antiforgery — quem chama é o meio de pagamento, de fora. O que separa esse endpoint do mundo inteiro é UM token no cabeçalho `asaas-access-token`, e a conferência usava `==`. O `==` de string **para no primeiro caractere diferente**: o tempo de resposta cresce conforme o prefixo vai acertando, e dá pra descobrir o token **um caractere por vez**, com chamadas repetidas, sem nunca ter acertado ele inteiro. ⚠️ E este é o endpoint que **CONFIRMA PAGAMENTO** — quem descobre o token marca inscrição como paga sem pagar nada. Agora é `CryptographicOperations.FixedTimeEquals`, a mesma comparação de `ConviteDeParceiro.TokenConfere`.
+>
+> ⚠️ **VAZAMENTO POR TEMPO NÃO APARECE EM TESTE DE COMPORTAMENTO — e a falsificação mediu isso.** Com o `==` de volta, **5 dos 6** testes de comportamento continuaram VERDES: token errado seguia dando 401, cabeçalho ausente seguia dando 401, prefixo certo seguia dando 401. A resposta HTTP é idêntica nos dois mundos; o que muda é só o relógio. Por isso existe um teste que **lê o código-fonte** (`A_comparacao_do_token_e_em_tempo_fixo`), pelo mesmo motivo do teste de CSS do dropdown: sem ele, alguém "simplifica" a linha numa limpeza, tudo segue verde e o buraco volta calado.
+>
+> ⚠️ **O teste quase nasceu errado, e o defeito era fino**: o comentário do método fala em *"o `==` do .NET"*, então um teste que procurasse `==` solto acusaria erro **com o código certo**. Ele procura `== _settings.WebhookToken` e lê **só o corpo do método**, sem as linhas de comentário e parando no fecha-chaves — senão um `FixedTimeEquals` de qualquer outro método faria a asserção passar sem esta porta estar protegida.
+>
+> 💀 **TRABALHO NÃO COMMITADO SUMIU DE UM `.claude/worktrees/` — este conserto quase morreu junto.** Limpando os worktrees antigos, achei o `relaxed-babbage-42beca` com este conserto do webhook e um teste de 111 linhas, **sem commit desde 10/08**; deixei a pasta de pé justamente por isso e avisei. Minutos depois ela estava **limpa**: o reflog mostra `reset: moving to HEAD` e um `checkout`, o controller com data de minutos atrás e o teste **apagado do disco**. Não foi `stash` (não está lá), não sobrou objeto solto (`git fsck` varrido) e o arquivo não existe em lugar nenhum da máquina (`find`). ⚠️ **Não sei o que disparou** — não rodei `reset` nem `checkout` ali; rodei `git worktree remove` em OUTRAS três pastas e um `prune`. **A lição não depende de descobrir a causa**: pasta de worktree de sessão não é cofre. Só o commit numa branch faz o trabalho sobreviver ao fim da sessão.
+>
+> ✅ **Deu pra reconstituir** porque eu tinha imprimido o diff inteiro do controller na conversa **antes** de a pasta esvaziar. O teste de 111 linhas não voltou; o que está no repo é novo, com 7 casos.
+>
+> 🧹 **Worktrees**: três removidos (limpos e com o HEAD já contido na `origin/main`), sobraram os dois em uso. Ficam 6 branches locais já inteiras na `origin/main`, ainda não apagadas.
+>
+> 🧪 **4.182 testes, 0 falhas** (7 novos).
+>
+> Antes, no mesmo dia: 🤝 **A DUPLA QUE SE PROCURA: lado na lista, resposta pra quem chamou, e o dropdown que dava pra ler através** (`build-572-7b970ca`, nos dois ambientes) — mais o **CI caído pelo GitHub**, que segurou seis commits, e a publicação da **`build-574-2ad6a9d`**, que levou os DESAFIOS pra produção **invisíveis**.
+>
+> 🎾 **QUEM PROCURA PARCEIRO AGORA DIZ DE QUE LADO JOGA.** A lista do THE LAST DANCE tinha 9 inscrições sozinhas, todas dizendo só "Procurando parceiro" — o lado é o que separa uma da outra, e sem ele a conversa começa por *"de que lado tu joga?"*. O seletor aparece só na inscrição SOZINHA e vem **pré-selecionado com o perfil**: campo que já chega certo é campo que ninguém erra.
+>
+> ⚠️ **A DECISÃO DE MODELAGEM, que é o que vale guardar**: `Dupla.LadoJogador1` **NULO não é "tanto faz"** — é *"nunca escolheu aqui"*, e aí vale o lado do PERFIL (`Services/LadoNaQuadra.Efetivo`). Foi o pedido do Felipe ("os que já estão inscritos, coloca o que ele tem no perfil") e resolve **sem UPDATE nenhum**: as 9 inscrições antigas aparecem certas na primeira vez que a tela abre. E quem escolhe "tanto faz" grava `"Ambos"` — escolha explícita, que NÃO é sobrescrita por um perfil dizendo "Direita". Se os dois fossem a mesma coisa, esse caso viraria "joga na direita" sem ninguém ter pedido.
+>
+> ⚠️ **REUSO EM VEZ DE QUARTA CÓPIA**: `Jogador.LadoQuadra` já era texto livre comparado por `StartsWith("esq")` em TRÊS lugares (perfil, panelinha, cartão). O quarto uso nasceu com a régua compartilhada — prefixo repetido em vários lugares é como um deles passa a discordar sem nada quebrar.
+>
+> 📩 **QUEM CHAMA PRA DUPLA AGORA RECEBE RESPOSTA — decisão do Felipe revertendo a minha.** Eu tinha feito a recusa SILENCIOSA ("avisar só machuca"); o motivo dele é melhor: **quem chamou fica esperando**, não sabe se ainda tem chance e não procura outro parceiro — o silêncio custa a vaga dela. São **dois** textos, separados de propósito: *"Não deu dessa vez"* (o dono recusou) e *"A vaga já foi preenchida"* (ninguém recusou ninguém — outro chegou antes). Um texto só diria "recusou" pra quem só perdeu a corrida.
+>
+> 🎨 **O DROPDOWN DA BUSCA POR NOME ESTAVA TRANSPARENTE** (print do Felipe: dava pra ler o CPF através dos nomes). ⚠️ A causa não era falta de estilo: era uma regra CERTA no lugar errado — o tema escuro deixa todo `.list-group-item` transparente de propósito, o que vale pra lista DENTRO de um card, e não pra uma que FLUTUA sobre o formulário. Valia pros dois lados da dupla; o do parceiro estava assim desde sempre.
+>
+> 🧪 **4.145 testes, 0 falhas.** ⚠️ **A falsificação pegou um erro no PRÓPRIO TESTE**: a primeira versão do teste de CSS procurava o seletor como texto solto e PASSOU com a regra principal desligada, porque a linha do `:hover` contém o mesmo trecho. Fundo certo só no hover é o mesmo defeito — transparente até passar o dedo.
+>
+> 🚨 **O CI CAIU POR CULPA DO GITHUB, e isso segurou SEIS commits** (os meus e os da sessão paralela). Ele nem chegava a compilar: morria baixando a própria ação `actions/setup-dotnet` com **429 Too Many Requests**, em ~1 minuto. ⚠️ **O sintoma engana**: a tag não sai e parece build quebrado nosso. O jeito de saber é `gh run view --log-failed` — se a falha está em "Set up job", não é o nosso código. Recuperou sozinho; se voltar a repetir, o endurecimento é fixar a ação em cache ou usar o .NET já instalado na imagem.
+>
+> ✅ **Conferido em prod**: `NRestarts 0`, zero exceção, `healthz` 200, migration `LadoDeQuemProcuraParceiro` aplicada, coluna `LadoJogador1` existindo, `sw v26` e as 5 regras do dropdown sólido servidas.
+>
+> ✅ **OS DOIS COMMITS DE DESAFIOS FORAM PUBLICADOS** — decisão do Felipe, `build-574-2ad6a9d` em dev e prod: *"Toda vitória no desafio vale o mesmo"* e *"Placar contestado deixa de ser beco sem saída"*. A migration `ResolucaoDaDisputaDoDesafio` aplicou nos **dois** bancos (colunas `MotivoDaDisputa` e `ResolucaoDaDisputa` em `Desafio`). Eram de outra sessão, e por isso o *push* foi pedido separado do *deploy*: autorizar um não é autorizar o outro — a diferença entre os dois é o banco de produção.
+>
+> ⚠️ **COMO SE PROVA QUE UM MÓDULO CHEGOU EM PRODUÇÃO INVISÍVEL** — vale igual pro Bar e pras Molduras. Ler o código **não** conclui nada: o que decide é o servidor. `Desafios__Habilitado` não existe em **nenhum** dos três lugares que poderiam ligá-lo — não está no `Environment=` do unit, não há `EnvironmentFile`, e não há seção `Desafios` em `appsettings` nenhum da release. É a ausência **nos três** que faz valer o padrão da classe (`DesafiosSettings.Habilitado = false`). Conferir só um deles não prova coisa alguma: qualquer um sozinho teria aberto o módulo pra todo mundo.
+>
+> Antes, no mesmo dia: 🔑 **"NÃO CONSEGUE RECUPERAR A SENHA": A TELA TINHA TRÊS BECOS, E OS TRÊS TERMINAVAM NA MESMA CAIXA VERDE.**
+>
+> 🕳️ **O relato**: um jogador não conseguia recuperar a senha. Lendo o caminho inteiro apareceram **três** jeitos de falhar **em silêncio**, todos com a mesma resposta *"link a caminho"* — por isso não havia como distinguir um do outro por fora. (1) O **CPF nunca foi identificador aceito**: `BuscaJogador.PorIdentificadorAsync` compara só e-mail e login, então quem digitava o CPF não era achado e a tela dizia que o link tinha saído. (2) **Pré-cadastro** (inscrito num torneio por outra pessoa, nunca teve senha) não tem o que recuperar: o que falta é **criar** a conta, e o Cadastro reivindica a linha pelo CPF com o histórico junto. (3) Conta **com senha e sem e-mail** não tem pra onde mandar o link — a tela mandava caçar no spam um e-mail que nunca teve destinatário.
+>
+> ✅ **CONFIRMADO NO BANCO DE PRODUÇÃO: era o beco nº 1.** É o jogador de **Id 78**, conta de 04/08/2026, **com senha**, **não** excluída, e com **e-mail e login válidos** (o endereço não vai escrito aqui de propósito — este repo é PÚBLICO; quem precisar consulta o banco). **O que fecha o caso é o `TokenRecuperacao` NULO**: o token é gravado ANTES do envio e só é limpo quando alguém troca a senha de fato — expirar **não** apaga. Se ele tivesse submetido o formulário UMA vez com identificador válido, haveria um token velho parado ali. Não havia. **Ele nunca passou da busca** — digitava o CPF, e o servidor nunca tentou mandar nada. Envio conferido de são: **0 falhas em 7 dias** no journal, Resend de pé. ⏭️ Recado pra ele: digitar o **e-mail do cadastro** (ou o login — caixa não importa) em vez do CPF, e olhar o spam.
+>
+> 🔧 **O que passou a acontecer** (decisão do Felipe): a recuperação **aceita CPF**, o pré-cadastro é mandado **pro Cadastro** com a frase certa ("crie sua conta com o mesmo CPF e o histórico vem junto"), e a conta sem e-mail recebe o **WhatsApp do suporte** em vez de uma caixa verde mentirosa. O campo e o placeholder agora **dizem** "E-mail, login ou CPF" — aceitar em silêncio não resolveria nada, porque quem só sabe o próprio CPF é exatamente quem não adivinharia que pode digitá-lo.
+>
+> 🔒 **A ENTRADA continua NÃO aceitando CPF, e isso tem teste próprio.** A assimetria é o ponto: no login, aceitar o CPF transformaria um número que não é segredo no Brasil em metade da credencial de todo mundo; na recuperação ele é inofensivo, porque o que sai dali é um link mandado pro e-mail **já gravado** na conta. Se alguém "unificar as duas buscas por simetria", o teste quebra.
+>
+> ⚖️ **A resposta uniforme foi rompida DE PROPÓSITO, e só onde não existe recuperação nenhuma pra fazer.** CPF desconhecido segue indistinguível de conta que recebeu o link. O que o ramo novo conta — "esse CPF está na base e ainda não tem senha" — o formulário de **cadastro já contava**, porque lá CPF com senha é recusado e CPF sem senha passa. Não é vazamento novo.
+>
+> 🧪 **4.139 testes, 0 falhas (19 novos).** ✅ Conferido no app local, servidor de verdade, os quatro desfechos: pré-cadastro → "essa conta ainda não tem senha" + botão pro `/Auth/Cadastro`; conta normal pelo CPF **com máscara** → caixa verde **e token gravado no banco**; conta sem e-mail → aviso + WhatsApp; CPF desconhecido → resposta uniforme. O token nasceu **só** na conta que podia receber. Um teste antigo foi **reancorado**: o do aviso de spam procurava o *primeiro* `alert-warning` da tela, e a caixa nova passou a vir antes dele — ficaria verde com o aviso de spam de volta na letra miúda.
+>
+> Antes, no mesmo dia: 🔗 **UM CLIQUE DO FELIPE ACHOU O BURACO: a tela de aceitar dupla só existia PELO AVISO** (`build-567-6a29e6f`, nos dois ambientes) — mais **4 avisos antigos corrigidos no banco de produção**.
+>
+> 🕵️ **O RELATO ERA "cliquei e fui parar no perfil, não na tela de aceite" — e NÃO era o código novo falhando.** A investigação foi no banco de prod, não no palpite: a coluna `Url` mostrou o aviso das **10:30** apontando pro perfil e o das **10:54** já indo pra `/Duplas/Chamados`. ⚠️ **A URL de um aviso é GRAVADA quando ele nasce** — avisos anteriores ao deploy ficam congelados no link velho para sempre, por mais certo que o código esteja hoje. O texto do aviso confirmou: o dele ainda dizia *"mande o convite por link"*, frase que já tinha sido apagada.
+>
+> 🕳️ **Mas o clique expôs um buraco de verdade: a tela SÓ era alcançável pelo aviso.** Quem apagasse a notificação perdia o caminho, e a própria inscrição não dizia que havia gente esperando resposta. ⚠️ **Aviso é lembrete, não pode ser a única porta** — o que existe no sistema precisa estar visível de dentro dele. Agora a inscrição SOZINHA mostra **"N querem jogar com você"**, em destaque e ANTES do "Convidar por link": é gente esperando, e responder fecha a dupla na hora — vale mais que gerar link pra mandar por fora.
+>
+> ⚠️ **A contagem é de QUEM ESTÁ LOGADO e só das inscrições DELE.** Sem esse recorte, a tela mostraria na inscrição de terceiro quantos chamaram, e o botão levaria a um `Forbid`.
+>
+> 🧰 **4 AVISOS ANTIGOS CORRIGIDOS EM PRODUÇÃO** (dado, não código), dentro de transação e com o depois conferido antes do `COMMIT`. O casamento foi **exato, não por proximidade**: a URL velha guarda o Id do CANDIDATO e o `ChamadoDoMural` amarra candidato + inscrição do dono — então cada aviso tinha um destino só. Só entraram os que ainda fazem sentido (inscrição ainda sozinha, torneio ainda aberto).
+>
+> ⚠️ **Um ficou de fora DE PROPÓSITO** (aviso 536): o chamado dele não existe mais no banco — conferido, não suposto. Mandá-lo pra lista abriria uma tela onde aquela pessoa não aparece, o que é pior que o perfil. Os valores antigos ficaram no cabeçalho do script, então o rollback é trivial.
+>
+> 🧪 **4.120 testes, 0 falhas** (2 novos). O da contagem foi **falsificado**: desliguei o `ViewBag` e ele reprovou. ✅ Em prod: `NRestarts 0`, zero exceção, `healthz` 200, e a coluna `Url` mostrando **5 de 6** avisos apontando pra `/Duplas/Chamados`.
+>
+> 💡 **Pra próxima vez que um aviso mudar de destino**: mudar o código só vale pros avisos NOVOS. Se os antigos importam, é `UPDATE` — e o casamento tem que ser exato, senão manda a pessoa pra tela errada.
+>
+> Antes, no mesmo dia: 🤝 **O AVISO DE "QUER FECHAR DUPLA" AGORA TERMINA EM DECISÃO** (`build-565-060a856`, nos dois ambientes).
+>
+> 📩 **O aviso acabava numa TAREFA MANUAL.** Ele levava pro PERFIL do candidato e o texto dizia *"mande o convite por link da sua inscrição"* — ou seja: voltar pro torneio, gerar link, mandar no WhatsApp, torcer pro outro abrir e aceitar. A dupla dependia de o dono lembrar de fazer tudo isso. Agora o toque cai em `/Duplas/Chamados`: a lista de quem chamou, com foto, link pro perfil (que é o que dá lastro pra decidir) e os botões **Aceitar** e **Recusar**.
+>
+> ⚠️ **FECHAR A DUPLA FICOU NUM LUGAR SÓ** (`FecharDuplaComAsync`). São **dois** caminhos que fecham uma dupla sozinha — o convite por link (o parceiro aceita) e o chamado do mural (o dono aceita). Portas opostas, mesmo efeito no banco: preço recontado **com teto**, token queimado, os dois lados avisados. Duplicar é como um caminho passaria a cobrar diferente do outro sem ninguém perceber. As regras de QUEM pode entrar seguem no `MotivoParaNaoSerParceiroAsync`, que os dois já usavam.
+>
+> ⚠️ **Aceitar um DERRUBA os outros pedidos**: deixá-los de pé daria ao dono uma lista de gente pra "aceitar" numa vaga que não existe mais — e o segundo aceite trocaria o parceiro sem ninguém ter pedido. ⚠️ **E não dá pra aceitar quem NUNCA CHAMOU** — sem essa checagem, a ação vira porta lateral pra colocar qualquer pessoa na própria dupla.
+>
+> 🤐 **RECUSAR É SILENCIOSO, e isso é decisão**: *"fulano recusou você"* é aviso que só machuca — não há nada que a pessoa faça com ele. Quem chamou continua vendo a inscrição no mural; se a dupla fechar com outro, ela some de lá sozinha, como no mundo real.
+>
+> 🧪 **4.118 testes, 0 falhas** (11 novos). A trava de dono foi **falsificada**: removida, dois testes reprovaram — inclusive o de caminho inteiro, que pega um candidato **se auto-aceitando na dupla alheia**. ✅ Em prod: `NRestarts 0`, zero exceção, `AceitarChamado` dentro do `.dll` e `/Duplas/Chamados` respondendo **302 pro login** (a rota existe e o `[Authorize]` protege).
+>
+> 💡 **Descoberta do caminho, que vale pras próximas views**: o `dotnet build` **valida as views** deste projeto — conferido plantando um erro de Razor de propósito e vendo o build acusar. Mas as views **não entram no `.dll`** (compilação em runtime), então `strings` no binário não prova que uma tela existe; quem prova é a rota respondendo.
+>
+> ⏭️ **O que falta e só você pode fazer**: abrir a tela LOGADO. O portão local pede senha compartilhada, que eu não digito. Em produção você já tem sessão — quando alguém te chamar, o toque no aviso fecha a prova.
+>
+> Antes, no mesmo dia: 📲 **PLACAR AO VIVO NA TELA DE BLOQUEIO** (`build-563-74a6229` nos dois ambientes), e antes disso a **busca por nome na inscrição** (`561`) e o **merge da página de Times** (`560`).
+>
+> 🔔 **"SEGUIR ESTE JOGO"** (`5132e31`). O Felipe mandou o print de um jogo do Brasileirão na tela de bloqueio do iPhone: *"conseguimos fazer algo parecido para os nossos ao vivos?"*. **A resposta honesta é NÃO pro widget dele** — aquilo é Live Activity (iOS ActivityKit), que exige **app nativo**, e o nosso Android é PWA/TWA (a página web dentro de uma casca) e no iPhone nem instalado como app está. O que dá pra fazer HOJE, e foi feito: **uma notificação por jogo que se ATUALIZA sozinha** a cada game, em vez de empilhar uma por ponto.
+>
+> 🏷️ **O mecanismo é a `tag` do push**: mesma tag = mesma notificação trocando de conteúdo. E `renotify:false` + `silent:true` no `sw.js` fazem a troca ser **MUDA** — sem isso o celular vibraria a cada game, e ninguém quer o telefone tremendo ponto a ponto. Quando o jogo acaba, vai o placar FINAL e o "seguir" se apaga sozinho: não há mais ao vivo pra acompanhar.
+>
+> ⚠️ **O AVISO NÃO PASSA PELO CAMINHO NORMAL, DE PROPÓSITO** (`AvisoPendente.ApenasPush`): um jogo de 9 games viraria **9 linhas na Caixa de Avisos e 9 e-mails**. A régua dos outros canais (caixa sempre, e-mail por omissão) foi pensada pra RECADO — placar que se atualiza sozinho não é recado. Nada de canal novo: a fila e o envio de push são os mesmos, só ganharam `Tag` e `ApenasPush`.
+>
+> 🧩 **O gancho vive em TRÊS lugares porque são as três portas por onde um placar muda**: Mesa de Controle (`SincronizarPlacar`), o lote da lista AO VIVO (`SalvarPlacaresAoVivo`) e o `FinalizarPartida`. Os três chamam o MESMO serviço (`Services/AvisoDePlacarAoVivo`) — é a lição da regra duplicada aplicada antes de o bug existir. ⚠️ E o estado "já sigo" vem do **SERVIDOR**, não do JS: o cartão AO VIVO se redesenha sozinho a cada 20s (`jogos-ao-vivo-atualiza.js`), e sem isso o botão voltaria a dizer "Seguir" pra quem já seguia.
+>
+> 🧪 **4.107 testes, 0 falhas** (12 novos). O gancho da Mesa foi **falsificado**: removido, o teste reprovou; restaurado, passou. ✅ Em prod: `NRestarts 0`, zero exceção, migration aplicada nos dois bancos, `sw v25`, e o `seguir-partida-ao-vivo.js` servindo 200 do domínio.
+>
+> ⏭️ **O que falta e só você pode fazer**: tocar o botão com um jogo DE VERDADE em quadra — permissão de notificação, "Seguindo", e o placar chegando sem vibrar. Não havia jogo ao vivo em produção na hora do deploy, então o cartão que carrega o botão nem existia pra inspecionar. Não é sinal de defeito; é ausência de dado pra observar.
+>
+> Antes, no mesmo dia: 🔎 **ACHAR O JOGADOR 1 PELO NOME, NÃO SÓ PELO CPF** (`build-561-480a6af`, commit `480a6af`). O parceiro já podia ser escolhido pelo nome; o **jogador 1**, não — e ele é justamente quem o organizador preenche ao inscrever alguém no balcão do clube: sabe o nome, não sabe o CPF, e a inscrição parava ali.
+>
+> ⚠️ **UMA função pros dois lados** (`pdzLigarBuscaPorNome`), não duas cópias: no dia em que a busca mudasse (outro endpoint, outro mínimo de letras), um dos lados ficaria pra trás. E o **servidor** é quem completa CPF e nome pelo Id, porque a busca devolve só Id, nome e foto — **CPF e celular de terceiro NÃO saem do servidor**, senão três letras varreriam a base. O preenchimento acontece no TOPO do `Create`, pra tudo abaixo continuar sendo a inscrição por CPF de sempre.
+>
+> 💡 **O "Sou eu" agora desfaz uma escolha por nome antes de preencher**: os dois caminhos gravam a MESMA pessoa e o Id vence o CPF — sem isso a tela mostraria "Sou eu" com o nome de outra pessoa ao lado, e o servidor ignoraria o CPF em silêncio. **6 testes novos**, que cobrem também o `jogador2Id` (que estava sem nenhum) — inclusive que escolher pela lista **não apaga o celular** de quem já tem cadastro.
+>
+> 🐛 **E um teste que só quebrava aos DOMINGOS À NOITE** (`bbf3947`): ele publicava anúncio de desafio "esta semana" e marcava o jogo pra `Now.AddHours(6)`. Num domingo 18h, essas 6 horas caem na SEGUNDA — já fora do prazo — e o `Desafiar` recusava (certíssimo). Verde a semana toda, vermelho no domingo, apontando pra um lugar sem defeito nenhum. ⚠️ **A causa de fundo fica anotada**: o `DesafiosController` lê `DateTime.Now` direto, sem relógio injetável — enquanto for assim, todo teste de prazo de lá depende do dia em que roda.
+>
+> Antes, em 16/08: 🔀 **A BRANCH `pagina-de-times` ENTROU NA MAIN** (`build-560-a375d7f`), trazendo a página do clube com a janela de transferências. Só o `STATUS.md` conflitou — nenhum arquivo de código. ⚠️ **O segundo conflito foi de INFORMAÇÃO, não de texto**: a main dizia que a chave do parceiro do Ranking estava *no ar*, a branch dizia *"falta publicar"*. Quem decidiu foi o **servidor** (`systemctl show` mostra a chave lá), não o texto mais bonito.
+>
+> Antes, em 14/08: 🚨 **O INTERRUPTOR DAS MOLDURAS FECHAVA A PORTA E DEIXAVA A VITRINE ACESA** (`build-556-854f15a` e `build-557-1a615ee`, nos dois ambientes).
+>
+> 🙈 **Primeiro o que o Felipe pediu: "não mostrar molduras pra mim"** (`854f15a`). Interruptor no topo do guarda-roupa: ligado, some a moldura de **todo mundo** — a própria e a dos outros — **só na tela de quem ligou**. Quem vestiu continua vestido pra quem quiser ver.
+>
+> 📱 **Mora no APARELHO** (`localStorage 'pdz-molduras'` + `<html data-molduras="off">`, ao lado do tema), **e isso é decisão, não atalho**: o alvo é TODA foto do sistema, inclusive as que ainda não passam pelo `_FotoDoJogador` — um atributo no `<html>` desliga tudo com **uma** regra de CSS, enquanto pelo Razor seria um `if` repetido em cada lugar que desenha foto, e o primeiro esquecido seria justo a tela que a pessoa abriu. E aplica **antes do primeiro pixel**: pelo banco, a moldura piscaria na tela de quem pediu pra não vê-la. ⚠️ A regra zera as **três** camadas (anel, verniz `::after` e ornamento `::before`) — só o anel deixaria a **coroa flutuando** sobre uma foto sem moldura, pior que a moldura inteira. **Sem migration de propósito**: a sessão paralela estava com 26 arquivos e uma migration prestes a sair, e preferência visual não precisa de coluna. **CACHE_NAME v24.**
+>
+> 🚨 **AÍ PRODUÇÃO MOSTROU O BURACO — e nenhum teste pegaria** (`1a615ee`). O portão nasceu só no `MoldurasController`: fechado, a **tela** de escolha dá 404. Mas quem **desenha** a foto não perguntava nada, então **a moldura de quem escolheu ANTES do interruptor continuava aparecendo em toda tela**. A consulta no banco de produção achou **o jogador 9, com `Estreia`** — exibindo moldura em **duas páginas públicas de torneio**, com a porta trancada. É a "regra duplicada" na forma mais traiçoeira: a segunda cópia da regra era a **AUSÊNCIA dela em quem desenha**. A porta estava certa; era a vitrine que ninguém tinha perguntado.
+>
+> 🔑 **A LIÇÃO, pra próxima chave que nascer**: interruptor de funcionalidade precisa ser testado **com o dado já gravado no banco**, não só com banco limpo. Estava tudo verde porque nenhum teste tinha alguém que já havia escolhido antes de a chave desligar — que é exatamente o caso que existia em produção.
+>
+> 🧩 **O conserto é um lugar só**: `Services/PortaDasMolduras`. O controller pergunta *"a tela abre?"*, o `_FotoDoJogador` pergunta *"a moldura desenha?"* — mesma resposta. Fechado, a foto sai **limpa** mesmo com `MolduraEscolhida` gravado; o dado fica intacto esperando o dia de ligar a chave. Admin continua enxergando, pra avaliar ao vivo.
+>
+> 🧪 **4.065 testes, 0 falhas.** Quatro novos seguram isto: a regra em si (comum não vê, admin vê, ligado todo mundo vê, deslogado não vira admin por acidente); que o **parcial pergunta** por ela — sem este, a regra ficaria certa e sozinha, que foi o estado que chegou em produção; que **nenhuma outra view** desenha `pdz-m-` por fora do parcial; e que o serviço está **registrado** (`@inject` só quebra na hora de desenhar, e derrubaria toda tela com foto **com o `healthz` em 200**). O teste do parcial foi **falsificado**: desfiz a correção e ele reprovou, refiz e passou.
+>
+> ✅ **Conferido em produção, no caso concreto**: o jogador 9 aparece nos torneios **22 e 25**; essas páginas renderizam **31 e 24** fotos pelo parcial e emitem **0** classes de moldura — inclusive zero `pdz-m-Estreia`, sendo que **a classe existe no CSS de prod**. Ou seja: não é CSS faltando, é o portão agindo. Mais: `NRestarts 0`, `active`, **zero exceção**, `healthz` 200, `PortaDasMolduras` dentro do `.dll` e **0** variáveis `Molduras__*` em prod (contra 2 no dev).
+>
+> ⚠️ **Como conferir isto de fora, sem login** (vale pra qualquer chave visual): `curl` numa tela pública de torneio e contar — `pdz-foto` > 0 prova que o parcial rodou, `pdz-m-` = 0 prova que nada desenhou. Tela que **não** usa o parcial (o perfil PÚBLICO ainda não usa) não serve de prova: daria 0 de qualquer jeito.
+>
+> ⏭️ **Pendência que sobra**: a foto grande do perfil PÚBLICO (`Views/Jogadores/Perfil.cshtml`) ainda não passa pelo parcial — e enquanto não passar, ela fica **fora** do portão e do "ocultar molduras".
+>
+> Antes, no mesmo dia: 🔎 **"SUMIU DO GOOGLE": NÃO SUMIU. O DIAGNÓSTICO, e por que o gargalo NÃO é mais código.**
 >
 > 🚨 **O alarme foi real e a conclusão é outra.** O Felipe procurou "padelizou" e viu **só Instagram** — o site fora dos resultados. Verificado na hora: `site:padelizou.com.br` devolve **6 páginas de resultados**, com o **título novo já indexado** (*"Padelizou — Torneios de padel, ranking e aulas"*), o ranking com a frase própria, o NATA PADEL TOUR com data e categorias, e páginas que nem existiam antes. HTTP 200, **sem** `noindex`, **sem** `X-Robots-Tag`, robots liberando, canonical certo, e *Ações manuais* = **"Nenhum problema foi detectado"**. **Não é desindexação nem punição — é POSIÇÃO.**
 >
@@ -291,7 +605,11 @@
 >
 > 📤 **O DOCUMENTO E A CHAVE JÁ FORAM PRO PABLO** (WhatsApp, 12/08 às 16:08 — `Padelizou-API-Torneios.pdf` e a chave em mensagem separada). ⚠️ **E O CÓDIGO AINDA NÃO ESTÁ NO AR**: conferido agora, `https://padelizou.com.br/api/ranking/torneios` responde **404 em HTML** (a página amiga de "não encontrado"). Se o dev dele testar antes do deploy, é isso que ele vê — e 404 em HTML parece integração quebrada, não integração pendente.
 >
-> ⏭️ **Falta publicar**: subir o build e pôr `RankingRs__ChaveDoParceiro` no systemd — **só em produção**, por decisão do Felipe (12/08). O dev sobe o mesmo binário e fica **sem chave**, respondendo 503, que é o certo pra um ambiente que ninguém combinou de usar; se um dia fizer falta, é uma linha lá, com valor **diferente** (a mesma chave nos dois faria a de teste abrir a produção). Os três documentos já foram ajustados: prometiam homologação com chave própria, agora dizem "sob pedido".
+> ✅ **NO AR EM PRODUÇÃO** (13/08/2026, commit `87cd75b`, Deploy #14). Conferido por chamada real, não pelo "Feito" do script: **200** com a chave, **401** sem ela, `Cache-Control: no-store`, e a lista voltou com o **NATA PADEL TOUR** — clube Radar (Gravataí/RS), 10–11/10, R$ 125, capa e **8 categorias com o de-para** (as duas 7ª com `rankingId: null`, que é o certo — elas não existem no catálogo deles).
+>
+> 🕳️ **A CHAVE NÃO ENTROU NA PRIMEIRA TENTATIVA, E A CULPA ERA DO POWERSHELL.** Ele **come as barras invertidas** ao repassar o comando pro `ssh`: o `printf "[Service]\nEnvironment=…"` chegou no servidor como `printf "[Service]nEnvironment=…"` e gravou o drop-in **numa linha só**, com `n` no lugar da quebra. O systemd descartou **calado** — o serviço reiniciou normal, e só a API sabia (503). ⚠️ **Comando pra servidor via PowerShell: sem uma barra invertida sequer.** A versão que funcionou usa dois `echo` com `>>`, e o valor vai **sem aspas** (systemd só precisa delas com espaço no valor). Quem denunciou foi `cat -A` — o `$` no fim de cada linha prova que são duas — e a variável lida de dentro do processo, em `/proc/<pid>/environ`.
+>
+> 🖼️ **A LOGO NOVA DELES ENTROU** — `/image/ranking-brasil.jpg`, ligada em `MarcaDoRanking.Logo`. ⚠️ Ela chegou salva como **`ranking-brasil.png.jpeg`**: um JPEG com nome de PNG, porque o Explorer esconde a extensão de verdade. Servida como `image/png`, o navegador a **recusaria** — o Caddy manda `X-Content-Type-Options: nosniff` em toda resposta, e tipo declarado que não bate com o conteúdo não renderiza. A logo sumiria da tela sem erro em lugar nenhum. Dois testes novos: o arquivo existe onde a constante aponta, e os **bytes** batem com a extensão.
 >
 > ✨ **13/08 — "VANTAGENS EM HABILITAR O RANKING BRASIL" ENTROU NAS DUAS TELAS** (criar e editar torneio), pedido do Felipe. A caixa só explicava o que ela FAZ (barra quem já pontuou acima) — e ninguém marca uma caixa pelo que ela faz, marca pelo que ganha. O que se ganhava estava só na página deles, que ninguém sabia que existia: agora tem o bloco + o link pra `mundodoatleta.com.br/parceria-clubes` (endereço em `MarcaDoRanking.ParaClubes`, um lugar só, como o nome da marca).
 >

@@ -20,8 +20,19 @@ public partial class JogoSemanal
     public int Dupla2Jogador1Id { get; set; }
     public int Dupla2Jogador2Id { get; set; }
 
-    public int GamesDupla1 { get; set; }
-    public int GamesDupla2 { get; set; }
+    // ⚠️ NULO = jogo registrado SEM placar, e isso é normal desde 18/08/2026: registrar um
+    // jogo de panelinha passou a exigir só as duplas e quem venceu. Os dois andam juntos —
+    // meio placar não existe (ver ResultadoDoJogoSemanal.MotivoParaNaoSalvar).
+    public int? GamesDupla1 { get; set; }
+    public int? GamesDupla2 { get; set; }
+
+    // QUEM VENCEU: 0 = empate, 1 = dupla 1, 2 = dupla 2.
+    //
+    // ⚠️ Isto era uma propriedade CALCULADA a partir dos games, e virou coluna. Enquanto o
+    // placar era obrigatório, deduzir bastava; com placar opcional, deduzir de um placar
+    // ausente daria 0 x 0, que é EMPATE — e o ranking da panelinha se encheria de empates que
+    // ninguém jogou, sem erro nenhum na tela. Quem grava é ResultadoDoJogoSemanal.Aplicar.
+    public int VencedorLado { get; set; }
 
     public int RegistradoPorId { get; set; }
     public DateTime CriadoEm { get; set; } = DateTime.Now;
@@ -47,6 +58,4 @@ public partial class JogoSemanal
     [ForeignKey("RegistradoPorId")]
     public virtual Jogador RegistradoPor { get; set; } = null!;
 
-    [NotMapped]
-    public int VencedorLado => GamesDupla1 == GamesDupla2 ? 0 : (GamesDupla1 > GamesDupla2 ? 1 : 2);
 }

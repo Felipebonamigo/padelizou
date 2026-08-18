@@ -27,6 +27,7 @@ namespace Padelizou.Controllers
         private readonly IPadelimetroService _padelimetro;
         private readonly EncerramentoDaPartida _encerramento;
         private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
+        private readonly AvisoDePlacarAoVivo _avisoDePlacar;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
@@ -34,9 +35,11 @@ namespace Padelizou.Controllers
             IPagamentoInscricaoService pagamentos, Microsoft.Extensions.Options.IOptions<TaxasExibicao> taxas,
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
-            EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao)
+            EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao,
+            AvisoDePlacarAoVivo avisoDePlacar)
         {
             _avisoDeInscricao = avisoDeInscricao;
+            _avisoDePlacar = avisoDePlacar;
             _context = context;
             _estatisticas = estatisticas;
             _palpites = palpites;
@@ -455,6 +458,18 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // QUANTAS INSCRIÇÕES JÁ FORAM FEITAS — serve só pra avisar quem vai mexer no preço
+            // na aba "Gerenciar Torneio". Cada inscrição guarda o que ELA custou, então mudar
+            // o valor não reescreve nenhuma; o aviso existe pra isso não ser descoberto no
+            // bolso (ver Services/AvisoDeMudancaDePreco).
+            //
+            // ⚠️ As DUAS tabelas: torneio de chave grava em `Dupla` e Americano em
+            // `InscricaoAmericana`. Contar só uma daria "ninguém inscrito" num Americano
+            // lotado, e o aviso sumiria justamente onde havia mais gente a prejudicar.
+            ViewBag.InscricoesJaFeitas =
+                await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == id)
+                + await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == id);
+
             // Só quem está em TorneioOrganizadores deste torneio pode ver/usar a aba "Gerenciar Torneio"
             var jogadorLogadoId = ObterJogadorIdLogado();
 
@@ -496,11 +511,28 @@ namespace Padelizou.Controllers
             {
                 var eu = await _context.Jogadores
                     .Where(j => j.Id == jogadorLogadoId.Value)
-                    .Select(j => new { j.Id, j.Cpf, j.Nome })
+                    .Select(j => new { j.Id, j.Cpf, j.Nome, j.LadoQuadra })
                     .FirstOrDefaultAsync();
                 ViewBag.MeuJogadorId = eu?.Id;
                 ViewBag.MeuCpf = eu?.Cpf;
                 ViewBag.MeuNome = eu?.Nome;
+                // Pré-seleciona o "de que lado você joga?" da inscrição sem parceiro com o que
+                // já está no cadastro — no caso comum a pessoa não precisa mexer em nada.
+                ViewBag.MeuLadoQuadra = eu?.LadoQuadra;
+
+                // QUANTOS ME CHAMARAM, por inscrição minha (Felipe, 17/08/2026).
+                //
+                // ⚠️ Sem isto, a tela de aceitar/recusar só era alcançável PELO AVISO — quem
+                // apagasse a notificação perdia o caminho, e a própria inscrição não dizia
+                // que havia gente esperando resposta. Aviso é lembrete, não deve ser a única
+                // porta: o que existe no sistema precisa estar visível de dentro dele.
+                ViewBag.ChamadosPorInscricao = await _context.ChamadosDoMural
+                    .Where(c => c.Dupla.Jogador1Id == jogadorLogadoId.Value
+                                && c.Dupla.Categoria.TorneioId == id
+                                && c.Dupla.Jogador2Id == null)
+                    .GroupBy(c => c.DuplaId)
+                    .Select(g => new { DuplaId = g.Key, Quantos = g.Count() })
+                    .ToDictionaryAsync(x => x.DuplaId, x => x.Quantos);
             }
 
             // Valor final anunciado: quem se inscreve precisa ver na tela o mesmo que será
@@ -568,6 +600,14 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // O MURAL: o que quem jogou escreveu e está publicado. Só faz sentido em torneio
+            // que acabou — antes disso não existe avaliação nenhuma, e uma consulta a mais em
+            // toda página de torneio aberto seria custo sem resposta.
+            if (torneio.Status == Services.MvpDoTorneio.StatusFinalizado)
+            {
+                ViewBag.ComentariosPublicos = await EnqueteDoTorneio.PublicadosAsync(_context, id);
+            }
+
             // ⚠️ Duas perguntas diferentes: EDITAR (organizador de verdade) e ABRIR A TELA (que
             // o assistente do sistema também pode). A aba de gestão aparece pelos dois, mas em
             // modo leitura ela vem com os formulários desligados — ver PoderesNoSistema.
@@ -604,6 +644,12 @@ namespace Padelizou.Controllers
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
                 // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
                 ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+
+                // O que escreveram, publicado ou não — inclusive o que é anônimo, que só
+                // existe pra estes olhos. ⚠️ Quem PUBLICA não é quem abre a tela: o assistente
+                // do sistema chega até aqui em modo leitura, e o serviço recusa o POST dele.
+                ViewBag.ComentariosParaModerar = await EnqueteDoTorneio.ParaModerarAsync(_context, id);
+
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
                 // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens
@@ -1008,6 +1054,18 @@ namespace Padelizou.Controllers
                 partidas = partidas.Where(p => EstouNesteJogo(p, meuJogadorId!.Value)).ToList();
 
             ViewBag.AoVivo = partidas.Where(p => p.Status == "AoVivo").OrderBy(p => p.HorarioInicioReal).ToList();
+
+            // PLACAR AO VIVO NA TELA DE BLOQUEIO: quais desses jogos EU já sigo — precisa vir
+            // do servidor, não só de estado no JavaScript, porque o card AO VIVO se REDESENHA
+            // sozinho a cada 20s (js/jogos-ao-vivo-atualiza.js): sem isto o botão voltaria a
+            // dizer "Seguir" no tique seguinte pra quem já estava seguindo.
+            var idsAoVivo = ((List<Partida>)ViewBag.AoVivo).Select(p => p.Id).ToList();
+            ViewBag.PartidasQueSigo = meuJogadorId != null && idsAoVivo.Count > 0
+                ? (await _context.Set<SeguidorDePartida>()
+                    .Where(s => s.JogadorId == meuJogadorId && idsAoVivo.Contains(s.PartidaId))
+                    .Select(s => s.PartidaId)
+                    .ToListAsync()).ToHashSet()
+                : new HashSet<int>();
             // Placar lançado depois (sem HorarioFimReal) cai pro horário previsto em vez
             // de flutuar em ordem arbitrária no meio da lista.
             ViewBag.Finalizadas = partidas.Where(p => p.Status == "Finalizada")

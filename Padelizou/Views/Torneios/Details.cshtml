@@ -395,8 +395,77 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             <i class="bi bi-chat-square-heart-fill"></i> Como foi o torneio?
         </a>
         <small class="text-muted">
-            Quem jogou dá nota pro clube e pra organização.
+            Quem jogou dá nota pro clube, pra organização e pro Padelizou — e comenta se quiser.
         </small>
+    </div>
+}
+
+@* ── O MURAL: O QUE QUEM JOGOU DISSE ──────────────────────────────────────────────────
+   Só o que está publicado. Assinado entra aqui na hora (a pessoa escolheu isso ao
+   responder); sem identificação, só depois que o organizador ou o clube decidir — e aí
+   sem o nome, porque foi o que foi combinado com quem escreveu.
+
+   ⚠️ O `Autor` chega NULO do serviço quando a resposta é anônima. A view não tem escolha a
+   fazer aqui, e é de propósito: não dá pra "esquecer" de esconder o que não veio. *@
+@{
+    var muralDoTorneio = ViewBag.ComentariosPublicos as List<Padelizou.Services.ComentarioDoTorneio>;
+}
+@if (muralDoTorneio != null && muralDoTorneio.Count > 0)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                <i class="bi bi-chat-square-quote-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+                O que quem jogou disse
+            </h6>
+
+            @foreach (var c in muralDoTorneio)
+            {
+                <div class="d-flex gap-2 mb-3">
+                    @if (c.Autor != null)
+                    {
+                        <img src="@(string.IsNullOrEmpty(c.FotoDoAutor) ? "/img/default-avatar.png" : c.FotoDoAutor)"
+                             alt="" class="rounded-circle flex-shrink-0"
+                             style="width:40px;height:40px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-light text-muted"
+                             style="width:40px;height:40px;">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    }
+
+                    <div class="flex-grow-1">
+                        <div class="small">
+                            @if (c.Autor != null)
+                            {
+                                <a asp-action="Perfil" asp-controller="Jogadores" asp-route-id="@c.AutorId"
+                                   class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">@c.Autor</a>
+                            }
+                            else
+                            {
+                                <span class="fw-semibold text-muted">Um jogador do torneio</span>
+                            }
+                            <span class="text-muted">· @c.Quando.ToString("dd/MM/yyyy")</span>
+                        </div>
+
+                        @if (c.SobreOClube != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre o clube:</span> @c.SobreOClube
+                            </div>
+                        }
+                        @if (c.SobreAOrganizacao != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre a organização:</span> @c.SobreAOrganizacao
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 }
 
@@ -876,6 +945,24 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         <span class="d-flex align-items-center gap-2 text-muted small">
                                             <i class="bi bi-person-plus" style="font-size: 1.4rem;"></i>
                                             Procurando parceiro
+                                            @* DE QUE LADO ELE JOGA — é o que separa uma inscrição
+                                               da outra numa lista de 9 "procurando parceiro".
+                                               ⚠️ Sai do LadoNaQuadra.Efetivo: inscrição sem
+                                               escolha (feita antes disto existir) cai no lado do
+                                               PERFIL, e "Ambos" não vira selo — repetido em nove
+                                               linhas seria ruído empurrando pra baixo o que
+                                               distingue. *@
+                                            @{
+                                                var ladoDele = Padelizou.Services.LadoNaQuadra.Rotulo(
+                                                    Padelizou.Services.LadoNaQuadra.Efetivo(
+                                                        dupla.LadoJogador1, dupla.Jogador1?.LadoQuadra));
+                                            }
+                                            @if (ladoDele != null)
+                                            {
+                                                <span class="badge rounded-pill text-bg-secondary fw-normal">
+                                                    <i class="bi bi-arrow-left-right"></i> @ladoDele
+                                                </span>
+                                            }
                                         </span>
 
                                         @* O MURAL EM AÇÃO: "quero jogar com você", pra quem está
@@ -920,6 +1007,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         @if (!dupla.EhTime)
                                         {
                                             <div class="d-flex flex-wrap gap-2 mt-2">
+                                                @* QUEM ME CHAMOU, na própria inscrição.
+                                                   ⚠️ Vem PRIMEIRO e em destaque: é gente esperando
+                                                   resposta, e responder fecha a dupla na hora — vale
+                                                   mais que gerar link pra mandar por fora.
+                                                   Sem este botão a tela de aceitar só era alcançável
+                                                   pelo AVISO, e quem apagasse a notificação perdia o
+                                                   caminho: a inscrição não dizia que havia alguém
+                                                   esperando. *@
+                                                @{
+                                                    var chamadosPorInscricao = ViewBag.ChamadosPorInscricao
+                                                        as Dictionary<int, int> ?? new Dictionary<int, int>();
+                                                    chamadosPorInscricao.TryGetValue(dupla.Id, out var quantosMeChamaram);
+                                                }
+                                                @if (sozinho && quantosMeChamaram > 0)
+                                                {
+                                                    <a asp-controller="Duplas" asp-action="Chamados" asp-route-duplaId="@dupla.Id"
+                                                       class="btn btn-sm btn-padel rounded-pill px-3 fw-bold">
+                                                        <i class="bi bi-people-fill"></i>
+                                                        @quantosMeChamaram quer@(quantosMeChamaram > 1 ? "em" : "") jogar com você
+                                                    </a>
+                                                }
                                                 @if (sozinho)
                                                 {
                                                     @* Vem antes do CPF porque é o caminho que a maioria
@@ -1175,6 +1283,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <i class="bi bi-person-check-fill"></i> Sou eu
                                 </button>
                             }
+                            @* ACHAR O JOGADOR 1 PELO NOME — a mesma busca que o parceiro já tinha.
+                               Quem inscreve outra pessoa (organizador na secretaria, amigo que
+                               junta a dupla) esbarrava aqui: sabe o nome, não sabe o CPF.
+
+                               A lista devolve só Id, nome e foto (Services/BuscaJogador). CPF,
+                               celular e cidade de terceiro NÃO saem do servidor — com eles na
+                               resposta, três letras varreriam a base. Escolhido o nome, quem
+                               completa o cadastro é o servidor, pelo Id. *@
+                            <div class="position-relative mb-2" id="pdzBuscaJog1">
+                                <input type="text" class="form-control" id="pdzJog1Nome"
+                                       placeholder="Procure pelo nome ou apelido"
+                                       autocomplete="off" spellcheck="false" />
+                                <div class="small text-muted mt-1" id="pdzJog1Dica">
+                                    Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
+                                </div>
+                                <input type="hidden" name="jogador1Id" id="pdzJog1Id" />
+                                @* `pdz-busca-lista` NÃO é enfeite: ela dá o fundo sólido. Sem a
+                                   classe, o tema escuro deixa a lista transparente e o CPF de
+                                   baixo aparece através dos nomes (ver site.css). *@
+                                <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista"
+                                     id="pdzJog1Lista"></div>
+                            </div>
+
+                            @* Escolhido pela lista, o bloco do CPF some: os dados vêm do cadastro
+                               de quem foi escolhido, e pedir de novo seria pedir pra digitar errado. *@
+                            <div id="pdzJog1Escolhido" class="alert alert-success py-2 px-3 d-none d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-check-circle-fill"></i> <strong id="pdzJog1EscolhidoNome"></strong></span>
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="pdzJog1Trocar">trocar</button>
+                            </div>
+
+                            <div id="pdzCamposPorCpf1">
                             <input type="text" name="cpf1" class="form-control mb-1 js-cpf" data-alvo="1"
                                    placeholder="000.000.000-00" data-mascara="cpf" inputmode="numeric" required />
                             <div class="small mb-2 js-cpf-status" data-alvo="1"></div>
@@ -1185,6 +1324,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <div class="col-8"><input type="text" name="cidade1" class="form-control" placeholder="Cidade" required /></div>
                                 <div class="col-4"><input type="text" name="estado1" class="form-control" placeholder="UF" required /></div>
                             </div>
+                            </div> @* fim do pdzCamposPorCpf1 *@
                         </div>
                     </div>
                 </div>
@@ -1207,6 +1347,36 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </label>
                             </div>
 
+                            @* DE QUE LADO VOCÊ JOGA — só faz sentido pra quem está SOZINHO, e é
+                               por isso que só aparece com o check marcado (o JS cuida disso).
+                               Numa lista de 9 inscrições procurando parceiro, o lado é o que
+                               separa uma da outra: sem ele a escolha é no escuro e a conversa
+                               começa por "de que lado tu joga?".
+
+                               ⚠️ Vem PRÉ-SELECIONADO com o lado do perfil (Felipe, 17/08/2026),
+                               porque no caso comum a pessoa não vai mexer — e campo que já
+                               chega certo é campo que ninguém erra. Continua trocável: o lado
+                               pode ser deste torneio, não da vida. *@
+                            <div id="pdzLadoSolo" class="mb-3" style="display:none;">
+                                <label class="form-label small fw-bold mb-1" for="pdzLadoJogador1">
+                                    <i class="bi bi-arrow-left-right"></i> De que lado você joga?
+                                </label>
+                                <select class="form-select" name="ladoJogador1" id="pdzLadoJogador1">
+                                    @{
+                                        // Do PERFIL de quem está logado. Sem perfil preenchido, o
+                                        // `Normalizar` devolve "Ambos" — o lado seguro: quem não
+                                        // disse nada não é descartado por ninguém.
+                                        var meuLado = Padelizou.Services.LadoNaQuadra.Normalizar(
+                                            ViewBag.MeuLadoQuadra as string);
+                                    }
+                                    @foreach (var (valor, texto) in Padelizou.Services.LadoNaQuadra.Opcoes)
+                                    {
+                                        <option value="@valor" selected="@(valor == meuLado)">@texto</option>
+                                    }
+                                </select>
+                                <div class="form-text">Aparece pra quem estiver procurando dupla.</div>
+                            </div>
+
                             <div id="pdzCamposParceiro">
                                 @* ACHAR O PARCEIRO PELO NOME. Antes só dava por CPF, e quase
                                    ninguém sabe o CPF do parceiro de cabeça — a inscrição parava
@@ -1225,8 +1395,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
                                     </div>
                                     <input type="hidden" name="jogador2Id" id="pdzParceiroId" />
-                                    <div class="list-group position-absolute w-100 shadow d-none"
-                                         id="pdzParceiroLista" style="z-index: 1080; max-height: 15rem; overflow-y: auto;"></div>
+                                    @* Mesma classe do jogador 1 — o fundo transparente valia
+                                       pros DOIS lados da dupla, só ninguém tinha reparado aqui. *@
+                                    <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista"
+                                         id="pdzParceiroLista"></div>
                                 </div>
 
                                 @* Escolhido pela lista, o bloco do CPF some: os dados vêm do
@@ -1828,6 +2000,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="small text-muted">A organização</div>
                                     <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
                                 </div>
+                                @* A do sistema tem contagem própria (quem respondeu antes de a
+                                   pergunta existir não deu nota nenhuma ao Padelizou), então
+                                   ela pode faltar aqui mesmo com as outras duas na tela. *@
+                                @if (enquete.MediaSistema != null)
+                                {
+                                    <div>
+                                        <div class="small text-muted">O Padelizou</div>
+                                        <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                    </div>
+                                }
                                 <div class="align-self-end small text-muted">
                                     @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
                                 </div>
@@ -1838,6 +2020,98 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small text-muted mb-0">
                                 @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
                                 a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                            </p>
+                        }
+
+                        @* ── O QUE ESCREVERAM ────────────────────────────────────────────
+                           Tudo que tem texto, publicado ou não — e é o único lugar do sistema
+                           onde o comentário anônimo aparece (sem nome, como foi combinado com
+                           quem escreveu). Publicar põe o texto na página do torneio.
+
+                           ⚠️ Os botões só saem pra quem PODE gravar: o assistente do sistema
+                           abre esta aba em leitura, e o servidor recusaria o POST dele. *@
+                        @{
+                            var comentarios = ViewBag.ComentariosParaModerar
+                                as List<Padelizou.Services.ComentarioDoTorneio>;
+                        }
+                        @if (comentarios != null && comentarios.Count > 0)
+                        {
+                            <hr />
+                            <div class="small fw-bold text-muted text-uppercase mb-2">
+                                O que escreveram
+                                @if (enquete.EsperandoDecisao > 0)
+                                {
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis ms-1">
+                                        @enquete.EsperandoDecisao fora do mural
+                                    </span>
+                                }
+                            </div>
+
+                            @foreach (var c in comentarios)
+                            {
+                                <div class="border rounded-3 p-2 mb-2 bg-white">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        @if (c.Anonimo)
+                                        {
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                                <i class="bi bi-incognito"></i> Sem identificação
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId"
+                                               class="fw-semibold text-decoration-none small" style="color: var(--pdz-ink);">
+                                                @c.Autor
+                                            </a>
+                                        }
+                                        <span class="small text-muted">
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaClube clube ·
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaOrganizacao organização
+                                        </span>
+                                        <span class="small text-muted ms-auto">@c.Quando.ToString("dd/MM")</span>
+                                    </div>
+
+                                    @if (c.SobreOClube != null)
+                                    {
+                                        <div class="small mb-1"><strong>Clube:</strong> @c.SobreOClube</div>
+                                    }
+                                    @if (c.SobreAOrganizacao != null)
+                                    {
+                                        <div class="small mb-1"><strong>Organização:</strong> @c.SobreAOrganizacao</div>
+                                    }
+
+                                    <div class="d-flex align-items-center gap-2 mt-2">
+                                        @if (c.Publicado)
+                                        {
+                                            <span class="badge rounded-pill bg-success-subtle text-success-emphasis">
+                                                <i class="bi bi-eye"></i> No mural do torneio
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted border">
+                                                <i class="bi bi-eye-slash"></i> Só pra vocês
+                                            </span>
+                                        }
+
+                                        @if (ViewBag.GestaoSoLeitura != true)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="PublicarAvaliacao"
+                                                  asp-route-id="@Model.Id" method="post" class="m-0">
+                                                <input type="hidden" name="avaliacaoId" value="@c.AvaliacaoId" />
+                                                <input type="hidden" name="publicar" value="@((!c.Publicado).ToString().ToLowerInvariant())" />
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none">
+                                                    @(c.Publicado ? "Tirar do mural" : "Publicar no mural")
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <p class="small text-muted mb-0">
+                                Comentário sem identificação vai pro mural <strong>sem o nome</strong> de quem
+                                escreveu — é o que foi combinado com a pessoa na hora de responder.
                             </p>
                         }
                     </div>
@@ -2155,6 +2429,88 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <input type="number" step="0.01" name="precoInscricao" class="form-control"
                                            value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.PrecoInscricao)" required />
                                 </div>
+                                @* A taxa de impedimento passou a ser editável aqui (18/08/2026):
+                                   estava presa na tela de criação, e interruptor que só existe
+                                   no cadastro vira "não dá pra mudar". *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Taxa por impedimento</label>
+                                    <input type="number" step="0.01" min="0" name="taxaPorImpedimento" class="form-control"
+                                           value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.TaxaPorImpedimento)" />
+                                    <small class="text-muted d-block mt-1">
+                                        Uma vez <strong>por dupla</strong>, não por jogador. Zero = não cobra.
+                                    </small>
+                                </div>
+                                @* ── PARIDADE COM A TELA DE CRIAÇÃO ────────────────────────
+                                   Campo que só existe no cadastro vira beco: já aconteceu com a
+                                   forma de recebimento, com reabrir inscrições e com "só
+                                   confirmo depois de pago". As travas de quando PODE mudar
+                                   moram em Services/MudancaDepoisDeAberto. *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Limite de duplas</label>
+                                    <input type="number" min="0" name="limiteDuplasTotal" class="form-control"
+                                           value="@(Model.LimiteDuplasTotal?.ToString() ?? "")" placeholder="sem limite" />
+                                    <div class="form-check mt-1">
+                                        @* Sinal separado porque "vazio" no número já quer dizer
+                                           "campo não veio" — sem isto não daria pra TIRAR o
+                                           limite depois de posto. *@
+                                        <input class="form-check-input" type="checkbox" name="limiteSemTeto" value="true" id="editSemTeto" />
+                                        <label class="form-check-label small" for="editSemTeto">Sem limite</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="permiteMultiplasCategorias" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="permiteMultiplasCategorias" value="true"
+                                               id="editMultiplasCat" checked="@Model.PermiteMultiplasCategorias" />
+                                        <label class="form-check-label small" for="editMultiplasCat">
+                                            Permitir o mesmo jogador em mais de uma categoria
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="excluirSeNaoPagar" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="excluirSeNaoPagar" value="true"
+                                               id="editExcluirSeNaoPagar" checked="@Model.ExcluirSeNaoPagar" />
+                                        <label class="form-check-label small" for="editExcluirSeNaoPagar">
+                                            Excluir inscrição não paga no prazo
+                                        </label>
+                                    </div>
+                                    @if (Model.Formato == Padelizou.Services.FormatoDoTorneio.Americano
+                                      || Model.Formato == Padelizou.Services.FormatoDoTorneio.AmericanoDeDuplas)
+                                    {
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="pontuaNoRankingAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="pontuaNoRankingAmericano" value="true"
+                                                   id="editPontuaAmericano" checked="@Model.PontuaNoRankingAmericano" />
+                                            <label class="form-check-label small" for="editPontuaAmericano">
+                                                Pontua no ranking de Americano
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="desempateAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="desempateAmericano" value="true"
+                                                   id="editDesempateAmericano" checked="@Model.DesempateAmericano" />
+                                            <label class="form-check-label small" for="editDesempateAmericano">
+                                                Jogo de desempate no Americano
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* ⚠️ O AVISO QUE O FELIPE PEDIU. Cada inscrição guarda o que ELA
+                                   custou (Dupla.ValorInscricao): mudar o valor aqui não reescreve
+                                   nenhuma. Sem dizer isso, o organizador faz uma de duas contas
+                                   erradas — cobra a diferença de quem já pagou, ou conta com um
+                                   dinheiro que não vem. Texto único em AvisoDeMudancaDePreco. *@
+                                @if (Padelizou.Services.AvisoDeMudancaDePreco.Texto(
+                                        ViewBag.InscricoesJaFeitas as int? ?? 0) is string avisoDePreco)
+                                {
+                                    <div class="col-12">
+                                        <div class="alert alert-warning py-2 px-3 small mb-0 d-flex gap-2 align-items-start">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                            <span>@avisoDePreco</span>
+                                        </div>
+                                    </div>
+                                }
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold small">Qtd. de Quadras</label>
                                     <input type="number" id="editQuantidadeQuadras" name="quantidadeQuadras" class="form-control" value="@Model.QuantidadeQuadras" required oninput="gerarCamposQuadraEdicao()" />
@@ -3860,6 +4216,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/palpitrometro.js" asp-append-version="true"></script>
     <script src="~/js/placar-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-ao-vivo-atualiza.js" asp-append-version="true"></script>
+    <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
 }
 
@@ -4237,6 +4594,11 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         if (botao) {
             botao.addEventListener('click', function () {
+                // Desfaz uma escolha por nome antes: os dois caminhos gravam a mesma pessoa,
+                // e o Id vence o CPF no servidor — o CPF preenchido aqui seria ignorado em
+                // silêncio, com a tela mostrando "Sou eu" e o nome de outra pessoa ao lado.
+                if (window.pdzBuscaJog1) window.pdzBuscaJog1.limpar();
+
                 cpf1.value = meuCpf;
                 // 'input' formata a máscara E dispara a consulta que preenche o resto.
                 cpf1.dispatchEvent(new Event('input', { bubbles: true }));
@@ -4270,24 +4632,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         });
     })();
 
-    // ── Achar o parceiro pelo NOME ──────────────────────────────────────────────────────
+    // ── Achar o jogador pelo NOME ───────────────────────────────────────────────────────
     //
-    // Quase ninguém sabe o CPF do parceiro de cabeça, e a inscrição parava no meio esperando
-    // uma mensagem no WhatsApp. Três letras e a lista aparece; escolhido o nome, o servidor
+    // Quase ninguém sabe o CPF do outro de cabeça, e a inscrição parava no meio esperando uma
+    // mensagem no WhatsApp. Três letras e a lista aparece; escolhido o nome, o servidor
     // completa o resto pelo Id (DuplasController.Create).
     //
     // A busca devolve só Id, nome e foto — CPF e celular de terceiro não saem do servidor.
-    (function () {
-        var campo = document.getElementById('pdzParceiroNome');
+    //
+    // ⚠️ UMA função pros DOIS lados da dupla (o Felipe pediu o mesmo pro jogador 1 em
+    // 14/08/2026). Copiar o bloco e trocar os ids seria a segunda cópia da mesma regra: o
+    // dia em que a busca mudasse — outro endpoint, outro mínimo de letras, outro jeito de
+    // esconder o CPF — um dos dois lados ficaria pra trás, e ninguém repara logo.
+    function pdzLigarBuscaPorNome(ids) {
+        var campo = document.getElementById(ids.campo);
         if (!campo) return;
 
-        var lista = document.getElementById('pdzParceiroLista');
-        var idOculto = document.getElementById('pdzParceiroId');
-        var escolhido = document.getElementById('pdzParceiroEscolhido');
-        var escolhidoNome = document.getElementById('pdzParceiroEscolhidoNome');
-        var trocar = document.getElementById('pdzParceiroTrocar');
-        var porCpf = document.getElementById('pdzCamposPorCpf');
-        var dica = document.getElementById('pdzParceiroDica');
+        var lista = document.getElementById(ids.lista);
+        var idOculto = document.getElementById(ids.idOculto);
+        var escolhido = document.getElementById(ids.escolhido);
+        var escolhidoNome = document.getElementById(ids.escolhidoNome);
+        var trocar = document.getElementById(ids.trocar);
+        var porCpf = document.getElementById(ids.porCpf);
+        var dica = document.getElementById(ids.dica);
+        var caixa = document.getElementById(ids.caixa);
         var url = '@Url.Action("BuscarJogadorParaOrganizador", "Torneios")';
         var timer = null;
 
@@ -4370,9 +4738,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         // Clique fora fecha — a lista flutua sobre o formulário.
         document.addEventListener('click', function (e) {
-            if (!document.getElementById('pdzBuscaParceiro').contains(e.target)) fecharLista();
+            if (caixa && !caixa.contains(e.target)) fecharLista();
         });
-    })();
+
+        // O "Sou eu" precisa desfazer uma escolha por nome antes de preencher o CPF: os dois
+        // caminhos gravam a MESMA pessoa, e deixar os dois marcados ao mesmo tempo deixaria
+        // na tela um nome escolhido que o servidor ia ignorar (o Id vence o CPF).
+        return { limpar: function () { if (!escolhido.classList.contains('d-none')) trocar.click(); } };
+    }
+
+    // Em window porque quem precisa dela é o "Sou eu", que vive noutro bloco acima.
+    window.pdzBuscaJog1 = pdzLigarBuscaPorNome({
+        caixa: 'pdzBuscaJog1', campo: 'pdzJog1Nome', lista: 'pdzJog1Lista', idOculto: 'pdzJog1Id',
+        escolhido: 'pdzJog1Escolhido', escolhidoNome: 'pdzJog1EscolhidoNome',
+        trocar: 'pdzJog1Trocar', porCpf: 'pdzCamposPorCpf1', dica: 'pdzJog1Dica',
+    });
+
+    pdzLigarBuscaPorNome({
+        caixa: 'pdzBuscaParceiro', campo: 'pdzParceiroNome', lista: 'pdzParceiroLista', idOculto: 'pdzParceiroId',
+        escolhido: 'pdzParceiroEscolhido', escolhidoNome: 'pdzParceiroEscolhidoNome',
+        trocar: 'pdzParceiroTrocar', porCpf: 'pdzCamposPorCpf', dica: 'pdzParceiroDica',
+    });
 
     // "Ainda não tenho parceiro": esconde os campos do jogador 2. O required precisa sair
     // junto, senão o navegador recusa o envio apontando pra um campo invisível.
@@ -4383,12 +4769,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         var campos = document.getElementById('pdzCamposParceiro');
         var aviso = document.getElementById('pdzAvisoSemParceiro');
         var badge = document.getElementById('pdzBadgeSemParceiro');
+        // "De que lado você joga?" é pergunta de quem está SOZINHO: com o parceiro definido,
+        // a dupla se organiza por fora e o campo vira ruído no formulário.
+        var lado = document.getElementById('pdzLadoSolo');
 
         function aplicar() {
             var solo = check.checked;
             campos.style.display = solo ? 'none' : '';
             aviso.style.display = solo ? '' : 'none';
             badge.style.display = solo ? '' : 'none';
+            if (lado) lado.style.display = solo ? '' : 'none';
 
             campos.querySelectorAll('input').forEach(function (input) {
                 if (solo) {

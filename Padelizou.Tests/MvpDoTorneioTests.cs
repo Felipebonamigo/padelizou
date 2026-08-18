@@ -940,7 +940,8 @@ public class MvpDoTorneioTests
         // por view nenhuma.
         var quemJogou = (await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id)).First();
         var recusa = await EnqueteDoTorneio.AvaliarAsync(
-            ctx, torneio.Id, quemJogou, notaClube: 5, notaOrganizacao: 4, Domingo.AddHours(2));
+            ctx, torneio.Id, quemJogou,
+            new RespostaDaEnquete { NotaClube = 5, NotaOrganizacao = 4 }, Domingo.AddHours(2));
 
         Assert.NotNull(recusa);
         Assert.Empty(ctx.AvaliacoesDeTorneio);
@@ -966,7 +967,8 @@ public class MvpDoTorneioTests
 
         var quemJogou = (await MvpDoTorneio.EleitoresAsync(ctx, torneio.Id)).First();
         var recusa = await EnqueteDoTorneio.AvaliarAsync(
-            ctx, torneio.Id, quemJogou, notaClube: 5, notaOrganizacao: 4, Domingo.AddHours(2));
+            ctx, torneio.Id, quemJogou,
+            new RespostaDaEnquete { NotaClube = 5, NotaOrganizacao = 4 }, Domingo.AddHours(2));
 
         Assert.Null(recusa);
         Assert.Single(ctx.AvaliacoesDeTorneio);

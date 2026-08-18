@@ -72,7 +72,8 @@ public class CorrigirJogoDaPanelinhaTests
         await controller.RegistrarJogo(
             grupo.Id, new DateTime(2026, 8, 11),
             j[0].Id, j[1].Id, j[2].Id, j[3].Id,
-            games1, games2, clubeId: null);
+            // O vencedor sai do placar deste helper — a mesma conta que a migração faz no backfill.
+            Padelizou.Services.ResultadoDoJogoSemanal.LadoPeloPlacar(games1, games2), games1, games2, clubeId: null);
 
         return await ctx.JogosSemanais.OrderByDescending(x => x.Id).FirstAsync();
     }
@@ -87,12 +88,12 @@ public class CorrigirJogoDaPanelinhaTests
         var vitoriaDaUm = new JogoSemanal
         {
             Dupla1Jogador1Id = 1, Dupla1Jogador2Id = 2, Dupla2Jogador1Id = 3, Dupla2Jogador2Id = 4,
-            GamesDupla1 = 6, GamesDupla2 = 4,
+            GamesDupla1 = 6, GamesDupla2 = 4, VencedorLado = ResultadoDoJogoSemanal.Dupla1,
         };
         var empate = new JogoSemanal
         {
             Dupla1Jogador1Id = 1, Dupla1Jogador2Id = 2, Dupla2Jogador1Id = 3, Dupla2Jogador2Id = 4,
-            GamesDupla1 = 5, GamesDupla2 = 5,
+            GamesDupla1 = 5, GamesDupla2 = 5, VencedorLado = ResultadoDoJogoSemanal.Empate,
         };
 
         var so = PontuacaoDaPanelinha.Totais(new[] { vitoriaDaUm });
@@ -160,7 +161,7 @@ public class CorrigirJogoDaPanelinhaTests
         await controller.EditarJogo(
             jogo.Id, new DateTime(2026, 8, 11),
             j[0].Id, j[1].Id, j[2].Id, j[3].Id,
-            gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
+            vencedorLado: 2, gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
 
         Assert.Equal(1, await PontosAsync(ctx, grupo.Id, j[0].Id));
         Assert.Equal(3, await PontosAsync(ctx, grupo.Id, j[2].Id));
@@ -180,7 +181,7 @@ public class CorrigirJogoDaPanelinhaTests
         await controller.EditarJogo(
             jogo.Id, new DateTime(2026, 8, 11),
             j[0].Id, j[3].Id, j[2].Id, j[1].Id,
-            gamesDupla1: 6, gamesDupla2: 4, clubeId: null);
+            vencedorLado: 1, gamesDupla1: 6, gamesDupla2: 4, clubeId: null);
 
         Assert.Equal(3, await PontosAsync(ctx, grupo.Id, j[3].Id));
         Assert.Equal(1, await PontosAsync(ctx, grupo.Id, j[1].Id));
@@ -224,7 +225,7 @@ public class CorrigirJogoDaPanelinhaTests
         await Controller(ctx, j[3].Id).EditarJogo(
             jogo.Id, new DateTime(2026, 8, 11),
             j[0].Id, j[1].Id, j[2].Id, j[3].Id,
-            gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
+            vencedorLado: 2, gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
 
         var salvo = await ctx.JogosSemanais.FirstAsync(x => x.Id == jogo.Id);
         Assert.Equal(4, salvo.GamesDupla1);
@@ -249,7 +250,7 @@ public class CorrigirJogoDaPanelinhaTests
         await quemLancou.EditarJogo(
             jogo.Id, new DateTime(2026, 8, 11),
             j[0].Id, j[1].Id, j[2].Id, j[3].Id,
-            gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
+            vencedorLado: 2, gamesDupla1: 4, gamesDupla2: 6, clubeId: null);
 
         var salvo = await ctx.JogosSemanais.FirstAsync(x => x.Id == jogo.Id);
         Assert.Equal(4, salvo.GamesDupla1);

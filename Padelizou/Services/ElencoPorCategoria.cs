@@ -6,10 +6,11 @@ namespace Padelizou.Services;
 // A lista corrida por pontos respondia "quem é o melhor do time". Não respondia a pergunta
 // que se faz montando dupla pra um interno: "quem aqui joga a minha categoria?".
 //
-// ⚠️ UMA PESSOA APARECE EM VÁRIOS GRUPOS, de propósito. `JogadorCategoria` é a lista de
-// categorias que ela ACEITA jogar (várias, quase sempre), e não um nível único. Mostrá-la só
-// na "mais forte" esconderia dela justamente quem procura parceiro na outra — e é para isso
-// que a tela existe.
+// ⚠️ CADA PESSOA APARECE UMA VEZ SÓ, no degrau mais forte que ela aceita (Felipe, 18/08/2026).
+// `JogadorCategoria` é a lista de categorias que ela ACEITA jogar, e quem marca cinco aparecia
+// cinco vezes: numa lista de doze linhas, metade era o mesmo nome, e a tela lia como bug.
+// Quem procura parceiro na 4ª continua enxergando quem também joga a 4ª — as outras
+// categorias vão como etiqueta na linha da pessoa (ver Views/Times/Detalhes).
 //
 // Genérico no tipo do membro pra continuar sendo função pura: ela não conhece ViewModel, não
 // toca no banco, e por isso o teste dela cabe numa lista na memória.
@@ -24,30 +25,25 @@ public static class ElencoPorCategoria
         public bool EhSemCategoria => Categoria == SemCategoria;
     }
 
+    // `sexoDe` é opcional e não é preciosismo: existe gente com categoria MASCULINA e FEMININA
+    // marcadas ao mesmo tempo (engano no cadastro de preferências, e o site aceita). Sem o
+    // sexo, "a mais forte" das duas escadas é sempre a masculina — e uma jogadora ia parar
+    // sozinha na "5ª Masculina". Sabendo o sexo, ela cai na escada dela.
     public static List<Grupo<T>> Agrupar<T>(
         IEnumerable<T> membros,
-        Func<T, IReadOnlyCollection<string>> categoriasDe)
+        Func<T, IReadOnlyCollection<string>> categoriasDe,
+        Func<T, string?>? sexoDe = null)
     {
         var grupos = new Dictionary<string, List<T>>();
 
         foreach (var membro in membros)
         {
-            var categorias = categoriasDe(membro);
-            var nomes = categorias.Count == 0
-                ? new[] { SemCategoria }
-                : categorias.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).ToArray();
+            var nome = OndeMostrar(categoriasDe(membro), sexoDe?.Invoke(membro));
 
-            // Sobrou vazio depois da limpeza (nome em branco no catálogo): cai no balde do
-            // "sem categoria" em vez de sumir do elenco. Membro do time não pode não aparecer.
-            if (nomes.Length == 0) nomes = new[] { SemCategoria };
+            if (!grupos.TryGetValue(nome, out var lista))
+                grupos[nome] = lista = new List<T>();
 
-            foreach (var nome in nomes.Distinct())
-            {
-                if (!grupos.TryGetValue(nome, out var lista))
-                    grupos[nome] = lista = new List<T>();
-
-                lista.Add(membro);
-            }
+            lista.Add(membro);
         }
 
         return grupos
@@ -63,5 +59,35 @@ public static class ElencoPorCategoria
                 g.Key == SemCategoria ? SemCategoria : CategoriaNaTela.Curto(g.Key),
                 g.Value))
             .ToList();
+    }
+
+    // Em qual grupo a pessoa aparece. Público porque a tela precisa da MESMA resposta pra
+    // saber quais categorias sobraram pra virar etiqueta na linha dela.
+    public static string OndeMostrar(IReadOnlyCollection<string>? categorias, string? sexo = null)
+    {
+        var nomes = (categorias ?? Array.Empty<string>())
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim())
+            .Distinct()
+            .ToList();
+
+        // Sem categoria nenhuma — ou só nome em branco vindo do catálogo — cai no balde em vez
+        // de sumir do elenco. Membro do time não pode não aparecer.
+        if (nomes.Count == 0) return SemCategoria;
+
+        // A escada do próprio sexo ganha da outra, mesmo que a outra tenha degrau "mais alto".
+        // Mista e Casais não são de sexo nenhum: ficam de fora deste filtro e só entram quando
+        // a pessoa não tem nenhuma categoria da escada dela.
+        // ⚠️ Só filtra com sexo CONHECIDO. Sem essa guarda, quem não informou casaria com o
+        // `null` de Mista/Casais — e uma pessoa com "Mista A" e "3ª Masculina" apareceria na
+        // Mista, que é o degrau menos informativo dos dois.
+        var daEscadaDela = SexoDoJogador.Existe(sexo)
+            ? nomes.Where(n => CategoriaNaTela.SexoDaEscada(n) == sexo).ToList()
+            : new List<string>();
+        var candidatos = daEscadaDela.Count > 0 ? daEscadaDela : nomes;
+
+        // "Mais forte" é o primeiro da ordem que o resto do site já usa: Open no topo, depois
+        // 2ª, 3ª... — ver CategoriaNaTela.Ordem.
+        return candidatos.OrderBy(CategoriaNaTela.Ordem).First();
     }
 }

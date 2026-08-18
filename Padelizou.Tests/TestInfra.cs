@@ -285,7 +285,8 @@ public static class TestInfra
             // o nível igual à produção — é justamente o que os testes querem ver.
             new PadelimetroService(ctx),
             NovoEncerramento(ctx, push),
-            new AvisoDeInscricaoNoTorneio(ctx, push));
+            new AvisoDeInscricaoNoTorneio(ctx, push),
+            new AvisoDePlacarAoVivo(ctx, push));
 
         controller.ControllerContext = new ControllerContext
         {

@@ -67,6 +67,11 @@ public class DepoimentoVM
     public string? Cidade { get; set; }
     public int? Nota { get; set; }
     public string Texto { get; set; } = "";
+
+    // Quem escreveu pela enquete de fim de torneio pode ter pedido pra não assinar. ⚠️ Some
+    // com o nome E com a cidade: numa base pequena, "Lucas · Santa Maria" identifica tanto
+    // quanto o nome inteiro.
+    public bool Anonimo { get; set; }
 }
 
 // "Meu dia" do professor, direto na entrada.

@@ -526,9 +526,13 @@ namespace Padelizou.Controllers
 
             // Sem clube o insert estouraria na chave estrangeira, com erro 500 e o formulário
             // inteiro perdido. Melhor recusar aqui, explicando o que fazer.
+            //
+            // O -1 é a opção "Meu clube não está na lista" (ver Create.cshtml) escolhida sem
+            // escrever o nome: cai aqui igual ao 0 de quem não escolheu nada.
             if (torneio.ClubeId <= 0)
             {
-                return await Recusar("Escolha o clube responsável, ou escreva o nome dele no campo abaixo do seletor.");
+                return await Recusar("Escolha o local na lista — ou, se ele não estiver lá, escolha "
+                    + "\"Meu clube não está na lista\" e escreva o nome.");
             }
 
             // O local do torneio é o clube: pedir os dois era pedir o mesmo dado duas vezes.
@@ -1006,6 +1010,13 @@ namespace Padelizou.Controllers
             IFormFile? capa,
             // Opcionais com valor padrão: assim um formulário antigo (aba aberta antes deste
             // deploy) continua salvando o resto em vez de estourar por parâmetro faltando.
+            decimal? taxaPorImpedimento = null,
+            // PARIDADE COM A TELA DE CRIAÇÃO (Felipe, 18/08/2026). Todos opcionais: aba antiga
+            // em cache não manda o campo, e nulo aqui quer dizer "mantém o que está gravado" —
+            // nunca "apaga". As regras de quando PODE mudar moram em MudancaDepoisDeAberto.
+            int? limiteDuplasTotal = null, bool? limiteSemTeto = null,
+            bool? permiteMultiplasCategorias = null, bool? pontuaNoRankingAmericano = null,
+            bool? desempateAmericano = null, bool? excluirSeNaoPagar = null,
             string? chavePixOrganizador = null, string? recadoAosInscritos = null,
             // Convite do grupo no WhatsApp. Segue a mesma regra dos dois de cima: campo em
             // branco APAGA o link (e com ele o botão), que é como o organizador desfaz um
@@ -1318,6 +1329,63 @@ namespace Padelizou.Controllers
             if (clubeEscolhido != null) torneio.LocalTorneio = clubeEscolhido.Nome;
             torneio.QuantidadeQuadras = quantidadeQuadras;
             torneio.PermiteImpedimentos = permiteImpedimentos;
+
+            // A TAXA DE IMPEDIMENTO passou a ser editável com o torneio já aberto (Felipe,
+            // 18/08/2026) — o preço da inscrição já era, e deixar só ela presa na tela de
+            // criação era o mesmo beco de sempre: interruptor que só existe no cadastro vira
+            // "não dá pra mudar".
+            //
+            // ⚠️ Nulo = campo não veio (aba antiga em cache), e aí mantém o que está gravado.
+            // Zero é escolha explícita: "parei de cobrar por impedimento".
+            //
+            // ⚠️ Como o preço da inscrição, isto NÃO reescreve inscrição que já existe — cada
+            // uma guarda o que custou. Quem avisa disso na tela é Services/AvisoDeMudancaDePreco.
+            if (taxaPorImpedimento is decimal novaTaxa)
+            {
+                if (novaTaxa < 0)
+                {
+                    TempData["Erro"] = "A taxa por impedimento não pode ser negativa.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.TaxaPorImpedimento = novaTaxa;
+            }
+
+            // ── PARIDADE COM A CRIAÇÃO ────────────────────────────────────────────────────
+            // Nulo = campo não veio (aba antiga): mantém o gravado. Nunca apaga por omissão.
+            int inscricoesJaFeitas =
+                await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == id)
+                + await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == id);
+
+            // ⚠️ O limite tem trava própria: baixar abaixo de quem já entrou não apaga
+            // ninguém — faz o torneio se comportar como lotado, em silêncio.
+            // `limiteSemTeto` existe porque "vazio" no número já quer dizer "não veio o campo";
+            // sem um sinal separado não daria pra TIRAR o limite depois de posto.
+            if (limiteSemTeto == true)
+            {
+                torneio.LimiteDuplasTotal = null;
+            }
+            else if (limiteDuplasTotal.HasValue)
+            {
+                if (MudancaDepoisDeAberto.ProblemaComOLimite(limiteDuplasTotal, inscricoesJaFeitas) is { } problemaLimite)
+                {
+                    TempData["Erro"] = problemaLimite;
+                    return RedirectToAction("Details", new { id });
+                }
+
+                torneio.LimiteDuplasTotal = limiteDuplasTotal;
+            }
+
+            if (permiteMultiplasCategorias.HasValue)
+            {
+                torneio.PermiteMultiplasCategorias = permiteMultiplasCategorias.Value;
+                // Mesma amarração da criação: sem múltiplas categorias não existe segundo preço.
+                if (!torneio.PermiteMultiplasCategorias) torneio.PrecoSegundaInscricao = null;
+            }
+
+            if (pontuaNoRankingAmericano.HasValue) torneio.PontuaNoRankingAmericano = pontuaNoRankingAmericano.Value;
+            if (excluirSeNaoPagar.HasValue) torneio.ExcluirSeNaoPagar = excluirSeNaoPagar.Value;
+            if (desempateAmericano.HasValue) torneio.DesempateAmericano = desempateAmericano.Value;
             torneio.RestricaoCategoria = string.IsNullOrEmpty(restricaoCategoria) ? "Livre" : restricaoCategoria;
             torneio.ValidarPeloRankingRs = validarPeloRankingRs;
             await SalvarDeParaDoRankingAsync(id, rankingCategoriaId, rankingRsId);

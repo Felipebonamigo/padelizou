@@ -158,6 +158,15 @@
             {
                 <span class="pdz-jl-etiqueta pdz-jl-quadra"><i class="bi bi-geo-alt-fill"></i> @jogo.NomeQuadra</span>
             }
+            @* W.O.: sem este selo o jogo aparece como um 6x0 comum, e quem varre a lista
+               depois não tem como saber que ninguém entrou em quadra — o placar é o mesmo
+               de propósito (ver Services/EncerramentoPorWo). *@
+            @if (Padelizou.Services.EncerramentoPorWo.Foi(jogo))
+            {
+                <span class="pdz-jl-etiqueta pdz-jl-wo" title="Alguém não compareceu — não contou pro Padelímetro">
+                    <i class="bi bi-person-x-fill"></i> @Padelizou.Services.EncerramentoPorWo.Rotulo
+                </span>
+            }
         </span>
 
         @if (Model.EhOrganizador)

@@ -91,6 +91,10 @@ builder.Services.Configure<MarcarJogoSettings>(builder.Configuration.GetSection(
 // As MOLDURAS ficam guardadas enquanto o Felipe decide o modelo (conquista × paga) —
 // ver Services/MoldurasSettings.
 builder.Services.Configure<MoldurasSettings>(builder.Configuration.GetSection("Molduras"));
+// ⚠️ E a regra de quem ENXERGA moldura mora num lugar só: a tela de escolha e quem desenha a
+// foto perguntam pro mesmo objeto. Portão fechado tem que apagar a moldura de quem já
+// escolheu — senão 404 na porta e a moldura na cara de todo mundo (ver PortaDasMolduras).
+builder.Services.AddSingleton<PortaDasMolduras>();
 builder.Services.AddSingleton<IPasswordHasher<Jogador>, PasswordHasher<Jogador>>();
 // Trava de força-bruta do LOGIN: janela por conta, contada dentro da própria ação (o
 // identificador vem do formulário, que middleware não lê sem risco de I/O síncrono).
@@ -235,6 +239,9 @@ builder.Services.AddScoped<EncerramentoDaPartida>();
 builder.Services.AddScoped<AvisoDeInscricaoNoTorneio>();
 builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<IPushNotificationService>(sp => sp.GetRequiredService<PushNotificationService>());
+// Placar AO VIVO na tela de bloqueio: quem segue um jogo (Models/SeguidorDePartida) recebe UMA
+// notificação por jogo que se atualiza sozinha — ver Services/AvisoDePlacarAoVivo.
+builder.Services.AddScoped<AvisoDePlacarAoVivo>();
 builder.Services.AddScoped<IHorarioMarcacaoService, HorarioMarcacaoService>();
 builder.Services.AddScoped<OtimizacaoDeImagens>();
 // A fonte dos cards compartilháveis (campeão do torneio e "seu ano no padel").
@@ -421,6 +428,11 @@ using (var scope = app.Services.CreateScope())
         //
         // `Codigo` e `Tipo` continuam "CASAL": é por Tipo que as telas agrupam a categoria, e
         // mexer neles quebraria o bloco do coração na criação sem melhorar nada.
+        //
+        // E foi o que aconteceu: a linha antiga "Categoria Casal" (singular) ficou de pé nos
+        // bancos que já rodavam, e a criação de torneio passou a oferecer as duas. Quem desliga
+        // ela é a migração CategoriaCasalDuplicada — NÃO a devolva a esta lista, ou o start
+        // seguinte a recria ligada e a duplicata volta.
         ("Categoria Casais", "CASAL", "Casal", true),
     };
 
@@ -504,7 +516,22 @@ if (!app.Environment.IsDevelopment())
 // caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.
 // "ReExecute" reexecuta o pipeline mantendo a URL que a pessoa digitou na barra, em vez de
 // redirecionar: quem chegou por um link errado consegue ver qual era o link errado.
-app.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}");
+//
+// ⚠️ SÓ PARA GET/HEAD, e isso conserta um 400 que enganava o diagnóstico.
+//
+// O ReExecute preserva o MÉTODO. Então um POST que dava erro virava um POST para
+// /Home/NaoEncontrado, esse POST passava pelo filtro global de antiforgery
+// (AutoValidateAntiforgeryTokenAttribute, lá em cima), não tinha token — e o cliente recebia
+// **400** no lugar do status real. Media-se `POST /rota-que-nao-existe` e vinha 400; o
+// webhook de pagamento recusado por token devolvia 400 em vez de 401.
+//
+// O sintoma é pior que o número errado: quem for investigar um dia começa procurando corpo
+// malformado, que é o que 400 quer dizer, quando o problema era rota inexistente ou
+// credencial. Página de erro é para GENTE NAVEGANDO; quem chama por POST é formulário, app
+// ou serviço, e o que serve para eles é o status cru, não uma tela HTML.
+app.UseWhen(
+    ctx => HttpMethods.IsGet(ctx.Request.Method) || HttpMethods.IsHead(ctx.Request.Method),
+    ramo => ramo.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}"));
 
 app.UseHttpsRedirection();
 // MapStaticAssets() (abaixo) só serve os arquivos que já existiam em wwwroot no momento do

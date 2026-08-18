@@ -2,7 +2,14 @@ using System.Threading.Channels;
 
 namespace Padelizou.Services;
 
-public record AvisoPendente(int JogadorId, string Titulo, string Corpo, string? Url, AlcanceDoAviso Alcance);
+// `Tag` e `ApenasPush` nasceram pro PLACAR AO VIVO (16/08/2026): o mesmo jogo manda vários
+// avisos seguidos (um por game), e um aviso "normal" entraria na Caixa de Avisos e mandaria
+// e-mail a cada um — um jogo de 9 games viraria 9 linhas na tela de Notificações e 9 e-mails.
+// `Tag` faz o navegador SUBSTITUIR a notificação anterior do mesmo jogo em vez de empilhar;
+// `ApenasPush` pula caixa de entrada, e-mail e WhatsApp — é acompanhamento em tempo real, não
+// recado que precise ficar guardado. Ver Services/AvisoDePlacarAoVivo.
+public record AvisoPendente(int JogadorId, string Titulo, string Corpo, string? Url, AlcanceDoAviso Alcance,
+    string? Tag = null, bool ApenasPush = false);
 
 // A fila de saída dos avisos. Fica entre quem GERA o aviso e quem ENTREGA.
 //

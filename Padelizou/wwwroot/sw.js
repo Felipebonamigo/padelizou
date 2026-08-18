@@ -2,7 +2,7 @@
 // caminho, e o `activate` só joga fora cache com nome diferente deste. Sem virar a versão, quem
 // já instalou continuaria vendo o logo antigo pra sempre.
 // **Ao trocar qualquer arquivo desta lista, suba o número.**
-const CACHE_NAME = "padelizou-static-v24";
+const CACHE_NAME = "padelizou-static-v26";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
@@ -142,14 +142,26 @@ self.addEventListener("push", (event) => {
   // pra fazer do nosso lado. Quem limita o estrago é a varredura, que só sonda suspeito.
   if (data.tipo === "sonda") return;
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/image/icon-512.png",
-      badge: "/image/favicon-32.png",
-      data: { url: data.url },
-    })
-  );
+  const opcoes = {
+    body: data.body,
+    icon: "/image/icon-512.png",
+    badge: "/image/favicon-32.png",
+    data: { url: data.url },
+  };
+
+  // PLACAR AO VIVO: o mesmo jogo manda um aviso por game, e sem `tag` cada um empilharia —
+  // a tela de notificações viraria uma lista "4x3", "4x4", "5x4"... `tag` faz este aviso
+  // SUBSTITUIR o anterior do mesmo jogo (mesma tag = mesma notificação, conteúdo novo).
+  // `renotify: false` (o padrão, explícito aqui) é o que faz a substituição ser SILENCIOSA —
+  // sem ele o navegador tocaria/vibraria a cada game, e ninguém quer o celular avisando
+  // ponto a ponto. Ver Services/PushNotificationService.EnviarPushAsync.
+  if (data.tag) {
+    opcoes.tag = data.tag;
+    opcoes.renotify = false;
+    opcoes.silent = true;
+  }
+
+  event.waitUntil(self.registration.showNotification(data.title, opcoes));
 });
 
 self.addEventListener("notificationclick", (event) => {

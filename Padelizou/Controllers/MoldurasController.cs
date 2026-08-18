@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Padelizou.Models;
 using Padelizou.Services;
 using System.Security.Claims;
@@ -19,22 +18,25 @@ public class MoldurasController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly IEstatisticasService _estatisticas;
-    private readonly MoldurasSettings _settings;
+    private readonly PortaDasMolduras _porta;
 
     public MoldurasController(DbPadelContext context, IEstatisticasService estatisticas,
-        IOptions<MoldurasSettings> settings)
+        PortaDasMolduras porta)
     {
         _context = context;
         _estatisticas = estatisticas;
-        _settings = settings.Value;
+        _porta = porta;
     }
 
     // ⚠️ O INTERRUPTOR (14/08/2026): o Felipe pediu pra segurar as molduras enquanto decide o
     // modelo (conquista × paga) — e o pedido chegou com tudo JÁ publicado. O portão fecha a
     // porta inteira: desligado, só admin do Padelizou entra (pra avaliar ao vivo); pra todo
-    // mundo a tela não existe. Ninguém em produção tinha escolhido moldura quando fechou.
-    private bool PortaFechada() =>
-        !_settings.Habilitado && User.FindFirstValue("IsAdmin") != "true";
+    // mundo a tela não existe.
+    //
+    // A regra mora no PortaDasMolduras porque o _FotoDoJogador faz a MESMA pergunta: aqui ela
+    // decide se a tela abre, lá se a moldura desenha. Com a regra só aqui, a porta fechou sem
+    // apagar a moldura de quem já tinha escolhido — foi o que aconteceu em produção.
+    private bool PortaFechada() => _porta.Fechada(User);
 
     // GET /Molduras — o guarda-roupa: TODAS as molduras em volta da foto da própria pessoa,
     // as destravadas escolhíveis e as bloqueadas em cinza dizendo como destravar (a mesma
@@ -48,7 +50,7 @@ public class MoldurasController : Controller
         if (jogador == null) return RedirectToAction("Perfil", "Auth");
 
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(jogadorId);
-        ViewBag.DivertidasLiberadas = _settings.DivertidasLiberadas;
+        ViewBag.DivertidasLiberadas = _porta.DivertidasLiberadas;
         return View(jogador);
     }
 
@@ -66,7 +68,7 @@ public class MoldurasController : Controller
         // moldura de Decacampeão em quem nunca jogou. A régua é a MESMA que calcula os badges
         // do perfil (ObterConquistasAsync), não uma segunda conta.
         var conquistas = await _estatisticas.ObterConquistasAsync(jogadorId);
-        var impedimento = CatalogoMolduras.MotivoParaNaoUsar(codigo, conquistas, _settings.DivertidasLiberadas);
+        var impedimento = CatalogoMolduras.MotivoParaNaoUsar(codigo, conquistas, _porta.DivertidasLiberadas);
         if (impedimento != null)
         {
             TempData["Erro"] = impedimento;

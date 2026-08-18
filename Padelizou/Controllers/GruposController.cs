@@ -286,6 +286,23 @@ namespace padelizou.Controllers
             ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
             ViewBag.ClubeDoGrupoId = await _context.GruposPrivados
                 .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
+            ViewBag.NomeDoClubeDoGrupo = await _context.GruposPrivados
+                .Where(g => g.Id == grupoId).Select(g => g.Clube!.Nome).FirstOrDefaultAsync();
+
+            // QUEM CONFIRMOU naquela data — só pra DESTACAR, nunca pra filtrar.
+            //
+            // ⚠️ A distinção é o pedido de um usuário e está certa: quem jogou e esqueceu de
+            // confirmar no app tem que aparecer na lista igual, senão o jogo não consegue ser
+            // lançado por causa de um RSVP. A lista de escolha continua sendo todo mundo
+            // (ParticipantesParaResultadoAsync); confirmar só empurra pra cima.
+            var diaDoJogo = ViewBag.DataSugerida as DateTime? ?? DateTime.Today;
+            ViewBag.Confirmados = (await _context.ConfirmacoesSessao
+                .Where(c => c.Sessao.GrupoId == grupoId
+                         && c.Sessao.DataHora.Date == diaDoJogo.Date
+                         && c.Status == "Confirmado")
+                .Select(c => c.JogadorId)
+                .ToListAsync())
+                .ToHashSet();
 
             return View();
         }
@@ -294,11 +311,19 @@ namespace padelizou.Controllers
         public async Task<IActionResult> RegistrarJogo(
             int grupoId, DateTime dataJogo,
             int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
-            int gamesDupla1, int gamesDupla2, int? clubeId, DateTime? voltarParaSemana = null)
+            int vencedorLado, int? gamesDupla1, int? gamesDupla2, int? clubeId, DateTime? voltarParaSemana = null)
         {
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
+
+            // O vencedor é o fato; o placar é detalhe opcional. A régua é a mesma do editar —
+            // ver Services/ResultadoDoJogoSemanal, e o porquê de ela existir separada.
+            if (ResultadoDoJogoSemanal.MotivoParaNaoSalvar(vencedorLado, gamesDupla1, gamesDupla2) is { } problema)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("RegistrarJogo", new { grupoId, data = dataJogo });
+            }
 
             // A LISTA DA TELA NÃO É A TRAVA. Ela some de vista, o POST não: sem conferir aqui,
             // um id qualquer entraria no placar do grupo — e no recálculo do ranking — por um
@@ -327,10 +352,9 @@ namespace padelizou.Controllers
                 Dupla1Jogador2Id = dupla1Jogador2Id,
                 Dupla2Jogador1Id = dupla2Jogador1Id,
                 Dupla2Jogador2Id = dupla2Jogador2Id,
-                GamesDupla1 = gamesDupla1,
-                GamesDupla2 = gamesDupla2,
                 RegistradoPorId = userId
             };
+            ResultadoDoJogoSemanal.Aplicar(jogo, vencedorLado, gamesDupla1, gamesDupla2);
             _context.JogosSemanais.Add(jogo);
             await _context.SaveChangesAsync();
 
@@ -384,7 +408,7 @@ namespace padelizou.Controllers
         public async Task<IActionResult> EditarJogo(
             int id, DateTime dataJogo,
             int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
-            int gamesDupla1, int gamesDupla2, int? clubeId)
+            int vencedorLado, int? gamesDupla1, int? gamesDupla2, int? clubeId)
         {
             var userId = ObterUserId();
 
@@ -394,6 +418,16 @@ namespace padelizou.Controllers
             var grupo = await _context.GruposPrivados.FirstOrDefaultAsync(g => g.Id == jogo.GrupoId);
             if (grupo == null) return NotFound();
             if (!PodeMexerNoJogo(grupo, jogo, userId)) return RedirectToAction("Detalhes", new { id = jogo.GrupoId });
+
+            // ⚠️ A MESMA régua do registrar, e ela é obrigatória AQUI de um jeito que não era
+            // antes: enquanto o vencedor saía de conta, corrigir o placar acertava o vencedor
+            // de graça. Agora ele é campo — um editar que só escrevesse os games deixaria o
+            // vencedor gravado apontando pro lado antigo, e o ranking seguiria o vencedor.
+            if (ResultadoDoJogoSemanal.MotivoParaNaoSalvar(vencedorLado, gamesDupla1, gamesDupla2) is { } problema)
+            {
+                TempData["Erro"] = problema;
+                return RedirectToAction("EditarJogo", new { id });
+            }
 
             // Mesma conferência do registro — mais quem JÁ ESTAVA no jogo. Sem essa segunda
             // parte, corrigir só o placar de uma partida antiga seria recusado porque um dos
@@ -419,8 +453,7 @@ namespace padelizou.Controllers
             jogo.Dupla1Jogador2Id = dupla1Jogador2Id;
             jogo.Dupla2Jogador1Id = dupla2Jogador1Id;
             jogo.Dupla2Jogador2Id = dupla2Jogador2Id;
-            jogo.GamesDupla1 = gamesDupla1;
-            jogo.GamesDupla2 = gamesDupla2;
+            ResultadoDoJogoSemanal.Aplicar(jogo, vencedorLado, gamesDupla1, gamesDupla2);
             await _context.SaveChangesAsync();
 
             await RecalcularPontuacaoAsync(jogo.GrupoId);
@@ -560,6 +593,85 @@ namespace padelizou.Controllers
 
             TempData["Sucesso"] = vou ? "Presença confirmada!" : "Ok, marcamos que você não vai dessa vez.";
             return RedirectToAction("Semana", new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") });
+        }
+
+        // ===================== SORTEAR AS DUPLAS DA SEMANA =====================
+        //
+        // "Para que as duplas não sejam sempre as mesmas" (Felipe, 18/08/2026). A regra e o
+        // porquê de cada decisão moram em Services/SorteioDeDuplas; aqui só se junta o que o
+        // motor precisa: quem confirmou, de que lado cada um joga e quem já jogou com quem.
+        //
+        // Só o admin do grupo sorteia. Não é hierarquia: o resultado vale pra todos, e dois
+        // membros clicando alternado virariam duplas trocando a cada F5.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SortearDuplas(int sessaoId, bool respeitarLado = true)
+        {
+            var userId = ObterUserId();
+
+            var sessao = await _context.SessoesGrupo
+                .Include(s => s.Grupo)
+                .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
+                .FirstOrDefaultAsync(s => s.Id == sessaoId);
+            if (sessao == null) return NotFound();
+            if (sessao.Grupo.AdministradorId != userId) return Forbid();
+
+            var voltarPara = new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") };
+
+            // ⚠️ `LadoNaQuadra.Efetivo`, e não `c.Lado` cru: a confirmação nasce copiando o lado
+            // do perfil, mas quem foi convidado de fora — ou é membro de antes de o campo
+            // existir — vem com nulo. Nulo aqui não é "tanto faz": é "não escolheu nesta tela",
+            // e aí vale o perfil. Mesma régua da inscrição de torneio.
+            var candidatos = sessao.Confirmacoes
+                .Where(c => c.Status == "Confirmado")
+                .Select(c => new SorteioDeDuplas.Candidato(
+                    c.JogadorId,
+                    c.Jogador.ComoChamar,
+                    LadoNaQuadra.Efetivo(c.Lado, c.Jogador.LadoQuadra)))
+                .ToList();
+
+            if (candidatos.Count < 2)
+            {
+                TempData["Erro"] = "Precisa de pelo menos 2 confirmados pra sortear as duplas.";
+                return RedirectToAction("Semana", voltarPara);
+            }
+
+            // O HISTÓRICO DE PARCERIAS — é ele que faz "não repetir" querer dizer alguma coisa.
+            //
+            // ⚠️ Janela de 8 semanas, e não o grupo inteiro desde sempre: em panelinha antiga
+            // todo mundo já jogou com todo mundo, os custos empatam e o histórico deixa de
+            // separar qualquer coisa. Oito semanas é o passado que as pessoas ainda sentem
+            // como "de novo esses dois juntos".
+            var desde = sessao.DataHora.Date.AddDays(-56);
+            var jogos = await _context.JogosSemanais
+                .Where(j => j.GrupoId == sessao.GrupoId
+                         && j.DataJogo.Date >= desde && j.DataJogo.Date <= sessao.DataHora.Date)
+                .Select(j => new { j.Dupla1Jogador1Id, j.Dupla1Jogador2Id, j.Dupla2Jogador1Id, j.Dupla2Jogador2Id })
+                .ToListAsync();
+
+            var vezesJuntos = new Dictionary<(int, int), int>();
+            foreach (var j in jogos)
+            {
+                foreach (var par in new[]
+                {
+                    SorteioDeDuplas.Chave(j.Dupla1Jogador1Id, j.Dupla1Jogador2Id),
+                    SorteioDeDuplas.Chave(j.Dupla2Jogador1Id, j.Dupla2Jogador2Id),
+                })
+                {
+                    vezesJuntos[par] = vezesJuntos.GetValueOrDefault(par) + 1;
+                }
+            }
+
+            var resultado = SorteioDeDuplas.Sortear(candidatos, vezesJuntos, Random.Shared, respeitarLado);
+
+            // O sorteio NÃO grava nada: ele é uma sugestão pra mesa, e o organizador pode
+            // clicar de novo se a quadra pedir outra coisa. Vai por TempData pra sobreviver ao
+            // redirect (o POST-redirect-GET do resto do site) e sumir na navegação seguinte —
+            // que é o tempo de vida certo pra um sorteio.
+            TempData["SorteioDeDuplas"] = System.Text.Json.JsonSerializer.Serialize(resultado);
+
+            return RedirectToAction("Semana", voltarPara);
         }
 
         // ===================== CONVIDAR JOGADORES DE FORA (link wa.me manual) =====================
