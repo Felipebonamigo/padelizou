@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 💰 **DINHEIRO É SÓ DO RAIZ: O ADMINISTRADOR NOMEADO E O ASSISTENTE PARARAM DE VER FINANCEIRO.**
+> Última atualização: **18/08/2026** — 🙈 **TORNEIO OCULTO: DÁ PRA MONTAR ANTES DE DIVULGAR — E O AVISO SEGUE A REBOQUE.**
+>
+> 🗣️ **O pedido do Felipe**: *"preciso poder ocultar e exibir os torneios criados — esse do Er ainda vamos divulgar, e só aí permitir que o pessoal veja"*. O campo `Torneio.Oculto` já existia desde 24/07 e **não servia pra isso** por dois motivos. (1) Ele vivia **preso ao torneio RESTRITO**: `Oculto = restrito && oculto` na criação e na edição, e a caixinha só aparecia na tela quando o restrito estava ligado — ou seja, esconder exigia **trancar a inscrição** com chave de acesso. O torneio do Er é aberto: ele quer que qualquer um se inscreva **depois** que ele anunciar. (2) "Oculto" significava só **"some da listagem"** — quem tivesse o link abria a página inteira e se inscrevia.
+>
+> ✅ **O que passou a existir**: um botão **Publicar / Ocultar** na aba de gestão (e uma faixa no topo da página, com o botão de publicar, enquanto está escondido), mais a caixa **"Criar oculto"** na criação — as duas **fora** do restrito. Escondido, o torneio some da lista, da Home, das páginas de cidade, do sitemap e do **cartaz de divulgação**, e a página responde **404** — inclusive pra quem tem o link. **Decisão do Felipe, com a pergunta na mesa**: o link direto deixou de valer.
+>
+> 🔑 **TRÊS escapes, e o terceiro é o que evita estrago**: organizador, admin/assistente e **quem já está inscrito**. Esconder um torneio com gente dentro não pode trancar do lado de fora quem já pagou — ele perderia chave, horário e a página, sem entender por quê. A régua é **uma só** (`Services/VisibilidadeDoTorneio`) e responde por Details, Jogos, classificação, MVP, palpiteiros, as duas inscrições e o cartaz.
+>
+> 🚪 **O interruptor SAIU do formulão de edição.** A caixa antiga só valia depois de "Salvar Alterações", junto de mais 40 campos — então **mexer no preço regravava a visibilidade**, e desligar o restrito publicava o torneio sem ninguém pedir. Agora o `Editar` **não encosta** no campo. O botão fica **fora** do `<form>` da edição, porque `<form>` dentro de `<form>` some com campos.
+>
+> 📣 **E O AVISO PASSOU A SAIR NA HORA CERTA.** O "Novo torneio aberto" só era disparado na **aprovação**, e lá era pulado quando o torneio estava oculto — ou seja, o caminho novo (criar oculto → aprovar → publicar no dia) **não avisava ninguém, nunca**. Agora são **dois gatilhos** (aprovar e publicar) e **um carimbo**: `Torneio.AvisoDeTorneioNovoEm`, e a regra inteira mora em `Services/AvisoDeTorneioNovo` — aprovar torneio oculto **não carimba** (senão mataria o aviso pra sempre), e o carimbo grava **mesmo sem ninguém elegível** (senão cada publicação varreria a base de novo). A migration leva um `UPDATE` à mão que carimba os torneios **já aprovados e visíveis**, pra não reanunciar torneio velho.
+>
+> 🧪 **4.190 testes, 0 falhas (24 novos), rodados numa worktree isolada** — só o meu recorte, sem nenhuma feature de outra sessão misturada. ✅ Conferido no navegador, servidor de verdade, contra o Postgres local, no **"1ª Etapa Er Padel"**: escondido, `Details` e `Jogos` deram 404 pra quem não tem cookie, o organizador continuou entrando, o cartaz deu 404 pro público e 200 pro organizador, e o torneio sumiu da Home, do sitemap e da página de Porto Alegre. Publicado de volta, tudo voltou a 200.
+>
+> ⚠️ **COMMITADO, NÃO PUBLICADO** (`0a3a8a2`, no `pagina-de-times`) — falta build + `deploy.yml`. 🌀 **O commit saiu de uma worktree isolada** (`git worktree add --detach`), não do diretório principal: no meio do trabalho, outra sessão deu `stash -u` + reset no working tree compartilhado, e uma terceira trocou o branch checado de `pagina-de-times` pra `main` por alguns minutos. Nada se perdeu (o stash guardou tudo), mas o commit final teve que separar hunk por hunk os meus arquivos dos da feature do mural/enquete (que estava misturada nos mesmos 4 arquivos) — e a migration teve que ser **regerada do zero**, porque a original tinha nascido encadeada na migration deles.
 >
 > 🧭 **A decisão do Felipe**: "adm não vê nada de financeiro, somente eu" — e o mesmo corte vale pro **assistente do sistema**, que até ontem via TUDO, caixa incluído.
 >
