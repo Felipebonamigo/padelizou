@@ -17,6 +17,17 @@ namespace Padelizou.Tests;
 // oferecer professor que não tem nada a oferecer.
 public class BuscaDeAulaPorHorarioTests
 {
+    // ⚠️ A janela do servidor é de 14 dias, então TODA regra de grade rende o mesmo dia da
+    // semana DUAS vezes (amanhã e amanhã + 7). Os testes olham só a primeira ocorrência — é a
+    // que os cenários montam — mas quem escrever teste novo aqui precisa saber disso: contar
+    // "os horários do professor" sem escolher o dia devolve o dobro do que parece.
+    private static DateTime Amanha => DateTime.Today.AddDays(1);
+
+    // O mesmo apelido que o MVC usa ao responder um `Json(...)`: camelCase. Serializar com o
+    // padrão do System.Text.Json devolveria "Nome" e o teste passaria a checar um JSON que o
+    // navegador nunca vê.
+    private static readonly JsonSerializerOptions ComoNaWeb = new(JsonSerializerDefaults.Web);
+
     private static (DbPadelContext ctx, Cidade cidade, Jogador aluno) Cenario()
     {
         var ctx = TestInfra.NovoContexto();
@@ -31,8 +42,7 @@ public class BuscaDeAulaPorHorarioTests
         return (ctx, cidade, aluno);
     }
 
-    // Um professor completo: cidade, local ativo e uma janela na grade. `diaDaSemana` é o
-    // DayOfWeek — os testes usam o dia de amanhã pra nunca dependerem de que horas são agora.
+    // Um professor completo: cidade, local ativo e uma janela na grade.
     private static (Jogador professor, LocalAula local) Professor(
         DbPadelContext ctx, Cidade cidade, string nome, DateTime dia,
         TimeSpan inicio, TimeSpan fim, int duracao = 60, string local = "Chakra")
@@ -72,14 +82,26 @@ public class BuscaDeAulaPorHorarioTests
 
         // Serializar em vez de ler o objeto anônimo por reflexão: é exatamente o que o
         // navegador recebe, e é do navegador que o filtro cruzado vive.
-        return JsonDocument.Parse(JsonSerializer.Serialize(corpo)).RootElement;
+        return JsonDocument.Parse(JsonSerializer.Serialize(corpo, ComoNaWeb)).RootElement;
     }
 
     private static List<JsonElement> Lista(JsonElement raiz, string campo) =>
         raiz.GetProperty(campo).EnumerateArray().ToList();
 
-    // Amanhã, pra o horário nunca cair no passado por causa da hora em que o teste roda.
-    private static DateTime Amanha => DateTime.Today.AddDays(1);
+    // As ofertas de UM dia. Sem recortar o dia, a janela de 14 dias devolve cada horário duas
+    // vezes e o teste vira aritmética de calendário em vez de regra de negócio.
+    private static List<JsonElement> OfertasDe(JsonElement raiz, DateTime dia) =>
+        Lista(raiz, "ofertas")
+            .Where(o => o.GetProperty("valor").GetString()!.StartsWith(dia.ToString("yyyy-MM-dd")))
+            .ToList();
+
+    private static List<string> HorariosDe(JsonElement raiz, DateTime dia) =>
+        OfertasDe(raiz, dia)
+            .Select(o => o.GetProperty("valor").GetString()!.Substring(11, 5))
+            .ToList();
+
+    private static List<string?> Nomes(JsonElement raiz, string campo) =>
+        Lista(raiz, campo).Select(p => p.GetProperty("nome").GetString()).OrderBy(n => n).ToList();
 
     // ===================== A GRADE INTEIRA CHEGA DE UMA VEZ =====================
 
@@ -96,10 +118,10 @@ public class BuscaDeAulaPorHorarioTests
 
         var corpo = await BuscarAsync(ctx, cidade.Id, aluno.Id);
 
-        Assert.Equal(2, Lista(corpo, "professores").Count);
+        Assert.Equal(new[] { "Bruna", "Jonatas" }, Nomes(corpo, "professores"));
         Assert.Equal(2, Lista(corpo, "locais").Count);
         // Jonatas rende dois slots de uma hora (9h e 10h); Bruna, um.
-        Assert.Equal(3, Lista(corpo, "ofertas").Count);
+        Assert.Equal(new[] { "09:00", "09:00", "10:00" }, HorariosDe(corpo, Amanha).OrderBy(h => h));
     }
 
     [Fact]
@@ -113,7 +135,7 @@ public class BuscaDeAulaPorHorarioTests
         var (professor, local) = Professor(ctx, cidade, "Jonatas", Amanha,
             new TimeSpan(9, 0, 0), new TimeSpan(10, 30, 0), duracao: 90);
 
-        var oferta = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "ofertas").Single();
+        var oferta = Assert.Single(OfertasDe(await BuscarAsync(ctx, cidade.Id, aluno.Id), Amanha));
 
         Assert.Equal(professor.Id, oferta.GetProperty("professorId").GetInt32());
         Assert.Equal(local.Id, oferta.GetProperty("localId").GetInt32());
@@ -138,12 +160,13 @@ public class BuscaDeAulaPorHorarioTests
         });
         ctx.SaveChanges();
 
-        var noJson = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "locais").Single();
+        var noJson = Assert.Single(Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "locais"));
 
         Assert.Equal(120, noJson.GetProperty("precoPadrao").GetDecimal());
         Assert.Equal(150, noJson.GetProperty("precoDupla").GetDecimal());
         Assert.Equal(JsonValueKind.Null, noJson.GetProperty("precoTrio").ValueKind);
-        Assert.Equal(4, noJson.GetProperty("pacotes").EnumerateArray().Single().GetProperty("quantidadeAulas").GetInt32());
+        Assert.Equal(4, Assert.Single(noJson.GetProperty("pacotes").EnumerateArray())
+            .GetProperty("quantidadeAulas").GetInt32());
     }
 
     // ===================== O QUE NÃO PODE APARECER =====================
@@ -164,11 +187,7 @@ public class BuscaDeAulaPorHorarioTests
         });
         ctx.SaveChanges();
 
-        var horarios = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "ofertas")
-            .Select(o => o.GetProperty("valor").GetString())
-            .ToList();
-
-        Assert.Equal(new[] { Amanha.AddHours(10).ToString("yyyy-MM-ddTHH:mm:ss") }, horarios);
+        Assert.Equal(new[] { "10:00" }, HorariosDe(await BuscarAsync(ctx, cidade.Id, aluno.Id), Amanha));
     }
 
     [Fact]
@@ -190,11 +209,7 @@ public class BuscaDeAulaPorHorarioTests
         });
         ctx.SaveChanges();
 
-        var horarios = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "ofertas")
-            .Select(o => o.GetProperty("valor").GetString())
-            .ToList();
-
-        Assert.Equal(new[] { Amanha.AddHours(11).ToString("yyyy-MM-ddTHH:mm:ss") }, horarios);
+        Assert.Equal(new[] { "11:00" }, HorariosDe(await BuscarAsync(ctx, cidade.Id, aluno.Id), Amanha));
     }
 
     [Fact]
@@ -215,11 +230,7 @@ public class BuscaDeAulaPorHorarioTests
         ctx.LocaisAula.Add(new LocalAula { ProfessorId = bruna.Id, Nome = "Vazio", PrecoPadrao = 100, Ativo = true });
         ctx.SaveChanges();
 
-        var nomes = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores")
-            .Select(p => p.GetProperty("nome").GetString())
-            .ToList();
-
-        Assert.Equal(new[] { "Jonatas" }, nomes);
+        Assert.Equal(new[] { "Jonatas" }, Nomes(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores"));
     }
 
     [Fact]
@@ -235,11 +246,7 @@ public class BuscaDeAulaPorHorarioTests
         Professor(ctx, cidade, "Jonatas", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0));
         Professor(ctx, outra, "Bruna", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0), local: "Batata");
 
-        var nomes = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores")
-            .Select(p => p.GetProperty("nome").GetString())
-            .ToList();
-
-        Assert.Equal(new[] { "Jonatas" }, nomes);
+        Assert.Equal(new[] { "Jonatas" }, Nomes(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores"));
     }
 
     // Duas linhas de catálogo pra "Gravataí" é o normal deste banco. Escolher uma e perder
@@ -257,12 +264,7 @@ public class BuscaDeAulaPorHorarioTests
         Professor(ctx, cidade, "Jonatas", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0));
         Professor(ctx, gemea, "Bruna", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0), local: "Batata");
 
-        var nomes = Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores")
-            .Select(p => p.GetProperty("nome").GetString())
-            .OrderBy(n => n)
-            .ToList();
-
-        Assert.Equal(new[] { "Bruna", "Jonatas" }, nomes);
+        Assert.Equal(new[] { "Bruna", "Jonatas" }, Nomes(await BuscarAsync(ctx, cidade.Id, aluno.Id), "professores"));
     }
 
     [Fact]
@@ -279,12 +281,21 @@ public class BuscaDeAulaPorHorarioTests
 
         Assert.Empty(Lista(corpo, "ofertas"));
         Assert.Empty(Lista(corpo, "locais"));
+        Assert.Empty(Lista(corpo, "professores"));
     }
 
     // ===================== A GRADE, SEM BANCO NO MEIO =====================
 
     // O gerador é a única cópia da regra "quais horários existem" — antes ela morava dentro do
-    // controller, escopada a um professor só. Aqui ele é testado direto.
+    // controller, escopada a um professor só. Aqui ele é testado direto, com janela de 7 dias
+    // pra cada dia da semana aparecer UMA vez.
+
+    private static HorarioDisponivel Regra(int professorId, int localId, TimeSpan inicio, TimeSpan fim) =>
+        new()
+        {
+            ProfessorId = professorId, LocalAulaId = localId, DiaSemana = (int)Amanha.DayOfWeek,
+            HoraInicio = inicio, HoraFim = fim, DuracaoMinutos = 60, Ativo = true,
+        };
 
     [Fact]
     public void A_agenda_que_trava_o_horario_e_a_do_PROFESSOR_nao_a_do_local()
@@ -293,18 +304,14 @@ public class BuscaDeAulaPorHorarioTests
         // deixaria a segunda quadra dele parecendo livre.
         var regras = new[]
         {
-            new HorarioDisponivel { ProfessorId = 1, LocalAulaId = 10, DiaSemana = (int)Amanha.DayOfWeek,
-                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(10, 0, 0), DuracaoMinutos = 60, Ativo = true },
-            new HorarioDisponivel { ProfessorId = 1, LocalAulaId = 20, DiaSemana = (int)Amanha.DayOfWeek,
-                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(10, 0, 0), DuracaoMinutos = 60, Ativo = true },
+            Regra(professorId: 1, localId: 10, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0)),
+            Regra(professorId: 1, localId: 20, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0)),
         };
 
         // Aula no local 10; o local 20 não pode sobrar livre no mesmo horário.
         var ocupadas = new[] { (ProfessorId: 1, DataHora: Amanha.AddHours(9), DuracaoMinutos: 60) };
 
-        var ofertas = OfertasDeAula.Gerar(regras, ocupadas, DateTime.Now, 14);
-
-        Assert.Empty(ofertas);
+        Assert.Empty(OfertasDeAula.Gerar(regras, ocupadas, DateTime.Now, dias: 7));
     }
 
     [Fact]
@@ -312,17 +319,16 @@ public class BuscaDeAulaPorHorarioTests
     {
         var regras = new[]
         {
-            new HorarioDisponivel { ProfessorId = 1, LocalAulaId = 10, DiaSemana = (int)Amanha.DayOfWeek,
-                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(10, 0, 0), DuracaoMinutos = 60, Ativo = true },
-            new HorarioDisponivel { ProfessorId = 2, LocalAulaId = 20, DiaSemana = (int)Amanha.DayOfWeek,
-                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(10, 0, 0), DuracaoMinutos = 60, Ativo = true },
+            Regra(professorId: 1, localId: 10, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0)),
+            Regra(professorId: 2, localId: 20, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0)),
         };
 
         var ocupadas = new[] { (ProfessorId: 1, DataHora: Amanha.AddHours(9), DuracaoMinutos: 60) };
 
-        var ofertas = OfertasDeAula.Gerar(regras, ocupadas, DateTime.Now, 14);
+        var oferta = Assert.Single(OfertasDeAula.Gerar(regras, ocupadas, DateTime.Now, dias: 7));
 
-        Assert.Equal(2, Assert.Single(ofertas).ProfessorId);
+        Assert.Equal(2, oferta.ProfessorId);
+        Assert.Equal(20, oferta.LocalId);
     }
 
     [Fact]
@@ -331,13 +337,26 @@ public class BuscaDeAulaPorHorarioTests
         var agora = DateTime.Today.AddHours(14);
         var regras = new[]
         {
-            new HorarioDisponivel { ProfessorId = 1, LocalAulaId = 10, DiaSemana = (int)DateTime.Today.DayOfWeek,
-                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(18, 0, 0), DuracaoMinutos = 60, Ativo = true },
+            new HorarioDisponivel
+            {
+                ProfessorId = 1, LocalAulaId = 10, DiaSemana = (int)DateTime.Today.DayOfWeek,
+                HoraInicio = new TimeSpan(9, 0, 0), HoraFim = new TimeSpan(18, 0, 0),
+                DuracaoMinutos = 60, Ativo = true,
+            },
         };
 
-        var ofertas = OfertasDeAula.Gerar(regras, Array.Empty<(int, DateTime, int)>(), agora, 1);
+        var ofertas = OfertasDeAula.Gerar(regras, Array.Empty<(int, DateTime, int)>(), agora, dias: 1);
 
         Assert.All(ofertas, o => Assert.True(o.Quando > agora));
         Assert.Equal(DateTime.Today.AddHours(15), ofertas.First().Quando);
+    }
+
+    [Fact]
+    public void Regra_desligada_nao_gera_horario()
+    {
+        var regra = Regra(professorId: 1, localId: 10, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0));
+        regra.Ativo = false;
+
+        Assert.Empty(OfertasDeAula.Gerar(new[] { regra }, Array.Empty<(int, DateTime, int)>(), DateTime.Now, dias: 7));
     }
 }
