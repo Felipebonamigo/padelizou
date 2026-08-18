@@ -12,6 +12,7 @@ using Padelizou.Services;
 using padelizou.Models;
 using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.RateLimiting;
 
 // No Windows o processo herda a cultura pt-BR do SO, mas no Linux (produção) não há esse
@@ -70,6 +71,11 @@ builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapi
 // 404, que é a resposta honesta enquanto não existe app na Play Store (ver Services/AndroidSettings).
 builder.Services.Configure<AndroidSettings>(builder.Configuration.GetSection("Android"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
+// Leitura do extrato Pix do Inter, pra confirmar sozinho o que já bate com uma cobrança
+// nossa e sugerir na fila do /Admin/PixDireto o que só bate por CPF. Nasce DESLIGADO até o
+// client_id existir (ver Services/InterPixSettings) — sem ele a conferência manual continua
+// sendo o caminho, exatamente como hoje.
+builder.Services.Configure<InterPixSettings>(builder.Configuration.GetSection("InterPix"));
 // Ranking RS (mundodoatleta.com.br). Nasce DESLIGADO: sem chave configurada, nenhuma inscrição
 // é validada contra o ranking — ver Services/RankingRsSettings.
 builder.Services.Configure<RankingRsSettings>(builder.Configuration.GetSection("RankingRs"));
@@ -191,6 +197,20 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Padelizou");
 });
+// O certificado que autentica no Inter (mTLS) só é carregado quando InterPix está
+// Habilitado E os arquivos existem — sem isso o handler sai sem certificado nenhum, e o
+// InterPixProvedor simplesmente não é chamado (o BackgroundService confere Habilitado antes).
+builder.Services.AddHttpClient<IProvedorDeExtratoPix, InterPixProvedor>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        var cfg = sp.GetRequiredService<IOptions<InterPixSettings>>().Value;
+        var handler = new HttpClientHandler();
+        if (cfg.Habilitado && File.Exists(cfg.CertPath) && File.Exists(cfg.KeyPath))
+        {
+            handler.ClientCertificates.Add(X509Certificate2.CreateFromPemFile(cfg.CertPath, cfg.KeyPath));
+        }
+        return handler;
+    });
 // A consulta ao Ranking RS acontece dentro do POST da inscrição. O timeout de verdade é o do
 // RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
 // "não consultado" e a inscrição segue.
@@ -297,6 +317,7 @@ builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
+builder.Services.AddHostedService<ConciliacaoAutomaticaDoPixBackgroundService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
