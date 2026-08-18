@@ -19,6 +19,12 @@
 >
 > ⏭️ **O sorteio não grava nada** — é sugestão pra mesa, e dá pra clicar de novo quantas vezes quiser. Registrar o jogo segue sendo em "Registrar jogo", como sempre.
 >
+> ✅ **No ar nos dois ambientes** (`build-579-68c075b`): `NRestarts 0`, zero exceção, `healthz` 200. **Sem migration** — a feature não guarda nada, o banco não mudou.
+>
+> ⚠️ **CAÍ NUMA ARMADILHA QUE JÁ ESTAVA ESCRITA — o `strings -el` parte a frase no acento.** Sem poder abrir a tela (a sessão local não é admin de grupo nenhum no dev), conferi os textos dentro do `.dll` publicado: `"Sortear duplas"` apareceu, e `"Não tem gente suficiente pra"` deu **ZERO** — que é indistinguível de "o deploy não subiu". O `strings -el` varre sequências UTF-16 de caracteres **ASCII imprimíveis** e corta no primeiro que não é: o `ã` de "Não" parte a frase em duas. Com `"tem gente suficiente pra"` apareceu na hora.
+>
+> 🔁 **O que interessa aqui não é a armadilha, é ter caído nela**: isso está documentado desde 13/08 (`build-541`, mesma pegadinha com "ainda não chegou"), com a regra pronta — **escolher sempre um trecho só-ASCII, e nunca concluir "não subiu" a partir de um zero sem tentar outro pedaço**. A conferência funcionou porque eu duvidei do zero, não porque lembrei da regra. Sinal de que "verificar em vez de deduzir" segura melhor do que decorar caso a caso.
+>
 > Antes, no mesmo dia: 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
 >
 > 🚷 **O PEDIDO DO FELIPE**: *"temos a opção de vencer por W.O.? quando o atleta não comparece ao jogo?"* Não tínhamos. Quem ficava sem adversário em quadra digitava 6x0 e seguia, porque `QuemVenceu.MotivoParaNaoFinalizar` exige games pra deixar encerrar. Funcionava pro chaveamento e mentia pro resto.
