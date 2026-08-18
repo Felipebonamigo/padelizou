@@ -1324,6 +1324,14 @@ namespace padelizou.Controllers
                 .Select(t => new { t.Id, t.Nome, t.Codigo })
                 .ToListAsync();
 
+            // Pro formulário da mensalidade: uma LISTA de professores, não texto livre — digitar
+            // o nome em vez do login/e-mail/CPF era exatamente o que travava o registro manual.
+            ViewBag.Professores = await _context.Jogadores
+                .Where(j => j.IsProfessor)
+                .OrderBy(j => j.Nome)
+                .Select(j => new { j.Id, j.Nome, j.Email })
+                .ToListAsync();
+
             return View();
         }
 
