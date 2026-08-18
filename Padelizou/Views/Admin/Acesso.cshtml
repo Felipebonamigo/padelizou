@@ -1,0 +1,218 @@
+@using Padelizou.Services
+@model Padelizou.ViewModels.AcessoDoJogadorVM
+@{
+    ViewData["Title"] = "Acesso do jogador - Painel Admin - Padelizou";
+}
+
+<div class="container mt-4 mb-5">
+    <a asp-controller="Admin" asp-action="Index" class="small text-decoration-none">&larr; Painel Admin</a>
+
+    <div class="mb-4 mt-2">
+        <h2 class="fw-bold" style="color: var(--pdz-ink);">Acesso do jogador</h2>
+        <p class="text-muted mb-0">
+            Chegou um "não consigo entrar"? Procure a pessoa e a tela diz <strong>por quê</strong> —
+            porque a resposta muda: em três dos quatro casos, "esqueci minha senha" não resolve.
+        </p>
+    </div>
+
+    @* ── A BUSCA ──────────────────────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form asp-controller="Admin" asp-action="Acesso" method="get" class="d-flex gap-2 flex-wrap">
+                <input type="text" name="busca" value="@Model.Busca" class="form-control"
+                       style="max-width: 420px;" autofocus
+                       placeholder="CPF completo, login, e-mail, nome ou apelido" />
+                <button type="submit" class="btn btn-padel rounded-pill px-4">Procurar</button>
+            </form>
+            <p class="text-muted small mb-0 mt-2">
+                O CPF precisa vir <strong>inteiro</strong> — com ou sem pontinhos. CPF pela metade
+                não procura ninguém de propósito: com busca parcial dava pra varrer os documentos
+                da base aos poucos.
+            </p>
+        </div>
+    </div>
+
+    @* ── VÁRIOS HOMÔNIMOS: ESCOLHER ───────────────────────────────────────────────────── *@
+    @if (Model.Candidatos.Count > 0)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1">@Model.Candidatos.Count pessoas com esse nome</h6>
+                <p class="text-muted small">
+                    Nome não é único. Escolha antes de responder — o CPF confere quem é.
+                </p>
+                <ul class="list-group list-group-flush">
+                    @foreach (var j in Model.Candidatos)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 flex-wrap gap-2">
+                            <div>
+                                <span class="fw-bold">@j.NomeComApelido</span>
+                                <span class="text-muted small ms-2">@Documentos.CpfMascarado(j.Cpf)</span>
+                            </div>
+                            <a class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                               asp-controller="Admin" asp-action="Acesso" asp-route-jogadorId="@j.Id">Ver acesso</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    @* ── NÃO ACHOU ────────────────────────────────────────────────────────────────────── *@
+    @if (Model.Procurou && Model.Achado == null && Model.Candidatos.Count == 0)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h5 class="fw-bold mb-2"><i class="bi bi-search"></i> Ninguém com isso na base</h5>
+                @* ⚠️ Este texto existe porque "não achei" aqui é AMBÍGUO, e a ambiguidade tem
+                   consequência: responder "você não tem cadastro" pra quem excluiu a conta é
+                   dizer uma coisa falsa com toda a confiança. *@
+                <p class="text-muted mb-2">Três coisas diferentes chegam a esta mesma tela:</p>
+                <ul class="text-muted mb-0">
+                    <li>o número veio errado do WhatsApp — vale conferir dígito por dígito;</li>
+                    <li>a pessoa nunca se cadastrou nem foi inscrita por ninguém;</li>
+                    <li>
+                        <strong>ela excluiu a conta</strong> — e aí o CPF dela foi trocado por um
+                        código na saída, então nenhuma busca por CPF a encontra. Se ela insiste que
+                        já usava o site, é quase sempre este caso: o caminho dela é criar conta nova,
+                        e o histórico antigo não volta.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    }
+
+    @* ── ACHOU UMA PESSOA ─────────────────────────────────────────────────────────────── *@
+    @if (Model.Achado is { } p)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">@p.NomeComApelido</h5>
+                        <div class="d-flex flex-wrap gap-1">
+                            @if (p.IsAdminRaiz || p.IsAdminGeral)
+                            {
+                                <span class="badge rounded-pill text-bg-secondary fw-normal">admin</span>
+                            }
+                            @if (p.IsProfessor)
+                            {
+                                <span class="badge rounded-pill text-bg-light border fw-normal">professor</span>
+                            }
+                            @if (p.IsOrganizadorTorneio)
+                            {
+                                <span class="badge rounded-pill text-bg-light border fw-normal">organizador</span>
+                            }
+                        </div>
+                    </div>
+                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id"
+                       class="btn btn-sm btn-outline-secondary rounded-pill px-3">Abrir perfil</a>
+                </div>
+
+                @* ── O DIAGNÓSTICO. É o motivo da tela existir: os dados abaixo são consulta,
+                      isto aqui é a resposta que o Felipe cola no WhatsApp. As quatro situações
+                      saem de Services/DiagnosticoDeAcesso, a mesma leitura que a tela pública
+                      de "esqueci minha senha" faz — as duas não podem discordar. ── *@
+                @switch (Model.Situacao)
+                {
+                    case SituacaoDeAcesso.PodeRecuperar:
+                        <div class="alert alert-success mb-3">
+                            <strong>Tem senha e tem e-mail — ela mesma resolve.</strong>
+                            <p class="mb-0 mt-1">
+                                Mande a pessoa em <strong>Entrar &rarr; Esqueci minha senha</strong> e
+                                digitar <strong>o CPF</strong> (o campo aceita CPF, login ou e-mail —
+                                ela não precisa lembrar de nenhum dos outros). O link cai em
+                                <strong>@p.Email</strong> e vale por 1 hora. Se não chegar em alguns
+                                minutos, peça pra ela olhar o spam.
+                            </p>
+                        </div>
+                        break;
+
+                    case SituacaoDeAcesso.PreCadastro:
+                        <div class="alert alert-warning mb-3">
+                            <strong>Pré-cadastro: a conta existe, mas nunca teve senha.</strong>
+                            <p class="mb-0 mt-1">
+                                Foi um organizador que digitou o CPF dela numa inscrição — por isso
+                                ela aparece no site com histórico e nunca conseguiu entrar.
+                                <strong>Não adianta "esqueci minha senha": não há senha a recuperar.</strong>
+                                O que ela precisa é <strong>se cadastrar com esse mesmo CPF</strong>. O
+                                cadastro reconhece esta linha e traz o histórico de torneios junto —
+                                ela não perde nada. Com outro CPF, o histórico fica preso aqui.
+                            </p>
+                        </div>
+                        break;
+
+                    case SituacaoDeAcesso.SemEmail:
+                        <div class="alert alert-danger mb-3">
+                            <strong>Beco sem saída: tem senha, e não tem e-mail pra onde mandar o link.</strong>
+                            <p class="mb-0 mt-1">
+                                Acontece com quem assumiu um pré-cadastro sem preencher e-mail.
+                                Sozinha ela não sai daqui — "esqueci minha senha" não tem destinatário.
+                                A saída é <strong>gravar um e-mail nesta conta</strong> e só então
+                                mandar ela no "esqueci minha senha".
+                            </p>
+                            @* Esta tela não grava nada de propósito: trocar o e-mail de uma conta é
+                               entregar a conta, e isso não pode virar um clique de rotina numa tela
+                               de suporte, onde o alvo é sempre a conta de outra pessoa. *@
+                            <p class="mb-0 mt-1 small">
+                                Confirme por outro canal que o e-mail é mesmo dela antes — quem
+                                controla o e-mail controla a conta.
+                            </p>
+                        </div>
+                        break;
+
+                    case SituacaoDeAcesso.ContaExcluida:
+                        <div class="alert alert-secondary mb-3">
+                            <strong>Conta excluída em @p.ExcluidoEm?.ToString("dd/MM/yyyy") (LGPD).</strong>
+                            <p class="mb-0 mt-1">
+                                Os dados pessoais foram apagados a pedido dela e não voltam. Não há
+                                acesso a devolver: se ela quiser usar o site de novo, é conta nova, do
+                                zero. Os jogos que ela disputou continuam nos resultados — são dado de
+                                quatro pessoas, não de uma.
+                            </p>
+                        </div>
+                        break;
+                }
+
+                @* ── OS DADOS ─────────────────────────────────────────────────────────── *@
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted">Login</div>
+                        <div class="fw-bold">@(string.IsNullOrWhiteSpace(p.Login) ? "—" : p.Login)</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted">E-mail</div>
+                        <div class="fw-bold text-break">@(string.IsNullOrWhiteSpace(p.Email) ? "—" : p.Email)</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="small text-muted">Celular</div>
+                        <div class="fw-bold">@(string.IsNullOrWhiteSpace(p.Celular) ? "—" : p.Celular)</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        @* Só o miolo do CPF: aqui ele serve pra CONFERIR quem é, e os onze
+                           dígitos numa tela de consulta seriam um extrator de documentos. *@
+                        <div class="small text-muted">CPF</div>
+                        <div class="fw-bold">@Documentos.CpfMascarado(p.Cpf)</div>
+                    </div>
+                </div>
+
+                <hr class="my-3" />
+                <div class="small text-muted">
+                    Tem senha: <strong>@(string.IsNullOrEmpty(p.SenhaHash) ? "não" : "sim")</strong>
+                    @if (p.CriadoEm != null)
+                    {
+                        <span class="ms-3">Cadastro: <strong>@p.CriadoEm?.ToString("dd/MM/yyyy")</strong></span>
+                    }
+                </div>
+                @* A senha em si não aparece aqui, e não é omissão: o banco guarda só o hash
+                   (IPasswordHasher, PBKDF2 com sal). Nem esta tela, nem um SELECT, nem ninguém
+                   lê a senha de volta — o único caminho é a pessoa definir uma nova. *@
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-shield-lock"></i>
+                    A senha não aparece em lugar nenhum do sistema: o banco guarda só o hash dela.
+                    Não existe "consultar a senha" — existe definir uma nova.
+                </div>
+            </div>
+        </div>
+    }
+</div>
