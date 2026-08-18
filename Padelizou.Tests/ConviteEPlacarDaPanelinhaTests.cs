@@ -301,7 +301,7 @@ public class ConviteEPlacarDaPanelinhaTests
             grupo.Id, new DateTime(2026, 8, 18),
             membros[0].Id, visita.Id,      // dupla 1: um membro e o convidado — venceram
             membros[1].Id, membros[2].Id,
-            6, 3, clubeId: null);
+            1, 6, 3, clubeId: null);
 
         var jogo = await ctx.JogosSemanais.SingleAsync();
         Assert.Equal(visita.Id, jogo.Dupla1Jogador2Id);
@@ -334,7 +334,7 @@ public class ConviteEPlacarDaPanelinhaTests
             grupo.Id, new DateTime(2026, 8, 18),
             membros[0].Id, estranho.Id,
             membros[1].Id, membros[2].Id,
-            6, 3, clubeId: null);
+            1, 6, 3, clubeId: null);
 
         Assert.False(await ctx.JogosSemanais.AnyAsync());
     }
@@ -366,7 +366,7 @@ public class ConviteEPlacarDaPanelinhaTests
         await controller.EditarJogo(
             jogo.Id, jogo.DataJogo,
             jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id,
-            6, 2, clubeId: null);
+            1, 6, 2, clubeId: null);
 
         Assert.Equal(2, (await ctx.JogosSemanais.SingleAsync()).GamesDupla2);
     }
@@ -417,7 +417,7 @@ public class ConviteEPlacarDaPanelinhaTests
         var vindoDaSemana = await controller.RegistrarJogo(
             grupo.Id, new DateTime(2026, 8, 18),
             membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id,
-            6, 3, clubeId: null, voltarParaSemana: aSemana);
+            1, 6, 3, clubeId: null, voltarParaSemana: aSemana);
 
         var destino = Assert.IsType<RedirectToActionResult>(vindoDaSemana);
         Assert.Equal("Semana", destino.ActionName);
@@ -427,7 +427,7 @@ public class ConviteEPlacarDaPanelinhaTests
         var vindoDoRankingGeral = await controller.RegistrarJogo(
             grupo.Id, new DateTime(2026, 8, 18),
             membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id,
-            6, 4, clubeId: null);
+            1, 6, 4, clubeId: null);
 
         Assert.Equal("Detalhes", Assert.IsType<RedirectToActionResult>(vindoDoRankingGeral).ActionName);
     }
@@ -449,7 +449,7 @@ public class ConviteEPlacarDaPanelinhaTests
         var recusa = await controller.RegistrarJogo(
             grupo.Id, new DateTime(2026, 8, 18),
             membros[0].Id, estranho.Id, membros[1].Id, membros[2].Id,
-            6, 3, clubeId: null, voltarParaSemana: aSemana);
+            1, 6, 3, clubeId: null, voltarParaSemana: aSemana);
 
         var destino = Assert.IsType<RedirectToActionResult>(recusa);
         Assert.Equal("RegistrarJogo", destino.ActionName);

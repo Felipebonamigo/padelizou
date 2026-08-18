@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
+> Última atualização: **18/08/2026** — 📲 **REGISTRAR JOGO DA PANELINHA EM ~6 TOQUES** — e o placar virou opcional, o que **não era mudança de tela**.
+>
+> 📲 **VEIO DE UMA SUGESTÃO DE USUÁRIO**, detalhada, com layout e fluxo. A tela era um formulário com quatro `<select>` de jogador e dois campos de placar obrigatórios — e o registro é coisa que se faz no celular, em pé, ao lado da quadra. Quem chega ali veio do jogo da semana, então o sistema **já sabe** grupo, data, clube e quem joga. Agora: 2 toques (dupla 1) + 2 (dupla 2) + 1 (vencedor) + 1 (salvar).
+>
+> ⚠️ **O ITEM QUE PARECIA TELA E ERA MODELO — e teria estragado o ranking em silêncio.** `JogoSemanal` **não tinha coluna de vencedor**: quem venceu era DEDUZIDO do placar (`GamesDupla1 > GamesDupla2`). Salvar sem placar gravaria 0 x 0 — e 0 x 0 **é empate**, 2 pontos pra cada um. Toda partida lançada sem placar entraria como empate, o `RecalcularPontuacaoAsync` espalharia isso pro ranking gravado, e o sintoma apareceria semanas depois como *"o ranking está estranho"*. O fato **inverteu de lugar**: o VENCEDOR passou a ser gravado e o placar virou detalhe opcional.
+>
+> 🔁 **É a decisão CONTRÁRIA à do W.O., tomada no mesmo dia — e de propósito.** No torneio eu mantive o placar porque tudo lê o placar (classificação de grupo, chaveamento); na panelinha quem lê é só a pontuação, e ela passou a ler o vencedor direto. Mesma pergunta, respostas opostas, porque o que muda é **quem consome o dado**.
+>
+> 💣 **A MIGRAÇÃO QUASE REESCREVEU O RANKING DE TODAS AS PANELINHAS.** O EF gerou a coluna com `defaultValue: 0` — e aqui **0 é EMPATE**, não "vazio". Sem backfill, todo jogo já existente viraria empate. Escrevi o `UPDATE` na migração usando a mesma conta que a propriedade calculada fazia, e ela é exata porque até aqui as duas colunas de games eram NOT NULL: todo jogo antigo tem placar, então o vencedor de todos é dedutível sem perda. ⚠️ É a terceira vez que "coluna nova nasce com zero" morde neste projeto — a diferença é que desta vez o zero tinha SIGNIFICADO.
+>
+> ⚠️ **CONTRADIÇÃO É RECUSADA, NÃO "CORRIGIDA".** Marcar "Dupla 1 venceu" e digitar 3 x 6 devolve erro em vez de escolher um dos dois — os dois vieram da mesma tela e da mesma pessoa, um dos cliques foi errado e o sistema não sabe qual. Escolher sozinho grava resultado que ninguém pediu, que foi como uma final de torneio saiu com o campeão errado aqui (ver `QuemVenceu`).
+>
+> ⚠️ **EDITAR PRECISOU DO CAMPO TAMBÉM.** Enquanto o vencedor era calculado, corrigir o placar acertava o vencedor de graça. Agora um editar que só escrevesse games deixaria o jogo mostrando 6x3 com a **outra** dupla gravada como vencedora — e o ranking segue o vencedor. Registrar e editar passam pela MESMA régua (`Services/ResultadoDoJogoSemanal`).
+>
+> ✅ **Dois itens da proposta eu NÃO implementei, por motivos diferentes.** "Não restringir a quem confirmou" **já era assim** — a tela sempre ofereceu todos os membros + convidados; o que faltava era só o destaque, que entrou (pontinho verde). E o "+ Outro jogador" virou um link pro **Convidar**: escolher um estranho direto aqui exigiria furar a conferência do POST, que existe pra impedir que um formulário montado à mão injete qualquer pessoa no ranking do grupo.
+>
+> 🎨 Resto conforme pedido: data e clube numa linha só com "Alterar", **alerta de data futura fora do bloco escondido** (aviso que só aparece depois de clicar não avisa ninguém), botões até 6 opções e seletor acima disso — **régua reavaliada a cada escolha**, então panelinha de 8 começa no seletor e a dupla 2 já cai nos botões. Empate ficou discreto, mas existe: ele vale 2 pontos e sumiria numa tela de dois botões.
+>
+> 🧪 **4.222 testes, 0 falhas (15 novos).** ✅ Falsificação: voltando o vencedor a ser deduzido do placar, caem 3 — entre eles o `Jogo_sem_placar_pontua_como_vitoria_e_nao_como_empate`, que é exatamente o bug que a migração existe pra evitar. ⚠️ **Dois testes ANTIGOS quebraram e estavam certos em quebrar**: montavam `JogoSemanal` na mão e contavam com o vencedor calculado. Foram o alarme de que existiam call sites fora do controller — conferi que em produção só existe UMA construção de `JogoSemanal`, e ela passa pela régua.
+>
+> Antes, no mesmo dia: 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
 >
 > 🎲 **O PEDIDO**: *"que as duplas não sejam sempre as mesmas"*. Em panelinha semanal quem chega junto joga junto, e em poucas semanas são sempre os mesmos quatro confrontos. Botão **Sortear duplas** na tela da semana, com a opção **"respeitar o lado de cada um"** ligada por padrão. Só o admin do grupo sorteia — o resultado vale pra todos, e dois membros clicando alternado virariam duplas trocando a cada F5.
 >

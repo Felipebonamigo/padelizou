@@ -71,7 +71,7 @@ public class JogoDaSemanaEClubeTests
         var (grupo, clube, membros) = await MontarAsync(ctx);
 
         await Controller(ctx, membros[0].Id).RegistrarJogo(
-            grupo.Id, DateTime.Today, membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id, 6, 4, null);
+            grupo.Id, DateTime.Today, membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id, 1, 6, 4, null);
 
         // Local vazio não vira ranking de clube nenhum — e o jogo da panelinha é quase sempre
         // no clube de sempre.
@@ -89,7 +89,7 @@ public class JogoDaSemanaEClubeTests
         await ctx.SaveChangesAsync();
 
         await Controller(ctx, membros[0].Id).RegistrarJogo(
-            grupo.Id, DateTime.Today, membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id, 6, 4, outro.Id);
+            grupo.Id, DateTime.Today, membros[0].Id, membros[1].Id, membros[2].Id, membros[3].Id, 1, 6, 4, outro.Id);
 
         Assert.Equal(outro.Id, (await ctx.JogosSemanais.SingleAsync()).ClubeId);
         // O clube FIXO do grupo continua o mesmo: trocar de quadra numa semana não muda o
