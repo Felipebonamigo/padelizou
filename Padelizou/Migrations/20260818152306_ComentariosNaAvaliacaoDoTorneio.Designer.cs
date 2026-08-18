@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260818152306_ComentariosNaAvaliacaoDoTorneio")]
+    partial class ComentariosNaAvaliacaoDoTorneio
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1214,9 +1217,6 @@ namespace Padelizou.Migrations
                     b.Property<int?>("Jogador2Id")
                         .HasColumnType("integer");
 
-                    b.Property<string>("LadoJogador1")
-                        .HasColumnType("text");
-
                     b.Property<string>("NomeTime")
                         .HasColumnType("text");
 
@@ -1990,19 +1990,16 @@ namespace Padelizou.Migrations
                     b.Property<int>("Dupla2Jogador2Id")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("GamesDupla1")
+                    b.Property<int>("GamesDupla1")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("GamesDupla2")
+                    b.Property<int>("GamesDupla2")
                         .HasColumnType("integer");
 
                     b.Property<int>("GrupoId")
                         .HasColumnType("integer");
 
                     b.Property<int>("RegistradoPorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("VencedorLado")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
@@ -2557,9 +2554,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("LinkTransmissao")
                         .HasColumnType("text");
 
-                    b.Property<string>("MotivoDoEncerramento")
-                        .HasColumnType("text");
-
                     b.Property<string>("NomeQuadra")
                         .HasColumnType("text");
 
@@ -2877,33 +2871,6 @@ namespace Padelizou.Migrations
                     b.HasIndex("ParceiroId");
 
                     b.ToTable("RepassesAoParceiro");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.SeguidorDePartida", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("JogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PartidaId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PartidaId");
-
-                    b.HasIndex("JogadorId", "PartidaId")
-                        .IsUnique();
-
-                    b.ToTable("SeguidorDePartida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.SeguidorJogador", b =>
@@ -4850,25 +4817,6 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("Parceiro");
-                });
-
-            modelBuilder.Entity("Padelizou.Models.SeguidorDePartida", b =>
-                {
-                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
-                        .WithMany()
-                        .HasForeignKey("JogadorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Padelizou.Models.Partida", "Partida")
-                        .WithMany()
-                        .HasForeignKey("PartidaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Jogador");
-
-                    b.Navigation("Partida");
                 });
 
             modelBuilder.Entity("Padelizou.Models.SeguidorJogador", b =>

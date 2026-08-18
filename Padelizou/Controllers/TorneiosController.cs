@@ -589,6 +589,14 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // O MURAL: o que quem jogou escreveu e está publicado. Só faz sentido em torneio
+            // que acabou — antes disso não existe avaliação nenhuma, e uma consulta a mais em
+            // toda página de torneio aberto seria custo sem resposta.
+            if (torneio.Status == Services.MvpDoTorneio.StatusFinalizado)
+            {
+                ViewBag.ComentariosPublicos = await EnqueteDoTorneio.PublicadosAsync(_context, id);
+            }
+
             // ⚠️ Duas perguntas diferentes: EDITAR (organizador de verdade) e ABRIR A TELA (que
             // o assistente do sistema também pode). A aba de gestão aparece pelos dois, mas em
             // modo leitura ela vem com os formulários desligados — ver PoderesNoSistema.
@@ -625,6 +633,12 @@ namespace Padelizou.Controllers
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
                 // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
                 ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+
+                // O que escreveram, publicado ou não — inclusive o que é anônimo, que só
+                // existe pra estes olhos. ⚠️ Quem PUBLICA não é quem abre a tela: o assistente
+                // do sistema chega até aqui em modo leitura, e o serviço recusa o POST dele.
+                ViewBag.ComentariosParaModerar = await EnqueteDoTorneio.ParaModerarAsync(_context, id);
+
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
                 // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens

@@ -446,8 +446,18 @@ else
                 <div class="col-12 col-md-6 col-lg-4">
                     <div class="card border-0 shadow-sm h-100 p-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
+                            @* Quem respondeu a enquete do torneio pode ter pedido pra não
+                               assinar — aí não sai nome nem cidade (numa base pequena as duas
+                               coisas juntas identificam a pessoa). *@
                             <span class="fw-bold" style="color: var(--pdz-ink);">
-                                @d.PrimeiroNome@(string.IsNullOrWhiteSpace(d.Cidade) ? "" : $" · {d.Cidade}")
+                                @if (d.Anonimo)
+                                {
+                                    <text>Um jogador do Padelizou</text>
+                                }
+                                else
+                                {
+                                    @d.PrimeiroNome@(string.IsNullOrWhiteSpace(d.Cidade) ? "" : $" · {d.Cidade}")
+                                }
                             </span>
                             @if (d.Nota.HasValue)
                             {

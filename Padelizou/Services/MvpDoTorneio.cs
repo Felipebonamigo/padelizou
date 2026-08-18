@@ -421,8 +421,8 @@ public static class MvpDoTorneio
         temMvp
             ? $"O {nomeDoTorneio} acabou! Escolha o melhor jogador entre os campeões e conte "
               + $"como foi o torneio — vale por {DiasParaVotar} dias."
-            : $"O {nomeDoTorneio} acabou! Conte como foi: dê sua nota pro clube e pra "
-              + $"organização — leva cinco segundos e vale por {DiasParaVotar} dias.";
+            : $"O {nomeDoTorneio} acabou! Conte como foi: dê sua nota pro clube, pra organização "
+              + $"e pro Padelizou, e escreva se quiser — vale por {DiasParaVotar} dias.";
 
     // O título acompanha o corpo, pelo mesmo motivo.
     public static string TituloDoAvisoPara(bool temMvp) =>

@@ -351,8 +351,77 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             <i class="bi bi-chat-square-heart-fill"></i> Como foi o torneio?
         </a>
         <small class="text-muted">
-            Quem jogou dá nota pro clube e pra organização.
+            Quem jogou dá nota pro clube, pra organização e pro Padelizou — e comenta se quiser.
         </small>
+    </div>
+}
+
+@* ── O MURAL: O QUE QUEM JOGOU DISSE ──────────────────────────────────────────────────
+   Só o que está publicado. Assinado entra aqui na hora (a pessoa escolheu isso ao
+   responder); sem identificação, só depois que o organizador ou o clube decidir — e aí
+   sem o nome, porque foi o que foi combinado com quem escreveu.
+
+   ⚠️ O `Autor` chega NULO do serviço quando a resposta é anônima. A view não tem escolha a
+   fazer aqui, e é de propósito: não dá pra "esquecer" de esconder o que não veio. *@
+@{
+    var muralDoTorneio = ViewBag.ComentariosPublicos as List<Padelizou.Services.ComentarioDoTorneio>;
+}
+@if (muralDoTorneio != null && muralDoTorneio.Count > 0)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                <i class="bi bi-chat-square-quote-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+                O que quem jogou disse
+            </h6>
+
+            @foreach (var c in muralDoTorneio)
+            {
+                <div class="d-flex gap-2 mb-3">
+                    @if (c.Autor != null)
+                    {
+                        <img src="@(string.IsNullOrEmpty(c.FotoDoAutor) ? "/img/default-avatar.png" : c.FotoDoAutor)"
+                             alt="" class="rounded-circle flex-shrink-0"
+                             style="width:40px;height:40px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-light text-muted"
+                             style="width:40px;height:40px;">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    }
+
+                    <div class="flex-grow-1">
+                        <div class="small">
+                            @if (c.Autor != null)
+                            {
+                                <a asp-action="Perfil" asp-controller="Jogadores" asp-route-id="@c.AutorId"
+                                   class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">@c.Autor</a>
+                            }
+                            else
+                            {
+                                <span class="fw-semibold text-muted">Um jogador do torneio</span>
+                            }
+                            <span class="text-muted">· @c.Quando.ToString("dd/MM/yyyy")</span>
+                        </div>
+
+                        @if (c.SobreOClube != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre o clube:</span> @c.SobreOClube
+                            </div>
+                        }
+                        @if (c.SobreAOrganizacao != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre a organização:</span> @c.SobreAOrganizacao
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 }
 
@@ -1885,6 +1954,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="small text-muted">A organização</div>
                                     <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
                                 </div>
+                                @* A do sistema tem contagem própria (quem respondeu antes de a
+                                   pergunta existir não deu nota nenhuma ao Padelizou), então
+                                   ela pode faltar aqui mesmo com as outras duas na tela. *@
+                                @if (enquete.MediaSistema != null)
+                                {
+                                    <div>
+                                        <div class="small text-muted">O Padelizou</div>
+                                        <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                    </div>
+                                }
                                 <div class="align-self-end small text-muted">
                                     @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
                                 </div>
@@ -1895,6 +1974,98 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small text-muted mb-0">
                                 @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
                                 a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                            </p>
+                        }
+
+                        @* ── O QUE ESCREVERAM ────────────────────────────────────────────
+                           Tudo que tem texto, publicado ou não — e é o único lugar do sistema
+                           onde o comentário anônimo aparece (sem nome, como foi combinado com
+                           quem escreveu). Publicar põe o texto na página do torneio.
+
+                           ⚠️ Os botões só saem pra quem PODE gravar: o assistente do sistema
+                           abre esta aba em leitura, e o servidor recusaria o POST dele. *@
+                        @{
+                            var comentarios = ViewBag.ComentariosParaModerar
+                                as List<Padelizou.Services.ComentarioDoTorneio>;
+                        }
+                        @if (comentarios != null && comentarios.Count > 0)
+                        {
+                            <hr />
+                            <div class="small fw-bold text-muted text-uppercase mb-2">
+                                O que escreveram
+                                @if (enquete.EsperandoDecisao > 0)
+                                {
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis ms-1">
+                                        @enquete.EsperandoDecisao fora do mural
+                                    </span>
+                                }
+                            </div>
+
+                            @foreach (var c in comentarios)
+                            {
+                                <div class="border rounded-3 p-2 mb-2 bg-white">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        @if (c.Anonimo)
+                                        {
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                                <i class="bi bi-incognito"></i> Sem identificação
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId"
+                                               class="fw-semibold text-decoration-none small" style="color: var(--pdz-ink);">
+                                                @c.Autor
+                                            </a>
+                                        }
+                                        <span class="small text-muted">
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaClube clube ·
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaOrganizacao organização
+                                        </span>
+                                        <span class="small text-muted ms-auto">@c.Quando.ToString("dd/MM")</span>
+                                    </div>
+
+                                    @if (c.SobreOClube != null)
+                                    {
+                                        <div class="small mb-1"><strong>Clube:</strong> @c.SobreOClube</div>
+                                    }
+                                    @if (c.SobreAOrganizacao != null)
+                                    {
+                                        <div class="small mb-1"><strong>Organização:</strong> @c.SobreAOrganizacao</div>
+                                    }
+
+                                    <div class="d-flex align-items-center gap-2 mt-2">
+                                        @if (c.Publicado)
+                                        {
+                                            <span class="badge rounded-pill bg-success-subtle text-success-emphasis">
+                                                <i class="bi bi-eye"></i> No mural do torneio
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted border">
+                                                <i class="bi bi-eye-slash"></i> Só pra vocês
+                                            </span>
+                                        }
+
+                                        @if (ViewBag.GestaoSoLeitura != true)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="PublicarAvaliacao"
+                                                  asp-route-id="@Model.Id" method="post" class="m-0">
+                                                <input type="hidden" name="avaliacaoId" value="@c.AvaliacaoId" />
+                                                <input type="hidden" name="publicar" value="@((!c.Publicado).ToString().ToLowerInvariant())" />
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none">
+                                                    @(c.Publicado ? "Tirar do mural" : "Publicar no mural")
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <p class="small text-muted mb-0">
+                                Comentário sem identificação vai pro mural <strong>sem o nome</strong> de quem
+                                escreveu — é o que foi combinado com a pessoa na hora de responder.
                             </p>
                         }
                     </div>

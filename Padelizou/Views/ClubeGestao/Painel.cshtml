@@ -348,6 +348,49 @@
                 </div>
             </div>
 
+            @* ── O QUE DISSERAM DO CLUBE ──────────────────────────────────────────────────
+               Vem da enquete de fim de torneio (Services/EnqueteDoTorneio): quem jogou aqui
+               dá nota e pode escrever. O dono do clube é um dos destinatários combinados com
+               quem respondeu — inclusive de quem escreveu sem se identificar.
+
+               ⚠️ O nome não vem nem pra esta tela quando a resposta é anônima: o serviço não
+               o entrega. É o que faz a promessa da tela de resposta valer. *@
+            @{
+                var doClube = ViewBag.ComentariosDoClube as List<Padelizou.Services.ComentarioDoTorneio>;
+            }
+            @if (doClube != null && doClube.Count > 0)
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                            <i class="bi bi-chat-square-heart-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+                            O que disseram do seu clube
+                        </h6>
+                        <p class="small text-muted mb-3">
+                            De quem jogou torneio aqui. Publicar um comentário no mural do torneio
+                            é feito na página dele.
+                        </p>
+
+                        @foreach (var c in doClube)
+                        {
+                            <div class="border-top pt-2 mt-2">
+                                <div class="small text-muted mb-1">
+                                    <i class="bi bi-star-fill text-warning"></i> @c.NotaClube ·
+                                    @c.Torneio · @c.Quando.ToString("dd/MM/yyyy")
+                                    @if (c.Anonimo)
+                                    {
+                                        <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis ms-1">
+                                            sem identificação
+                                        </span>
+                                    }
+                                </div>
+                                <div class="small">@c.SobreOClube</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
             @* O plano é conversado caso a caso — então o painel não inventa número, só abre a
                conversa. Sem isto, o dono não tem por onde pedir mudança. *@
             <div class="card border-0 shadow-sm" style="border-left: 4px solid var(--padel-green) !important;">

@@ -170,6 +170,12 @@ public class ClubeGestaoController : Controller
         ViewBag.MostrarBar = await _modulo.MostrarAtalhoAsync(UsuarioId());
         ViewBag.BarEmConstrucao = _modulo.EmConstrucao;
 
+        // O QUE DISSERAM DO CLUBE, vindo da enquete de fim de torneio. Inclui o que foi
+        // escrito sem identificação: o dono do clube é um dos três destinatários combinados
+        // com quem respondeu (ver Services/EnqueteDoTorneio) — e o nome não vem junto nem
+        // aqui, porque o serviço não o entrega quando a resposta é anônima.
+        ViewBag.ComentariosDoClube = await EnqueteDoTorneio.DoClubeAsync(_context, id, limite: 10);
+
         return View(vm);
     }
 

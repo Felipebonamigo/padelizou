@@ -575,6 +575,13 @@ public partial class DbPadelContext : DbContext
             // C# antes de qualquer gravação. O banco segura a segunda.
             entity.HasIndex(a => new { a.TorneioId, a.JogadorId }).IsUnique();
 
+            // O mesmo número da régua de tela e da checagem do serviço
+            // (EnqueteDoTorneio.TamanhoMaximoDoComentario). O Postgres não trunca `varchar` —
+            // ele RECUSA —, então o texto colado de um WhatsApp comprido derrubaria o POST em
+            // 500 se só a tela segurasse (a lição do LimitesDeTexto).
+            entity.Property(a => a.ComentarioClube).HasMaxLength(600);
+            entity.Property(a => a.ComentarioOrganizacao).HasMaxLength(600);
+
             entity.HasOne(a => a.Torneio)
                 .WithMany()
                 .HasForeignKey(a => a.TorneioId)
@@ -587,6 +594,17 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(a => a.JogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        modelBuilder.Entity<FeedbackSite>(entity =>
+        {
+            // A origem é opcional e o vínculo é FRACO de propósito: apagar um torneio não pode
+            // levar junto o que a pessoa achou do Padelizou — o texto continua valendo, só
+            // deixa de ter de onde veio. Por isso SetNull, e não Cascade.
+            entity.HasOne(f => f.Torneio)
+                .WithMany()
+                .HasForeignKey(f => f.TorneioId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<ConfiguracaoDoSistema>(entity =>
         {
             // A chave É a identidade da linha: duas linhas pra mesma chave fariam a leitura

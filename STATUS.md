@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 💰 **DINHEIRO É SÓ DO RAIZ: O ADMINISTRADOR NOMEADO E O ASSISTENTE PARARAM DE VER FINANCEIRO.**
+> Última atualização: **18/08/2026** — 💬 **DEPOIS DO TORNEIO, QUEM JOGOU PASSA A ESCREVER — E ESCOLHE SE ASSINA.**
+>
+> ⭐ **O pedido do Felipe**: junto com o MVP, deixar quem jogou avaliar **o sistema, o clube e o torneio**, com **comentário** pra cada um, e poder ser **anônimo ou público**. A enquete de 12/08 já coletava duas notas (clube e organização) — faltavam **o sistema** e **o texto**.
+>
+> 🎛️ **A escolha é UMA só pra resposta inteira** (decisão dele): *com o meu nome* × *sem o meu nome*. **Assinado vai pro mural do torneio na hora**; **sem identificação chega só a quem recebe** — organizador, dono do clube e Padelizou — e **não entra no mural sozinho**. Se acharem que ajuda outros jogadores, publicam — e aí sai **sem o nome**, que é o que a tela promete **antes** de a pessoa escrever.
+>
+> 🕵️ **O nome de quem não assinou não aparece em tela nenhuma, nem pra quem recebe.** Não é esquecimento de UI: o serviço **não entrega** autor quando a resposta é anônima (`Autor`/`AutorId`/`FotoDoAutor` chegam nulos), então nenhuma view pode "esquecer" de esconder — não há o que esconder. A coluna `JogadorId` fica porque é a trava de *uma resposta por pessoa*, não permissão pra exibir.
+>
+> 🧾 **O texto sobre o PADELIZOU não fica na avaliação: vira uma linha na caixa de Feedback** que já existe, com a moderação dela (nasce invisível) e agora com **de qual torneio veio**. Uma segunda caixa de opinião sobre o sistema seria a regra duplicada de sempre — duas listas, e o admin lendo uma. ⚠️ E vai **SEM NOTA**: lá a escala é 0-10 (NPS) e aqui é 1-5; converter faria "3 estrelas", que é o meio, virar **detrator**.
+>
+> 🔢 **A média do sistema tem contagem PRÓPRIA.** `NotaSistema` é **nulável** de propósito: coluna nova nasce zero, e as respostas de agosto apareceriam com **nota 0 pro Padelizou** — fora da escala e derrubando a média de uma pergunta que elas nunca viram.
+>
+> 🚧 **Duas travas que parecem detalhe**: trocar de assinado pra anônimo **tira do mural** (a pessoa voltou atrás), e **o que o moderador escondeu não volta sozinho** quando ela reenvia — senão editar uma vírgula seria o jeito de furar a moderação.
+>
+> 🤬 **O filtro de palavrões só vale pro que vai DIRETO ao mural.** Anônimo é conversa privada com quem organiza: recusar ali seria calar exatamente a crítica que a enquete existe pra ouvir — e ela só alcança outras pessoas se um humano publicar.
+>
+> 🖥️ **Onde aparece**: o mural na página do torneio; a lista de moderação (com o que é anônimo) na gestão; **"o que disseram do seu clube"** no painel do clube, atravessando os torneios da casa; e a home mostrando depoimento anônimo como *"um jogador do Padelizou"* — sem nome **e sem cidade**, que juntos identificam gente numa base pequena.
+>
+> 🧪 **4.190 testes, 0 falhas (14 novos).** ⚠️ A suíte rodou numa **cópia** da árvore, porque o repositório compartilhado teve trabalho simultâneo de outra sessão no meio da verificação. ✅ **Conferido no navegador, servidor de verdade, contra o Postgres local**: resposta anônima gravando com `PublicadoEm` nulo e o mural **sem** ela; a gestão mostrando o texto **sem nome nenhum**; publicada, saindo como *"Um jogador do torneio"*; reenvio assinado **não** ressuscitando o que o moderador tirou; o texto do sistema virando feedback invisível, sem nota, com o torneio de origem; e a home com o depoimento anônimo. Os dados de teste foram apagados do banco local depois.
+>
+> ⚠️ **Pendência**: **commitado, não publicado** — falta build + `deploy.yml`. A migration `ComentariosNaAvaliacaoDoTorneio` foi gerada em worktree limpo e confere (`has-pending-model-changes` sem pendência).
+>
+> Antes, no mesmo dia: 💰 **DINHEIRO É SÓ DO RAIZ: O ADMINISTRADOR NOMEADO E O ASSISTENTE PARARAM DE VER FINANCEIRO.**
 >
 > 🧭 **A decisão do Felipe**: "adm não vê nada de financeiro, somente eu" — e o mesmo corte vale pro **assistente do sistema**, que até ontem via TUDO, caixa incluído.
 >

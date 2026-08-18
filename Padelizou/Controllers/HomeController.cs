@@ -54,10 +54,11 @@ namespace Padelizou.Controllers
                     .Take(6)
                     .Select(f => new DepoimentoVM
                     {
-                        PrimeiroNome = f.Jogador.Nome,
-                        Cidade = f.Jogador.Cidade,
+                        PrimeiroNome = f.Anonimo ? "" : f.Jogador.Nome,
+                        Cidade = f.Anonimo ? null : f.Jogador.Cidade,
                         Nota = f.Nota,
-                        Texto = f.Texto
+                        Texto = f.Texto,
+                        Anonimo = f.Anonimo
                     })
                     .ToListAsync(),
             };

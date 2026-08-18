@@ -27,4 +27,18 @@ public class FeedbackSite
 
     // Marca que a equipe já leu — pra saber o que ainda falta olhar, sem publicar nada.
     public bool Lido { get; set; }
+
+    // ANONIMATO (18/08/2026): quem escreve pela enquete de fim de torneio escolhe se assina.
+    // Marcado, o depoimento sai da home como "um jogador do Padelizou" — sem primeiro nome e
+    // sem cidade, que juntos identificam gente numa base pequena.
+    //
+    // ⚠️ Ele não substitui o `Exibir`: anônimo continua nascendo invisível como todo o resto.
+    // São perguntas diferentes — "isto pode aparecer?" (admin) e "com o nome de quem?" (autor).
+    public bool Anonimo { get; set; }
+
+    // De onde veio, quando não veio do rodapé do site. A enquete pós-torneio manda o texto
+    // sobre o sistema pra cá, e sem esta coluna o admin lê "as quadras estavam ótimas" sem
+    // saber de que torneio a pessoa estava voltando.
+    public int? TorneioId { get; set; }
+    public virtual Torneio? Torneio { get; set; }
 }
