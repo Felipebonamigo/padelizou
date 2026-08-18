@@ -15,6 +15,15 @@
     DateTime semanaAnterior = ViewBag.SemanaAnterior;
     DateTime proximaSemana = ViewBag.ProximaSemana;
     bool estouNaSemanaAtual = ViewBag.EstouNaSemanaAtual == true;
+
+    // O sorteio de duplas vem por TempData (ver GruposController.SortearDuplas): ele não é
+    // dado gravado, é o resultado de um clique que precisa sobreviver ao redirect.
+    Padelizou.Services.SorteioDeDuplas.Resultado? sorteio = null;
+    if (TempData["SorteioDeDuplas"] is string sorteioJson)
+    {
+        sorteio = System.Text.Json.JsonSerializer
+            .Deserialize<Padelizou.Services.SorteioDeDuplas.Resultado>(sorteioJson);
+    }
 }
 
 <div class="container mt-4 mb-5">
@@ -140,6 +149,96 @@
                 @if (grupo.ValorAvulso != null)
                 {
                     <div><span class="text-muted small">Avulso (convidado)</span><br /><strong>R$ @grupo.ValorAvulso.Value.ToString("0.00")</strong></div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ══ SORTEADOR DE DUPLAS ═══════════════════════════════════════════════════════════════
+       Fica ACIMA das listas e ocupando a largura toda porque é a ação do dia do jogo: as
+       listas respondem "quem vem", isto responde "quem joga com quem". *@
+    @if (ehAdmin || sorteio != null)
+    {
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-shuffle"></i> Sorteio das duplas</h6>
+                    @if (ehAdmin)
+                    {
+                        <form asp-controller="Grupos" asp-action="SortearDuplas" method="post" class="d-flex align-items-center gap-3 flex-wrap">
+                            <input type="hidden" name="sessaoId" value="@Model.Id" />
+                            @* O checkbox manda "false" pelo hidden e "true" pelo checked — sem o
+                               hidden, desmarcar não envia campo nenhum e o servidor cai no
+                               padrão (true), ou seja, o desmarcar não teria efeito. *@
+                            <input type="hidden" name="respeitarLado" value="false" />
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" name="respeitarLado"
+                                       value="true" id="pdzRespeitarLado" checked />
+                                <label class="form-check-label small" for="pdzRespeitarLado">
+                                    Respeitar o lado de cada um <span class="text-body-secondary">(direita / esquerda)</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary fw-bold">
+                                <i class="bi bi-shuffle"></i> Sortear duplas
+                            </button>
+                        </form>
+                    }
+                </div>
+
+                @if (ehAdmin && sorteio == null)
+                {
+                    <p class="small text-body-secondary mb-0 mt-2">
+                        Sorteia entre os <strong>@confirmados.Count confirmados</strong>, evitando repetir
+                        as parcerias das últimas 8 semanas. Pode clicar quantas vezes quiser — nada é gravado.
+                    </p>
+                }
+
+                @if (sorteio != null)
+                {
+                    @foreach (var aviso in sorteio.Avisos)
+                    {
+                        <div class="alert alert-warning py-2 px-3 small mt-3 mb-0 d-flex gap-2 align-items-start">
+                            <i class="bi bi-exclamation-triangle-fill"></i> <span>@aviso</span>
+                        </div>
+                    }
+
+                    @if (sorteio.Duplas.Any())
+                    {
+                        <div class="row g-2 mt-2">
+                            @{ int numeroDaDupla = 1; }
+                            @foreach (var dupla in sorteio.Duplas)
+                            {
+                                <div class="col-12 col-sm-6 col-lg-4">
+                                    <div class="border rounded-3 p-2 h-100">
+                                        <div class="small text-body-secondary fw-bold mb-1">Dupla @numeroDaDupla</div>
+                                        @foreach (var (jogador, ladoDaVez) in new[] { (dupla.Direita, "Direita"), (dupla.Esquerda, "Esquerda") })
+                                        {
+                                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                                <span>@jogador.Nome</span>
+                                                @* Quem foi deslocado leva marca própria: sem isso a
+                                                   pessoa só descobre na quadra que vai jogar do
+                                                   lado que não é o dela. *@
+                                                <span class="badge @(jogador.ForaDoLadoDele ? "bg-warning text-dark" : "bg-light text-dark border")"
+                                                      title="@(jogador.ForaDoLadoDele ? "Está fora do lado de preferência dele" : "")">
+                                                    @ladoDaVez@(jogador.ForaDoLadoDele ? " ⚠" : "")
+                                                </span>
+                                            </div>
+                                        }
+                                        @if (dupla.VezesQueJaJogaramJuntos > 0)
+                                        {
+                                            <div class="small text-body-secondary mt-1">
+                                                já jogaram juntos @dupla.VezesQueJaJogaramJuntos× nas últimas 8 semanas
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                numeroDaDupla++;
+                            }
+                        </div>
+                        <p class="small text-body-secondary mt-3 mb-0">
+                            Nada foi gravado — registre os jogos normalmente em <strong>Registrar jogo</strong>.
+                        </p>
+                    }
                 }
             </div>
         </div>

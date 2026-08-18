@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
+> Última atualização: **18/08/2026** — 🎲 **SORTEADOR DE DUPLAS DA PANELINHA: as duplas deixam de ser sempre as mesmas** — respeitando o lado de cada um.
+>
+> 🎲 **O PEDIDO**: *"que as duplas não sejam sempre as mesmas"*. Em panelinha semanal quem chega junto joga junto, e em poucas semanas são sempre os mesmos quatro confrontos. Botão **Sortear duplas** na tela da semana, com a opção **"respeitar o lado de cada um"** ligada por padrão. Só o admin do grupo sorteia — o resultado vale pra todos, e dois membros clicando alternado virariam duplas trocando a cada F5.
+>
+> ⚠️ **DUAS REGRAS QUE PUXAM PRA LADOS OPOSTOS, E A ORDEM ENTRE ELAS É O PRODUTO**: o LADO manda (dupla de padel tem um na direita e um na esquerda, isso é físico), e só DENTRO do que o lado permite é que se sorteia evitando parceria repetida. Quem é "Direita" fica na direita, quem é "Esquerda" na esquerda, e **quem joga dos dois lados é o coringa que tapa os buracos** — nessa ordem, que é literalmente o pedido.
+>
+> ⚠️ **QUANDO NÃO FECHA, NÃO SE RECUSA A SORTEAR.** Seis destros e nenhum canhoto é o normal de uma panelinha, não erro do usuário — recusar deixaria a tela inútil no caso mais comum. Sorteia assim mesmo, desloca só quem for inevitável, avisa **qual lado faltou e quantos**, e marca de amarelo **pessoa a pessoa** quem vai jogar trocado. Sem a marca individual, o jogador só descobre na quadra.
+>
+> ⚠️ **O ERRO QUE EU MESMO COMETI E O TESTE MATOU — vale mais que a feature.** A primeira versão do pareamento era GULOSA: cada jogador da direita pegava o parceiro com quem menos tinha jogado. Parece certo e não é — a escolha ótima de um pode ENCURRALAR o último par. Com D1 que já jogou 5× com E1, o guloso casa D2+E2 primeiro (custo zero, "ótimo" naquele passo) e sobra exatamente D1+E1, a única dupla que se queria evitar. **Ótimo local em cada passo, péssimo no total.** Troquei por sortear o conjunto INTEIRO 200 vezes e ficar com o de menor repetição — 10 linhas, e a conta é sempre do sorteio completo. ✅ Falsificado: com 1 tentativa em vez de 200, o teste `Nao_repete_a_parceria_que_ja_jogou_junto` cai.
+>
+> ⚠️ **Janela de 8 semanas no histórico, não o grupo inteiro**: em panelinha antiga todo mundo já jogou com todo mundo, os custos empatam e o histórico deixa de separar qualquer coisa. Oito semanas é o passado que as pessoas ainda sentem como *"de novo esses dois juntos"*.
+>
+> 🎲 **E o empate é sorteado DE VERDADE** (reservoir sampling): entre os sorteios que empatam no melhor custo, cada um tem a mesma chance. Ficar com o primeiro faria o botão devolver sempre a mesma formação em grupo sem histórico — que é justamente o grupo novo, e justamente o que era pra evitar.
+>
+> 🧪 **4.207 testes, 0 falhas (16 novos).** Entre eles a invariante que mais custaria caro na quadra e que menos aparece numa conferência visual: **ninguém joga em duas duplas ao mesmo tempo e ninguém some** (4, 6, 8 e 9 confirmados). E o teste do **contrato com a tela**: o resultado não é gravado em tabela nenhuma — vai em JSON pelo TempData e volta do outro lado do redirect. Se essa ida e volta quebrasse, o botão ficaria MUDO, sem erro em lugar nenhum, e nenhum teste de regra pegaria — porque a regra estaria certa e quem falha é o transporte.
+>
+> ⏭️ **O sorteio não grava nada** — é sugestão pra mesa, e dá pra clicar de novo quantas vezes quiser. Registrar o jogo segue sendo em "Registrar jogo", como sempre.
+>
+> Antes, no mesmo dia: 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
 >
 > 🚷 **O PEDIDO DO FELIPE**: *"temos a opção de vencer por W.O.? quando o atleta não comparece ao jogo?"* Não tínhamos. Quem ficava sem adversário em quadra digitava 6x0 e seguia, porque `QuemVenceu.MotivoParaNaoFinalizar` exige games pra deixar encerrar. Funcionava pro chaveamento e mentia pro resto.
 >

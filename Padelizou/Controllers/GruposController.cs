@@ -562,6 +562,85 @@ namespace padelizou.Controllers
             return RedirectToAction("Semana", new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") });
         }
 
+        // ===================== SORTEAR AS DUPLAS DA SEMANA =====================
+        //
+        // "Para que as duplas não sejam sempre as mesmas" (Felipe, 18/08/2026). A regra e o
+        // porquê de cada decisão moram em Services/SorteioDeDuplas; aqui só se junta o que o
+        // motor precisa: quem confirmou, de que lado cada um joga e quem já jogou com quem.
+        //
+        // Só o admin do grupo sorteia. Não é hierarquia: o resultado vale pra todos, e dois
+        // membros clicando alternado virariam duplas trocando a cada F5.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SortearDuplas(int sessaoId, bool respeitarLado = true)
+        {
+            var userId = ObterUserId();
+
+            var sessao = await _context.SessoesGrupo
+                .Include(s => s.Grupo)
+                .Include(s => s.Confirmacoes).ThenInclude(c => c.Jogador)
+                .FirstOrDefaultAsync(s => s.Id == sessaoId);
+            if (sessao == null) return NotFound();
+            if (sessao.Grupo.AdministradorId != userId) return Forbid();
+
+            var voltarPara = new { grupoId = sessao.GrupoId, data = sessao.DataHora.ToString("s") };
+
+            // ⚠️ `LadoNaQuadra.Efetivo`, e não `c.Lado` cru: a confirmação nasce copiando o lado
+            // do perfil, mas quem foi convidado de fora — ou é membro de antes de o campo
+            // existir — vem com nulo. Nulo aqui não é "tanto faz": é "não escolheu nesta tela",
+            // e aí vale o perfil. Mesma régua da inscrição de torneio.
+            var candidatos = sessao.Confirmacoes
+                .Where(c => c.Status == "Confirmado")
+                .Select(c => new SorteioDeDuplas.Candidato(
+                    c.JogadorId,
+                    c.Jogador.ComoChamar,
+                    LadoNaQuadra.Efetivo(c.Lado, c.Jogador.LadoQuadra)))
+                .ToList();
+
+            if (candidatos.Count < 2)
+            {
+                TempData["Erro"] = "Precisa de pelo menos 2 confirmados pra sortear as duplas.";
+                return RedirectToAction("Semana", voltarPara);
+            }
+
+            // O HISTÓRICO DE PARCERIAS — é ele que faz "não repetir" querer dizer alguma coisa.
+            //
+            // ⚠️ Janela de 8 semanas, e não o grupo inteiro desde sempre: em panelinha antiga
+            // todo mundo já jogou com todo mundo, os custos empatam e o histórico deixa de
+            // separar qualquer coisa. Oito semanas é o passado que as pessoas ainda sentem
+            // como "de novo esses dois juntos".
+            var desde = sessao.DataHora.Date.AddDays(-56);
+            var jogos = await _context.JogosSemanais
+                .Where(j => j.GrupoId == sessao.GrupoId
+                         && j.DataJogo.Date >= desde && j.DataJogo.Date <= sessao.DataHora.Date)
+                .Select(j => new { j.Dupla1Jogador1Id, j.Dupla1Jogador2Id, j.Dupla2Jogador1Id, j.Dupla2Jogador2Id })
+                .ToListAsync();
+
+            var vezesJuntos = new Dictionary<(int, int), int>();
+            foreach (var j in jogos)
+            {
+                foreach (var par in new[]
+                {
+                    SorteioDeDuplas.Chave(j.Dupla1Jogador1Id, j.Dupla1Jogador2Id),
+                    SorteioDeDuplas.Chave(j.Dupla2Jogador1Id, j.Dupla2Jogador2Id),
+                })
+                {
+                    vezesJuntos[par] = vezesJuntos.GetValueOrDefault(par) + 1;
+                }
+            }
+
+            var resultado = SorteioDeDuplas.Sortear(candidatos, vezesJuntos, Random.Shared, respeitarLado);
+
+            // O sorteio NÃO grava nada: ele é uma sugestão pra mesa, e o organizador pode
+            // clicar de novo se a quadra pedir outra coisa. Vai por TempData pra sobreviver ao
+            // redirect (o POST-redirect-GET do resto do site) e sumir na navegação seguinte —
+            // que é o tempo de vida certo pra um sorteio.
+            TempData["SorteioDeDuplas"] = System.Text.Json.JsonSerializer.Serialize(resultado);
+
+            return RedirectToAction("Semana", voltarPara);
+        }
+
         // ===================== CONVIDAR JOGADORES DE FORA (link wa.me manual) =====================
 
         [HttpGet]
