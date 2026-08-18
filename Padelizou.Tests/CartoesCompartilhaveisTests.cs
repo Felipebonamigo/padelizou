@@ -379,6 +379,7 @@ public class CartoesCompartilhaveisTests
                 Dupla2Jogador2Id = rival2.Id,
                 GamesDupla1 = 6,
                 GamesDupla2 = 3,
+                VencedorLado = Padelizou.Services.ResultadoDoJogoSemanal.Dupla1,
                 RegistradoPorId = eu.Id,
             });
         }
@@ -424,6 +425,7 @@ public class CartoesCompartilhaveisTests
                 Dupla2Jogador2Id = rival2.Id,
                 GamesDupla1 = 6,
                 GamesDupla2 = 2,
+                VencedorLado = Padelizou.Services.ResultadoDoJogoSemanal.Dupla1,
                 RegistradoPorId = eu.Id,
             });
         }

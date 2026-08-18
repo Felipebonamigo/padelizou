@@ -103,15 +103,35 @@
                             </div>
                         </div>
 
+                        @* ⚠️ QUEM VENCEU VIROU CAMPO, e por isso ele PRECISA estar nesta tela.
+                           Enquanto o vencedor era deduzido do placar, corrigir os games
+                           acertava o vencedor de graça. Agora não: um editar sem este campo
+                           salvaria 6x3 mantendo a outra dupla como vencedora gravada, e o
+                           ranking seguiria o vencedor. Ver Services/ResultadoDoJogoSemanal. *@
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Quem venceu</label>
+                            <select name="vencedorLado" class="form-select bg-light" required>
+                                <option value="1" selected="@(Model.VencedorLado == 1)">Dupla 1</option>
+                                <option value="2" selected="@(Model.VencedorLado == 2)">Dupla 2</option>
+                                <option value="0" selected="@(Model.VencedorLado == 0)">Empate</option>
+                            </select>
+                        </div>
+
                         <div class="row mb-4 align-items-center">
+                            <div class="col-12 mb-1">
+                                <span class="form-label fw-bold text-muted small">Placar (opcional)</span>
+                            </div>
                             <div class="col-5">
-                                <label class="form-label fw-bold text-muted small">Games Dupla 1</label>
-                                <input type="number" name="gamesDupla1" class="form-control bg-light" required min="0" value="@Model.GamesDupla1" />
+                                <label class="form-label text-muted small">Games Dupla 1</label>
+                                <input type="number" name="gamesDupla1" class="form-control bg-light" min="0" value="@Model.GamesDupla1" />
                             </div>
                             <div class="col-2 text-center fw-bold text-muted mt-3">x</div>
                             <div class="col-5">
-                                <label class="form-label fw-bold text-muted small">Games Dupla 2</label>
-                                <input type="number" name="gamesDupla2" class="form-control bg-light" required min="0" value="@Model.GamesDupla2" />
+                                <label class="form-label text-muted small">Games Dupla 2</label>
+                                <input type="number" name="gamesDupla2" class="form-control bg-light" min="0" value="@Model.GamesDupla2" />
+                            </div>
+                            <div class="col-12">
+                                <div class="form-text">Deixe os dois em branco se não quiser guardar o placar.</div>
                             </div>
                         </div>
 
