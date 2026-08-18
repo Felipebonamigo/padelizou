@@ -119,6 +119,18 @@ namespace padelizou.Controllers
                 return new SemanaFaturamentoVM { Inicio = inicio, Valor = daSemana.Sum(a => a.Preco), Aulas = daSemana.Count };
             }).ToList();
 
+            // E os últimos 6 anos — semana e mês respondem o dia a dia, mas não "esse ano
+            // deu mais aula que o passado".
+            var primeiroAno = hoje.Year - 5;
+            vm.UltimosAnos = Enumerable.Range(0, 6).Select(i =>
+            {
+                var ano = primeiroAno + i;
+                var inicio = new DateTime(ano, 1, 1);
+                var fim = inicio.AddYears(1);
+                var doAno = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= inicio && a.DataHora < fim).ToList();
+                return new AnoFaturamentoVM { Ano = ano, Valor = doAno.Sum(a => a.Preco), Aulas = doAno.Count };
+            }).ToList();
+
             return View(vm);
         }
 

@@ -7,6 +7,7 @@
 
     var maxMes = Model.UltimosMeses.Any() ? Math.Max(1m, Model.UltimosMeses.Max(m => m.Valor)) : 1m;
     var maxSemana = Model.UltimasSemanas.Any() ? Math.Max(1m, Model.UltimasSemanas.Max(s => s.Valor)) : 1m;
+    var maxAno = Model.UltimosAnos.Any() ? Math.Max(1m, Model.UltimosAnos.Max(a => a.Valor)) : 1m;
 }
 
 <div class="container mt-4 mb-5">
@@ -144,6 +145,27 @@
                     </div>
                     <small class="fw-bold text-nowrap" style="width: 90px; text-align: right; color: var(--pdz-ink);">
                         @m.Valor.ToString("C0", ptBr)
+                    </small>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Últimos 6 anos -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);"><i class="bi bi-calendar-range"></i> Últimos 6 anos</h6>
+            @foreach (var a in Model.UltimosAnos)
+            {
+                var pctAno = (int)Math.Round(a.Valor / maxAno * 100);
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <small class="text-muted text-nowrap" style="width: 62px;">@a.Rotulo</small>
+                    <div class="progress flex-grow-1" style="height: 18px;">
+                        <div class="progress-bar" role="progressbar"
+                             style="width: @pctAno%; background: var(--padel-green);"></div>
+                    </div>
+                    <small class="fw-bold text-nowrap" style="width: 90px; text-align: right; color: var(--pdz-ink);">
+                        @a.Valor.ToString("C0", ptBr)
                     </small>
                 </div>
             }
