@@ -1,7 +1,35 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 📲 **REGISTRAR JOGO DA PANELINHA EM ~6 TOQUES** — e o placar virou opcional, o que **não era mudança de tela**.
+> Última atualização: **18/08/2026** — 🧹 **TRÊS COISAS QUE O FELIPE VIU NA TELA, E DUAS DELAS NÃO ESTAVAM NO CÓDIGO DA TELA.**
+>
+> 👀 **As três vieram de olhar o site, não de ler código** — criar torneio oferecendo "Categoria Casais" **e** "Categoria Casal" lado a lado, o campo "Não achou?" sempre à mostra, e o elenco do ER Padel com a **mesma jogadora cinco vezes seguidas**. Publicadas nas builds `build-586-79ead32` e `build-587-22c9074`.
+>
+> 💣 **A CATEGORIA DUPLICADA NÃO ESTAVA NA LISTA DO CÓDIGO — ESTAVA NO BANCO, E O SEED É QUE A PÔS LÁ.** O catálogo do `Program.cs` tem UMA entrada de casal, e mesmo assim a tela mostrava duas. O seed cria por **NOME** (`nomesExistentes`): quando o nome virou "Casais" (plural) em 08/08, ele não renomeou nada — criou a linha nova e deixou a antiga de pé, ligada. ⚠️ **É a armadilha de todo seed idempotente-por-nome: renomear é sempre criar+abandonar.** O comentário do próprio arquivo já previa isso e a duplicata aconteceu do mesmo jeito, porque previsão não desliga linha nenhuma.
+>
+> ⚠️ **A MIGRAÇÃO CASA POR NOME, E ISSO NÃO É DETALHE: AS DUAS LINHAS TÊM O MESMO `Codigo` "CASAL".** Filtrar por código — o reflexo natural, e o que a migração das "Iniciantes" fez — desligaria a categoria de casal **inteira**, e o sintoma seria "sumiu casal do sistema" numa tela que ninguém abriu ainda. E desliga (`Ativa = false`) em vez de apagar, porque torneio, preferência e aviso guardam o **Id** dela: apagar levaria junto o histórico de quem já jogou. Tem um `EXISTS` de seguro, pra não desligar a antiga num banco onde a nova ainda não nasceu.
+>
+> ✅ **Provado no banco de produção**, não na tela: `21|Categoria Casais|CASAL|t` e `22|Categoria Casal|CASAL|f`.
+>
+> ⚠️ **O CAMPO ESCONDIDO PRECISOU SER DESATIVADO, NÃO SÓ ESCONDIDO — e é aqui que essa mudança tinha como estragar torneio.** "Não achou? Escreva o nome do local" virou a opção **"-- Meu clube não está na lista --"** dentro do próprio seletor. Só que no servidor o nome escrito **sobrepõe** o `ClubeId` (`AcharOuCriarClubeAsync`): quem digitasse um nome, mudasse de ideia e escolhesse um clube da lista veria um clube na tela e criaria o torneio em **outro**. Navegador não envia campo desativado — então o bloco escondido some do POST inteiro. Desativar em vez de apagar guarda o que a pessoa escreveu, caso ela volte.
+>
+> ⚠️ **O valor da opção é `-1`, e não um texto tipo "novo"**: `ClubeId` é `int`, texto ali quebra o binding e o formulário volta com erro. O `-1` cai no `ClubeId <= 0` que o controller **já** recusava — a régua velha cobre o caso novo, e a mensagem de recusa foi reescrita porque falava de um "campo abaixo do seletor" que não existe mais.
+>
+> 👥 **O ELENCO REPETIA GENTE DE PROPÓSITO — e a intenção estava certa, a leitura é que não.** `JogadorCategoria` é o que a pessoa **aceita** jogar, e a tela mostrava cada um em cada categoria pra responder *"quem aqui joga a minha?"*. Só que a Camila (id 276) marcou cinco: numa lista de doze linhas, metade era o mesmo nome, e isso lê como bug mesmo sendo desenho. Agora cada um aparece **uma vez**, no degrau mais forte da escada dele, e o resto vira etiqueta **"joga também"** na própria linha — a pergunta original continua respondida, sem a repetição.
+>
+> ⚠️ **O SEXO ENTROU NA CONTA POR CAUSA DE UM DADO QUE NÃO DEVERIA EXISTIR, E QUE EXISTE.** A Camila tem **5ª e 6ª Masculina** marcadas junto com as femininas (engano no cadastro de preferências, que o site aceita). Como a escada masculina vem primeiro na ordem de tela, "a mais forte" das cinco é sempre uma masculina — e ela terminaria **sozinha na 5ª Masculina**, trocando um bug visível por outro. Com o sexo, cai na 2ª Feminina. ⚠️ E a guarda que quase faltou: só filtra com sexo **conhecido**, senão o `null` de quem não informou casaria com o `null` de Mista/Casais (que não são de sexo nenhum) e a Mista roubaria o lugar da categoria de verdade.
+>
+> ✅ **Provado na página pública** (`/Times/Detalhes/8` responde 200 sem login): "Camila Lopes (Camila)" aparecia **6 vezes** e agora aparece **2** — uma no elenco, uma nas idas e vindas. Três jogadoras ganharam a linha "joga também".
+>
+> 🧪 **4.244 testes, 0 falhas.** O teste que guardava o comportamento antigo (`Quem_aceita_duas_categorias_aparece_nas_duas`) foi **substituído**, não apagado em silêncio — o novo diz o contrário e explica por quê. Três novos, um deles com o caso real da Camila escrito na mão.
+>
+> ✅ **O `main` e a produção voltaram a ser a mesma coisa.** A `build-586` levou junto o que estava mergeado e não publicado desde a `build-582` (a trava da tela de erro, `d13cf16`) — o descompasso anotado no bloco de baixo está fechado.
+>
+> ⏭️ **NÃO conferido no navegador**: a tela de criar torneio exige login, e eu não entro em conta de ninguém. O que mudou lá é markup + JS, compilado e com os testes verdes, mas a interação (escolher a opção, o bloco abrir, o `required` entrar) foi lida no código, não clicada. 💡 Pra próxima isso deixa de ser desculpa: o `.claude/launch.json` tem configs com `--AcessoAntecipado:LoginAutomaticoCpf`, ou seja, dá pra subir o app local **já logado**.
+>
+> ⚠️ **Ficou de fora de propósito**: as duas categorias masculinas no cadastro da Camila. É dado dela, e quem apaga preferência de jogador é o jogador — mas se aparecer mais gente assim, o cadastro de preferências é que deveria parar de oferecer a escada do outro sexo.
+>
+> Antes, no mesmo dia: 📲 **REGISTRAR JOGO DA PANELINHA EM ~6 TOQUES** — e o placar virou opcional, o que **não era mudança de tela**.
 >
 > 📲 **VEIO DE UMA SUGESTÃO DE USUÁRIO**, detalhada, com layout e fluxo. A tela era um formulário com quatro `<select>` de jogador e dois campos de placar obrigatórios — e o registro é coisa que se faz no celular, em pé, ao lado da quadra. Quem chega ali veio do jogo da semana, então o sistema **já sabe** grupo, data, clube e quem joga. Agora: 2 toques (dupla 1) + 2 (dupla 2) + 1 (vencedor) + 1 (salvar).
 >
