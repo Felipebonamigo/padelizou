@@ -8,6 +8,12 @@
     var meses = (List<MesDeAssinatura>)ViewBag.Meses;
     var cfg = (PlanoProfessorSettings)ViewBag.Cfg;
 
+    // Dinheiro é só do raiz (18/08/2026). Some daqui: "Assinatura recebida", a tabela de
+    // quanto entrou por mês, o preço do plano no texto e a coluna "Já pagou". Fica pra todos
+    // quem é professor, em que situação está e desde quando — é o que faz a tela funcionar
+    // como lista de gente, e "Assinante em atraso" já responde "está pagando?" sem valor.
+    var podeVerDinheiro = ViewBag.PodeVerDinheiro as bool? ?? false;
+
     string[] nomeDoMes = { "", "jan", "fev", "mar", "abr", "mai", "jun",
                            "jul", "ago", "set", "out", "nov", "dez" };
 
@@ -33,7 +39,9 @@
             <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">
                 <i class="bi bi-mortarboard"></i> Professores
             </h2>
-            <div class="text-muted">Quem dá aula pelo Padelizou, em que plano está e quanto já pagou.</div>
+            <div class="text-muted">
+                Quem dá aula pelo Padelizou, em que plano está@(podeVerDinheiro ? " e quanto já pagou" : "").
+            </div>
         </div>
         <a asp-action="Index" class="btn btn-outline-secondary rounded-pill">
             <i class="bi bi-arrow-left"></i> Voltar ao painel
@@ -72,17 +80,20 @@
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body py-3">
-                    <div class="text-muted small">Assinatura recebida</div>
-                    <div class="fs-3 fw-bold" style="color: var(--padel-green);">@resumo.ReceitaTotal.ToString("C")</div>
-                    <div class="text-muted" style="font-size: .75rem;">
-                        @resumo.ReceitaNoMes.ToString("C") neste mês
+        @if (podeVerDinheiro)
+        {
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Assinatura recebida</div>
+                        <div class="fs-3 fw-bold" style="color: var(--padel-green);">@resumo.ReceitaTotal.ToString("C")</div>
+                        <div class="text-muted" style="font-size: .75rem;">
+                            @resumo.ReceitaNoMes.ToString("C") neste mês
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        }
     </div>
 
     @* Onde cada um está HOJE. Separado dos números de cima porque responde outra pergunta:
@@ -102,56 +113,69 @@
     </div>
 
     @* ── Quanto entrou por mês ───────────────────────────────────────────────────────── *@
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-            <h5 class="fw-bold mb-1"><i class="bi bi-calendar3"></i> Assinatura por mês</h5>
-            <p class="text-muted small mb-3">
-                Pelo mês em que o dinheiro <strong>entrou</strong>, como no caixa.
-                @* Sem este aviso, o mês de uma anuidade parece um mês excepcional. *@
-                O plano anual (@cfg.AnuidadeAssinante.ToString("C")) aparece <strong>inteiro</strong>
-                no mês em que foi pago, não dividido por doze.
-            </p>
+    @if (podeVerDinheiro)
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <h5 class="fw-bold mb-1"><i class="bi bi-calendar3"></i> Assinatura por mês</h5>
+                <p class="text-muted small mb-3">
+                    Pelo mês em que o dinheiro <strong>entrou</strong>, como no caixa.
+                    @* Sem este aviso, o mês de uma anuidade parece um mês excepcional. *@
+                    O plano anual (@cfg.AnuidadeAssinante.ToString("C")) aparece <strong>inteiro</strong>
+                    no mês em que foi pago, não dividido por doze.
+                </p>
 
-            @if (!meses.Any())
-            {
-                <div class="text-muted small">Nenhuma assinatura recebida ainda.</div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead>
-                            <tr class="text-muted small">
-                                <th>Mês</th>
-                                <th class="text-end">Professores</th>
-                                <th class="text-end">Cobranças</th>
-                                <th class="text-end">Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var m in meses)
-                            {
-                                <tr>
-                                    <td class="fw-bold">@nomeDoMes[m.Mes]/@m.Ano</td>
-                                    <td class="text-end">@m.Professores</td>
-                                    <td class="text-end">@m.Cobrancas</td>
-                                    <td class="text-end fw-bold">@m.Valor.ToString("C")</td>
+                @if (!meses.Any())
+                {
+                    <div class="text-muted small">Nenhuma assinatura recebida ainda.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th>Mês</th>
+                                    <th class="text-end">Professores</th>
+                                    <th class="text-end">Cobranças</th>
+                                    <th class="text-end">Valor</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
+                            </thead>
+                            <tbody>
+                                @foreach (var m in meses)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@nomeDoMes[m.Mes]/@m.Ano</td>
+                                        <td class="text-end">@m.Professores</td>
+                                        <td class="text-end">@m.Cobrancas</td>
+                                        <td class="text-end fw-bold">@m.Valor.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
         </div>
-    </div>
+    }
 
     @* ── Um por um ───────────────────────────────────────────────────────────────────── *@
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <h5 class="fw-bold mb-1"><i class="bi bi-people"></i> Cada professor</h5>
             <p class="text-muted small mb-3">
-                Começa ordenado por quanto já pagou, depois por movimento de aulas — quem
-                sustenta a conta aparece primeiro. Clique em qualquer coluna pra reordenar.
+                @if (podeVerDinheiro)
+                {
+                    <text>
+                        Começa ordenado por quanto já pagou, depois por movimento de aulas — quem
+                        sustenta a conta aparece primeiro.
+                    </text>
+                }
+                else
+                {
+                    <text>Começa ordenado por movimento de aulas — quem está mais ativo aparece primeiro.</text>
+                }
+                Clique em qualquer coluna pra reordenar.
             </p>
 
             @if (!Model.Any())
@@ -188,18 +212,26 @@
                 @* ⚠️ Cada `th` carrega o ÍNDICE da coluna e cada célula ordenável carrega
                    `data-ordem` com o valor CRU — número invariante e data em `yyyy-MM-dd`.
                    Deixar o JS ordenar o texto da tela colocaria "R$ 1.000,00" antes de
-                   "R$ 90,00" e 07/09/2027 antes de 15/08/2026. *@
+                   "R$ 90,00" e 07/09/2027 antes de 15/08/2026.
+
+                   ⚠️ O índice é CONTADO, não escrito: quando a coluna "Já pagou" some (quem
+                   não é raiz), um número fixo faria o clique em "Aulas" ordenar pela coluna
+                   do lado — o JS acha a célula por posição. *@
+                var col = 0;
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0" id="tabela-professores">
                         <thead>
                             <tr class="text-muted small">
-                                <th role="button" data-coluna="0" data-tipo="texto">Professor <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="1" data-tipo="texto">Situação <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="2" data-tipo="numero" class="text-end">Pago até <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="3" data-tipo="numero" class="text-end">Já pagou <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="4" data-tipo="numero" class="text-end">Aulas <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="5" data-tipo="numero" class="text-end">Última aula <span class="pdz-seta"></span></th>
-                                <th role="button" data-coluna="6" data-tipo="numero" class="text-end">Desde <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="@(col++)" data-tipo="texto">Professor <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="@(col++)" data-tipo="texto">Situação <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Pago até <span class="pdz-seta"></span></th>
+                                @if (podeVerDinheiro)
+                                {
+                                    <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Já pagou <span class="pdz-seta"></span></th>
+                                }
+                                <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Aulas <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Última aula <span class="pdz-seta"></span></th>
+                                <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Desde <span class="pdz-seta"></span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -228,20 +260,23 @@
                                     <td class="text-end" data-ordem="@(p.AssinaturaPagaAte?.ToString("yyyyMMdd") ?? "")">
                                         @(p.AssinaturaPagaAte?.ToString("dd/MM/yyyy") ?? "—")
                                     </td>
-                                    <td class="text-end" data-ordem="@(p.QuantidadeDePagamentos > 0 ? p.TotalPago.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")">
-                                        @if (p.QuantidadeDePagamentos > 0)
-                                        {
-                                            <span class="fw-bold">@p.TotalPago.ToString("C")</span>
-                                            <div class="text-muted" style="font-size: .75rem;">
-                                                @p.QuantidadeDePagamentos @(p.QuantidadeDePagamentos == 1 ? "pagamento" : "pagamentos"),
-                                                último em @p.UltimoPagamentoEm!.Value.ToString("dd/MM/yy")
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">—</span>
-                                        }
-                                    </td>
+                                    @if (podeVerDinheiro)
+                                    {
+                                        <td class="text-end" data-ordem="@(p.QuantidadeDePagamentos > 0 ? p.TotalPago.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")">
+                                            @if (p.QuantidadeDePagamentos > 0)
+                                            {
+                                                <span class="fw-bold">@p.TotalPago.ToString("C")</span>
+                                                <div class="text-muted" style="font-size: .75rem;">
+                                                    @p.QuantidadeDePagamentos @(p.QuantidadeDePagamentos == 1 ? "pagamento" : "pagamentos"),
+                                                    último em @p.UltimoPagamentoEm!.Value.ToString("dd/MM/yy")
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
+                                        </td>
+                                    }
                                     <td class="text-end" data-ordem="@p.AulasNoTotal">
                                         @p.AulasNoTotal
                                         @if (p.AulasNosUltimos30Dias > 0)
@@ -277,8 +312,14 @@
         <i class="bi bi-info-circle"></i>
         <strong>Situação</strong> é calculada na hora pela mesma régua que cobra a aula
         (<code>PlanoDoProfessor</code>): assinante com mensalidade vencida há mais de
-        @cfg.DiasDeCarencia dias já está pagando a taxa cheia de @cfg.PercentualAvulso.ToString("0.#")%.
-        <strong>Já pagou</strong> soma assinaturas confirmadas em qualquer forma de recebimento.
+        @cfg.DiasDeCarencia dias já caiu na condição de avulso.
+        @if (podeVerDinheiro)
+        {
+            <text>
+                A taxa cheia é de @cfg.PercentualAvulso.ToString("0.#")%.
+                <strong>Já pagou</strong> soma assinaturas confirmadas em qualquer forma de recebimento.
+            </text>
+        }
     </div>
 </div>
 

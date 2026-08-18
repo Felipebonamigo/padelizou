@@ -49,7 +49,12 @@ namespace Padelizou.Controllers
 
             // Esta tela é dinheiro do começo ao fim — o valor devido e o botão de pagar. Quem
             // só ajuda a organizar não entra: a conta é de quem recebeu as inscrições.
-            bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+            //
+            // ⚠️ Do lado da CASA, quem entra é só o raiz (18/08/2026): era o crachá `IsAdmin`,
+            // que inclui o administrador nomeado. Pelo crachá ainda, e não pelo banco, porque a
+            // pergunta é a mesma de sempre — quem sou eu — e `PodeVerDinheiro(User)` é a régua
+            // única (Services/PoderesNoSistema).
+            bool ehAdmin = PoderesNoSistema.PodeVerDinheiro(User);
             if (!ehAdmin && !await PodeVerDinheiroAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             if (!TaxaDoTorneioExterno.SeAplica(torneio)) return RedirectToAction("Details", new { id });
@@ -128,7 +133,9 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> RegistrarNegociacaoTaxa(int id, string? observacao)
         {
-            if (User.FindFirstValue("IsAdmin") != "true") return Forbid();
+            // Só o raiz (18/08/2026): registrar a negociação é abrir mão da nossa taxa, e
+            // quem não enxerga o valor devido não tem como decidir isso.
+            if (!PoderesNoSistema.PodeVerDinheiro(User)) return Forbid();
 
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();

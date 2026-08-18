@@ -18,9 +18,16 @@
     // caderno de quem-trouxe-quem seria oferecer a carteira de contatos dos concorrentes.
     // Aqui é cortesia; quem recusa a entrada é a action, que exige admin.
     var soVeAsProprias = ViewBag.SoVeAsProprias as bool? ?? false;
-    var abas = grupo?.Abas
-        .Where(a => !soVeAsProprias || string.Equals(a.Action, actionAtual, StringComparison.OrdinalIgnoreCase))
-        .ToList();
+
+    // As abas de DINHEIRO (Comissões) são do raiz. O mesmo filtro que desenha os cartões em
+    // /Admin — sem ele, o administrador nomeado veria em Indicações uma aba "Comissões" que o
+    // recusa no clique. Pelo crachá porque a view não tem o Jogador na mão; a trava é a action.
+    var ehRaizAqui = Padelizou.Services.PoderesNoSistema.PodeVerDinheiro(User);
+    var abas = grupo == null
+        ? null
+        : Padelizou.Services.PainelAdminAgrupado.AbasVisiveis(grupo, ehRaizAqui)
+            .Where(a => !soVeAsProprias || string.Equals(a.Action, actionAtual, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 }
 
 @if (abas is { Count: > 1 })

@@ -241,6 +241,11 @@ namespace padelizou.Controllers
 
             // Quem é de fora vê o CPF mascarado. O dono vê inteiro — é o sistema dele.
             ViewBag.CpfInteiro = PoderesNoSistema.PodeOlharTudo(quem);
+
+            // Os VALORES da parceria: o raiz e o parceiro (é a conta dele). Administrador
+            // nomeado e assistente veem o mesmo relatório sem a coluna de dinheiro
+            // (18/08/2026) — quem aderiu, quem foi barrado e quem passou continua inteiro.
+            ViewBag.PodeVerValores = PoderesNoSistema.PodeVerValoresDoRankingRs(quem);
             ViewBag.SoVeORelatorio = PoderesNoSistema.SoVeORelatorioDoRanking(quem);
             ViewBag.NomeDeQuemOlha = quem.Nome;
 
