@@ -17,6 +17,8 @@
 >
 > 🚀 **NO AR em produção: `build-595-2c5a60d`** (18/08, 15:45). Provado como manda a régua: o `cwd` do processo é a release nova, `NRestarts=0`, `active/running`, `/healthz` 200, zero exceção no journal, e **`PodeVerDinheiro` aparece 6× dentro do `Padelizou.dll` publicado** (o `PodeOlharTudo` continua lá 1×, que é o certo — ele ainda responde "enxerga a operação?"). O `.historico` não tem duas linhas no mesmo minuto: sem colisão de deploy.
 >
+> ✅ **`dev` sincronizado com a mesma `build-595-2c5a60d`** (estava atrás, na `build-592`). `NRestarts=0`, `active`, `/healthz` 200, zero exceção — os dois ambientes na mesma tag agora.
+>
 > Antes, no mesmo dia: 🚧 **IMPEDIMENTO: A TELA PASSOU A DIZER O QUE O CÓDIGO JÁ FAZIA** — e a edição do torneio ganhou os campos que só existiam na criação (`build-590` e `build-592`, nos dois ambientes).
 >
 > 🚧 **O PEDIDO ERA DE TEXTO, E DOIS TERÇOS DELE JÁ ESTAVAM FEITOS NO CÓDIGO.** (1) Na criação, agora está escrito que aqueles são os turnos **disponíveis** e que **cada dupla escolhe só um** — a trava já existia no servidor (`ImpedimentoUnico`); a tela é que não contava, e liberar os três lia como "a dupla pode ficar fora dos três". (2) A cobrança **já era por dupla**: em `PrecoDaInscricao.Total` a taxa entra FORA do laço que soma pessoa por pessoa, porque o impedimento consome uma janela da grade, não um atleta.
