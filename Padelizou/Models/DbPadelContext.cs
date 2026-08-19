@@ -1121,6 +1121,15 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(a => a.AlunoId)
                 .IsRequired(false)
                 .HasConstraintName("FK__Aula__AlunoId__114A936A");
+
+            // A aula que esta repõe (ver Services/Reposicao). Restrict de propósito: apagar a
+            // aula original com uma reposição já marcada deixaria na agenda uma aula de R$ 0
+            // sem explicação nenhuma. O banco recusa, e o professor apaga a reposição antes.
+            entity.HasOne(a => a.RecuperaAula)
+                .WithMany()
+                .HasForeignKey(a => a.RecuperaAulaId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<LocalAula>(entity =>

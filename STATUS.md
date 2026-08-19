@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🏐 **A TURMA DEIXOU DE PARAR NO TRIO: AULA DE ATÉ SEIS ALUNOS, COM PREÇO PRÓPRIO EM CADA TAMANHO.**
+> Última atualização: **19/08/2026** — 🔁 **"VAI RECUPERAR": O ALUNO NÃO VEM, A AULA É COBRADA E O HORÁRIO VAGA NA HORA.**
+>
+> 🗣️ **O pedido do Rafael**, sobre o professor João (mensalista, 75 aulas por semana): *"como cobramos mensal, na maior parte das vezes que o aluno falta é cobrado normalmente e ele recupera. Problema é gerenciar isso na agenda — ali nas opções ter algo como 'vai recuperar', e daí sai da agenda do dia, mantém na de cobrança e fica numa lista de pendências para encaixar outro dia."*
+>
+> 🕳️ **O sistema sabia dizer duas coisas sobre quem não vem, e nenhuma era essa.** `Cancelada` some da agenda e **não cobra** — perde o dinheiro do mensalista. `Faltou` + `CobrarMesmoFaltando` cobra, mas **não gera crédito nenhum**: nada lembrava o professor de que ele devia uma aula, e a fila de reposições vivia no WhatsApp dele.
+>
+> ✅ **O status novo é `A recuperar`, e ele faz três coisas de uma vez.** (1) **Sai das ativas** — e é isso, e não uma tela, que **libera o horário**: o professor encaixa outro aluno no mesmo dia, que é o pedido inteiro. (2) **Continua cobrável**, marcando o `CobrarMesmoFaltando` que já existia — reaproveitar é o ponto: previsão, devedores e relatório **não precisaram aprender conceito nenhum** pra continuar certos. (3) **Entra numa fila** na própria agenda, em qualquer data, com o formulário de encaixe do lado.
+>
+> 💸 **A REPOSIÇÃO NASCE COM PREÇO ZERO, E ESSE É O RISCO CENTRAL DA FEATURE.** O dinheiro ficou na aula original, que segue cobrável; dar preço à reposição faria o professor **cobrar duas vezes a mesma aula** — o oposto do combinado com o aluno. Zero **gravado**, e não "excluída das somas": um zero aparece na tela e no relatório, enquanto uma exceção escondida numa consulta é a que ninguém acha no dia em que a conta não fecha. A tela escreve *"Reposição da aula de 05/08 — já cobrada lá"* em cima do R$ 0,00, dos dois lados.
+>
+> 🔗 **A ligação é uma coluna, `Aula.RecuperaAulaId`, com FK pra própria tabela e `Restrict`.** Sem ela, "quem já foi encaixado?" só poderia ser respondido por *"o professor marcou alguma aula pra esse aluno depois?"* — que acerta por acidente e erra em todo aluno que tem aula toda terça. O `Restrict` impede apagar a original deixando na agenda uma aula de R$ 0 órfã.
+>
+> 🚪 **A fila tem DUAS saídas, não uma.** Encaixar (nasce a reposição, o aluno é avisado por push + WhatsApp — dia e hora é pessoal, urgente e acionável) ou **"não vai mais recuperar"**, que devolve a aula pro `Faltou` cobrado: o combinado era cobrar, e foi só a reposição que caiu. Sem a segunda saída, um "vai recuperar" clicado por engano ficaria preso na tela pra sempre.
+>
+> ⚠️ **Duas travas que existem por causa de erro silencioso:** registrar presença numa aula da fila é **recusado** (gravaria `CobrarMesmoFaltando = false` por baixo, e a aula sairia do financeiro calada continuando na fila); e encaixar duas vezes a mesma aula é recusado (dois cliques, ou dois celulares na mesma tela, dariam **duas aulas de graça**).
+>
+> 🎨 **Roxo, não vermelho.** "A recuperar" não é aula perdida — é aula que vai acontecer noutro dia. Ler igual a "Cancelada" faria o aluno achar que perdeu a aula que pagou, e é justamente isso que a cor tem que evitar. O card do aluno diz as duas coisas: *"você vai repor esta aula"* **e** *"ela foi cobrada normalmente"* — dizer só a primeira deixaria a segunda como surpresa.
+>
+> 🧪 **4.404 testes, 0 falhas (19 novos).** ✅ **Falsificação em três pontos, um por decisão que sustenta a feature:** tirando o `CobrarMesmoFaltando`, **5 testes caem**; dando preço à reposição, **2 caem** (inclusive o que prova que o mês não fecha com o dobro daquela aula); fazendo `A recuperar` voltar a contar como ativa, cai o que prova que **o horário vaga pra outro aluno** — o pedido do Rafael, em teste. ✅ Migration aplicada contra o Postgres de verdade: coluna nula, sem `defaultValue`, FK `Restrict` conferida no `\d`.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia: 🏐 **A TURMA DEIXOU DE PARAR NO TRIO: AULA DE ATÉ SEIS ALUNOS, COM PREÇO PRÓPRIO EM CADA TAMANHO.**
 >
 > 🗣️ **O pedido veio do Rafael**, cadastrando o professor João (110 alunos, 75 aulas por semana entre beach, tênis e padel): *"turma de beach pode ser até 6 (sexteto)"*. O sistema ia até três — e o teto não era regra de negócio, era **onde os preços estavam guardados**: duas colunas em `LocalAula`, `PrecoDupla` e `PrecoTrio`. Não havia onde escrever o valor do quarteto, então o professor de beach lançaria o sexteto como trio e corrigiria o preço **na mão, em toda aula** — que é exatamente a dor que o `PrecoDeAluno` nasceu pra matar em 03/08.
 >

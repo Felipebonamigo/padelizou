@@ -15,6 +15,9 @@
         "Pendente" => "bg-warning text-dark",
         "Confirmada" => "bg-primary",
         "Realizada" => "bg-success",
+        // Nem verde nem vermelho: a aula não aconteceu, mas também não se perdeu — o aluno
+        // vai repô-la. Ler igual a "Cancelada" faria ele achar que perdeu a aula que pagou.
+        Padelizou.Services.PoliticaAula.ARecuperar => "text-bg-secondary",
         _ => "bg-danger"
     };
 
@@ -60,6 +63,25 @@
             @if (aindaVai && aula.Status == "Pendente")
             {
                 <p class="small text-warning-emphasis mb-2"><i class="bi bi-hourglass-split"></i> Aguardando confirmação do professor</p>
+            }
+
+            @* O aluno precisa ler as duas coisas: que ele NÃO perdeu a aula, e que ela foi
+               cobrada assim mesmo. Dizer só "a recuperar" deixaria a segunda como surpresa. *@
+            @if (aula.Status == Padelizou.Services.PoliticaAula.ARecuperar)
+            {
+                <p class="small mb-2" style="color:#7a5cbf;">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    Você vai repor esta aula. Ela foi cobrada normalmente e o professor marca o novo dia.
+                </p>
+            }
+
+            @* E na aula de reposição, por que ela não tem valor. *@
+            @if (aula.RecuperaAula != null)
+            {
+                <p class="small text-muted mb-2">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    @Padelizou.Services.Reposicao.EtiquetaDaReposicao(aula.RecuperaAula.DataHora) — já paga.
+                </p>
             }
 
             <a href="@linkWhatsApp" target="_blank" class="btn btn-sm btn-outline-success rounded-pill w-100 fw-bold">

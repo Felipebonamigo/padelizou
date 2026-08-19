@@ -444,6 +444,9 @@ namespace padelizou.Controllers
             var minhasAulas = await _context.Aulas
                 .Include(a => a.Professor)
                 .Include(a => a.LocalAula)
+                // A aula que esta repõe: é o que explica ao aluno por que a reposição não
+                // tem valor — ela já foi paga na aula que ele não pôde fazer.
+                .Include(a => a.RecuperaAula)
                 .Where(a => a.AlunoId == userId)
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();
