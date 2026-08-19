@@ -3618,10 +3618,14 @@ Gerado em 19/08/2026, no repo:
   (6 páginas A4), a pedido do dono do **Ranking Brasil**: como o sistema é vendido. Tabela cheia
   conferida no código do dia (torneio 5/10/15% com mínimo de R$ 4, professor R$ 49,90/mês ou
   R$ 499,90/ano + 3%/6%, avulso 10%, 15 dias de teste, Americano R$ 5/pessoa a partir de 8,
-  clube 10% na reserva e mensalidade ainda sem preço de tabela), o ciclo da venda em 4 passos,
-  o Programa de Parceiros (20/10 por 12 meses) e a última página com a parceria: validação na
-  inscrição, **R$ 1,00 por pessoa inscrita**, relatório só de leitura, API de torneios e o
-  convite ao organizador com link pro `parceria-clubes`.
+  clube 10% na reserva e mensalidade ainda sem preço de tabela), o ciclo da venda em 4 passos e
+  **duas páginas para o parceiro**: como vendemos o ranking DELES ao clube (a caixa que nasce
+  desmarcada, o bloco de vantagens com link pro `parceria-clubes`, onde a marca aparece no fluxo
+  e o número real do NATA PADEL TOUR — 22 conferidos, 8 com pontuação, 14 não encontrados) e o
+  que já está no ar: validação na inscrição, **R$ 1,00 por pessoa inscrita**, relatório só de
+  leitura e a API de torneios.
+  ⚠️ **O Programa de Parceiros (20/10) foi TIRADO a pedido do Felipe** — abrir os percentuais
+  de comissão antes de o programa existir seria abri-lo. Se voltar, está no commit anterior.
   ⚠️ **Peça EXTERNA**: ficou de fora tudo que é conta de dentro — margem do gateway, teto do
   MEI, lista congelada de clientes não comissionáveis e comparação com concorrente.
   ⚠️ Mesmo cuidado do PARCEIROS.html: o `@media print` vem **por último** (o headless pode
