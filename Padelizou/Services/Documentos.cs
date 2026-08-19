@@ -71,4 +71,77 @@ public static class Documentos
 
         return resto == cpf[ateOnde] - '0';
     }
+
+    // ---- CNPJ ----
+    //
+    // Nasceu com o cadastro fiscal do clube (Services/DadosFiscaisDoClube). Aqui a validação
+    // pesa MAIS do que no CPF: o CPF errado estraga o histórico de um jogador, e o CNPJ errado
+    // é a nota rejeitada pela SEFAZ com o cliente esperando o troco no balcão. Rejeição de
+    // documento fiscal não é tela vermelha bonita — é fila parada.
+
+    public static bool CnpjTemFormatoValido(string? valor) => SomenteDigitos(valor).Length == 14;
+
+    public static bool CnpjEhValido(string? valor)
+    {
+        var cnpj = SomenteDigitos(valor);
+        if (cnpj.Length != 14) return false;
+
+        // 00000000000000 e afins passam na conta por acidente matemático, igual no CPF.
+        if (cnpj.All(d => d == cnpj[0])) return false;
+
+        return DigitoDoCnpjConfere(cnpj, ateOnde: 12) && DigitoDoCnpjConfere(cnpj, ateOnde: 13);
+    }
+
+    // Os pesos do CNPJ vão de 9 a 2 e RECOMEÇAM no 9 quando acabam (5,4,3,2,9,8,7,6,5,4,3,2 pro
+    // primeiro dígito). Não é a contagem regressiva simples do CPF — por isso é um método
+    // separado, e não um parâmetro a mais no DigitoConfere de cima.
+    private static bool DigitoDoCnpjConfere(string cnpj, int ateOnde)
+    {
+        var soma = 0;
+        var peso = ateOnde - 7;   // 12 dígitos começa no 5; 13 dígitos começa no 6
+
+        for (var i = 0; i < ateOnde; i++)
+        {
+            soma += (cnpj[i] - '0') * peso;
+            peso--;
+            if (peso < 2) peso = 9;
+        }
+
+        var resto = soma % 11;
+        return (resto < 2 ? 0 : 11 - resto) == cnpj[ateOnde] - '0';
+    }
+
+    // 68.185.754/0001-05 — pra tela. O que não tem 14 dígitos volta como veio.
+    public static string CnpjFormatado(string? valor)
+    {
+        var cnpj = SomenteDigitos(valor);
+        return cnpj.Length != 14
+            ? (valor ?? "")
+            : $"{cnpj[..2]}.{cnpj[2..5]}.{cnpj[5..8]}/{cnpj[8..12]}-{cnpj[12..]}";
+    }
+
+    // ---- Código de barras (GTIN-8/12/13/14) ----
+    //
+    // O dígito verificador do GTIN é conferido pela SEFAZ na emissão (rejeição 611, "cEAN
+    // inválido"): o campo é OPCIONAL na nota, mas quando vem preenchido tem que estar certo.
+    // Ou seja, código de barras digitado errado é pior do que código de barras nenhum — e é
+    // por isso que a tela recusa o inválido em vez de gravar e deixar quebrar lá na frente.
+    public static bool CodigoDeBarrasEhValido(string? valor)
+    {
+        var gtin = SomenteDigitos(valor);
+        if (gtin.Length is not (8 or 12 or 13 or 14)) return false;
+        if (gtin.All(d => d == '0')) return false;
+
+        var corpo = gtin[..^1];
+        var soma = 0;
+        var peso = 3;   // da direita pra esquerda: 3, 1, 3, 1...
+
+        for (var i = corpo.Length - 1; i >= 0; i--)
+        {
+            soma += (corpo[i] - '0') * peso;
+            peso = peso == 3 ? 1 : 3;
+        }
+
+        return (10 - soma % 10) % 10 == gtin[^1] - '0';
+    }
 }

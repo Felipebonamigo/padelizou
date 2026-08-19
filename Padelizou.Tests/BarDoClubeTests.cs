@@ -122,7 +122,10 @@ public class BarDoClubeTests
 
     private static BarController Controller(DbPadelContext ctx, int usuarioId, bool habilitado)
     {
-        var c = new BarController(ctx, Modulo(ctx, habilitado), NullLogger<BarController>.Instance);
+        var modulo = Modulo(ctx, habilitado);
+        var c = new BarController(ctx, modulo,
+            new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = habilitado })),
+            TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext
         {

@@ -53,6 +53,12 @@ public class Comanda
 
     public string? Celular { get; set; }
 
+    // "CPF na nota?" — a pergunta do balcão. Opcional de propósito: a NFC-e sai sem
+    // identificar o consumidor, e travar a venda esperando CPF pararia a fila por um campo
+    // que a lei não exige. Só dígitos, validado com dígito verificador na gravação: CPF
+    // inventado na nota é rejeição da SEFAZ, e aí a venda para de verdade.
+    public string? CpfConsumidor { get; set; }
+
     public string Status { get; set; } = Aberta;
 
     public DateTime AbertaEm { get; set; } = DateTime.Now;

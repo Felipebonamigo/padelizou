@@ -1,0 +1,184 @@
+@model Padelizou.Models.Clube
+@using Padelizou.Services
+@{
+    ViewData["Title"] = $"Dados fiscais — {Model.Nome}";
+    var faltaNfce = (IReadOnlyList<string>)ViewBag.FaltaNfce;
+    var faltaNfse = (IReadOnlyList<string>)ViewBag.FaltaNfse;
+    var produtosAtivos = (int)ViewBag.ProdutosAtivos;
+    var produtosProntos = (int)ViewBag.ProdutosProntos;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+
+    @if (ViewBag.EmConstrucao == true)
+    {
+        <div class="alert alert-dark border-0 d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-cone-striped"></i>
+            <div class="small"><strong>Em construção — só você está vendo isto.</strong></div>
+        </div>
+    }
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);"><i class="bi bi-receipt"></i> Dados fiscais</h2>
+            <p class="text-muted small mb-0">@Model.Nome · quem emite a nota é o clube</p>
+        </div>
+        <a asp-action="Index" asp-route-id="@Model.Id" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Voltar ao balcão
+        </a>
+    </div>
+
+    @if (TempData["ErroBar"] != null)
+    {
+        <div class="alert alert-warning border-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErroBar"]</div>
+    }
+    @if (TempData["SucessoBar"] != null)
+    {
+        <div class="alert alert-success border-0"><i class="bi bi-check-circle-fill me-1"></i> @TempData["SucessoBar"]</div>
+    }
+
+    @* O checklist vem ANTES do formulário de propósito: a pergunta do dono do clube é "falta
+       o quê?", e a resposta não pode estar embaixo de vinte campos. *@
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-1">
+                        <i class="bi bi-cup-straw"></i> Nota do bar <span class="text-muted small fw-normal">NFC-e</span>
+                    </h6>
+                    @if (faltaNfce.Count == 0)
+                    {
+                        <p class="text-success fw-bold mb-1"><i class="bi bi-check-circle-fill"></i> Cadastro completo.</p>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-2">@DadosFiscaisDoClube.ResumoDoQueFalta(faltaNfce)</p>
+                    }
+                    <small class="text-muted d-block">Venda de mercadoria no balcão — cerveja, água, porção.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-1">
+                        <i class="bi bi-calendar-check"></i> Nota de serviço <span class="text-muted small fw-normal">NFS-e</span>
+                    </h6>
+                    @if (faltaNfse.Count == 0)
+                    {
+                        <p class="text-success fw-bold mb-1"><i class="bi bi-check-circle-fill"></i> Cadastro completo.</p>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-2">@DadosFiscaisDoClube.ResumoDoQueFalta(faltaNfse)</p>
+                    }
+                    <small class="text-muted d-block">Aula, reserva de quadra e mensalidade.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (produtosAtivos > 0 && produtosProntos < produtosAtivos)
+    {
+        <div class="alert alert-light border d-flex align-items-center gap-2">
+            <i class="bi bi-list-ul"></i>
+            <div class="small">
+                <strong>@produtosProntos de @produtosAtivos produtos</strong> do cardápio já têm os dados fiscais.
+                <a asp-action="Produtos" asp-route-id="@Model.Id">Completar o cardápio</a>.
+            </div>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form asp-action="SalvarFiscal" method="post" class="row g-3">
+                <input type="hidden" name="clubeId" value="@Model.Id" />
+
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1">CNPJ</label>
+                    <input type="text" name="cnpj" class="form-control" maxlength="18"
+                           value="@Documentos.CnpjFormatado(Model.Cnpj)" placeholder="00.000.000/0000-00" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1">Razão social</label>
+                    <input type="text" name="razaoSocial" class="form-control" maxlength="120"
+                           value="@Model.RazaoSocial" placeholder="Como está no cartão CNPJ" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold mb-1">Inscrição estadual</label>
+                    <input type="text" name="inscricaoEstadual" class="form-control" maxlength="20"
+                           value="@Model.InscricaoEstadual" />
+                    <small class="text-muted">Pra vender no bar.</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold mb-1">Inscrição municipal</label>
+                    <input type="text" name="inscricaoMunicipal" class="form-control" maxlength="20"
+                           value="@Model.InscricaoMunicipal" />
+                    <small class="text-muted">Pra aula e quadra.</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold mb-1">Regime tributário</label>
+                    <select name="regimeTributario" class="form-select">
+                        <option value="">Escolha...</option>
+                        @foreach (var (codigo, rotulo) in DadosFiscaisDoClube.Regimes)
+                        {
+                            <option value="@codigo" selected="@(Model.RegimeTributario == codigo)">@rotulo</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-12"><hr class="my-1" /></div>
+
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">CEP</label>
+                    <input type="text" name="cep" class="form-control" maxlength="9" value="@Model.Cep" />
+                    <small class="text-muted">Traz o resto.</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1">Logradouro</label>
+                    <input type="text" name="logradouro" class="form-control" maxlength="120" value="@Model.Logradouro" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold mb-1">Número</label>
+                    <input type="text" name="numeroEndereco" class="form-control" maxlength="10"
+                           value="@Model.NumeroEndereco" placeholder="S/N" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1">Bairro</label>
+                    <input type="text" name="bairro" class="form-control" maxlength="60" value="@Model.Bairro" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold mb-1">Complemento</label>
+                    <input type="text" name="complemento" class="form-control" maxlength="60" value="@Model.Complemento" />
+                </div>
+
+                @if (Model.MunicipioIbge != null)
+                {
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> Município na nota: <strong>@Model.MunicipioIbge</strong>
+                            @if (Model.Uf != null) { <text>· @Model.Uf</text> }
+                            — veio do CEP.
+                        </small>
+                    </div>
+                }
+
+                <div class="col-12 d-grid d-md-block">
+                    <button type="submit" class="btn btn-padel fw-bold px-4">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* O aviso que precisa estar na TELA, e não só no contrato: quem responde pela tributação
+       é o clube. Escondido no termo de uso, ninguém lê; aqui, ao lado do campo, é onde a
+       pessoa está quando toma a decisão. *@
+    <div class="alert alert-light border small mb-0">
+        <i class="bi bi-info-circle"></i>
+        <strong>Quem emite a nota é o clube.</strong> O Padelizou monta o documento a partir das
+        vendas que já registra, mas o CNPJ, o certificado digital e a responsabilidade pela
+        tributação (NCM, alíquotas, regime) são de quem emite. Confira estes dados com seu
+        contador antes de ligar a emissão.
+    </div>
+</div>

@@ -1,8 +1,10 @@
 @model List<Padelizou.Models.ProdutoBar>
 @using Padelizou.Models
+@using Padelizou.Services
 @{
     var clube = (Clube)ViewBag.Clube;
     ViewData["Title"] = $"Cardápio do bar — {clube.Nome}";
+    var fiscal = ViewBag.Fiscal == true;
 }
 
 <div class="container mt-4 mb-5" style="max-width: 900px;">
@@ -24,6 +26,12 @@
             <a asp-action="Estoque" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
                 <i class="bi bi-box-seam"></i> Estoque
             </a>
+            @if (fiscal)
+            {
+                <a asp-action="Fiscal" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                    <i class="bi bi-receipt"></i> Dados fiscais
+                </a>
+            }
             <a asp-action="Index" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
                 <i class="bi bi-arrow-left"></i> Voltar ao balcão
             </a>
@@ -106,6 +114,10 @@
                     <tr class="small text-muted">
                         <th>Produto</th>
                         <th class="d-none d-sm-table-cell">Grupo</th>
+                        @if (fiscal)
+                        {
+                            <th class="d-none d-md-table-cell">Fiscal</th>
+                        }
                         <th class="text-end">Preço</th>
                         <th></th>
                     </tr>
@@ -130,6 +142,22 @@
                                 <span class="d-sm-none d-block small text-muted">@(p.Categoria ?? "—")</span>
                             </td>
                             <td class="d-none d-sm-table-cell">@(p.Categoria ?? "—")</td>
+                            @if (fiscal)
+                            {
+                                var faltaNoItem = FiscalDoProduto.FaltaParaEmitir(p.TipoFiscal, p.Ncm, p.Cfop, p.UnidadeComercial);
+                                <td class="d-none d-md-table-cell small">
+                                    @if (faltaNoItem.Count == 0)
+                                    {
+                                        <span class="badge bg-success-subtle text-success-emphasis">
+                                            @FiscalDoProduto.DocumentoDoTipo(p.TipoFiscal)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">incompleto</span>
+                                    }
+                                </td>
+                            }
                             <td class="text-end fw-bold text-nowrap">@p.Preco.ToString("C")</td>
                             <td class="text-end text-nowrap">
                                 <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -141,6 +169,14 @@
                                 </button>
                                 @* Inativa, nunca apaga: as comandas antigas continuam apontando
                                    pro produto, e apagar levaria junto o histórico de venda. *@
+                                @if (fiscal)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            data-bs-toggle="collapse" data-bs-target="#pdzFiscal_@p.Id"
+                                            title="Dados fiscais" aria-label="Dados fiscais do produto">
+                                        <i class="bi bi-receipt"></i>
+                                    </button>
+                                }
                                 <form asp-action="AlternarProduto" method="post" class="d-inline">
                                     <input type="hidden" name="id" value="@p.Id" />
                                     <button type="submit" class="btn btn-sm @(p.Ativo ? "btn-outline-danger" : "btn-outline-success")"
@@ -151,6 +187,87 @@
                                 </form>
                             </td>
                         </tr>
+
+                        @if (fiscal)
+                        {
+                            @* A linha fiscal fica DOBRADA: ela é preenchida uma vez na vida do
+                               produto, junto com o contador, e depois nunca mais. Aberta por
+                               padrão, empurraria o cardápio inteiro pra baixo todo dia por
+                               causa de um cadastro anual. *@
+                            <tr class="collapse" id="pdzFiscal_@p.Id">
+                                <td colspan="@(fiscal ? 5 : 4)" class="bg-light">
+                                    <form asp-action="SalvarProduto" method="post" class="row g-2 align-items-end small">
+                                        <input type="hidden" name="clubeId" value="@clube.Id" />
+                                        <input type="hidden" name="id" value="@p.Id" />
+                                        @* Nome, preço e grupo viajam junto porque a ação é a
+                                           mesma do cardápio — sem eles, salvar o NCM apagaria
+                                           o preço do produto. *@
+                                        <input type="hidden" name="nome" value="@p.Nome" />
+                                        <input type="hidden" name="preco" value="@p.Preco.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                        <input type="hidden" name="categoria" value="@p.Categoria" />
+                                        <input type="hidden" name="ordem" value="@p.Ordem" />
+
+                                        <div class="col-12">
+                                            <label class="form-label small fw-bold mb-1">O que este item é</label>
+                                            <select name="tipoFiscal" class="form-select form-select-sm">
+                                                <option value="">Não definido</option>
+                                                @foreach (var t in FiscalDoProduto.Tipos)
+                                                {
+                                                    <option value="@t" selected="@(p.TipoFiscal == t)">@FiscalDoProduto.RotuloDoTipo(t)</option>
+                                                }
+                                            </select>
+                                            <small class="text-muted">
+                                                Decide qual documento sai — e o aluguel não sai em nenhum.
+                                            </small>
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small fw-bold mb-1">NCM</label>
+                                            <input type="text" name="ncm" class="form-control form-control-sm"
+                                                   maxlength="8" value="@p.Ncm" placeholder="8 dígitos" />
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label small fw-bold mb-1">CFOP</label>
+                                            <input type="text" name="cfop" class="form-control form-control-sm"
+                                                   maxlength="4" value="@p.Cfop" placeholder="5102" />
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label small fw-bold mb-1">Unidade</label>
+                                            <input type="text" name="unidadeComercial" class="form-control form-control-sm"
+                                                   maxlength="6" value="@p.UnidadeComercial" placeholder="UN" />
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label small fw-bold mb-1">CEST</label>
+                                            <input type="text" name="cest" class="form-control form-control-sm"
+                                                   maxlength="7" value="@p.Cest" />
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small fw-bold mb-1">Código de barras</label>
+                                            <input type="text" name="codigoBarras" class="form-control form-control-sm"
+                                                   maxlength="14" value="@p.CodigoBarras" />
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small fw-bold mb-1">Origem</label>
+                                            <input type="number" name="origemMercadoria" min="0" max="8"
+                                                   class="form-control form-control-sm" value="@p.OrigemMercadoria"
+                                                   placeholder="0 = nacional" />
+                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label small fw-bold mb-1">CSOSN / CST</label>
+                                            <input type="text" name="csosnOuCst" class="form-control form-control-sm"
+                                                   maxlength="4" value="@p.CsosnOuCst" />
+                                            <small class="text-muted">Bebida costuma ter ICMS-ST — confirme.</small>
+                                        </div>
+                                        <div class="col-md-6 d-grid d-md-block text-md-end">
+                                            <button type="submit" class="btn btn-sm btn-padel fw-bold px-3">
+                                                Salvar dados fiscais
+                                            </button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>

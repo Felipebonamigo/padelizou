@@ -48,6 +48,12 @@
             <a asp-action="Relatorio" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
                 <i class="bi bi-graph-up"></i> Relatório
             </a>
+            @if (ViewBag.Fiscal == true)
+            {
+                <a asp-action="Fiscal" asp-route-id="@clube.Id" class="btn btn-outline-secondary rounded-pill px-3">
+                    <i class="bi bi-receipt"></i> Fiscal
+                </a>
+            }
             <a asp-controller="ClubeGestao" asp-action="Painel" asp-route-id="@clube.Id"
                class="btn btn-outline-secondary rounded-pill px-3">
                 <i class="bi bi-arrow-left"></i> Painel do clube

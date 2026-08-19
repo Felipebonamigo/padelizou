@@ -52,4 +52,44 @@ public class ProdutoBar
 
     // Abaixo disso a tela avisa. Zero desliga o aviso.
     public int EstoqueMinimo { get; set; }
+
+    // ---- Dados fiscais (ver Services/FiscalDoProduto) ----
+    //
+    // Nulos até alguém preencher: o clube que só usa o bar como controle interno nunca toca
+    // nisso, e o cardápio continua funcionando exatamente como antes.
+    //
+    // ⚠️ A pergunta que precisa vir ANTES de todas: o que este item é? O cardápio de um bar
+    // de clube mistura três naturezas diferentes na mesma lista — a cerveja é mercadoria
+    // revendida, a porção de fritas o próprio bar produziu, e o "aluguel de raquete" que este
+    // arquivo cita lá em cima não é nem uma coisa nem outra. Cada uma sai (ou não sai) num
+    // documento diferente, e sem esse campo nenhuma camada fiscal consegue nem escolher qual.
+    // Os valores estão em FiscalDoProduto.
+    public string? TipoFiscal { get; set; }
+
+    // NCM (8 dígitos) — a classificação da mercadoria. Obrigatório na NFC-e.
+    public string? Ncm { get; set; }
+
+    // CFOP (4 dígitos) — a natureza da operação. Muda com o tipo: revenda dentro do estado é
+    // 5102, produção do próprio estabelecimento é 5101. Sugerido, nunca imposto.
+    public string? Cfop { get; set; }
+
+    // CEST (7 dígitos) — só existe pra quem está em substituição tributária, que é
+    // justamente o caso da bebida no Brasil. Fica em branco até o contador do clube dizer.
+    public string? Cest { get; set; }
+
+    // Código de barras (GTIN). OPCIONAL na nota, mas conferido pela SEFAZ quando vem
+    // preenchido — por isso a gravação recusa o inválido (Documentos.CodigoDeBarrasEhValido).
+    public string? CodigoBarras { get; set; }
+
+    // Unidade comercial da nota: UN, LT, KG, CX... É o que o cliente compra, e por isso
+    // combina com o estoque, que também conta em unidade de venda.
+    public string? UnidadeComercial { get; set; }
+
+    // Origem da mercadoria (0 a 8; 0 = nacional). Vai junto do CSOSN/CST no item da nota.
+    public int? OrigemMercadoria { get; set; }
+
+    // CSOSN (Simples) ou CST (Regime Normal) do ICMS — qual dos dois vale é decidido pelo
+    // regime do CLUBE, não por este campo. Em branco até o contador preencher: chutar
+    // tributação alheia é o tipo de "ajuda" que vira autuação no nome do cliente.
+    public string? CsosnOuCst { get; set; }
 }

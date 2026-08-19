@@ -14,21 +14,36 @@ namespace Padelizou.Controllers;
 // EM CONSTRUÇÃO. Enquanto `Bar:Habilitado` estiver desligado, só admin do Padelizou entra —
 // as tabelas existem em produção e ninguém vê nada (ver Services/BarSettings).
 //
-// O que este módulo NÃO faz, e é decisão, não pendência: **nota fiscal**. NFC-e é homologação
-// por estado, impressora fiscal e um produto inteiro — existem empresas que só fazem isso. O
-// Padelizou cuida do controle interno (o que foi vendido, pra quem, quanto entrou) e o clube
-// segue emitindo nota pelo que já usa. Dinheiro e maquininha são REGISTRO aqui, não cobrança.
+// Dinheiro e maquininha são REGISTRO aqui, não cobrança: o dinheiro corre fora do sistema,
+// como no torneio "por fora".
+//
+// ⚠️ NOTA FISCAL — a decisão MUDOU em 19/08/2026, e vale contar por quê. Até aqui estava
+// escrito neste mesmo lugar que o módulo não emitiria nota nunca: "NFC-e é homologação por
+// estado, impressora fiscal e um produto inteiro — existem empresas que só fazem isso". A
+// primeira metade continua verdadeira; a conclusão é que estava errada. Existem empresas que
+// só fazem isso, e é justamente por isso que dá pra fazer: quem emite é uma API de terceiro
+// (o Gripo, o concorrente, faz igual — ele revende a Focus NFe), e o que o Padelizou monta é
+// o documento a partir da venda que ele JÁ registra. O que era "um produto inteiro" virou
+// uma integração e um plano de assinatura. O plano completo está em FISCAL.md.
+//
+// O cadastro fiscal (Services/DadosFiscaisDoClube e FiscalDoProduto) é a fase 1 disso: campos
+// nulos, nada muda pra quem não usa, e a aba fica atrás do `Fiscal__Habilitado`.
 [Authorize]
 public partial class BarController : Controller
 {
     private readonly DbPadelContext _context;
     private readonly ModuloDoBar _modulo;
+    private readonly ModuloFiscal _fiscal;
+    private readonly IConsultaDeCep _cep;
     private readonly ILogger<BarController> _logger;
 
-    public BarController(DbPadelContext context, ModuloDoBar modulo, ILogger<BarController> logger)
+    public BarController(DbPadelContext context, ModuloDoBar modulo, ModuloFiscal fiscal,
+        IConsultaDeCep cep, ILogger<BarController> logger)
     {
         _context = context;
         _modulo = modulo;
+        _fiscal = fiscal;
+        _cep = cep;
         _logger = logger;
     }
 
@@ -61,6 +76,8 @@ public partial class BarController : Controller
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();
+
+        ViewBag.Fiscal = await _fiscal.PodeUsarAsync(id, UsuarioId());
 
         var dia = await DiaDeReferenciaAsync(id);
 
@@ -204,6 +221,7 @@ public partial class BarController : Controller
             .OrderBy(p => p.Ordem).ThenBy(p => p.Nome)
             .ToListAsync();
         ViewBag.Formas = BarDoClube.FormasDePagamento;
+        ViewBag.Fiscal = await _fiscal.PodeUsarAsync(comanda.ClubeId, UsuarioId());
 
         return View(comanda);
     }
@@ -356,7 +374,7 @@ public partial class BarController : Controller
 
     [HttpPost]
     public async Task<IActionResult> FecharComanda(int comandaId, string? formaPagamento,
-        decimal desconto = 0, string? observacao = null)
+        decimal desconto = 0, string? observacao = null, string? cpfConsumidor = null)
     {
         var comanda = await _context.Comandas
             .Include(c => c.Itens)
@@ -377,6 +395,17 @@ public partial class BarController : Controller
             return RedirectToAction(nameof(Comanda), new { id = comandaId });
         }
 
+        // "CPF na nota?" — se veio, tem que ser CPF de verdade. Um número inventado aqui só
+        // seria descoberto na emissão, com a pessoa já fora do clube: a nota volta rejeitada e
+        // não há mais a quem perguntar o documento certo.
+        var cpfLimpo = Documentos.SomenteDigitosOuNulo(cpfConsumidor);
+        if (cpfLimpo != null && !Documentos.CpfEhValido(cpfLimpo))
+        {
+            TempData["ErroBar"] = "Esse CPF não confere — confira os números ou deixe em branco.";
+            return RedirectToAction(nameof(Comanda), new { id = comandaId });
+        }
+
+        comanda.CpfConsumidor = cpfLimpo;
         comanda.Desconto = desconto;
         comanda.FormaPagamento = formaPagamento;
         comanda.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
@@ -538,6 +567,11 @@ public partial class BarController : Controller
         ViewBag.Clube = clube;
         ViewBag.EmConstrucao = _modulo.EmConstrucao;
 
+        // Os campos fiscais do cardápio só aparecem pra quem tem o plano fiscal. Pro clube
+        // que assina só a gestão, a tela do cardápio continua sendo nome, preço e grupo —
+        // que é o que ele comprou.
+        ViewBag.Fiscal = await _fiscal.PodeUsarAsync(id, UsuarioId());
+
         return View(await _context.ProdutosBar
             .Where(p => p.ClubeId == id)
             .OrderBy(p => p.Ativo ? 0 : 1).ThenBy(p => p.Ordem).ThenBy(p => p.Nome)
@@ -549,15 +583,30 @@ public partial class BarController : Controller
     // atual é preservado. Com `bool controlaEstoque = false`, editar o preço de um produto
     // pela tela de cardápio desligaria o controle de estoque em silêncio — e o dono só
     // descobriria na contagem seguinte, sem nenhuma pista do que aconteceu.
+    //
+    // Os campos FISCAIS seguem a mesma regra do estoque, e pela mesma razão: nuláveis, e o
+    // que não vem no formulário é preservado. A tela do cardápio não mostra NCM (ninguém
+    // quer ver isso pra mudar o preço da cerveja), então mandá-los como não-nuláveis apagaria
+    // o cadastro fiscal inteiro toda vez que alguém corrigisse um preço.
     public async Task<IActionResult> SalvarProduto(int clubeId, int? id, string? nome, decimal preco,
         string? categoria, int ordem = 0,
-        bool? controlaEstoque = null, int? unidadesPorEmbalagem = null, int? estoqueMinimo = null)
+        bool? controlaEstoque = null, int? unidadesPorEmbalagem = null, int? estoqueMinimo = null,
+        string? tipoFiscal = null, string? ncm = null, string? cfop = null, string? cest = null,
+        string? codigoBarras = null, string? unidadeComercial = null, int? origemMercadoria = null,
+        string? csosnOuCst = null)
     {
         if (!await PodeUsarAsync(clubeId)) return Forbid();
 
         if (BarDoClube.ProblemaComProduto(nome, preco) is { } problema)
         {
             TempData["ErroBar"] = problema;
+            return RedirectToAction(nameof(Produtos), new { id = clubeId });
+        }
+
+        if (FiscalDoProduto.ProblemaComDadosFiscais(tipoFiscal, ncm, cfop, cest, codigoBarras, origemMercadoria)
+            is { } problemaFiscal)
+        {
+            TempData["ErroBar"] = problemaFiscal;
             return RedirectToAction(nameof(Produtos), new { id = clubeId });
         }
 
@@ -579,6 +628,25 @@ public partial class BarController : Controller
         if (unidadesPorEmbalagem != null) produto.UnidadesPorEmbalagem = Math.Max(1, unidadesPorEmbalagem.Value);
         if (estoqueMinimo != null) produto.EstoqueMinimo = Math.Max(0, estoqueMinimo.Value);
 
+        if (tipoFiscal != null) produto.TipoFiscal = VazioViraNulo(tipoFiscal);
+        if (ncm != null) produto.Ncm = VazioViraNulo(ncm);
+        if (cfop != null) produto.Cfop = VazioViraNulo(cfop);
+        if (cest != null) produto.Cest = VazioViraNulo(cest);
+        if (codigoBarras != null) produto.CodigoBarras = Documentos.SomenteDigitosOuNulo(codigoBarras);
+        if (unidadeComercial != null) produto.UnidadeComercial = VazioViraNulo(unidadeComercial)?.ToUpperInvariant();
+        if (origemMercadoria != null) produto.OrigemMercadoria = origemMercadoria;
+        if (csosnOuCst != null) produto.CsosnOuCst = VazioViraNulo(csosnOuCst);
+
+        // Palpite só em produto NOVO e só no que está vazio. Sugerir na edição sobrescreveria
+        // em silêncio o que o contador do clube corrigiu à mão — e a correção dele vale mais
+        // que o nosso chute pelo nome do produto.
+        if (id == null)
+        {
+            produto.Ncm ??= FiscalDoProduto.NcmSugerido(produto.Nome);
+            produto.UnidadeComercial ??= FiscalDoProduto.UnidadeSugerida(produto.Nome);
+            produto.Cfop ??= FiscalDoProduto.CfopSugerido(produto.TipoFiscal);
+        }
+
         await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Produtos), new { id = clubeId });
     }
@@ -597,4 +665,7 @@ public partial class BarController : Controller
 
         return RedirectToAction(nameof(Produtos), new { id = produto.ClubeId });
     }
+
+    private static string? VazioViraNulo(string? valor) =>
+        string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
 }

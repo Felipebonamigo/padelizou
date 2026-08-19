@@ -245,6 +245,19 @@
                                 </div>
                             </div>
 
+                            @if (ViewBag.Fiscal == true)
+                            {
+                                @* "CPF na nota?" — a pergunta que o balcão faz de cabeça. Fica
+                                   DEPOIS da forma de pagamento e sem `required`: a nota sai
+                                   sem identificar o consumidor, e travar o fechamento por um
+                                   campo que a lei não exige pararia a fila por nada. *@
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold mb-1">CPF na nota <span class="text-muted fw-normal">(opcional)</span></label>
+                                    <input type="text" name="cpfConsumidor" class="form-control" maxlength="14"
+                                           inputmode="numeric" placeholder="Só se o cliente pedir" />
+                                </div>
+                            }
+
                             <button type="submit" class="btn btn-padel rounded-pill w-100 fw-bold py-2">
                                 Fechar comanda
                             </button>

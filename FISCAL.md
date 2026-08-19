@@ -62,15 +62,23 @@ reescrever o produto.
 
 ## Roadmap em fases
 
-- **Fase 0 — a casa própria (~1 semana + contador).** NFS-e das comissões e mensalidades
+- **Fase 0 — a casa própria (~1 semana + contadora).** NFS-e das comissões e mensalidades
   do PRÓPRIO Padelizou (como MEI sai grátis pelo Emissor Nacional; automatizável depois no
-  webhook `PAYMENT_CONFIRMED`). Contador: plano MEI→ME (a assinatura de clube ACELERA o
-  estouro do teto — consequência desejada do plano, não susto), repasse a parceiros, contrato.
-- **Fase 1 — dados fiscais (~1–2 semanas).** `Clube`: CNPJ, IE, IM, regime, endereço
-  estruturado, certificado A1 cifrado + CSC. `ProdutoBar`: **tipo do item
-  (mercadoria/serviço/locação** — hoje "aluguel de raquete" convive com cerveja e cada um
-  pede documento diferente), NCM, CFOP, CEST, EAN, unidade, origem — com padrões por
-  categoria pra tela não exigir contador. `Comanda`: CPF opcional ("CPF na nota").
+  webhook `PAYMENT_CONFIRMED`). Pauta com a contadora: nota das comissões, formalização do
+  repasse a parceiros e a cláusula de responsabilidade do contrato do plano Fiscal.
+  ⚠️ **A migração MEI→ME NÃO entra aqui** — decisão do Felipe: ela só acontece perto do teto,
+  e o gatilho é o alerta de 70% que o `AlertaMeiBackgroundService` já manda sozinho. Se ele
+  disparar, é porque vários clubes assinaram — o problema certo pra se ter.
+- **Fase 1 — dados fiscais. ✅ FEITA em 19/08/2026** (migration `CadastroFiscalDoClubeEDoProduto`,
+  22 testes novos). Entregue: CNPJ com dígito verificador, razão social, IE/IM, regime e
+  endereço fiscal no `Clube`; `TipoFiscal` + NCM/CFOP/CEST/GTIN/unidade/origem/CSOSN no
+  `ProdutoBar`; "CPF na nota" na `Comanda`; checklist "falta o quê pra emitir" por documento;
+  palpite de NCM por marca; código IBGE do município vindo do CEP; aba fiscal atrás do
+  `Fiscal__Habilitado`. Três decisões tomadas no caminho, todas registradas no código:
+  **(1)** certificado A1 nunca é guardado aqui — sobe direto pro provedor;
+  **(2)** dois interruptores separados (`Bar__Habilitado` e `Fiscal__Habilitado`), porque são
+  dois planos de assinatura; **(3)** o sistema SUGERE e nunca decide tributação — a
+  responsabilidade é do clube, e isso está escrito na tela, não só no contrato.
 - **Fase 2 — NFS-e dos serviços (~2–3 semanas).** Reserva, aula, mensalidade, no evento de
   pagamento. Padrão Nacional torna essa a parte mais fácil. Arrumar o lastro que falta:
   valor no mensalista e na `MensalidadeGrupo`, tomador na reserva de balcão.

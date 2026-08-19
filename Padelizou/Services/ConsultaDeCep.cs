@@ -8,7 +8,12 @@ public sealed record EnderecoDoCep(
     string? Logradouro,
     string? Bairro,
     string Cidade,
-    string Uf);
+    string Uf,
+    // Código IBGE do município (7 dígitos). O ViaCEP sempre mandou este campo; a gente é que
+    // não lia. Ele entrou porque a nota fiscal EXIGE o código do município, e pedir pro dono
+    // do clube descobrir o IBGE da própria cidade seria o fim do cadastro fiscal ali mesmo —
+    // com default nulo pra quem já constrói um endereço destes não precisar saber que existe.
+    string? Ibge = null);
 
 // Três desfechos, e eles NÃO são a mesma coisa — é o que decide se o CEP digitado vai ou não
 // pro banco:
@@ -122,7 +127,11 @@ public class ConsultaDeCep : IConsultaDeCep
             // Passa pelo mesmo arrumador do resto do sistema: o ViaCEP escreve certo (com
             // acento e caixa de gente), e é justamente por isso que ele conserta a duplicidade.
             NomeDeCidade.Arrumar(corpo.Localidade),
-            NomeDeCidade.ArrumarEstado(corpo.Uf)!));
+            NomeDeCidade.ArrumarEstado(corpo.Uf)!,
+            // Só passa adiante o que TEM 7 dígitos: CEP de município novo às vezes volta com
+            // o campo vazio, e "" gravado num campo obrigatório da nota é rejeição na SEFAZ
+            // disfarçada de cadastro preenchido.
+            Documentos.SomenteDigitos(corpo.Ibge).Length == 7 ? Documentos.SomenteDigitos(corpo.Ibge) : null));
     }
 
     private static string? VazioViraNulo(string? valor) =>
@@ -134,5 +143,6 @@ public class ConsultaDeCep : IConsultaDeCep
         [JsonPropertyName("bairro")] public string? Bairro { get; set; }
         [JsonPropertyName("localidade")] public string? Localidade { get; set; }
         [JsonPropertyName("uf")] public string? Uf { get; set; }
+        [JsonPropertyName("ibge")] public string? Ibge { get; set; }
     }
 }

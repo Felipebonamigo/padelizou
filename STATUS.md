@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
+> Última atualização: **19/08/2026** — 🧾 **O SISTEMA GANHOU CADASTRO FISCAL — e a decisão de 31/07 ("nota fiscal não é problema nosso") foi conscientemente revertida.**
+>
+> 🎯 **A pergunta do Felipe**: como cobrir tudo que o Gripo faz de fiscal, do jeito mais barato e mais rentável, pra vender pra outros clubes com plano de assinatura. **Resposta em `FISCAL.md`** (plano completo, com comparativo de 4 caminhos e economia unitária): não construir motor fiscal próprio — **alugar**. O Gripo, que é a régua, faz exatamente isso: ele revende a Focus NFe. Motor próprio custaria 6–12 meses e manutenção perpétua pra economizar centavos por nota.
+>
+> ⚖️ **A decisão que MUDOU, e por quê**: até hoje o topo do `BarController` dizia que nota fiscal não sairia nunca — *"NFC-e é homologação por estado, impressora fiscal e um produto inteiro — existem empresas que só fazem isso"*. A primeira metade continua verdadeira; a conclusão é que estava errada. **Existem empresas que só fazem isso, e é justamente por isso que dá pra fazer**: quem emite é a API delas, e o que o Padelizou monta é o documento a partir da venda que ele JÁ registra. O que era "um produto inteiro" virou uma integração e um plano de assinatura.
+>
+> 💰 **Custo até o primeiro cliente pagante: R$ 0.** Sandbox dos provedores é grátis, certificado A1 é custo do clube, e o provedor cobra por nota emitida — nota só existe quando um clube assinou. **Portão registrado**: as fases 2–3 (emissão de verdade) só começam com **3 clubes comprometidos por escrito**. Sem isso, o que fica de pé é o plano Gestão (R$ 99, bar já pronto, margem ~100%) e nada foi perdido.
+>
+> 🧱 **FASE 1 NO AR EM CÓDIGO — o cadastro fiscal, que é o único pedaço que dá pra acertar ANTES de ter provedor.** `Clube` ganhou CNPJ, razão social, inscrições estadual e municipal, regime tributário e endereço fiscal estruturado; `ProdutoBar` ganhou NCM, CFOP, CEST, código de barras, unidade, origem e CSOSN/CST; `Comanda` ganhou "CPF na nota". Migration `CadastroFiscalDoClubeEDoProduto` — **todas as colunas nuláveis, nada muda pra quem não usa**.
+>
+> 🧩 **O CAMPO QUE VEM ANTES DE TODOS OS OUTROS não é fiscal, é de produto: `TipoFiscal`.** O cardápio de um bar de clube mistura três naturezas na mesma lista de botões — a lata de cerveja foi **revendida**, a porção de fritas o bar **produziu**, e o "aluguel de raquete" (exemplo que o próprio `ProdutoBar` já citava) **não é venda de coisa nenhuma**: locação de bem móvel não cabe em NFC-e e o STF afastou o ISS dela (Súmula Vinculante 31). Sem essa pergunta respondida, nenhuma camada fiscal consegue nem ESCOLHER qual documento emitir — e ela estava faltando desde sempre.
+>
+> 🔐 **O Padelizou NÃO vai guardar certificado digital de cliente.** O A1 sobe direto pro provedor, que já armazena cifrado e é auditado pra isso; aqui fica só o retrato de "está configurado lá?". Guardar chave privada alheia seria assumir risco e responsabilidade de LGPD em troca de zero vantagem.
+>
+> 🔀 **Dois interruptores, porque são dois planos**: `Bar__Habilitado` (plano Gestão — comanda, estoque, caixa) e `Fiscal__Habilitado` (plano Fiscal — nota por cima disso). Um só obrigaria a ligar tudo pra todo mundo, e aí não haveria dois planos pra vender.
+>
+> 🐛 **Um teste pegou um defeito que a leitura do código não pegaria**: o palpite de NCM procurava a palavra "cerveja" — e num cardápio de verdade não existe produto chamado "cerveja", existe **"Heineken lata 350ml"**. O palpite nunca dispararia, e a tela prometeria ajuda que não entrega. Agora reconhece as marcas.
+>
+> 🧪 **4.436 testes, 0 falhas (22 novos)**: dígito verificador de CNPJ e de código de barras (GTIN), checklist por documento (NFS-e não cobra inscrição estadual e vice-versa), aluguel que não fica devendo NCM, CEP trazendo o código IBGE que a nota exige, ViaCEP fora do ar sem travar a gravação, **mexer no preço não apagando o cadastro fiscal do produto**, palpite que não sobrescreve a correção do contador, CPF inventado barrado no fechamento e comanda fechando sem CPF como sempre fechou.
+>
+> Antes: 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
 >
 > 🗣️ **Decisão do Felipe**: *"se for eliminado na chave, perde mais pontos; se for campeão, ganha mais pontos"* — pra quem subiu de categoria e não parou em pé PODER VOLTAR à anterior. No Elo puro isso não acontecia em tempo humano: derrota esperada quase não tira ponto (a expectativa desconta o adversário mais forte), e quem subia ficava preso no andar de cima.
 >
