@@ -62,6 +62,9 @@ builder.Services.Configure<RegistroResultadosSettings>(builder.Configuration.Get
 builder.Services.Configure<PlanoProfessorSettings>(builder.Configuration.GetSection("PlanoProfessor"));
 builder.Services.Configure<EvolutionSettings>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"));
+// Nasce VAZIO: produção sem patrocinador configurado não mostra a faixa do rodapé.
+// Ver Services/PatrocinadoresSettings pro porquê do rodapé e de como o dev liga.
+builder.Services.Configure<PatrocinadoresSettings>(builder.Configuration.GetSection("Patrocinadores"));
 // Nasce SEM restrição: lista vazia = todo mundo recebe, que é o comportamento da produção.
 // Quem restringe é o dev, com `Entrega__SoPara__0=...` no systemd — ver Services/EntregaSettings
 // pro porquê de o padrão ser o envio e não o silêncio.

@@ -199,6 +199,40 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-footer a { color: var(--pdz-muted); }
 .pdz-footer a:hover { color: var(--pdz-lime-600); }
 
+/* Faixa de patrocinadores do site (ver Services/PatrocinadoresSettings — só existe quando a
+   lista está configurada). Logos em altura FIXA de 26px, a mesma das raquetes ao lado:
+   patrocinador nenhum manda arte do tamanho certo, e sem a régua o primeiro logo largo
+   empurraria o rodapé inteiro. A opacidade reduzida é o que deixa a marca alheia presente
+   sem gritar mais que o próprio site; volta a 100% sob o mouse. */
+.pdz-patrocinio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .75rem 1.75rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--pdz-border);
+}
+.pdz-patrocinio-rotulo {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--pdz-muted);
+}
+.pdz-patrocinio img {
+    height: 26px;
+    width: auto;
+    opacity: .8;
+    transition: opacity .15s ease;
+}
+.pdz-patrocinio a:hover img { opacity: 1; }
+/* Logo de desenho escuro (Patrocinador.LogoEscuro): preto puro some no fundo escuro, então
+   aqui ele vira branco. Vale SÓ pra quem se declarou monocromático — inverter logo colorido
+   destruiria a cor da marca. */
+[data-bs-theme="dark"] .pdz-patrocinio img.pdz-logo-escuro { filter: invert(1); }
+
 /* =========================================================
    NAVBAR
    ========================================================= */

@@ -2,6 +2,7 @@
 @using Padelizou.Middleware
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.BetaSettings> BetaOpcoes
 @inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.SuporteSettings> SuporteOpcoes
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.PatrocinadoresSettings> PatrocinadoresOpcoes
 @inject IWebHostEnvironment Ambiente
 @* O Marcar Jogo está escondido até termos um clube. A régua é a MESMA que trava o controller
    (Services/PortaDoMarcarJogo) — um `if` próprio aqui seria a segunda cópia, e é assim que um
@@ -498,6 +499,38 @@
 
     <footer class="pdz-footer">
         <div class="container">
+            @* Patrocinadores do site, quando existirem (ver Services/PatrocinadoresSettings —
+               a lista nasce vazia e produção não mostra nada). Rodapé, e não topo: estão em
+               TODA página sem disputar atenção com o conteúdo, e a faixa cresce pro lado
+               quando vierem outros. Sem imagem o patrocinador é pulado — o logo é o anúncio. *@
+            @{
+                var patrocinadores = PatrocinadoresOpcoes.Value.Lista
+                    .FindAll(p => !string.IsNullOrWhiteSpace(p.Imagem));
+            }
+            @if (patrocinadores.Count > 0)
+            {
+                <div class="pdz-patrocinio">
+                    <span class="pdz-patrocinio-rotulo">Patrocínio</span>
+                    @foreach (var patrocinador in patrocinadores)
+                    {
+                        @* rel="sponsored": é o rótulo que o Google exige em link pago — sem
+                           ele, patrocínio vira "compra de link" e o site é quem paga a multa
+                           de ranqueamento. *@
+                        @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
+                        {
+                            <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener" title="@patrocinador.Nome">
+                                <img src="@patrocinador.Imagem" alt="@patrocinador.Nome"
+                                     class="@(patrocinador.LogoEscuro ? "pdz-logo-escuro" : "")" loading="lazy" />
+                            </a>
+                        }
+                        else
+                        {
+                            <img src="@patrocinador.Imagem" alt="@patrocinador.Nome" title="@patrocinador.Nome"
+                                 class="@(patrocinador.LogoEscuro ? "pdz-logo-escuro" : "")" loading="lazy" />
+                        }
+                    }
+                </div>
+            }
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <div class="d-flex align-items-center gap-2">
                     @* Raquetes soltas: a 26px o disco completo vira um borrão escuro. *@
