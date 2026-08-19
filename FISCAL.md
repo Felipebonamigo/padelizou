@@ -4,6 +4,20 @@
 > (31/07, "o clube segue emitindo nota pelo que já usa" — `BarController.cs:17-20` e STATUS.md).
 > Este documento é o plano para reverter essa decisão de forma consciente e virar receita.
 
+## ✅ DECISÕES DO FELIPE (19/08/2026)
+
+- **Plano aprovado**: seguir o caminho A (API white-label), com o portão dos 3 clubes
+  comprometidos antes de construir as Fases 2–3.
+- **Contador**: resolvido em família — a contadora é praticamente uma "segunda mãe".
+  Custo desse item: zero. Ela cuida da NFS-e das comissões próprias e, na hora certa,
+  da migração.
+- **MEI→ME só perto do teto**: a migração NÃO é antecipada. O gatilho é o alerta de 70%
+  que o sistema já manda sozinho (`AlertaMeiBackgroundService`) — quando disparar,
+  significa que vários clubes estão assinando, que é exatamente o bom sinal. Ao receber
+  o alerta: conversa com a contadora, não pânico (estouro até 20% do teto vira ME em
+  1º de janeiro com DAS complementar; acima de 20% retroage — regra a confirmar com ela
+  na hora).
+
 ## A decisão em uma frase
 
 Não construir motor fiscal próprio: contratar uma **API de emissão white-label** (o
