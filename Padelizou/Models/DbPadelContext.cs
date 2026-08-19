@@ -627,6 +627,16 @@ public partial class DbPadelContext : DbContext
             // O extrato de um jogador se consulta inteiro e em ordem — é o gráfico do perfil.
             entity.HasIndex(h => new { h.JogadorId, h.CriadoEm });
 
+            // UMA linha de campanha por (categoria, jogador) — garantido pelo BANCO.
+            // O guard do AplicarCampanhaAsync é check-then-act: duas finalizações
+            // simultâneas da mesma final (clique + fila offline em paralelo) leem "sem
+            // linhas" as duas e aplicariam em dobro. Com o índice, a segunda estoura no
+            // SaveChanges e cai no try/catch do gancho — e o replay segue funcionando,
+            // porque ele também só cria uma linha por jogador por categoria.
+            entity.HasIndex(h => new { h.CategoriaId, h.JogadorId })
+                .IsUnique()
+                .HasFilter("\"CategoriaId\" IS NOT NULL");
+
             // Jogador Restrict (a linha de Jogador nunca é apagada de verdade — LGPD raspa
             // os dados e mantém a linha); a partida Cascade: sumiu o jogo, sai a linha do
             // extrato, e o replay reacerta o total.

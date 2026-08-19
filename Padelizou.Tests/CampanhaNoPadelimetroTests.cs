@@ -543,6 +543,105 @@ public class CampanhaNoPadelimetroServiceTests
     }
 
     [Fact]
+    public async Task Wo_tardio_na_final_migra_a_campanha_pro_novo_campeao()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var cenario = MontarCategoriaJogada(ctx);
+
+        var org = new Jogador { Nome = "Organizador", Cpf = "99900000004" };
+        ctx.Jogadores.Add(org);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = cenario.Torneio.Id, JogadorId = org.Id });
+        ctx.SaveChanges();
+
+        var service = new PadelimetroService(ctx);
+        await service.AplicarAsync(cenario.Final.Id);
+        await service.AplicarCampanhaAsync(cenario.Categoria.Id);
+        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro));
+
+        // O organizador descobre que a dupla "campeã" nem compareceu: W.O. tardio sobre
+        // a final já finalizada — o TERCEIRO caminho que troca o campeão depois do fato.
+        var controller = TestInfra.NovoPartidasController(ctx, org.Id);
+        await controller.RegistrarWo(cenario.Final.Id, cenario.Final.Dupla1Id);
+
+        Assert.Equal("Campeao", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla2Id).UltimaFase);
+
+        // A campanha migrou: A devolve o bônus (fica com o +12 do jogo, que virou W.O. e
+        // o replay limpa), B ganha o dela — os jogos contados de B vieram antes da final.
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(598, j.Padelimetro)); // 588 + 10
+
+        var linhasDeCampeao = ctx.HistoricosDePadelimetro
+            .Where(h => h.CategoriaId != null && h.Motivo.Contains("Campeão"))
+            .Select(h => h.JogadorId).ToList();
+        Assert.All(cenario.Vices, j => Assert.Contains(j.Id, linhasDeCampeao));
+        Assert.All(cenario.Campeoes, j => Assert.DoesNotContain(j.Id, linhasDeCampeao));
+    }
+
+    [Fact]
+    public async Task Reabrir_a_final_preserva_o_posterior_tambem_pros_finalistas()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var cenario = MontarCategoriaJogada(ctx);
+
+        var org = new Jogador { Nome = "Organizador", Cpf = "99900000005" };
+        ctx.Jogadores.Add(org);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = cenario.Torneio.Id, JogadorId = org.Id });
+        ctx.SaveChanges();
+
+        var service = new PadelimetroService(ctx);
+        await service.AplicarAsync(cenario.Final.Id);
+        await service.AplicarCampanhaAsync(cenario.Categoria.Id);
+
+        // O CAMPEÃO joga a mista da noite: 622 + 8 = 630, com a linha no extrato.
+        var campeao = cenario.Campeoes[0];
+        Assert.Equal(622, campeao.Padelimetro);
+        campeao.Padelimetro = 630;
+        ctx.HistoricosDePadelimetro.Add(new HistoricoDePadelimetro
+        {
+            JogadorId = campeao.Id,
+            PartidaId = 9098,
+            NivelAntes = 622,
+            Delta = 8,
+            Motivo = "Vitória 6x3 na Mista",
+            CriadoEm = cenario.Final.PlacarMarcadoEm!.Value.AddHours(3),
+        });
+        ctx.SaveChanges();
+
+        var controller = TestInfra.NovoPartidasController(ctx, org.Id);
+        await controller.ReabrirPartida(cenario.Final.Id);
+
+        // Desfez por delta: −10 da campanha e −12 do jogo — o +8 da mista fica de pé.
+        // (Restaurar nível absoluto o levaria pra 600 e apagaria a mista do número.)
+        Assert.Equal(608, campeao.Padelimetro);
+        Assert.Equal(12, campeao.JogosDePadelimetro);
+    }
+
+    [Fact]
+    public async Task Replay_nao_perde_pena_quando_o_relogio_da_mesa_adianta_um_grupo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        // Ninguém tem nível: tudo nasce no replay.
+        var cenario = MontarCategoriaJogada(ctx, nivelInicial: null);
+
+        // O PlacarMarcadoEm vem do RELÓGIO DO APARELHO da Mesa: o aparelho da quadra 2
+        // estava adiantado e datou o jogo de grupo da dupla E DEPOIS da final. Se a
+        // campanha fechasse na posição da final, os jogadores de E ainda nem teriam
+        // sido semeados ali — e a pena deles sumiria do replay, em silêncio.
+        var jogoDeE = ctx.Partidas.Single(p => p.Codigo == "J01");
+        jogoDeE.PlacarMarcadoEm = cenario.Final.PlacarMarcadoEm!.Value.AddHours(2);
+        ctx.SaveChanges();
+
+        await new PadelimetroService(ctx).RecalcularTudoAsync();
+
+        var comPena = ctx.HistoricosDePadelimetro
+            .Where(h => h.CategoriaId != null)
+            .Select(h => h.JogadorId).ToHashSet();
+        Assert.All(cenario.FicaramNaChave.Take(2), j => Assert.Contains(j.Id, comPena));
+    }
+
+    [Fact]
     public async Task Linha_de_campanha_nao_vira_jogo_no_movimento_da_aba()
     {
         using var ctx = TestInfra.NovoContexto();

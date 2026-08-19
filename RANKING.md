@@ -71,9 +71,14 @@ A campanha passa a falar direto no número:
 - Mesmos porteiros das partidas: restrito, Americano, times e cancelado ficam fora. E
   **mista/casal/categoria fora da convenção ficam fora da campanha** (os JOGOS delas
   seguem movendo o número): sem faixa não há porta pra régua mirar.
-- Correção de placar que TROCA o vencedor da final não reaplica nada sozinha — o extrato
-  é a memória do que já foi aplicado, igual aos jogos. O caminho certo é REABRIR a final
-  (desfaz jogo e campanha, e refaz os dois ao finalizar de novo) ou o replay do admin.
+- Quando o CAMPEÃO muda depois do fato — correção de placar que troca o vencedor da
+  final, W.O. tardio sobre a final, ou reabrir — a campanha SE DESFAZ e reaplica com o
+  carimbo novo (regra única em `PadelimetroService.DesfazerCampanhaAsync`, sempre por
+  **subtração de delta**, pra não apagar o que o jogador ganhou depois dela). Já o Elo
+  dos JOGOS não se reaplica sozinho em correção de placar — extrato é memória; reabrir
+  ou o replay do admin acertam. ⚠️ A reaplicação recalcula as portas com o nível de
+  AGORA, não com o da época — aproximação aceita (diferença de poucos pontos, limitada
+  pelas portas); a régua final é sempre o replay.
 
 ⚠️ **AS PORTAS DA FAIXA LIMITAM O AJUSTE — a parte que impede a régua de ser rígida.**
 Aviso do Felipe na mesma conversa: *"tem pessoas que passam vários anos (uns 20 torneios)

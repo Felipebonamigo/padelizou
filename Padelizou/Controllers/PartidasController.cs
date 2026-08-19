@@ -279,9 +279,21 @@ namespace Padelizou.Controllers
             }
 
             bool acabouDeTerminar = partida.Status != "Finalizada";
+            int? vencedorAntes = partida.VencedorId;
 
             EncerramentoPorWo.Registrar(partida, duplaQueNaoCompareceuId,
                 FormatoDaPartida.De(partida.Categoria?.Torneio, partida.Fase));
+
+            // W.O. TARDIO NA FINAL que troca o vencedor: o terceiro caminho que re-coroa
+            // (junto do ControlePlacar e do reabrir), e o único que ainda deixava o
+            // EX-campeão com o bônus de campanha no extrato. Mesma receita: desfaz aqui
+            // (regra única em PadelimetroService.DesfazerCampanhaAsync), o SaveChanges
+            // logo abaixo grava, e o gancho do CoroarCampeao no encerramento reaplica
+            // com o carimbo certo.
+            if (!acabouDeTerminar && partida.Fase == "Final" && partida.VencedorId != vencedorAntes)
+            {
+                await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
+            }
 
             partida.HorarioInicioReal ??= DateTime.Now;
             partida.HorarioFimReal ??= DateTime.Now;
@@ -360,13 +372,13 @@ namespace Padelizou.Controllers
 
             // 3. Se era a FINAL, o AJUSTE DE CAMPANHA da categoria desanda junto: o bônus do
             //    campeão e as penas de chave nasceram deste resultado (RANKING.md, "A campanha
-            //    também move o número"). ⚠️ ANTES das linhas da própria partida, porque a
-            //    campanha foi aplicada DEPOIS delas — desfazer é voltar na ordem inversa, e
-            //    pros 4 da final o passo seguinte sobrescreve com o nível pré-jogo, que é o
-            //    certo. Campanha não conta como jogo, então JogosDePadelimetro fica quieto.
+            //    também move o número"). Tudo aqui desfaz por SUBTRAÇÃO DE DELTA, então a
+            //    ordem entre campanha e linhas do jogo não importa mais. Campanha não conta
+            //    como jogo, então JogosDePadelimetro fica quieto.
             //
             //    A regra mora em PadelimetroService.DesfazerCampanhaAsync (subtração de delta,
-            //    pra não apagar o que veio depois) — a MESMA da correção de placar da final.
+            //    pra não apagar o que veio depois) — a MESMA da correção de placar e do W.O.
+            //    tardio da final.
             if (partida.Fase == "Final")
             {
                 await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
@@ -387,7 +399,16 @@ namespace Padelizou.Controllers
                 foreach (var linha in extrato)
                 {
                     if (!porJogador.TryGetValue(linha.JogadorId, out var jogador)) continue;
-                    jogador.Padelimetro = linha.NivelAntes;
+
+                    // ⚠️ Subtração de DELTA, e não NivelAntes absoluto — mesma razão da
+                    // campanha: o jogador pode ter jogado OUTRA coisa depois deste jogo
+                    // (a mista da noite), e restaurar o nível absoluto apagaria esse
+                    // ganho do número deixando a linha dele órfã no extrato. O delta é
+                    // pós-clamp, então desfaz exatamente o que este jogo aplicou; se o
+                    // nível bateu na ponta da régua em jogo POSTERIOR, o replay do admin
+                    // é a régua final, como sempre foi.
+                    if (jogador.Padelimetro != null)
+                        jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
                     jogador.JogosDePadelimetro = Math.Max(0, jogador.JogosDePadelimetro - 1);
                 }
 

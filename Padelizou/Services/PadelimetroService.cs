@@ -262,6 +262,15 @@ public class PadelimetroService : IPadelimetroService
             .GroupBy(p => p.CategoriaId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // A campanha fecha na ÚLTIMA partida da categoria NA LINHA DO TEMPO, e não na
+        // posição da final. Quase sempre é a mesma coisa — mas o PlacarMarcadoEm vem do
+        // relógio do APARELHO da Mesa (design do offline), e um aparelho adiantado pode
+        // datar jogo de grupo DEPOIS da final: fechar a campanha na final pularia, em
+        // silêncio, jogador que ainda nem foi semeado naquele ponto da história. Na
+        // última partida da categoria, todo mundo que jogou já passou pelo motor.
+        var ultimaDaCategoria = new Dictionary<int, int>();
+        foreach (var p in ordenadas) ultimaDaCategoria[p.CategoriaId] = p.Id;
+
         int aplicadas = 0;
         var categoriasComCampanha = new HashSet<int>();
         foreach (var partida in ordenadas)
@@ -276,10 +285,11 @@ public class PadelimetroService : IPadelimetroService
                 aplicadas++;
             }
 
-            // A campanha fecha junto com a final, igual ao gancho do CoroarCampeao ao
-            // vivo. O HashSet é o cinto de segurança contra dado torto com duas "finais"
-            // na mesma categoria — a campanha é uma só.
-            if (partida.Fase == "Final" && categoriasComCampanha.Add(partida.CategoriaId))
+            // O gancho do CoroarCampeao ao vivo, reencontrado na linha do tempo (ver o
+            // comentário do ultimaDaCategoria). O HashSet é cinto de segurança pra não
+            // aplicar duas vezes; o núcleo confere se a categoria tem final fechada.
+            if (ultimaDaCategoria[partida.CategoriaId] == partida.Id
+                && categoriasComCampanha.Add(partida.CategoriaId))
             {
                 AplicarCampanha(partida.Categoria, partidasPorCategoria[partida.CategoriaId],
                     jogadores, DataDaPartida(partida));

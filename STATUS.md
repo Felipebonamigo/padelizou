@@ -11,7 +11,9 @@
 >
 > 🧾 **No extrato, a linha de campanha tem categoria e não tem partida** (coluna nova `CategoriaId`, migration `CampanhaNoPadelimetro`): não conta como jogo pro K, o Reabrir da final a desfaz junto com o jogo (na ordem inversa), e o movimento da aba não a soma como partida. **Replay reaplica a campanha no mesmo ponto da história** — a linha do tempo do recálculo agora percorre todas as finalizadas (W.O. incluso, porque uma final de W.O. fecha campanha) e fecha cada categoria ao passar pela final dela.
 >
-> 🧪 **4.408 testes, 0 falhas (18 novos)**: portas e clamps do motor, final direta que não pune o vice, quem joga pra cima sem pena, anti-farm do campeão, W.O. sem ajuste, idempotência (gancho e fila offline), encerramento único aplicando jogo+campanha, replay determinístico datado pela final, reabrir que desfaz, e a linha de campanha fora da contagem de jogos do movimento.
+> 🔍 **Revisão adversarial de 16 agentes ANTES de estabilizar** (4 lentes → verificação cética de cada achado; 12 achados, 7 confirmados, todos tratados): os TRÊS caminhos que trocam o campeão depois do fato — correção de placar, W.O. tardio e reabrir — desfazem e reaplicam a campanha por um lugar só (`DesfazerCampanhaAsync`, sempre por subtração de delta, preservando a mista jogada depois); o replay fecha a campanha na ÚLTIMA partida da categoria na linha do tempo (relógio de aparelho adiantado não engole pena); e o banco garante UMA linha de campanha por (categoria, jogador) — índice único parcial, migration `UmaCampanhaPorJogador` — contra finalizações simultâneas.
+>
+> 🧪 **4.414 testes, 0 falhas (24 novos)**: portas e clamps do motor, final direta que não pune o vice, quem joga pra cima sem pena, anti-farm do campeão, W.O. sem ajuste, idempotência (gancho e fila offline), encerramento único aplicando jogo+campanha, replay determinístico (inclusive com relógio torto), os três caminhos de re-coroação migrando a campanha, reabrir preservando o que veio depois, e a linha de campanha fora da contagem de jogos do movimento.
 >
 > Antes, no mesmo dia: 💰 **QUEM JÁ PAGOU CONTINUA PAGO QUANDO DUAS INSCRIÇÕES VIRAM UMA.**
 >
