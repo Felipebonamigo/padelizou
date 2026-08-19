@@ -15,7 +15,15 @@
         && ((r.VotosDupla1 >= r.VotosDupla2 && Model.partida.VencedorId == Model.partida.Dupla1Id)
          || (r.VotosDupla2 > r.VotosDupla1 && Model.partida.VencedorId == Model.partida.Dupla2Id));
 }
-<div class="pdz-palpitrometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id">
+@{
+    // O placar palpitado, do jeito que a ficha mostra: vencedor × perdedor. A validação já
+    // garante que ele aponta a dupla em que votei — aqui é só virar do lado certo.
+    int? meuVencedor = r.PalpiteiOPlacar ? Math.Max(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
+    int? meuPerdedor = r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
+    string moeda = r.PlacarEmSets ? "sets" : "games";
+}
+<div class="pdz-palpitrometro mt-2 pt-2 border-top text-start" data-partida-id="@Model.partida.Id"
+     data-dupla1-id="@Model.partida.Dupla1Id" data-meu-voto="@meuVoto">
     <div class="d-flex justify-content-between align-items-center mb-1">
         <small class="text-muted fw-bold"><i class="bi bi-graph-up"></i> Palpitrômetro</small>
         @if (finalizada && r.TotalVotos > 0)
@@ -50,6 +58,50 @@
             <div class="progress-bar bg-primary" data-bar="2" style="width: @(r.PercentualDupla2.ToString(System.Globalization.CultureInfo.InvariantCulture))%;"></div>
         </div>
     </div>
+
+    @* ── O PLACAR ───────────────────────────────────────────────────────────────────────
+       ⚠️ Só aparece DEPOIS do voto, e não é frescura de layout: a ficha "6x4" só quer dizer
+       alguma coisa depois que se sabe de QUEM são os 6. Sem o voto ela não tem lado.
+
+       ⚠️ E é OPCIONAL de propósito. Palpitar continua sendo um toque no nome; quem quiser dá
+       o segundo. Exigir o placar pra votar derrubaria a participação, que é o que faz a barra
+       do palpitrômetro valer alguma coisa. *@
+    @if (votavel && r.PlacaresDoFormato.Count > 0)
+    {
+        <div class="pdz-palpite-placar mt-2" style="display: @(meuVoto != null ? "block" : "none");">
+            <div class="small text-muted mb-1">
+                E o placar? <span class="text-body-secondary">(em @moeda, de quem você acha que vence)</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                @foreach (var placar in r.PlacaresDoFormato)
+                {
+                    bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                    <button type="button"
+                            class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                            data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                            onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                }
+            </div>
+        </div>
+    }
+
+    @* A leitura da galera sobre o placar. A CONTAGEM anda junto: "crava 6x4" com 3 de 12
+       palpites promete um consenso que não existe — com o número ao lado, quem lê julga. *@
+    <div class="text-center mt-1 small text-muted pdz-palpite-consenso"
+         style="display: @(r.TemPlacarMaisPalpitado ? "block" : "none");">
+        <i class="bi bi-people"></i>
+        A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+        <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+    </div>
+
+    @if (finalizada && r.CravaramOPlacar.Count > 0)
+    {
+        <div class="text-center mt-1 small text-success fw-semibold">
+            <i class="bi bi-bullseye"></i>
+            @(r.CravaramOPlacar.Count == 1 ? "Cravou o placar:" : "Cravaram o placar:")
+            @string.Join(", ", r.CravaramOPlacar)
+        </div>
+    }
 
     <div class="text-center mt-1">
         @if (!logado)

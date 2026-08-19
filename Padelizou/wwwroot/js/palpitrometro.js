@@ -2,13 +2,45 @@ async function votarPalpite(el) {
     if (el.dataset.votavel !== 'true') return;
 
     const container = el.closest('.pdz-palpitrometro');
+
+    // ⚠️ Trocar de dupla vai SEM placar, e o servidor apaga o que estava gravado. É de
+    // propósito: o placar velho apontava a outra dupla, e mantê-lo deixaria a linha dizendo
+    // duas coisas contrárias ao mesmo tempo. Quem trocou de opinião escolhe a ficha de novo.
+    await enviarPalpite(container, el.dataset.duplaId);
+}
+
+// A ficha de placar. Ela mostra VENCEDOR x PERDEDOR — sem lado —, e é aqui que o número ganha
+// dono: se eu votei na Dupla 1, o vencedor é o lado 1; se votei na Dupla 2, ele é o lado 2.
+// O servidor recebe sempre na orientação do JOGO, que é a mesma das colunas da partida.
+async function palpitarPlacar(el) {
+    const container = el.closest('.pdz-palpitrometro');
+    const meuVoto = container.dataset.meuVoto;
+
+    // Sem voto não há lado pro placar — a tela já esconde as fichas, isto é o cinto.
+    if (!meuVoto) return;
+
+    const vencedor = Number(el.dataset.vencedor);
+    const perdedor = Number(el.dataset.perdedor);
+    const souDupla1 = container.dataset.dupla1Id === meuVoto;
+
+    await enviarPalpite(container, meuVoto,
+        souDupla1 ? vencedor : perdedor,
+        souDupla1 ? perdedor : vencedor);
+}
+
+// O ÚNICO lugar que fala com o servidor. Voto e placar são o mesmo POST porque são o mesmo
+// palpite: duas rotas gravariam a mesma linha por caminhos diferentes, e é assim que nasce a
+// linha com voto de uma dupla e placar da outra.
+async function enviarPalpite(container, duplaId, placar1, placar2) {
     const partidaId = container.dataset.partidaId;
-    const duplaId = el.dataset.duplaId;
+
+    let corpo = `partidaId=${partidaId}&duplaId=${duplaId}`;
+    if (placar1 != null && placar2 != null) corpo += `&placar1=${placar1}&placar2=${placar2}`;
 
     const response = await fetch('/Partidas/Votar', {
         method: 'POST',
         headers: cabecalhoAntifalsificacao({ 'Content-Type': 'application/x-www-form-urlencoded' }),
-        body: `partidaId=${partidaId}&duplaId=${duplaId}`
+        body: corpo
     });
 
     const data = await response.json().catch(() => null);
@@ -70,6 +102,51 @@ function atualizarPalpitrometro(container, data) {
 
     const totalEl = container.querySelector('.pdz-total-votos');
     if (totalEl) totalEl.innerText = data.totalVotos + ' voto(s)';
+
+    atualizarPlacarDoPalpite(container, data);
+}
+
+// A parte do PLACAR: as fichas e a frase da galera. Tudo aqui é null-safe porque a versão EM
+// LINHA do palpitrômetro não tem nada disto — e foi um null-check faltando neste arquivo que
+// já fez o voto ir pro servidor sem a tela mexer, que é o pior dos dois mundos.
+function atualizarPlacarDoPalpite(container, data) {
+    // Quem sou eu agora, pra próxima ficha saber de que lado orientar o placar.
+    container.dataset.meuVoto = data.meuVotoDuplaId != null ? String(data.meuVotoDuplaId) : '';
+
+    const bloco = container.querySelector('.pdz-palpite-placar');
+    if (bloco) {
+        // O bloco nasce escondido pra quem ainda não votou: a ficha "6x4" não tem lado nenhum
+        // antes de existir um voto.
+        bloco.style.display = data.meuVotoDuplaId != null ? 'block' : 'none';
+
+        // A ficha marcada. ⚠️ Comparar SEM lado (maior × menor) é o que faz o destaque
+        // sobreviver a quem votou na Dupla 2: lá o meu "6" é o lado 2, e comparar lado a lado
+        // não acharia ficha nenhuma.
+        const temPlacar = data.meuPlacarLado1 != null && data.meuPlacarLado2 != null;
+        const meuVencedor = temPlacar ? Math.max(data.meuPlacarLado1, data.meuPlacarLado2) : null;
+        const meuPerdedor = temPlacar ? Math.min(data.meuPlacarLado1, data.meuPlacarLado2) : null;
+
+        bloco.querySelectorAll('.pdz-ficha-placar').forEach(function (ficha) {
+            const escolhida = temPlacar
+                && Number(ficha.dataset.vencedor) === meuVencedor
+                && Number(ficha.dataset.perdedor) === meuPerdedor;
+
+            ficha.classList.toggle('btn-success', escolhida);
+            ficha.classList.toggle('btn-outline-secondary', !escolhida);
+        });
+    }
+
+    const consenso = container.querySelector('.pdz-palpite-consenso');
+    if (!consenso) return;
+
+    const temConsenso = data.placarMaisPalpitadoLado1 != null && data.placarMaisPalpitadoLado2 != null;
+    consenso.style.display = temConsenso ? 'block' : 'none';
+    if (!temConsenso) return;
+
+    const placarEl = consenso.querySelector('.pdz-consenso-placar');
+    const votosEl = consenso.querySelector('.pdz-consenso-votos');
+    if (placarEl) placarEl.innerText = data.placarMaisPalpitadoLado1 + ' x ' + data.placarMaisPalpitadoLado2;
+    if (votosEl) votosEl.innerText = '(' + data.placarMaisPalpitadoVotos + ' de ' + data.palpitesComPlacar + ')';
 }
 
 async function verVotos(partidaId, nome1, nome2) {

@@ -264,8 +264,13 @@
        cartão grande — carimba a setinha e ESCONDE o lado perdedor. Na linha isso apagava uma
        das duas porcentagens depois do voto, e como a porcentagem é o próprio botão, sumia
        junto o único jeito de trocar de opinião. Ver wwwroot/js/palpitrometro.js. *@
+    @{
+        int? meuVencedor = r != null && r.PalpiteiOPlacar ? Math.Max(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
+        int? meuPerdedor = r != null && r.PalpiteiOPlacar ? Math.Min(r.MeuPlacarLado1!.Value, r.MeuPlacarLado2!.Value) : null;
+        string moedaDoPlacar = r != null && r.PlacarEmSets ? "sets" : "games";
+    }
     <div class="pdz-jl-corpo @(mostraPalpitrometro ? "pdz-palpitrometro pdz-palpite-linha" : "") @(temPalpite ? "" : "pdz-palpite-vazio")"
-         @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\"") : null)>
+         @(mostraPalpitrometro ? Html.Raw($"data-partida-id=\"{jogo.Id}\" data-dupla1-id=\"{jogo.Dupla1Id}\" data-meu-voto=\"{r?.MeuVotoDuplaId}\"") : null)>
 
         @if (mostraPalpitrometro)
         {
@@ -347,6 +352,46 @@
                       onclick="votarPalpite(this)">@pct2%</span>
             }
         </div>
+
+        @* ── O PLACAR (mesmo bloco do cartão grande — ver _Palpitrometro.cshtml) ──────────
+           Só aparece DEPOIS do voto e é OPCIONAL: palpitar continua sendo um toque no nome,
+           e quem quiser dá o segundo escolhendo a ficha. *@
+        @if (podeVotar && r != null && r.PlacaresDoFormato.Count > 0)
+        {
+            <div class="pdz-palpite-placar mt-1" style="display: @(r.MeuVotoDuplaId != null ? "block" : "none");">
+                <div class="small text-muted mb-1">
+                    E o placar? <span class="text-body-secondary">(em @moedaDoPlacar, de quem você acha que vence)</span>
+                </div>
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var placar in r.PlacaresDoFormato)
+                    {
+                        bool escolhida = meuVencedor == placar.Vencedor && meuPerdedor == placar.Perdedor;
+                        <button type="button"
+                                class="btn btn-sm rounded-pill py-0 px-2 pdz-ficha-placar @(escolhida ? "btn-success" : "btn-outline-secondary")"
+                                data-vencedor="@placar.Vencedor" data-perdedor="@placar.Perdedor"
+                                onclick="palpitarPlacar(this)">@placar.Vencedor x @placar.Perdedor</button>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (r != null && r.TemPlacarMaisPalpitado)
+        {
+            <div class="mt-1 small text-muted pdz-palpite-consenso">
+                <i class="bi bi-people"></i>
+                A galera crava <strong class="pdz-consenso-placar">@r.PlacarMaisPalpitadoLado1 x @r.PlacarMaisPalpitadoLado2</strong>
+                <span class="pdz-consenso-votos">(@r.PlacarMaisPalpitadoVotos de @r.PalpitesComPlacar)</span>
+            </div>
+        }
+
+        @if (Model.Finalizada && r != null && r.CravaramOPlacar.Count > 0)
+        {
+            <div class="mt-1 small text-success fw-semibold">
+                <i class="bi bi-bullseye"></i>
+                @(r.CravaramOPlacar.Count == 1 ? "Cravou o placar:" : "Cravaram o placar:")
+                @string.Join(", ", r.CravaramOPlacar)
+            </div>
+        }
 
     </div>
 </div>

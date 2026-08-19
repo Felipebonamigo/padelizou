@@ -123,6 +123,106 @@
 >
 > Antes: 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
 >
+> Antes, no mesmo dia: 🐛 **A MIGRATION RODOU E O NAVEGADOR ACHOU DOIS DEFEITOS QUE 4.422 TESTES NÃO PEGARAM.**
+>
+> 🎯 **A migration `PalpiteComPlacar` foi aplicada num Postgres de verdade** (não o Postgres de vocês — um servidor descartável só desta sessão), e o app subiu contra ele com dado plantado. Isto é exatamente o motivo de nunca declarar "pronto" só com testes verdes: os dois defeitos abaixo são invisíveis pro InMemory e pro Razor compilado, e só apareceram com o app rodando.
+>
+> 💥 **DEFEITO 1 — `/Torneios/Palpiteiros/{id}` respondia 500.** `ConsultaDePartidas` filtrava **DEPOIS** de projetar pro record (`.Select(...).Where(p => p.TorneioId == id)`), e o EF não sabe achar uma coluna a partir de um record já projetado — "the LINQ expression... could not be translated". A suíte inteira ficava verde porque o InMemory não traduz nada; o Postgres recusou na primeira visita. ⚠️ **O teste de tradução que eu tinha escrito na fase 4 não pegou isso**, e o motivo importa: ele chamava o SERVIÇO inteiro contra uma porta sem ninguém ouvindo — e a PRIMEIRA consulta do método falha por CONEXÃO, abortando antes de compilar a segunda (onde morava o bug). **Reescrito pra compilar cada consulta SOZINHA com `ToQueryString()`** (que traduz sem abrir conexão nenhuma), e agora há um teste que planta esse exato erro de propósito — pra continuar vermelho se o EF um dia aceitar essa forma.
+>
+> 🔧 **O conserto**: o filtro do chamador entra **dentro** de `ConsultaDePartidas`/`ConsultaDePalpites`, antes do `Select`. As duas consultas agora são **públicas e nomeadas**, exatamente pra o teste de tradução poder compilar cada uma isoladamente — sem isso, a mesma cegueira se repete na próxima consulta nova.
+>
+> 🎫 **DEFEITO 2, de produto — e mais grave que o 500**: as fichas de placar só existiam no cartão GRANDE do palpitrômetro, e esse cartão só é desenhado na aba **Ao Vivo**, onde **não se vota mais**. A aba onde se palpita de verdade — **Agendadas** — usa a versão EM LINHA, que eu tinha deixado sem fichas na fase 3. Ou seja: **a fase 3 inteira nunca esteve alcançável por ninguém**, e passou pelas quatro fases sem que nenhum teste (nem C#, nem o DOM falso no Node) pudesse pegar — porque nenhum dos dois sabe qual aba o produto realmente usa. Só abrir a tela mostrou isso. Fichas, "a galera crava" e "cravou o placar" entraram na versão em linha, reaproveitando o mesmo CSS e o mesmo JS do cartão grande.
+>
+> 📸 **Conferido de verdade, com Playwright, logado, nos dois formatos de tela**: votar sem placar (só o toque no nome), as fichas aparecendo só depois do voto, a MESMA ficha `6x4` gravando espelhada conforme a dupla escolhida, trocar de dupla apagando o placar, "a galera crava 6x4 (3 de 4)" mudando ao vivo sem F5, "Cravou o placar: Rafael Souza" depois do jogo, a página **Palpiteiros** do torneio, a aba do hub e o selo do perfil — **os mesmos 6 pontos e 2 cravadas** nos três lugares. Screenshots em `/tmp/pw/`.
+>
+> 🖼️ **Achado um terceiro problema, cosmético, olhando o screenshot**: o pódio da página Palpiteiros truncava os nomes do 2º e 3º lugar (`Fernanda ...`, `Bruno Alv...`) — a caixa era estreita demais. Alargada; conferido de novo, nome inteiro nos dois tamanhos de tela.
+>
+> 🧪 **4.422 testes, 0 falhas** (mesma contagem — os testes de tradução foram reescritos, não somados). ⚠️ **A régua de todas as quatro fases se manteve**: os números do selo do perfil e da aba do hub bateram, o "cravou" só apareceu depois do jogo terminar, e o placar corrigido continua sendo a fonte da verdade.
+>
+> ⏭️ **Migration e dado plantado existem só nesta sessão** (Postgres descartável) — nada foi tocado no ambiente de vocês. Falta rodar a migration de verdade no `db_padel_local`/dev quando o branch for revisado.
+>
+> Antes, no mesmo dia: 🏅 **O PALPITRÔMETRO SAIU DO TORNEIO: ABA NO HUB DO RANKING E SELO NO PERFIL** (fase 4 de 4 — o palpite com placar está completo).
+>
+> 🧭 **TRÊS PERGUNTAS, UM NÚCLEO SÓ (`RankingDePalpiteiros.Apurar`).** O torneio parte das partidas dele; o hub e o perfil partem dos **palpites**. ⚠️ Partir dos palpites é o que mantém a aba barata: partida finalizada o sistema tem aos milhares e a esmagadora maioria **nunca teve palpite nenhum** — varrer todas pra descobrir que 95% não interessam seria pagar o preço da tabela grande pra usar a pequena. **Três somatórios separados acabariam discordando**: o selo dizendo 12 pontos e a aba dizendo 11, sem nada na tela pra explicar. Há um teste que compara os dois números.
+>
+> 🙈 **TORNEIO OCULTO E CANCELADO NÃO SOMAM NO GERAL** — a página do torneio é protegida pela porta dele, esta lista é pública e não tem porta nenhuma. ⚠️ **Mas torneio esperando APROVAÇÃO soma normalmente, e isso foi decisão, não descuido**: a régua da *vitrine* (`ApareceParaOPublico`, que exige o OK do admin) decide o que é **listado e anunciado** — e esta tabela não lista torneio nenhum, soma pontos de gente. Exigir aprovação apagaria torneios de verdade, já jogados, sem nada na tela dizer por quê, e a aba nasceria quase vazia. Teste pra cada um dos três casos.
+>
+> 📣 **A FRASE-PROMESSA DO TOPO DO HUB GANHOU A SEGUNDA EXCEÇÃO.** *"Tudo abaixo é calculado só a partir de resultados de torneios"* já abria exceção pros Desafios; agora abre pros **Palpiteiros**, que não medem quem joga — medem **quem lê os jogos**. Cada exceção só aparece pra quem tem a aba: pra quem não tem nenhuma das duas, a promessa continua inteira, sem asterisco em nada.
+>
+> ♻️ **A tabela virou partial compartilhada** (`Views/Shared/_TabelaDePalpiteiros`), servindo a página do torneio e a aba do hub — mesmo arranjo da tabela dos Desafios. Duas partials quase iguais é como uma ganha uma coluna e a outra não, e aí a mesma pessoa aparece com números diferentes em duas telas do mesmo site.
+>
+> 🔮 **O SELO DO PERFIL** ("12 pts no palpitrômetro · 9 de 14 · 2 cravadas") leva pra **aba** do hub, não pra um torneio: o número dele é o somatório de todos, e mandar a pessoa pra um torneio só explicaria a menor parte do que ela acabou de ler. Some inteiro pra quem nunca teve palpite contado — melhor do que "0 pt de 0 palpites".
+>
+> 🧪 **4.422 testes, 0 falhas (12 novos).** ✅ **Falsificado**: exigir aprovação derruba o teste do torneio novo; tirar o filtro derruba os do oculto e do cancelado.
+>
+> 🆕 **E ENTROU UMA CATEGORIA DE TESTE QUE ESTE PROJETO NÃO TINHA: TRADUÇÃO DE CONSULTA** (`TraducaoDasConsultasDePalpiteTests`). O banco **InMemory** de toda a suíte **não traduz nada** — lá tudo é objeto, e um `Where` com método nosso passa liso pra estourar em produção na primeira visita à página. O truque: rodar as consultas contra um provedor **Npgsql de verdade apontado pra uma porta onde não há ninguém**. O EF traduz **antes** de conectar, então *chegar no erro de conexão é a aprovação*; o que reprova é `could not be translated`. Nenhum banco precisa existir, e os 6 testes rodam em 2 segundos. ✅ **Falsificado**: plantando um `NomeBonito.ComApelido(...)` dentro de um `Where`, 3 dos 6 caem.
+>
+> 🎓 **E ele já ensinou uma coisa que eu tinha escrito errado**: método nosso na projeção **final** o EF **aceita** (avalia no cliente) — não estoura, ao contrário do que um comentário meu afirmava. O comentário foi corrigido. O código continua materializando antes de formatar o nome, agora pela razão verdadeira: essa licença vale só enquanto o `Select` for o último passo, e basta alguém pendurar um `Where` depois dele pra virar erro de verdade.
+>
+> ⚠️ **NADA CONFERIDO NO NAVEGADOR** em nenhuma das quatro fases (sem Postgres no ambiente) e **a migration da fase 2 ainda não rodou em banco nenhum**. O que existe é: Razor compilado no build, a orientação do JS conferida no Node, a tradução das consultas conferida contra o Npgsql, e a suíte.
+>
+> Antes, no mesmo dia: 🎫 **AS FICHAS DE PLACAR ENTRARAM NO PALPITRÔMETRO — E ELE PASSOU A DIZER O QUE A GALERA CRAVA** (fase 3 de 4).
+>
+> 👆 **O SEGUNDO TOQUE É OPCIONAL, E ISSO É O DESENHO INTEIRO.** Palpitar continua sendo **um toque no nome**; quem quiser dá o segundo e escolhe o placar. Exigir placar pra votar derrubaria a participação — e é a participação que faz a barra do palpitrômetro valer alguma coisa. ⚠️ **As fichas só aparecem DEPOIS do voto**: "6x4" não quer dizer nada antes de se saber de **quem** são os 6.
+>
+> 🔄 **A MESMA FICHA VALE PROS DOIS LADOS, e é o JS que dá dono ao número.** A ficha mostra `vencedor × perdedor`, sem lado; quem votou na Dupla 2 manda o mesmo `6x4` **espelhado** (`placar1=4&placar2=6`), porque o servidor recebe sempre na orientação do JOGO — a mesma das colunas da partida. Duas listas de fichas (uma por lado) seriam o dobro de tela pra dizer a mesma coisa.
+>
+> 👥 **"A GALERA CRAVA 6x4 (3 de 4)"** — a leitura do placar aparece **antes** do jogo, e a **contagem anda junto de propósito**: "a galera crava 6x4" com 3 de 12 promete um consenso que não existe. ⚠️ E o denominador é **quem palpitou placar**, não quem votou: contar gente que não opinou sobre placar faria a frase parecer menos consenso do que é.
+>
+> 🎯 **"CRAVOU O PLACAR: FULANO"** depois que o jogo acaba. ⚠️ **Quem decide "cravou" é o MESMO `PontosDoPalpite` do ranking** — uma segunda definição na tela produziria o pior dos mundos: o cartão anunciando a cravada e o ranking não pagando os 3 pontos.
+>
+> 🧮 **As fichas saem do formato da FASE, jogo a jogo** — grupos até 6 e final até 9 no mesmo torneio dão fichas diferentes, e há teste pra isso: uma lista só por torneio ofereceria `7x5` numa final que vai até 9.
+>
+> ⚡ **Os nomes de quem cravou saem numa consulta só, e só quando alguém cravou** — a lista de jogos chega a 40 partidas numa tela, e trazer o nome de todo mundo que palpitou junto com os votos carregaria centenas de nomes pra usar nenhum.
+>
+> 🧪 **4.410 testes, 0 falhas (5 novos nesta fase).** ✅ **E o JavaScript foi conferido de verdade**, contra um DOM falso no Node (`scratchpad/conferir-js.js`, fora do repositório): 10 conferências, incluindo a que importa — **a mesma ficha 6x4 sai `6,4` pra quem votou na Dupla 1 e `4,6` pra quem votou na Dupla 2**, o destaque da ficha sobrevive ao espelho, e o palpitrômetro **em linha** (que não tem fichas) continua vivo. ✅ **Falsificado**: tirando o espelho, a conferência da Dupla 2 cai sozinha. 📌 De quebra, o espelho errado **não corromperia dado**: o servidor recusa placar que aponta a outra dupla — as duas camadas dizem a mesma coisa.
+>
+> ⚠️ **A TELA AINDA NÃO FOI ABERTA NUM NAVEGADOR** (sem Postgres no ambiente) e **a migration da fase 2 não rodou em banco nenhum**. O que existe é: Razor compilado no build, a lógica de orientação conferida no Node, e a suíte.
+>
+> ⏭️ **Falta a fase 4**: o selo no perfil e a aba no hub do Ranking, que este documento promete desde 12/08 e que não existem no código.
+>
+> Antes, no mesmo dia: 🎯 **O PALPITE PASSOU A ACEITAR PLACAR — E QUEM DECIDE QUAIS PLACARES EXISTEM É O FORMATO DO JOGO** (fase 2 de 4).
+>
+> 🎫 **PALPITAR PLACAR É ESCOLHER, NÃO DIGITAR** (`Services/PlacaresPossiveis`). Dois campos numéricos no celular são dois toques, um teclado por cima da tela e a porta aberta pro "6 x 9" — placar que nenhum jogo termina. A lista de finais possíveis sai do formato da fase: até 6 dá `6x0 · 6x1 · 6x2 · 6x3 · 6x4 · 6x5 · 7x5`, até 9 vai de `9x0` a `9x8` **sem estender** (limite ímpar já embute o tie-break), e a **soma** de 8 dá `8x0 · 7x1 · 6x2 · 5x3` — **sem 4x4**, porque o sistema recusa finalizar partida empatada e palpitar empate seria palpitar um final que ele não deixa gravar. ⚠️ **Quem manda no formato continua sendo `FormatoDaPartida`** — este arquivo pergunta, não sabe. Um teste confere que **todo placar oferecido é um placar que a partida aceita encerrar**: se a lista um dia oferecer algo que a Mesa recusaria, ele cai.
+>
+> 🎾 **JOGO DE 2+ SETS PALPITA SETS, NÃO GAMES** — e isso não é preferência: num jogo de mais de um set, `Partida.GamesDupla1` guarda os games do **set em andamento** (é assim que a Mesa marca), então perguntar games ali compararia o palpite do JOGO com o placar de um pedaço dele. Melhor de 3 dá duas fichas: `2x0` e `2x1`. ⚠️ **E em sets NÃO existe "chegou perto"**: com folga de 1, errar seria matematicamente impossível (todo mundo levaria 2 ou 3) e a faixa de baixo sumiria do formato inteiro. Em sets, ou se crava, ou vale o ponto do vencedor.
+>
+> 🔒 **O PLACAR E O VOTO NUNCA SE CONTRADIZEM.** Votar "a Dupla 1 vence" e escrever "4 x 6" são duas respostas contrárias, e escolher uma pela pessoa seria o sistema decidindo o que ela quis dizer — o serviço recusa. **E trocar de opinião sem dizer o placar APAGA o placar velho**: sem isso a linha ficaria com "vence a Dupla 2" e um "6 x 2" que aponta a Dupla 1, e o ranking leria isso como palpite de placar, contando contra a própria pessoa um placar que ela abandonou.
+>
+> 🛡️ **Toda a validação está no SERVIÇO, nunca na tela** — a tela oferece fichas, mas um POST montado à mão não passa por view nenhuma. Recusa placar impossível, placar da outra dupla, **meio placar** (completar com zero inventaria um palpite que ninguém deu) e jogo que já começou.
+>
+> 💾 **MIGRATION `PalpiteComPlacar`: 4 colunas ANULÁVEIS e SEM `defaultValue`** (`GamesDupla1/2`, `SetsDupla1/2` em `PalpitePartida`, com os mesmos nomes e a mesma orientação das colunas da `Partida`). ⚠️ **Zero herdado seria o desastre calado desta feature**: transformaria todo palpite gravado antes de hoje num chute de **0x0**, e o ranking passaria a contar um placar que ninguém escreveu. **Nulo quer dizer "não palpitou o placar"** — e continua valendo 1 ponto, como sempre.
+>
+> 🔎 **A conferência lê a moeda do PALPITE, não a do formato de hoje**: quem palpitou em games é conferido contra games; quem palpitou em sets, contra sets. Parece igual e não é — o organizador pode editar o formato do torneio **depois** do palpite, e perguntar ao formato compararia o que a pessoa disse com um placar que ela não tinha como estar respondendo.
+>
+> 🧪 **4.405 testes, 0 falhas (17 novos).** ✅ **Falsificação em três pontos**: tirar o desempate 7x5 da lista derruba 2 testes; tirar a amarra placar↔voto derruba 1; ligar a folga de um game também em sets derruba 1. ⚠️ **Nada conferido no navegador** (sem Postgres no ambiente) e **a migration não foi aplicada em banco nenhum** — ela é `AddColumn` puro de 4 colunas anuláveis, mas ainda não rodou.
+>
+> ⏭️ **Falta a fase 3 (a TELA)** — as fichas de placar no palpitrômetro, o "a galera crava 6x4" antes do jogo e o "Fulano cravou o placar" depois; hoje o placar só entra por quem chamar o endpoint. **E a fase 4**: o selo no perfil e a aba no hub do Ranking, que este documento promete desde 12/08 e que também não existem no código.
+>
+> Antes, no mesmo dia: 🔮 **OS PALPITEIROS EXISTEM DE VERDADE: O BOTÃO QUE NÃO LEVAVA A LUGAR NENHUM VIROU PÁGINA** (fase 1 de 4 do palpite com placar).
+>
+> 🗣️ **O pedido do Felipe**: *"vamos ver para que o palpitômetro permita colocar placar, não apenas quem vence, para que pontue quem acertar mais o placar, o número de games de cada um"*. O plano saiu em 4 fases e esta é a primeira.
+>
+> 🕳️ **O ACHADO QUE MUDOU O PLANO — e ele é um bug em produção, não um detalhe de plano.** Este STATUS já dava o ranking de palpiteiros como pronto desde **12/08** (`Services/PontosDoPalpite`, aba `/Torneios/Palpiteiros`, selo no perfil, aba no hub). **Nada disso está no repositório**: não existe o serviço, não existe a action, não existe a view. O que sobrou da sessão paralela foram dois órfãos — `TorneiosController.cs:371` calculando `ViewBag.TemRankingDePalpiteiros` e `Details.cshtml:482` desenhando o botão **"Palpiteiros"**. Ou seja: **em todo torneio com um jogo terminado e um palpite, o botão aparecia na página e não levava a lugar nenhum**. Não dava pra "somar placar ao ranking" — o ranking precisava nascer junto.
+>
+> 📊 **A RÉGUA NOVA É 3 · 2 · 1 · 0** (decisão do Felipe): **cravou o placar 3**, **chegou perto 2**, **acertou só quem venceu 1**, **errou o vencedor 0**. Ordena por **PONTOS**, e o aproveitamento **só desempata** — o caso que define isso é **quem acerta 9 de 11 fica na frente de quem acerta 8 de 8**, e há um teste com exatamente esse par: se ele inverter, a régua mudou. ⚠️ **Não há piso mínimo de palpites, e não precisa haver** — quem acertou 1 de 1 tem 1 ponto e cai pro fim da lista sozinho. Era a MÉDIA que exigia piso. **Se um dia alguém trocar isto por uma média, o piso volta junto.**
+>
+> 📏 **A FAIXA DO MEIO É POR LADO DO PLACAR, NÃO PELA SOMA DAS DIFERENÇAS**, e isso não é preciosismo: no formato de **SOMA** (joga-se N games e acabou) um game que muda de lado mexe nos **dois** números ao mesmo tempo — quem palpita 5x3 num jogo que termina 6x2 erra por 1 de cada lado, e uma régua pela soma diria "errou por 2" e **mataria a faixa do meio inteira naquele formato, caladinha**. Um teste segura os dois casos.
+>
+> 🚫 **W.O. não tem placar pra cravar.** O jogo encerrado por não comparecimento é gravado com o placar convencional da fase (um 6x0 que ninguém jogou): quem acertou o vencedor leva o ponto, e a "cravada" seria sorteada entre quem chutou o placar mais comum. Mesma régua de sempre — `MotivoDoEncerramento` é a única coisa que separa esse 6x0 de um jogado.
+>
+> 🚫 **Quem está EM QUADRA não pontua no próprio jogo** — os quatro são os únicos que podem MUDAR o resultado do próprio palpite. Continuam votando (e o voto conta na barra, que é opinião pública); só não conta no ranking, nem no acerto nem no total. ⚠️ **Em categoria de TIMES não exclui ninguém**: ali o `Jogador1` é o organizador que cadastrou, não quem entra em quadra.
+>
+> 💾 **ZERO coluna nova, ZERO migration, ZERO ponto gravado.** O acerto sempre esteve gravado (`PalpitePartida.DuplaEscolhidaId` contra `Partida.VencedorId`), então o ranking **nasce com o histórico inteiro** — e, por ser refeito a cada visita, **placar corrigido pelo organizador acerta o ranking sozinho**. Ponto gravado ficaria congelado no placar errado e ninguém descobriria.
+>
+> 🙈 **A TELA NÃO FALA EM PLACAR ENQUANTO NINGUÉM PUDER PALPITAR PLACAR** (`PalpitesComPlacar`): a coluna "Cravadas" e a régua de 3/2 só aparecem em torneio que **tem** palpite com placar. A pergunta é feita **ao dado**, nunca a um interruptor — torneio jogado antes disso existir teria uma régua explicando um jeito de pontuar que ninguém dali teve como usar. Mesma lição do "a janela é lida do relógio" do MVP.
+>
+> 🧪 **4.388 testes, 0 falhas (19 novos).** ✅ **Falsificação em dois pontos**: trocando a folga "por lado" pela "soma", cai o teste do 7x5; trocando a ordenação de pontos-primeiro por aproveitamento-primeiro, cai o teste do 9/11 × 8/8 — **um teste para cada régua, e nenhum outro**. ⚠️ **A tela NÃO foi conferida no navegador** (não há Postgres neste ambiente); o que existe é a compilação do Razor no build, que pega erro de sintaxe e de propriedade — foi conferido que ela pega mesmo, plantando um `@Model.NaoExisteEssaPropriedade` de propósito.
+>
+> ⏭️ **Faltam as fases 2, 3 e 4**: as colunas de placar no palpite + a validação pelo formato (⚠️ **nuláveis, SEM `defaultValue` zero** — zero nas linhas antigas viraria "palpitou 0x0", placar que não existe), os chips de placar na tela do palpitrômetro, e o selo no perfil + a aba no hub do Ranking que este STATUS também promete desde 12/08 e que **também não existem no código**.
+>
+> Antes, em **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
+>
 > 📊 **O PEDIDO DO FELIPE**: duas colunas novas na tela de Métricas, "acessos hoje" e "máximo de acessos simultâneos". ⚠️ **Não era só tela**: até aqui o Padelizou não guardava rastro NENHUM de visita — nem um "último acesso" no `Jogador`, nem log de requisição. As duas perguntas exigiram construir o alicerce primeiro.
 >
 > 🕳️ **"MÁXIMO DE ACESSOS SIMULTÂNEOS" NÃO É O QUE O NOME PARECE DIZER, e isso foi decisão consciente, não limitação escondida.** O site não tem conexão persistente (sem WebSocket, sem SignalR) — não existe como saber quantas ABAS estão abertas agora. O que dá pra medir é DENSIDADE: quantos acessos caíram dentro do mesmo MINUTO-RELÓGIO, no pior caso do dia. Por isso o card na tela chama "pico de acessos no minuto", não "simultâneos" — chamar de "simultâneos" leria como contador de presença, que não é o que isto mede, e o `title` do card explica isso pra quem passar o mouse.

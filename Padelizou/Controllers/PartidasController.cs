@@ -60,14 +60,18 @@ namespace Padelizou.Controllers
         }
 
         // POST: Partidas/Votar — palpitrômetro (voto do jogador logado em quem vai ganhar a partida)
+        //
+        // `placar1`/`placar2` são OPCIONAIS e vêm na orientação do jogo (lado 1 = Dupla1): sem
+        // eles é o palpite de sempre, só de vencedor. Quem confere se aquele placar fecha um
+        // jogo daquele formato — e se ele aponta a mesma dupla do voto — é o serviço.
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Votar(int partidaId, int duplaId)
+        public async Task<IActionResult> Votar(int partidaId, int duplaId, int? placar1 = null, int? placar2 = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             try
             {
-                var resumo = await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId);
+                var resumo = await _palpites.RegistrarVotoAsync(partidaId, jogadorId, duplaId, placar1, placar2);
                 return Json(new
                 {
                     sucesso = true,
@@ -76,7 +80,16 @@ namespace Padelizou.Controllers
                     totalVotos = resumo.TotalVotos,
                     percentualDupla1 = resumo.PercentualDupla1,
                     percentualDupla2 = resumo.PercentualDupla2,
-                    meuVotoDuplaId = resumo.MeuVotoDuplaId
+                    meuVotoDuplaId = resumo.MeuVotoDuplaId,
+                    meuPlacarLado1 = resumo.MeuPlacarLado1,
+                    meuPlacarLado2 = resumo.MeuPlacarLado2,
+                    placarEmSets = resumo.PlacarEmSets,
+                    // A leitura da galera muda com o meu palpite — se não voltasse aqui, a
+                    // frase "a galera crava 6x4" ficaria congelada na página até o F5.
+                    placarMaisPalpitadoLado1 = resumo.PlacarMaisPalpitadoLado1,
+                    placarMaisPalpitadoLado2 = resumo.PlacarMaisPalpitadoLado2,
+                    placarMaisPalpitadoVotos = resumo.PlacarMaisPalpitadoVotos,
+                    palpitesComPlacar = resumo.PalpitesComPlacar
                 });
             }
             catch (InvalidOperationException ex)

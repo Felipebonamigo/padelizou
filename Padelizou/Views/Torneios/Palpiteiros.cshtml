@@ -1,0 +1,99 @@
+@model PalpiteirosDoTorneio
+@{
+    ViewData["Title"] = $"Palpiteiros — {Model.Torneio} - Padelizou";
+
+    var podio = Model.Linhas.Where(l => l.Posicao <= 3).ToList();
+    var lider = Model.Linhas.FirstOrDefault();
+
+    // A tela só fala em PLACAR quando alguém deste torneio palpitou placar. Num torneio em que
+    // ninguém teve essa opção, "cravar o placar vale 3" ensina um jeito de pontuar que não
+    // existia ali — e a coluna de cravadas seria uma fileira de zeros.
+    bool comPlacar = Model.PalpitesComPlacar > 0;
+}
+
+<div class="container mt-4 mb-5" style="max-width: 720px;">
+
+    <a asp-action="Details" asp-route-id="@Model.TorneioId"
+       class="btn btn-sm btn-link text-decoration-none mb-2 px-0">
+        <i class="bi bi-arrow-left"></i> Voltar ao torneio
+    </a>
+
+    <h2 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+        <i class="bi bi-graph-up text-success"></i> Palpiteiros
+    </h2>
+    <p class="text-muted">
+        @Model.Torneio ·
+        @Model.JogosApurados @(Model.JogosApurados == 1 ? "jogo apurado" : "jogos apurados")
+    </p>
+
+    @* ── O PÓDIO ────────────────────────────────────────────────────────────────────────
+       Só quando há gente com ponto: um pódio de zeros anuncia campeão de nada. *@
+    @if (lider != null && lider.Pontos > 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4" style="background: var(--pdz-navy-fixed);">
+            <div class="card-body text-center py-4 text-white">
+                <div class="small text-uppercase mb-3" style="letter-spacing:.12em; color: var(--padel-green);">
+                    Quem mais acertou
+                </div>
+
+                <div class="d-flex justify-content-center align-items-end gap-3 flex-wrap">
+                    @foreach (var p in podio)
+                    {
+                        bool primeiro = p.Posicao == 1;
+                        int tamanho = primeiro ? 88 : 64;
+                        <div style="width: @(tamanho + 56)px; max-width: 30vw;">
+                            <img src="@(string.IsNullOrEmpty(p.Foto) ? "/img/default-avatar.png" : p.Foto)"
+                                 alt="" class="rounded-circle mb-2"
+                                 style="width:@(tamanho)px;height:@(tamanho)px;object-fit:cover;border:3px solid @(primeiro ? "var(--padel-green)" : "rgba(255,255,255,.35)");" />
+                            <div class="small fw-bold text-truncate" title="@p.Nome">@p.Nome</div>
+                            <div class="small" style="color: var(--padel-green);">
+                                @p.Pontos @(p.Pontos == 1 ? "ponto" : "pontos")
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ── A RÉGUA, ANTES DA TABELA ───────────────────────────────────────────────────────
+       ⚠️ Ela vem PRIMEIRO de propósito. Sem ela, quem vê um 100% de aproveitamento ABAIXO
+       de um 75% conclui que a conta quebrou — e conta que parece quebrada é conta em que
+       ninguém confia, por mais certa que esteja. *@
+    <div class="alert alert-light border rounded-4 small">
+        <strong>Como conta:</strong>
+        @if (comPlacar)
+        {
+            <text>
+                cravar o placar vale <strong>@PontosDoPalpite.Cravou</strong>,
+                chegar perto (errar por um game) vale <strong>@PontosDoPalpite.ChegouPerto</strong>,
+                acertar só quem venceu vale <strong>@PontosDoPalpite.SoOVencedor</strong>,
+                e errar o vencedor vale <strong>0</strong>.
+            </text>
+        }
+        else
+        {
+            <text>
+                cada jogo em que você acertou quem venceu vale
+                <strong>@PontosDoPalpite.SoOVencedor</strong> ponto; errar vale <strong>0</strong>.
+            </text>
+        }
+        <div class="text-muted mt-1">
+            Ganha quem soma <strong>mais pontos</strong> — quem acerta 9 de 11 fica na frente de
+            quem acerta 8 de 8. O aproveitamento só desempata. Quem está em quadra não pontua no
+            próprio jogo.
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body">
+            <partial name="_TabelaDePalpiteiros"
+                     model='@(new TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar))' />
+        </div>
+    </div>
+
+    <p class="text-muted small mt-3 mb-0">
+        A conta é refeita a cada visita, direto dos palpites e dos placares — placar corrigido
+        pelo organizador acerta o ranking sozinho.
+    </p>
+</div>
