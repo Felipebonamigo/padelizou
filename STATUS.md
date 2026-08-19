@@ -365,6 +365,26 @@
 >
 > 🔁 **O que interessa aqui não é a armadilha, é ter caído nela**: isso está documentado desde 13/08 (`build-541`, mesma pegadinha com "ainda não chegou"), com a regra pronta — **escolher sempre um trecho só-ASCII, e nunca concluir "não subiu" a partir de um zero sem tentar outro pedaço**. A conferência funcionou porque eu duvidei do zero, não porque lembrei da regra. Sinal de que "verificar em vez de deduzir" segura melhor do que decorar caso a caso.
 >
+> Antes, em 18/08: 🎭 **TODO ERRO DE POST CHEGAVA COMO 400 PRA QUEM CHAMA DE FORA** — inclusive o do meio de pagamento, que recebia "requisição malformada" quando a resposta de verdade era "token recusado".
+>
+> 🎭 **O QUE ESTAVA ERRADO.** Em produção, `GET /rota-que-nao-existe` respondia 404 e o **POST da mesma rota** respondia 400. `POST /Pagamentos/Webhook` sem token respondia 400 tendo o controller devolvido `Unauthorized()` — o log dizia "Webhook do Asaas recusado" e o gateway lia "bad request". ⚠️ **O diagnóstico começaria no lugar errado**: quem recebe 400 vai conferir o formato do que mandou, não a credencial.
+>
+> 🔎 **A CAUSA NÃO ESTÁ EM CONTROLLER NENHUM, e por isso não aparecia lendo o código de quem responde.** As telas de erro não são redirecionamento, são **REEXECUÇÃO** do pipeline — e a reexecução **preserva o método**. Um POST que dá 404 vira um POST `/Home/NaoEncontrado`, que o carimbo antifalsificação global recusa com 400; é o 400 do filtro que substitui o status na resposta. Provado num app de laboratório com as MESMAS três linhas do `Program.cs`, antes de tocar no código real.
+>
+> ⚠️ **E o defeito tinha DUAS cópias, como sempre.** O mesmo mecanismo vale pro `UseExceptionHandler`: um POST que **estoura** reexecutava `POST /Home/Error`, também recusado, e chegava **400 no lugar de 500**. Ou seja: **nenhum erro de POST aparecia como 5xx** pra quem chama de fora. Consertar só a página do 404 deixaria de pé justamente a metade pior — a que esconde queda do sistema.
+>
+> ⚠️ **A MEDIÇÃO QUE MUDOU A DECISÃO, e é o que vale guardar.** Havia dois caminhos: (1) não reexecutar quando o método não é GET, devolvendo o status cru; (2) isentar as duas telas de erro do carimbo. Antes de escolher, medi **quem hoje recebe o quê**: um POST **com** carimbo — todo formulário do site e todo `fetch()` — já passava pelo filtro e **já recebia a página amiga com o status certo**, 404 e 500 inclusive. O caminho (1) teria **tirado a página amiga de quem hoje a vê** (inclusive de quem submete um formulário que estoura, que é o pior momento pra cair numa tela em branco do navegador) pra consertar quem nunca a recebeu. Sem essa medição, a escolha "mais limpa" era a que quebrava o caso que funcionava.
+>
+> ✅ **A SAÍDA**: `[IgnoreAntiforgeryToken]` nas duas telas de erro — que **não gravam nada**, só desenham. As isenções ao carimbo passaram de 1 pra 3, e isso é decisão de segurança, então cada uma está escrita com a razão na lista de `ProtecaoAntifalsificacaoTests`. **A proteção global segue de pé**: `POST /Home/Index` sem carimbo continua 400, conferido no app.
+>
+> 🧪 **4.195 testes, 0 falhas (4 novos).** ✅ Falsificação: tirando a isenção **só** da `/Home/Error` — o conserto pela metade — dois testes reprovam. O teste da regra **lê o `Program.cs`** e cobra a isenção de toda tela que o pipeline reexecuta, então uma **terceira** tela de erro criada amanhã já nasce vigiada; ele trava o número em 2 pra não ficar verde vigiando nada se alguém renomear a chamada. E o teste do mecanismo não é vazio: com status 200 na primeira passada ele acusa "(nao reexecutou)".
+>
+> ✅ **Conferido no app de verdade, A/B com o mesmo binário**: sem a isenção, `POST /rota-que-nao-existe` = **400** e webhook = **400** (produção reproduzida em casa); com a isenção, **405** e **401**.
+>
+> 💡 **E apareceu um detalhe que ninguém sabia**: o POST em rota inexistente não é 404, é **405** (`Allow: GET, HEAD`) — o que casa com aquele caminho é um endpoint só-GET. O 404 do GET e o 405 do POST sempre foram status diferentes; o 400 escondia os dois.
+>
+> ⏭️ **Fica de fora, de propósito**: `/Home/NaoEncontrado?codigo=99999` faz o site responder o status que a URL mandar (respondeu 999 no laboratório). É anterior a isto, alcançável por GET, não grava nada — mas é um `Response.StatusCode` que vem da barra de endereço sem régua nenhuma.
+>
 > Antes, no mesmo dia: 🚷 **W.O.: O JOGO QUE ACABOU SEM SER JOGADO agora existe** — e com ele saiu do Padelímetro um resultado que nunca deveria ter entrado.
 >
 > 🚷 **O PEDIDO DO FELIPE**: *"temos a opção de vencer por W.O.? quando o atleta não comparece ao jogo?"* Não tínhamos. Quem ficava sem adversário em quadra digitava 6x0 e seguia, porque `QuemVenceu.MotivoParaNaoFinalizar` exige games pra deixar encerrar. Funcionava pro chaveamento e mentia pro resto.

@@ -494,6 +494,18 @@ namespace Padelizou.Controllers
             return View();
         }
 
+        // ⚠️ Isenta do carimbo antifalsificação, e o motivo é o MECANISMO das telas de erro.
+        //
+        // O UseExceptionHandler não redireciona: ele REEXECUTA o pipeline neste caminho mantendo
+        // o método da requisição original. Um POST que estoura vira um POST /Home/Error, o
+        // carimbo global recusa esse POST com 400 — e é o 400 que chega a quem chamou, no lugar
+        // do 500. Ou seja: sem esta isenção, erro de POST não aparece como 5xx pra ninguém de
+        // fora, e o diagnóstico começa no lugar errado.
+        //
+        // Isentar não abre nada: a ação não grava, não devolve dado de ninguém e só desenha uma
+        // tela. A razão está escrita na lista de ProtecaoAntifalsificacaoTests, que é o lugar
+        // onde toda exceção ao carimbo tem que ser justificada.
+        [IgnoreAntiforgeryToken]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
@@ -503,6 +515,13 @@ namespace Padelizou.Controllers
         // Endereço que não existe (404) e afins. Sem isto, o navegador mostrava a própria tela de
         // erro — sem menu, sem identidade e sem caminho de volta, então a pessoa saía do site.
         // O código chega pela URL porque quem chama é o UseStatusCodePagesWithReExecute.
+        //
+        // ⚠️ Isenta do carimbo pelo mesmo motivo do Error aí em cima — o re-execute preserva o
+        // método, então um POST 404 (ou 401) reexecuta um POST aqui. Comprovado em produção
+        // (build-576-c8edf5e): `POST /rota-que-nao-existe` chegava 400 enquanto o GET da mesma
+        // rota chegava 404, e o webhook do meio de pagamento sem token chegava 400 tendo o
+        // controller devolvido 401.
+        [IgnoreAntiforgeryToken]
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult NaoEncontrado(int codigo = 404)
         {
