@@ -1,7 +1,23 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🤝 **ACEITAR QUEM CHAMOU NO MURAL DEIXOU DE SER UM BECO SEM SAÍDA** — quem estava inscrito sozinho não conseguia fechar dupla com ninguém.
+> Última atualização: **19/08/2026** — 💰 **QUEM JÁ PAGOU CONTINUA PAGO QUANDO DUAS INSCRIÇÕES VIRAM UMA.**
+>
+> 🗣️ **Decisão do Felipe**, respondendo ao alerta que ficou aberto no bloco de baixo: *"se ele já pagou, tem q se manter como pago"*.
+>
+> 🕳️ **O defeito**: juntar apaga a inscrição sozinha — e apagava junto o `Pago` dela. Quem tinha pagado a PRÓPRIA inscrição virava DEVEDOR ao fechar dupla: entrava na lista de inadimplentes do organizador, levava lembrete de pagamento e seria cobrado de novo na quadra por um dinheiro que já estava na conta. O erro do outro lado (deixar de cobrar quem não pagou) custa uma conversa; este custa a confiança de quem pagou certo.
+>
+> ✅ **A inscrição que fica herda o pagamento da que sai** — em TODAS as portas que juntam: aceite do mural, convite por link, troca de parceiro e inscrição nova. A regra mora em `Services/JuntarInscricoes` justamente porque são quatro caminhos pra mesma coisa. ⚠️ **Nunca REBAIXA**: inscrição já paga não volta a dever porque a outra não estava. E **não inventa data**: o `PagoEm` que vale é o do dinheiro que entrou (o mais antigo entre as pagas), não o do momento em que se juntou.
+>
+> 🧾 **AS COBRANÇAS DE "PAGAR DEPOIS" PASSAM A APONTAR PRA INSCRIÇÃO QUE FICOU.** Sem isso, o pagamento que confirmasse DEPOIS do aceite procuraria uma linha apagada — dinheiro na conta e ninguém marcado como pago (o serviço só registra no log). ⚠️ **O tipo `TorneioDupla` fica de fora DE PROPÓSITO**: lá o estorno APAGA a inscrição apontada, e repontá-lo faria o estorno pedido por um derrubar do torneio a dupla inteira, inclusive quem não pediu nada e pode ter pago. Esses seguem como hoje: devolução à mão, registrada no log (ver ESTORNO.md).
+>
+> 🚫 **E o "pagar agora" da inscrição nova não abre checkout quando ela nasceu paga por herança** — seria cobrar de novo o que já entrou, e o botão da tela não sabia disso.
+>
+> ⚠️ **O `Pago` é da INSCRIÇÃO, não de cada pessoa** — o banco não guarda "quem dos dois pagou". Quando só UMA das duas estava paga, a que fica nasce paga e o que faltar é acerto com o organizador; a mensagem de sucesso diz isso a quem junta, em vez de deixar a conta desaparecer calada.
+>
+> 🧪 **4.390 testes, 0 falhas (11 novos).** ✅ Falsificação: tirando a herança do pagamento, caem exatamente os 3 testes de comportamento (mural, troca de parceiro e inscrição nova) e os puros seguem verdes — que é o desenho certo, porque o que se removeu foram as CHAMADAS, não a regra.
+>
+> Antes, no mesmo dia: 🤝 **ACEITAR QUEM CHAMOU NO MURAL DEIXOU DE SER UM BECO SEM SAÍDA** — quem estava inscrito sozinho não conseguia fechar dupla com ninguém.
 >
 > 🗣️ **O relato do Gabriel**: ele tocava em **Aceitar** na tela "Quem quer jogar com você" e voltava sempre a mesma faixa vermelha — *"Everson Rocha dos Santos já está inscrito nesta categoria, sozinho, procurando parceiro. Quer juntar? ... Marque 'juntar com a inscrição que já existe' e confirme de novo."* ⚠️ **Essa caixa não existe nessa tela** (nem na do convite por link): ela mora no formulário de inscrição do torneio. A instrução era impossível de cumprir onde a pessoa estava.
 >

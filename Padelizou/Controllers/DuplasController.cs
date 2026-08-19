@@ -510,10 +510,26 @@ namespace Padelizou.Controllers
             if (idsQueSaem.Count > 0)
             {
                 var solosParaSair = await _context.Duplas.Where(d => idsQueSaem.Contains(d.Id)).ToListAsync();
+
+                // ⚠️ QUEM JÁ PAGOU CONTINUA PAGO (Felipe, 19/08/2026): a inscrição nova nasce
+                // paga quando a sozinha que ela substitui estava paga. Sem isto, quem pagou
+                // sozinho e depois foi inscrito em dupla virava devedor de um dinheiro que já
+                // estava na conta. Regra em Services/JuntarInscricoes.
+                JuntarInscricoes.LevarOPagamento(dupla, solosParaSair);
+
                 _context.Duplas.RemoveRange(solosParaSair);
             }
 
             await _context.SaveChangesAsync(); // Inscrição finalizada!
+
+            // As cobranças de "pagar depois" só podem ser repontadas AQUI: antes do
+            // SaveChanges esta inscrição ainda não tem Id pra elas apontarem.
+            if (idsQueSaem.Count > 0)
+            {
+                await JuntarInscricoes.ReapontarCobrancasDoPagarDepoisAsync(
+                    _context, torneioId, idsQueSaem, dupla.Id);
+                await _context.SaveChangesAsync();
+            }
 
             var inscritos = jogador2 == null
                 ? new[] { jogador1.Id }
@@ -547,7 +563,11 @@ namespace Padelizou.Controllers
             // ⚠️ Lista de espera não gera cobrança: a vaga ainda não é dela, e cobrar por uma
             // vaga que talvez não exista é o pior desfecho possível — daria trabalho de estorno
             // pro organizador e sensação de golpe pro jogador.
-            if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar) && !emListaDeEspera)
+            // ⚠️ `!dupla.Pago`: quando esta inscrição JUNTOU uma sozinha que já estava paga,
+            // ela nasce paga — abrir checkout aqui seria cobrar de novo o dinheiro que já
+            // entrou, e o botão "pagar agora" da tela não sabe disso.
+            if (QuandoPagarInscricao.VaiPagarAgora(torneio, podeCobrar, quandoPagar)
+                && !emListaDeEspera && !dupla.Pago)
             {
                 var checkoutAgora = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
                     torneio, recebedor!, jogador1, inscricaoDeDupla: true,
@@ -566,6 +586,7 @@ namespace Padelizou.Controllers
 
             var juntadas = juntaveis.Count > 0
                 ? $" {(juntaveis.Count > 1 ? "As inscrições sozinhas saíram" : "A inscrição sozinha saiu")} — agora é uma só."
+                  + (dupla.Pago ? " Ela já estava paga, e esta inscrição continua como paga." : "")
                 : "";
 
             TempData["Sucesso"] = (emListaDeEspera
@@ -683,6 +704,7 @@ namespace Padelizou.Controllers
                 : new List<InscricaoRepetida.Achado>();
 
             var antigo = dupla.Jogador2;
+            var jaEstavaPaga = dupla.Pago;
 
             // ⚠️ A conta do parceiro é feita ANTES de gravá-lo na dupla. Depois, esta própria
             // inscrição já o coloca "no torneio", e ele ganharia o preço de segunda inscrição
@@ -712,14 +734,24 @@ namespace Padelizou.Controllers
             if (absorvidas.Count > 0)
             {
                 var ids = absorvidas.Select(a => a.DuplaId).Distinct().ToList();
-                _context.Duplas.RemoveRange(await _context.Duplas.Where(d => ids.Contains(d.Id)).ToListAsync());
+                var solosParaSair = await _context.Duplas.Where(d => ids.Contains(d.Id)).ToListAsync();
+
+                // Mesma régua do aceite: a linha sai, o pagamento fica (Felipe, 19/08/2026).
+                JuntarInscricoes.LevarOPagamento(dupla, solosParaSair);
+                await JuntarInscricoes.ReapontarCobrancasDoPagarDepoisAsync(
+                    _context, torneio.Id, ids, dupla.Id);
+
+                _context.Duplas.RemoveRange(solosParaSair);
             }
 
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, antigo, novo);
 
-            var juntou = absorvidas.Count > 0 ? " A inscrição sozinha dele saiu — agora é uma só." : "";
+            var juntou = absorvidas.Count > 0
+                ? " A inscrição sozinha dele saiu — agora é uma só."
+                  + (dupla.Pago && !jaEstavaPaga ? " Ela já estava paga, e a dupla continua como paga." : "")
+                : "";
             TempData["Sucesso"] = (antigo == null
                 ? $"Parceiro definido: {novo.Nome}. Sua dupla está completa!"
                 : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.") + juntou;
@@ -934,10 +966,11 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Convite), new { token });
             }
 
-            var juntou = await FecharDuplaComAsync(dupla, torneio!, eu);
+            var (juntou, pagamentoVeioJunto) = await FecharDuplaComAsync(dupla, torneio!, eu);
 
             TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}."
-                + (juntou > 0 ? " Sua inscrição sozinha nesta categoria saiu — agora é uma só." : "");
+                + (juntou > 0 ? " Sua inscrição sozinha nesta categoria saiu — agora é uma só." : "")
+                + (pagamentoVeioJunto ? " Ela já estava paga, e a dupla continua como paga." : "");
 
             // Quem chega por aqui veio de um link — muitas vezes o link que o parceiro mandou
             // pelo WhatsApp — e acabou de entrar num torneio. Mesmo motivo da inscrição: o
@@ -955,10 +988,13 @@ namespace Padelizou.Controllers
         // Duplicar isso é como um dos caminhos passaria a cobrar diferente do outro sem
         // ninguém perceber. As regras de QUEM pode entrar continuam no
         // MotivoParaNaoSerParceiroAsync; aqui é só o efeito.
-        // Devolve QUANTAS inscrições sozinhas do parceiro foram absorvidas (na prática 0 ou 1),
-        // pra quem chamou poder dizer isso na mensagem de sucesso.
-        private async Task<int> FecharDuplaComAsync(Dupla dupla, Torneio torneio, Jogador novoParceiro)
+        // Devolve QUANTAS inscrições sozinhas do parceiro foram absorvidas (na prática 0 ou 1)
+        // e se o "pago" delas veio junto — as duas coisas viram frase na mensagem de sucesso.
+        private async Task<(int Juntadas, bool PagamentoVeioJunto)> FecharDuplaComAsync(
+            Dupla dupla, Torneio torneio, Jogador novoParceiro)
         {
+            var jaEstavaPaga = dupla.Pago;
+
             // ── A INSCRIÇÃO SOZINHA DO PARCEIRO SAI JUNTO ────────────────────────────────
             //
             // ⚠️ ISTO É O CASO COMUM DO MURAL, não a exceção: os dois lados estão na lista
@@ -1046,6 +1082,17 @@ namespace Padelizou.Controllers
 
             if (chamadosPendentes.Count > 0) _context.ChamadosDoMural.RemoveRange(chamadosPendentes);
 
+            // ⚠️ QUEM JÁ PAGOU CONTINUA PAGO (Felipe, 19/08/2026). A linha some, o dinheiro
+            // não: sem isto, quem tinha pago a própria inscrição sozinha virava devedor ao
+            // fechar dupla — lembrete de pagamento e cobrança de novo na quadra por um
+            // dinheiro que já estava na conta. Regra em Services/JuntarInscricoes.
+            JuntarInscricoes.LevarOPagamento(dupla, absorvidas);
+
+            // E as cobranças de "pagar depois" apontam pra inscrição que ficou — senão o
+            // pagamento que confirmasse DEPOIS do aceite procuraria uma linha apagada.
+            await JuntarInscricoes.ReapontarCobrancasDoPagarDepoisAsync(
+                _context, torneio.Id, idsAbsorvidos, dupla.Id);
+
             // As inscrições sozinhas absorvidas saem no MESMO SaveChanges que fecha a dupla:
             // apagar antes deixaria a pessoa sem inscrição nenhuma se a gravação falhasse no
             // meio — a mesma ordem que a inscrição nova (Create) já usa.
@@ -1064,7 +1111,7 @@ namespace Padelizou.Controllers
                 await AvisarQueAVagaFoiPreenchidaAsync(torneio, dono ?? "A pessoa", candidatos);
             }
 
-            return absorvidas.Count;
+            return (absorvidas.Count, dupla.Pago && !jaEstavaPaga);
         }
 
         // ── O chamado do mural ("quero jogar com você") ────────────────────────────────
@@ -1259,10 +1306,11 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Chamados), new { duplaId });
             }
 
-            var juntou = await FecharDuplaComAsync(dupla!, torneio!, candidato);
+            var (juntou, pagamentoVeioJunto) = await FecharDuplaComAsync(dupla!, torneio!, candidato);
 
             TempData["Sucesso"] = $"Dupla fechada com {candidato.ComoChamar}!"
-                + (juntou > 0 ? " A inscrição sozinha dele(a) saiu — agora é uma só." : "");
+                + (juntou > 0 ? " A inscrição sozinha dele(a) saiu — agora é uma só." : "")
+                + (pagamentoVeioJunto ? " Ela já estava paga, e a dupla continua como paga." : "");
             return RedirectToAction("Details", "Torneios", new { id = torneio!.Id });
         }
 
