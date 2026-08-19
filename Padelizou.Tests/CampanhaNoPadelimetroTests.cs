@@ -501,6 +501,48 @@ public class CampanhaNoPadelimetroServiceTests
     }
 
     [Fact]
+    public async Task Corrigir_o_placar_da_final_leva_a_campanha_pro_campeao_certo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var cenario = MontarCategoriaJogada(ctx);
+
+        var org = new Jogador { Nome = "Organizador", Cpf = "99900000003" };
+        ctx.Jogadores.Add(org);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = cenario.Torneio.Id, JogadorId = org.Id });
+        ctx.SaveChanges();
+
+        var service = new PadelimetroService(ctx);
+        await service.AplicarAsync(cenario.Final.Id);
+        await service.AplicarCampanhaAsync(cenario.Categoria.Id);
+        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro)); // 600 +12 +10
+
+        // O placar da final estava AO CONTRÁRIO: quem venceu foi a dupla B, 6x4.
+        // A correção troca o vencedor, o encerramento re-coroa — e a campanha precisa
+        // migrar junto, senão o EX-campeão fica com o "+10" no extrato.
+        var controller = TestInfra.NovoPartidasController(ctx, org.Id);
+        await controller.ControlePlacar(cenario.Final.Id, "Finalizada", 4, 6, null, null);
+
+        // Os carimbos trocaram de dono...
+        Assert.Equal("Campeao", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla2Id).UltimaFase);
+        Assert.Equal("Final", ctx.Duplas.Single(d => d.Id == cenario.Final.Dupla1Id).UltimaFase);
+
+        // ...e a campanha foi desfeita (subtração de delta) e reaplicada com eles:
+        // A perde o bônus e fica só com o +12 do jogo invertido (que o extrato não
+        // reaplica — é a regra de sempre, o replay acerta); B ganha o bônus.
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(598, j.Padelimetro)); // 588 + 10
+        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(595, j.Padelimetro));
+        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(590, j.Padelimetro));
+
+        var linhasDeCampeao = ctx.HistoricosDePadelimetro
+            .Where(h => h.CategoriaId != null && h.Motivo.Contains("Campeão"))
+            .Select(h => h.JogadorId).ToList();
+        Assert.All(cenario.Vices, j => Assert.Contains(j.Id, linhasDeCampeao));
+        Assert.All(cenario.Campeoes, j => Assert.DoesNotContain(j.Id, linhasDeCampeao));
+    }
+
+    [Fact]
     public async Task Linha_de_campanha_nao_vira_jogo_no_movimento_da_aba()
     {
         using var ctx = TestInfra.NovoContexto();

@@ -365,27 +365,11 @@ namespace Padelizou.Controllers
             //    pros 4 da final o passo seguinte sobrescreve com o nível pré-jogo, que é o
             //    certo. Campanha não conta como jogo, então JogosDePadelimetro fica quieto.
             //
-            //    ⚠️ SUBTRAI O DELTA em vez de restaurar NivelAntes: quem levou a pena pode já
-            //    ter jogado OUTRA coisa depois da final (a mista da noite move o mesmo número),
-            //    e restaurar o nível absoluto apagaria esse ganho junto. O delta gravado é
-            //    pós-clamp, então a subtração desfaz exatamente o que foi aplicado.
+            //    A regra mora em PadelimetroService.DesfazerCampanhaAsync (subtração de delta,
+            //    pra não apagar o que veio depois) — a MESMA da correção de placar da final.
             if (partida.Fase == "Final")
             {
-                var campanha = await _context.HistoricosDePadelimetro
-                    .Where(h => h.CategoriaId == partida.CategoriaId).ToListAsync();
-                if (campanha.Count > 0)
-                {
-                    var jogadoresDaCampanha = await _context.Jogadores
-                        .Where(j => campanha.Select(h => h.JogadorId).Contains(j.Id))
-                        .ToDictionaryAsync(j => j.Id);
-
-                    foreach (var linha in campanha)
-                        if (jogadoresDaCampanha.TryGetValue(linha.JogadorId, out var jogador)
-                            && jogador.Padelimetro != null)
-                            jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
-
-                    _context.HistoricosDePadelimetro.RemoveRange(campanha);
-                }
+                await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
             }
 
             // 4. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
@@ -560,6 +544,17 @@ namespace Padelizou.Controllers
                 if (novoVencedor != null && novoVencedor != partida.VencedorId)
                 {
                     partida.VencedorId = novoVencedor;
+
+                    // Na FINAL, a campanha da categoria nasceu do campeão antigo: desanda
+                    // aqui (subtração de delta, uma regra só — PadelimetroService) pro
+                    // gancho do CoroarCampeao, que roda de novo no encerramento lá embaixo,
+                    // reaplicá-la com o carimbo certo. O SaveChanges deste método acontece
+                    // ANTES do encerramento, que é o que o guard de idempotência exige.
+                    // Sem isto, o EX-campeão ficava com o "+10 de campanha" no extrato.
+                    if (partida.Fase == "Final")
+                    {
+                        await PadelimetroService.DesfazerCampanhaAsync(_context, partida.CategoriaId);
+                    }
 
                     var perdedorId = novoVencedor == partida.Dupla1Id ? partida.Dupla2Id : partida.Dupla1Id;
                     if (!FasesTorneio.EhFaseDeGrupos(partida.Fase))

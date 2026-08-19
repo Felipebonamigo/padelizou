@@ -115,6 +115,30 @@ public class PadelimetroService : IPadelimetroService
             await _context.SaveChangesAsync();
     }
 
+    // DESFAZ o ajuste de campanha de uma categoria: subtrai o delta de cada linha e apaga
+    // as linhas — o extrato limpo deixa o gancho da final REAPLICAR com os carimbos novos.
+    // Subtração de delta, e não NivelAntes, pra não apagar o que o jogador ganhou DEPOIS
+    // da campanha (a mista da noite move o mesmo número). Dois chamadores, uma regra:
+    // ReabrirPartida (a final deixou de valer) e a correção de placar que troca o
+    // vencedor da final (ControlePlacar). NÃO salva — quem chama decide quando, e a
+    // reaplicação depende do RemoveRange estar SALVO antes do guard de idempotência.
+    public static async Task DesfazerCampanhaAsync(DbPadelContext context, int categoriaId)
+    {
+        var campanha = await context.HistoricosDePadelimetro
+            .Where(h => h.CategoriaId == categoriaId).ToListAsync();
+        if (campanha.Count == 0) return;
+
+        var jogadores = await context.Jogadores
+            .Where(j => campanha.Select(h => h.JogadorId).Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id);
+
+        foreach (var linha in campanha)
+            if (jogadores.TryGetValue(linha.JogadorId, out var jogador) && jogador.Padelimetro != null)
+                jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
+
+        context.HistoricosDePadelimetro.RemoveRange(campanha);
+    }
+
     // O núcleo do ajuste de campanha, compartilhado entre o gancho ao vivo e o replay.
     // Mexe nas entidades rastreadas e devolve quantas linhas de extrato criou — quem
     // chama decide quando salvar. A matemática e as portas da faixa moram em
