@@ -43,6 +43,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
     public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
+    public DbSet<CadastroDoAluno> CadastrosDeAlunos { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -1166,6 +1167,37 @@ public partial class DbPadelContext : DbContext
             // Um professor procura o preço pelos alunos dele o tempo todo (abrir o painel,
             // abrir a tela de marcar aula).
             entity.HasIndex(e => e.ProfessorId);
+        });
+
+        modelBuilder.Entity<CadastroDoAluno>(entity =>
+        {
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.Celular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelNome).HasMaxLength(120);
+            entity.Property(e => e.ResponsavelCelular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelCpf).HasMaxLength(11);
+            entity.Property(e => e.Observacao).HasMaxLength(500);
+
+            // Mesma régua de PrecoDeAluno, e pelos mesmos motivos: a ficha é do PROFESSOR e
+            // não sobrevive à conta dele; o aluno é Restrict porque são dois caminhos até
+            // Jogador, e apagar a conta do aluno não deve levar junto o que o professor
+            // anotou (inclusive quem paga por ele).
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor lê as fichas dele inteiras toda vez que abre o painel ou marca aula.
+            entity.HasIndex(e => e.ProfessorId);
+
+            // Achar a pessoa pelo número que o professor tem na mão — é o cadastro rápido.
+            entity.HasIndex(e => e.Celular);
         });
 
         modelBuilder.Entity<PacoteDeAulas>(entity =>

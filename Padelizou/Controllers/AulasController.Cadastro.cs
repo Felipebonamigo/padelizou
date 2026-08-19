@@ -378,11 +378,93 @@ namespace padelizou.Controllers
                 acordoDoNome.NomeAvulso = null;
             }
 
+            // O cadastro vai junto pelo mesmo motivo, e com mais razão: dentro dele está QUEM
+            // PAGA por esse aluno. Deixá-lo preso ao nome antigo faria a mãe sumir da cobrança
+            // no dia em que o filho criasse conta — e ninguém perceberia até o mês fechar.
+            var cadastros = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+            var cadastroDoNome = CadastrosDeAlunos.Achar(cadastros, null, nome);
+            var jaTinhaCadastroDaConta = CadastrosDeAlunos.Achar(cadastros, conta.Id, null) != null;
+
+            if (cadastroDoNome != null && !jaTinhaCadastroDaConta)
+            {
+                cadastroDoNome.AlunoId = conta.Id;
+                cadastroDoNome.NomeAvulso = null;
+            }
+
             await _context.SaveChangesAsync();
 
             TempData["SucessoPrecoAluno"] =
                 $"Pronto: {aulas.Count} aula(s) de \"{nome}\" agora estão na conta de {conta.ComoChamar}. "
                 + "Ele passa a ver o histórico no app dele.";
+            return RedirectToAction("Dashboard");
+        }
+
+        // ---- A ficha do aluno: celular e QUEM PAGA ----
+        // O responsável existe porque nem sempre o aluno é quem paga (criança, principalmente),
+        // e a cobrança do mês precisa sair no nome de quem paga. Ver Models/CadastroDoAluno.
+        [HttpPost]
+        public async Task<IActionResult> SalvarCadastroDoAluno(int? alunoId, string? nomeAvulso,
+            string? celular, string? responsavelNome, string? responsavelCelular, string? responsavelCpf,
+            string? observacao)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var nome = string.IsNullOrWhiteSpace(nomeAvulso) ? null : nomeAvulso.Trim();
+
+            // Mesma checagem do acordo de preço: tem que ser aluno DESTE professor. Sem ela um
+            // id no formulário criaria ficha (com CPF de terceiro dentro) de quem nunca pisou
+            // na quadra dele.
+            var ehMeuAluno = alunoId is int id
+                ? await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.AlunoId == id)
+                : nome != null
+                  && await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.NomeAlunoAvulso == nome);
+
+            if (!ehMeuAluno)
+            {
+                TempData["ErroPrecoAluno"] = "Não achei esse aluno na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var problema = CadastrosDeAlunos.ProblemaComOResponsavel(responsavelNome, responsavelCpf);
+            if (problema != null)
+            {
+                TempData["ErroPrecoAluno"] = problema;
+                return RedirectToAction("Dashboard");
+            }
+
+            var fichas = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+
+            var ficha = CadastrosDeAlunos.Achar(fichas, alunoId, nome);
+            if (ficha == null)
+            {
+                ficha = new CadastroDoAluno
+                {
+                    ProfessorId = professorId.Value,
+                    AlunoId = alunoId,
+                    NomeAvulso = alunoId == null ? nome : null,
+                };
+                _context.CadastrosDeAlunos.Add(ficha);
+            }
+
+            // Aqui o branco APAGA — ao contrário do cadastro rápido. É a tela da ficha: o
+            // professor está olhando os campos preenchidos e decidindo, então limpar o
+            // responsável é a única forma de dizer "voltou a pagar por conta própria".
+            ficha.Celular = CadastrosDeAlunos.CelularNormalizado(celular);
+            ficha.ResponsavelNome = string.IsNullOrWhiteSpace(responsavelNome) ? null : responsavelNome.Trim();
+            ficha.ResponsavelCelular = CadastrosDeAlunos.CelularNormalizado(responsavelCelular);
+            ficha.ResponsavelCpf = Documentos.SomenteDigitosOuNulo(responsavelCpf);
+            ficha.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoPrecoAluno"] = CadastrosDeAlunos.TemResponsavel(ficha)
+                ? $"Ficha salva. A cobrança deste aluno sai no nome de {ficha.ResponsavelNome}."
+                : "Ficha salva.";
             return RedirectToAction("Dashboard");
         }
 

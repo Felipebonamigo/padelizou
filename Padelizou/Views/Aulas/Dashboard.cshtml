@@ -250,6 +250,7 @@
                                         <th class="text-center">Aulas</th>
                                         <th class="d-none d-sm-table-cell">Última aula</th>
                                         <th>Próxima</th>
+                                        <th class="d-none d-md-table-cell">Quem paga</th>
                                         <th class="text-end">Preço</th>
                                     </tr>
                                 </thead>
@@ -262,6 +263,7 @@
                                     {
                                         var aluno = Model.Alunos[i];
                                         var idFormulario = $"preco-aluno-{i}";
+                                        var idCadastro = $"cadastro-aluno-{i}";
                                         <tr>
                                             <td>
                                                 @aluno.Nome
@@ -278,11 +280,39 @@
                                                         <i class="bi bi-link-45deg"></i> ligar a uma conta
                                                     </button>
                                                 }
+                                                @* O encontro entre o cadastro rápido e a campanha
+                                                   de "se cadastrem certinho": a pessoa criou conta
+                                                   com o mesmo celular que o professor anotou. Sem
+                                                   isto ele nunca saberia, e a mesma pessoa ficaria
+                                                   em dois lugares pra sempre. *@
+                                                @if (aluno.ContaSugeridaId.HasValue)
+                                                {
+                                                    <div class="small mt-1">
+                                                        <span class="badge text-bg-success-subtle text-success-emphasis">
+                                                            <i class="bi bi-person-check"></i>
+                                                            @aluno.ContaSugeridaNome criou conta com esse celular
+                                                        </span>
+                                                        <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-decoration-none small"
+                                                                data-bs-toggle="collapse" data-bs-target="#vincular-@i">
+                                                            juntar o histórico
+                                                        </button>
+                                                    </div>
+                                                }
                                                 <div class="d-sm-none small text-muted">última: @aluno.UltimaAula.ToString("dd/MM/yy")</div>
                                             </td>
                                             <td class="text-center">@aluno.TotalAulas</td>
                                             <td class="small text-muted d-none d-sm-table-cell">@aluno.UltimaAula.ToString("dd/MM/yyyy")</td>
                                             <td class="small text-muted">@(aluno.ProximaAula.HasValue ? aluno.ProximaAula.Value.ToString("dd/MM/yy HH:mm") : "—")</td>
+
+                                            @* Quem recebe a cobrança do mês. Vazio = ele mesmo,
+                                               que é o caso normal — o responsável existe pra
+                                               criança e pra quem tem a conta paga por outro. *@
+                                            <td class="d-none d-md-table-cell">
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none @(!string.IsNullOrWhiteSpace(aluno.ResponsavelNome) ? "fw-bold" : "text-muted")"
+                                                        data-bs-toggle="collapse" data-bs-target="#@idCadastro">
+                                                    @(!string.IsNullOrWhiteSpace(aluno.ResponsavelNome) ? aluno.ResponsavelNome : "ele mesmo")
+                                                </button>
+                                            </td>
 
                                             @*
                                                 O acordo particular com este aluno. Existe porque
@@ -300,7 +330,7 @@
                                             </td>
                                         </tr>
                                         <tr class="collapse" id="@idFormulario">
-                                            <td colspan="5" class="bg-light">
+                                            <td colspan="6" class="bg-light">
                                                 <form asp-controller="Aulas" asp-action="SalvarPrecoDeAluno" method="post"
                                                       class="row g-2 align-items-end py-2">
                                                     <input type="hidden" name="alunoId" value="@aluno.AlunoId" />
@@ -337,13 +367,70 @@
                                             </td>
                                         </tr>
 
+                                        @* O cadastro do aluno: o celular que fica guardado (o de
+                                           cima sai da última aula lançada) e QUEM PAGA por ele.
+                                           O responsável é o que destrava cobrar criança — a
+                                           fatura do mês sai no nome de quem paga, e o aluno
+                                           continua sendo o aluno na agenda. *@
+                                        <tr class="collapse" id="@idCadastro">
+                                            <td colspan="6" class="bg-light">
+                                                <form asp-controller="Aulas" asp-action="SalvarCadastroDoAluno" method="post"
+                                                      class="row g-2 align-items-end py-2">
+                                                    <input type="hidden" name="alunoId" value="@aluno.AlunoId" />
+                                                    <input type="hidden" name="nomeAvulso" value="@aluno.NomeAvulso" />
+
+                                                    <div class="col-6 col-md-3">
+                                                        <label class="form-label small text-muted mb-0">Celular do aluno</label>
+                                                        <input type="tel" name="celular" maxlength="20" value="@aluno.CelularCadastrado"
+                                                               class="form-control form-control-sm" placeholder="51 99999-0000" />
+                                                    </div>
+                                                    <div class="col-12 col-md-9">
+                                                        <small class="text-muted d-block">
+                                                            Deixe o responsável em branco quando o próprio aluno paga.
+                                                        </small>
+                                                    </div>
+
+                                                    <div class="col-12 col-md-4">
+                                                        <label class="form-label small text-muted mb-0">Responsável pela cobrança</label>
+                                                        <input type="text" name="responsavelNome" maxlength="120" value="@aluno.ResponsavelNome"
+                                                               class="form-control form-control-sm" placeholder="mãe, pai, empresa…" />
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <label class="form-label small text-muted mb-0">Celular dele</label>
+                                                        <input type="tel" name="responsavelCelular" maxlength="20" value="@aluno.ResponsavelCelular"
+                                                               class="form-control form-control-sm" placeholder="51 99999-0000" />
+                                                    </div>
+                                                    <div class="col-6 col-md-3">
+                                                        <label class="form-label small text-muted mb-0">CPF dele</label>
+                                                        <input type="text" name="responsavelCpf" maxlength="14" value="@aluno.ResponsavelCpf"
+                                                               class="form-control form-control-sm" placeholder="só números" />
+                                                    </div>
+                                                    <div class="col-12 col-md-2">
+                                                        <button type="submit" class="btn btn-sm btn-padel w-100">Salvar</button>
+                                                    </div>
+
+                                                    <div class="col-12">
+                                                        <label class="form-label small text-muted mb-0">Anotações (opcional)</label>
+                                                        <input type="text" name="observacao" maxlength="500" value="@aluno.Observacao"
+                                                               class="form-control form-control-sm" placeholder="horário que não pode, o que combinaram…" />
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <small class="text-muted">
+                                                            O CPF é do <strong>pagador</strong> e só é preciso pra cobrar pelo app —
+                                                            do aluno o Padelizou nunca pede.
+                                                        </small>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                        </tr>
+
                                         @* Ligar as aulas de um aluno sem conta à conta que ele
                                            acabou de criar. Reaproveita a mesma busca da tela de
                                            marcar aula — um jeito só de procurar gente. *@
                                         @if (aluno.AlunoId == null && !string.IsNullOrWhiteSpace(aluno.NomeAvulso))
                                         {
                                             <tr class="collapse" id="vincular-@i">
-                                                <td colspan="5" class="bg-light">
+                                                <td colspan="6" class="bg-light">
                                                     <form asp-controller="Aulas" asp-action="VincularAlunoAConta" method="post"
                                                           class="row g-2 align-items-end py-2 pdz-form-vincular">
                                                         <input type="hidden" name="nomeAvulso" value="@aluno.NomeAvulso" />

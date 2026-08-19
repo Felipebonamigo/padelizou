@@ -95,6 +95,46 @@ namespace padelizou.Controllers
             });
         }
 
+        // Cria (ou completa) a ficha do aluno a partir do que o professor digitou pra marcar a
+        // aula. Ver Models/CadastroDoAluno.
+        //
+        // ⚠️ NUNCA APAGA o que já está lá: campo em branco no formulário significa "não digitei
+        // agora", não "apague o telefone que você já tinha". O professor marca aula sem
+        // telefone o tempo todo — é opcional desde 04/08 — e cada uma dessas apagaria o número
+        // que ele cadastrou na primeira.
+        private async Task GravarFichaRapidaAsync(int professorId, int? alunoId, string nome, string? celular)
+        {
+            var nomeLimpo = nome.Trim();
+
+            var fichas = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+
+            var ficha = CadastrosDeAlunos.Achar(fichas, alunoId, nomeLimpo);
+            var numero = CadastrosDeAlunos.CelularServeParaAchar(celular)
+                ? CadastrosDeAlunos.CelularNormalizado(celular)
+                : null;
+
+            if (ficha == null)
+            {
+                _context.CadastrosDeAlunos.Add(new CadastroDoAluno
+                {
+                    ProfessorId = professorId,
+                    // Aluno com conta entra pela conta; sem conta, pelo nome — a mesma divisão
+                    // que a agenda e o acordo de preço já fazem (ver PrecoDaAula.Chave).
+                    AlunoId = alunoId,
+                    NomeAvulso = alunoId == null ? nomeLimpo : null,
+                    Celular = numero,
+                });
+            }
+            else if (numero != null)
+            {
+                ficha.Celular = numero;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
         // O mapa de "quem paga quanto" deste professor, pronto pra consulta por chave
         // (ver Services/PrecoDaAula.Chave). Usado pela tela de marcar aula e pelo cálculo
         // do preço na hora de gravar.
@@ -258,6 +298,12 @@ namespace padelizou.Controllers
                 }
                 await _context.SaveChangesAsync();
             }
+
+            // O CADASTRO RÁPIDO acontece aqui, e não numa tela à parte: o professor já digitou
+            // nome e telefone pra marcar a aula, e pedir os mesmos dados de novo noutro lugar é
+            // o atrito que faz ele não cadastrar ninguém (o pedido do Rafael era literalmente
+            // "coloca ali e deu"). A ficha nasce de graça, no fluxo que ele já faz.
+            await GravarFichaRapidaAsync(professorId.Value, alunoVinculado?.Id, nomeAluno, telefoneAluno);
 
             TempData["Sucesso"] = puladas > 0
                 ? $"{novasAulas.Count} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
