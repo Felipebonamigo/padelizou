@@ -21,6 +21,7 @@ namespace padelizou.Controllers
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
             var locais = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .Where(l => l.ProfessorId == professorId && l.Ativo)
                 .ToListAsync();
 
@@ -136,7 +137,11 @@ namespace padelizou.Controllers
                 return RedirectToAction("AdicionarManual");
             }
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+            // Include obrigatório: o preço da turma sai de local.PrecosDeTurma, e sem ele
+            // toda aula em grupo nasceria pelo valor da individual (ver PrecoDaAula.DoLocal).
+            var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
             if (local == null)
             {
                 TempData["Erro"] = "Local inválido.";
@@ -404,6 +409,7 @@ namespace padelizou.Controllers
             }
 
             var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
 
             if (local == null)
@@ -613,6 +619,7 @@ namespace padelizou.Controllers
         private async Task<List<LocalAula>> LocaisParaEscolherAsync(int professorId, int localAtualId)
         {
             return await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .Where(l => l.ProfessorId == professorId && (l.Ativo || l.Id == localAtualId))
                 .OrderByDescending(l => l.Ativo)
                 .ThenBy(l => l.Nome)

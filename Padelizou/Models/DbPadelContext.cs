@@ -41,6 +41,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
+    public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
@@ -1125,8 +1126,6 @@ public partial class DbPadelContext : DbContext
         modelBuilder.Entity<LocalAula>(entity =>
         {
             entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoDupla).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoTrio).HasPrecision(18, 2);
             entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
 
             entity.HasOne(l => l.Professor)
@@ -1170,6 +1169,24 @@ public partial class DbPadelContext : DbContext
                 .WithMany(l => l.Pacotes)
                 .HasForeignKey(p => p.LocalAulaId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrecoDeTurma>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+
+            // Cascade pelo mesmo motivo do pacote: o preço não existe sem o local. Apagado o
+            // local, a tabela some junto — as aulas que ela precificou ficam, com o valor que
+            // já tinham gravado em Aula.Preco.
+            entity.HasOne(p => p.LocalAula)
+                .WithMany(l => l.PrecosDeTurma)
+                .HasForeignKey(p => p.LocalAulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Um preço por tamanho, por local. Sem isto, salvar a tela duas vezes deixaria
+            // duas linhas dizendo quanto custa o trio — e a leitura escolheria uma delas sem
+            // critério nenhum (ver PrecoDaAula.PorTamanho).
+            entity.HasIndex(e => new { e.LocalAulaId, e.QuantidadeAlunos }).IsUnique();
         });
 
         modelBuilder.Entity<HorarioDisponivel>(entity =>

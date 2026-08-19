@@ -16,17 +16,15 @@ public partial class LocalAula
     // O preço da aula INDIVIDUAL — o valor cheio de uma pessoa sozinha na quadra.
     public decimal PrecoPadrao { get; set; }
 
-    // Quanto custa a aula INTEIRA quando dois ou três alunos dividem a quadra. Aula de padel
-    // quase nunca é um-a-um: dois amigos treinam juntos e pagam um valor diferente do dobro
-    // do individual — o professor gasta a mesma hora, então costuma cobrar mais barato por
-    // cabeça e mais caro no total.
+    // Os preços das TURMAS deste local — a aula inteira com 2, 3, ... alunos dividindo a
+    // quadra. Aula quase nunca é um-a-um: dois amigos treinam juntos e pagam um valor
+    // diferente do dobro do individual (o professor gasta a mesma hora, então costuma cobrar
+    // mais barato por cabeça e mais caro no total), e no beach a turma vai até seis.
     //
-    // Nulo = o professor não anunciou preço pra esse tamanho, e vale o individual (era o
-    // comportamento antigo, quando só existia um preço). Quem informa, informa o TOTAL da
-    // aula, não o valor por aluno: é o total que entra no financeiro e o que ele fala pro
-    // aluno. Ver Services/PrecoDaAula.
-    public decimal? PrecoDupla { get; set; }
-    public decimal? PrecoTrio { get; set; }
+    // Eram duas colunas aqui dentro, `PrecoDupla` e `PrecoTrio`, e era nelas que morava o
+    // teto de três alunos. Ver Models/PrecoDeTurma. Tamanho sem linha = o professor não faz
+    // esse tamanho; quem lê a tabela é Services/PrecoDaAula.
+    public virtual ICollection<PrecoDeTurma> PrecosDeTurma { get; set; } = new List<PrecoDeTurma>();
 
     public bool Ativo { get; set; } = true;
 

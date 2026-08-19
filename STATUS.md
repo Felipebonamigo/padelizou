@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
+> Última atualização: **19/08/2026** — 🏐 **A TURMA DEIXOU DE PARAR NO TRIO: AULA DE ATÉ SEIS ALUNOS, COM PREÇO PRÓPRIO EM CADA TAMANHO.**
+>
+> 🗣️ **O pedido veio do Rafael**, cadastrando o professor João (110 alunos, 75 aulas por semana entre beach, tênis e padel): *"turma de beach pode ser até 6 (sexteto)"*. O sistema ia até três — e o teto não era regra de negócio, era **onde os preços estavam guardados**: duas colunas em `LocalAula`, `PrecoDupla` e `PrecoTrio`. Não havia onde escrever o valor do quarteto, então o professor de beach lançaria o sexteto como trio e corrigiria o preço **na mão, em toda aula** — que é exatamente a dor que o `PrecoDeAluno` nasceu pra matar em 03/08.
+>
+> 🍃 **A PEÇA NOVA: `PrecoDeTurma`, uma linha por tamanho.** Mesma lição que `PacoteDeAulas` já tinha aprendido: com uma coluna por tamanho, esticar o limite é migration nova toda vez — e o `switch` que lê os preços cresce junto, em três telas. Agora subir o teto é **uma linha** (`PrecoDaAula.MaxAlunos`), e nada mais no sistema conta até três. A individual continua fora da tabela, em `LocalAula.PrecoPadrao`: ela é obrigatória (todo local tem preço, nem todo local faz turma), e dar linha a ela criaria dois lugares dizendo quanto custa a mesma coisa.
+>
+> 📉 **A QUEDA VIROU DEGRAU A DEGRAU.** A regra antiga era "sem preço pro tamanho pedido, cai pro menor mais próximo que ele informou". Com teto seis ela vale igual, só que percorrendo: quem anunciou dupla e quarteto e marca um **sexteto** paga o **quarteto**, não o individual. Cair direto pra individual seria o professor dando **cinco lugares de graça** sem perceber.
+>
+> ⚠️ **O SCAFFOLD DO EF GEROU A MIGRATION NA ORDEM QUE APAGAVA OS PREÇOS**: `DropColumn` das duas colunas **antes** do `CreateTable`. Nessa ordem, todo preço de dupla e trio já cadastrado ia embora antes de existir pra onde copiar. Reordenada à mão — cria, **copia**, depois derruba —, e o `Down` faz o inverso. Zero explícito não é copiado: `0` sempre significou "não faço esse tamanho" no cadastro, e copiá-lo anunciaria aula de graça ao aluno.
+>
+> 🔍 **`DoLocal` passou a depender de `Include`**, e isso é armadilha silenciosa: local carregado sem ele chega com a coleção vazia e **toda turma sairia pelo preço da individual, sem erro nenhum**. Os cinco pontos que carregam local pra precificar ganharam o `Include` (as duas pontas de marcar aula — professor e aluno —, a edição, a lista de locais e a grade da cidade), e há teste provando que a coleção ausente não derruba a página.
+>
+> 📱 **Na tela, o botão virou só o NÚMERO.** "Individual / Em dupla / Em trio / Em quarteto / Em quinteto / Em sexteto" não cabe na largura de um celular — e é na beira da quadra que essa tela é usada. O nome do tamanho aparece embaixo, no que estiver marcado. Do lado do aluno os rótulos continuam na primeira pessoa ("Nós seis"), e ele **só enxerga os tamanhos que o professor anunciou**: oferecer sexteto a quem não faz sexteto é prometer um preço que não existe.
+>
+> 🧪 **4.385 testes, 0 falhas (16 novos).** ✅ **Falsificação:** voltando `MaxAlunos` pra 3, **12 testes caem** — inclusive os de ponta a ponta, que marcam uma aula de verdade pelos dois caminhos e conferem o preço gravado no banco. ✅ **Migration conferida contra um Postgres de verdade**, não só lida: com três locais semeados no schema ANTIGO (um com dupla+trio, um só individual, um com zeros), a subida copiou exatamente as duas linhas certas, o índice único recusou o tamanho repetido, e o `Down` devolveu os valores às colunas. ✅ **A ligação do formulário conferida num app mínimo à parte** — `precoTurma[2]=150` chega como dicionário, e campo em branco chega como chave com valor nulo, que é o que faz o professor conseguir **apagar** um tamanho que parou de fazer.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes: 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
 >
 > 📊 **O PEDIDO DO FELIPE**: duas colunas novas na tela de Métricas, "acessos hoje" e "máximo de acessos simultâneos". ⚠️ **Não era só tela**: até aqui o Padelizou não guardava rastro NENHUM de visita — nem um "último acesso" no `Jogador`, nem log de requisição. As duas perguntas exigiram construir o alicerce primeiro.
 >

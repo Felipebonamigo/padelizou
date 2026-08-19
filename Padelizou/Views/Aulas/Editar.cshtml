@@ -10,7 +10,7 @@
     // local não pode depender de rede, senão na quadra com sinal ruim a sugestão não aparece.
     var tabelaDeLocais = locais.ToDictionary(
         l => l.Id,
-        l => new { individual = l.PrecoPadrao, dupla = l.PrecoDupla, trio = l.PrecoTrio });
+        l => new { individual = l.PrecoPadrao, turmas = PrecoDaAula.PorTamanho(l.PrecosDeTurma) });
 }
 
 <div class="container mt-4 mb-5">
@@ -156,9 +156,11 @@
                 var local = LOCAIS[$select.value];
                 if (!local) { $aviso.textContent = ''; return; }
 
-                var preco = QUANTOS === 3 ? (local.trio ?? local.dupla ?? local.individual)
-                          : QUANTOS === 2 ? (local.dupla ?? local.individual)
-                          : local.individual;
+                // Queda degrau a degrau, igual ao servidor (Services/PrecoDaAula.DoLocal).
+                var preco = local.individual;
+                for (var t = QUANTOS; t >= 2; t--) {
+                    if (local.turmas && local.turmas[t] != null) { preco = local.turmas[t]; break; }
+                }
 
                 $aviso.textContent = 'Tabela deste local: R$ ' + Number(preco).toFixed(2).replace('.', ',');
             }

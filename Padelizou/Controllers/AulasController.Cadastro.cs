@@ -22,6 +22,7 @@ namespace padelizou.Controllers
 
             var locais = await _context.LocaisAula
                 .Include(l => l.Pacotes.OrderBy(p => p.QuantidadeAulas))
+                .Include(l => l.PrecosDeTurma.OrderBy(p => p.QuantidadeAlunos))
                 .Include(l => l.Horarios)
                 .Where(l => l.ProfessorId == professorId)
                 .OrderByDescending(l => l.Ativo)
@@ -43,12 +44,12 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CriarLocal(string nome, string? endereco, decimal precoPadrao,
-            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
+            Dictionary<int, decimal?>? precoTurma, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            _context.LocaisAula.Add(new LocalAula
+            var local = new LocalAula
             {
                 ProfessorId = professorId.Value,
                 Nome = nome,
@@ -56,14 +57,50 @@ namespace padelizou.Controllers
                 // Em branco vira nulo pra tela não ter que checar as duas coisas ao exibir.
                 Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
                 PrecoPadrao = precoPadrao,
-                PrecoDupla = precoDupla > 0 ? precoDupla : null,
-                PrecoTrio = precoTrio > 0 ? precoTrio : null,
                 CustoPorAula = custoPorAula,
                 Ativo = true
-            });
+            };
+
+            AplicarPrecosDeTurma(local, precoTurma);
+
+            _context.LocaisAula.Add(local);
             await _context.SaveChangesAsync();
 
             return RedirectToAction("MeusLocais");
+        }
+
+        // Sincroniza a tabela de turmas do local com o que veio do formulário: preço de
+        // verdade grava (criando ou corrigindo a linha do tamanho), branco ou zero APAGA.
+        //
+        // Apagar é o ponto: sem isso não existiria como o professor dizer "parei de fazer
+        // sexteto" — ele limparia o campo, salvaria, e o tamanho continuaria sendo oferecido
+        // ao aluno pelo valor antigo. Tamanho fora da faixa é ignorado em silêncio; quem
+        // manda 9 alunos é formulário adulterado, não professor.
+        private static void AplicarPrecosDeTurma(LocalAula local, Dictionary<int, decimal?>? precos)
+        {
+            if (precos == null) return;
+
+            foreach (var (tamanho, valor) in precos)
+            {
+                if (tamanho < 2 || tamanho > PrecoDaAula.MaxAlunos) continue;
+
+                var linha = local.PrecosDeTurma.FirstOrDefault(p => p.QuantidadeAlunos == tamanho);
+
+                if (valor is not decimal preco || preco <= 0)
+                {
+                    if (linha != null) local.PrecosDeTurma.Remove(linha);
+                    continue;
+                }
+
+                if (linha == null)
+                {
+                    local.PrecosDeTurma.Add(new PrecoDeTurma { QuantidadeAlunos = tamanho, Preco = preco });
+                }
+                else
+                {
+                    linha.Preco = preco;
+                }
+            }
         }
 
         // Editar a tabela de preços de um local que já existe. Antes só o custo era editável:
@@ -71,20 +108,22 @@ namespace padelizou.Controllers
         // digitação no primeiro cadastro) é coisa que acontece.
         [HttpPost]
         public async Task<IActionResult> AtualizarPrecos(int id, decimal precoPadrao,
-            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
+            Dictionary<int, decimal?>? precoTurma, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+            var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
+                .FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+
             if (local != null)
             {
                 // Zero ou negativo anunciaria aula de graça por escorregão de digitação, então
-                // o preço da individual só troca por um valor de verdade. Dupla e trio aceitam
-                // branco: é o jeito de dizer "não faço esse tamanho".
+                // o preço da individual só troca por um valor de verdade. Os tamanhos de turma
+                // aceitam branco: é o jeito de dizer "não faço esse tamanho".
                 if (precoPadrao > 0) local.PrecoPadrao = precoPadrao;
-                local.PrecoDupla = precoDupla > 0 ? precoDupla : null;
-                local.PrecoTrio = precoTrio > 0 ? precoTrio : null;
+                AplicarPrecosDeTurma(local, precoTurma);
                 local.CustoPorAula = custoPorAula;
                 await _context.SaveChangesAsync();
                 TempData["SucessoPacote"] = $"Preços de {local.Nome} atualizados.";
