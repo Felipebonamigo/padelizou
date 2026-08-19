@@ -31,11 +31,16 @@ namespace padelizou.Controllers
         // em 14 dias fica na casa dos 300, que é JSON de dezenas de KB.
         private const int DiasDeJanelaBusca = 60;
 
+        // A cobrança da conta do mês pelo app — a mesma peça que já cobra torneio, aula avulsa
+        // e mensalidade, pra taxa e split saírem de um lugar só.
+        private readonly IPagamentoInscricaoService _pagamentos;
+
         public AulasController(
             DbPadelContext context,
             IEmailService emailService,
             IGoogleCalendarService googleCalendarService,
             IPushNotificationService pushService,
+            IPagamentoInscricaoService pagamentos,
             Microsoft.Extensions.Options.IOptions<PlanoProfessorSettings> plano,
             ILogger<AulasController> logger)
         {
@@ -43,6 +48,7 @@ namespace padelizou.Controllers
             _emailService = emailService;
             _googleCalendarService = googleCalendarService;
             _pushService = pushService;
+            _pagamentos = pagamentos;
             _plano = plano.Value;
             _logger = logger;
         }

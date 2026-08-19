@@ -51,6 +51,10 @@ public record DadosTaxaExterno(int TorneioId);
 // de quem tem cobrança em aberto morreria calada; com ele, valem um mês — que é o que foram.
 public record DadosAssinaturaProfessor(int ProfessorId, string? Ciclo = null);
 
+// A conta do MÊS de um aluno (ver Models/FaturaDoAluno). Só o id: tudo o que a cobrança
+// precisa dizer — valor, quem paga, competência — já está congelado na própria fatura.
+public record DadosFaturaDeAula(int FaturaId);
+
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
 // Vários horários numa cobrança só (jogador selecionou 2h seguidas, ou duas quadras pro
@@ -96,6 +100,11 @@ public interface IPagamentoInscricaoService
     // Mensalidade (ou anuidade) do professor assinante — também fica inteira com o Padelizou.
     // `ciclo` vem de PlanoDoProfessor.CicloMensal/CicloAnual; null é mensal.
     Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor, string? ciclo = null);
+
+    // A conta do mês de um aluno, cobrada pelo app com split pro professor. Devolve o link
+    // de pagamento, ou null quando não deu (sem CPF do pagador, gateway fora, professor sem
+    // conta de recebimento).
+    Task<string?> IniciarCobrancaDaFaturaAsync(FaturaDoAluno fatura, Jogador professor);
 
     // As mesmas duas cobranças acima, mas por Pix DIRETO na conta do Padelizou, sem gateway
     // (ver Services/PixDireto). Devolvem o Pagamento — a URL é a nossa tela do QR, não uma
@@ -688,6 +697,140 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         return LinkDoPagamento.Para(pagamento);
     }
 
+    // A conta do MÊS de um aluno, cobrada pelo app: a cobrança nasce na nossa conta e o split
+    // manda a fatia do professor direto pra carteira dele, como em todo o resto do sistema.
+    //
+    // ⚠️ QUEM PAGA PODE NÃO TER CONTA NO PADELIZOU — é o caso normal aqui: a mãe que paga a
+    // aula do filho não usa o app. `Pagamento.JogadorId` exige um Jogador, então o pagador
+    // entra como PRÉ-CADASTRO por CPF, exatamente como o inscrito que o organizador coloca no
+    // torneio (ver TorneiosController.Inscricoes). Ela assume a conta depois, entrando com o
+    // mesmo CPF — e aí passa a ver o histórico do que pagou.
+    public async Task<string?> IniciarCobrancaDaFaturaAsync(FaturaDoAluno fatura, Jogador professor)
+    {
+        if (!_asaas.Configurado) return null;
+        if (!EstaApto(professor)) return null;
+        if (fatura.Valor <= 0) return null;
+
+        // Sem CPF do pagador o gateway recusa o cliente e a cobrança morre lá dentro. Parar
+        // aqui deixa o professor com a conta em aberto pra acertar por fora, que é o que ele
+        // já faz hoje — em vez de um erro sem explicação.
+        if (!Documentos.CpfEhValido(fatura.PagadorCpf)) return null;
+
+        // Uma cobrança viva por fatura: emitir de novo geraria duas faturas no gateway pro
+        // mesmo mês, e o aluno pagaria a que achasse primeiro.
+        if (fatura.PagamentoId is int jaTem)
+        {
+            var existente = await _context.Pagamentos.FindAsync(jaTem);
+            if (existente != null && existente.Status == "Pendente" && existente.InvoiceUrl != null)
+            {
+                return LinkDoPagamento.Para(existente);
+            }
+        }
+
+        var pagador = await ObterOuCriarPagadorAsync(fatura);
+        if (pagador == null) return null;
+
+        // A taxa é a do plano do professor, igual à da aula avulsa: assinante em dia paga a
+        // menor, avulso paga a cheia. A forma fica aberta porque quem escolhe é quem paga.
+        var cobrancaDoPlano = PlanoDoProfessor.CobrancaDaAula(professor, null, DateTime.Now, _plano);
+        var rateio = _asaas.CalcularRateio(fatura.Valor, "Aula", professor.ModoComissao,
+            cobrancaDoPlano.Percentual);
+
+        var clienteId = await _asaas.ObterOuCriarClienteAsync(
+            fatura.PagadorNome, fatura.PagadorCpf!, pagador.Email, fatura.PagadorCelular);
+        if (clienteId == null) return null;
+
+        var competencia = new DateTime(fatura.Ano, fatura.Mes, 1);
+
+        var pagamento = new Pagamento
+        {
+            Tipo = "FaturaDeAula",
+            JogadorId = pagador.Id,
+            RecebedorId = professor.Id,
+            Valor = rateio.ValorTotal,
+            ValorRepasse = rateio.ValorRepasse,
+            Comissao = rateio.Comissao,
+            AsaasCustomerId = clienteId,
+            DadosInscricao = JsonSerializer.Serialize(new DadosFaturaDeAula(fatura.Id)),
+            // Sem ExpiraEm de propósito: aqui não há vaga reservada esperando: a conta do mês
+            // vale até ser paga, e uma cobrança que expira em 60 minutos viraria trabalho novo
+            // pro professor toda vez que o pagador demorasse.
+            Status = "Pendente"
+        };
+        _context.Pagamentos.Add(pagamento);
+        await _context.SaveChangesAsync();
+
+        var cobranca = await _asaas.CriarCobrancaAsync(
+            clienteId,
+            rateio,
+            $"Aulas de {competencia:MM/yyyy} — {professor.Nome}",
+            pagamento.Id.ToString(),
+            // O vencimento é o que o professor combinou no fechamento, não "amanhã": a conta
+            // do mês nasce com data pra pagar, e mudá-la aqui quebraria o combinado.
+            fatura.Vencimento,
+            professor.AsaasWalletId,
+            "UNDEFINED");
+
+        if (cobranca == null)
+        {
+            _context.Pagamentos.Remove(pagamento);
+            await _context.SaveChangesAsync();
+            return null;
+        }
+
+        pagamento.AsaasPaymentId = cobranca.PaymentId;
+        pagamento.InvoiceUrl = cobranca.InvoiceUrl;
+        fatura.PagamentoId = pagamento.Id;
+        await _context.SaveChangesAsync();
+
+        return LinkDoPagamento.Para(pagamento);
+    }
+
+    // O pagador como conta: a dele se já existir com aquele CPF, ou um pré-cadastro novo.
+    // Achar-ou-criar por CPF é o mesmo caminho da inscrição em torneio — e é ele que impede
+    // duas contas da mesma pessoa quando o pai paga por dois filhos de professores diferentes.
+    private async Task<Jogador?> ObterOuCriarPagadorAsync(FaturaDoAluno fatura)
+    {
+        var cpf = Documentos.SomenteDigitosOuNulo(fatura.PagadorCpf);
+        if (cpf == null) return null;
+
+        var existente = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
+        if (existente != null) return existente;
+
+        // Só nome e CPF: inventar e-mail ou celular aqui criaria conflito de unicidade quando
+        // a pessoa for criar a conta dela de verdade.
+        var novo = new Jogador { Nome = fatura.PagadorNome, Cpf = cpf };
+        _context.Jogadores.Add(novo);
+        await _context.SaveChangesAsync();
+        return novo;
+    }
+
+    // O dinheiro da conta do mês entrou.
+    private async Task EfetivarFaturaDeAulaAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosFaturaDeAula>(pagamento);
+        if (dados == null) return;
+
+        var fatura = await _context.FaturasDeAlunos.FindAsync(dados.FaturaId);
+        if (fatura == null)
+        {
+            // A conta sumiu entre a cobrança e a confirmação (professor cancelou). O dinheiro
+            // entrou e não há conta pra quitar: fica no log pra devolução à mão, porque
+            // recriar uma conta cancelada seria pior.
+            _logger.LogError("Pagamento {Id} confirmado, mas a fatura {FaturaId} não existe mais — "
+                + "devolver à mão (ver ESTORNO.md).", pagamento.Id, dados.FaturaId);
+            return;
+        }
+
+        fatura.Status = FechamentoDoMes.Paga;
+        fatura.PagaEm = DateTime.Now;
+
+        // O carimbo do ReferenciaId é o que torna isto idempotente: o Asaas reenvia o mesmo
+        // evento até receber 200, e o EfetivarAsync sai fora quando ele já está preenchido.
+        pagamento.ReferenciaId = fatura.Id;
+        await _context.SaveChangesAsync();
+    }
+
     // Chamado pelo webhook: o dinheiro entrou, então agora a inscrição existe de fato.
     // O AVESSO do EfetivarAsync: o dinheiro voltou, então a inscrição precisa voltar também.
     //
@@ -707,7 +850,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         // Sem ReferenciaId o pagamento nunca virou inscrição — não há o que desfazer.
         if (pagamento.ReferenciaId == null) return false;
 
-        if (pagamento.Tipo is "Aula" or "Jogo" or "JogoVarios" or "TaxaTorneio" or "AssinaturaProfessor")
+        if (pagamento.Tipo is "Aula" or "Jogo" or "JogoVarios" or "TaxaTorneio" or "AssinaturaProfessor"
+            or "FaturaDeAula")
         {
             _logger.LogWarning(
                 "Estorno do pagamento {Id} (tipo {Tipo}) precisa ser desfeito à mão — o automático "
@@ -937,6 +1081,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 break;
             case "AssinaturaProfessor":
                 await EfetivarAssinaturaAsync(pagamento);
+                break;
+            case "FaturaDeAula":
+                await EfetivarFaturaDeAulaAsync(pagamento);
                 break;
             // ⚠️ TEM que vir ANTES do default: no default o pagamento CRIA a inscrição, e aqui
             // ela já existe — cair lá deixaria a pessoa inscrita duas vezes, ocupando duas

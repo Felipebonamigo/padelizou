@@ -41,6 +41,8 @@ namespace padelizou.Controllers
 
             var doMes = await _context.FaturasDeAlunos
                 .Include(f => f.Aluno)
+                // A cobrança emitida, quando existe: é dela que sai o link pra mandar a quem paga.
+                .Include(f => f.Pagamento)
                 .Where(f => f.ProfessorId == professorId && f.Ano == ano && f.Mes == mes)
                 .ToListAsync();
 
@@ -166,6 +168,56 @@ namespace padelizou.Controllers
 
             TempData["SucessoFatura"] = $"Conta de {fatura.PagadorNome} cancelada.";
             return RedirectToAction(nameof(Faturamento), new { ano = fatura.Ano, mes = fatura.Mes });
+        }
+
+        // Emitir a cobrança da conta do mês pelo app. O dinheiro cai direto na carteira do
+        // professor (split), e a nossa comissão é a do plano dele — a mesma régua da aula
+        // avulsa. Ver Services/PagamentoInscricaoService.
+        [HttpPost]
+        public async Task<IActionResult> CobrarFatura(int id)
+        {
+            var (professorId, fatura) = await MinhaFaturaAsync(id);
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+            if (fatura == null) return NotFound();
+
+            var voltar = RedirectToAction(nameof(Faturamento), new { ano = fatura.Ano, mes = fatura.Mes });
+
+            if (fatura.Status != FechamentoDoMes.Aberta)
+            {
+                TempData["ErroFatura"] = "Só dá pra cobrar conta que está em aberto.";
+                return voltar;
+            }
+
+            var professor = await _context.Jogadores.FindAsync(professorId.Value);
+            if (professor == null) return voltar;
+
+            // O que falta pra ele receber pelo app (carteira não conectada, por exemplo) já
+            // tem texto pronto — é o mesmo de torneio e aula avulsa.
+            var impedimento = _pagamentos.OQueFaltaParaReceber(professor);
+            if (impedimento != null)
+            {
+                TempData["ErroFatura"] = impedimento;
+                return voltar;
+            }
+
+            if (string.IsNullOrWhiteSpace(fatura.PagadorCpf))
+            {
+                TempData["ErroFatura"] = $"Sem o CPF de {fatura.PagadorNome} não dá pra emitir a cobrança. "
+                    + "Preencha no painel, em Quem paga, e feche o mês de novo — ou acerte por fora.";
+                return voltar;
+            }
+
+            var link = await _pagamentos.IniciarCobrancaDaFaturaAsync(fatura, professor);
+            if (link == null)
+            {
+                TempData["ErroFatura"] = "Não consegui gerar a cobrança agora. Tente de novo em instantes.";
+                return voltar;
+            }
+
+            TempData["SucessoFatura"] = $"Cobrança de {fatura.PagadorNome} emitida. "
+                + "Mande o link pra quem paga — o dinheiro cai direto na sua conta.";
+            TempData["LinkDaCobranca"] = link;
+            return voltar;
         }
 
         // O ProfessorId no filtro É a autorização: sem ele, qualquer professor logado daria

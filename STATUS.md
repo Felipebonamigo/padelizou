@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🔁 **"VAI RECUPERAR": O ALUNO NÃO VEM, A AULA É COBRADA E O HORÁRIO VAGA NA HORA.**
+> Última atualização: **19/08/2026** — 🧾 **O PROFESSOR MENSALISTA FECHOU O CICLO: CADASTRO RÁPIDO, RESPONSÁVEL PELA COBRANÇA, FECHAMENTO DO MÊS E COBRANÇA PELO APP.**
+>
+> 🗣️ **Os três últimos pedidos do Rafael**, de uma vez: *"se tem alguma maneira de cadastro rápido preciso também, porque tem muita gente que não manda os dados e me quebra"*; *"nem sempre o aluno é o responsável pelo próprio pagamento (crianças), preciso de um campo de responsável pela cobrança"*; e *"cobramos por mês: fecha as aulas do mês e cobra no mês subsequente"*.
+>
+> 🪪 **`CadastroDoAluno` — o professor passou a saber quem é o aluno.** Até aqui o aluno sem conta era um NOME digitado dentro de cada aula, e o telefone era redigitado a cada marcação: não havia onde guardar nem um celular estável, nem quem paga por ele. ⚠️ **A identidade é a MESMA de `PrecoDeAluno`** (conta quando existe, nome anotado quando não), então a `Aula` não mudou e **nenhuma das oito consultas que agrupam aluno precisou ser reescrita**.
+>
+> ⚡ **O cadastro nasce AO MARCAR A AULA, não numa tela à parte** — o professor já digitou nome e telefone ali, e pedir os mesmos dados noutro lugar é o atrito que faz ele não cadastrar ninguém. 🕳️ **Branco na marcação NUNCA apaga o que já está guardado** (telefone é opcional desde 04/08, e cada marcação sem ele destruiria o cadastro anterior); **na tela do cadastro, ao contrário, o branco apaga** — é a única forma de dizer "voltou a pagar por conta própria". O celular é guardado só com dígitos, senão o mesmo número digitado de três jeitos vira três alunos — e é ele que **fecha o ciclo com a campanha de "se cadastrem certinho"**: quando a pessoa cria conta com aquele número, o painel avisa e oferece juntar o histórico.
+>
+> 🧾 **`FaturaDoAluno` — somar não é cobrar.** O financeiro sabia somar um período qualquer, mas nada dizia "esta conta foi fechada, é deste valor, vence neste dia e ainda não foi paga". A **competência** (o mês das aulas) mora separada do **vencimento** (o mês em que se cobra) — é isso que deixa "fechei abril agora em maio" ser dito sem ambiguidade, e que impede fechar abril duas vezes.
+>
+> 💸 **"QUAIS AULAS ENTRAM" TEM TRÊS RESPOSTAS ERRADAS FÁCEIS, e cada uma custa dinheiro de alguém.** Contar a cancelada cobra o que não foi combinado. Esquecer a falta cobrável perde o dinheiro do mensalista — que é o motivo de ele cobrar por mês. E contar a **reposição** cobra **duas vezes a mesma aula**: ela fica de fora porque o dinheiro dela já entrou na conta do mês da aula original, que foi por isso que ela nasceu sem preço.
+>
+> ❄️ **Quem paga é CONGELADO no fechamento**, copiado do cadastro em vez de lido dele na hora de mostrar: a fatura é um documento, e trocar o responsável em junho não pode reescrever a conta de abril que já foi mandada pra outra pessoa. Três travas: o mês só fecha **depois de acabar** (fechar março no dia 12 geraria conta pela metade), fechar duas vezes não duplica, e o dia de vencimento é preso ao último dia do mês — fevereiro não tem 31.
+>
+> 💳 **A COBRANÇA PELO APP, com split pro professor e a taxa do plano dele** — a mesma régua da aula avulsa, porque duas tabelas discordando é como o professor descobre que pagou mais do que combinou. 🕳️ **A pedra no caminho: QUEM PAGA PODE NÃO TER CONTA NO PADELIZOU** — é o caso normal aqui, a mãe que paga a aula do filho não usa o app, e `Pagamento.JogadorId` exige um `Jogador`. Em vez de afrouxar a tabela do dinheiro, o pagador entra como **pré-cadastro por CPF**, exatamente como o inscrito que o organizador coloca no torneio; ela assume a conta depois com o mesmo CPF e passa a ver o que pagou. Uma cobrança viva por fatura (duas no gateway é o aluno pagando a que achar primeiro), e o vencimento que vai pro gateway é **o combinado no fechamento**, não "amanhã".
+>
+> 📵 **Sem CPF do pagador a tela avisa ANTES de fechar**, e o botão de cobrar nem aparece: o gateway recusa cliente sem documento, e descobrir isso no dia de cobrar é tarde. A conta continua valendo — dar baixa à mão (Pix, dinheiro) segue sendo como a maior parte das aulas é paga hoje.
+>
+> 🧪 **4.450 testes, 0 falhas (45 novos em três blocos).** ✅ **Falsificação em quatro pontos:** deixando o cadastro rápido sobrescrever o celular com branco, cai o teste do "não apaga"; deixando a **reposição entrar na conta**, caem 2 — inclusive o que atravessa a virada do mês (aula original em abril, reposição em maio); tirando a trava de uma cobrança viva por fatura, cai o de emitir duas vezes; e tirando a conferência do dígito do CPF, cai o que prova que `11111111111` não vira conta fantasma no banco. ✅ Migrations aplicadas contra Postgres de verdade.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia: 🔁 **"VAI RECUPERAR": O ALUNO NÃO VEM, A AULA É COBRADA E O HORÁRIO VAGA NA HORA.**
 >
 > 🗣️ **O pedido do Rafael**, sobre o professor João (mensalista, 75 aulas por semana): *"como cobramos mensal, na maior parte das vezes que o aluno falta é cobrado normalmente e ele recupera. Problema é gerenciar isso na agenda — ali nas opções ter algo como 'vai recuperar', e daí sai da agenda do dia, mantém na de cobrança e fica numa lista de pendências para encaixar outro dia."*
 >

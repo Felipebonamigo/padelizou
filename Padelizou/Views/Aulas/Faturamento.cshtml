@@ -40,6 +40,18 @@
         <div class="alert alert-danger">@TempData["ErroFatura"]</div>
     }
 
+    @* O link recém-emitido, pronto pra copiar. Sem ele o professor teria que caçar a cobrança
+       na lista logo depois de criá-la — e é AGORA que ele quer mandar pro pagador. *@
+    @if (TempData["LinkDaCobranca"] is string linkNovo)
+    {
+        <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="small">Link da cobrança pronto pra mandar:</span>
+            <a href="@linkNovo" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-box-arrow-up-right"></i> Abrir a cobrança
+            </a>
+        </div>
+    }
+
     @* O número que o professor procura ao abrir esta tela: quanto ele tem pra receber. Vem de
        TODOS os meses de propósito — conta de março que ninguém pagou não pode sumir só porque
        ele está olhando abril. *@
@@ -198,6 +210,26 @@
                             <strong>@fatura.Valor.ToString("C", ptBr)</strong>
                             @if (fatura.Status == Padelizou.Services.FechamentoDoMes.Aberta)
                             {
+                                @* Cobrar pelo app: o dinheiro cai direto na carteira do
+                                   professor (split), e a nossa comissão é a do plano dele.
+                                   Sem CPF do pagador o gateway recusa — então o botão nem
+                                   aparece, e o aviso de "sem CPF" já saiu lá em cima. *@
+                                @if (fatura.Pagamento?.InvoiceUrl != null)
+                                {
+                                    <a href="@fatura.Pagamento.InvoiceUrl" target="_blank"
+                                       class="btn btn-sm btn-outline-primary rounded-pill">
+                                        <i class="bi bi-link-45deg"></i> Link
+                                    </a>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(fatura.PagadorCpf))
+                                {
+                                    <form asp-action="CobrarFatura" method="post">
+                                        <input type="hidden" name="id" value="@fatura.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
+                                            <i class="bi bi-credit-card"></i> Cobrar pelo app
+                                        </button>
+                                    </form>
+                                }
                                 <form asp-action="MarcarFaturaPaga" method="post">
                                     <input type="hidden" name="id" value="@fatura.Id" />
                                     <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">
