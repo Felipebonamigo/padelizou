@@ -34,8 +34,7 @@
     var linkPainelAdmin = AdminHostMiddleware.LinkDoPainel(ViewContext.HttpContext, ehDesenvolvimento);
     @* Dentro do painel, link relativo pro site cai no 404 do próprio host: os poucos que
        sobram (rodapé) precisam apontar pra fora. Fora dali fica nulo = link relativo normal. *@
-    var hostDoSite = dentroDoPainel ? AdminHostMiddleware.SitePublicoHost : null;
-    var protocoloDoSite = dentroDoPainel ? "https" : null;
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, ehDesenvolvimento);
 
     @* A mensagem já sai identificando quem é: do outro lado chega um número desconhecido, e
        saber o nome antes de responder economiza a primeira pergunta de toda conversa. *@

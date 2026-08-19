@@ -2,6 +2,10 @@
 @{
     ViewData["Title"] = "Comentários denunciados - Padelizou";
     var denunciantes = (Dictionary<int, string>)ViewBag.Denunciantes;
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -36,8 +40,8 @@
                             <div class="flex-grow-1">
                                 <p class="mb-2" style="color: var(--pdz-ink);">&ldquo;@c.Texto&rdquo;</p>
                                 <p class="text-muted small mb-0">
-                                    Escrito por <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId" class="fw-bold">@c.Autor.Nome</a>
-                                    no perfil de <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.PerfilId" class="fw-bold">@c.Perfil.Nome</a>
+                                    Escrito por <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite" class="fw-bold">@c.Autor.Nome</a>
+                                    no perfil de <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.PerfilId" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite" class="fw-bold">@c.Perfil.Nome</a>
                                     em @c.CriadoEm.ToString("dd/MM/yyyy HH:mm").
                                 </p>
                                 <p class="text-muted small mb-0">

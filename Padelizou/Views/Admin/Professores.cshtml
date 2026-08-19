@@ -28,6 +28,10 @@
         ProfessoresNoAdmin.NuncaAbriuOPlano => "bg-light text-dark border",
         _ => "bg-warning text-dark",
     };
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -241,7 +245,7 @@
                                     data-situacao="@p.Situacao"
                                     data-pagante="@(p.QuantidadeDePagamentos > 0 ? "1" : "0")">
                                     <td data-ordem="@p.Nome.ToLowerInvariant()">
-                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id"
+                                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                                            class="fw-bold text-decoration-none">@p.Nome</a>
                                         @if (!string.IsNullOrWhiteSpace(p.Email))
                                         {

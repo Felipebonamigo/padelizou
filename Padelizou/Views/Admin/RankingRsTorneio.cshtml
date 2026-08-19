@@ -12,6 +12,10 @@
     // destacar, porque é onde a conferência com eles costuma divergir.
     int emMaisDeUma = cobradas.Count(p => p.Categorias.Count > 1);
     int inscricoes = cobradas.Sum(p => p.Categorias.Count);
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -171,7 +175,7 @@
                         <tr>
                             <td class="text-muted small">@n</td>
                             <td>
-                                <a asp-controller="Jogadors" asp-action="Details" asp-route-id="@p.JogadorId"
+                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.JogadorId" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                                    class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">
                                     @p.Nome
                                 </a>

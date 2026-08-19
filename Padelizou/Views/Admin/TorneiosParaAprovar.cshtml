@@ -4,6 +4,10 @@
     var esperando = ViewBag.Esperando as List<Torneio> ?? new();
     var aprovados = ViewBag.Aprovados as List<Torneio> ?? new();
     var criadores = ViewBag.Criadores as Dictionary<int, Jogador> ?? new();
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 @functions {
@@ -73,7 +77,7 @@
             {
                 <tr>
                     <td>
-                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                            class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@t.Nome</a>
                         <div class="small text-muted">
                             @t.Clube?.Nome
@@ -92,7 +96,7 @@
                         @(t.DataInicio?.ToString("dd/MM/yyyy") ?? "sem data")
                     </td>
                     <td class="text-end">
-                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                            class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1">Ver</a>
                         <form asp-controller="Admin" asp-action="AprovarTorneio" method="post" class="d-inline">
                             <input type="hidden" name="id" value="@t.Id" />
@@ -117,7 +121,7 @@
         {
             <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
-                    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                    <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                        class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@t.Nome</a>
                     <div class="small text-muted">
                         @QuemCriou(criadores, t.Id) · aprovado em @t.AprovadoEm!.Value.ToString("dd/MM/yyyy 'às' HH:mm")
