@@ -3613,6 +3613,23 @@ postando direto no servidor com o formulário desabilitado — a recusa aguentou
 ---
 
 ## 📎 Documentos de apoio
+Gerado em 19/08/2026, no repo:
+- **Plano comercial** — `PLANO-COMERCIAL.html` (fonte) + `Padelizou-Plano-Comercial.pdf`
+  (6 páginas A4), a pedido do dono do **Ranking Brasil**: como o sistema é vendido. Tabela cheia
+  conferida no código do dia (torneio 5/10/15% com mínimo de R$ 4, professor R$ 49,90/mês ou
+  R$ 499,90/ano + 3%/6%, avulso 10%, 15 dias de teste, Americano R$ 5/pessoa a partir de 8,
+  clube 10% na reserva e mensalidade ainda sem preço de tabela), o ciclo da venda em 4 passos,
+  o Programa de Parceiros (20/10 por 12 meses) e a última página com a parceria: validação na
+  inscrição, **R$ 1,00 por pessoa inscrita**, relatório só de leitura, API de torneios e o
+  convite ao organizador com link pro `parceria-clubes`.
+  ⚠️ **Peça EXTERNA**: ficou de fora tudo que é conta de dentro — margem do gateway, teto do
+  MEI, lista congelada de clientes não comissionáveis e comparação com concorrente.
+  ⚠️ Mesmo cuidado do PARCEIROS.html: o `@media print` vem **por último** (o headless pode
+  reportar tema escuro). Regerar: Chromium/Edge headless `--print-to-pdf`.
+  ⚠️ As 6 páginas foram **medidas**, não só olhadas: cada `.pagina` tem `overflow:hidden` e
+  altura fixa no papel, então conteúdo que passa de 296mm some calado — a conferência é o
+  `fim` de cada página ficar abaixo do topo do rodapé (~1060px a 96dpi).
+
 Gerado em 12/08/2026, no repo:
 - **API de torneios (para o Ranking Brasil)** — `API-TORNEIOS.md` (a fonte, em markdown) +
   `API-TORNEIOS.html` e `Padelizou-API-Torneios.pdf` (6 páginas A4), que é a peça **para mandar

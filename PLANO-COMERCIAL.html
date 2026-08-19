@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Padelizou — Plano Comercial</title>
+<style>
+    /* ====== Identidade (as mesmas cores do app e da apresentação) ====== */
+    :root {
+        --verde: #A3D827;
+        --navy: #1C2742;
+        --navy-900: #141d33;
+        --navy-600: #33456e;
+        --ink: #1b2540;
+        --cinza: #f4f6fb;
+        --cinza-borda: #e3e8f2;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+        font-family: "Segoe UI", -apple-system, Arial, sans-serif;
+        background: #d8dde8; color: var(--ink);
+        font-size: 10.5pt; line-height: 1.5;
+    }
+
+    /* ====== Página A4 ====== */
+    .pagina {
+        width: 210mm; min-height: 296mm; margin: 8mm auto;
+        background: #fff; position: relative;
+        padding: 16mm 16mm 20mm 16mm;
+        box-shadow: 0 4px 24px rgba(20,29,51,.25);
+        page-break-after: always; overflow: hidden;
+    }
+    @page { size: A4; margin: 0; }
+
+    .rodape {
+        position: absolute; bottom: 8mm; left: 16mm; right: 16mm;
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 8pt; color: #8a93a8; border-top: 1px solid var(--cinza-borda);
+        padding-top: 3mm;
+    }
+    .rodape b { color: var(--navy); }
+
+    /* ====== Tipografia ====== */
+    h1 { font-size: 26pt; line-height: 1.15; color: var(--navy); }
+    h2 { font-size: 17pt; color: var(--navy); margin-bottom: 4mm; }
+    h3 { font-size: 12pt; color: var(--navy); margin-bottom: 2mm; }
+    p  { margin-bottom: 3mm; }
+    .eyebrow {
+        display: inline-block; font-size: 8.5pt; font-weight: 700;
+        letter-spacing: 2.5px; text-transform: uppercase; color: #7c8aa8;
+        margin-bottom: 2mm;
+    }
+    .eyebrow::before {
+        content: ""; display: inline-block; width: 22px; height: 4px;
+        background: var(--verde); border-radius: 2px; margin-right: 8px;
+        vertical-align: middle;
+    }
+    .verde-txt { color: #6f9a0d; font-weight: 700; }
+    .peq { font-size: 9pt; color: #4a5470; }
+
+    /* ====== Componentes ====== */
+    .chip {
+        display: inline-block; background: var(--navy); color: #fff;
+        border-radius: 999px; padding: 1.2mm 4mm; font-size: 8.5pt;
+        font-weight: 600; margin: 0 1mm 2mm 0;
+    }
+    .chip.verde { background: var(--verde); color: var(--navy-900); }
+
+    .caixa {
+        background: var(--cinza); border: 1px solid var(--cinza-borda);
+        border-radius: 12px; padding: 5mm; margin-bottom: 4mm;
+    }
+    .caixa.navy {
+        background: linear-gradient(120deg, var(--navy-900), var(--navy) 60%, #24325a);
+        color: #dfe6f5; border: none;
+    }
+    .caixa.navy h3, .caixa.navy .titulo { color: #fff; }
+    .caixa.navy .verde-txt { color: var(--verde); }
+    .caixa.navy b { color: #fff; }
+    .caixa.borda-verde { border-left: 5px solid var(--verde); }
+
+    ul.lista { list-style: none; margin-bottom: 3mm; }
+    ul.lista li { padding-left: 7mm; position: relative; margin-bottom: 2.2mm; }
+    ul.lista li::before {
+        content: "✓"; position: absolute; left: 0; top: -0.4mm;
+        width: 5mm; height: 5mm; border-radius: 50%;
+        background: var(--verde); color: var(--navy-900);
+        font-size: 8pt; font-weight: 800; text-align: center; line-height: 5mm;
+    }
+    ul.lista li b { color: var(--navy); }
+    ul.lista.compacta li { margin-bottom: 1.2mm; font-size: 9.3pt; }
+
+    ol.passos { list-style: none; counter-reset: p; }
+    ol.passos li {
+        counter-increment: p; padding-left: 9mm; position: relative;
+        margin-bottom: 3mm; font-size: 9.6pt;
+    }
+    ol.passos li::before {
+        content: counter(p); position: absolute; left: 0; top: 0;
+        width: 6mm; height: 6mm; border-radius: 50%;
+        background: var(--navy); color: #fff;
+        font-size: 8.5pt; font-weight: 800; text-align: center; line-height: 6mm;
+    }
+    ol.passos li b { color: var(--navy); }
+
+    .grade-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+    .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+
+    .cartao {
+        border: 1px solid var(--cinza-borda); border-radius: 12px;
+        padding: 4mm; background: #fff;
+    }
+    .cartao .titulo { font-weight: 700; color: var(--navy); font-size: 10.5pt; margin-bottom: 1.5mm; }
+    .cartao .icone { font-size: 15pt; margin-bottom: 1mm; }
+    .cartao p { font-size: 9pt; margin-bottom: 0; color: #4a5470; }
+
+    .num-grande { font-size: 21pt; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .num-legenda { font-size: 8.5pt; color: #7c8aa8; text-transform: uppercase; letter-spacing: 1px; }
+
+    table.tab { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    table.tab th {
+        background: var(--navy); color: #fff; text-align: left;
+        padding: 2.6mm 3mm; font-size: 9pt;
+    }
+    table.tab th:first-child { border-radius: 2mm 0 0 0; }
+    table.tab th:last-child { border-radius: 0 2mm 0 0; }
+    table.tab td { padding: 2.4mm 3mm; border-bottom: 1px solid var(--cinza-borda); vertical-align: top; }
+    table.tab tr:nth-child(even) td { background: #f8fafd; }
+    table.tab td b { color: var(--navy); }
+    table.tab.mini { font-size: 9pt; }
+    table.tab.mini td, table.tab.mini th { padding: 2mm 2.6mm; }
+
+    /* capa */
+    .capa {
+        background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy) 55%, #24325a 100%);
+        color: #dfe6f5; display: flex; flex-direction: column;
+        padding: 18mm 16mm 14mm;
+    }
+    .capa h1 { color: #fff; font-size: 30pt; }
+    .capa .marca-grande { font-size: 34pt; font-weight: 800; color: #fff; letter-spacing: 1px; }
+    .capa .marca-grande span { color: var(--verde); }
+    .risco { width: 30mm; height: 5px; background: var(--verde); border-radius: 3px; margin: 6mm 0; }
+
+    /* ⚠️ Este bloco vem POR ÚLTIMO de propósito: o headless pode reportar tema escuro,
+       e sem ele o PDF sai com o fundo do papel errado. Mesma regra do PARCEIROS.html. */
+    @media print {
+        body { background: #fff; }
+        .pagina { margin: 0; box-shadow: none; width: 210mm; height: 296mm; }
+    }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ PÁGINA 1 — CAPA ═══════════════════════ -->
+<div class="pagina capa">
+    <div style="font-size:9pt; letter-spacing:3px; text-transform:uppercase; color:#93a2c4;">
+        Plano comercial · agosto de 2026
+    </div>
+    <div class="marca-grande" style="margin-top:4mm;">PADELI<span>ZOU</span></div>
+    <div class="risco"></div>
+    <h1>Como o Padelizou<br>é vendido.</h1>
+    <p style="font-size:12.5pt; margin-top:4mm; max-width:125mm; color:#c3cde4;">
+        O modelo de cobrança de cada frente, o preço de tabela conferido no sistema,
+        o caminho que uma venda percorre hoje e o programa de comissão para quem traz
+        cliente. <b style="color:#fff;">Sem tabela paralela: um produto, um preço.</b>
+    </p>
+
+    <div style="margin-top:8mm;">
+        <span class="chip verde">Torneios</span>
+        <span class="chip" style="background:#33456e;">Professores</span>
+        <span class="chip" style="background:#33456e;">Clubes</span>
+        <span class="chip" style="background:#33456e;">Americano</span>
+        <span class="chip" style="background:#33456e;">Programa de Parceiros</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6mm; margin-top:12mm;">
+        <div>
+            <div class="num-grande" style="color:#fff;">R$ 0</div>
+            <div class="num-legenda" style="color:#93a2c4;">de mensalidade para o organizador de torneio</div>
+        </div>
+        <div>
+            <div class="num-grande" style="color:#fff;">5–15%</div>
+            <div class="num-legenda" style="color:#93a2c4;">da inscrição, conforme a forma de recebimento</div>
+        </div>
+        <div>
+            <div class="num-grande" style="color:#fff;">R$ 49,90</div>
+            <div class="num-legenda" style="color:#93a2c4;">a mensalidade do professor assinante</div>
+        </div>
+        <div>
+            <div class="num-grande" style="color:#fff;">Grátis</div>
+            <div class="num-legenda" style="color:#93a2c4;">para o jogador, sempre</div>
+        </div>
+    </div>
+
+    <div style="margin-top:auto; background:rgba(163,216,39,.12); border:1px solid rgba(163,216,39,.4); border-radius:12px; padding:6mm;">
+        <div style="font-size:8.5pt; letter-spacing:2px; text-transform:uppercase; color:#93a2c4;">Preparado para</div>
+        <div style="color:var(--verde); font-weight:800; font-size:15pt; margin-top:1mm;">Ranking Brasil</div>
+        <div style="font-size:9.5pt; color:#c3cde4;">
+            mundodoatleta.com.br — parceiro do Padelizou na validação de categoria desde agosto de 2026.
+            A última página resume o que já está no ar entre as duas empresas.
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 2 — O MODELO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">O modelo</span>
+    <h2>Quem ganha dinheiro com o padel paga; quem joga, não</h2>
+
+    <p>
+        O Padelizou não vende licença nem cobra por cadastro. A régua é uma só: <b>o sistema
+        cobra um percentual do dinheiro que efetivamente entrou</b> — inscrição paga, aula
+        dada, quadra alugada. Não houve torneio, não houve fatura. É o que responde a pergunta
+        que todo organizador faz: <i>"e se ninguém se inscrever?"</i> — aí não custa nada.
+    </p>
+
+    <div class="grade-3" style="margin:4mm 0;">
+        <div class="cartao">
+            <div class="icone">🧾</div>
+            <div class="titulo">Sem mensalidade no torneio</div>
+            <p>O organizador nunca paga para ter conta. A taxa nasce da inscrição paga e é descontada no repasse.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">👀</div>
+            <div class="titulo">Preço na tela, antes</div>
+            <p>A taxa aparece na criação do torneio, antes de qualquer cobrança. Ele anuncia o preço já sabendo o líquido.</p>
+        </div>
+        <div class="cartao">
+            <div class="icone">⚖️</div>
+            <div class="titulo">Um preço só</div>
+            <p>Não existe tabela por canal nem desconto por indicação. Quem vende ganha da nossa fatia, nunca do bolso do cliente.</p>
+        </div>
+    </div>
+
+    <h3 style="margin-top:4mm;">A tabela cheia (conferida no sistema em 19/08/2026)</h3>
+    <table class="tab" style="margin-bottom:5mm;">
+        <tr><th style="width:26%;">Quem</th><th style="width:32%;">Quanto</th><th>Como funciona</th></tr>
+        <tr>
+            <td><b>Jogador</b></td>
+            <td><b class="verde-txt">Grátis, sempre</b></td>
+            <td>Conta, perfil, ranking, troféus, busca de jogo. Ele só paga a inscrição do torneio ou a aula que consumir.</td>
+        </tr>
+        <tr>
+            <td><b>Organizador de torneio</b></td>
+            <td><b>5%</b> recebendo por fora · <b>10%</b> só Pix pelo app · <b>15%</b> todas as formas</td>
+            <td>Quem escolhe é o organizador, na criação. Mínimo de R$ 4 por cobrança — detalhe na página seguinte.</td>
+        </tr>
+        <tr>
+            <td><b>Professor</b></td>
+            <td><b>R$ 49,90/mês</b> ou <b>R$ 499,90/ano</b> + 3% (Pix) ou 6% (cartão) por aula</td>
+            <td>15 dias de teste com tudo liberado. Sem assinatura, a taxa é 10% por aula e não há mensalidade — ele escolhe o que compensa. Mensalidade atrasada tem 7 dias de carência antes de cair para o avulso.</td>
+        </tr>
+        <tr>
+            <td><b>Americano valendo ponto</b></td>
+            <td><b>R$ 5</b> por pessoa inscrita</td>
+            <td>Opcional e contratado na criação. A partir de 8 inscritos; abaixo disso o rodízio não pontua — e não custa nada.</td>
+        </tr>
+        <tr>
+            <td><b>Clube</b></td>
+            <td><b>10%</b> sobre a reserva paga pelo app · mensalidade <b>caso a caso</b></td>
+            <td>Agenda de quadras, financeiro e gestão do clube estão no ar. O plano mensal de clube ainda não tem preço de tabela: hoje é conversado caso a caso.</td>
+        </tr>
+    </table>
+
+    <div class="caixa borda-verde" style="margin-bottom:0;">
+        <b>O que NÃO existe:</b> taxa de adesão, cobrança por jogador ativo, fidelidade e multa
+        de saída. Quem fizer um torneio e sumir por seis meses não recebe fatura nesse intervalo.
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · Plano comercial</span><span>2</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 3 — O TORNEIO ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">A frente principal</span>
+    <h2>Torneio: três réguas, e quem escolhe é o organizador</h2>
+
+    <p>
+        As três taxas não são negociação: cada uma corresponde a um serviço diferente e a um
+        custo diferente para a plataforma. O organizador marca a opção na criação do torneio.
+    </p>
+
+    <div class="grade-3" style="margin:5mm 0;">
+        <div class="cartao" style="border-top:4px solid var(--verde);">
+            <div style="font-size:18pt; font-weight:800; color:var(--navy);">5%</div>
+            <div class="titulo">Recebimento por fora</div>
+            <p>O dinheiro não passa pelo sistema — o organizador cobra como sempre cobrou. Ele usa o Padelizou para inscrição, chaves, mesa de controle e ranking. As chaves são liberadas depois do acerto da taxa.</p>
+        </div>
+        <div class="cartao" style="border-top:4px solid var(--verde);">
+            <div style="font-size:18pt; font-weight:800; color:var(--navy);">10%</div>
+            <div class="titulo">Só Pix pelo app</div>
+            <p>A inscrição é paga no app e cai direto na conta do organizador, com a taxa já descontada. Confirmação automática: ninguém confere comprovante no grupo.</p>
+        </div>
+        <div class="cartao" style="border-top:4px solid var(--verde);">
+            <div style="font-size:18pt; font-weight:800; color:var(--navy);">15%</div>
+            <div class="titulo">Todas as formas</div>
+            <p>O jogador pode parcelar no crédito. Custa mais porque o cartão custa mais e demora — a plataforma adianta o serviço e recebe depois.</p>
+        </div>
+    </div>
+
+    <h3 style="margin-top:6mm;">Quanto custa, em torneios de tamanho real</h3>
+    <p class="peq" style="margin-bottom:2mm;">
+        Inscrição de R$ 150 por dupla. Os tamanhos abaixo são os que os organizadores da base
+        rodam hoje.
+    </p>
+    <table class="tab mini" style="margin-bottom:5mm;">
+        <tr>
+            <th>Tamanho</th><th>Arrecadação</th>
+            <th>Taxa a 5%</th><th>Taxa a 10%</th><th>Taxa a 15%</th>
+        </tr>
+        <tr><td><b>45 duplas</b></td><td>R$ 6.750</td><td>R$ 337,50</td><td>R$ 675,00</td><td>R$ 1.012,50</td></tr>
+        <tr><td><b>60 duplas</b></td><td>R$ 9.000</td><td>R$ 450,00</td><td>R$ 900,00</td><td>R$ 1.350,00</td></tr>
+        <tr><td><b>110 duplas</b></td><td>R$ 16.500</td><td>R$ 825,00</td><td>R$ 1.650,00</td><td>R$ 2.475,00</td></tr>
+    </table>
+
+    <div class="caixa navy">
+        <h3 style="font-size:12pt;">💡 O argumento que fecha a venda não é o preço</h3>
+        <p style="margin-bottom:0;">
+            É o trabalho que sai da mesa do organizador: inscrição com pagamento confirmado
+            sozinho, chave sorteada, mesa de controle com placar ao vivo, aviso automático para
+            quem joga a seguir, ranking e troféu no perfil de cada atleta no fim.
+            <b>O torneio ainda é o melhor vendedor do sistema</b> — cada edição coloca dezenas
+            de jogadores dentro do app, de graça, e é de dentro dessa base que sai o próximo
+            organizador.
+        </p>
+    </div>
+
+    <h3 style="margin-top:5mm;">As outras frentes, em uma linha cada</h3>
+    <ul class="lista compacta">
+        <li><b>Professor</b> — agenda, alunos, cobrança da aula e avaliação. A conta fecha para ele a partir de mais ou menos R$ 700 de aula por mês: acima disso, assinar sai mais barato que os 10% do avulso.</li>
+        <li><b>Clube</b> — quadras, reservas, financeiro e o calendário de torneios da casa no mesmo lugar.</li>
+        <li><b>Americano</b> — o rodízio de sábado, com ranking próprio e separado do oficial, contratado por R$ 5 por pessoa a partir de 8 inscritos.</li>
+    </ul>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · Plano comercial</span><span>3</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 4 — COMO A VENDA ACONTECE ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">O caminho da venda</span>
+    <h2>Como o sistema está sendo vendido hoje</h2>
+
+    <p>
+        Honestidade primeiro: <b>hoje a venda é relação pessoal.</b> A base atual — seis grupos
+        de torneio, três clubes e dois professores, em agosto de 2026 — veio inteira de conversa
+        direta, sem anúncio pago, sem equipe de vendas e sem funil automatizado. É um modelo que
+        converte muito bem e não escala: é exatamente por isso que existe o programa de comissão
+        da página seguinte.
+    </p>
+
+    <h3 style="margin-top:5mm;">O ciclo, em quatro passos</h3>
+    <ol class="passos">
+        <li><b>Conversa com quem já organiza.</b> Não há prospecção fria: o alvo é quem já roda torneio, já dá aula ou já administra quadra, e hoje faz isso em planilha e grupo de WhatsApp.</li>
+        <li><b>Torneio-piloto.</b> A primeira edição entra no sistema com acompanhamento direto de quem constrói o produto — cadastro das categorias, chaves e mesa de controle. Sem contrato, sem mensalidade, sem risco: se o torneio não acontecer, não há o que pagar.</li>
+        <li><b>O evento vende sozinho.</b> Cada inscrito cria conta grátis para se inscrever e sai do torneio com ranking, troféu e histórico. Boa parte da base de jogadores entrou assim, e é dela que saem os próximos organizadores.</li>
+        <li><b>A repetição é a receita.</b> O mesmo grupo roda a etapa seguinte, e a partir da segunda edição a venda já está feita — o custo de manter é suporte, não venda.</li>
+    </ol>
+
+    <div class="grade-2" style="margin-top:5mm;">
+        <div class="caixa" style="margin-bottom:0;">
+            <h3>O que existe de material</h3>
+            <ul class="lista compacta" style="margin-bottom:0;">
+                <li><b>Apresentação de 12 páginas</b> em PDF — o sistema inteiro no papel, por perfil.</li>
+                <li><b>Um torneio real</b> aberto no celular durante a conversa, que vale mais que qualquer slide.</li>
+                <li><b>WhatsApp direto</b> com quem constrói o sistema — sem fila de suporte, e é um diferencial citado em toda conversa.</li>
+            </ul>
+        </div>
+        <div class="caixa" style="margin-bottom:0;">
+            <h3>Indicação de quem já usa</h3>
+            <p class="peq" style="margin-bottom:2mm;">
+                O melhor vendedor não é vendedor: é o organizador que já usa e conversa com outro
+                organizador.
+            </p>
+            <p class="peq" style="margin-bottom:0;">
+                Quem indica um organizador que fecha <b>não recebe dinheiro — recebe desconto</b>:
+                a próxima edição dele sai com taxa de 5% em vez de 10%. Converte melhor que
+                anúncio e não cria despesa.
+            </p>
+        </div>
+    </div>
+
+    <h3 style="margin-top:4mm;">Por que o cliente fica depois de entrar</h3>
+    <div class="grade-3" style="margin-bottom:3mm;">
+        <div class="cartao">
+            <div class="titulo">Custo zero de manter</div>
+            <p>Sem fidelidade e sem mensalidade no torneio, o cliente parado não paga nada — então não há motivo para cancelar. Ele volta na etapa seguinte.</p>
+        </div>
+        <div class="cartao">
+            <div class="titulo">O histórico mora aqui</div>
+            <p>Ranking, troféus e o retrospecto de cada atleta ficam no sistema. Trocar de plataforma na segunda edição custa o passado do grupo inteiro.</p>
+        </div>
+        <div class="cartao">
+            <div class="titulo">Quem joga cobra</div>
+            <p>Depois de um torneio com inscrição no app e placar ao vivo, é o jogador que pergunta pelo link na etapa seguinte.</p>
+        </div>
+    </div>
+
+    <div class="caixa borda-verde" style="margin-bottom:0;">
+        <b>Onde a venda trava hoje, dito sem rodeio:</b> o produto é conhecido por quem joga em
+        Porto Alegre e região, e desconhecido no resto. O gargalo não é preço nem produto — é
+        <b>alcance</b>. Link em site de terceiro, calendário oficial e a palavra de quem já tem
+        autoridade no meio valem mais, hoje, do que qualquer funcionalidade nova.
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · Plano comercial</span><span>4</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 5 — PROGRAMA DE PARCEIROS ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Para quem traz cliente</span>
+    <h2>Programa de Parceiros: 20% na entrada, 10% por 12 meses</h2>
+
+    <p>
+        A régua é a mesma para todo produto e todo parceiro: <b>20% da comissão que o Padelizou
+        receber na primeira venda</b> e <b>10% de tudo que aquele cliente gerar nos 12 meses
+        seguintes</b>, contados do primeiro pagamento confirmado.
+    </p>
+
+    <div class="caixa borda-verde" style="padding:4mm;">
+        <b>A comissão sai da nossa fatia, nunca do preço do cliente:</b> o organizador que paga 10%
+        continua pagando 10%, com ou sem parceiro no meio.
+    </div>
+
+    <table class="tab mini" style="margin:3mm 0;">
+        <tr><th style="width:22%;">Produto</th><th style="width:30%;">A entrada é…</th><th>1ª venda</th><th>Depois</th><th>Prazo</th></tr>
+        <tr><td><b>Torneio</b></td><td>a 1ª edição</td><td><b>20%</b> da comissão dela</td><td><b>10%</b> das edições seguintes</td><td>12 meses</td></tr>
+        <tr><td><b>Professor</b></td><td>a 1ª mensalidade paga</td><td><b>20%</b> da comissão dela</td><td><b>10%</b> das seguintes</td><td>12 meses</td></tr>
+        <tr><td><b>Clube</b></td><td>a 1ª mensalidade paga</td><td><b>20%</b> da comissão dela</td><td><b>10%</b> das seguintes</td><td>12 meses</td></tr>
+    </table>
+
+    <h3>Quanto vale um torneio para quem o trouxe</h3>
+    <p class="peq" style="margin-bottom:2mm;">
+        Taxa de 10% (só Pix), inscrição de R$ 150 a dupla. Um grupo de 60 duplas com quatro etapas
+        no ano rende R$ 450 a quem o trouxe; dez grupos, cerca de R$ 4.500.
+    </p>
+    <table class="tab mini" style="margin-bottom:4mm;">
+        <tr><th>Tamanho</th><th>Comissão do Padelizou</th><th>Parceiro na 1ª edição</th><th>Nas edições seguintes</th></tr>
+        <tr><td><b>45 duplas</b></td><td>R$ 675</td><td><b>R$ 135</b></td><td>R$ 67,50</td></tr>
+        <tr><td><b>60 duplas</b></td><td>R$ 900</td><td><b>R$ 180</b></td><td>R$ 90,00</td></tr>
+        <tr><td><b>110 duplas</b></td><td>R$ 1.650</td><td><b>R$ 330</b></td><td>R$ 165,00</td></tr>
+    </table>
+    <div class="grade-2">
+        <div class="caixa" style="margin-bottom:0; padding:4mm;">
+            <h3>As regras de atribuição</h3>
+            <ul class="lista compacta" style="margin-bottom:0;">
+                <li><b>Lead registrado antes do contato</b>, no painel. Quem registra primeiro, leva.</li>
+                <li><b>Lead vence em 90 dias</b> — não fechou, volta para o pote.</li>
+                <li><b>Um cliente, um parceiro</b> — sem divisão.</li>
+                <li><b>Cadastro espontâneo não tem dono</b> — quem chega sozinho é da casa.</li>
+                <li><b>Comissão só da frente vendida</b> — quem trouxe o torneio não recebe das aulas da mesma pessoa.</li>
+            </ul>
+        </div>
+        <div class="caixa" style="margin-bottom:0; padding:4mm;">
+            <h3>Como o dinheiro sai</h3>
+            <ul class="lista compacta" style="margin-bottom:0;">
+                <li><b>Só de dinheiro recebido</b> — nasce do pagamento confirmado, nunca do faturado.</li>
+                <li><b>Estorno derruba a parte proporcional</b>, inclusive o parcial.</li>
+                <li><b>Fecha dia 30, paga até o dia 10</b> — os dez dias são a carência para estorno aparecer.</li>
+                <li><b>Piso de R$ 50</b> para saque; abaixo disso acumula.</li>
+                <li><b>Painel próprio</b>, só de leitura, com o extrato e o prazo restante de cada cliente.</li>
+            </ul>
+        </div>
+    </div>
+
+    <p class="peq" style="margin-top:3mm; margin-bottom:0;">
+        Sem exclusividade, meta ou subordinação: qualquer das partes encerra quando quiser, e as
+        comissões já geradas seguem pagas até o fim do prazo de cada cliente.
+    </p>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · Plano comercial</span><span>5</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════ PÁGINA 6 — A PARCERIA ═══════════════════════ -->
+<div class="pagina">
+    <span class="eyebrow">Ranking Brasil</span>
+    <h2>O que já está no ar entre nós — e o próximo passo</h2>
+
+    <p>
+        A parceria começou em agosto de 2026 e não é anúncio: ela decide inscrição dentro do
+        sistema, todo dia.
+    </p>
+
+    <ul class="lista">
+        <li><b>Validação de categoria na inscrição.</b> O organizador liga a conferência ao criar o torneio; o sistema consulta a pontuação oficial do atleta e barra quem pontua em categoria acima. A recusa é <b>macia</b>: vira pendência e o organizador dá a palavra final. Instabilidade na API nunca vira recusa automática.</li>
+        <li><b>R$ 1,00 por pessoa inscrita</b>, pago pelo Padelizou ao Ranking Brasil nos torneios que usam a conferência. A régua é a pessoa, não a inscrição: quem joga duas categorias no mesmo torneio custa um real, não dois. O acerto é apurado por torneio no painel.</li>
+        <li><b>Relatório só de leitura</b> — uma página nossa em que vocês veem o que foi conferido, torneio a torneio, sem pedir print para ninguém.</li>
+        <li><b>API de torneios</b> (<span style="font-family:Consolas,monospace; font-size:9pt;">GET /api/ranking/torneios</span>) — a lista dos torneios com inscrição aberta, para vocês puxarem. Só dados do evento: nome, clube, data, foto. <b>Nenhum dado de atleta</b>, como foi pedido. Documentada em peça própria.</li>
+        <li><b>Convite ao organizador dentro do nosso sistema.</b> Ao criar o torneio, a tela explica o que ele ganha ao habilitar o ranking e leva para <b>mundodoatleta.com.br/parceria-clubes</b> — tráfego nosso indo para a página de vocês.</li>
+    </ul>
+
+    <div class="caixa borda-verde">
+        <b>E o que decidimos não fazer:</b> o dado de vocês saiu do perfil público do jogador —
+        era vitrine boa para nós e ruim para vocês, ranking do parceiro distribuído de graça.
+        Hoje a consulta só acontece onde presta serviço: na inscrição de um torneio que
+        contratou a conferência. No mesmo espírito, o nosso indicador interno de nível
+        <b>não trava inscrição</b> — quem nivela é o ranking oficial de vocês.
+    </div>
+
+    <div class="caixa navy" style="margin-top:5mm;">
+        <h3 style="font-size:12pt;">🤝 A proposta, em uma frase</h3>
+        <p style="margin-bottom:2mm;">
+            O Ranking Brasil fala todo dia com exatamente quem o Padelizou precisa alcançar:
+            clube e organizador de etapa. <b>Cada indicação que fechar entra no Programa de
+            Parceiros da página anterior</b> — 20% da comissão da primeira edição e 10% pelos
+            doze meses seguintes, sem tocar no preço do cliente e sem exclusividade nenhuma.
+        </p>
+        <p style="margin-bottom:0;">
+            Isso soma ao R$ 1,00 por inscrito, que continua valendo do mesmo jeito: um é
+            pagamento pelo serviço de conferência, o outro é comissão de venda.
+        </p>
+    </div>
+
+    <div class="caixa" style="margin-top:5mm; text-align:center; padding:8mm;">
+        <div style="font-size:8.5pt; letter-spacing:3px; text-transform:uppercase; color:#7c8aa8;">Para conversar</div>
+        <div style="font-size:20pt; font-weight:800; color:var(--navy); margin:2mm 0;">PADELI<span style="color:#6f9a0d;">ZOU</span></div>
+        <div style="font-size:10pt; color:#4a5470;">
+            Felipe Bonamigo · 💬 WhatsApp <b style="color:var(--navy);">(51) 99485-4884</b><br>
+            <b style="color:var(--navy);">padelizou.com.br</b>
+        </div>
+    </div>
+
+    <div class="rodape">
+        <span><b>Padelizou</b> · Plano comercial</span><span>6</span>
+    </div>
+</div>
+
+</body>
+</html>
