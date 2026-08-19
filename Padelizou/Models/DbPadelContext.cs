@@ -44,6 +44,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
     public DbSet<CadastroDoAluno> CadastrosDeAlunos { get; set; }
+    public DbSet<FaturaDoAluno> FaturasDeAlunos { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -1198,6 +1199,39 @@ public partial class DbPadelContext : DbContext
 
             // Achar a pessoa pelo número que o professor tem na mão — é o cadastro rápido.
             entity.HasIndex(e => e.Celular);
+        });
+
+        modelBuilder.Entity<FaturaDoAluno>(entity =>
+        {
+            entity.Property(e => e.Valor).HasPrecision(18, 2);
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.PagadorNome).HasMaxLength(120);
+            entity.Property(e => e.PagadorCelular).HasMaxLength(20);
+            entity.Property(e => e.PagadorCpf).HasMaxLength(11);
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // A cobrança no gateway, quando existe. Restrict: apagar um pagamento não pode
+            // deixar a conta do mês dizendo que foi cobrada por algo que não existe mais.
+            entity.HasOne(e => e.Pagamento)
+                .WithMany()
+                .HasForeignKey(e => e.PagamentoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor abre a tela do mês inteira de uma vez, e a competência é sempre
+            // parte da pergunta ("o que eu fechei em abril?").
+            entity.HasIndex(e => new { e.ProfessorId, e.Ano, e.Mes });
         });
 
         modelBuilder.Entity<PacoteDeAulas>(entity =>

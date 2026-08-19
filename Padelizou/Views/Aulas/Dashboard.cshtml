@@ -143,6 +143,11 @@
         <a asp-controller="Aulas" asp-action="Financeiro" class="btn btn-padel rounded-pill btn-sm fw-bold">
             <i class="bi bi-cash-coin"></i> Meu financeiro
         </a>
+        @* Quem cobra por mês fecha aqui. Fica ao lado do financeiro de propósito: um responde
+           "quanto entrou", o outro "quanto eu vou cobrar de quem". *@
+        <a asp-controller="Aulas" asp-action="Faturamento" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-receipt"></i> Fechar o mês
+        </a>
         <a asp-controller="Professores" asp-action="Perfil" asp-route-id="@ViewBag.ProfessorId" class="btn btn-outline-primary rounded-pill btn-sm">
             <i class="bi bi-person-badge"></i> Minha página pública
         </a>
