@@ -22,7 +22,9 @@
         <div class="card-body row g-2 align-items-end">
             <div class="col-12 col-md-4">
                 <label class="form-label small fw-semibold mb-1" for="filtroTime">Time</label>
-                <select class="form-select" id="filtroTime" name="timeId">
+                @* Dropdown troca o filtro sozinho — só o campo de texto ainda precisa do botão,
+                   porque submeter a cada letra digitada seria pior do que esperar o clique. *@
+                <select class="form-select" id="filtroTime" name="timeId" onchange="this.form.submit()">
                     <option value="">Todos os times</option>
                     @foreach (var t in Model.Times)
                     {
@@ -35,7 +37,7 @@
                 <label class="form-label small fw-semibold mb-1" for="filtroSentido">Movimento</label>
                 @* Com um time escolhido, "entradas" são os reforços dele e "saídas" quem o
                    deixou. Sem time, valem pra qualquer um — ver o comentário do enum. *@
-                <select class="form-select" id="filtroSentido" name="sentido">
+                <select class="form-select" id="filtroSentido" name="sentido" onchange="this.form.submit()">
                     <option value="">Entradas e saídas</option>
                     <option value="entradas" selected="@(sentido == TransferenciasDeTime.Sentido.Entradas)">Só entradas</option>
                     <option value="saidas" selected="@(sentido == TransferenciasDeTime.Sentido.Saidas)">Só saídas</option>
