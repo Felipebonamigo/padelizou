@@ -364,6 +364,11 @@ namespace Padelizou.Controllers
             //    campanha foi aplicada DEPOIS delas — desfazer é voltar na ordem inversa, e
             //    pros 4 da final o passo seguinte sobrescreve com o nível pré-jogo, que é o
             //    certo. Campanha não conta como jogo, então JogosDePadelimetro fica quieto.
+            //
+            //    ⚠️ SUBTRAI O DELTA em vez de restaurar NivelAntes: quem levou a pena pode já
+            //    ter jogado OUTRA coisa depois da final (a mista da noite move o mesmo número),
+            //    e restaurar o nível absoluto apagaria esse ganho junto. O delta gravado é
+            //    pós-clamp, então a subtração desfaz exatamente o que foi aplicado.
             if (partida.Fase == "Final")
             {
                 var campanha = await _context.HistoricosDePadelimetro
@@ -375,8 +380,9 @@ namespace Padelizou.Controllers
                         .ToDictionaryAsync(j => j.Id);
 
                     foreach (var linha in campanha)
-                        if (jogadoresDaCampanha.TryGetValue(linha.JogadorId, out var jogador))
-                            jogador.Padelimetro = linha.NivelAntes;
+                        if (jogadoresDaCampanha.TryGetValue(linha.JogadorId, out var jogador)
+                            && jogador.Padelimetro != null)
+                            jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
 
                     _context.HistoricosDePadelimetro.RemoveRange(campanha);
                 }

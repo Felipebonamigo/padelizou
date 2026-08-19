@@ -71,6 +71,9 @@ A campanha passa a falar direto no número:
 - Mesmos porteiros das partidas: restrito, Americano, times e cancelado ficam fora. E
   **mista/casal/categoria fora da convenção ficam fora da campanha** (os JOGOS delas
   seguem movendo o número): sem faixa não há porta pra régua mirar.
+- Correção de placar que TROCA o vencedor da final não reaplica nada sozinha — o extrato
+  é a memória do que já foi aplicado, igual aos jogos. O caminho certo é REABRIR a final
+  (desfaz jogo e campanha, e refaz os dois ao finalizar de novo) ou o replay do admin.
 
 ⚠️ **AS PORTAS DA FAIXA LIMITAM O AJUSTE — a parte que impede a régua de ser rígida.**
 Aviso do Felipe na mesma conversa: *"tem pessoas que passam vários anos (uns 20 torneios)

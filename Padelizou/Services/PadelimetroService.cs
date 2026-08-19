@@ -150,14 +150,17 @@ public class PadelimetroService : IPadelimetroService
         }
 
         // As duplas saem das PARTIDAS, não de uma consulta própria: quem não aparece em
-        // jogo nenhum não pode ter entrado em quadra, então não faz falta. Campeão
-        // primeiro e Id no desempate: se um dado torto puser a mesma pessoa em duas
-        // duplas, vale a melhor campanha, sempre na mesma ordem.
+        // jogo nenhum não pode ter entrado em quadra, então não faz falta. A ordem é da
+        // MELHOR campanha pra pior (campeão, depois a fase mais funda — OrdemDaFase põe
+        // "Grupos" em -1, atrás de todo mata-mata) com Id no desempate: se um dado torto
+        // puser a mesma pessoa em duas duplas, vale a melhor campanha, sempre na mesma
+        // ordem.
         var duplas = partidasDaCategoria
             .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
             .Where(d => d != null && !d.EhTime && d.Jogador2Id != null)
             .DistinctBy(d => d.Id)
             .OrderByDescending(d => d.UltimaFase == CampeoesDoTorneio.FaseDeCampeao)
+            .ThenByDescending(d => DesfazerDoJogo.OrdemDaFase(d.UltimaFase))
             .ThenBy(d => d.Id)
             .ToList();
 

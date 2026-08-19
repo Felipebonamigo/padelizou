@@ -416,6 +416,91 @@ public class CampanhaNoPadelimetroServiceTests
     }
 
     [Fact]
+    public async Task Reabrir_a_final_preserva_o_que_veio_depois_da_campanha()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var cenario = MontarCategoriaJogada(ctx);
+
+        var org = new Jogador { Nome = "Organizador", Cpf = "99900000002" };
+        ctx.Jogadores.Add(org);
+        ctx.SaveChanges();
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = cenario.Torneio.Id, JogadorId = org.Id });
+        ctx.SaveChanges();
+
+        var service = new PadelimetroService(ctx);
+        await service.AplicarAsync(cenario.Final.Id);
+        await service.AplicarCampanhaAsync(cenario.Categoria.Id);
+
+        // Quem ficou na chave (600 − 10 = 590) joga a MISTA da noite e ganha +12: o
+        // mesmo número, movido por outra categoria DEPOIS da campanha.
+        var jogador = cenario.FicaramNaChave[0];
+        Assert.Equal(590, jogador.Padelimetro);
+        jogador.Padelimetro = 602;
+        ctx.HistoricosDePadelimetro.Add(new HistoricoDePadelimetro
+        {
+            JogadorId = jogador.Id,
+            PartidaId = 9099,
+            NivelAntes = 590,
+            Delta = 12,
+            Motivo = "Vitória 6x2 na Mista",
+            CriadoEm = cenario.Final.PlacarMarcadoEm!.Value.AddHours(3),
+        });
+        ctx.SaveChanges();
+
+        var controller = TestInfra.NovoPartidasController(ctx, org.Id);
+        await controller.ReabrirPartida(cenario.Final.Id);
+
+        // Desfazer a campanha devolve SÓ a pena (−10 de volta): a mista fica de pé.
+        // Restaurar o nível absoluto de antes apagaria o +12 junto.
+        Assert.Equal(612, jogador.Padelimetro);
+    }
+
+    [Fact]
+    public async Task Jogador_em_duas_duplas_leva_a_melhor_campanha()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var cenario = MontarCategoriaJogada(ctx);
+
+        // Dado torto: um jogador da dupla F ("Grupos", Id menor) também aparece numa
+        // dupla nova que caiu na estreia ("Semifinal", Id maior). A melhor campanha —
+        // a estreia, −5 — é a que vale; por Id, a pior venceria.
+        var jogadorRepetido = cenario.FicaramNaChave[2];
+        var duplaNova = new Dupla
+        {
+            CategoriaId = cenario.Categoria.Id,
+            Jogador1Id = jogadorRepetido.Id,
+            Jogador2Id = cenario.CairamNaEstreia[0].Id,
+            UltimaFase = "Semifinal",
+        };
+        ctx.Duplas.Add(duplaNova);
+        ctx.SaveChanges();
+        ctx.Partidas.Add(new Partida
+        {
+            CategoriaId = cenario.Categoria.Id,
+            TorneioId = cenario.Torneio.Id,
+            Dupla1Id = duplaNova.Id,
+            Dupla2Id = ctx.Duplas.Single(d => d.UltimaFase == "Campeao").Id,
+            Codigo = "J99",
+            Status = "Finalizada",
+            Fase = "Semifinal",
+            GamesDupla1 = 2,
+            GamesDupla2 = 6,
+            SetsDupla1 = 0,
+            SetsDupla2 = 1,
+            VencedorId = ctx.Duplas.Single(d => d.UltimaFase == "Campeao").Id,
+            PlacarMarcadoEm = new DateTime(2026, 8, 15, 8, 0, 0),
+        });
+        ctx.SaveChanges();
+
+        await new PadelimetroService(ctx).AplicarCampanhaAsync(cenario.Categoria.Id);
+
+        var linha = ctx.HistoricosDePadelimetro
+            .Single(h => h.CategoriaId != null && h.JogadorId == jogadorRepetido.Id);
+        Assert.Equal(-5, linha.Delta);
+        Assert.Equal(595, jogadorRepetido.Padelimetro);
+    }
+
+    [Fact]
     public async Task Linha_de_campanha_nao_vira_jogo_no_movimento_da_aba()
     {
         using var ctx = TestInfra.NovoContexto();
