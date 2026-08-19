@@ -222,20 +222,20 @@
                         </div>
 
                         @* Quantos vão é o que decide o PREÇO, e não só o treino: o professor
-                           cobra um valor pela quadra com uma pessoa e outro com três. Só
-                           aparecem os tamanhos que ele anunciou — oferecer trio a quem não faz
-                           trio é prometer um preço que não existe. *@
+                           cobra um valor pela quadra com uma pessoa e outro com seis. Só
+                           aparecem os tamanhos que ele anunciou — oferecer sexteto a quem não
+                           faz sexteto é prometer um preço que não existe. O JS liga e desliga
+                           cada botão conforme a tabela do local escolhido. *@
                         <div class="mb-3" id="grupo-quantidade" style="display:none;">
                             <label class="form-label fw-bold text-muted small">Quantos vão jogar</label>
-                            <div class="btn-group w-100" role="group" aria-label="Quantidade de alunos">
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-1" value="1" autocomplete="off" checked />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-1">Só eu</label>
-
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-2" value="2" autocomplete="off" />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-2" id="rotulo-qtd-2">Nós dois</label>
-
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-3" value="3" autocomplete="off" />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-3" id="rotulo-qtd-3">Nós três</label>
+                            <div class="btn-group w-100 flex-wrap" role="group" aria-label="Quantidade de alunos">
+                                @for (var valor = PrecoDaAula.MinAlunos; valor <= PrecoDaAula.MaxAlunos; valor++)
+                                {
+                                    <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-@valor"
+                                           value="@valor" autocomplete="off" checked="@(valor == 1)" />
+                                    <label class="btn btn-outline-primary" for="aluno-qtd-@valor"
+                                           id="rotulo-qtd-@valor">@PrecoDaAula.RotuloDoAluno(valor)</label>
+                                }
                             </div>
                             <small class="text-muted d-block mt-1" id="aviso-preco-tamanho"></small>
                         </div>
@@ -768,22 +768,39 @@
             // ------------------------------------------------------------------
 
             // Mostra só os tamanhos que o professor anunciou naquele local, cada um com o preço.
-            // Oferecer "nós três" a quem não faz trio é prometer um valor que não existe — e o
-            // servidor cobraria outro (ver Services/PrecoDaAula).
+            // Oferecer "nós seis" a quem não faz sexteto é prometer um valor que não existe — e
+            // o servidor cobraria outro (ver Services/PrecoDaAula).
+            var ROTULOS_TAMANHO = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Enumerable.Range(PrecoDaAula.MinAlunos, PrecoDaAula.MaxAlunos - PrecoDaAula.MinAlunos + 1)
+                    .ToDictionary(n => n.ToString(), n => PrecoDaAula.RotuloDoAluno(n))));
+
             function atualizarTamanhos(local) {
                 var $grupo = $('#grupo-quantidade');
+                var turmas = (local && local.precosDeTurma) || [];
+
+                // Individual é sempre a primeira escolha: trocar de local não pode deixar
+                // marcado um tamanho que a quadra nova não faz.
+                $('#aluno-qtd-1').prop('checked', true);
 
                 // Local que só tem o preço individual: o seletor não tem escolha nenhuma pra
                 // oferecer e some.
-                if (!local || (local.precoDupla == null && local.precoTrio == null)) {
+                if (turmas.length === 0) {
                     $grupo.hide();
-                    $('#aluno-qtd-1').prop('checked', true);
                     return;
                 }
 
-                $('#rotulo-qtd-2').toggle(local.precoDupla != null).text('Nós dois · R$ ' + emReais(local.precoDupla || 0));
-                $('#rotulo-qtd-3').toggle(local.precoTrio != null).text('Nós três · R$ ' + emReais(local.precoTrio || 0));
-                $('#aluno-qtd-1').prop('checked', true);
+                var precoPorTamanho = {};
+                turmas.forEach(function (t) { precoPorTamanho[t.quantidadeAlunos] = t.preco; });
+
+                $('[id^="rotulo-qtd-"]').each(function () {
+                    var tamanho = parseInt(this.id.replace('rotulo-qtd-', ''), 10);
+                    if (tamanho === 1) return;
+
+                    var preco = precoPorTamanho[tamanho];
+                    $(this).toggle(preco != null)
+                           .text(ROTULOS_TAMANHO[tamanho] + ' · R$ ' + emReais(preco || 0));
+                });
+
                 $('#aviso-preco-tamanho').text('Aula individual: R$ ' + emReais(local.precoPadrao)
                     + '. O valor é da aula inteira, dividido entre quem for.');
                 $grupo.show();

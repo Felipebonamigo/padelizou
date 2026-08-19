@@ -52,6 +52,7 @@ public class FinanceiroProfessorVM
     public List<FinanceiroPorLocalVM> PorLocal { get; set; } = new();
     public List<MesFaturamentoVM> UltimosMeses { get; set; } = new();
     public List<SemanaFaturamentoVM> UltimasSemanas { get; set; } = new();
+    public List<AnoFaturamentoVM> UltimosAnos { get; set; } = new();
 
     public bool TemMovimento => Recebido > 0 || Previsto > 0 || AReceber > 0;
 }
@@ -95,4 +96,15 @@ public class SemanaFaturamentoVM
 
     public DateTime Fim => Inicio.AddDays(6);
     public string Rotulo => $"{Inicio:dd/MM}–{Fim:dd/MM}";
+}
+
+// Uma barra da visão anual do Financeiro — pra quem dá aula há vários anos ver a tendência
+// que nem semana nem mês mostram sozinhos.
+public class AnoFaturamentoVM
+{
+    public int Ano { get; set; }
+    public decimal Valor { get; set; }
+    public int Aulas { get; set; }
+
+    public string Rotulo => Ano.ToString();
 }

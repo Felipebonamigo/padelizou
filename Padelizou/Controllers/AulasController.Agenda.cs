@@ -21,6 +21,7 @@ namespace padelizou.Controllers
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
             var locais = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .Where(l => l.ProfessorId == professorId && l.Ativo)
                 .ToListAsync();
 
@@ -94,6 +95,46 @@ namespace padelizou.Controllers
             });
         }
 
+        // Cria (ou completa) a ficha do aluno a partir do que o professor digitou pra marcar a
+        // aula. Ver Models/CadastroDoAluno.
+        //
+        // ⚠️ NUNCA APAGA o que já está lá: campo em branco no formulário significa "não digitei
+        // agora", não "apague o telefone que você já tinha". O professor marca aula sem
+        // telefone o tempo todo — é opcional desde 04/08 — e cada uma dessas apagaria o número
+        // que ele cadastrou na primeira.
+        private async Task GravarFichaRapidaAsync(int professorId, int? alunoId, string nome, string? celular)
+        {
+            var nomeLimpo = nome.Trim();
+
+            var fichas = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+
+            var ficha = CadastrosDeAlunos.Achar(fichas, alunoId, nomeLimpo);
+            var numero = CadastrosDeAlunos.CelularServeParaAchar(celular)
+                ? CadastrosDeAlunos.CelularNormalizado(celular)
+                : null;
+
+            if (ficha == null)
+            {
+                _context.CadastrosDeAlunos.Add(new CadastroDoAluno
+                {
+                    ProfessorId = professorId,
+                    // Aluno com conta entra pela conta; sem conta, pelo nome — a mesma divisão
+                    // que a agenda e o acordo de preço já fazem (ver PrecoDaAula.Chave).
+                    AlunoId = alunoId,
+                    NomeAvulso = alunoId == null ? nomeLimpo : null,
+                    Celular = numero,
+                });
+            }
+            else if (numero != null)
+            {
+                ficha.Celular = numero;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
         // O mapa de "quem paga quanto" deste professor, pronto pra consulta por chave
         // (ver Services/PrecoDaAula.Chave). Usado pela tela de marcar aula e pelo cálculo
         // do preço na hora de gravar.
@@ -136,7 +177,11 @@ namespace padelizou.Controllers
                 return RedirectToAction("AdicionarManual");
             }
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+            // Include obrigatório: o preço da turma sai de local.PrecosDeTurma, e sem ele
+            // toda aula em grupo nasceria pelo valor da individual (ver PrecoDaAula.DoLocal).
+            var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
             if (local == null)
             {
                 TempData["Erro"] = "Local inválido.";
@@ -254,6 +299,12 @@ namespace padelizou.Controllers
                 await _context.SaveChangesAsync();
             }
 
+            // O CADASTRO RÁPIDO acontece aqui, e não numa tela à parte: o professor já digitou
+            // nome e telefone pra marcar a aula, e pedir os mesmos dados de novo noutro lugar é
+            // o atrito que faz ele não cadastrar ninguém (o pedido do Rafael era literalmente
+            // "coloca ali e deu"). A ficha nasce de graça, no fluxo que ele já faz.
+            await GravarFichaRapidaAsync(professorId.Value, alunoVinculado?.Id, nomeAluno, telefoneAluno);
+
             TempData["Sucesso"] = puladas > 0
                 ? $"{novasAulas.Count} aula(s) criada(s). {puladas} horário(s) pulado(s) por já estarem ocupados."
                 : $"{novasAulas.Count} aula(s) criada(s) com sucesso.";
@@ -274,6 +325,8 @@ namespace padelizou.Controllers
             var noPeriodo = await _context.Aulas
                 .Include(a => a.Aluno)
                 .Include(a => a.LocalAula)
+                // A aula que esta repõe: é o que explica, na agenda, uma aula de R$ 0,00.
+                .Include(a => a.RecuperaAula)
                 .Where(a => a.ProfessorId == professorId
                          && a.DataHora >= inicio && a.DataHora < fim)
                 .OrderBy(a => a.DataHora)
@@ -288,6 +341,20 @@ namespace padelizou.Controllers
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();
 
+            // A fila de reposição, de QUALQUER data — pelo mesmo motivo das pendentes: a aula
+            // que ficou devendo é de semana passada, e some da tela de quem olha esta semana.
+            var aRecuperar = await _context.Aulas
+                .Include(a => a.Aluno)
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId && a.Status == PoliticaAula.ARecuperar)
+                .ToListAsync();
+
+            // Quem já foi encaixado sai da fila. Uma consulta só, e não uma por aula da fila.
+            var jaEncaixadas = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId && a.RecuperaAulaId != null)
+                .Select(a => a.RecuperaAulaId!.Value)
+                .ToListAsync();
+
             var conectado = await _googleCalendarService.EstaConectadoAsync(professorId.Value);
 
             var vm = new AgendaProfessorVM
@@ -300,6 +367,7 @@ namespace padelizou.Controllers
                 Titulo = PeriodoAgenda.Titulo(periodo, referencia),
                 NoPeriodo = noPeriodo,
                 Pendentes = pendentes,
+                ARecuperar = Reposicao.AindaSemEncaixe(aRecuperar, jaEncaixadas.ToHashSet()),
                 GoogleConectado = conectado,
                 // De QUALQUER data futura, não só da janela na tela: a aula que ficou fora do
                 // Google costuma ser justamente a que ele não está olhando agora, e era esse
@@ -312,7 +380,107 @@ namespace padelizou.Controllers
                     : 0,
             };
 
+            // Os locais só são carregados quando há fila: o formulário de encaixe é o único
+            // que precisa deles, e a agenda é a tela que o professor mais abre no dia.
+            vm.Locais = vm.ARecuperar.Count > 0
+                ? await _context.LocaisAula
+                    .Where(l => l.ProfessorId == professorId && l.Ativo)
+                    .OrderBy(l => l.Nome)
+                    .ToListAsync()
+                : new List<LocalAula>();
+
             return View(vm);
+        }
+
+        // ENCAIXAR A REPOSIÇÃO: a aula nova que quita a que ficou como "A recuperar".
+        // A regra de como ela nasce (o que herda, e por que sem preço) mora em
+        // Services/Reposicao, que é onde dá pra testá-la sem banco.
+        [HttpPost]
+        public async Task<IActionResult> Encaixar(int aulaId, int localId, DateTime dataHora,
+            int? duracaoMinutos = null)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var original = await _context.Aulas
+                .Include(a => a.Aluno)
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+
+            if (original == null) return NotFound();
+
+            if (original.Status != PoliticaAula.ARecuperar)
+            {
+                TempData["Erro"] = "Essa aula não está na fila de reposição.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            // Dois cliques no mesmo botão (ou dois celulares abertos na mesma tela) criariam
+            // duas reposições pra uma aula só — e o professor daria duas aulas de graça.
+            if (await _context.Aulas.AnyAsync(a => a.RecuperaAulaId == original.Id))
+            {
+                TempData["Erro"] = "Essa aula já tem uma reposição marcada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var local = await _context.LocaisAula
+                .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
+
+            if (local == null)
+            {
+                TempData["Erro"] = "Local inválido.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var duracao = DuracaoDaAula.Valida(duracaoMinutos ?? original.DuracaoMinutos);
+
+            if (await HorarioOcupadoAsync(professorId.Value, dataHora, duracao))
+            {
+                TempData["Erro"] = $"Você já tem outra aula em {dataHora:dd/MM 'às' HH:mm}.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var reposicao = Reposicao.Encaixar(original, localId, dataHora, duracao);
+            _context.Aulas.Add(reposicao);
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                // O evento lê o LOCAL da aula (nome + endereço) e ele não vem carregado numa
+                // aula recém-criada — sem esta linha o Google levaria uma referência nula.
+                reposicao.LocalAula = local;
+                var eventId = await _googleCalendarService.CriarEventoAsync(reposicao);
+                if (eventId != null)
+                {
+                    reposicao.GoogleEventId = eventId;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao criar evento na Google Agenda para a reposição {AulaId}", reposicao.Id);
+            }
+
+            // O aluno PRECISA saber: ele combinou repor e agora tem dia e hora. É pessoal,
+            // urgente e acionável — os três critérios do WhatsApp (ver Services/AlcanceDoAviso).
+            if (original.AlunoId is int destinatario)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(destinatario,
+                        "Sua reposição está marcada",
+                        $"A aula de {original.DataHora:dd/MM} que você ia repor ficou para "
+                        + $"{dataHora:dd/MM 'às' HH:mm} em {local.Nome}.",
+                        Url.Action("MinhasAulas", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
+                }
+                catch (Exception ex)
+                {
+                    // A reposição já está marcada; falhar o aviso não desfaz nem vira erro na tela.
+                    _logger.LogWarning(ex, "Falha ao avisar o aluno {AlunoId} da reposição da aula {AulaId}", destinatario, aulaId);
+                }
+            }
+
+            TempData["Sucesso"] = $"Reposição marcada para {dataHora:dd/MM 'às' HH:mm}, sem cobrar de novo.";
+            return RedirectToAction("MinhaAgenda", new { data = dataHora.ToString("yyyy-MM-dd") });
         }
 
         // 4. ATUALIZAR STATUS DA AULA (Finalizar ou Cancelar) — só a partir de uma aula já Confirmada
@@ -404,6 +572,7 @@ namespace padelizou.Controllers
             }
 
             var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
 
             if (local == null)
@@ -613,6 +782,7 @@ namespace padelizou.Controllers
         private async Task<List<LocalAula>> LocaisParaEscolherAsync(int professorId, int localAtualId)
         {
             return await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .Where(l => l.ProfessorId == professorId && (l.Ativo || l.Id == localAtualId))
                 .OrderByDescending(l => l.Ativo)
                 .ThenBy(l => l.Nome)

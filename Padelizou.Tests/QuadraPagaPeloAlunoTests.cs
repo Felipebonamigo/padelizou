@@ -146,4 +146,39 @@ public class QuadraPagaPeloAlunoTests
         var atual = vm.UltimasSemanas[5];
         Assert.InRange(DateTime.Today, atual.Inicio, atual.Fim);
     }
+
+    [Fact]
+    public async Task Cada_aula_cai_no_ano_em_que_aconteceu()
+    {
+        var (ctx, professor, local) = Montar();
+        using var _ = ctx;
+
+        var hoje = DateTime.Today;
+        ctx.Aulas.Add(Realizada(professor, local, hoje.AddHours(7)));
+        ctx.Aulas.Add(Realizada(professor, local, hoje.AddYears(-1).AddHours(7)));
+        await ctx.SaveChangesAsync();
+
+        var vm = await AbrirFinanceiroAsync(ctx, professor.Id);
+
+        Assert.Equal(6, vm.UltimosAnos.Count);
+        Assert.Equal(110, vm.UltimosAnos[5].Valor);  // a última linha é o ano atual
+        Assert.Equal(110, vm.UltimosAnos[4].Valor);
+        Assert.All(vm.UltimosAnos.Take(4), a => Assert.Equal(0, a.Valor));
+    }
+
+    [Fact]
+    public async Task Os_ultimos_6_anos_terminam_no_ano_atual_e_sao_consecutivos()
+    {
+        var (ctx, professor, _) = Montar();
+        using var _ = ctx;
+
+        var vm = await AbrirFinanceiroAsync(ctx, professor.Id);
+
+        Assert.Equal(6, vm.UltimosAnos.Count);
+        Assert.Equal(DateTime.Today.Year, vm.UltimosAnos[5].Ano);
+        for (int i = 1; i < vm.UltimosAnos.Count; i++)
+        {
+            Assert.Equal(vm.UltimosAnos[i - 1].Ano + 1, vm.UltimosAnos[i].Ano);
+        }
+    }
 }

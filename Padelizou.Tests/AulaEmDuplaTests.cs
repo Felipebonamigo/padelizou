@@ -11,9 +11,17 @@ namespace Padelizou.Tests;
 // O caminho todo: o que chega do formulário vira o preço certo no banco.
 public class AulaEmDuplaTests
 {
+    // A tabela que a maioria dos testes daqui usa: dupla, trio e o sexteto do beach.
+    private static readonly (int Alunos, decimal Preco)[] TabelaPadrao =
+        [(2, 150m), (3, 180m), (6, 240m)];
+
+    // `turmas: []` é o professor que só anunciou a individual — explícito de propósito, pra
+    // não virar "esqueci de passar" quando alguém ler o teste daqui a seis meses.
     private static (DbPadelContext ctx, Jogador professor, LocalAula local) Montar(
-        decimal individual = 110, decimal? dupla = 150, decimal? trio = 180)
+        decimal individual = 110, (int Alunos, decimal Preco)[]? turmas = null)
     {
+        turmas ??= TabelaPadrao;
+
         var ctx = TestInfra.NovoContexto();
 
         var professor = new Jogador { Nome = "Jonatas", Login = "jonatas", Cpf = "99900000001", IsProfessor = true };
@@ -23,7 +31,10 @@ public class AulaEmDuplaTests
         var local = new LocalAula
         {
             ProfessorId = professor.Id, Nome = "Batata Padel",
-            PrecoPadrao = individual, PrecoDupla = dupla, PrecoTrio = trio, Ativo = true,
+            PrecoPadrao = individual, Ativo = true,
+            PrecosDeTurma = turmas
+                .Select(t => new PrecoDeTurma { QuantidadeAlunos = t.Alunos, Preco = t.Preco })
+                .ToList(),
         };
         ctx.LocaisAula.Add(local);
         ctx.SaveChanges();
@@ -42,6 +53,7 @@ public class AulaEmDuplaTests
     [InlineData(1, 110)]
     [InlineData(2, 150)]
     [InlineData(3, 180)]
+    [InlineData(6, 240)]
     public async Task A_aula_nasce_com_o_preco_do_tamanho(int quantos, decimal esperado)
     {
         var (ctx, professor, local) = Montar();
@@ -120,7 +132,7 @@ public class AulaEmDuplaTests
     {
         // Professor que só anunciou um valor continua funcionando exatamente como antes —
         // era o único preço que existia até 03/08/2026.
-        var (ctx, professor, local) = Montar(individual: 110, dupla: null, trio: null);
+        var (ctx, professor, local) = Montar(individual: 110, turmas: []);
         using var _ = ctx;
 
         await Marcar(TestInfra.NovoAulasController(ctx, professor.Id), local, "Medina", quantos: 2);
@@ -162,6 +174,7 @@ public class AulaEmDuplaTests
     [InlineData(1, 110)]
     [InlineData(2, 150)]
     [InlineData(3, 180)]
+    [InlineData(6, 240)]
     public async Task Quando_o_aluno_marca_o_preco_tambem_segue_o_tamanho(int quantos, decimal esperado)
     {
         var (ctx, professor, local, aluno) = await MontarComAlunoAsync();

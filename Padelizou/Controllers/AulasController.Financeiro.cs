@@ -119,6 +119,18 @@ namespace padelizou.Controllers
                 return new SemanaFaturamentoVM { Inicio = inicio, Valor = daSemana.Sum(a => a.Preco), Aulas = daSemana.Count };
             }).ToList();
 
+            // E os últimos 6 anos — semana e mês respondem o dia a dia, mas não "esse ano
+            // deu mais aula que o passado".
+            var primeiroAno = hoje.Year - 5;
+            vm.UltimosAnos = Enumerable.Range(0, 6).Select(i =>
+            {
+                var ano = primeiroAno + i;
+                var inicio = new DateTime(ano, 1, 1);
+                var fim = inicio.AddYears(1);
+                var doAno = aulas.Where(a => a.Status == PoliticaAula.Realizada && a.DataHora >= inicio && a.DataHora < fim).ToList();
+                return new AnoFaturamentoVM { Ano = ano, Valor = doAno.Sum(a => a.Preco), Aulas = doAno.Count };
+            }).ToList();
+
             return View(vm);
         }
 
@@ -140,6 +152,16 @@ namespace padelizou.Controllers
                 return RedirectToAction("MinhaAgenda");
             }
 
+            // Aula na fila de reposição não passa por aqui: registrar presença gravaria
+            // `CobrarMesmoFaltando = false` por baixo e ela sairia do financeiro calada,
+            // continuando na fila. Quem já disse "vai recuperar" desfaz pela própria fila.
+            if (aula.Status == PoliticaAula.ARecuperar)
+            {
+                TempData["Erro"] = "Essa aula está na fila de reposição. Encaixe a reposição ou "
+                                 + "marque que ela não vai mais ser recuperada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
             aula.Compareceu = compareceu;
             aula.Status = compareceu ? PoliticaAula.Realizada : PoliticaAula.Faltou;
 
@@ -155,6 +177,83 @@ namespace padelizou.Controllers
                     ? "Falta registrada e marcada como cobrável."
                     : "Falta registrada, sem cobrança.";
 
+            return RedirectToAction("MinhaAgenda");
+        }
+
+        // "O aluno não vem hoje, mas paga e recupera depois" — o caso do mensalista, que o
+        // sistema não sabia dizer (ver Services/Reposicao). O horário fica LIVRE na hora:
+        // é isso que deixa o professor encaixar outro aluno no lugar, no mesmo dia.
+        [HttpPost]
+        public async Task<IActionResult> MarcarParaRecuperar(int aulaId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId no filtro É a autorização: sem ele, qualquer professor logado
+            // mexeria na aula de qualquer outro só mandando o id.
+            var aula = await _context.Aulas.FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+            if (aula == null) return NotFound();
+
+            if (!Reposicao.PodeMarcar(aula))
+            {
+                TempData["Erro"] = Reposicao.MotivoParaNaoMarcar(aula);
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            aula.Status = PoliticaAula.ARecuperar;
+
+            // A cobrança fica de pé pela MESMA chave que a falta cobrável já usava. Reaproveitar
+            // é o ponto: o financeiro (previsão, devedores, relatório) não precisou aprender um
+            // conceito novo pra continuar certo.
+            aula.CobrarMesmoFaltando = true;
+
+            var eventoGoogle = aula.GoogleEventId;
+            aula.GoogleEventId = null;
+
+            await _context.SaveChangesAsync();
+
+            // O horário vagou aqui dentro; deixar o evento na Google Agenda faria o professor
+            // olhar o celular e achar que ainda está ocupado.
+            if (eventoGoogle != null)
+            {
+                try
+                {
+                    await _googleCalendarService.RemoverEventoAsync(professorId.Value, eventoGoogle);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao remover da Google Agenda a aula {AulaId} que foi pra reposição", aula.Id);
+                }
+            }
+
+            TempData["Sucesso"] = "Aula na fila de reposição: o horário ficou livre e a cobrança continua de pé.";
+            return RedirectToAction("MinhaAgenda");
+        }
+
+        // O outro fim possível da fila: combinaram que não vai ter reposição. Vira falta
+        // cobrada — que é exatamente o que sobrou do combinado — e sai da fila.
+        [HttpPost]
+        public async Task<IActionResult> NaoVaiRecuperar(int aulaId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var aula = await _context.Aulas.FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+            if (aula == null) return NotFound();
+
+            if (aula.Status != PoliticaAula.ARecuperar)
+            {
+                TempData["Erro"] = "Essa aula não está na fila de reposição.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            aula.Status = PoliticaAula.Faltou;
+            aula.Compareceu = false;
+            // CobrarMesmoFaltando fica como está (ligado): o combinado era cobrar, e é só a
+            // reposição que caiu.
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = "Aula fora da fila de reposição. Segue registrada como falta cobrada.";
             return RedirectToAction("MinhaAgenda");
         }
 

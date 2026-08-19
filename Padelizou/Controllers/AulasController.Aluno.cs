@@ -67,10 +67,15 @@ namespace padelizou.Controllers
                     l.Nome,
                     l.Endereco,
                     l.PrecoPadrao,
-                    // Nulos de propósito quando o professor não anunciou o tamanho: a tela usa
-                    // isso pra oferecer só o que ele realmente faz.
-                    l.PrecoDupla,
-                    l.PrecoTrio,
+                    // Só os tamanhos que o professor anunciou de verdade: a tela oferece
+                    // exatamente estes, e nada além. Vai como lista (tamanho + preço) porque
+                    // o teto deixou de ser três — com um campo por tamanho, o dia em que a
+                    // turma crescer some com o JS junto.
+                    precosDeTurma = l.PrecosDeTurma
+                        .Where(p => p.Preco > 0)
+                        .OrderBy(p => p.QuantidadeAlunos)
+                        .Select(p => new { p.QuantidadeAlunos, p.Preco })
+                        .ToList(),
                     // Vários pacotes por local: a tela monta um <select> com eles.
                     pacotes = l.Pacotes
                         .Where(p => p.Ativo && p.QuantidadeAulas > 1 && p.Preco > 0)
@@ -131,8 +136,8 @@ namespace padelizou.Controllers
             // QUAL pacote, agora que o local pode ter vários. Opcional pra uma página aberta
             // antes deste deploy não quebrar: sem id, vale o primeiro pacote ativo.
             int? pacoteId = null,
-            // Quantos alunos dividem a quadra (1, 2 ou 3): é o que decide o preço, junto com
-            // a tabela do local. Padrão 1 pela mesma razão — aba antiga não manda o campo.
+            // Quantos alunos dividem a quadra: é o que decide o preço, junto com a tabela do
+            // local. Padrão 1 pela mesma razão — aba antiga não manda o campo.
             int quantidadeAlunos = 1)
         {
             var alunoIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -142,6 +147,7 @@ namespace padelizou.Controllers
             }
 
             var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
                 .Include(l => l.Pacotes)
                 .FirstOrDefaultAsync(l => l.Id == localId && l.ProfessorId == professorId);
             if (local == null)
@@ -438,6 +444,9 @@ namespace padelizou.Controllers
             var minhasAulas = await _context.Aulas
                 .Include(a => a.Professor)
                 .Include(a => a.LocalAula)
+                // A aula que esta repõe: é o que explica ao aluno por que a reposição não
+                // tem valor — ela já foi paga na aula que ele não pôde fazer.
+                .Include(a => a.RecuperaAula)
                 .Where(a => a.AlunoId == userId)
                 .OrderBy(a => a.DataHora)
                 .ToListAsync();

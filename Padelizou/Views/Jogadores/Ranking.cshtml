@@ -405,6 +405,18 @@
                 sobe quando vence, desce quando perde, e vencer favorito vale mais. Ele nasce no primeiro jogo,
                 e os 10 primeiros são de calibração (o número anda mais rápido até se encontrar).
             </p>
+            @* Pedido do Felipe (19/08/2026), junto com o ajuste de campanha: enquanto a régua
+               está em calibração de produto, a tela diz isso com todas as letras — número que
+               muda de regra sem aviso é como se perde a confiança num ranking. *@
+            <div class="alert alert-light border d-flex gap-2 align-items-start mb-3 py-2 px-3 small">
+                <i class="bi bi-sliders mt-1" style="color: var(--padel-green);"></i>
+                <div>
+                    <strong>Em ajuste fino:</strong> ainda estamos avaliando a melhor configuração
+                    do Padelímetro para equilibrar os torneios. As regras podem mudar nesse período —
+                    e, quando mudam, a história inteira é recalculada com a régua nova, pra todo
+                    mundo continuar medido do mesmo jeito.
+                </div>
+            </div>
             @if (!Model.Padelimetro.Any())
             {
                 <div class="text-center py-4 rounded-3 bg-light" style="border: 2px dashed var(--pdz-border);">

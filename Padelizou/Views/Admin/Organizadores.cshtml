@@ -5,6 +5,10 @@
     var achados = ViewBag.Achados as List<Jogador> ?? new();
     var busca = ViewBag.Busca as string;
     var pedidos = ViewBag.Pedidos as List<Jogador> ?? new();
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -157,7 +161,7 @@
             {
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@j.Id"
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@j.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                            class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@j.ComoChamar</a>
                         @if (!string.IsNullOrWhiteSpace(j.Cidade))
                         {

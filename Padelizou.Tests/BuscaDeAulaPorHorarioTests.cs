@@ -154,7 +154,7 @@ public class BuscaDeAulaPorHorarioTests
         using var _ = ctx;
 
         var (_, local) = Professor(ctx, cidade, "Jonatas", Amanha, new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0));
-        local.PrecoDupla = 150;
+        local.PrecosDeTurma.Add(new PrecoDeTurma { QuantidadeAlunos = 2, Preco = 150 });
         ctx.PacotesDeAulas.Add(new PacoteDeAulas
         {
             LocalAulaId = local.Id, QuantidadeAulas = 4, Preco = 400, Ativo = true,
@@ -164,8 +164,12 @@ public class BuscaDeAulaPorHorarioTests
         var noJson = Assert.Single(Lista(await BuscarAsync(ctx, cidade.Id, aluno.Id), "locais"));
 
         Assert.Equal(120, noJson.GetProperty("precoPadrao").GetDecimal());
-        Assert.Equal(150, noJson.GetProperty("precoDupla").GetDecimal());
-        Assert.Equal(JsonValueKind.Null, noJson.GetProperty("precoTrio").ValueKind);
+
+        // Só os tamanhos que o professor anunciou viajam: a tela oferece exatamente estes, e
+        // oferecer o trio de quem não faz trio é prometer um preço que não existe.
+        var turma = Assert.Single(noJson.GetProperty("precosDeTurma").EnumerateArray());
+        Assert.Equal(2, turma.GetProperty("quantidadeAlunos").GetInt32());
+        Assert.Equal(150, turma.GetProperty("preco").GetDecimal());
         Assert.Equal(4, Assert.Single(noJson.GetProperty("pacotes").EnumerateArray())
             .GetProperty("quantidadeAulas").GetInt32());
     }

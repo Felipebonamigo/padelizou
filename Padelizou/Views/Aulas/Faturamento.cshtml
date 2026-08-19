@@ -1,0 +1,258 @@
+@model Padelizou.ViewModels.FaturamentoVM
+@{
+    ViewData["Title"] = "Fechar o mês - Padelizou";
+    var ptBr = new System.Globalization.CultureInfo("pt-BR");
+    var hoje = DateTime.Today;
+
+    // Navegação de mês: a competência anterior e a seguinte, sem passar do mês passado —
+    // o mês corrente não fecha (geraria conta pela metade) e oferecê-lo só frustra o clique.
+    var atual = new DateTime(Model.Ano, Model.Mes, 1);
+    var anterior = atual.AddMonths(-1);
+    var proximo = atual.AddMonths(1);
+    var temProximo = proximo <= new DateTime(hoje.Year, hoje.Month, 1).AddMonths(-1);
+
+    // O que ainda não foi fechado — é o que o botão fecha, e o que a confirmação soma.
+    var aFechar = Model.Previas.Where(p => !p.JaFechada).ToList();
+    var totalAFechar = aFechar.Sum(p => p.Valor).ToString("C", ptBr);
+    var confirmacao = $"Fechar {aFechar.Count} conta(s) de {Model.Titulo}, somando {totalAFechar}?";
+    var vencidas = Model.EmAbertoDeTodosOsMeses.Count(f => Padelizou.Services.FechamentoDoMes.EstaVencida(f, DateTime.Now));
+}
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0" style="color: var(--pdz-ink);">Fechar o mês</h2>
+            <p class="text-muted mb-0 small">
+                As aulas do mês viram uma conta por aluno, que vence no mês seguinte.
+            </p>
+        </div>
+        <a asp-action="Financeiro" class="btn btn-outline-primary rounded-pill btn-sm">
+            <i class="bi bi-graph-up"></i> Financeiro
+        </a>
+    </div>
+
+    @if (TempData["SucessoFatura"] != null)
+    {
+        <div class="alert alert-success">@TempData["SucessoFatura"]</div>
+    }
+    @if (TempData["ErroFatura"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErroFatura"]</div>
+    }
+
+    @* O link recém-emitido, pronto pra copiar. Sem ele o professor teria que caçar a cobrança
+       na lista logo depois de criá-la — e é AGORA que ele quer mandar pro pagador. *@
+    @if (TempData["LinkDaCobranca"] is string linkNovo)
+    {
+        <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="small">Link da cobrança pronto pra mandar:</span>
+            <a href="@linkNovo" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-box-arrow-up-right"></i> Abrir a cobrança
+            </a>
+        </div>
+    }
+
+    @* O número que o professor procura ao abrir esta tela: quanto ele tem pra receber. Vem de
+       TODOS os meses de propósito — conta de março que ninguém pagou não pode sumir só porque
+       ele está olhando abril. *@
+    <div class="card border-0 shadow-sm mb-3" style="border-left: 5px solid var(--padel-green) !important;">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <small class="text-muted text-uppercase" style="font-size:.7rem;">A receber, de todos os meses</small>
+                <div class="fw-bold fs-3" style="color: var(--pdz-ink);">@Model.TotalEmAberto.ToString("C", ptBr)</div>
+            </div>
+            <div class="text-end small text-muted">
+                @Model.EmAbertoDeTodosOsMeses.Count conta(s) em aberto
+                @if (vencidas > 0)
+                {
+                    <div class="text-danger fw-bold">@vencidas vencida(s)</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <a asp-action="Faturamento" asp-route-ano="@anterior.Year" asp-route-mes="@anterior.Month"
+           class="btn btn-sm btn-outline-secondary rounded-pill"><i class="bi bi-chevron-left"></i></a>
+        <h5 class="fw-bold mb-0 text-capitalize" style="color: var(--pdz-ink);">@Model.Titulo</h5>
+        @if (temProximo)
+        {
+            <a asp-action="Faturamento" asp-route-ano="@proximo.Year" asp-route-mes="@proximo.Month"
+               class="btn btn-sm btn-outline-secondary rounded-pill"><i class="bi bi-chevron-right"></i></a>
+        }
+        else
+        {
+            <span class="btn btn-sm btn-outline-secondary rounded-pill disabled"><i class="bi bi-chevron-right"></i></span>
+        }
+    </div>
+
+    @* ── O que vai ser cobrado ─────────────────────────────────────────────────────── *@
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+            @if (!Model.Previas.Any())
+            {
+                <partial name="_Vazio" model='@(new Padelizou.ViewModels.EstadoVazio("Nenhuma aula cobrável neste mês."))' />
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-2">
+                        <thead>
+                            <tr>
+                                <th>Aluno</th>
+                                <th>Quem paga</th>
+                                <th class="text-center">Aulas</th>
+                                <th class="text-end">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var previa in Model.Previas)
+                            {
+                                <tr class="@(previa.JaFechada ? "opacity-50" : "")">
+                                    <td>
+                                        @previa.NomeDoAluno
+                                        @if (previa.JaFechada)
+                                        {
+                                            <span class="badge text-bg-secondary ms-1">já fechada</span>
+                                        }
+                                    </td>
+                                    <td class="small">
+                                        @previa.PagadorNome
+                                        @* Sem CPF do pagador o gateway recusa a cobrança. A conta
+                                           continua valendo — o professor acerta por fora, como
+                                           já faz hoje —, mas ele precisa saber ANTES de fechar. *@
+                                        @if (!previa.PodeCobrarPeloApp && !previa.JaFechada)
+                                        {
+                                            <span class="badge text-bg-warning-subtle text-warning-emphasis ms-1"
+                                                  title="Sem CPF do pagador não dá pra emitir cobrança pelo app — acerte por fora ou preencha no painel.">
+                                                sem CPF
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-center">@previa.QuantidadeAulas</td>
+                                    <td class="text-end fw-bold">@previa.Valor.ToString("C", ptBr)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (aFechar.Any() && Model.PodeFechar)
+                {
+                    <form asp-action="FecharMes" method="post" class="row g-2 align-items-end"
+                          onsubmit="return confirm('@confirmacao');">
+                        <input type="hidden" name="ano" value="@Model.Ano" />
+                        <input type="hidden" name="mes" value="@Model.Mes" />
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small text-muted mb-0">Vence dia (do mês seguinte)</label>
+                            <input type="number" name="diaVencimento" min="1" max="31" value="@Model.DiaDeVencimento"
+                                   class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <button type="submit" class="btn btn-padel btn-sm w-100">
+                                <i class="bi bi-lock"></i> Fechar @aFechar.Count conta(s)
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">
+                                Total: <strong>@totalAFechar</strong>.
+                                @if (Model.SemCpfDoPagador > 0)
+                                {
+                                    <span class="text-warning-emphasis">
+                                        @Model.SemCpfDoPagador sem CPF do pagador — essas você acerta por fora.
+                                    </span>
+                                }
+                            </small>
+                        </div>
+                    </form>
+                }
+                else if (!Model.PodeFechar)
+                {
+                    <div class="alert alert-warning mb-0 small">@Model.MotivoParaNaoFechar</div>
+                }
+            }
+        </div>
+    </div>
+
+    @* ── As contas já fechadas deste mês ───────────────────────────────────────────── *@
+    @if (Model.Fechadas.Any())
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                    <i class="bi bi-receipt"></i> Contas de @Model.Titulo
+                </h6>
+
+                @foreach (var fatura in Model.Fechadas)
+                {
+                    var vencida = Padelizou.Services.FechamentoDoMes.EstaVencida(fatura, DateTime.Now);
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom py-2">
+                        <span>
+                            <strong>@fatura.PagadorNome</strong>
+                            <span class="text-muted small">
+                                · @fatura.QuantidadeAulas aula(s)
+                                · vence @fatura.Vencimento.ToString("dd/MM/yyyy")
+                            </span>
+                            @if (fatura.Status == Padelizou.Services.FechamentoDoMes.Paga)
+                            {
+                                <span class="badge text-bg-success ms-1">paga</span>
+                            }
+                            else if (fatura.Status == Padelizou.Services.FechamentoDoMes.Cancelada)
+                            {
+                                <span class="badge text-bg-secondary ms-1">cancelada</span>
+                            }
+                            else if (vencida)
+                            {
+                                <span class="badge text-bg-danger ms-1">vencida</span>
+                            }
+                        </span>
+                        <span class="d-flex align-items-center gap-2">
+                            <strong>@fatura.Valor.ToString("C", ptBr)</strong>
+                            @if (fatura.Status == Padelizou.Services.FechamentoDoMes.Aberta)
+                            {
+                                @* Cobrar pelo app: o dinheiro cai direto na carteira do
+                                   professor (split), e a nossa comissão é a do plano dele.
+                                   Sem CPF do pagador o gateway recusa — então o botão nem
+                                   aparece, e o aviso de "sem CPF" já saiu lá em cima. *@
+                                @if (fatura.Pagamento?.InvoiceUrl != null)
+                                {
+                                    <a href="@fatura.Pagamento.InvoiceUrl" target="_blank"
+                                       class="btn btn-sm btn-outline-primary rounded-pill">
+                                        <i class="bi bi-link-45deg"></i> Link
+                                    </a>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(fatura.PagadorCpf))
+                                {
+                                    <form asp-action="CobrarFatura" method="post">
+                                        <input type="hidden" name="id" value="@fatura.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill">
+                                            <i class="bi bi-credit-card"></i> Cobrar pelo app
+                                        </button>
+                                    </form>
+                                }
+                                <form asp-action="MarcarFaturaPaga" method="post">
+                                    <input type="hidden" name="id" value="@fatura.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill">
+                                        <i class="bi bi-check2"></i> Recebi
+                                    </button>
+                                </form>
+                                <form asp-action="CancelarFatura" method="post"
+                                      onsubmit="return confirm('Cancelar esta conta? Ela fica registrada como cancelada e o mês pode ser fechado de novo pra esse aluno.');">
+                                    <input type="hidden" name="id" value="@fatura.Id" />
+                                    <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0">cancelar</button>
+                                </form>
+                            }
+                            else if (fatura.Status == Padelizou.Services.FechamentoDoMes.Paga)
+                            {
+                                <form asp-action="ReabrirFatura" method="post">
+                                    <input type="hidden" name="id" value="@fatura.Id" />
+                                    <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none p-0">desfazer</button>
+                                </form>
+                            }
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
