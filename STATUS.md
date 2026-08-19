@@ -23,7 +23,7 @@
 >
 > 🧪 **4.452 testes, 0 falhas (47 novos em três blocos).** ✅ **Falsificação em quatro pontos:** deixando o cadastro rápido sobrescrever o celular com branco, cai o teste do "não apaga"; deixando a **reposição entrar na conta**, caem 2 — inclusive o que atravessa a virada do mês (aula original em abril, reposição em maio); tirando a trava de uma cobrança viva por fatura, cai o de emitir duas vezes; e tirando a conferência do dígito do CPF, cai o que prova que `11111111111` não vira conta fantasma no banco. ✅ Migrations aplicadas contra Postgres de verdade.
 >
-> ⏭️ **Não publicado ainda.**
+> ✅ **PUBLICADO em 19/08/2026, na `build-618-faee21b`** — junto do palpitômetro, do status de erro em POST, do link do painel e da visão anual do financeiro: os cinco PRs que estavam abertos foram mesclados e publicados de uma vez. ⚠️ **As migrations rodam no startup do app**, e uma delas (`PrecoDeTurmaAteSeisAlunos`) MEXE EM COLUNA COM DADO — a conferência que vale é abrir *Meus Locais* de um professor que tinha preço de dupla/trio e ver os valores lá.
 >
 > Antes, no mesmo dia: 🔁 **"VAI RECUPERAR": O ALUNO NÃO VEM, A AULA É COBRADA E O HORÁRIO VAGA NA HORA.**
 >
@@ -45,7 +45,7 @@
 >
 > 🧪 **4.404 testes, 0 falhas (19 novos).** ✅ **Falsificação em três pontos, um por decisão que sustenta a feature:** tirando o `CobrarMesmoFaltando`, **5 testes caem**; dando preço à reposição, **2 caem** (inclusive o que prova que o mês não fecha com o dobro daquela aula); fazendo `A recuperar` voltar a contar como ativa, cai o que prova que **o horário vaga pra outro aluno** — o pedido do Rafael, em teste. ✅ Migration aplicada contra o Postgres de verdade: coluna nula, sem `defaultValue`, FK `Restrict` conferida no `\d`.
 >
-> ⏭️ **Não publicado ainda.**
+> ✅ **PUBLICADO em 19/08/2026, na `build-618-faee21b`** — junto do palpitômetro, do status de erro em POST, do link do painel e da visão anual do financeiro: os cinco PRs que estavam abertos foram mesclados e publicados de uma vez. ⚠️ **As migrations rodam no startup do app**, e uma delas (`PrecoDeTurmaAteSeisAlunos`) MEXE EM COLUNA COM DADO — a conferência que vale é abrir *Meus Locais* de um professor que tinha preço de dupla/trio e ver os valores lá.
 >
 > Antes, no mesmo dia: 🏐 **A TURMA DEIXOU DE PARAR NO TRIO: AULA DE ATÉ SEIS ALUNOS, COM PREÇO PRÓPRIO EM CADA TAMANHO.**
 >
@@ -63,7 +63,7 @@
 >
 > 🧪 **4.385 testes, 0 falhas (16 novos).** ✅ **Falsificação:** voltando `MaxAlunos` pra 3, **12 testes caem** — inclusive os de ponta a ponta, que marcam uma aula de verdade pelos dois caminhos e conferem o preço gravado no banco. ✅ **Migration conferida contra um Postgres de verdade**, não só lida: com três locais semeados no schema ANTIGO (um com dupla+trio, um só individual, um com zeros), a subida copiou exatamente as duas linhas certas, o índice único recusou o tamanho repetido, e o `Down` devolveu os valores às colunas. ✅ **A ligação do formulário conferida num app mínimo à parte** — `precoTurma[2]=150` chega como dicionário, e campo em branco chega como chave com valor nulo, que é o que faz o professor conseguir **apagar** um tamanho que parou de fazer.
 >
-> ⏭️ **Não publicado ainda.**
+> ✅ **PUBLICADO em 19/08/2026, na `build-618-faee21b`** — junto do palpitômetro, do status de erro em POST, do link do painel e da visão anual do financeiro: os cinco PRs que estavam abertos foram mesclados e publicados de uma vez. ⚠️ **As migrations rodam no startup do app**, e uma delas (`PrecoDeTurmaAteSeisAlunos`) MEXE EM COLUNA COM DADO — a conferência que vale é abrir *Meus Locais* de um professor que tinha preço de dupla/trio e ver os valores lá.
 >
 > Antes, no mesmo dia: 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
 >
