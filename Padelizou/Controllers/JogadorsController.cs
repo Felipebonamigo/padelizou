@@ -153,6 +153,14 @@ public class JogadoresController : Controller
                 .ToListAsync();
         }
 
+        // 🔮 O selo do PALPITRÔMETRO. Público, como o resto do perfil — e nulo pra quem nunca
+        // teve um palpite contado, que é quando o perfil não desenha selo nenhum.
+        //
+        // ⚠️ Mesmo universo da aba do hub (torneio que o público enxerga): o número do selo e o
+        // da tabela precisam bater. Duas contagens pro mesmo nome é o tipo de divergência que
+        // ninguém reporta como defeito — só desconfia das duas.
+        ViewBag.PalpitesDoJogador = await RankingDePalpiteiros.DoJogadorAsync(_context, id);
+
         // Conquistas/badges: público, aparece pra qualquer visitante do perfil
         ViewBag.Conquistas = await _estatisticas.ObterConquistasAsync(id);
 
@@ -835,12 +843,20 @@ public class JogadoresController : Controller
         // ⚠️ Anônimo cai fora antes de qualquer consulta: `FindFirstValue` devolve nulo, o
         // TryParse falha, e o `&&` curto-circuita. Esta página é PÚBLICA — sem isso, todo
         // visitante deslogado pagaria as consultas do módulo pra não ver aba nenhuma.
-        if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId)
-            && await portaDosDesafios.PodeUsarAsync(meuId))
+        // Quem está olhando, pra as tabelas destacarem a própria linha sem a VIEW ler claim
+        // nenhuma — tela que interpreta credencial é tela que decide permissão.
+        hub.EuId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var euId) ? euId : null;
+
+        if (hub.EuId is int meuId && await portaDosDesafios.PodeUsarAsync(meuId))
         {
             hub.Desafios = await telaDeDesafios.MontarAsync(
                 meuId, portaDosDesafios.EmConstrucao, DateTime.Now);
         }
+
+        // Aba PALPITEIROS: quem mais acerta no palpitrômetro, com o MESMO filtro regional das
+        // outras abas. ⚠️ Ela não mede resultado de chave — mede quem lê os jogos —, então
+        // entra junto com os Desafios na lista de exceções da frase-promessa do topo da tela.
+        hub.Palpiteiros = await RankingDePalpiteiros.GeralAsync(_context, doLocal);
 
         // 3. RANKING DE UM TORNEIO: exibido embutido NESTA mesma página (não abre outra tela).
         if (torneioId.HasValue)

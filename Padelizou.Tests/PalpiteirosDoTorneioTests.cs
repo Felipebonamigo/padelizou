@@ -192,6 +192,7 @@ public class PalpiteirosDoTorneioTests
         MontarJogoTerminadoAsync(DbPadelContext ctx, int games1 = 6, int games2 = 4)
     {
         var (torneio, categoria, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2, status: "Finalizado");
+        torneio.AprovadoEm = DateTime.Now;
         var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
 
         var partida = new Partida
@@ -340,6 +341,118 @@ public class PalpiteirosDoTorneioTests
     {
         using var ctx = TestInfra.NovoContexto();
         Assert.Null(await RankingDePalpiteiros.DoTorneioAsync(ctx, torneioId: 4242, olhandoId: null));
+    }
+
+    // ─────────────────────── O RANKING GERAL E O SELO DO PERFIL ───────────────────────
+
+    [Fact]
+    public async Task O_ranking_geral_soma_os_torneios_e_o_selo_do_perfil_diz_o_MESMO_numero()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor de Dois Torneios", "55530000001");
+
+        // Dois torneios, um acerto em cada.
+        foreach (var _ in new[] { 1, 2 })
+        {
+            var (_, categoria, partida) = await MontarJogoTerminadoAsync(ctx);
+            await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+        }
+
+        var geral = await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null);
+        var doPerfil = await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id);
+
+        Assert.Equal(2, geral.Single(l => l.JogadorId == torcedor.Id).Pontos);
+
+        // ⚠️ O selo do perfil e a linha da aba TÊM que dizer o mesmo. Duas contagens pro mesmo
+        // nome é o tipo de divergência que ninguém reporta como defeito — só desconfia das duas.
+        Assert.Equal(2, doPerfil!.Pontos);
+        Assert.Equal(2, doPerfil.Palpites);
+    }
+
+    [Fact]
+    public async Task Torneio_OCULTO_nao_soma_no_ranking_geral()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Escondido", "55530000002");
+
+        var (escondido, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        escondido.Oculto = true;
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        // ⚠️ A página do torneio é protegida pela porta dele; esta lista é pública e não tem
+        // porta nenhuma. Sem o filtro, ela somaria o torneio que ninguém divulgou ainda.
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, torcedor.Id));
+
+        // Mas dentro do próprio torneio o ranking continua existindo — quem abre a página dele
+        // já passou pela porta.
+        var doTorneio = await RankingDePalpiteiros.DoTorneioAsync(ctx, escondido.Id, null);
+        Assert.True(doTorneio!.TemRanking);
+    }
+
+    [Fact]
+    public async Task Torneio_CANCELADO_nao_soma_no_ranking_geral()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Cancelado", "55530000003");
+
+        var (cancelado, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        cancelado.Status = "Cancelado";
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        // Mesma régua do MVP, do card de campeão e do ponto de ranking: o evento não aconteceu.
+        Assert.Empty(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+    }
+
+    [Fact]
+    public async Task Torneio_esperando_APROVACAO_soma_normalmente()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var torcedor = await NovoTorcedorAsync(ctx, "Torcedor do Novo", "55530000004");
+
+        var (torneio, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        torneio.AprovadoEm = null;   // o padrão de quem acabou de criar
+        await ctx.SaveChangesAsync();
+        await PalpitarAsync(ctx, partida, torcedor.Id, partida.Dupla1Id);
+
+        // ⚠️ A régua da VITRINE (que exige aprovação) decide o que é LISTADO e anunciado — e
+        // esta tabela não lista torneio nenhum, soma pontos de gente. Exigir aprovação aqui
+        // apagaria torneios de verdade, já jogados, sem nada na tela dizer por quê.
+        Assert.Single(await RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+    }
+
+    [Fact]
+    public async Task O_ranking_geral_obedece_ao_filtro_REGIONAL_do_hub()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var daqui = await NovoTorcedorAsync(ctx, "Torcedor Daqui", "55530000005");
+        var deLonge = await NovoTorcedorAsync(ctx, "Torcedor de Longe", "55530000006");
+
+        var (_, _, partida) = await MontarJogoTerminadoAsync(ctx);
+        await PalpitarAsync(ctx, partida, daqui.Id, partida.Dupla1Id);
+        await PalpitarAsync(ctx, partida, deLonge.Id, partida.Dupla1Id);
+
+        // O mesmo recorte que as outras abas usam: um conjunto de jogadores do local escolhido.
+        var geral = await RankingDePalpiteiros.GeralAsync(ctx, doLocal: new HashSet<int> { daqui.Id });
+
+        Assert.Equal(daqui.Id, Assert.Single(geral).JogadorId);
+    }
+
+    [Fact]
+    public async Task Quem_nunca_teve_palpite_contado_nao_ganha_selo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, categoria, partida) = await MontarJogoTerminadoAsync(ctx);
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+
+        // Ele palpitou — no PRÓPRIO jogo, que não conta. O perfil não desenha selo nenhum, em
+        // vez de mostrar "0 pt de 0 palpites", que é uma linha que só sabe decepcionar.
+        await PalpitarAsync(ctx, partida, duplas[0].Jogador1Id, duplas[0].Id);
+
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, duplas[0].Jogador1Id));
+        Assert.Null(await RankingDePalpiteiros.DoJogadorAsync(ctx, jogadorId: 4242));
     }
 
     [Fact]

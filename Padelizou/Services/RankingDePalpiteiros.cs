@@ -3,17 +3,16 @@ using Padelizou.Models;
 
 namespace Padelizou.Services;
 
-// QUEM MAIS ACERTOU NO PALPITRÔMETRO, torneio a torneio.
+// QUEM MAIS ACERTA NO PALPITRÔMETRO — no torneio, no hub do Ranking e no perfil.
 //
 // O palpitrômetro guardava o palpite de todo mundo desde sempre e nunca dizia quem ACERTOU: a
 // tela mostrava a barra antes do jogo, um "galera acertou/errou" depois, e o palpite de cada
 // pessoa morria ali. Este ranking é derivado do que JÁ estava gravado — por isso ele nasce com
 // o histórico inteiro, sem migração de dados e sem começar zerado.
 //
-// 💾 ZERO coluna nova, ZERO ponto gravado: a conta é feita na hora, comparando
-// `PalpitePartida` com o placar da `Partida`. É isso que faz o ranking se CORRIGIR SOZINHO
-// quando o organizador conserta um placar depois — ponto gravado ficaria congelado no placar
-// errado, e ninguém descobriria.
+// 💾 ZERO ponto gravado: a conta é feita na hora, comparando `PalpitePartida` com o placar da
+// `Partida`. É isso que faz o ranking se CORRIGIR SOZINHO quando o organizador conserta um
+// placar depois — ponto gravado ficaria congelado no placar errado, e ninguém descobriria.
 //
 // 🚫 QUEM JOGA A PARTIDA NÃO ENTRA NA CONTA DELA. Os quatro em quadra são os únicos que podem
 // MUDAR o resultado do próprio palpite. Continuam podendo votar (e o voto conta na barra do
@@ -21,13 +20,20 @@ namespace Padelizou.Services;
 // total. ⚠️ **Em categoria de TIMES não exclui ninguém**: ali o `Jogador1` da linha é o
 // organizador que cadastrou o time, não quem entra em quadra, e excluir por ali tiraria o
 // acerto de quem nem jogou.
+//
+// 🧭 SÃO TRÊS PERGUNTAS E UM NÚCLEO SÓ (`Apurar`). As três carregam dados diferentes — o
+// torneio parte das partidas dele, o hub e o perfil partem dos PALPITES — mas a apuração é a
+// mesma função. Três somatórios diferentes acabariam discordando: o perfil dizendo 12 pontos e
+// a aba do hub dizendo 11, sem nada na tela pra explicar a diferença.
 public static class RankingDePalpiteiros
 {
-    // Monta o ranking de um torneio. Null = torneio não existe.
+    public const string PartidaFinalizada = "Finalizada";
+
+    // ── 1. O RANKING DE UM TORNEIO ────────────────────────────────────────────────────────
     //
-    // Lista vazia é resposta legítima e frequente: torneio sem jogo terminado, ou com jogos
-    // terminados e nenhum palpite. Quem decide o que fazer com o vazio é quem chama — a
-    // página devolve 404, como a do MVP.
+    // Null = torneio não existe. Lista vazia é resposta legítima e frequente: torneio sem jogo
+    // terminado, ou com jogos terminados e nenhum palpite. Quem decide o que fazer com o vazio
+    // é quem chama — a página devolve 404, como a do MVP.
     public static async Task<PalpiteirosDoTorneio?> DoTorneioAsync(
         DbPadelContext contexto, int torneioId, int? olhandoId)
     {
@@ -41,93 +47,123 @@ public static class RankingDePalpiteiros
 
         if (torneio == null) return null;
 
-        // ⚠️ `VencedorId != null` E `Status == "Finalizada"`, e não um só dos dois: jogo em
-        // andamento já tem placar parcial (a Mesa grava game a game) e apurar por ele diria
-        // quem está ganhando, não quem ganhou.
-        var partidas = await contexto.Partidas
-            .AsNoTracking()
-            .Where(p => p.TorneioId == torneioId
-                     && p.Status == PartidaFinalizada
-                     && p.VencedorId != null)
-            .Select(p => new
-            {
-                p.Id,
-                p.VencedorId,
-                p.Dupla1Id,
-                p.Dupla2Id,
-                p.GamesDupla1,
-                p.GamesDupla2,
-                p.SetsDupla1,
-                p.SetsDupla2,
-                p.MotivoDoEncerramento,
-            })
+        var partidas = await PartidasApuraveis(contexto)
+            .Where(p => p.TorneioId == torneioId)
             .ToListAsync();
 
-        if (partidas.Count == 0) return Vazio(torneio.Id, torneio.Nome, olhandoId);
+        var apuracao = await ApurarAsync(contexto, partidas,
+            await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList()));
 
-        var partidaIds = partidas.Select(p => p.Id).ToList();
+        return new PalpiteirosDoTorneio
+        {
+            TorneioId = torneio.Id,
+            Torneio = torneio.Nome,
+            JogosApurados = apuracao.JogosApurados,
+            PalpitesComPlacar = apuracao.PalpitesComPlacar,
+            EuId = olhandoId,
+            Linhas = apuracao.Linhas,
+        };
+    }
 
-        var palpites = await contexto.PalpitesPartida
-            .AsNoTracking()
-            .Where(v => partidaIds.Contains(v.PartidaId))
-            .Select(v => new
-            {
-                v.PartidaId,
-                v.JogadorId,
-                v.DuplaEscolhidaId,
-                v.GamesDupla1,
-                v.GamesDupla2,
-                v.SetsDupla1,
-                v.SetsDupla2,
-                v.Jogador.Nome,
-                v.Jogador.Apelido,
-                v.Jogador.FotoPerfil,
-            })
+    // ── 2. O RANKING GERAL (a aba do hub) ─────────────────────────────────────────────────
+    //
+    // `doLocal` é o MESMO filtro regional das outras abas do hub (nulo = país inteiro).
+    //
+    // ⚠️ Parte dos PALPITES, não das partidas, e isso é o que a mantém barata: partida
+    // finalizada o sistema tem aos milhares, e a esmagadora maioria nunca teve palpite nenhum.
+    // Varrer todas pra depois descobrir que 95% não interessam seria pagar o preço da tabela
+    // grande pra usar a pequena.
+    public static async Task<List<PalpiteiroNoRanking>> GeralAsync(
+        DbPadelContext contexto, HashSet<int>? doLocal)
+    {
+        var palpites = await PalpitesAsync(contexto, doLocal);
+        if (palpites.Count == 0) return new List<PalpiteiroNoRanking>();
+
+        var partidaIds = palpites.Select(v => v.PartidaId).Distinct().ToList();
+
+        var partidas = await PartidasApuraveis(contexto)
+            .Where(p => partidaIds.Contains(p.Id))
             .ToListAsync();
 
-        if (palpites.Count == 0) return Vazio(torneio.Id, torneio.Nome, olhandoId);
+        // ⚠️ TORNEIO OCULTO NÃO SOMA. O ranking do TORNEIO é protegido pela porta dele (oculto
+        // responde 404); esta lista é pública e não tem porta nenhuma — sem o filtro, ela
+        // somaria o torneio que o organizador ainda não divulgou.
+        var contam = await TorneiosQueContamAsync(contexto, partidas.Select(p => p.TorneioId));
+        partidas = partidas.Where(p => p.TorneioId is int t && contam.Contains(t)).ToList();
 
-        // Quem estava EM QUADRA em cada partida. Consultado à parte de propósito: pendurar as
-        // duas duplas na projeção da partida traria quatro navegações obrigatórias num JOIN só,
-        // e é a linha inteira que some quando uma delas falta.
+        var apuracao = await ApurarAsync(contexto, partidas, palpites);
+        return apuracao.Linhas;
+    }
+
+    // ── 3. O RESUMO DE UMA PESSOA (o selo do perfil) ──────────────────────────────────────
+    //
+    // Null = esta pessoa não tem palpite que conte — e aí o perfil não desenha selo nenhum.
+    //
+    // ⚠️ Mesmo universo do hub (nada de oculto nem cancelado), de propósito: o selo do perfil
+    // e a linha da aba precisam dizer o MESMO número. Duas contagens diferentes pro mesmo nome
+    // é o tipo de divergência que ninguém reporta como bug — só desconfia das duas.
+    public static async Task<PalpiteiroNoRanking?> DoJogadorAsync(DbPadelContext contexto, int jogadorId)
+    {
+        var meus = await PalpitesAsync(contexto, apenasEstesJogadores: new HashSet<int> { jogadorId });
+        if (meus.Count == 0) return null;
+
+        var partidaIds = meus.Select(v => v.PartidaId).Distinct().ToList();
+        var partidas = await PartidasApuraveis(contexto)
+            .Where(p => partidaIds.Contains(p.Id))
+            .ToListAsync();
+
+        var contam = await TorneiosQueContamAsync(contexto, partidas.Select(p => p.TorneioId));
+        partidas = partidas.Where(p => p.TorneioId is int t && contam.Contains(t)).ToList();
+
+        var apuracao = await ApurarAsync(contexto, partidas, meus);
+        return apuracao.Linhas.FirstOrDefault();
+    }
+
+    // ── O NÚCLEO ──────────────────────────────────────────────────────────────────────────
+
+    public sealed record Apuracao(List<PalpiteiroNoRanking> Linhas, int JogosApurados, int PalpitesComPlacar);
+
+    private static async Task<Apuracao> ApurarAsync(
+        DbPadelContext contexto, List<PartidaApurada> partidas, List<PalpiteApurado> palpites)
+    {
+        if (partidas.Count == 0 || palpites.Count == 0)
+            return new Apuracao(new List<PalpiteiroNoRanking>(), 0, 0);
+
         var duplaIds = partidas.SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).Distinct().ToList();
-        var duplas = await contexto.Duplas
-            .AsNoTracking()
-            .Where(d => duplaIds.Contains(d.Id))
-            .Select(d => new { d.Id, d.NomeTime, d.Jogador1Id, d.Jogador2Id })
-            .ToListAsync();
+        return Apurar(partidas, palpites, await EmQuadraAsync(contexto, duplaIds));
+    }
 
-        var emQuadra = duplas.ToDictionary(
-            d => d.Id,
-            d => d.NomeTime != null
-                // Linha de TIME: o Jogador1 é quem cadastrou, não quem joga. Ninguém a excluir.
-                ? new HashSet<int>()
-                : d.Jogador2Id is int parceiro
-                    ? new HashSet<int> { d.Jogador1Id, parceiro }
-                    : new HashSet<int> { d.Jogador1Id });
-
+    // A apuração PURA — sem banco, e é onde a régua toda acontece.
+    public static Apuracao Apurar(
+        IEnumerable<PartidaApurada> partidas,
+        IEnumerable<PalpiteApurado> palpites,
+        Dictionary<int, HashSet<int>> emQuadra)
+    {
+        var porPartida = palpites.GroupBy(v => v.PartidaId).ToDictionary(g => g.Key, g => g.ToList());
         var porJogador = new Dictionary<int, PalpiteiroNoRanking>();
-        var partidasComPalpiteValido = new HashSet<int>();
+        var partidasQueContaram = new HashSet<int>();
         int palpitesComPlacar = 0;
 
         foreach (var partida in partidas)
         {
+            if (!porPartida.TryGetValue(partida.Id, out var doJogo)) continue;
+
             var jogadoresDaPartida = new HashSet<int>(emQuadra.GetValueOrDefault(partida.Dupla1Id, new HashSet<int>()));
             jogadoresDaPartida.UnionWith(emQuadra.GetValueOrDefault(partida.Dupla2Id, new HashSet<int>()));
 
-            foreach (var palpite in palpites.Where(v => v.PartidaId == partida.Id))
+            foreach (var palpite in doJogo)
             {
                 if (jogadoresDaPartida.Contains(palpite.JogadorId)) continue;
 
-                // ⚠️ A MOEDA É DITADA PELO PALPITE, não pelo formato de hoje. Quem palpitou
-                // em games é conferido contra os games; quem palpitou em sets, contra os sets.
+                // ⚠️ A MOEDA É DITADA PELO PALPITE, não pelo formato de hoje. Quem palpitou em
+                // games é conferido contra os games; quem palpitou em sets, contra os sets.
                 // Parece o mesmo, mas não é: o organizador pode editar o formato do torneio
-                // DEPOIS de o palpite estar gravado, e aí perguntar ao formato compararia o
-                // que a pessoa disse com um placar que ela não tinha como estar respondendo.
+                // DEPOIS de o palpite estar gravado, e aí perguntar ao formato compararia o que
+                // a pessoa disse com um placar que ela não tinha como estar respondendo.
                 var palpitado = PlacaresPossiveis.Lido(
                     palpite.GamesDupla1, palpite.GamesDupla2, palpite.SetsDupla1, palpite.SetsDupla2);
 
-                var conferido = new PalpiteConferido
+                int pontos = PontosDoPalpite.De(new PalpiteConferido
                 {
                     DuplaEscolhidaId = palpite.DuplaEscolhidaId,
                     VencedorId = partida.VencedorId,
@@ -137,43 +173,31 @@ public static class RankingDePalpiteiros
                     PlacarLado2 = palpitado.EmSets ? partida.SetsDupla2 : partida.GamesDupla2,
                     EmSets = palpitado.EmSets,
                     PorWo = partida.MotivoDoEncerramento == EncerramentoPorWo.Motivo,
-                };
-
-                int pontos = PontosDoPalpite.De(conferido);
+                });
 
                 if (!porJogador.TryGetValue(palpite.JogadorId, out var linha))
                 {
                     linha = new PalpiteiroNoRanking
                     {
                         JogadorId = palpite.JogadorId,
-                        Nome = NomeBonito.ComApelido(palpite.Nome, palpite.Apelido),
-                        Foto = palpite.FotoPerfil,
+                        Nome = palpite.Nome,
+                        Foto = palpite.Foto,
                     };
                     porJogador[palpite.JogadorId] = linha;
                 }
 
                 linha.Palpites++;
                 linha.Pontos += pontos;
-                if (conferido.PalpitouOPlacar) palpitesComPlacar++;
                 if (pontos > 0) linha.Acertos++;
                 if (pontos == PontosDoPalpite.Cravou) linha.Cravadas++;
+                if (palpitado.Existe) palpitesComPlacar++;
 
-                partidasComPalpiteValido.Add(partida.Id);
+                partidasQueContaram.Add(partida.Id);
             }
         }
 
-        return new PalpiteirosDoTorneio
-        {
-            TorneioId = torneio.Id,
-            Torneio = torneio.Nome,
-            JogosApurados = partidasComPalpiteValido.Count,
-            PalpitesComPlacar = palpitesComPlacar,
-            EuId = olhandoId,
-            Linhas = Classificar(porJogador.Values),
-        };
+        return new Apuracao(Classificar(porJogador.Values), partidasQueContaram.Count, palpitesComPlacar);
     }
-
-    public const string PartidaFinalizada = "Finalizada";
 
     // A ordem da tabela: PONTOS, aproveitamento, nome, id.
     //
@@ -207,13 +231,127 @@ public static class RankingDePalpiteiros
         return ordenados;
     }
 
-    private static PalpiteirosDoTorneio Vazio(int torneioId, string nome, int? olhandoId) => new()
+    // ── O QUE VEM DO BANCO ────────────────────────────────────────────────────────────────
+
+    // ⚠️ `VencedorId != null` E `Status == "Finalizada"`, e não um só dos dois: jogo em
+    // andamento já tem placar parcial (a Mesa grava game a game) e apurar por ele diria quem
+    // está ganhando, não quem ganhou.
+    private static IQueryable<PartidaApurada> PartidasApuraveis(DbPadelContext contexto) =>
+        contexto.Partidas
+            .AsNoTracking()
+            .Where(p => p.Status == PartidaFinalizada && p.VencedorId != null)
+            .Select(p => new PartidaApurada(p.Id, p.TorneioId, p.VencedorId, p.Dupla1Id, p.Dupla2Id,
+                p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2, p.MotivoDoEncerramento));
+
+    private static async Task<List<PalpiteApurado>> PalpitesDasPartidasAsync(
+        DbPadelContext contexto, List<int> partidaIds) =>
+        partidaIds.Count == 0
+            ? new List<PalpiteApurado>()
+            : await MaterializarAsync(contexto.PalpitesPartida.Where(v => partidaIds.Contains(v.PartidaId)));
+
+    private static async Task<List<PalpiteApurado>> PalpitesAsync(
+        DbPadelContext contexto, HashSet<int>? apenasEstesJogadores)
     {
-        TorneioId = torneioId,
-        Torneio = nome,
-        EuId = olhandoId,
-    };
+        var consulta = contexto.PalpitesPartida.AsQueryable();
+
+        if (apenasEstesJogadores != null)
+        {
+            var ids = apenasEstesJogadores.ToList();
+            consulta = consulta.Where(v => ids.Contains(v.JogadorId));
+        }
+
+        return await MaterializarAsync(consulta);
+    }
+
+    // O `NomeBonito.ComApelido` roda DEPOIS do `ToListAsync`, e não dentro da projeção.
+    //
+    // 📌 Não é obrigatório: o EF avalia no cliente o que estiver na projeção FINAL, então o
+    // método ali dentro funcionaria (conferido com o teste de tradução em
+    // TraducaoDasConsultasDePalpiteTests). É por segurança de COMPOSIÇÃO: essa licença vale só
+    // enquanto o `Select` for o último passo, e basta alguém pendurar um `Where` depois dele
+    // pra virar erro de tradução em produção — que o banco InMemory dos testes não pega, porque
+    // lá tudo é objeto e qualquer método roda. Materializar antes tira a pegadinha do caminho.
+    //
+    // ⚠️ O que o EF NÃO perdoa em lugar nenhum é método nosso dentro de `Where`/`OrderBy` — e
+    // é isso que aqueles testes vigiam.
+    private static async Task<List<PalpiteApurado>> MaterializarAsync(IQueryable<PalpitePartida> consulta) =>
+        (await consulta
+            .AsNoTracking()
+            .Select(v => new
+            {
+                v.PartidaId, v.JogadorId, v.DuplaEscolhidaId,
+                v.Jogador.Nome, v.Jogador.Apelido, v.Jogador.FotoPerfil,
+                v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2,
+            })
+            .ToListAsync())
+            .Select(v => new PalpiteApurado(
+                v.PartidaId, v.JogadorId, NomeBonito.ComApelido(v.Nome, v.Apelido), v.FotoPerfil,
+                v.DuplaEscolhidaId, v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
+            .ToList();
+
+    // Quem estava EM QUADRA em cada dupla. Consultado à parte de propósito: pendurar as duas
+    // duplas na projeção da partida traria quatro navegações obrigatórias num JOIN só, e é a
+    // linha inteira que some quando uma delas falta.
+    private static async Task<Dictionary<int, HashSet<int>>> EmQuadraAsync(
+        DbPadelContext contexto, List<int> duplaIds)
+    {
+        var duplas = await contexto.Duplas
+            .AsNoTracking()
+            .Where(d => duplaIds.Contains(d.Id))
+            .Select(d => new { d.Id, d.NomeTime, d.Jogador1Id, d.Jogador2Id })
+            .ToListAsync();
+
+        return duplas.ToDictionary(
+            d => d.Id,
+            d => d.NomeTime != null
+                // Linha de TIME: o Jogador1 é quem cadastrou, não quem joga. Ninguém a excluir.
+                ? new HashSet<int>()
+                : d.Jogador2Id is int parceiro
+                    ? new HashSet<int> { d.Jogador1Id, parceiro }
+                    : new HashSet<int> { d.Jogador1Id });
+    }
+
+    // Quais destes torneios podem somar no ranking geral: os que NÃO estão ocultos e NÃO foram
+    // cancelados.
+    //
+    // ⚠️ De propósito NÃO é a régua da VITRINE (`ApareceParaOPublico`), que exige também a
+    // aprovação do admin. São perguntas diferentes: a vitrine decide o que é LISTADO e
+    // anunciado, e torneio esperando aprovação fica de fora dela por isso — mas a página dele é
+    // pública o tempo todo (quem recusa acesso é `VisibilidadeDoTorneio`, e ela só olha o
+    // `Oculto`). Este ranking não lista torneio nenhum: ele soma pontos de gente. Exigir
+    // aprovação aqui apagaria da tabela torneios de verdade, já jogados, sem que nada na tela
+    // dissesse por quê — e a aba nasceria quase vazia.
+    //
+    // ⚠️ Cancelado fica de fora pela régua de sempre: o evento não aconteceu. É a mesma que
+    // tira o torneio cancelado do MVP, do card de campeão e do ponto de ranking.
+    private static async Task<HashSet<int>> TorneiosQueContamAsync(
+        DbPadelContext contexto, IEnumerable<int?> torneioIds)
+    {
+        var ids = torneioIds.Where(t => t != null).Select(t => t!.Value).Distinct().ToList();
+        if (ids.Count == 0) return new HashSet<int>();
+
+        var torneios = await contexto.Torneios
+            .AsNoTracking()
+            .Where(t => ids.Contains(t.Id))
+            .Select(t => new { t.Id, t.Oculto, t.Status })
+            .ToListAsync();
+
+        return torneios
+            .Where(t => !t.Oculto && !CancelamentoDoTorneio.EstaCancelado(t.Status))
+            .Select(t => t.Id)
+            .ToHashSet();
+    }
 }
+
+// Uma partida já pronta pra apuração.
+public sealed record PartidaApurada(
+    int Id, int? TorneioId, int? VencedorId, int Dupla1Id, int Dupla2Id,
+    int? GamesDupla1, int? GamesDupla2, int? SetsDupla1, int? SetsDupla2, string? MotivoDoEncerramento);
+
+// Um palpite já pronto pra apuração, com o nome de quem palpitou.
+public sealed record PalpiteApurado(
+    int PartidaId, int JogadorId, string Nome, string? Foto, int DuplaEscolhidaId,
+    int? GamesDupla1, int? GamesDupla2, int? SetsDupla1, int? SetsDupla2);
 
 // Uma linha da tabela.
 public sealed class PalpiteiroNoRanking
@@ -229,7 +367,7 @@ public sealed class PalpiteiroNoRanking
     // Palpites que ACERTARAM o vencedor — inclusive os que cravaram o placar.
     public int Acertos { get; set; }
 
-    // Quantas vezes cravou o placar exato. Zero até o placar entrar na tela.
+    // Quantas vezes cravou o placar exato.
     public int Cravadas { get; set; }
 
     // Quantos palpites deste jogador entraram na conta (jogo terminado, e fora os do próprio

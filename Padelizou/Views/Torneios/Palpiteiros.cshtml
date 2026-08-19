@@ -87,51 +87,8 @@
 
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr class="text-muted small">
-                            <th style="width:3rem;">#</th>
-                            <th>Palpiteiro</th>
-                            <th class="text-center d-none d-sm-table-cell">Palpites</th>
-                            <th class="text-center d-none d-sm-table-cell">Acertos</th>
-                            @if (comPlacar)
-                            {
-                                <th class="text-center d-none d-sm-table-cell">Cravadas</th>
-                            }
-                            <th class="text-center d-none d-sm-table-cell">%</th>
-                            <th class="text-end">Pontos</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var linha in Model.Linhas)
-                        {
-                            bool souEu = Model.EuId != null && linha.JogadorId == Model.EuId.Value;
-                            <tr class="@(souEu ? "table-success" : "")">
-                                <td class="fw-bold text-muted">@linha.Posicao</td>
-                                <td class="fw-semibold" style="color: var(--pdz-ink);">
-                                    <img src="@(string.IsNullOrEmpty(linha.Foto) ? "/img/default-avatar.png" : linha.Foto)"
-                                         alt="" class="rounded-circle me-1"
-                                         style="width:24px;height:24px;object-fit:cover;" />
-                                    @linha.Nome
-                                    @if (souEu)
-                                    {
-                                        <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
-                                    }
-                                </td>
-                                <td class="text-center d-none d-sm-table-cell">@linha.Palpites</td>
-                                <td class="text-center d-none d-sm-table-cell text-success fw-bold">@linha.Acertos</td>
-                                @if (comPlacar)
-                                {
-                                    <td class="text-center d-none d-sm-table-cell">@linha.Cravadas</td>
-                                }
-                                <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento.ToString("0.#")%</td>
-                                <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <partial name="_TabelaDePalpiteiros"
+                     model='@(new TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar))' />
         </div>
     </div>
 

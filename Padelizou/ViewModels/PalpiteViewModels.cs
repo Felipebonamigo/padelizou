@@ -57,3 +57,18 @@ public class VotanteVM
     public string Nome { get; set; } = null!;
     public string? FotoPerfil { get; set; }
 }
+
+// A tabela dos palpiteiros, pronta pra partial. A página do TORNEIO e a aba do hub usam a
+// MESMA — duas partials quase iguais é como uma delas ganha uma coluna e a outra não, e aí a
+// mesma pessoa aparece com números diferentes em duas telas do mesmo site.
+public record TabelaDePalpiteirosVM(
+    IReadOnlyList<Padelizou.Services.PalpiteiroNoRanking> Linhas,
+    int? MeuId,
+
+    // A coluna "Cravadas" só existe onde houve palpite COM placar. Ela some por dado, nunca por
+    // interruptor: num recorte em que ninguém teve como palpitar placar, ela seria uma fileira
+    // de zeros explicando um jeito de pontuar que não existia ali.
+    bool MostrarCravadas)
+{
+    public bool SouEu(Padelizou.Services.PalpiteiroNoRanking linha) => MeuId != null && linha.JogadorId == MeuId.Value;
+}

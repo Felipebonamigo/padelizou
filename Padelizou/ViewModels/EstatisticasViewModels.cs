@@ -228,6 +228,21 @@ public class RankingHubVM
     public List<RankingAmericanoLinhaVM> TrofeusAmericanoIndividual { get; set; } = new();
     public List<RankingAmericanoLinhaVM> TrofeusAmericanoDuplas { get; set; } = new();
 
+    // Quem está olhando (nulo = visitante deslogado). Fica aqui pra a VIEW não precisar ler
+    // claim nenhuma — é o mesmo arranjo da votação de MVP.
+    public int? EuId { get; set; }
+
+    // Aba PALPITEIROS: quem mais acerta no palpitrômetro (Services/PontosDoPalpite), com o
+    // mesmo filtro regional do resto do hub.
+    //
+    // ⚠️ É a segunda aba que NÃO sai de resultado de chave — ela mede quem LÊ os jogos, não
+    // quem os joga. A frase-promessa do topo da tela ("tudo aqui sai de resultado de torneio")
+    // abre exceção pra ela como já abria pros Desafios: cada aba nova que medir outra coisa
+    // precisa entrar naquela lista, senão a promessa vira mentira sem ninguém ter mentido.
+    //
+    // Vazia = ninguém palpitou ainda naquele recorte, e aí a aba não é desenhada.
+    public List<Padelizou.Services.PalpiteiroNoRanking> Palpiteiros { get; set; } = new();
+
     // A aba Desafios — NULA pra quem ainda não enxerga o módulo, e aí ela nem é desenhada.
     // Quem decide é PortaDosDesafios, a mesma régua do menu e do controller de lá.
     //

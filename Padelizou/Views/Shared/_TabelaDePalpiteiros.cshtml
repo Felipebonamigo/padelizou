@@ -1,0 +1,57 @@
+@model TabelaDePalpiteirosVM
+@*
+    A tabela dos palpiteiros — a mesma na página do torneio e na aba do hub do Ranking.
+
+    Mora em Shared, e não em Views/Torneios, porque são DUAS telas de controllers diferentes
+    desenhando esta tabela: /Torneios/Palpiteiros e a aba Palpiteiros de /Jogadores/Ranking.
+
+    Palpites, acertos, cravadas e % somem abaixo de 576px: no celular o que decide é posição,
+    nome e pontos, e sete colunas ali viram uma tabela que ninguém lê. Mesmo corte da tabela
+    dos Desafios.
+*@
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead>
+            <tr class="text-muted small">
+                <th style="width:3rem;">#</th>
+                <th>Palpiteiro</th>
+                <th class="text-center d-none d-sm-table-cell">Palpites</th>
+                <th class="text-center d-none d-sm-table-cell">Acertos</th>
+                @if (Model.MostrarCravadas)
+                {
+                    <th class="text-center d-none d-sm-table-cell">Cravadas</th>
+                }
+                <th class="text-center d-none d-sm-table-cell">%</th>
+                <th class="text-end">Pontos</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var linha in Model.Linhas)
+            {
+                bool souEu = Model.SouEu(linha);
+                <tr class="@(souEu ? "table-success" : "")">
+                    <td class="fw-bold text-muted">@linha.Posicao</td>
+                    <td class="fw-semibold" style="color: var(--pdz-ink);">
+                        <img src="@(string.IsNullOrEmpty(linha.Foto) ? "/img/default-avatar.png" : linha.Foto)"
+                             alt="" class="rounded-circle me-1"
+                             style="width:24px;height:24px;object-fit:cover;" />
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@linha.JogadorId"
+                           class="text-decoration-none" style="color: var(--pdz-ink);">@linha.Nome</a>
+                        @if (souEu)
+                        {
+                            <span class="badge bg-success-subtle text-success-emphasis ms-1">você</span>
+                        }
+                    </td>
+                    <td class="text-center d-none d-sm-table-cell">@linha.Palpites</td>
+                    <td class="text-center d-none d-sm-table-cell text-success fw-bold">@linha.Acertos</td>
+                    @if (Model.MostrarCravadas)
+                    {
+                        <td class="text-center d-none d-sm-table-cell">@linha.Cravadas</td>
+                    }
+                    <td class="text-center d-none d-sm-table-cell">@linha.Aproveitamento.ToString("0.#")%</td>
+                    <td class="text-end fw-bold" style="color: var(--pdz-ink);">@linha.Pontos</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

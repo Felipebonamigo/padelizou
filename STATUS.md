@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🎫 **AS FICHAS DE PLACAR ENTRARAM NO PALPITRÔMETRO — E ELE PASSOU A DIZER O QUE A GALERA CRAVA** (fase 3 de 4).
+> Última atualização: **19/08/2026** — 🏅 **O PALPITRÔMETRO SAIU DO TORNEIO: ABA NO HUB DO RANKING E SELO NO PERFIL** (fase 4 de 4 — o palpite com placar está completo).
+>
+> 🧭 **TRÊS PERGUNTAS, UM NÚCLEO SÓ (`RankingDePalpiteiros.Apurar`).** O torneio parte das partidas dele; o hub e o perfil partem dos **palpites**. ⚠️ Partir dos palpites é o que mantém a aba barata: partida finalizada o sistema tem aos milhares e a esmagadora maioria **nunca teve palpite nenhum** — varrer todas pra descobrir que 95% não interessam seria pagar o preço da tabela grande pra usar a pequena. **Três somatórios separados acabariam discordando**: o selo dizendo 12 pontos e a aba dizendo 11, sem nada na tela pra explicar. Há um teste que compara os dois números.
+>
+> 🙈 **TORNEIO OCULTO E CANCELADO NÃO SOMAM NO GERAL** — a página do torneio é protegida pela porta dele, esta lista é pública e não tem porta nenhuma. ⚠️ **Mas torneio esperando APROVAÇÃO soma normalmente, e isso foi decisão, não descuido**: a régua da *vitrine* (`ApareceParaOPublico`, que exige o OK do admin) decide o que é **listado e anunciado** — e esta tabela não lista torneio nenhum, soma pontos de gente. Exigir aprovação apagaria torneios de verdade, já jogados, sem nada na tela dizer por quê, e a aba nasceria quase vazia. Teste pra cada um dos três casos.
+>
+> 📣 **A FRASE-PROMESSA DO TOPO DO HUB GANHOU A SEGUNDA EXCEÇÃO.** *"Tudo abaixo é calculado só a partir de resultados de torneios"* já abria exceção pros Desafios; agora abre pros **Palpiteiros**, que não medem quem joga — medem **quem lê os jogos**. Cada exceção só aparece pra quem tem a aba: pra quem não tem nenhuma das duas, a promessa continua inteira, sem asterisco em nada.
+>
+> ♻️ **A tabela virou partial compartilhada** (`Views/Shared/_TabelaDePalpiteiros`), servindo a página do torneio e a aba do hub — mesmo arranjo da tabela dos Desafios. Duas partials quase iguais é como uma ganha uma coluna e a outra não, e aí a mesma pessoa aparece com números diferentes em duas telas do mesmo site.
+>
+> 🔮 **O SELO DO PERFIL** ("12 pts no palpitrômetro · 9 de 14 · 2 cravadas") leva pra **aba** do hub, não pra um torneio: o número dele é o somatório de todos, e mandar a pessoa pra um torneio só explicaria a menor parte do que ela acabou de ler. Some inteiro pra quem nunca teve palpite contado — melhor do que "0 pt de 0 palpites".
+>
+> 🧪 **4.422 testes, 0 falhas (12 novos).** ✅ **Falsificado**: exigir aprovação derruba o teste do torneio novo; tirar o filtro derruba os do oculto e do cancelado.
+>
+> 🆕 **E ENTROU UMA CATEGORIA DE TESTE QUE ESTE PROJETO NÃO TINHA: TRADUÇÃO DE CONSULTA** (`TraducaoDasConsultasDePalpiteTests`). O banco **InMemory** de toda a suíte **não traduz nada** — lá tudo é objeto, e um `Where` com método nosso passa liso pra estourar em produção na primeira visita à página. O truque: rodar as consultas contra um provedor **Npgsql de verdade apontado pra uma porta onde não há ninguém**. O EF traduz **antes** de conectar, então *chegar no erro de conexão é a aprovação*; o que reprova é `could not be translated`. Nenhum banco precisa existir, e os 6 testes rodam em 2 segundos. ✅ **Falsificado**: plantando um `NomeBonito.ComApelido(...)` dentro de um `Where`, 3 dos 6 caem.
+>
+> 🎓 **E ele já ensinou uma coisa que eu tinha escrito errado**: método nosso na projeção **final** o EF **aceita** (avalia no cliente) — não estoura, ao contrário do que um comentário meu afirmava. O comentário foi corrigido. O código continua materializando antes de formatar o nome, agora pela razão verdadeira: essa licença vale só enquanto o `Select` for o último passo, e basta alguém pendurar um `Where` depois dele pra virar erro de verdade.
+>
+> ⚠️ **NADA CONFERIDO NO NAVEGADOR** em nenhuma das quatro fases (sem Postgres no ambiente) e **a migration da fase 2 ainda não rodou em banco nenhum**. O que existe é: Razor compilado no build, a orientação do JS conferida no Node, a tradução das consultas conferida contra o Npgsql, e a suíte.
+>
+> Antes, no mesmo dia: 🎫 **AS FICHAS DE PLACAR ENTRARAM NO PALPITRÔMETRO — E ELE PASSOU A DIZER O QUE A GALERA CRAVA** (fase 3 de 4).
 >
 > 👆 **O SEGUNDO TOQUE É OPCIONAL, E ISSO É O DESENHO INTEIRO.** Palpitar continua sendo **um toque no nome**; quem quiser dá o segundo e escolhe o placar. Exigir placar pra votar derrubaria a participação — e é a participação que faz a barra do palpitrômetro valer alguma coisa. ⚠️ **As fichas só aparecem DEPOIS do voto**: "6x4" não quer dizer nada antes de se saber de **quem** são os 6.
 >

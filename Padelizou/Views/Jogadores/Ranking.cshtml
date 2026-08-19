@@ -91,11 +91,22 @@
                 <i class="bi bi-shield-lock"></i>
                 Tudo abaixo é calculado <strong>só a partir de resultados de torneios</strong>.
                 Aulas, jogos semanais e ajustes manuais não entram.
+                @* ⚠️ As exceções são listadas UMA A UMA, e cada uma só aparece pra quem tem a
+                   aba: pra quem não tem nenhuma das duas, a promessa continua inteira, sem
+                   asterisco em nada. Cada aba nova que não medir resultado de chave entra
+                   aqui — senão a frase vira mentira sem ninguém ter mentido. *@
                 @if (Model.Desafios != null)
                 {
                     <text>
-                        A única exceção é a aba <strong>Desafios</strong> — jogo combinado entre
+                        Abre exceção a aba <strong>Desafios</strong> — jogo combinado entre
                         duas duplas, e ela avisa isso lá dentro.
+                    </text>
+                }
+                @if (Model.Palpiteiros.Count > 0)
+                {
+                    <text>
+                        E a aba <strong>Palpiteiros</strong>, que não mede quem joga: mede quem
+                        <em>acerta o palpite</em> no palpitrômetro.
                     </text>
                 }
             </p>
@@ -227,6 +238,10 @@
         @if (Model.Desafios != null)
         {
             <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-desafios" type="button">🥊 Desafios</button></li>
+        }
+        @if (Model.Palpiteiros.Count > 0)
+        {
+            <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-palpiteiros" type="button"><i class="bi bi-graph-up"></i> Palpiteiros</button></li>
         }
         <li class="nav-item me-2"><button class="nav-link rounded-pill fw-semibold" data-bs-toggle="pill" data-bs-target="#tab-times" type="button"><i class="bi bi-shield-fill"></i> Times</button></li>
     </ul>
@@ -948,6 +963,39 @@
                         </div>
                     </div>
                 }
+            </div>
+        }
+
+        @* ============================ PALPITEIROS ============================
+           Quem mais ACERTA no palpitrômetro — a única aba, junto dos Desafios, que não mede
+           resultado de chave. Só é desenhada quando existe lista: aba vazia num recorte sem
+           palpite nenhum é uma pílula que só sabe decepcionar.
+
+           ⚠️ A RÉGUA VEM ANTES DA TABELA, como na página do torneio. Sem ela, quem vê um 100%
+           de aproveitamento ABAIXO de um 75% conclui que a conta quebrou — e conta que parece
+           quebrada é conta em que ninguém confia, por mais certa que esteja. *@
+        @if (Model.Palpiteiros.Count > 0)
+        {
+            <div class="tab-pane fade" id="tab-palpiteiros" role="tabpanel">
+                @{
+                    // A coluna de cravadas só aparece onde alguém cravou algum placar — mesma
+                    // régua da página do torneio: some por DADO, nunca por interruptor.
+                    bool alguemCravou = Model.Palpiteiros.Any(l => l.Cravadas > 0);
+                }
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                    <p class="text-muted small mb-0 flex-grow-1">
+                        <i class="bi bi-info-circle"></i>
+                        Esta aba <strong>não mede quem joga</strong>: mede quem acerta o palpite no
+                        palpitrômetro dos torneios. Cravar o placar vale <strong>@PontosDoPalpite.Cravou</strong>,
+                        chegar perto vale <strong>@PontosDoPalpite.ChegouPerto</strong> e acertar só quem
+                        venceu vale <strong>@PontosDoPalpite.SoOVencedor</strong>. Ganha quem soma mais
+                        pontos — o aproveitamento só desempata. Quem está em quadra não pontua no
+                        próprio jogo.
+                    </p>
+                </div>
+
+                <partial name="_TabelaDePalpiteiros"
+                         model='@(new TabelaDePalpiteirosVM(Model.Palpiteiros, Model.EuId, alguemCravou))' />
             </div>
         }
 
