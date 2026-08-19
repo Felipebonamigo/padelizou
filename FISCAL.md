@@ -86,9 +86,20 @@ reescrever o produto.
   venda), DANFE-NFC-e térmico/browser com QR, série/numeração por clube, cancelamento
   fiscal amarrado ao cancelamento de comanda (prazo curto, ~30 min na maioria dos estados),
   contingência offline. Piloto em 1 clube real no RS antes de abrir estado a estado.
-- **Fase 4 — pacote do contador + billing (~2–3 semanas).** Export mensal por clube (CSV
-  do bar — hoje não existe —, ZIP de XMLs, relatório de notas). **Assinatura de clube não
-  existe no código**: criar recorrência via Asaas, medidor de franquia, bloqueio suave.
+- **Fase 4a — BILLING DA ASSINATURA. ✅ FEITO em 19/08/2026** (migration `AssinaturaDoClube`,
+  35 testes novos). Planos Rede (grátis) / Gestão / Fiscal, com 15 dias de teste e 7 de
+  carência; cobrança por Pix direto (sem taxa de gateway) ou fatura; tela do plano pro dono;
+  registro manual pro admin; avisos de vencimento por push. **O bar virou plano pago**: quem
+  não assinou vai pra tela de assinatura em vez de um 403.
+  Decisões registradas no código: **(1)** quatro colunas no `Clube` e não uma tabela nova —
+  o histórico de ciclos já é a tabela `Pagamento`; **(2)** a conta de tempo virou
+  `CicloDeAssinatura`, compartilhada com o professor, pra não haver duas contas de dinheiro;
+  **(3)** a cobrança aberta é do CLUBE e não de quem clicou, senão dono e sócio geram uma
+  cada e pagam as duas; **(4)** "em construção" nunca vira "sem plano" — não se vende um
+  Fiscal que ainda não emite.
+- **Fase 4b — pacote do contador (~1–2 semanas).** Export mensal por clube: CSV de vendas do
+  bar (hoje não existe), ZIP de XMLs, relatório de notas emitidas/canceladas/rejeitadas.
+  Medidor de franquia de notas e bloqueio suave no excedente.
 - **Fase 5 — TEF: adiar.** Item mais caro do catálogo do Gripo e o menos pedido em clube
   pequeno. Reavaliar quando cliente pagante pedir.
 
@@ -97,8 +108,12 @@ reescrever o produto.
 | Plano | Preço | O que tem |
 |---|---|---|
 | Clube Rede (atual) | R$ 0 | Torneios, ranking, reservas, rede — o motor de aquisição segue grátis. |
-| Clube Gestão | R$ 99/mês | Bar completo + financeiro. **Código pronto: é ligar a flag e cobrar.** Margem ~100%. |
-| **Clube Fiscal** | R$ 199–229/mês | Gestão + NFS-e e NFC-e com franquia 100 NFS-e + 400 NFC-e/mês; excedente R$ 0,30/nota. A1 por conta do clube. |
+| Clube Gestão | R$ 99/mês ou R$ 990/ano | Bar completo + financeiro. Margem ~100%. |
+| **Clube Fiscal** | R$ 199/mês ou R$ 1.990/ano | Gestão + NFS-e e NFC-e com franquia 100 NFS-e + 400 NFC-e/mês; excedente R$ 0,30/nota. A1 por conta do clube. |
+
+Os preços vivem em configuração (`PlanoClube__MensalidadeGestao` e vizinhos, ver
+`Services/PlanoDoClube`) — renegociar com um clube não exige republicar o site. O anual dá
+dois meses de desconto nos dois planos, e a economia é **calculada**, nunca escrita na tela.
 
 Ancoragem: Gripo Professional R$ 219 + módulos à parte. Nosso Fiscal com o fiscal DENTRO
 e a rede junto é comparável no preço e maior em valor. Não competir baixando o % do

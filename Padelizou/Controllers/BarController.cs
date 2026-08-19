@@ -54,6 +54,27 @@ public partial class BarController : Controller
     // cópias de uma permissão divergem no dia em que só uma é atualizada.
     private Task<bool> PodeUsarAsync(int clubeId) => _modulo.PodeUsarAsync(clubeId, UsuarioId());
 
+    // O bloqueio das telas de ENTRADA. Devolve null quando pode entrar.
+    //
+    // ⚠️ "Não pode" e "não pagou" NÃO levam ao mesmo lugar, e essa distinção vale dinheiro:
+    // quem não manda no clube leva Forbid, mas quem manda e está sem plano acabou de mostrar
+    // interesse clicando no produto — mandar essa pessoa pra um 403 é perder a venda na porta.
+    // Ela vai pra tela do plano.
+    //
+    // Só nas telas de entrada (GET). Nas ações de POST o Forbid seco continua certo: quem
+    // chega lá sem plano está postando fora da tela, e não há venda nenhuma pra fazer.
+    private async Task<IActionResult?> BloqueioAsync(int clubeId)
+    {
+        var acesso = await _modulo.AcessoAsync(clubeId, UsuarioId());
+
+        return acesso switch
+        {
+            AcessoAoModulo.Liberado => null,
+            AcessoAoModulo.SemPlano => RedirectToAction("Index", "PlanoClube", new { id = clubeId }),
+            _ => Forbid()
+        };
+    }
+
     // O dia a que o movimento pertence. É o dia do caixa ABERTO, não o relógio: comanda
     // aberta 23h50 e paga 00h30 entra no movimento de ontem, que é como o bar conta. Sem
     // caixa aberto, vale hoje.
@@ -72,7 +93,7 @@ public partial class BarController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(int id)
     {
-        if (!await PodeUsarAsync(id)) return Forbid();
+        if (await BloqueioAsync(id) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();
@@ -213,7 +234,7 @@ public partial class BarController : Controller
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (comanda == null) return NotFound();
-        if (!await PodeUsarAsync(comanda.ClubeId)) return Forbid();
+        if (await BloqueioAsync(comanda.ClubeId) is { } bloqueio) return bloqueio;
 
         ViewBag.Clube = await _context.Clubes.FindAsync(comanda.ClubeId);
         ViewBag.Produtos = await _context.ProdutosBar
@@ -559,7 +580,7 @@ public partial class BarController : Controller
     [HttpGet]
     public async Task<IActionResult> Produtos(int id)
     {
-        if (!await PodeUsarAsync(id)) return Forbid();
+        if (await BloqueioAsync(id) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();

@@ -17,7 +17,16 @@ public partial class BarController
     [HttpGet]
     public async Task<IActionResult> Fiscal(int id)
     {
-        if (!await _fiscal.PodeUsarAsync(id, UsuarioId())) return Forbid();
+        // Quem está na Gestão e clica em "Fiscal" vai pra tela do plano, onde o Fiscal está à
+        // venda — um 403 seria fechar a porta na cara de quem quer pagar mais. E quem esbarra
+        // no módulo EM CONSTRUÇÃO leva Forbid, porque ali não há nada pra vender ainda: quem
+        // decide qual dos dois é o ModuloFiscal.
+        var acesso = await _fiscal.AcessoAsync(id, UsuarioId());
+
+        if (acesso == AcessoAoModulo.SemPlano)
+            return RedirectToAction("Index", "PlanoClube", new { id });
+        if (acesso != AcessoAoModulo.Liberado)
+            return Forbid();
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();

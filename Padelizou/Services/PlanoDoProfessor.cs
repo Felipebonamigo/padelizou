@@ -40,26 +40,22 @@ public static class PlanoDoProfessor
     // que muda é quanto tempo cada cobrança compra. Por isso ele mora no JSON da cobrança
     // (DadosAssinaturaProfessor) e não numa coluna do Jogador — pagar 12 meses agora e um mês
     // no ano que vem não é "trocar de plano", e uma coluna diria que é.
-    public const string CicloMensal = "Mensal";
-    public const string CicloAnual = "Anual";
+    //
+    // ⚠️ A CONTA DE TEMPO NÃO MORA MAIS AQUI: ela virou Services/CicloDeAssinatura quando o
+    // clube ganhou plano próprio. Estes membros continuam existindo com o mesmo nome porque
+    // tela, controller e teste chamam por eles — o que mudou é que agora só repassam.
+    public const string CicloMensal = CicloDeAssinatura.Mensal;
+    public const string CicloAnual = CicloDeAssinatura.Anual;
 
-    // O que veio da tela, normalizado. Só existem dois ciclos; qualquer outra coisa é mensal.
-    public static string CicloValido(string? ciclo) =>
-        ciclo == CicloAnual ? CicloAnual : CicloMensal;
+    public static string CicloValido(string? ciclo) => CicloDeAssinatura.Valido(ciclo);
 
-    // ⚠️ Ciclo AUSENTE é mensal de propósito: toda cobrança criada antes do plano anual
-    // existir tem `{"ProfessorId":N}` no banco, sem ciclo nenhum — e ela comprou um mês.
-    // Tratar o null como "não sei" travaria a confirmação de quem já tem cobrança em aberto.
-    public static int MesesDo(string? ciclo) => ciclo == CicloAnual ? 12 : 1;
+    public static int MesesDo(string? ciclo) => CicloDeAssinatura.MesesDe(ciclo);
 
     public static decimal ValorDo(string? ciclo, PlanoProfessorSettings cfg) =>
         ciclo == CicloAnual ? cfg.AnuidadeAssinante : cfg.MensalidadeAssinante;
 
-    // Quanto o anual economiza contra 12 mensalidades — o número que decide a compra, e que
-    // a tela não pode chutar: com preço vindo de configuração, "2 meses grátis" vira mentira
-    // no dia em que um dos dois valores mudar.
     public static decimal EconomiaDoAnual(PlanoProfessorSettings cfg) =>
-        cfg.MensalidadeAssinante * 12 - cfg.AnuidadeAssinante;
+        CicloDeAssinatura.EconomiaDoAnual(cfg.MensalidadeAssinante, cfg.AnuidadeAssinante);
 
     public enum Situacao
     {
@@ -123,10 +119,6 @@ public static class PlanoDoProfessor
         };
     }
 
-    // O pagamento estende a assinatura a partir de onde ela estiver: pagar adiantado soma no
-    // fim; pagar atrasado conta a partir de hoje (atraso não vira crédito). O ciclo decide
-    // quantos meses entram — 1 no mensal, 12 no anual.
     public static DateTime NovaDataPagaAte(DateTime? pagaAteAtual, DateTime agora, string? ciclo = null) =>
-        (pagaAteAtual != null && pagaAteAtual.Value > agora ? pagaAteAtual.Value : agora)
-            .AddMonths(MesesDo(ciclo));
+        CicloDeAssinatura.NovaDataPagaAte(pagaAteAtual, agora, ciclo);
 }

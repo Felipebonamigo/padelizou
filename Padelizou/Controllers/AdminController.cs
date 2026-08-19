@@ -1341,7 +1341,8 @@ namespace padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RegistrarPagamento(string? tipo, string? pagador,
             int? torneioId, decimal valor, DateTime? data, string? ciclo,
-            [FromServices] IPagamentoInscricaoService pagamentos)
+            [FromServices] IPagamentoInscricaoService pagamentos,
+            int? clubeId = null, string? planoDoClube = null)
         {
             var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return Forbid();
@@ -1382,6 +1383,36 @@ namespace padelizou.Controllers
                 descricaoDoSucesso = cicloEscolhido == PlanoDoProfessor.CicloAnual
                     ? $"plano anual de {quemPagou.Nome}"
                     : $"mensalidade de {quemPagou.Nome}";
+            }
+            else if (tipo == RegrasDoPix.TipoAssinaturaClube)
+            {
+                var clube = clubeId == null ? null : await _context.Clubes.FindAsync(clubeId.Value);
+                if (clube == null)
+                {
+                    TempData["Erro"] = "Escolha o clube da assinatura.";
+                    return RedirectToAction("Financeiro");
+                }
+
+                // ⚠️ QUEM "PAGA" É O DONO DO CLUBE, e não o admin que está digitando: é no
+                // extrato dele que este recibo aparece, e é ele que recebe o push de "plano
+                // confirmado". Registrar em nome do admin faria o Padelizou aparecer como
+                // cliente de si mesmo na lista de pagamentos.
+                quemPagou = clube.DonoId == null ? null : await _context.Jogadores.FindAsync(clube.DonoId.Value);
+                if (quemPagou == null)
+                {
+                    TempData["Erro"] = $"{clube.Nome} não tem dono definido — defina antes de registrar a assinatura.";
+                    return RedirectToAction("Financeiro");
+                }
+
+                // O plano e o ciclo vêm do FORMULÁRIO, não do valor: o registro à mão é
+                // justamente onde o preço foi negociado por fora, e adivinhar "199 = Fiscal"
+                // daria Gestão a quem fechou o Fiscal por R$ 150.
+                var planoEscolhido = PlanoDoClube.PlanoValido(planoDoClube) ? planoDoClube! : PlanoDoClube.Gestao;
+                var cicloDoClube = CicloDeAssinatura.Valido(ciclo);
+
+                dados = new DadosAssinaturaClube(clube.Id, planoEscolhido, cicloDoClube);
+                descricaoDoSucesso = $"{PlanoDoClube.RotuloDoPlano(planoEscolhido)} de {clube.Nome}"
+                    + (cicloDoClube == CicloDeAssinatura.Anual ? " (12 meses)" : "");
             }
             else
             {

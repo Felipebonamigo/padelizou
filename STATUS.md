@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🧾 **O SISTEMA GANHOU CADASTRO FISCAL — e a decisão de 31/07 ("nota fiscal não é problema nosso") foi conscientemente revertida.**
+> Última atualização: **19/08/2026** — 💳 **O BAR VIROU PLANO PAGO: nasceu a assinatura de clube (Rede / Gestão / Fiscal).**
+>
+> 🎯 **O pedido do Felipe**: *"faz o billing do plano de assinatura primeiro"* — antes do resto do fiscal. É a escolha certa: o bar, o estoque, a comanda e as contas **já estavam prontos e de graça**, atrás de uma flag. O billing é o que transforma código pronto em R$ 99/mês, e ele não depende de provedor fiscal nenhum.
+>
+> 🪜 **TRÊS DEGRAUS, e o primeiro continua grátis**: **Rede** (torneio, ranking, reserva, rede de jogadores) segue custando zero — não é generosidade, é o motor de aquisição; cobrar na porta mataria justamente o que traz o clube pra dentro. **Gestão** (R$ 99/mês ou R$ 990/ano) abre bar, comanda, estoque, caixa e contas. **Fiscal** (R$ 199/mês ou R$ 1.990/ano) soma a emissão de nota. ⚠️ **Fiscal INCLUI Gestão sempre** — não existe emitir nota de uma venda que o sistema não registra.
+>
+> 🧱 **QUATRO COLUNAS NO `Clube`, E NÃO UMA TABELA NOVA** (migration `AssinaturaDoClube`): o histórico de ciclos **já existe** — cada `Pagamento` do tipo "AssinaturaClube" É um ciclo, com plano e ciclo no JSON. Uma tabela de assinatura guardaria de novo o que a de pagamento já guarda, e a segunda cópia começaria a divergir no primeiro registro feito à mão. Mesmo desenho do plano do professor, de propósito: é a mesma pergunta ("está pago até quando?") e duas formas de responder seriam duas manutenções.
+>
+> ♻️ **A CONTA DE TEMPO VIROU COMPARTILHADA** (`Services/CicloDeAssinatura`): "pagar adiantado soma no fim, pagar atrasado conta de hoje" é idêntica no professor e no clube — e é justamente por ser idêntica que **não podia ser copiada**. Duas cópias de uma regra de dinheiro divergem no dia em que só uma é corrigida, e aqui a divergência seria alguém pagando um mês e ganhando doze. O `PlanoDoProfessor` manteve os mesmos nomes públicos e agora só repassa.
+>
+> 💸 **A COBRANÇA ABERTA É DO CLUBE, NÃO DE QUEM CLICOU** — a trava que evita o erro que o cliente não desfaz sozinho: o dono gera a cobrança, some, e o sócio gera outra. Duas faturas do mesmo mês pro mesmo bar, pagas pelas duas pessoas, e dinheiro que a gente teria que devolver. Tem teste com dois administradores clicando.
+>
+> 🚪 **A PORTA: quem não assinou vai pra tela do plano, NÃO pra um 403.** Quem chega ali acabou de mostrar interesse clicando no produto — mandar essa pessoa pra uma tela de erro é perder a venda na porta. O 403 fica só pra quem não manda no clube (e a ordem é **permissão antes de plano**, senão o gate viraria um detector de clientes pagantes pra qualquer pessoa logada). **Carência de 7 dias**: cortar o balcão no primeiro minuto de atraso é fechar o bar do cliente num sábado por um boleto de feriado — e a venda não registrada não volta depois.
+>
+> 🐛 **UM DEFEITO PEGO PELO PRÓPRIO TESTE, e ele valia dinheiro ao contrário**: a primeira versão mandava o dono pra tela de assinatura mesmo com o **módulo fiscal em construção** — ou seja, oferecia um plano Fiscal que ainda não emite nada. **Vender o que não existe é pior do que não vender.** Agora "em construção" é sempre *sem permissão*, nunca *sem plano*.
+>
+> 🔔 **AVISOS ANTES DE O BALCÃO PARAR** (`AvisosDoPlanoDoClube` + background service de hora em hora): 7 dias de antecedência — e não 5 como no professor, porque aqui quem paga costuma ser o financeiro do clube e essa conversa não acontece em dois dias. Vai pro **dono e só pra ele** (três administradores recebendo "o bar vai fechar" de uma conta que nenhum deles paga é ruído). Estágio monotônico, hora civilizada, e vencimento velho não vira spam no dia em que o serviço sobe.
+>
+> 🧪 **4.471 testes, 0 falhas (35 novos)**: régua de teste/carência, Fiscal incluindo Gestão, pagar adiantado × atrasado, a trava do Pix direto aceitando o terceiro tipo de receita 100% nossa, uma cobrança por clube com dois sócios clicando, cobrança de OUTRO clube não atrapalhando, o plano que vale é o **comprado** (não o que está na tela), zeramento dos avisos a cada pagamento, e a porta em todas as combinações. ⚠️ Nove testes antigos do bar passaram a semear clube **com assinatura** — não é ajuste cosmético: é a regra do produto que mudou.
+>
+> Antes: 🧾 **O SISTEMA GANHOU CADASTRO FISCAL — e a decisão de 31/07 ("nota fiscal não é problema nosso") foi conscientemente revertida.**
 >
 > 🎯 **A pergunta do Felipe**: como cobrir tudo que o Gripo faz de fiscal, do jeito mais barato e mais rentável, pra vender pra outros clubes com plano de assinatura. **Resposta em `FISCAL.md`** (plano completo, com comparativo de 4 caminhos e economia unitária): não construir motor fiscal próprio — **alugar**. O Gripo, que é a régua, faz exatamente isso: ele revende a Focus NFe. Motor próprio custaria 6–12 meses e manutenção perpétua pra economizar centavos por nota.
 >

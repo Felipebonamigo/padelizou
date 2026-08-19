@@ -44,6 +44,33 @@ public class Clube
     public bool CobraNoShow { get; set; }
     public string? PoliticaCancelamentoTexto { get; set; }
 
+    // ---- Assinatura do clube (ver Services/PlanoDoClube) ----
+    //
+    // São QUATRO COLUNAS e não uma tabela nova, e a escolha é deliberada: o histórico de
+    // ciclos já existe — cada `Pagamento` do tipo "AssinaturaClube" É um ciclo, com o plano e
+    // o ciclo no JSON. Uma tabela de assinatura guardaria de novo o que a de pagamento já
+    // guarda, e a segunda cópia começaria a divergir no primeiro registro feito à mão.
+    //
+    // É o mesmo desenho do plano do professor (Jogador.PlanoProfessor e vizinhos), de novo por
+    // escolha: é a mesma pergunta ("está pago até quando?") e duas formas de responder seriam
+    // duas manutenções.
+
+    // Nulo = clube Rede, o plano grátis. "Gestao" ou "Fiscal" quando escolheu.
+    public string? PlanoDoClube { get; set; }
+
+    // Quando alguém do clube abriu a tela do plano pela primeira vez — é daí que correm os 15
+    // dias. Não é a data de criação do clube: o teste não pode acabar antes de o dono saber
+    // que ele existe.
+    public DateTime? TesteDoClubeInicio { get; set; }
+
+    // Até quando a assinatura está quitada. Nulo = nunca pagou.
+    public DateTime? AssinaturaClubePagaAte { get; set; }
+
+    // Último estágio de lembrete já enviado (ver Services/AvisosDoPlanoDoClube). ⚠️ VOLTA PRA
+    // NULO a cada pagamento confirmado — sem o zeramento o clube seria avisado uma vez na
+    // vida, porque no vencimento seguinte o estágio gravado já seria maior que o devido.
+    public int? UltimoLembreteDoPlano { get; set; }
+
     // ---- Dados fiscais (ver Services/DadosFiscaisDoClube e FISCAL.md) ----
     //
     // Quem emite a nota é o CLUBE, não o Padelizou. Estes campos são a identidade dele

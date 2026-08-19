@@ -15,7 +15,7 @@ public partial class BarController
     [HttpGet]
     public async Task<IActionResult> Relatorio(int id, DateTime? de, DateTime? ate)
     {
-        if (!await PodeUsarAsync(id)) return Forbid();
+        if (await BloqueioAsync(id) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();

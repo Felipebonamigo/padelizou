@@ -69,7 +69,8 @@ public static class FinanceiroDoPadelizou
     public static string? ProblemaParaRegistrar(string? tipo, decimal valor)
     {
         if (!PixDireto.AceitaPix(tipo))
-            return "Só mensalidade de professor e taxa de torneio podem ser registradas — o resto tem repasse a terceiro.";
+            return "Só mensalidade de professor, assinatura de clube e taxa de torneio podem ser "
+                + "registradas — o resto tem repasse a terceiro.";
         if (valor <= 0)
             return "Informe o valor recebido.";
         return null;

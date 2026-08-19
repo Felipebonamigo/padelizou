@@ -21,7 +21,7 @@ public partial class BarController
     [HttpGet]
     public async Task<IActionResult> Estoque(int id)
     {
-        if (!await PodeUsarAsync(id)) return Forbid();
+        if (await BloqueioAsync(id) is { } bloqueio) return bloqueio;
 
         var clube = await _context.Clubes.FindAsync(id);
         if (clube == null) return NotFound();

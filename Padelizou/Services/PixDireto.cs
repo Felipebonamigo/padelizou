@@ -5,9 +5,9 @@ namespace Padelizou.Services;
 // Recebimento por Pix direto na conta do Padelizou, sem passar pelo gateway.
 //
 // ── A regra que sustenta tudo isto ────────────────────────────────────────────────────────
-// Só entra aqui o pagamento cujo valor é INTEIRAMENTE do Padelizou. Hoje são dois:
-// a mensalidade do professor assinante e a taxa de 5% do torneio "por fora" — os dois nascem
-// com RecebedorId nulo e Comissao == Valor.
+// Só entra aqui o pagamento cujo valor é INTEIRAMENTE do Padelizou. Hoje são três: a
+// mensalidade do professor assinante, a taxa de 5% do torneio "por fora" e a assinatura do
+// clube (Gestão/Fiscal) — os três nascem com RecebedorId nulo e Comissao == Valor.
 //
 // ⚠️ Inscrição de torneio, aula e quadra NUNCA podem vir por aqui, e não é preferência de
 // arquitetura: nesses o dinheiro é do organizador/professor e só uma fatia é nossa. Recebê-lo
@@ -36,9 +36,14 @@ public static class PixDireto
     public const string TipoAssinatura = "AssinaturaProfessor";
     public const string TipoTaxaTorneio = "TaxaTorneio";
 
-    // A trava. Qualquer tipo fora destes dois tem repasse a fazer — ver o comentário do topo.
+    // A assinatura do clube (planos Gestão e Fiscal) entrou aqui em 19/08/2026 e passa no
+    // mesmo teste dos outros dois: é software nosso, vendido pelo Padelizou ao clube, sem uma
+    // única fatia de terceiro. Nasce com RecebedorId nulo e Comissao == Valor, igual.
+    public const string TipoAssinaturaClube = "AssinaturaClube";
+
+    // A trava. Qualquer tipo fora destes três tem repasse a fazer — ver o comentário do topo.
     public static bool AceitaPix(string? tipo) =>
-        tipo is TipoAssinatura or TipoTaxaTorneio;
+        tipo is TipoAssinatura or TipoTaxaTorneio or TipoAssinaturaClube;
 
     // O identificador que vai no BR Code e (com sorte) aparece no extrato do banco. Só letras
     // e números porque o campo do EMV não aceita outra coisa; o Id do pagamento é o que casa

@@ -407,7 +407,16 @@ public class CadastroFiscalTests
     private static async Task<(Clube Clube, Jogador Dono)> SemearAsync(Padelizou.Models.DbPadelContext ctx)
     {
         var dono = new Jogador { Id = 1, Nome = "Dono do Clube", Cpf = "1" };
-        var clube = new Clube { Id = 1, Nome = "Chakra Padel", DonoId = 1 };
+
+        // ⚠️ Com plano FISCAL em dia: desde 19/08/2026 o bar e a aba fiscal são plano pago
+        // (Services/PlanoDoClube), e sem assinatura o dono é mandado pra tela de assinatura
+        // antes de chegar em qualquer tela. Aqui o assunto é o CADASTRO fiscal, não a porta.
+        var clube = new Clube
+        {
+            Id = 1, Nome = "Chakra Padel", DonoId = 1,
+            PlanoDoClube = PlanoDoClube.Fiscal,
+            AssinaturaClubePagaAte = DateTime.Now.AddMonths(1)
+        };
 
         ctx.Jogadores.Add(dono);
         ctx.Clubes.Add(clube);
@@ -419,9 +428,10 @@ public class CadastroFiscalTests
     private static BarController Controller(Padelizou.Models.DbPadelContext ctx, int usuarioId,
         IConsultaDeCep? cep = null, bool fiscalLigado = true)
     {
-        var modulo = new ModuloDoBar(ctx, Options.Create(new BarSettings { Habilitado = true }));
+        var plano = Options.Create(new PlanoClubeSettings());
+        var modulo = new ModuloDoBar(ctx, Options.Create(new BarSettings { Habilitado = true }), plano);
         var c = new BarController(ctx, modulo,
-            new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = fiscalLigado })),
+            new ModuloFiscal(ctx, modulo, Options.Create(new FiscalSettings { Habilitado = fiscalLigado }), plano),
             cep ?? TestInfra.CepQueNaoResponde(), NullLogger<BarController>.Instance);
 
         c.ControllerContext = new ControllerContext

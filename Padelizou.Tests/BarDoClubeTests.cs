@@ -141,13 +141,23 @@ public class BarDoClubeTests
     }
 
     // Dono do clube (id 1), admin do Padelizou que também é dono (id 2), estranho (id 3).
+    //
+    // ⚠️ O clube nasce COM ASSINATURA EM DIA desde 19/08/2026, e isso não é detalhe de
+    // montagem: o bar virou plano pago (ver Services/PlanoDoClube), e um clube sem plano é
+    // mandado pra tela de assinatura em vez de abrir o balcão. Estes testes são sobre o
+    // BALCÃO — quem cuida da porta é o PlanoDoClubeTests.
     private static DbPadelContext Cenario()
     {
         var ctx = TestInfra.NovoContexto();
         ctx.Jogadores.Add(new Jogador { Id = 1, Nome = "Dono do Clube", Cpf = "1" });
         ctx.Jogadores.Add(new Jogador { Id = 2, Nome = "Felipe", Cpf = "2", IsAdminRaiz = true });
         ctx.Jogadores.Add(new Jogador { Id = 3, Nome = "Estranho", Cpf = "3" });
-        ctx.Clubes.Add(new Clube { Id = 1, Nome = "Arena Teste", DonoId = 1 });
+        ctx.Clubes.Add(new Clube
+        {
+            Id = 1, Nome = "Arena Teste", DonoId = 1,
+            PlanoDoClube = PlanoDoClube.Gestao,
+            AssinaturaClubePagaAte = DateTime.Now.AddMonths(1)
+        });
         ctx.ClubeAdministradores.Add(new ClubeAdministrador { ClubeId = 1, JogadorId = 2, AdicionadoEm = DateTime.Now });
         ctx.SaveChanges();
         return ctx;

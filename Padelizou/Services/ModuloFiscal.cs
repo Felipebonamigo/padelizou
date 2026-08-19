@@ -16,22 +16,50 @@ public class ModuloFiscal
     private readonly DbPadelContext _context;
     private readonly ModuloDoBar _bar;
     private readonly FiscalSettings _settings;
+    private readonly PlanoClubeSettings _plano;
 
     public ModuloFiscal(DbPadelContext context, ModuloDoBar bar,
-        Microsoft.Extensions.Options.IOptions<FiscalSettings> settings)
+        Microsoft.Extensions.Options.IOptions<FiscalSettings> settings,
+        Microsoft.Extensions.Options.IOptions<PlanoClubeSettings>? plano = null)
     {
         _context = context;
         _bar = bar;
         _settings = settings.Value;
+        _plano = plano?.Value ?? new PlanoClubeSettings();
     }
 
     public bool EmConstrucao => !_settings.Habilitado;
 
-    public async Task<bool> PodeUsarAsync(int clubeId, int? usuarioId)
-    {
-        if (!await _bar.PodeUsarAsync(clubeId, usuarioId)) return false;
+    public async Task<bool> PodeUsarAsync(int clubeId, int? usuarioId) =>
+        await AcessoAsync(clubeId, usuarioId) == AcessoAoModulo.Liberado;
 
-        return !EmConstrucao || await EhAdminDoPadelizouAsync(usuarioId);
+    // A resposta completa, como no ModuloDoBar — e aqui a distinção vale ainda mais.
+    //
+    // ⚠️ EM CONSTRUÇÃO É "SEM PERMISSÃO", NUNCA "SEM PLANO", e essa linha existe porque
+    // confundir as duas quase virou um defeito de verdade: mandar o dono do clube pra tela de
+    // assinatura enquanto o módulo está em construção seria oferecer a ele um plano Fiscal que
+    // ainda não emite nada. Vender o que não existe é pior do que não vender.
+    public async Task<AcessoAoModulo> AcessoAsync(int clubeId, int? usuarioId)
+    {
+        var acessoAoBar = await _bar.AcessoAsync(clubeId, usuarioId);
+        if (acessoAoBar != AcessoAoModulo.Liberado) return acessoAoBar;
+
+        var ehAdminDoPadelizou = await EhAdminDoPadelizouAsync(usuarioId);
+
+        if (EmConstrucao)
+            return ehAdminDoPadelizou ? AcessoAoModulo.Liberado : AcessoAoModulo.SemPermissao;
+
+        // Admin do Padelizou entra sem plano — é ele quem atende o clube que ligou dizendo que
+        // a nota não sai. Mesma razão do ModuloDoBar.
+        if (ehAdminDoPadelizou) return AcessoAoModulo.Liberado;
+
+        // O plano Gestão não inclui emissão: quem está nele e clica em "Fiscal" tem que ver o
+        // convite pra subir de plano, e é o SemPlano que leva o controller até lá.
+        var clube = await _context.Clubes.FirstOrDefaultAsync(c => c.Id == clubeId);
+
+        return clube != null && PlanoDoClube.LiberaFiscal(clube, DateTime.Now, _plano)
+            ? AcessoAoModulo.Liberado
+            : AcessoAoModulo.SemPlano;
     }
 
     // Esconder o link é cortesia; a trava de verdade é o PodeUsarAsync repetido em toda ação.

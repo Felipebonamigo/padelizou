@@ -307,6 +307,13 @@
                             </span>
                             <small class="d-block text-muted">Receita por quadra e por dia da semana, cancelamentos e faltas.</small>
                         </a>
+                        <a asp-controller="PlanoClube" asp-action="Index" asp-route-id="@Model.Clube.Id"
+                           class="list-group-item list-group-item-action px-0">
+                            <span class="fw-semibold" style="color: var(--pdz-ink);">
+                                <i class="bi bi-stars"></i> Plano do clube
+                            </span>
+                            <small class="d-block text-muted">O que está incluso, até quando está pago e como assinar.</small>
+                        </a>
                         @* O bar está EM CONSTRUÇÃO: enquanto Bar:Habilitado estiver desligado,
                            este atalho só aparece pra admin do Padelizou. O BarController repete
                            a checagem — esconder o link nunca é a trava, só a cortesia. *@

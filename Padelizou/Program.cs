@@ -86,6 +86,10 @@ builder.Services.Configure<BarSettings>(builder.Configuration.GetSection("Bar"))
 // O fiscal tem interruptor separado do bar de propósito: são dois planos de assinatura
 // diferentes (ver Services/FiscalSettings e FISCAL.md).
 builder.Services.Configure<FiscalSettings>(builder.Configuration.GetSection("Fiscal"));
+
+// Preços dos planos de clube (Gestão e Fiscal). Em configuração porque são preço de tabela —
+// ver Services/PlanoDoClube.
+builder.Services.Configure<PlanoClubeSettings>(builder.Configuration.GetSection("PlanoClube"));
 // Mesma ideia do Bar: os Desafios rodam em produção invisíveis até `Desafios__Habilitado=true`
 // (ver Services/DesafiosSettings) — aqui a chave também serve pra abrir cidade por cidade.
 builder.Services.Configure<DesafiosSettings>(builder.Configuration.GetSection("Desafios"));
@@ -304,6 +308,7 @@ builder.Services.AddHostedService<PerguntaSobreNaoPagosBackgroundService>();
 // vencimento da assinatura (que não é recorrente) — e nenhum dos dois avisava ninguém. Um
 // serviço só pros dois: ver Services/AvisosDoPlanoDoProfessor.
 builder.Services.AddHostedService<AvisosDoPlanoDoProfessorBackgroundService>();
+builder.Services.AddHostedService<AvisosDoPlanoDoClubeBackgroundService>();
 builder.Services.AddHostedService<VigiaDoBackupBackgroundService>();
 builder.Services.AddHostedService<VigiaDoWhatsAppBackgroundService>();
 // O gêmeo do de cima, pro outro canal. Nasceu de 09/08/2026: a cota de e-mail estourou e 130

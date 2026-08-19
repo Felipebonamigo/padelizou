@@ -51,6 +51,12 @@ public record DadosTaxaExterno(int TorneioId);
 // de quem tem cobrança em aberto morreria calada; com ele, valem um mês — que é o que foram.
 public record DadosAssinaturaProfessor(int ProfessorId, string? Ciclo = null);
 
+// O plano viaja no JSON da cobrança, e não é lido do clube na hora de efetivar, de propósito:
+// entre gerar a cobrança e o dinheiro cair, o dono pode ter trocado de plano na tela. O que
+// vale é o que foi COMPRADO — quem pagou Gestão recebe Gestão, mesmo que a tela do clube já
+// mostre outra coisa.
+public record DadosAssinaturaClube(int ClubeId, string Plano, string? Ciclo = null);
+
 public record DadosMarcacaoJogo(int ClubeId, int QuadraClubeId, int JogadorId, DateTime DataHora, int DuracaoMinutos);
 
 // Vários horários numa cobrança só (jogador selecionou 2h seguidas, ou duas quadras pro
@@ -97,11 +103,17 @@ public interface IPagamentoInscricaoService
     // `ciclo` vem de PlanoDoProfessor.CicloMensal/CicloAnual; null é mensal.
     Task<string?> IniciarCobrancaAssinaturaAsync(Jogador professor, string? ciclo = null);
 
+    Task<string?> IniciarCobrancaAssinaturaClubeAsync(Clube clube, Jogador quemPaga, string plano,
+        string? ciclo = null);
+
     // As mesmas duas cobranças acima, mas por Pix DIRETO na conta do Padelizou, sem gateway
     // (ver Services/PixDireto). Devolvem o Pagamento — a URL é a nossa tela do QR, não uma
     // fatura de terceiro. Null = já existe cobrança de gateway pendente, ou o Pix não está
     // configurado no painel.
     Task<Pagamento?> IniciarPixDiretoAssinaturaAsync(Jogador professor, string? ciclo = null);
+
+    Task<Pagamento?> IniciarPixDiretoAssinaturaClubeAsync(Clube clube, Jogador quemPaga, string plano,
+        string? ciclo = null);
     Task<Pagamento?> IniciarPixDiretoTaxaExternoAsync(Torneio torneio, Jogador organizador, decimal valor);
 
     // Quem recebe a quadra é o dono do clube. Null = clube sem dono definido, então não há
@@ -130,19 +142,25 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private readonly AsaasSettings _settings;
     private readonly TaxasExibicao _taxas;
     private readonly PlanoProfessorSettings _plano;
+    private readonly PlanoClubeSettings _planoClube;
     private readonly ILogger<PagamentoInscricaoService> _logger;
     private readonly IPushNotificationService _push;
 
+    // ⚠️ `planoClube` é opcional pra não quebrar os testes que já montam este serviço à mão —
+    // são dezenas, e nenhum deles tem a ver com assinatura de clube. Quem não passa nada
+    // recebe a tabela de preços padrão, que é exatamente o que esses testes esperam.
     public PagamentoInscricaoService(DbPadelContext context, IAsaasService asaas,
         IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger,
         IPushNotificationService push, IOptions<TaxasExibicao> taxas,
-        IOptions<PlanoProfessorSettings> plano)
+        IOptions<PlanoProfessorSettings> plano,
+        IOptions<PlanoClubeSettings>? planoClube = null)
     {
         _context = context;
         _asaas = asaas;
         _settings = settings.Value;
         _taxas = taxas.Value;
         _plano = plano.Value;
+        _planoClube = planoClube?.Value ?? new PlanoClubeSettings();
         _logger = logger;
         _push = push;
     }
@@ -546,6 +564,91 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         return LinkDoPagamento.Para(pagamento);
     }
 
+    // A assinatura do clube (Gestão ou Fiscal). Mesmo desenho da do professor — sem split, sem
+    // ExpiraEm — e pela mesma razão: quem decide quando pagar é o cliente, e enquanto não paga
+    // o acesso fecha sozinho (PlanoDoClube), sem ninguém precisar cancelar nada na mão.
+    //
+    // ⚠️ QUEM PAGA É UM JOGADOR, NÃO O CLUBE. O gateway cobra de uma pessoa com CPF, e-mail e
+    // celular; clube não tem nada disso. Quem assina é o dono (ou o administrador que clicou),
+    // e é no extrato DELE que a fatura aparece — por isso o Pagamento guarda os dois: o
+    // JogadorId de quem pagou e o ClubeId de quem recebeu o plano, este último no JSON.
+    public async Task<string?> IniciarCobrancaAssinaturaClubeAsync(Clube clube, Jogador quemPaga,
+        string plano, string? ciclo = null)
+    {
+        if (!_asaas.Configurado) return null;
+        if (!PlanoDoClube.PlanoValido(plano)) return null;
+
+        // Uma cobrança de assinatura aberta por clube, qualquer que seja o plano pedido: duas
+        // faturas vivas ao mesmo tempo é como o clube paga duas vezes sem perceber.
+        var pendente = await PagamentoDeClubeAbertoAsync(clube.Id);
+        if (pendente?.InvoiceUrl != null) return LinkDoPagamento.Para(pendente);
+
+        var clienteId = await _asaas.ObterOuCriarClienteAsync(
+            quemPaga.Nome, quemPaga.Cpf, quemPaga.Email, quemPaga.Celular);
+        if (clienteId == null) return null;
+
+        var cicloEscolhido = CicloDeAssinatura.Valido(ciclo);
+        var valor = PlanoDoClube.ValorDo(plano, cicloEscolhido, _planoClube);
+
+        var pagamento = new Pagamento
+        {
+            Tipo = PixDireto.TipoAssinaturaClube,
+            JogadorId = quemPaga.Id,
+            RecebedorId = null,
+            Valor = valor,
+            ValorRepasse = 0m,
+            Comissao = valor,
+            AsaasCustomerId = clienteId,
+            DadosInscricao = JsonSerializer.Serialize(
+                new DadosAssinaturaClube(clube.Id, plano, cicloEscolhido)),
+            Status = "Pendente"
+        };
+        _context.Pagamentos.Add(pagamento);
+        await _context.SaveChangesAsync();
+
+        var cobranca = await _asaas.CriarCobrancaAsync(
+            clienteId,
+            new RateioComissao(valor, 0m, valor),
+            $"{PlanoDoClube.RotuloDoPlano(plano)} — {clube.Nome} "
+                + (cicloEscolhido == CicloDeAssinatura.Anual ? "(12 meses)" : "(mensal)"),
+            pagamento.Id.ToString(),
+            DateTime.Today.AddDays(3),
+            walletIdRecebedor: null,
+            billingType: "UNDEFINED");
+
+        if (cobranca == null)
+        {
+            _context.Pagamentos.Remove(pagamento);
+            await _context.SaveChangesAsync();
+            return null;
+        }
+
+        pagamento.AsaasPaymentId = cobranca.PaymentId;
+        pagamento.InvoiceUrl = cobranca.InvoiceUrl;
+        await _context.SaveChangesAsync();
+
+        return LinkDoPagamento.Para(pagamento);
+    }
+
+    // A cobrança de assinatura aberta DESTE CLUBE — venha ela do Pix ou do gateway.
+    //
+    // ⚠️ A busca é pelo CLUBE, não por quem pagou, e é isso que impede o erro mais provável:
+    // o dono gera a cobrança, some, e o administrador do clube gera outra. Duas faturas do
+    // mesmo mês pro mesmo bar, pagas pelas duas pessoas — dinheiro que a gente teria que
+    // devolver. Como o clube mora no JSON, a comparação é por texto, e é por isso que o
+    // formato do JSON é montado num lugar só (DadosAssinaturaClube).
+    private async Task<Pagamento?> PagamentoDeClubeAbertoAsync(int clubeId)
+    {
+        var marca = $"\"ClubeId\":{clubeId},";
+
+        return await _context.Pagamentos
+            .Where(p => p.Tipo == PixDireto.TipoAssinaturaClube
+                && (p.Status == "Pendente" || p.Status == PixDireto.AguardandoConfirmacao)
+                && p.DadosInscricao != null && p.DadosInscricao.Contains(marca))
+            .OrderByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+    }
+
     // ── Pix direto, sem gateway ───────────────────────────────────────────────────────────
     // Só mensalidade e taxa do externo (100% receita nossa — ver Services/PixDireto). Não há
     // cliente Asaas, não há fatura: o Pagamento nasce com o método "PixDireto" e a tela do QR
@@ -558,6 +661,25 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             PixDireto.TipoAssinatura, professor,
             PlanoDoProfessor.ValorDo(cicloEscolhido, _plano),
             new DadosAssinaturaProfessor(professor.Id, cicloEscolhido),
+            torneioId: null);
+    }
+
+    public async Task<Pagamento?> IniciarPixDiretoAssinaturaClubeAsync(Clube clube, Jogador quemPaga,
+        string plano, string? ciclo = null)
+    {
+        if (!PlanoDoClube.PlanoValido(plano)) return null;
+
+        // Mesma trava do gateway, e pelo mesmo motivo: a cobrança aberta é do CLUBE, não de
+        // quem clicou. Sem ela, dono e administrador geram um QR cada um.
+        var aberta = await PagamentoDeClubeAbertoAsync(clube.Id);
+        if (aberta != null && aberta.MetodoPagamento == PixDireto.Metodo) return aberta;
+
+        var cicloEscolhido = CicloDeAssinatura.Valido(ciclo);
+
+        return await IniciarPixDiretoAsync(
+            PixDireto.TipoAssinaturaClube, quemPaga,
+            PlanoDoClube.ValorDo(plano, cicloEscolhido, _planoClube),
+            new DadosAssinaturaClube(clube.Id, plano, cicloEscolhido),
             torneioId: null);
     }
 
@@ -707,7 +829,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         // Sem ReferenciaId o pagamento nunca virou inscrição — não há o que desfazer.
         if (pagamento.ReferenciaId == null) return false;
 
-        if (pagamento.Tipo is "Aula" or "Jogo" or "JogoVarios" or "TaxaTorneio" or "AssinaturaProfessor")
+        if (pagamento.Tipo is "Aula" or "Jogo" or "JogoVarios" or "TaxaTorneio"
+            or "AssinaturaProfessor" or "AssinaturaClube")
         {
             _logger.LogWarning(
                 "Estorno do pagamento {Id} (tipo {Tipo}) precisa ser desfeito à mão — o automático "
@@ -938,6 +1061,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             case "AssinaturaProfessor":
                 await EfetivarAssinaturaAsync(pagamento);
                 break;
+            case "AssinaturaClube":
+                await EfetivarAssinaturaClubeAsync(pagamento);
+                break;
             // ⚠️ TEM que vir ANTES do default: no default o pagamento CRIA a inscrição, e aqui
             // ela já existe — cair lá deixaria a pessoa inscrita duas vezes, ocupando duas
             // vagas e aparecendo duas vezes na chave.
@@ -1042,6 +1168,53 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Falha ao notificar assinatura do professor {ProfessorId}.", professor.Id);
+        }
+    }
+
+    // O dinheiro da assinatura do clube entrou: estende a vigência e grava o plano comprado.
+    private async Task EfetivarAssinaturaClubeAsync(Pagamento pagamento)
+    {
+        var dados = Desserializar<DadosAssinaturaClube>(pagamento);
+        if (dados == null) return;
+
+        var clube = await _context.Clubes.FindAsync(dados.ClubeId);
+        if (clube == null)
+        {
+            _logger.LogWarning("Pagamento {Id} (assinatura de clube) confirmado, mas o clube {ClubeId} "
+                + "sumiu.", pagamento.Id, dados.ClubeId);
+            return;
+        }
+
+        // ⚠️ O plano vem do PAGAMENTO, não da tela. Entre gerar a cobrança e o dinheiro cair,
+        // o dono pode ter clicado em outro plano; quem pagou Gestão recebe Gestão. Isto também
+        // é o que faz o registro manual do admin funcionar pra quem negociou por fora.
+        if (PlanoDoClube.PlanoValido(dados.Plano)) clube.PlanoDoClube = dados.Plano;
+
+        clube.AssinaturaClubePagaAte =
+            PlanoDoClube.NovaDataPagaAte(clube.AssinaturaClubePagaAte, DateTime.Now, dados.Ciclo);
+
+        // Zera os avisos: a vigência é outra, então o ciclo de lembretes recomeça. Sem esta
+        // linha o clube seria avisado uma vez na vida (ver Clube.UltimoLembreteDoPlano).
+        clube.UltimoLembreteDoPlano = null;
+
+        pagamento.ReferenciaId = clube.Id;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Pagamento {Id} efetivado — {Plano} do clube {ClubeId} pago até "
+            + "{PagaAte}.", pagamento.Id, dados.Plano, clube.Id, clube.AssinaturaClubePagaAte);
+
+        // Quem recebe o aviso é quem PAGOU: é a pessoa que está com a tela aberta esperando o
+        // "deu certo". O clube não tem push.
+        try
+        {
+            await _push.EnviarParaJogadorAsync(pagamento.JogadorId,
+                $"{PlanoDoClube.RotuloDoPlano(dados.Plano)} confirmado!",
+                $"{clube.Nome} está em dia até {clube.AssinaturaClubePagaAte:dd/MM/yyyy}.",
+                $"/PlanoClube/Index/{clube.Id}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao notificar a assinatura do clube {ClubeId}.", clube.Id);
         }
     }
 
