@@ -142,6 +142,13 @@ html {
     position: relative;
     min-height: 100%;
     scroll-behavior: smooth;
+    /* A cor do que existe DEPOIS do documento. No iOS, o elástico do fim da rolagem (e a
+       folga quando a barra inferior do Safari encolhe) pinta o canvas além da página — e sem
+       esta linha quem pinta é o fundo do body, que no tema escuro (#0f1526) não é a cor do
+       rodapé (--pdz-surface): aparecia um vão gigante "depois" do site (visto no iPhone,
+       19/08/2026). Com a cor do rodapé aqui, o quique parece o rodapé continuando. No claro
+       ninguém nunca notou porque fundo e rodapé são quase a mesma cor — é o mesmo truque. */
+    background-color: var(--pdz-surface);
 }
 
 @media (min-width: 768px) {
