@@ -110,6 +110,21 @@ public class EncerramentoDaPartida
             else if (partida.Fase == "Final")
             {
                 await CoroarCampeaoAsync(partida, vencedorId, torneioId);
+
+                // A campanha da categoria fecha junto com a final: bônus de campeão, pena
+                // de quem ficou na chave (RANKING.md, "A campanha também move o número").
+                // Em try/catch pelo mesmo motivo do gancho de partida: falha aqui não pode
+                // travar a Mesa, e o replay do admin reconstrói.
+                try
+                {
+                    await _padelimetro.AplicarCampanhaAsync(partida.CategoriaId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Ajuste de campanha do Padelímetro falhou na categoria {CategoriaId}",
+                        partida.CategoriaId);
+                }
             }
             else if (partida.Fase == TabelaDoAmericano.FaseDesempate)
             {

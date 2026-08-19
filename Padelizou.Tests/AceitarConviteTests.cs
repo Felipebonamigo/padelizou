@@ -143,6 +143,47 @@ public class AceitarConviteTests
         Assert.Null(dupla.Jogador2Id);
     }
 
+    // ⚠️ QUEM ESTÁ INSCRITO SOZINHO NESTA CATEGORIA ACEITA — e as duas viram uma só.
+    //
+    // É a pessoa MAIS PROVÁVEL de receber um convite (ela está procurando parceiro), e era
+    // justamente a que não conseguia aceitar: a recusa mandava marcar "juntar com a inscrição
+    // que já existe", uma caixa que só existe na tela de inscrição do torneio. Instrução
+    // impossível de cumprir na tela em que a pessoa estava (relato do Gabriel, 19/08/2026).
+    [Fact]
+    public async Task Quem_ja_esta_inscrito_SOZINHO_aceita_e_as_duas_inscricoes_viram_uma()
+    {
+        var (ctx, dupla, token) = Cenario();
+        var minhaSolo = new Dupla { Id = 2, CategoriaId = 1, Jogador1Id = 20, Jogador2Id = null };
+        ctx.Duplas.Add(minhaSolo);
+        ctx.SaveChanges();
+
+        var controller = Controller(ctx, usuarioLogadoId: 20);
+        await controller.AceitarConvite(token);
+
+        Assert.Null(controller.TempData["Erro"]);
+        Assert.Equal(20, dupla.Jogador2Id);
+        Assert.Null(dupla.ConviteToken);
+
+        // A inscrição sozinha saiu: ninguém fica duas vezes na mesma categoria.
+        Assert.Null(await ctx.Duplas.FindAsync(2));
+    }
+
+    // A tela avisa ANTES do clique — aceitar apaga uma inscrição, e isso não pode ser
+    // descoberto depois. E o aviso amarelo de impedimento não pode mais aparecer aqui.
+    [Fact]
+    public async Task A_tela_do_convite_avisa_que_vai_juntar_com_a_minha_inscricao_sozinha()
+    {
+        var (ctx, _, token) = Cenario();
+        ctx.Duplas.Add(new Dupla { Id = 2, CategoriaId = 1, Jogador1Id = 20, Jogador2Id = null });
+        ctx.SaveChanges();
+
+        var controller = Controller(ctx, usuarioLogadoId: 20);
+        var view = Assert.IsType<ViewResult>(await controller.Convite(token));
+
+        Assert.Equal(true, view.ViewData["JuntaMinhaInscricaoSolo"]);
+        Assert.Null(view.ViewData["Impedimento"]);
+    }
+
     [Fact]
     public async Task Quem_ja_esta_na_categoria_com_outra_dupla_e_recusado()
     {

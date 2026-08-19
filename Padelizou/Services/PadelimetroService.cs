@@ -10,6 +10,12 @@ public interface IPadelimetroService
     // dos quatro jogadores. Silencioso quando a partida não conta.
     Task AplicarAsync(int partidaId);
 
+    // Gancho do CoroarCampeao: a final da categoria fechou, aplica o AJUSTE DE CAMPANHA
+    // dos que jogaram nela (bônus de campeão, pena de quem ficou na chave — RANKING.md,
+    // "A campanha também move o número"). Silencioso quando a campanha não conta ou já
+    // foi aplicada.
+    Task AplicarCampanhaAsync(int categoriaId);
+
     // Replay: zera tudo e reconstrói do zero a partir das partidas finalizadas, em
     // ordem cronológica. Devolve quantas partidas contaram.
     Task<int> RecalcularTudoAsync();
@@ -78,6 +84,144 @@ public class PadelimetroService : IPadelimetroService
         await _context.SaveChangesAsync();
     }
 
+    public async Task AplicarCampanhaAsync(int categoriaId)
+    {
+        // Uma vez por categoria: correção de placar re-dispara o robô da final e a fila
+        // offline da Mesa reentrega — o extrato é a memória do que já foi aplicado.
+        if (await _context.HistoricosDePadelimetro.AnyAsync(h => h.CategoriaId == categoriaId)) return;
+
+        var categoria = await _context.Categorias
+            .Include(c => c.Torneio)
+            .FirstOrDefaultAsync(c => c.Id == categoriaId);
+        if (categoria == null) return;
+
+        var partidas = await _context.Partidas
+            .Include(p => p.Dupla1)
+            .Include(p => p.Dupla2)
+            .Where(p => p.CategoriaId == categoriaId)
+            .ToListAsync();
+
+        var ids = partidas
+            .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+            .Where(d => d != null)
+            .SelectMany(d => new[] { d.Jogador1Id, d.Jogador2Id ?? -1 })
+            .Where(id => id > 0)
+            .ToHashSet();
+        var jogadores = await _context.Jogadores
+            .Where(j => ids.Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id);
+
+        if (AplicarCampanha(categoria, partidas, jogadores, DateTime.Now) > 0)
+            await _context.SaveChangesAsync();
+    }
+
+    // DESFAZ o ajuste de campanha de uma categoria: subtrai o delta de cada linha e apaga
+    // as linhas — o extrato limpo deixa o gancho da final REAPLICAR com os carimbos novos.
+    // Subtração de delta, e não NivelAntes, pra não apagar o que o jogador ganhou DEPOIS
+    // da campanha (a mista da noite move o mesmo número). Dois chamadores, uma regra:
+    // ReabrirPartida (a final deixou de valer) e a correção de placar que troca o
+    // vencedor da final (ControlePlacar). NÃO salva — quem chama decide quando, e a
+    // reaplicação depende do RemoveRange estar SALVO antes do guard de idempotência.
+    public static async Task DesfazerCampanhaAsync(DbPadelContext context, int categoriaId)
+    {
+        var campanha = await context.HistoricosDePadelimetro
+            .Where(h => h.CategoriaId == categoriaId).ToListAsync();
+        if (campanha.Count == 0) return;
+
+        var jogadores = await context.Jogadores
+            .Where(j => campanha.Select(h => h.JogadorId).Contains(j.Id))
+            .ToDictionaryAsync(j => j.Id);
+
+        foreach (var linha in campanha)
+            if (jogadores.TryGetValue(linha.JogadorId, out var jogador) && jogador.Padelimetro != null)
+                jogador.Padelimetro = Padelimetro.Acomodar(jogador.Padelimetro.Value - linha.Delta);
+
+        context.HistoricosDePadelimetro.RemoveRange(campanha);
+    }
+
+    // O núcleo do ajuste de campanha, compartilhado entre o gancho ao vivo e o replay.
+    // Mexe nas entidades rastreadas e devolve quantas linhas de extrato criou — quem
+    // chama decide quando salvar. A matemática e as portas da faixa moram em
+    // CampanhaNoPadelimetro; aqui moram os porteiros de QUEM leva o ajuste.
+    private int AplicarCampanha(Categoria categoria, List<Partida> partidasDaCategoria,
+        IReadOnlyDictionary<int, Jogador> jogadores, DateTime quando)
+    {
+        // Os mesmos porteiros das partidas (Conta), mais o cancelado: torneio que não mede
+        // padel contra o mundo não tem campanha, e torneio cancelado não valeu — a mesma
+        // régua do CampeoesDoTorneio.PodeAnunciar.
+        var torneio = categoria.Torneio;
+        if (!EstatisticasService.ContaNoRanking(torneio)) return 0;
+        if (categoria.DeTimes) return 0;
+        if (!CampeoesDoTorneio.PodeAnunciar(torneio?.Status)) return 0;
+
+        // A campanha só fecha com a FINAL fechada — ao vivo é o gancho do CoroarCampeao;
+        // no replay é o que reencontra este ponto na linha do tempo.
+        if (!partidasDaCategoria.Any(p => p.Fase == "Final" && p.Status == "Finalizada")) return 0;
+
+        string? primeiraFase = CampanhaNoPadelimetro.PrimeiraFaseDoMataMata(
+            partidasDaCategoria.Select(p => p.Fase));
+
+        // Só quem ENTROU EM QUADRA em jogo que conta leva ajuste: campanha inteira de
+        // W.O. não mediu padel nenhum — a mesma razão do W.O. não mover o número.
+        var entrouEmQuadra = new HashSet<int>();
+        foreach (var p in partidasDaCategoria)
+        {
+            if (!Conta(p, categoria, p.Dupla1, p.Dupla2)) continue;
+            entrouEmQuadra.Add(p.Dupla1.Jogador1Id);
+            entrouEmQuadra.Add(p.Dupla1.Jogador2Id!.Value);
+            entrouEmQuadra.Add(p.Dupla2.Jogador1Id);
+            entrouEmQuadra.Add(p.Dupla2.Jogador2Id!.Value);
+        }
+
+        // As duplas saem das PARTIDAS, não de uma consulta própria: quem não aparece em
+        // jogo nenhum não pode ter entrado em quadra, então não faz falta. A ordem é da
+        // MELHOR campanha pra pior (campeão, depois a fase mais funda — OrdemDaFase põe
+        // "Grupos" em -1, atrás de todo mata-mata) com Id no desempate: se um dado torto
+        // puser a mesma pessoa em duas duplas, vale a melhor campanha, sempre na mesma
+        // ordem.
+        var duplas = partidasDaCategoria
+            .SelectMany(p => new[] { p.Dupla1, p.Dupla2 })
+            .Where(d => d != null && !d.EhTime && d.Jogador2Id != null)
+            .DistinctBy(d => d.Id)
+            .OrderByDescending(d => d.UltimaFase == CampeoesDoTorneio.FaseDeCampeao)
+            .ThenByDescending(d => DesfazerDoJogo.OrdemDaFase(d.UltimaFase))
+            .ThenBy(d => d.Id)
+            .ToList();
+
+        int linhas = 0;
+        var ajustados = new HashSet<int>();
+        foreach (var dupla in duplas)
+        {
+            foreach (var jogadorId in new[] { dupla.Jogador1Id, dupla.Jogador2Id!.Value })
+            {
+                if (!entrouEmQuadra.Contains(jogadorId)) continue;
+                if (!ajustados.Add(jogadorId)) continue;
+                if (!jogadores.TryGetValue(jogadorId, out var jogador) || jogador.Padelimetro == null) continue;
+
+                var ajuste = CampanhaNoPadelimetro.Ajuste(jogador.Padelimetro.Value,
+                    dupla.UltimaFase, primeiraFase, categoria.Nome);
+                if (ajuste == null) continue;
+
+                int antes = jogador.Padelimetro.Value;
+                jogador.Padelimetro = Padelimetro.Acomodar(antes + ajuste.Value.Delta);
+                // JogosDePadelimetro fica parado: campanha não é jogo e não conta pro K.
+
+                _context.HistoricosDePadelimetro.Add(new HistoricoDePadelimetro
+                {
+                    JogadorId = jogadorId,
+                    PartidaId = null,
+                    CategoriaId = categoria.Id,
+                    NivelAntes = antes,
+                    Delta = jogador.Padelimetro.Value - antes,
+                    Motivo = ajuste.Value.Motivo,
+                    CriadoEm = quando,
+                });
+                linhas++;
+            }
+        }
+        return linhas;
+    }
+
     public async Task<int> RecalcularTudoAsync()
     {
         // Zera o extrato e o estado — RemoveRange (e não ExecuteDelete) porque o replay
@@ -97,30 +241,59 @@ public class PadelimetroService : IPadelimetroService
             .Where(p => p.Status == "Finalizada")
             .ToListAsync();
 
-        var contaveis = partidas
-            .Where(p => Conta(p, p.Categoria, p.Dupla1, p.Dupla2) && IdsDosJogadores(p.Dupla1, p.Dupla2) != null)
+        // A linha do tempo INTEIRA, com W.O. e tudo: jogo de W.O. não move nível, mas uma
+        // final de W.O. fecha a campanha da categoria — e o ajuste de campanha precisa
+        // cair no mesmo ponto da história em que caiu ao vivo.
+        var ordenadas = partidas
             .OrderBy(DataDaPartida)
             .ThenBy(p => p.Id) // desempate estável: mesma entrada, mesmo resultado, sempre
             .ToList();
 
-        var idsEnvolvidos = contaveis
-            .SelectMany(p => IdsDosJogadores(p.Dupla1, p.Dupla2)!)
+        var idsEnvolvidos = ordenadas
+            .Where(p => Conta(p, p.Categoria, p.Dupla1, p.Dupla2))
+            .SelectMany(p => IdsDosJogadores(p.Dupla1, p.Dupla2) ?? Array.Empty<int>())
             .Distinct()
             .ToList();
         var jogadores = await _context.Jogadores
             .Where(j => idsEnvolvidos.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id);
 
-        int aplicadas = 0;
-        foreach (var partida in contaveis)
-        {
-            var ids = IdsDosJogadores(partida.Dupla1, partida.Dupla2)!;
-            if (!ids.All(jogadores.ContainsKey)) continue;
+        var partidasPorCategoria = partidas
+            .GroupBy(p => p.CategoriaId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-            // No replay o extrato é datado pela PARTIDA, senão o gráfico inteiro
-            // nasceria empilhado no dia do recálculo.
-            Aplicar(partida, jogadores, DataDaPartida(partida));
-            aplicadas++;
+        // A campanha fecha na ÚLTIMA partida da categoria NA LINHA DO TEMPO, e não na
+        // posição da final. Quase sempre é a mesma coisa — mas o PlacarMarcadoEm vem do
+        // relógio do APARELHO da Mesa (design do offline), e um aparelho adiantado pode
+        // datar jogo de grupo DEPOIS da final: fechar a campanha na final pularia, em
+        // silêncio, jogador que ainda nem foi semeado naquele ponto da história. Na
+        // última partida da categoria, todo mundo que jogou já passou pelo motor.
+        var ultimaDaCategoria = new Dictionary<int, int>();
+        foreach (var p in ordenadas) ultimaDaCategoria[p.CategoriaId] = p.Id;
+
+        int aplicadas = 0;
+        var categoriasComCampanha = new HashSet<int>();
+        foreach (var partida in ordenadas)
+        {
+            if (Conta(partida, partida.Categoria, partida.Dupla1, partida.Dupla2)
+                && IdsDosJogadores(partida.Dupla1, partida.Dupla2) is { } ids
+                && ids.All(jogadores.ContainsKey))
+            {
+                // No replay o extrato é datado pela PARTIDA, senão o gráfico inteiro
+                // nasceria empilhado no dia do recálculo.
+                Aplicar(partida, jogadores, DataDaPartida(partida));
+                aplicadas++;
+            }
+
+            // O gancho do CoroarCampeao ao vivo, reencontrado na linha do tempo (ver o
+            // comentário do ultimaDaCategoria). O HashSet é cinto de segurança pra não
+            // aplicar duas vezes; o núcleo confere se a categoria tem final fechada.
+            if (ultimaDaCategoria[partida.CategoriaId] == partida.Id
+                && categoriasComCampanha.Add(partida.CategoriaId))
+            {
+                AplicarCampanha(partida.Categoria, partidasPorCategoria[partida.CategoriaId],
+                    jogadores, DataDaPartida(partida));
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -198,7 +371,15 @@ public class PadelimetroService : IPadelimetroService
         var depois = await _context.HistoricosDePadelimetro
             .Where(h => ids.Contains(h.JogadorId) && h.CriadoEm > corte)
             .GroupBy(h => h.JogadorId)
-            .Select(g => new { JogadorId = g.Key, Delta = g.Sum(h => h.Delta), Quantos = g.Count() })
+            // O delta soma TODA linha (campanha inclusive); a contagem de JOGOS só as de
+            // partida — linha de campanha e de nascimento não incrementam
+            // JogosDePadelimetro, então subtraí-las inventaria jogos no "antes".
+            .Select(g => new
+            {
+                JogadorId = g.Key,
+                Delta = g.Sum(h => h.Delta),
+                Quantos = g.Count(h => h.PartidaId != null),
+            })
             .ToListAsync();
         var deltaDepois = depois.ToDictionary(d => d.JogadorId, d => d.Delta);
         var quantosDepois = depois.ToDictionary(d => d.JogadorId, d => d.Quantos);

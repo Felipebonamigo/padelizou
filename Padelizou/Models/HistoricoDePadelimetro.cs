@@ -24,6 +24,15 @@ public class HistoricoDePadelimetro
     public int? PartidaId { get; set; }
     public virtual Partida? Partida { get; set; }
 
+    // Preenchido = AJUSTE DE CAMPANHA da categoria (bônus de campeão / pena de chave —
+    // RANKING.md, "A campanha também move o número"); nulo = linha de jogo ou de
+    // nascimento. É a marca que separa campanha de jogo: ela não conta como jogo pro K,
+    // o Reabrir da final a desfaz pela categoria, e o movimento da aba não a soma como
+    // partida. Cascade de cliente: a categoria só é removível vazia, então na prática a
+    // linha nunca fica órfã — e o replay reacerta qualquer resto.
+    public int? CategoriaId { get; set; }
+    public virtual Categoria? Categoria { get; set; }
+
     public int NivelAntes { get; set; }
     public int Delta { get; set; }
 

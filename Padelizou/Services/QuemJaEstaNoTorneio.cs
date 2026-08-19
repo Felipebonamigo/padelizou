@@ -16,11 +16,19 @@ namespace Padelizou.Services;
 // americano e o "pagar agora". Respostas diferentes = preços diferentes pra mesma pessoa.
 public static class QuemJaEstaNoTorneio
 {
+    // `ignorarDuplaIds` são as inscrições que estão SAINDO no mesmo movimento — as
+    // inscrições sozinhas que uma dupla que fecha absorve (ver Services/InscricaoRepetida).
+    // Sem isto, quem junta a própria inscrição solo é contado como "já está no torneio" por
+    // causa de uma linha que vai deixar de existir, e paga o preço de SEGUNDA inscrição numa
+    // categoria em que, no fim, ele está uma vez só.
     public static async Task<HashSet<int>> DentreAsync(
-        DbPadelContext context, int torneioId, IEnumerable<int> jogadorIds)
+        DbPadelContext context, int torneioId, IEnumerable<int> jogadorIds,
+        IEnumerable<int>? ignorarDuplaIds = null)
     {
         var procurados = jogadorIds.Where(id => id > 0).Distinct().ToList();
         if (procurados.Count == 0) return new HashSet<int>();
+
+        var ignoradas = ignorarDuplaIds?.Distinct().ToList() ?? new List<int>();
 
         // ⚠️ Lista de espera CONTA como já estar no torneio: a pessoa vai ser chamada, e
         // cobrar dela o preço cheio na categoria seguinte só porque a fila ainda não andou
@@ -34,6 +42,7 @@ public static class QuemJaEstaNoTorneio
         // testes, não pelo compilador.
         var comoJogador1 = await context.Duplas
             .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null
+                     && !ignoradas.Contains(d.Id)
                      && procurados.Contains(d.Jogador1Id))
             .Select(d => d.Jogador1Id)
             .Distinct()
@@ -41,6 +50,7 @@ public static class QuemJaEstaNoTorneio
 
         var comoJogador2 = await context.Duplas
             .Where(d => d.Categoria.TorneioId == torneioId && d.NomeTime == null
+                     && !ignoradas.Contains(d.Id)
                      && d.Jogador2Id != null && procurados.Contains(d.Jogador2Id.Value))
             .Select(d => d.Jogador2Id!.Value)
             .Distinct()
@@ -58,6 +68,7 @@ public static class QuemJaEstaNoTorneio
     }
 
     // Atalho pra uma pessoa só.
-    public static async Task<bool> EstaAsync(DbPadelContext context, int torneioId, int jogadorId) =>
-        (await DentreAsync(context, torneioId, new[] { jogadorId })).Contains(jogadorId);
+    public static async Task<bool> EstaAsync(DbPadelContext context, int torneioId, int jogadorId,
+        IEnumerable<int>? ignorarDuplaIds = null) =>
+        (await DentreAsync(context, torneioId, new[] { jogadorId }, ignorarDuplaIds)).Contains(jogadorId);
 }

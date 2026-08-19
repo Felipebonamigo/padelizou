@@ -36,9 +36,16 @@ public static class InscricaoRepetida
         var ids = jogadorIds.Distinct().ToList();
         if (ids.Count == 0) return new List<Achado>();
 
+        // ⚠️ TIME NÃO É INSCRIÇÃO DE JOGADOR (`NomeTime == null`). A linha de time guarda o
+        // ORGANIZADOR em Jogador1Id e nada em Jogador2Id — de fora, é igualzinha a uma
+        // inscrição "sozinho, procurando parceiro". Sem esta exceção, o organizador que
+        // cadastrou um time seria acusado de já estar inscrito na categoria, e quem juntasse
+        // apagaria o TIME junto: a premissa de que nenhuma regra de jogador enxerga essa linha
+        // vale aqui como vale no TrocarParceiro e no QuemJaEstaNoTorneio.
         var duplas = await context.Duplas
             .Where(d => d.CategoriaId == categoriaId
                      && d.Id != ignorarDuplaId
+                     && d.NomeTime == null
                      && (ids.Contains(d.Jogador1Id) || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
             .Select(d => new
             {
