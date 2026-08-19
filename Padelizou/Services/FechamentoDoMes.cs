@@ -41,11 +41,29 @@ public static class FechamentoDoMes
 
     // O vencimento: dia escolhido do MÊS SEGUINTE ao das aulas. O dia é preso ao último dia do
     // mês porque fevereiro não tem 31 — pedir 31 devolveria 28 em vez de estourar.
-    public static DateTime Vencimento(int ano, int mes, int diaEscolhido)
+    //
+    // ⚠️ E NUNCA NO PASSADO. Professor que fecha julho no dia 19 de agosto pedindo "vence dia
+    // 10" receberia uma conta nascida vencida em 10/08 — vermelha na tela, cobrando atraso de
+    // quem nunca teve como pagar. Nesse caso o dia escolhido rola pro mês seguinte: ele
+    // escolheu O DIA, e é o dia que se mantém. Quem quer receber antes escolhe outro.
+    //
+    // Descoberto rodando a tela de verdade, não nos testes: no teste a competência é sempre
+    // o mês passado e o vencimento cai à frente por sorte do calendário.
+    public static DateTime Vencimento(int ano, int mes, int diaEscolhido, DateTime agora)
     {
         var mesDeCobranca = new DateTime(ano, mes, 1).AddMonths(1);
-        var dia = Math.Clamp(diaEscolhido, 1, DateTime.DaysInMonth(mesDeCobranca.Year, mesDeCobranca.Month));
-        return new DateTime(mesDeCobranca.Year, mesDeCobranca.Month, dia);
+
+        // Rola mês a mês, e não "soma um mês se passou": fechar uma competência de três meses
+        // atrás precisa de mais de um pulo pra sair do passado.
+        while (true)
+        {
+            var dia = Math.Clamp(diaEscolhido, 1, DateTime.DaysInMonth(mesDeCobranca.Year, mesDeCobranca.Month));
+            var candidato = new DateTime(mesDeCobranca.Year, mesDeCobranca.Month, dia);
+
+            if (candidato >= agora.Date) return candidato;
+
+            mesDeCobranca = mesDeCobranca.AddMonths(1);
+        }
     }
 
     // O que UMA conta vai dizer, antes de existir. A tela mostra isto pro professor conferir,
@@ -133,7 +151,7 @@ public static class FechamentoDoMes
             PagadorCelular = previa.PagadorCelular,
             PagadorCpf = previa.PagadorCpf,
             FechadaEm = agora,
-            Vencimento = Vencimento(ano, mes, diaVencimento),
+            Vencimento = Vencimento(ano, mes, diaVencimento, agora),
             Status = Aberta,
         };
 

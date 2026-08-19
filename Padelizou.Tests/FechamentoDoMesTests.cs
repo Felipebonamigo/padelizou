@@ -77,8 +77,9 @@ public class FechamentoDoMesTests
     public void A_conta_vence_no_mes_SEGUINTE_ao_das_aulas()
     {
         // "Fecha as aulas do mês e cobra no mês subsequente", nas palavras do Rafael.
-        Assert.Equal(new DateTime(2026, 5, 10), FechamentoDoMes.Vencimento(2026, 4, 10));
-        Assert.Equal(new DateTime(2027, 1, 5), FechamentoDoMes.Vencimento(2026, 12, 5));
+        var noDia1 = new DateTime(2026, 5, 1);
+        Assert.Equal(new DateTime(2026, 5, 10), FechamentoDoMes.Vencimento(2026, 4, 10, noDia1));
+        Assert.Equal(new DateTime(2027, 1, 5), FechamentoDoMes.Vencimento(2026, 12, 5, new DateTime(2027, 1, 1)));
     }
 
     [Fact]
@@ -86,7 +87,32 @@ public class FechamentoDoMesTests
     {
         // Fevereiro não tem 31. Pedir 31 devolve o último dia em vez de estourar na cara do
         // professor no meio do fechamento.
-        Assert.Equal(new DateTime(2026, 2, 28), FechamentoDoMes.Vencimento(2026, 1, 31));
+        Assert.Equal(new DateTime(2026, 2, 28), FechamentoDoMes.Vencimento(2026, 1, 31, new DateTime(2026, 2, 1)));
+    }
+
+    [Fact]
+    public void A_conta_NUNCA_nasce_vencida()
+    {
+        // Professor que fecha julho no dia 19 de agosto pedindo "vence dia 10" receberia uma
+        // conta vencida em 10/08 — vermelha na tela, cobrando atraso de quem nunca teve como
+        // pagar. O dia escolhido rola pro mês seguinte: ele escolheu O DIA.
+        var em19DeAgosto = new DateTime(2026, 8, 19);
+        Assert.Equal(new DateTime(2026, 9, 10), FechamentoDoMes.Vencimento(2026, 7, 10, em19DeAgosto));
+
+        // Dia que ainda não passou no mês de cobrança continua onde estava.
+        Assert.Equal(new DateTime(2026, 8, 25), FechamentoDoMes.Vencimento(2026, 7, 25, em19DeAgosto));
+    }
+
+    [Fact]
+    public void Competencia_muito_antiga_rola_mais_de_um_mes()
+    {
+        // Fechar uma competência de três meses atrás precisa de mais de um pulo pra sair do
+        // passado — "soma um mês se passou" ainda deixaria a conta vencida.
+        var hoje = new DateTime(2026, 8, 19);
+        var vencimento = FechamentoDoMes.Vencimento(2026, 3, 10, hoje);
+
+        Assert.Equal(new DateTime(2026, 9, 10), vencimento);
+        Assert.True(vencimento >= hoje);
     }
 
     [Fact]
