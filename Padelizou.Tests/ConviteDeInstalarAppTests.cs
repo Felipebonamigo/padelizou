@@ -144,6 +144,66 @@ public class ConviteDeInstalarAppTests
         Assert.Contains("!trocar && plataforma === 'android'", corpo);
     }
 
+    // O Samsung Internet oferece instalar e entrega um app que o Play Protect bloqueia
+    // ("criado para uma versão mais antiga do Android"), com o nosso ícone dentro do aviso.
+    // Um usuário passou por isso em 19/08/2026. A ordem das linhas é a regra inteira: se a
+    // conferência do navegador quebrado voltar pra depois de pdzTemInstalacaoNativa(), o
+    // desvio nunca acontece — porque lá a instalação nativa EXISTE — e o defeito volta calado.
+    [Fact]
+    public void O_navegador_que_instala_um_app_bloqueado_perde_pra_troca_de_navegador()
+    {
+        var corpo = Corpo(InstalarAppJs(), "function pdzNavegadorParaTrocar", "var PDZ_ESPERA_DIAS");
+
+        var quebrado = corpo.IndexOf("pdzNavegadorQueInstalaQuebrado()", StringComparison.Ordinal);
+        var nativa = corpo.IndexOf("pdzTemInstalacaoNativa()", StringComparison.Ordinal);
+
+        Assert.True(quebrado >= 0,
+            "pdzNavegadorParaTrocar() parou de reconhecer o navegador que instala um app "
+            + "bloqueado. Quem abrir o Padelizou no Samsung Internet volta a apertar 'Instalar "
+            + "agora' e receber um aviso de segurança do Google com o nosso ícone.");
+
+        Assert.True(quebrado < nativa,
+            "A conferência do navegador quebrado passou pra DEPOIS de pdzTemInstalacaoNativa(). "
+            + "No Samsung Internet as duas são verdadeiras ao mesmo tempo, então nessa ordem o "
+            + "desvio nunca roda — e a pessoa é mandada de volta pro caminho que termina em "
+            + "'App de risco bloqueado'.");
+    }
+
+    // O reconhecimento é pelo NOME aqui, ao contrário do caso do iPhone, e é o certo: não
+    // existe propriedade que responda "o pacote que este navegador gera é recusado".
+    [Fact]
+    public void O_Samsung_Internet_e_reconhecido_e_mandado_pro_Chrome()
+    {
+        var corpo = Corpo(InstalarAppJs(), "function pdzNavegadorQueInstalaQuebrado", "function pdzNavegadorParaTrocar");
+
+        Assert.Contains("SamsungBrowser", corpo);
+        Assert.Contains("\"samsung\"",
+            Corpo(InstalarAppJs(), "function pdzNavegadorParaTrocar", "var PDZ_ESPERA_DIAS"));
+    }
+
+    // Os dois blocos na mesma tela seriam a pior versão de todas: o desvio explicando que não
+    // dá, e logo acima o botão de um toque que leva exatamente ao aviso de bloqueio.
+    [Fact]
+    public void A_caixa_nativa_some_quando_o_modal_manda_trocar_de_navegador()
+    {
+        var corpo = Corpo(ModalDeInstalar(), "function montarInstalarPwaModal", "function montarTrocaDeNavegador");
+
+        Assert.Contains("(nativa && !trocar)", corpo);
+    }
+
+    // Quem viu a tarja do Play Protect precisa ler, nas nossas palavras, que o problema não é
+    // o Padelizou. Sem isso o desvio pro Chrome parece confissão.
+    [Fact]
+    public void A_troca_por_causa_do_bloqueio_explica_que_nao_e_o_Padelizou()
+    {
+        var corpo = Corpo(ModalDeInstalar(), "function montarTrocaDeNavegador", "async function copiarLinkDoPadelizou");
+
+        Assert.Contains("Play Protect", corpo);
+        Assert.Contains("Não é o Padelizou", corpo);
+        Assert.Contains("intent://", corpo);
+        Assert.Contains("browser_fallback_url", corpo);
+    }
+
     private static string ModalDeInstalar() =>
         SemComentarioRazor(Arquivo(Path.Combine("Views", "Shared", "_InstalarPwaModal.cshtml")));
 

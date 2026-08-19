@@ -45,25 +45,38 @@
            menu. Antes de ensinar a instalar, é preciso ensinar a sair daqui. *@
         <div class="pdz-pwa-steps" id="pwaTrocarNavegador" style="display:none;">
             <div class="pdz-pwa-steps-title">Abra no <span class="pwaNavegadorNome">Safari</span> pra instalar</div>
-            <div class="pdz-pwa-step">
-                <span class="pdz-pwa-badge">1</span>
-                <span class="pdz-pwa-icon"><i class="bi bi-three-dots"></i></span>
-                <span>Toque no menu deste navegador (<strong>&bull;&bull;&bull;</strong> ou o ícone de compartilhar)</span>
+            @* Os três passos são pra quem está numa WebView. No Samsung Internet eles somem: lá
+               a pessoa está num navegador de verdade, e o que ela precisa é de um toque que
+               abra o Chrome — não de caçar "Abrir no Chrome" num menu que talvez nem tenha. *@
+            <div id="pwaTrocarPassos">
+                <div class="pdz-pwa-step">
+                    <span class="pdz-pwa-badge">1</span>
+                    <span class="pdz-pwa-icon"><i class="bi bi-three-dots"></i></span>
+                    <span>Toque no menu deste navegador (<strong>&bull;&bull;&bull;</strong> ou o ícone de compartilhar)</span>
+                </div>
+                <div class="pdz-pwa-step">
+                    <span class="pdz-pwa-badge">2</span>
+                    <span class="pdz-pwa-icon"><i class="bi bi-box-arrow-up-right"></i></span>
+                    <span>Escolha <strong>Abrir no <span class="pwaNavegadorNome">Safari</span></strong></span>
+                </div>
+                <div class="pdz-pwa-step">
+                    <span class="pdz-pwa-badge">3</span>
+                    <span class="pdz-pwa-icon"><i class="bi bi-phone"></i></span>
+                    <span id="pwaTrocarPasso3">Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong></span>
+                </div>
             </div>
-            <div class="pdz-pwa-step">
-                <span class="pdz-pwa-badge">2</span>
-                <span class="pdz-pwa-icon"><i class="bi bi-box-arrow-up-right"></i></span>
-                <span>Escolha <strong>Abrir no <span class="pwaNavegadorNome">Safari</span></strong></span>
-            </div>
-            <div class="pdz-pwa-step">
-                <span class="pdz-pwa-badge">3</span>
-                <span class="pdz-pwa-icon"><i class="bi bi-phone"></i></span>
-                <span id="pwaTrocarPasso3">Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong></span>
-            </div>
+            @* O `intent://` é a única forma de um site abrir OUTRO navegador no Android com um
+               toque. O `browser_fallback_url` é o que salva quem não tem Chrome instalado: sem
+               ele, o toque não faz absolutamente nada e o botão parece quebrado. Mesmo assim o
+               "copiar o link" fica logo abaixo, porque recair na mesma página também não é
+               resposta. Montado no JS: o endereço sai de window.location. *@
+            <a id="pwaAbrirNoChrome" class="pdz-pwa-instalar" style="display:none;" href="#">
+                <i class="bi bi-box-arrow-up-right"></i> <span>Abrir no Chrome</span>
+            </a>
             <button type="button" class="pdz-pwa-copiar" onclick="copiarLinkDoPadelizou()">
                 <i class="bi bi-clipboard"></i> <span id="pwaCopiarTexto">Copiar o link do Padelizou</span>
             </button>
-            <div class="pdz-pwa-note">
+            <div class="pdz-pwa-note" id="pwaTrocarNota">
                 Você está num navegador que abre dentro de outro app (WhatsApp, Instagram). Ele não
                 instala app na tela inicial &mdash; e só o app instalado recebe os avisos do seu jogo.
             </div>
@@ -270,6 +283,9 @@
         font-weight: 800;
         font-size: 1.05rem;
         padding: 14px;
+        /* O "Abrir no Chrome" é um <a> (só link abre outro app com intent://), e link no
+           Bootstrap vem sublinhado — ao lado do botão irmão isso denunciaria a diferença. */
+        text-decoration: none;
     }
 
     .pdz-pwa-instalar:disabled {
@@ -335,12 +351,15 @@
         // mandaria procurar um item de menu que não existe naquela tela.
         var trocar = pdzNavegadorParaTrocar();
 
-        document.getElementById('pwaAcaoNativa').style.display = nativa ? 'block' : 'none';
+        // `!trocar` também aqui: no Samsung Internet os dois são verdadeiros ao mesmo tempo, e
+        // deixar o botão de um toque na tela junto com o desvio é oferecer de novo exatamente o
+        // caminho que termina em "App de risco bloqueado".
+        document.getElementById('pwaAcaoNativa').style.display = (nativa && !trocar) ? 'block' : 'none';
         document.getElementById('pwaTrocarNavegador').style.display = trocar ? 'block' : 'none';
         document.getElementById('pwaStepsIos').style.display = (!nativa && !trocar && plataforma === 'ios') ? 'block' : 'none';
         document.getElementById('pwaStepsAndroid').style.display = (!nativa && !trocar && plataforma === 'android') ? 'block' : 'none';
         document.getElementById('pwaStepsDesktop').style.display = (!nativa && !trocar && !plataforma) ? 'block' : 'none';
-        document.getElementById('pwaCta').textContent = nativa ? 'Agora não' : 'Entendi';
+        document.getElementById('pwaCta').textContent = (nativa && !trocar) ? 'Agora não' : 'Entendi';
 
         if (trocar) montarTrocaDeNavegador(trocar);
 
@@ -354,16 +373,44 @@
         }
     }
 
-    // Os dois destinos possíveis mudam só o nome do navegador e o item final do menu — o
-    // caminho até lá é o mesmo, e por isso o bloco é um só.
+    // Três destinos, o mesmo bloco: o caminho até lá muda pouco, e duas cópias desta tela
+    // terminariam com uma delas ensinando o passo a passo errado.
+    //
+    // 'safari'  — iPhone dentro do WhatsApp/Instagram: não instala nada.
+    // 'chrome'  — Android dentro do Instagram/Line: também não instala.
+    // 'samsung' — Samsung Internet: instala, e o Play Protect BLOQUEIA o que ele instalou.
+    //             Aqui não há menu pra ensinar (a pessoa já está num navegador de verdade), e
+    //             sim um toque que abre o Chrome.
     function montarTrocaDeNavegador(destino) {
-        var nome = destino === 'chrome' ? 'Chrome' : 'Safari';
+        var nome = destino === 'safari' ? 'Safari' : 'Chrome';
         var nomes = document.querySelectorAll('.pwaNavegadorNome');
         for (var i = 0; i < nomes.length; i++) nomes[i].textContent = nome;
 
-        document.getElementById('pwaTrocarPasso3').innerHTML = destino === 'chrome'
-            ? 'Lá, toque no menu (<strong>⋮</strong>) e depois em <strong>Instalar aplicativo</strong>'
-            : 'Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>';
+        document.getElementById('pwaTrocarPasso3').innerHTML = destino === 'safari'
+            ? 'Lá, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>'
+            : 'Lá, toque no menu (<strong>⋮</strong>) e depois em <strong>Instalar aplicativo</strong>';
+
+        var samsung = destino === 'samsung';
+        document.getElementById('pwaTrocarPassos').style.display = samsung ? 'none' : 'block';
+
+        var botao = document.getElementById('pwaAbrirNoChrome');
+        botao.style.display = samsung ? 'flex' : 'none';
+        // A home, não a página da vez — pelo mesmo motivo do link copiado: é dela que o app
+        // nasce, e a URL de abertura do Chrome vira o start_url da instalação.
+        if (samsung) {
+            botao.href = 'intent://' + window.location.host + '/#Intent;scheme=https;'
+                + 'package=com.android.chrome;S.browser_fallback_url='
+                + encodeURIComponent(window.location.origin) + ';end';
+        }
+
+        // A nota é o que impede a pessoa de concluir que o Padelizou é que está com problema —
+        // ela acabou de ver, ou está prestes a ver, um aviso de segurança com o nosso ícone.
+        document.getElementById('pwaTrocarNota').innerHTML = samsung
+            ? 'O navegador da Samsung monta um pacote que o Google Play Protect recusa '
+              + '(<em>"criado para uma versão mais antiga do Android"</em>). Não é o Padelizou: '
+              + 'pelo Chrome é a mesma instalação, e ela passa direto.'
+            : 'Você está num navegador que abre dentro de outro app (WhatsApp, Instagram). Ele não '
+              + 'instala app na tela inicial — e só o app instalado recebe os avisos do seu jogo.';
     }
 
     // O link copiado é a HOME, não a página da vez: é dela que o app nasce (o start_url do

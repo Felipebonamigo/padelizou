@@ -310,6 +310,29 @@ próprio console na hora de responder.
   pacote novo quando muda ícone, nome, cor da barra ou a API alvo.
 - **O US$ 25 não se repete.** Não existe renovação anual no Google.
 
+## ⚠️ "App de risco bloqueado" NÃO é isto aqui
+
+Em 19/08/2026 um usuário mandou o print de uma tarja do **Google Play Protect** com o nosso
+ícone: *"App de risco bloqueado — esse app foi criado para uma versão mais antiga do Android"*.
+**Não era o app da loja** — este documento inteiro trata de um pacote que ainda nem foi enviado.
+
+Era o **PWA instalado pelo Samsung Internet**. Quando alguém instala o site pela tela inicial, é
+o **navegador** que monta um pacote Android (o *WebAPK*), e o da Samsung monta mirando uma versão
+de Android que o Play Protect recusa. O Chrome monta o dele com o mesmo `manifest.json` e passa
+direto — por isso o site desvia o Samsung Internet pro Chrome na hora de instalar
+(`wwwroot/js/instalar-app.js`, `pdzNavegadorQueInstalaQuebrado`).
+
+**Não confunda os dois caminhos:**
+
+| | Quem monta o pacote | Onde se conserta |
+|---|---|---|
+| PWA instalado pelo navegador (WebAPK) | O navegador do usuário | Não dá pra consertar do nosso lado — só desviar de navegador |
+| App da Play Store (TWA) | O Bubblewrap, aqui | `targetSdkVersion` no `app/build.gradle` gerado (passo 2) |
+
+O `targetSdkVersion` do passo 2 vale **só para a segunda linha**.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **Barra de endereço aparecendo** = assetlinks. Ou está 404, ou falta a impressão digital do

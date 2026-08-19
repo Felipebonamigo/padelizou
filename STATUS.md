@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
+> Última atualização: **19/08/2026** — 🛡️ **O CELULAR DE UM USUÁRIO CHAMOU O PADELIZOU DE "APP DE RISCO" — e a culpa era do navegador da Samsung.**
+>
+> 📸 **O relato**: um usuário mandou o print. Tarja cinza do **Google Play Protect**, o nosso ícone com um `!` amarelo do lado, e o texto: *"App de risco bloqueado — Padelizou. Esse app foi criado para uma versão mais antiga do Android e não inclui as proteções de privacidade mais recentes. Instalar este app pode colocar o dispositivo em risco."* O botão grande diz **Entendi**; o "Instalar assim mesmo" fica escrito pequeno, sem cara de botão.
+>
+> 🕳️ **O que estava acontecendo**: ele apertou o **nosso** "Instalar agora" no **Samsung Internet**. Esse navegador dispara o `beforeinstallprompt` igual ao Chrome — então pra gente ele parecia um navegador que instala —, mas **quem monta o pacote (o WebAPK) é o navegador, não o site**, e o da Samsung monta mirando uma versão de Android que o Play Protect já recusa. Resultado: a pessoa segue o nosso convite e o celular responde com um aviso de segurança com a nossa cara dentro. **Ninguém lê aquilo e conclui "o navegador está velho": conclui que o Padelizou é vírus** — e conta pros outros.
+>
+> ⚠️ **NÃO É O NOSSO MANIFEST, e nada disso tem a ver com a Play Store.** O mesmo `manifest.json` instala pelo Chrome sem um pio; e o app da loja (TWA, ver ANDROID.md) é outro pacote, ainda nem enviado. Não existe APK do Padelizou solto por aí — mexer em manifest, ícone ou `targetSdk` não resolveria nada aqui, porque nenhum deles é nosso nesse caminho.
+>
+> ✅ **A correção**: `pdzNavegadorParaTrocar()` passou a desviar o Samsung Internet pro Chrome **antes** de olhar se existe instalação nativa. Essa ordem é a regra inteira — as duas condições são verdadeiras ao mesmo tempo nesse navegador, então conferir a nativa primeiro faria o desvio nunca rodar. O modal esconde o botão de um toque quando manda trocar (`nativa && !trocar`): oferecer os dois na mesma tela seria apresentar de novo justamente o caminho que termina em bloqueio.
+>
+> 👆 **E o desvio tem UM TOQUE, não um caça ao menu.** No caso do WhatsApp/Instagram o modal ensina "abra o menu → Abrir no Chrome", porque lá é WebView. Aqui a pessoa já está num navegador de verdade, então o bloco troca os três passos por um botão **Abrir no Chrome** (`intent://` com `S.browser_fallback_url` — sem o fallback, quem não tem Chrome tocaria num botão que não faz nada), com "copiar o link" logo abaixo como plano B.
+>
+> 🗣️ **A tela diz, com todas as letras, que o problema não é nosso**: *"O navegador da Samsung monta um pacote que o Google Play Protect recusa. Não é o Padelizou: pelo Chrome é a mesma instalação, e ela passa direto."* Sem essa frase, o desvio pro Chrome pareceria confissão.
+>
+> 🧪 **4.412 testes, 0 falhas (4 novos)**: a ORDEM das duas conferências (o teste falha se a do navegador quebrado voltar pra depois da nativa), o reconhecimento do `SamsungBrowser`, a caixa nativa sumindo junto com o desvio, e a explicação do bloqueio + o `intent://` com fallback.
+>
+> ⏭️ **Não conferido em celular Samsung de verdade** — o que garante é a suíte. Quem instalou pelo Samsung Internet **antes** desta correção continua com o app bloqueado no aparelho: pra essa pessoa o caminho é instalar de novo pelo Chrome.
+>
+> Antes, no mesmo dia: 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
 >
 > 🗣️ **Decisão do Felipe**: *"se for eliminado na chave, perde mais pontos; se for campeão, ganha mais pontos"* — pra quem subiu de categoria e não parou em pé PODER VOLTAR à anterior. No Elo puro isso não acontecia em tempo humano: derrota esperada quase não tira ponto (a expectativa desconta o adversário mais forte), e quem subia ficava preso no andar de cima.
 >

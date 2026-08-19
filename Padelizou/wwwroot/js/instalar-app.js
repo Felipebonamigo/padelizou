@@ -21,6 +21,24 @@ function pdzTemInstalacaoNativa() {
   return !!window.pdzEventoInstalacao;
 }
 
+// O navegador que ANUNCIA instalação e entrega um app BLOQUEADO — pior que o que não instala.
+//
+// É o Samsung Internet, e o estrago apareceu num usuário em 19/08/2026: ele dispara o
+// `beforeinstallprompt` igualzinho ao Chrome, a pessoa aperta o NOSSO botão "Instalar agora",
+// e o celular responde com uma tarja do Google Play Protect — "App de risco bloqueado: esse
+// app foi criado para uma versão mais antiga do Android" —, com o nosso ícone dentro. Quem lê
+// aquilo não conclui "o navegador está velho"; conclui que o Padelizou é vírus.
+//
+// ⚠️ **Não é o nosso manifest.** Quem monta o pacote (o WebAPK) é o navegador, e o da Samsung
+// monta mirando uma versão de Android que o Play Protect já recusa. O MESMO manifest instala
+// pelo Chrome sem um pio — é por isso que a saída é trocar de navegador, e não mexer em
+// manifest.json.
+//
+// Se a Samsung consertar o gerador dela, é esta função que sai — e só ela.
+function pdzNavegadorQueInstalaQuebrado() {
+  return /SamsungBrowser\//.test(navigator.userAgent || "");
+}
+
 // Onde o passo a passo do modal seria MENTIRA, porque o navegador da vez não instala nada.
 //
 // É o caso mais comum de todos e passou despercebido até 10/08/2026: o Padelizou circula em
@@ -38,9 +56,17 @@ function pdzTemInstalacaoNativa() {
 // No Android o problema é menor (o Chrome abre de verdade na maioria dos casos), então aqui
 // só o User-Agent das WebViews que sabidamente não instalam.
 function pdzNavegadorParaTrocar() {
-  if (pdzAppInstalado() || pdzTemInstalacaoNativa()) return null;
+  if (pdzAppInstalado()) return null;
 
   var plataforma = pdzPlataforma();
+
+  // A ÚNICA exceção à regra da linha de baixo, e ela vem antes de propósito: aqui a instalação
+  // nativa existe, funciona até a última tela e termina num aviso de vírus. Perder um passo a
+  // passo custa menos que um "App de risco bloqueado" com o nosso ícone.
+  if (plataforma === "android" && pdzNavegadorQueInstalaQuebrado()) return "samsung";
+
+  // Mandar sair de um navegador que instala de verdade é empurrar a pessoa pra longe.
+  if (pdzTemInstalacaoNativa()) return null;
   if (plataforma === "ios") return typeof navigator.standalone === "undefined" ? "safari" : null;
   if (plataforma === "android") return /Instagram|FBAN|FBAV|FB_IAB|Line\//.test(navigator.userAgent || "") ? "chrome" : null;
   return null;
