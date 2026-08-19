@@ -1,7 +1,29 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
+> Última atualização: **19/08/2026** — 🔮 **OS PALPITEIROS EXISTEM DE VERDADE: O BOTÃO QUE NÃO LEVAVA A LUGAR NENHUM VIROU PÁGINA** (fase 1 de 4 do palpite com placar).
+>
+> 🗣️ **O pedido do Felipe**: *"vamos ver para que o palpitômetro permita colocar placar, não apenas quem vence, para que pontue quem acertar mais o placar, o número de games de cada um"*. O plano saiu em 4 fases e esta é a primeira.
+>
+> 🕳️ **O ACHADO QUE MUDOU O PLANO — e ele é um bug em produção, não um detalhe de plano.** Este STATUS já dava o ranking de palpiteiros como pronto desde **12/08** (`Services/PontosDoPalpite`, aba `/Torneios/Palpiteiros`, selo no perfil, aba no hub). **Nada disso está no repositório**: não existe o serviço, não existe a action, não existe a view. O que sobrou da sessão paralela foram dois órfãos — `TorneiosController.cs:371` calculando `ViewBag.TemRankingDePalpiteiros` e `Details.cshtml:482` desenhando o botão **"Palpiteiros"**. Ou seja: **em todo torneio com um jogo terminado e um palpite, o botão aparecia na página e não levava a lugar nenhum**. Não dava pra "somar placar ao ranking" — o ranking precisava nascer junto.
+>
+> 📊 **A RÉGUA NOVA É 3 · 2 · 1 · 0** (decisão do Felipe): **cravou o placar 3**, **chegou perto 2**, **acertou só quem venceu 1**, **errou o vencedor 0**. Ordena por **PONTOS**, e o aproveitamento **só desempata** — o caso que define isso é **quem acerta 9 de 11 fica na frente de quem acerta 8 de 8**, e há um teste com exatamente esse par: se ele inverter, a régua mudou. ⚠️ **Não há piso mínimo de palpites, e não precisa haver** — quem acertou 1 de 1 tem 1 ponto e cai pro fim da lista sozinho. Era a MÉDIA que exigia piso. **Se um dia alguém trocar isto por uma média, o piso volta junto.**
+>
+> 📏 **A FAIXA DO MEIO É POR LADO DO PLACAR, NÃO PELA SOMA DAS DIFERENÇAS**, e isso não é preciosismo: no formato de **SOMA** (joga-se N games e acabou) um game que muda de lado mexe nos **dois** números ao mesmo tempo — quem palpita 5x3 num jogo que termina 6x2 erra por 1 de cada lado, e uma régua pela soma diria "errou por 2" e **mataria a faixa do meio inteira naquele formato, caladinha**. Um teste segura os dois casos.
+>
+> 🚫 **W.O. não tem placar pra cravar.** O jogo encerrado por não comparecimento é gravado com o placar convencional da fase (um 6x0 que ninguém jogou): quem acertou o vencedor leva o ponto, e a "cravada" seria sorteada entre quem chutou o placar mais comum. Mesma régua de sempre — `MotivoDoEncerramento` é a única coisa que separa esse 6x0 de um jogado.
+>
+> 🚫 **Quem está EM QUADRA não pontua no próprio jogo** — os quatro são os únicos que podem MUDAR o resultado do próprio palpite. Continuam votando (e o voto conta na barra, que é opinião pública); só não conta no ranking, nem no acerto nem no total. ⚠️ **Em categoria de TIMES não exclui ninguém**: ali o `Jogador1` é o organizador que cadastrou, não quem entra em quadra.
+>
+> 💾 **ZERO coluna nova, ZERO migration, ZERO ponto gravado.** O acerto sempre esteve gravado (`PalpitePartida.DuplaEscolhidaId` contra `Partida.VencedorId`), então o ranking **nasce com o histórico inteiro** — e, por ser refeito a cada visita, **placar corrigido pelo organizador acerta o ranking sozinho**. Ponto gravado ficaria congelado no placar errado e ninguém descobriria.
+>
+> 🙈 **A TELA NÃO FALA EM PLACAR ENQUANTO NINGUÉM PUDER PALPITAR PLACAR** (`PalpitesComPlacar`): a coluna "Cravadas" e a régua de 3/2 só aparecem em torneio que **tem** palpite com placar. A pergunta é feita **ao dado**, nunca a um interruptor — torneio jogado antes disso existir teria uma régua explicando um jeito de pontuar que ninguém dali teve como usar. Mesma lição do "a janela é lida do relógio" do MVP.
+>
+> 🧪 **4.388 testes, 0 falhas (19 novos).** ✅ **Falsificação em dois pontos**: trocando a folga "por lado" pela "soma", cai o teste do 7x5; trocando a ordenação de pontos-primeiro por aproveitamento-primeiro, cai o teste do 9/11 × 8/8 — **um teste para cada régua, e nenhum outro**. ⚠️ **A tela NÃO foi conferida no navegador** (não há Postgres neste ambiente); o que existe é a compilação do Razor no build, que pega erro de sintaxe e de propriedade — foi conferido que ela pega mesmo, plantando um `@Model.NaoExisteEssaPropriedade` de propósito.
+>
+> ⏭️ **Faltam as fases 2, 3 e 4**: as colunas de placar no palpite + a validação pelo formato (⚠️ **nuláveis, SEM `defaultValue` zero** — zero nas linhas antigas viraria "palpitou 0x0", placar que não existe), os chips de placar na tela do palpitrômetro, e o selo no perfil + a aba no hub do Ranking que este STATUS também promete desde 12/08 e que **também não existem no código**.
+>
+> Antes, em **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
 >
 > 📊 **O PEDIDO DO FELIPE**: duas colunas novas na tela de Métricas, "acessos hoje" e "máximo de acessos simultâneos". ⚠️ **Não era só tela**: até aqui o Padelizou não guardava rastro NENHUM de visita — nem um "último acesso" no `Jogador`, nem log de requisição. As duas perguntas exigiram construir o alicerce primeiro.
 >
