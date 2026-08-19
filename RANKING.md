@@ -38,6 +38,67 @@ largura. 100 pontos de diferença ≈ 64% de favoritismo; 200 ≈ 76%.
   vale 1,1×. Ganhar passeando move mais que ganhar no detalhe.
 - Na prática: vitória contra dupla igual ≈ ±7 a ±13. Um fim de semana dominante rende
   +60 a +100 — sobe de faixa em 1 ou 2 torneios dominados, nunca por um dia de sorte.
+- **E a campanha da categoria também move** — bônus de campeão, pena de quem fica na
+  chave, limitados pelas portas da faixa. Régua completa logo abaixo.
+
+### A campanha também move o número (19/08/2026)
+
+Decisão do Felipe, revendo a decisão de 03/08 ("no Elo, sair de chave JÁ é o empurrão"):
+*"se for eliminado na chave, perde mais pontos; se for campeão, ganha mais pontos"*. O
+motivo é o caminho de VOLTA: quem sobe de categoria não pode mais jogar a anterior — e no
+Elo puro quem apanha na categoria nova desce DEVAGAR de propósito (a expectativa desconta
+o adversário mais forte, então derrota esperada quase não tira ponto). Subir às vezes leva
+anos; quem subia e não parava em pé ficava PRESO no andar de cima, sem número pra voltar.
+A campanha passa a falar direto no número:
+
+| Campanha na categoria | Ajuste |
+|---|---|
+| Campeão | **+10** |
+| Caiu na estreia do mata-mata | **−5** |
+| Não saiu da chave (ficou nos grupos) | **−10** |
+
+- O tamanho é UM JOGO típico de propósito (K estável entre iguais ≈ ±10): "título vale um
+  jogo ganho a mais, ficar na chave custa um jogo perdido a mais" é uma frase que qualquer
+  jogador confere no grupo do WhatsApp.
+- Vice e fases do meio não levam nada — esses degraus o Elo já pagou jogo a jogo. E quando
+  a estreia do mata-mata É a própria final (1 grupo, final direta), quem perdeu é o vice:
+  chegou na final, não leva pena de estreia.
+- Aplica no FECHAMENTO DA FINAL da categoria (o mesmo gancho que coroa o campeão), uma vez
+  por categoria, com linha própria no extrato — sem partida, porque campanha não é jogo:
+  não conta pro K de calibração nem pra contagem de jogos.
+- **Só pra quem entrou em quadra** em jogo que conta. Campanha inteira de W.O. não mediu
+  padel nenhum — mesma razão do W.O. não mover o número.
+- Mesmos porteiros das partidas: restrito, Americano, times e cancelado ficam fora. E
+  **mista/casal/categoria fora da convenção ficam fora da campanha** (os JOGOS delas
+  seguem movendo o número): sem faixa não há porta pra régua mirar.
+
+⚠️ **AS PORTAS DA FAIXA LIMITAM O AJUSTE — a parte que impede a régua de ser rígida.**
+Aviso do Felipe na mesma conversa: *"tem pessoas que passam vários anos (uns 20 torneios)
+na mesma categoria — temos que cuidar para não ser muito rígido"*. E um ajuste fixo seria
+exatamente isso: em todo torneio METADE do campo não sai da chave e só UM é campeão, então
+uma pena solta drenaria o jogador mediano — uns −7 de deriva por torneio, e 20 torneios
+depois ele teria caído uma faixa inteira SEM ter piorado. A régua então mira as portas:
+
+- **A pena só age acima da linha de descida da faixa da categoria jogada** (piso − 50, a
+  mesma folga da histerese) **e para NELA**: te leva até a porta de voltar pra categoria
+  de baixo, nunca através. Dali pra baixo, só derrota de verdade move — a campanha te
+  apresenta à porta; quem te empurra por ela é o jogo.
+- **O bônus só age abaixo da linha de subida** (teto + 1) **e para NELA**: campeão com
+  número já acima da categoria não ganha nada — farmar título de categoria fraca não
+  infla, que é o buraco clássico deste tipo de bônus.
+- **Quem joga PRA CIMA não leva pena**: nível abaixo da linha de descida da categoria
+  jogada significa "essa régua não é a sua" — cair na estreia da 2ª sendo da 4ª é
+  aventura, não campanha ruim (o mesmo espírito do "subir é sempre livre").
+- O jogador mediano de categoria encontra EQUILÍBRIO: as penas empurram pro fundo da
+  faixa, e no fundo da faixa as vitórias pagam caro (Elo contra campo mais forte) e
+  empurram de volta. Ele fica os 20 torneios dele na categoria, como sempre ficou. Quem
+  NÃO ganha nunca — o caso que o ajuste existe pra soltar — é o único que a régua carrega
+  até a linha de descida.
+
+O preço aceito: o Padelímetro deixa de ser soma-zero (títulos injetam ponto, chaves
+drenam). As portas limitam o vazamento, e o replay recalibra a história inteira se a régua
+mudar. Motor em `Services/CampanhaNoPadelimetro.cs`; as linhas de descida/subida moram em
+`FaixasDePadelimetro`, que é de onde a trava da fase 3 vai ler as mesmas portas.
 
 ### O que NÃO move o número
 
@@ -115,6 +176,8 @@ decreto), nós calibramos com dados reais: todo jogo de MISTA cruza as duas popu
 - **Descer tem folga**: só volta pra faixa de baixo com nível 50 pontos ABAIXO do piso
   E pelo menos 10 jogos desde que subiu. Sem pingue-pongue na divisa, sem perder de
   propósito pra descer.
+- **Quem torna as duas portas alcançáveis é o ajuste de campanha** (seção acima): no Elo
+  puro, quem só apanhava descia devagar demais pra voltar em tempo humano.
 - **Regra do bicampeão** (legível por humanos, independe do número): campeão 2× da
   mesma categoria em 12 meses sobe automaticamente.
 
@@ -472,6 +535,8 @@ cobrança dos R$ 5) ainda não — é o próximo passo.
   ranking por categoria), respeitando o mesmo filtro regional do hub.
 - Números NÃO coincidem com o QT Level de propósito (faixas deles: 250 de largura,
   cortes 1050/1300/1550/1750, teto ~2000; soma 1800–3300).
-- O "ajuste de categoria" do QT (bump ao sair de chave) não é copiado: no Elo, sair de
-  chave JÁ é o empurrão (2–3 vitórias pesadas contra quem foi), e o caso extremo é
-  coberto pela regra do bicampeão.
+- O "ajuste de categoria" do QT (bump ao sair de chave) não foi copiado no desenho
+  original de 03/08 — "no Elo, sair de chave JÁ é o empurrão". **Revisto em 19/08/2026**:
+  a régua ganhou o próprio ajuste de campanha (campeão/estreia/chave, com as portas da
+  faixa como limite — ver "A campanha também move o número"), porque o Elo puro não
+  devolvia ninguém pra categoria de baixo em tempo humano.

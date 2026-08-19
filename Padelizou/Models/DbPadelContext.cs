@@ -639,6 +639,16 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(h => h.PartidaId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // A linha de CAMPANHA aponta pra categoria. ClientCascade, e não Cascade: a
+            // categoria já cascateia pra Partida, que cascateia pra cá — um segundo caminho
+            // de cascade no banco é o que motores como o SQL Server recusam. No cliente dá no mesmo (a
+            // categoria só é removível sem inscritos, logo sem campanha), e o replay
+            // reacerta qualquer sobra.
+            entity.HasOne(h => h.Categoria)
+                .WithMany()
+                .HasForeignKey(h => h.CategoriaId)
+                .OnDelete(DeleteBehavior.ClientCascade);
         });
         modelBuilder.Entity<AnotacaoAula>(entity =>
         {

@@ -358,7 +358,31 @@ namespace Padelizou.Controllers
                 if (dupla.Id == partida.VencedorId && dupla.UltimaFase == "Campeao") dupla.UltimaFase = "Final";
             }
 
-            // 3. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
+            // 3. Se era a FINAL, o AJUSTE DE CAMPANHA da categoria desanda junto: o bônus do
+            //    campeão e as penas de chave nasceram deste resultado (RANKING.md, "A campanha
+            //    também move o número"). ⚠️ ANTES das linhas da própria partida, porque a
+            //    campanha foi aplicada DEPOIS delas — desfazer é voltar na ordem inversa, e
+            //    pros 4 da final o passo seguinte sobrescreve com o nível pré-jogo, que é o
+            //    certo. Campanha não conta como jogo, então JogosDePadelimetro fica quieto.
+            if (partida.Fase == "Final")
+            {
+                var campanha = await _context.HistoricosDePadelimetro
+                    .Where(h => h.CategoriaId == partida.CategoriaId).ToListAsync();
+                if (campanha.Count > 0)
+                {
+                    var jogadoresDaCampanha = await _context.Jogadores
+                        .Where(j => campanha.Select(h => h.JogadorId).Contains(j.Id))
+                        .ToDictionaryAsync(j => j.Id);
+
+                    foreach (var linha in campanha)
+                        if (jogadoresDaCampanha.TryGetValue(linha.JogadorId, out var jogador))
+                            jogador.Padelimetro = linha.NivelAntes;
+
+                    _context.HistoricosDePadelimetro.RemoveRange(campanha);
+                }
+            }
+
+            // 4. O Padelímetro desanda o que aplicou: some a linha do extrato e o nível dos 4
             //    volta pro que era. Como o desfazer acontece minutos depois do erro, esta é a
             //    última partida aplicada e a subtração é exata; se não for, o replay do admin
             //    reconstrói tudo do zero (PadelimetroService.RecalcularTudoAsync).
@@ -380,14 +404,14 @@ namespace Padelizou.Controllers
                 _context.HistoricosDePadelimetro.RemoveRange(extrato);
             }
 
-            // 4. O torneio deixa de estar finalizado se era esta final que o encerrava.
+            // 5. O torneio deixa de estar finalizado se era esta final que o encerrava.
             if (partida.Fase == "Final" && partida.TorneioId is int torneioId)
             {
                 var torneio = await _context.Torneios.FindAsync(torneioId);
                 if (torneio != null && torneio.Status == "Finalizado") torneio.Status = "Fase de Grupos";
             }
 
-            // 5. E aí sim o jogo volta pra quadra.
+            // 6. E aí sim o jogo volta pra quadra.
             partida.Status = "AoVivo";
             partida.VencedorId = null;
             partida.HorarioFimReal = null;

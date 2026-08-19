@@ -1,7 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 💰 **QUEM JÁ PAGOU CONTINUA PAGO QUANDO DUAS INSCRIÇÕES VIRAM UMA.**
+> Última atualização: **19/08/2026** — 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
+>
+> 🗣️ **Decisão do Felipe**: *"se for eliminado na chave, perde mais pontos; se for campeão, ganha mais pontos"* — pra quem subiu de categoria e não parou em pé PODER VOLTAR à anterior. No Elo puro isso não acontecia em tempo humano: derrota esperada quase não tira ponto (a expectativa desconta o adversário mais forte), e quem subia ficava preso no andar de cima.
+>
+> ✅ **A regra**: no fechamento da FINAL da categoria, campeão **+10**, eliminado na estreia do mata-mata **−5**, quem não saiu da chave **−10**. Vice e fases do meio nada — o Elo já pagou esses degraus jogo a jogo. Só pra quem ENTROU EM QUADRA em jogo que conta (campanha inteira de W.O. não leva); restrito, Americano, times, cancelado e mista/casal ficam fora. Espec completa em RANKING.md ("A campanha também move o número"); motor puro em `Services/CampanhaNoPadelimetro`.
+>
+> 🚪 **AS PORTAS DA FAIXA LIMITAM O AJUSTE — o aviso do Felipe na mesma conversa**: *"tem pessoas que passam vários anos (uns 20 torneios) na mesma categoria — temos que cuidar para não ser muito rígido"*. E um ajuste solto seria exatamente isso: metade do campo fica na chave em todo torneio, e a deriva de ~−7/torneio derrubaria o jogador mediano uma faixa inteira em 20 torneios SEM ele ter piorado. Então a pena só age acima da **linha de descida** da faixa da categoria jogada (piso − 50, a folga da histerese) e PARA nela — te apresenta à porta de voltar; quem te empurra por ela é derrota de verdade. O bônus só age abaixo da **linha de subida** (teto + 1) e para nela — farmar título de categoria fraca não infla. Quem joga PRA CIMA não leva pena: aventura não é campanha ruim. As duas linhas moram em `FaixasDePadelimetro`, de onde a trava da fase 3 vai ler as mesmas portas.
+>
+> 🧾 **No extrato, a linha de campanha tem categoria e não tem partida** (coluna nova `CategoriaId`, migration `CampanhaNoPadelimetro`): não conta como jogo pro K, o Reabrir da final a desfaz junto com o jogo (na ordem inversa), e o movimento da aba não a soma como partida. **Replay reaplica a campanha no mesmo ponto da história** — a linha do tempo do recálculo agora percorre todas as finalizadas (W.O. incluso, porque uma final de W.O. fecha campanha) e fecha cada categoria ao passar pela final dela.
+>
+> 🧪 **4.408 testes, 0 falhas (18 novos)**: portas e clamps do motor, final direta que não pune o vice, quem joga pra cima sem pena, anti-farm do campeão, W.O. sem ajuste, idempotência (gancho e fila offline), encerramento único aplicando jogo+campanha, replay determinístico datado pela final, reabrir que desfaz, e a linha de campanha fora da contagem de jogos do movimento.
+>
+> Antes, no mesmo dia: 💰 **QUEM JÁ PAGOU CONTINUA PAGO QUANDO DUAS INSCRIÇÕES VIRAM UMA.**
 >
 > 🗣️ **Decisão do Felipe**, respondendo ao alerta que ficou aberto no bloco de baixo: *"se ele já pagou, tem q se manter como pago"*.
 >
