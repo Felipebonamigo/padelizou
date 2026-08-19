@@ -7,66 +7,91 @@ namespace Padelizou.Tests;
 // AS CONSULTAS DO PALPITRÔMETRO REALMENTE VIRAM SQL?
 //
 // 🕳️ O buraco que estes testes fecham: **o banco InMemory do resto da suíte não traduz nada**.
-// Lá tudo é objeto em memória, então um método nosso dentro de um `Select` (um
-// `NomeBonito.ComApelido(...)`, por exemplo) roda numa boa — e em produção, no Postgres, a
-// mesma linha estoura com "could not be translated" na PRIMEIRA visita à página. É a categoria
-// de erro que passa por 4 mil testes verdes e cai no colo do usuário.
+// Lá tudo é objeto em memória, então uma consulta que o Postgres recusaria passa lisa — e
+// estoura em produção na PRIMEIRA visita à página. É a categoria de erro que atravessa 4 mil
+// testes verdes e cai no colo do usuário.
 //
-// 🎯 O TRUQUE: o EF traduz a consulta ANTES de abrir conexão. Rodando contra um provedor
-// Npgsql de verdade, apontado pra um servidor que não existe:
-//   • consulta que NÃO traduz  → `InvalidOperationException` (a falha que queremos pegar);
-//   • consulta que traduz      → erro de CONEXÃO, que é o que provamos aqui.
-// Ou seja: chegar no erro de conexão É a aprovação. Nenhum banco precisa existir.
+// 💥 E ELA JÁ ACONTECEU AQUI, em 19/08/2026: `ConsultaDePartidas` filtrava DEPOIS de projetar
+// pro record (`.Select(...).Where(p => p.TorneioId == id)`), e o EF não sabe achar a coluna a
+// partir de um record projetado. A página `/Torneios/Palpiteiros` respondia **500** com a
+// suíte inteira verde. O filtro passou pra dentro da consulta, antes do `Select`.
+//
+// 🎯 COMO ESTES TESTES FUNCIONAM: `ToQueryString()` **compila** a consulta e devolve o SQL sem
+// abrir conexão nenhuma. Consulta que não traduz estoura ali mesmo; nenhum banco precisa
+// existir, e não há espera de rede.
+//
+// ⚠️ POR QUE NÃO "CHAMAR O SERVIÇO E VER SE ELE EXPLODE": foi a primeira versão destes testes,
+// e ela era **cega**. Apontando pra um Postgres inexistente, a PRIMEIRA consulta do método
+// falha por CONEXÃO e o método aborta — as outras nunca chegam a ser compiladas. Foi
+// exatamente assim que o `Where` sobre record projetado passou por eles: ele morava na segunda
+// consulta do método. Por isso aqui cada consulta é compilada **sozinha**.
 public class TraducaoDasConsultasDePalpiteTests
 {
-    // Porta onde não há ninguém ouvindo, e timeout curtíssimo: o teste quer a recusa, não a
-    // espera. `Host=127.0.0.1` e não `localhost` pra não cair no socket unix.
+    // Um provedor Npgsql de verdade (é ele que traduz), apontado pra lugar nenhum — nada aqui
+    // chega a conectar.
     private static DbPadelContext ContextoPostgres()
     {
         var options = new DbContextOptionsBuilder<DbPadelContext>()
-            .UseNpgsql("Host=127.0.0.1;Port=59999;Database=nao_existe;Username=x;Password=x;Timeout=1;Command Timeout=1")
+            .UseNpgsql("Host=127.0.0.1;Port=59999;Database=nao_existe;Username=x;Password=x")
             .Options;
         return new DbPadelContext(options);
     }
 
-    private static async Task TraduzAsync(Func<DbPadelContext, Task> consulta)
+    private static void Traduz(Func<DbPadelContext, IQueryable> consulta)
     {
         using var ctx = ContextoPostgres();
-        var erro = await Record.ExceptionAsync(() => consulta(ctx));
-
-        // Sem exceção nenhuma seria surpresa (não há banco), mas não é falha de tradução.
-        if (erro == null) return;
-
-        // ⚠️ A falha que este teste existe pra pegar. A mensagem entra no assert de propósito:
-        // sem ela, quem vir o teste vermelho não saberia que o problema é a consulta, e não o
-        // ambiente sem Postgres.
-        Assert.False(erro is InvalidOperationException && erro.Message.Contains("could not be translated"),
-            "Esta consulta não vira SQL: " + erro.Message);
-
-        // Qualquer outro erro é o de conexão que a gente PEDIU — a tradução passou.
+        // ⚠️ Quem reprova é o próprio `ToQueryString`, que ESTOURA na consulta que não traduz.
+        // O assert é só a confirmação de que saiu SQL — e é `Contains`, não `StartsWith`,
+        // porque o EF prefixa os parâmetros como comentário (`-- @ids={ '7' }`).
+        var sql = consulta(ctx).ToQueryString();
+        Assert.Contains("SELECT", sql);
     }
 
     [Fact]
-    public Task O_ranking_de_um_torneio_vira_SQL() =>
-        TraduzAsync(ctx => RankingDePalpiteiros.DoTorneioAsync(ctx, torneioId: 1, olhandoId: null));
+    public void As_partidas_de_UM_TORNEIO_viram_SQL() =>
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidas(ctx, p => p.TorneioId == 1));
 
     [Fact]
-    public Task O_ranking_geral_vira_SQL() =>
-        TraduzAsync(ctx => RankingDePalpiteiros.GeralAsync(ctx, doLocal: null));
+    public void As_partidas_de_uma_LISTA_DE_IDS_viram_SQL()
+    {
+        // O caminho do hub e do perfil: parte-se dos palpites e buscam-se aquelas partidas.
+        var ids = new List<int> { 1, 2, 3 };
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePartidas(ctx, p => ids.Contains(p.Id)));
+    }
 
     [Fact]
-    public Task O_ranking_geral_COM_filtro_regional_vira_SQL() =>
-        TraduzAsync(ctx => RankingDePalpiteiros.GeralAsync(ctx, doLocal: new HashSet<int> { 1, 2, 3 }));
+    public void Os_palpites_de_UMA_LISTA_DE_PARTIDAS_viram_SQL()
+    {
+        var ids = new List<int> { 1, 2, 3 };
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(ctx, v => ids.Contains(v.PartidaId)));
+    }
 
     [Fact]
-    public Task O_selo_do_perfil_vira_SQL() =>
-        TraduzAsync(ctx => RankingDePalpiteiros.DoJogadorAsync(ctx, jogadorId: 1));
+    public void Os_palpites_de_UM_JOGADOR_viram_SQL()
+    {
+        var ids = new List<int> { 7 };
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(ctx, v => ids.Contains(v.JogadorId)));
+    }
 
     [Fact]
-    public Task O_resumo_do_palpitrometro_vira_SQL() =>
-        TraduzAsync(ctx => new PalpiteService(ctx).ObterResumosAsync(new[] { 1, 2 }, jogadorId: 3));
+    public void TODOS_os_palpites_viram_SQL() =>
+        // O caminho da aba do hub sem filtro regional.
+        Traduz(ctx => RankingDePalpiteiros.ConsultaDePalpites(ctx, v => true));
 
+    // ⚠️ Este é o teste que teria pego o 500. Ele imita o erro: filtrar DEPOIS de projetar.
+    // Se um dia o EF passar a traduzir isso, o teste vira vermelho e alguém relê a régua — que
+    // é exatamente o que se quer de um teste que guarda uma limitação de fora.
     [Fact]
-    public Task Quem_votou_em_quem_vira_SQL() =>
-        TraduzAsync(ctx => new PalpiteService(ctx).ObterVotantesAsync(partidaId: 1));
+    public void Filtrar_DEPOIS_de_projetar_pro_record_NAO_traduz()
+    {
+        using var ctx = ContextoPostgres();
+
+        var consultaTorta = ctx.Partidas
+            .Select(p => new PartidaApurada(p.Id, p.TorneioId, p.VencedorId, p.Dupla1Id, p.Dupla2Id,
+                p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2, p.MotivoDoEncerramento))
+            .Where(p => p.TorneioId == 1);
+
+        var erro = Assert.Throws<InvalidOperationException>(() => consultaTorta.ToQueryString());
+        Assert.Contains("could not be translated", erro.Message);
+    }
 }

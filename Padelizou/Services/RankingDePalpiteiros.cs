@@ -47,9 +47,7 @@ public static class RankingDePalpiteiros
 
         if (torneio == null) return null;
 
-        var partidas = await PartidasApuraveis(contexto)
-            .Where(p => p.TorneioId == torneioId)
-            .ToListAsync();
+        var partidas = await ConsultaDePartidas(contexto, p => p.TorneioId == torneioId).ToListAsync();
 
         var apuracao = await ApurarAsync(contexto, partidas,
             await PalpitesDasPartidasAsync(contexto, partidas.Select(p => p.Id).ToList()));
@@ -81,9 +79,7 @@ public static class RankingDePalpiteiros
 
         var partidaIds = palpites.Select(v => v.PartidaId).Distinct().ToList();
 
-        var partidas = await PartidasApuraveis(contexto)
-            .Where(p => partidaIds.Contains(p.Id))
-            .ToListAsync();
+        var partidas = await ConsultaDePartidas(contexto, p => partidaIds.Contains(p.Id)).ToListAsync();
 
         // ⚠️ TORNEIO OCULTO NÃO SOMA. O ranking do TORNEIO é protegido pela porta dele (oculto
         // responde 404); esta lista é pública e não tem porta nenhuma — sem o filtro, ela
@@ -108,9 +104,7 @@ public static class RankingDePalpiteiros
         if (meus.Count == 0) return null;
 
         var partidaIds = meus.Select(v => v.PartidaId).Distinct().ToList();
-        var partidas = await PartidasApuraveis(contexto)
-            .Where(p => partidaIds.Contains(p.Id))
-            .ToListAsync();
+        var partidas = await ConsultaDePartidas(contexto, p => partidaIds.Contains(p.Id)).ToListAsync();
 
         var contam = await TorneiosQueContamAsync(contexto, partidas.Select(p => p.TorneioId));
         partidas = partidas.Where(p => p.TorneioId is int t && contam.Contains(t)).ToList();
@@ -233,13 +227,25 @@ public static class RankingDePalpiteiros
 
     // ── O QUE VEM DO BANCO ────────────────────────────────────────────────────────────────
 
+    // As partidas que podem ser apuradas, já filtradas.
+    //
     // ⚠️ `VencedorId != null` E `Status == "Finalizada"`, e não um só dos dois: jogo em
     // andamento já tem placar parcial (a Mesa grava game a game) e apurar por ele diria quem
     // está ganhando, não quem ganhou.
-    private static IQueryable<PartidaApurada> PartidasApuraveis(DbPadelContext contexto) =>
+    //
+    // ⚠️ O FILTRO DE QUEM CHAMA ENTRA AQUI DENTRO, ANTES da projeção, e isso não é estilo — é a
+    // diferença entre a página abrir e dar 500. Pendurar `.Where(p => p.TorneioId == id)` DEPOIS
+    // do `Select` obriga o EF a achar a coluna a partir do record projetado, e ele não sabe
+    // fazer isso: a consulta inteira para de traduzir. ⚠️ E o banco InMemory da suíte NÃO pega
+    // (lá o Where roda sobre objetos), o que fez isto passar por 4 mil testes verdes e só
+    // aparecer na primeira visita à página no Postgres. Ver
+    // TraducaoDasConsultasDePalpiteTests, que agora compila cada consulta uma a uma.
+    public static IQueryable<PartidaApurada> ConsultaDePartidas(
+        DbPadelContext contexto, System.Linq.Expressions.Expression<Func<Partida, bool>> filtro) =>
         contexto.Partidas
             .AsNoTracking()
             .Where(p => p.Status == PartidaFinalizada && p.VencedorId != null)
+            .Where(filtro)
             .Select(p => new PartidaApurada(p.Id, p.TorneioId, p.VencedorId, p.Dupla1Id, p.Dupla2Id,
                 p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2, p.MotivoDoEncerramento));
 
@@ -247,43 +253,37 @@ public static class RankingDePalpiteiros
         DbPadelContext contexto, List<int> partidaIds) =>
         partidaIds.Count == 0
             ? new List<PalpiteApurado>()
-            : await MaterializarAsync(contexto.PalpitesPartida.Where(v => partidaIds.Contains(v.PartidaId)));
+            : await MaterializarAsync(contexto, v => partidaIds.Contains(v.PartidaId));
 
     private static async Task<List<PalpiteApurado>> PalpitesAsync(
         DbPadelContext contexto, HashSet<int>? apenasEstesJogadores)
     {
-        var consulta = contexto.PalpitesPartida.AsQueryable();
+        if (apenasEstesJogadores == null) return await MaterializarAsync(contexto, v => true);
 
-        if (apenasEstesJogadores != null)
-        {
-            var ids = apenasEstesJogadores.ToList();
-            consulta = consulta.Where(v => ids.Contains(v.JogadorId));
-        }
-
-        return await MaterializarAsync(consulta);
+        var ids = apenasEstesJogadores.ToList();
+        return await MaterializarAsync(contexto, v => ids.Contains(v.JogadorId));
     }
 
-    // O `NomeBonito.ComApelido` roda DEPOIS do `ToListAsync`, e não dentro da projeção.
+    // A consulta dos palpites — SÓ COLUNAS, nada de método nosso dentro dela.
     //
-    // 📌 Não é obrigatório: o EF avalia no cliente o que estiver na projeção FINAL, então o
-    // método ali dentro funcionaria (conferido com o teste de tradução em
-    // TraducaoDasConsultasDePalpiteTests). É por segurança de COMPOSIÇÃO: essa licença vale só
-    // enquanto o `Select` for o último passo, e basta alguém pendurar um `Where` depois dele
-    // pra virar erro de tradução em produção — que o banco InMemory dos testes não pega, porque
-    // lá tudo é objeto e qualquer método roda. Materializar antes tira a pegadinha do caminho.
-    //
-    // ⚠️ O que o EF NÃO perdoa em lugar nenhum é método nosso dentro de `Where`/`OrderBy` — e
-    // é isso que aqueles testes vigiam.
-    private static async Task<List<PalpiteApurado>> MaterializarAsync(IQueryable<PalpitePartida> consulta) =>
-        (await consulta
+    // ⚠️ O nome bonito (`NomeBonito.ComApelido`) é montado depois, na materialização. O EF até
+    // aceitaria o método na projeção FINAL (ele avalia no cliente), mas essa licença vale só
+    // enquanto o `Select` for o último passo: basta alguém compor um `Where` depois pra virar
+    // erro de tradução em produção — o mesmo tipo de erro que o `Where` sobre record projetado
+    // causou aqui. Consulta que só carrega coluna não tem como quebrar assim.
+    public static IQueryable<PalpiteCru> ConsultaDePalpites(
+        DbPadelContext contexto, System.Linq.Expressions.Expression<Func<PalpitePartida, bool>> filtro) =>
+        contexto.PalpitesPartida
             .AsNoTracking()
-            .Select(v => new
-            {
+            .Where(filtro)
+            .Select(v => new PalpiteCru(
                 v.PartidaId, v.JogadorId, v.DuplaEscolhidaId,
                 v.Jogador.Nome, v.Jogador.Apelido, v.Jogador.FotoPerfil,
-                v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2,
-            })
-            .ToListAsync())
+                v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2));
+
+    private static async Task<List<PalpiteApurado>> MaterializarAsync(
+        DbPadelContext contexto, System.Linq.Expressions.Expression<Func<PalpitePartida, bool>> filtro) =>
+        (await ConsultaDePalpites(contexto, filtro).ToListAsync())
             .Select(v => new PalpiteApurado(
                 v.PartidaId, v.JogadorId, NomeBonito.ComApelido(v.Nome, v.Apelido), v.FotoPerfil,
                 v.DuplaEscolhidaId, v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
@@ -347,6 +347,12 @@ public static class RankingDePalpiteiros
 public sealed record PartidaApurada(
     int Id, int? TorneioId, int? VencedorId, int Dupla1Id, int Dupla2Id,
     int? GamesDupla1, int? GamesDupla2, int? SetsDupla1, int? SetsDupla2, string? MotivoDoEncerramento);
+
+// O palpite como ele sai do BANCO: só coluna, sem nada calculado. Existe pra a consulta não
+// ter método nosso dentro dela — ver ConsultaDePalpites.
+public sealed record PalpiteCru(
+    int PartidaId, int JogadorId, int DuplaEscolhidaId, string Nome, string? Apelido, string? FotoPerfil,
+    int? GamesDupla1, int? GamesDupla2, int? SetsDupla1, int? SetsDupla2);
 
 // Um palpite já pronto pra apuração, com o nome de quem palpitou.
 public sealed record PalpiteApurado(

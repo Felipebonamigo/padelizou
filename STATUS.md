@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🏅 **O PALPITRÔMETRO SAIU DO TORNEIO: ABA NO HUB DO RANKING E SELO NO PERFIL** (fase 4 de 4 — o palpite com placar está completo).
+> Última atualização: **19/08/2026** — 🐛 **A MIGRATION RODOU E O NAVEGADOR ACHOU DOIS DEFEITOS QUE 4.422 TESTES NÃO PEGARAM.**
+>
+> 🎯 **A migration `PalpiteComPlacar` foi aplicada num Postgres de verdade** (não o Postgres de vocês — um servidor descartável só desta sessão), e o app subiu contra ele com dado plantado. Isto é exatamente o motivo de nunca declarar "pronto" só com testes verdes: os dois defeitos abaixo são invisíveis pro InMemory e pro Razor compilado, e só apareceram com o app rodando.
+>
+> 💥 **DEFEITO 1 — `/Torneios/Palpiteiros/{id}` respondia 500.** `ConsultaDePartidas` filtrava **DEPOIS** de projetar pro record (`.Select(...).Where(p => p.TorneioId == id)`), e o EF não sabe achar uma coluna a partir de um record já projetado — "the LINQ expression... could not be translated". A suíte inteira ficava verde porque o InMemory não traduz nada; o Postgres recusou na primeira visita. ⚠️ **O teste de tradução que eu tinha escrito na fase 4 não pegou isso**, e o motivo importa: ele chamava o SERVIÇO inteiro contra uma porta sem ninguém ouvindo — e a PRIMEIRA consulta do método falha por CONEXÃO, abortando antes de compilar a segunda (onde morava o bug). **Reescrito pra compilar cada consulta SOZINHA com `ToQueryString()`** (que traduz sem abrir conexão nenhuma), e agora há um teste que planta esse exato erro de propósito — pra continuar vermelho se o EF um dia aceitar essa forma.
+>
+> 🔧 **O conserto**: o filtro do chamador entra **dentro** de `ConsultaDePartidas`/`ConsultaDePalpites`, antes do `Select`. As duas consultas agora são **públicas e nomeadas**, exatamente pra o teste de tradução poder compilar cada uma isoladamente — sem isso, a mesma cegueira se repete na próxima consulta nova.
+>
+> 🎫 **DEFEITO 2, de produto — e mais grave que o 500**: as fichas de placar só existiam no cartão GRANDE do palpitrômetro, e esse cartão só é desenhado na aba **Ao Vivo**, onde **não se vota mais**. A aba onde se palpita de verdade — **Agendadas** — usa a versão EM LINHA, que eu tinha deixado sem fichas na fase 3. Ou seja: **a fase 3 inteira nunca esteve alcançável por ninguém**, e passou pelas quatro fases sem que nenhum teste (nem C#, nem o DOM falso no Node) pudesse pegar — porque nenhum dos dois sabe qual aba o produto realmente usa. Só abrir a tela mostrou isso. Fichas, "a galera crava" e "cravou o placar" entraram na versão em linha, reaproveitando o mesmo CSS e o mesmo JS do cartão grande.
+>
+> 📸 **Conferido de verdade, com Playwright, logado, nos dois formatos de tela**: votar sem placar (só o toque no nome), as fichas aparecendo só depois do voto, a MESMA ficha `6x4` gravando espelhada conforme a dupla escolhida, trocar de dupla apagando o placar, "a galera crava 6x4 (3 de 4)" mudando ao vivo sem F5, "Cravou o placar: Rafael Souza" depois do jogo, a página **Palpiteiros** do torneio, a aba do hub e o selo do perfil — **os mesmos 6 pontos e 2 cravadas** nos três lugares. Screenshots em `/tmp/pw/`.
+>
+> 🖼️ **Achado um terceiro problema, cosmético, olhando o screenshot**: o pódio da página Palpiteiros truncava os nomes do 2º e 3º lugar (`Fernanda ...`, `Bruno Alv...`) — a caixa era estreita demais. Alargada; conferido de novo, nome inteiro nos dois tamanhos de tela.
+>
+> 🧪 **4.422 testes, 0 falhas** (mesma contagem — os testes de tradução foram reescritos, não somados). ⚠️ **A régua de todas as quatro fases se manteve**: os números do selo do perfil e da aba do hub bateram, o "cravou" só apareceu depois do jogo terminar, e o placar corrigido continua sendo a fonte da verdade.
+>
+> ⏭️ **Migration e dado plantado existem só nesta sessão** (Postgres descartável) — nada foi tocado no ambiente de vocês. Falta rodar a migration de verdade no `db_padel_local`/dev quando o branch for revisado.
+>
+> Antes, no mesmo dia: 🏅 **O PALPITRÔMETRO SAIU DO TORNEIO: ABA NO HUB DO RANKING E SELO NO PERFIL** (fase 4 de 4 — o palpite com placar está completo).
 >
 > 🧭 **TRÊS PERGUNTAS, UM NÚCLEO SÓ (`RankingDePalpiteiros.Apurar`).** O torneio parte das partidas dele; o hub e o perfil partem dos **palpites**. ⚠️ Partir dos palpites é o que mantém a aba barata: partida finalizada o sistema tem aos milhares e a esmagadora maioria **nunca teve palpite nenhum** — varrer todas pra descobrir que 95% não interessam seria pagar o preço da tabela grande pra usar a pequena. **Três somatórios separados acabariam discordando**: o selo dizendo 12 pontos e a aba dizendo 11, sem nada na tela pra explicar. Há um teste que compara os dois números.
 >

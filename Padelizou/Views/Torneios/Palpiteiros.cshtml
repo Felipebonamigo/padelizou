@@ -41,7 +41,7 @@
                     {
                         bool primeiro = p.Posicao == 1;
                         int tamanho = primeiro ? 88 : 64;
-                        <div style="width: @(tamanho + 24)px;">
+                        <div style="width: @(tamanho + 56)px; max-width: 30vw;">
                             <img src="@(string.IsNullOrEmpty(p.Foto) ? "/img/default-avatar.png" : p.Foto)"
                                  alt="" class="rounded-circle mb-2"
                                  style="width:@(tamanho)px;height:@(tamanho)px;object-fit:cover;border:3px solid @(primeiro ? "var(--padel-green)" : "rgba(255,255,255,.35)");" />
