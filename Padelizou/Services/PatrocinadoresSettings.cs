@@ -16,6 +16,36 @@ namespace Padelizou.Services;
 public class PatrocinadoresSettings
 {
     public List<Patrocinador> Lista { get; set; } = new();
+
+    // O que o rodapé exibe de fato. Configuração preenchida manda sempre; sem configuração,
+    // só o AMBIENTE DE TESTE (Beta__AmbienteDeTeste=true, o dev.padelizou.com.br) mostra o
+    // Paralelo embutido abaixo.
+    //
+    // O embutido existe porque o dev não tem como ser configurado daqui: ele roda como
+    // Production (o appsettings.Development.json não vale lá) e o systemd dele só se alcança
+    // por SSH. Enquanto o patrocínio está em avaliação, o combinado é aparecer no dev e em
+    // NENHUM outro lugar — e produção sem configuração continua sem faixa, porque o fallback
+    // exige a chave que só o dev tem. Fechado o patrocínio, produção liga pelo systemd
+    // (Patrocinadores__Lista__0__...) sem esperar deploy.
+    public List<Patrocinador> ParaExibir(bool ambienteDeTeste)
+    {
+        var configurados = Lista.FindAll(p => !string.IsNullOrWhiteSpace(p.Imagem));
+        if (configurados.Count > 0)
+            return configurados;
+
+        if (!ambienteDeTeste)
+            return new();
+
+        return new()
+        {
+            new Patrocinador
+            {
+                Nome = "Paralelo",
+                Imagem = "/image/patrocinadores/paralelo.webp",
+                LogoEscuro = true,
+            }
+        };
+    }
 }
 
 public class Patrocinador
