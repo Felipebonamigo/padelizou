@@ -3619,13 +3619,16 @@ Gerado em 19/08/2026, no repo:
   conferida no código do dia (torneio 5/10/15% com mínimo de R$ 4, professor R$ 49,90/mês ou
   R$ 499,90/ano + 3%/6%, avulso 10%, 15 dias de teste, Americano R$ 5/pessoa a partir de 8,
   clube 10% na reserva e mensalidade ainda sem preço de tabela), o ciclo da venda em 4 passos e
-  **duas páginas para o parceiro**: como vendemos o ranking DELES ao clube (a caixa que nasce
-  desmarcada, o bloco de vantagens com link pro `parceria-clubes`, onde a marca aparece no fluxo
-  e o número real do NATA PADEL TOUR — 22 conferidos, 8 com pontuação, 14 não encontrados) e o
-  que já está no ar: validação na inscrição, **R$ 1,00 por pessoa inscrita**, relatório só de
-  leitura e a API de torneios.
-  ⚠️ **O Programa de Parceiros (20/10) foi TIRADO a pedido do Felipe** — abrir os percentuais
-  de comissão antes de o programa existir seria abri-lo. Se voltar, está no commit anterior.
+  **duas páginas sobre o Ranking Brasil**: a integração no produto (recusa macia, palavra final do
+  organizador, de-para de categoria, relatório, API) e na venda (a caixa que nasce desmarcada, o
+  bloco de vantagens com link pro `parceria-clubes`, onde a marca aparece no fluxo e o NATA PADEL
+  TOUR — 22 de 22 conferidos, cobertura de 9% a 100%, um atleta barrado abaixo da categoria).
+  ⚠️ **A peça é GENÉRICA, não endereçada ao parceiro** (decisão do Felipe, 19/08): nada de
+  "preparado para", nada de "vocês" — o dono do Ranking a lê como plano comercial de verdade, e o
+  destaque ao ranking é o que faz ele ficar contente. ⚠️ **O R$ 1,00 por inscrito NÃO aparece**:
+  só que *"o custo da conferência é pago pelo Padelizou"*. ⚠️ O **Programa de Parceiros (20/10)
+  foi tirado** — abrir os percentuais antes de o programa existir seria abri-lo; está no primeiro
+  commit desta série se voltar.
   ⚠️ **Peça EXTERNA**: ficou de fora tudo que é conta de dentro — margem do gateway, teto do
   MEI, lista congelada de clientes não comissionáveis e comparação com concorrente.
   ⚠️ Mesmo cuidado do PARCEIROS.html: o `@media print` vem **por último** (o headless pode
