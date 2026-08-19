@@ -57,6 +57,8 @@ public static class RankingDePalpiteiros
                 p.Dupla2Id,
                 p.GamesDupla1,
                 p.GamesDupla2,
+                p.SetsDupla1,
+                p.SetsDupla2,
                 p.MotivoDoEncerramento,
             })
             .ToListAsync();
@@ -73,6 +75,10 @@ public static class RankingDePalpiteiros
                 v.PartidaId,
                 v.JogadorId,
                 v.DuplaEscolhidaId,
+                v.GamesDupla1,
+                v.GamesDupla2,
+                v.SetsDupla1,
+                v.SetsDupla2,
                 v.Jogador.Nome,
                 v.Jogador.Apelido,
                 v.Jogador.FotoPerfil,
@@ -113,18 +119,23 @@ public static class RankingDePalpiteiros
             {
                 if (jogadoresDaPartida.Contains(palpite.JogadorId)) continue;
 
+                // ⚠️ A MOEDA É DITADA PELO PALPITE, não pelo formato de hoje. Quem palpitou
+                // em games é conferido contra os games; quem palpitou em sets, contra os sets.
+                // Parece o mesmo, mas não é: o organizador pode editar o formato do torneio
+                // DEPOIS de o palpite estar gravado, e aí perguntar ao formato compararia o
+                // que a pessoa disse com um placar que ela não tinha como estar respondendo.
+                var palpitado = PlacaresPossiveis.Lido(
+                    palpite.GamesDupla1, palpite.GamesDupla2, palpite.SetsDupla1, palpite.SetsDupla2);
+
                 var conferido = new PalpiteConferido
                 {
                     DuplaEscolhidaId = palpite.DuplaEscolhidaId,
                     VencedorId = partida.VencedorId,
-                    // ⚠️ O placar PALPITADO ainda não existe no banco (a coluna entra na fase
-                    // seguinte, junto da tela que deixa escolher o placar). Até lá todo palpite
-                    // chega aqui sem placar e vale o ponto do vencedor — que é exatamente o que
-                    // a régua faz com palpite antigo, pra sempre.
-                    PalpitouLado1 = null,
-                    PalpitouLado2 = null,
-                    PlacarLado1 = partida.GamesDupla1,
-                    PlacarLado2 = partida.GamesDupla2,
+                    PalpitouLado1 = palpitado.Lado1,
+                    PalpitouLado2 = palpitado.Lado2,
+                    PlacarLado1 = palpitado.EmSets ? partida.SetsDupla1 : partida.GamesDupla1,
+                    PlacarLado2 = palpitado.EmSets ? partida.SetsDupla2 : partida.GamesDupla2,
+                    EmSets = palpitado.EmSets,
                     PorWo = partida.MotivoDoEncerramento == EncerramentoPorWo.Motivo,
                 };
 

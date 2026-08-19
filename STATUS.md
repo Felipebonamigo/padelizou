@@ -1,7 +1,25 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🔮 **OS PALPITEIROS EXISTEM DE VERDADE: O BOTÃO QUE NÃO LEVAVA A LUGAR NENHUM VIROU PÁGINA** (fase 1 de 4 do palpite com placar).
+> Última atualização: **19/08/2026** — 🎯 **O PALPITE PASSOU A ACEITAR PLACAR — E QUEM DECIDE QUAIS PLACARES EXISTEM É O FORMATO DO JOGO** (fase 2 de 4).
+>
+> 🎫 **PALPITAR PLACAR É ESCOLHER, NÃO DIGITAR** (`Services/PlacaresPossiveis`). Dois campos numéricos no celular são dois toques, um teclado por cima da tela e a porta aberta pro "6 x 9" — placar que nenhum jogo termina. A lista de finais possíveis sai do formato da fase: até 6 dá `6x0 · 6x1 · 6x2 · 6x3 · 6x4 · 6x5 · 7x5`, até 9 vai de `9x0` a `9x8` **sem estender** (limite ímpar já embute o tie-break), e a **soma** de 8 dá `8x0 · 7x1 · 6x2 · 5x3` — **sem 4x4**, porque o sistema recusa finalizar partida empatada e palpitar empate seria palpitar um final que ele não deixa gravar. ⚠️ **Quem manda no formato continua sendo `FormatoDaPartida`** — este arquivo pergunta, não sabe. Um teste confere que **todo placar oferecido é um placar que a partida aceita encerrar**: se a lista um dia oferecer algo que a Mesa recusaria, ele cai.
+>
+> 🎾 **JOGO DE 2+ SETS PALPITA SETS, NÃO GAMES** — e isso não é preferência: num jogo de mais de um set, `Partida.GamesDupla1` guarda os games do **set em andamento** (é assim que a Mesa marca), então perguntar games ali compararia o palpite do JOGO com o placar de um pedaço dele. Melhor de 3 dá duas fichas: `2x0` e `2x1`. ⚠️ **E em sets NÃO existe "chegou perto"**: com folga de 1, errar seria matematicamente impossível (todo mundo levaria 2 ou 3) e a faixa de baixo sumiria do formato inteiro. Em sets, ou se crava, ou vale o ponto do vencedor.
+>
+> 🔒 **O PLACAR E O VOTO NUNCA SE CONTRADIZEM.** Votar "a Dupla 1 vence" e escrever "4 x 6" são duas respostas contrárias, e escolher uma pela pessoa seria o sistema decidindo o que ela quis dizer — o serviço recusa. **E trocar de opinião sem dizer o placar APAGA o placar velho**: sem isso a linha ficaria com "vence a Dupla 2" e um "6 x 2" que aponta a Dupla 1, e o ranking leria isso como palpite de placar, contando contra a própria pessoa um placar que ela abandonou.
+>
+> 🛡️ **Toda a validação está no SERVIÇO, nunca na tela** — a tela oferece fichas, mas um POST montado à mão não passa por view nenhuma. Recusa placar impossível, placar da outra dupla, **meio placar** (completar com zero inventaria um palpite que ninguém deu) e jogo que já começou.
+>
+> 💾 **MIGRATION `PalpiteComPlacar`: 4 colunas ANULÁVEIS e SEM `defaultValue`** (`GamesDupla1/2`, `SetsDupla1/2` em `PalpitePartida`, com os mesmos nomes e a mesma orientação das colunas da `Partida`). ⚠️ **Zero herdado seria o desastre calado desta feature**: transformaria todo palpite gravado antes de hoje num chute de **0x0**, e o ranking passaria a contar um placar que ninguém escreveu. **Nulo quer dizer "não palpitou o placar"** — e continua valendo 1 ponto, como sempre.
+>
+> 🔎 **A conferência lê a moeda do PALPITE, não a do formato de hoje**: quem palpitou em games é conferido contra games; quem palpitou em sets, contra sets. Parece igual e não é — o organizador pode editar o formato do torneio **depois** do palpite, e perguntar ao formato compararia o que a pessoa disse com um placar que ela não tinha como estar respondendo.
+>
+> 🧪 **4.405 testes, 0 falhas (17 novos).** ✅ **Falsificação em três pontos**: tirar o desempate 7x5 da lista derruba 2 testes; tirar a amarra placar↔voto derruba 1; ligar a folga de um game também em sets derruba 1. ⚠️ **Nada conferido no navegador** (sem Postgres no ambiente) e **a migration não foi aplicada em banco nenhum** — ela é `AddColumn` puro de 4 colunas anuláveis, mas ainda não rodou.
+>
+> ⏭️ **Falta a fase 3 (a TELA)** — as fichas de placar no palpitrômetro, o "a galera crava 6x4" antes do jogo e o "Fulano cravou o placar" depois; hoje o placar só entra por quem chamar o endpoint. **E a fase 4**: o selo no perfil e a aba no hub do Ranking, que este documento promete desde 12/08 e que também não existem no código.
+>
+> Antes, no mesmo dia: 🔮 **OS PALPITEIROS EXISTEM DE VERDADE: O BOTÃO QUE NÃO LEVAVA A LUGAR NENHUM VIROU PÁGINA** (fase 1 de 4 do palpite com placar).
 >
 > 🗣️ **O pedido do Felipe**: *"vamos ver para que o palpitômetro permita colocar placar, não apenas quem vence, para que pontue quem acertar mais o placar, o número de games de cada um"*. O plano saiu em 4 fases e esta é a primeira.
 >

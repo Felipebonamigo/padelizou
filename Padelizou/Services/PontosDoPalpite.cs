@@ -32,6 +32,9 @@ public static class PontosDoPalpite
 
     // A distância que ainda conta como "chegou perto", **em cada lado do placar**.
     //
+    // ⚠️ Vale só pro palpite em GAMES. Ver `PalpiteConferido.EmSets`: no jogo de 2+ sets o
+    // palpite é em sets, e ali não existe "perto".
+    //
     // ⚠️ É por LADO e não pela SOMA das duas diferenças, e a razão é o formato de SOMA (o
     // torneio em que se jogam N games e acabou — ver ContagemDeGamesDoTorneio). Ali um game
     // que muda de lado mexe nos DOIS números ao mesmo tempo: quem palpita 5x3 num jogo que
@@ -61,7 +64,14 @@ public static class PontosDoPalpite
         int erroLado2 = Math.Abs(palpite.PalpitouLado2!.Value - palpite.PlacarLado2!.Value);
 
         if (erroLado1 == 0 && erroLado2 == 0) return Cravou;
-        if (erroLado1 <= GamesDeFolga && erroLado2 <= GamesDeFolga) return ChegouPerto;
+
+        // ⚠️ Em SETS não existe "chegou perto", e isso é decisão e não esquecimento: acertado o
+        // vencedor, um jogo de melhor de 3 só pode terminar 2x0 ou 2x1. Com folga de 1, errar
+        // seria matematicamente impossível — todo mundo levaria 2 ou 3, e a faixa de baixo
+        // sumiria do formato inteiro. Em sets ou se crava, ou não se crava.
+        int folga = palpite.EmSets ? 0 : GamesDeFolga;
+
+        if (erroLado1 <= folga && erroLado2 <= folga) return ChegouPerto;
 
         return SoOVencedor;
     }
@@ -95,6 +105,10 @@ public sealed record PalpiteConferido
 
     // O jogo acabou por W.O.? (`Partida.MotivoDoEncerramento`) — ver a régua acima.
     public bool PorWo { get; init; }
+
+    // O palpite (e o placar) estão em SETS, e não em games? Quem responde isso é o FORMATO do
+    // jogo, em Services/PlacaresPossiveis — aqui ele só desliga a folga da faixa do meio.
+    public bool EmSets { get; init; }
 
     public bool PalpitouOPlacar => PalpitouLado1 != null && PalpitouLado2 != null;
     public bool TemPlacarReal => PlacarLado1 != null && PlacarLado2 != null;
