@@ -451,14 +451,23 @@ namespace Padelizou.Controllers
             // 5. Vagas: se a categoria ou o torneio já bateram no limite, a dupla entra
             //    na lista de espera em vez de ser bloqueada — pode ser promovida depois
             //    se alguém desistir (ver TorneiosController.RemoverDupla).
-            bool emListaDeEspera = await CategoriaOuTorneioEstaCheioAsync(categoria, torneio);
+            // ⚠️ As inscrições sozinhas que esta vem JUNTAR não ocupam vaga na conta: elas
+            // saem logo abaixo, no mesmo SaveChanges. Contá-las mandaria pra lista de espera
+            // uma dupla que está justamente devolvendo a vaga que sobra — o oposto do que o
+            // texto de juntar promete ("a vaga é a mesma, ninguém perde lugar").
+            var idsQueSaem = juntaveis.Select(j => j.DuplaId).Distinct().ToList();
+
+            bool emListaDeEspera = await CategoriaOuTorneioEstaCheioAsync(categoria, torneio, idsQueSaem);
 
             // 6. Monta a DUPLA e vincula à Categoria
             // ⚠️ QUEM JÁ ESTAVA no torneio se pergunta ANTES de adicionar esta inscrição:
             // depois, a própria pessoa apareceria na consulta e ganharia o desconto de segunda
             // inscrição já na primeira.
+            // ...e as inscrições que estão sendo juntadas ficam de fora pelo mesmo motivo de
+            // sempre: elas somem neste mesmo SaveChanges, e o preço de segunda inscrição não
+            // pode nascer de uma linha que vai deixar de existir.
             var jaNoTorneio = await QuemJaEstaNoTorneio.DentreAsync(
-                _context, torneioId, new[] { jogador1.Id, jogador2?.Id ?? 0 });
+                _context, torneioId, new[] { jogador1.Id, jogador2?.Id ?? 0 }, idsQueSaem);
 
             // ⚠️ SÓ ENTRA NA CONTA QUEM ESTÁ NA INSCRIÇÃO (Felipe, 08/08/2026). Dupla ainda
             // "procurando parceiro" custa UMA pessoa: cobrar duas seria cobrar por alguém que
@@ -498,10 +507,9 @@ namespace Padelizou.Controllers
             // As inscrições sozinhas que esta veio substituir saem JUNTO, no mesmo
             // SaveChanges: apagar antes deixaria a pessoa sem vaga nenhuma se a criação
             // falhasse no meio.
-            if (juntaveis.Count > 0)
+            if (idsQueSaem.Count > 0)
             {
-                var idsParaSair = juntaveis.Select(j => j.DuplaId).Distinct().ToList();
-                var solosParaSair = await _context.Duplas.Where(d => idsParaSair.Contains(d.Id)).ToListAsync();
+                var solosParaSair = await _context.Duplas.Where(d => idsQueSaem.Contains(d.Id)).ToListAsync();
                 _context.Duplas.RemoveRange(solosParaSair);
             }
 
@@ -679,9 +687,13 @@ namespace Padelizou.Controllers
             // ⚠️ A conta do parceiro é feita ANTES de gravá-lo na dupla. Depois, esta própria
             // inscrição já o coloca "no torneio", e ele ganharia o preço de segunda inscrição
             // por causa de si mesmo.
+            // ⚠️ As inscrições ABSORVIDAS ficam de fora da conta: elas saem neste mesmo
+            // SaveChanges, e dar o preço de segunda inscrição por causa de uma linha que vai
+            // deixar de existir é cobrar (a menos) por uma inscrição que ninguém tem.
             var precisaCobrarOSegundo = antigo == null;
             var segundoRepete = precisaCobrarOSegundo
-                && await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novo.Id);
+                && await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novo.Id,
+                       absorvidas.Select(a => a.DuplaId).Distinct());
 
             dupla.Jogador2Id = novo.Id;
 
@@ -860,7 +872,19 @@ namespace Padelizou.Controllers
                 var eu = await _context.Jogadores.FindAsync(jogadorLogadoId.Value);
                 if (eu != null)
                 {
-                    ViewBag.Impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio!, eu);
+                    // ⚠️ "Você já está inscrito sozinho nesta categoria" NÃO é impedimento
+                    // aqui: é exatamente a inscrição que este convite vem substituir, e aceitar
+                    // é a resposta à pergunta de juntar. Antes essa checagem devolvia a
+                    // pergunta ("marque juntar com a inscrição que já existe") numa tela que
+                    // não tem essa caixa — a pessoa lia uma instrução impossível de seguir e
+                    // ficava sem parceiro. Agora a tela AVISA que as duas viram uma só, e o
+                    // aceite junta.
+                    ViewBag.JuntaMinhaInscricaoSolo = InscricaoRepetida.QuePodemSerJuntadas(
+                        await InscricaoRepetida.ProcurarAsync(
+                            _context, dupla.CategoriaId, new[] { eu.Id }, ignorarDuplaId: dupla.Id)).Count > 0;
+
+                    ViewBag.Impedimento = await MotivoParaNaoSerParceiroAsync(
+                        dupla, torneio!, eu, juntarComInscricaoSolo: true);
                 }
             }
 
@@ -898,16 +922,22 @@ namespace Padelizou.Controllers
             var eu = await _context.Jogadores.FindAsync(jogadorLogadoId.Value);
             if (eu == null) return Forbid();
 
-            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla, torneio!, eu);
+            // `juntarComInscricaoSolo: true`: quem aceita é o DONO da inscrição sozinha que
+            // vai sair — o aceite dele é o consentimento, e a tela do convite já disse que as
+            // duas viram uma só. As outras recusas (dupla fechada nesta categoria, sexo da
+            // Mista, ranking) continuam valendo.
+            var impedimento = await MotivoParaNaoSerParceiroAsync(
+                dupla, torneio!, eu, juntarComInscricaoSolo: true);
             if (impedimento != null)
             {
                 TempData["Erro"] = impedimento;
                 return RedirectToAction(nameof(Convite), new { token });
             }
 
-            await FecharDuplaComAsync(dupla, torneio!, eu);
+            var juntou = await FecharDuplaComAsync(dupla, torneio!, eu);
 
-            TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}.";
+            TempData["Sucesso"] = $"Pronto! Você é parceiro de {dupla.Jogador1.Nome} em {torneio!.Nome}."
+                + (juntou > 0 ? " Sua inscrição sozinha nesta categoria saiu — agora é uma só." : "");
 
             // Quem chega por aqui veio de um link — muitas vezes o link que o parceiro mandou
             // pelo WhatsApp — e acabou de entrar num torneio. Mesmo motivo da inscrição: o
@@ -925,11 +955,44 @@ namespace Padelizou.Controllers
         // Duplicar isso é como um dos caminhos passaria a cobrar diferente do outro sem
         // ninguém perceber. As regras de QUEM pode entrar continuam no
         // MotivoParaNaoSerParceiroAsync; aqui é só o efeito.
-        private async Task FecharDuplaComAsync(Dupla dupla, Torneio torneio, Jogador novoParceiro)
+        // Devolve QUANTAS inscrições sozinhas do parceiro foram absorvidas (na prática 0 ou 1),
+        // pra quem chamou poder dizer isso na mensagem de sucesso.
+        private async Task<int> FecharDuplaComAsync(Dupla dupla, Torneio torneio, Jogador novoParceiro)
         {
+            // ── A INSCRIÇÃO SOZINHA DO PARCEIRO SAI JUNTO ────────────────────────────────
+            //
+            // ⚠️ ISTO É O CASO COMUM DO MURAL, não a exceção: os dois lados estão na lista
+            // "procurando parceiro" da MESMA categoria, e é justamente por isso que um chamou
+            // o outro. Sem isto, fechar a dupla deixava a pessoa inscrita duas vezes na
+            // categoria — e o MotivoParaNaoSerParceiroAsync, que existe pra impedir isso,
+            // respondia com a pergunta de juntar ("marque juntar com a inscrição que já
+            // existe") numa tela que não tem essa caixa: beco sem saída, e o Gabriel não
+            // conseguia aceitar ninguém (relato de 19/08/2026).
+            //
+            // Aqui a resposta à pergunta é o próprio ato: quem chama e quem aceita estão
+            // dizendo "esta dupla substitui a inscrição sozinha". As telas avisam ANTES do
+            // clique (Views/Duplas/Chamados e Convite) — o que não pode é o servidor apagar
+            // algo que ninguém viu escrito em lugar nenhum.
+            var juntaveis = InscricaoRepetida.QuePodemSerJuntadas(
+                await InscricaoRepetida.ProcurarAsync(
+                    _context, dupla.CategoriaId, new[] { novoParceiro.Id }, ignorarDuplaId: dupla.Id));
+
+            var idsAbsorvidos = juntaveis.Select(j => j.DuplaId).Distinct().ToList();
+
+            var absorvidas = idsAbsorvidos.Count == 0
+                ? new List<Dupla>()
+                : await _context.Duplas
+                    .Include(d => d.Jogador1)
+                    .Where(d => idsAbsorvidos.Contains(d.Id))
+                    .ToListAsync();
+
             // ⚠️ Perguntado ANTES de gravar: depois, esta própria inscrição já coloca a pessoa
             // "no torneio", e ela ganharia o preço de segunda inscrição por causa de si mesma.
-            var repete = await QuemJaEstaNoTorneio.EstaAsync(_context, torneio.Id, novoParceiro.Id);
+            // E as inscrições ABSORVIDAS ficam de fora pelo mesmo motivo: elas somem neste
+            // mesmo SaveChanges — cobrar o preço de segunda por causa delas seria dar desconto
+            // por uma inscrição que deixou de existir.
+            var repete = await QuemJaEstaNoTorneio.EstaAsync(
+                _context, torneio.Id, novoParceiro.Id, idsAbsorvidos);
 
             dupla.Jogador2Id = novoParceiro.Id;
 
@@ -947,28 +1010,61 @@ namespace Padelizou.Controllers
             dupla.ConviteToken = null;
             dupla.ConviteCriadoEm = null;
 
+            // "A VAGA É A MESMA, NINGUÉM PERDE LUGAR" — a promessa que o texto de juntar faz
+            // (ver InscricaoRepetida.PerguntaParaJuntar) vale também pra FILA: se a inscrição
+            // que sai tinha vaga confirmada e a que fica está na lista de espera, quem
+            // sobrevive é a vaga confirmada. Sem isto, juntar apagaria uma vaga da categoria e
+            // ainda deixaria a dupla esperando na fila por ela.
+            if (dupla.EmListaDeEspera && absorvidas.Any(d => !d.EmListaDeEspera))
+                dupla.EmListaDeEspera = false;
+
             // A dupla fechou: os OUTROS chamados desta inscrição não têm mais o que responder.
             // Deixá-los de pé daria ao dono uma lista de gente pra "aceitar" numa vaga que não
             // existe mais — e o segundo aceite trocaria o parceiro sem ninguém ter pedido.
+            //
+            // ⚠️ Os chamados da inscrição ABSORVIDA entram na mesma conta: ela vai ser
+            // apagada, e quem chamou POR LÁ está esperando resposta do mesmo jeito. O banco
+            // apaga essas linhas em cascata (ver DbPadelContext), mas cascata não avisa
+            // ninguém — e é o aviso que importa aqui.
+            var idsDasInscricoes = idsAbsorvidos.Append(dupla.Id).ToList();
             var chamadosPendentes = await _context.ChamadosDoMural
-                .Where(c => c.DuplaId == dupla.Id)
+                .Where(c => idsDasInscricoes.Contains(c.DuplaId))
                 .ToListAsync();
 
             // ⚠️ QUEM FICOU DE FORA É AVISADO (Felipe, 17/08/2026). Sem isto a pessoa segue
             // esperando uma resposta que nunca vem, e não procura outro parceiro — o silêncio
             // custa a vaga dela. Os ids são lidos ANTES do RemoveRange: depois dele a lista
             // some, e não haveria mais a quem avisar.
+            //
+            // O nome que vai no aviso é o do DONO de cada inscrição: quem chamou o parceiro
+            // que estava sozinho precisa ler o nome DELE ("fulano fechou dupla com outra
+            // pessoa"), não o do dono desta aqui, de quem essa pessoa nunca ouviu falar.
             var ficaramDeFora = chamadosPendentes
-                .Select(c => c.CandidatoId)
-                .Where(id => id != novoParceiro.Id)
-                .ToList();
+                .Where(c => c.CandidatoId != novoParceiro.Id && c.CandidatoId != dupla.Jogador1Id)
+                .GroupBy(c => c.DuplaId)
+                .ToDictionary(g => g.Key, g => g.Select(c => c.CandidatoId).Distinct().ToList());
 
             if (chamadosPendentes.Count > 0) _context.ChamadosDoMural.RemoveRange(chamadosPendentes);
+
+            // As inscrições sozinhas absorvidas saem no MESMO SaveChanges que fecha a dupla:
+            // apagar antes deixaria a pessoa sem inscrição nenhuma se a gravação falhasse no
+            // meio — a mesma ordem que a inscrição nova (Create) já usa.
+            if (absorvidas.Count > 0) _context.Duplas.RemoveRange(absorvidas);
 
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, null, novoParceiro);
-            await AvisarQueAVagaFoiPreenchidaAsync(dupla, torneio, ficaramDeFora);
+
+            foreach (var (duplaId, candidatos) in ficaramDeFora)
+            {
+                var dono = duplaId == dupla.Id
+                    ? dupla.Jogador1?.ComoChamar
+                    : absorvidas.FirstOrDefault(d => d.Id == duplaId)?.Jogador1?.ComoChamar;
+
+                await AvisarQueAVagaFoiPreenchidaAsync(torneio, dono ?? "A pessoa", candidatos);
+            }
+
+            return absorvidas.Count;
         }
 
         // ── O chamado do mural ("quero jogar com você") ────────────────────────────────
@@ -1086,6 +1182,15 @@ namespace Padelizou.Controllers
 
             ViewBag.Dupla = dupla;
             ViewBag.Torneio = dupla.Categoria.Torneio;
+
+            // QUEM DESTES ESTÁ INSCRITO SOZINHO NESTA CATEGORIA. Aceitar junta as duas
+            // inscrições (a dele sai), e isso precisa estar dito ANTES do clique: apagar a
+            // inscrição de alguém é o tipo de efeito que ninguém descobre depois.
+            var comInscricaoSolo = InscricaoRepetida.QuePodemSerJuntadas(
+                await InscricaoRepetida.ProcurarAsync(
+                    _context, dupla.CategoriaId, chamados.Select(c => c.CandidatoId), ignorarDuplaId: dupla.Id));
+            ViewBag.CandidatosComInscricaoSolo = comInscricaoSolo.Select(a => a.JogadorId).ToHashSet();
+
             // Por que não dá pra aceitar (dupla já fechou, inscrição encerrada): a tela mostra
             // o motivo no lugar do botão, em vez de oferecer o que o servidor vai recusar.
             ViewBag.MotivoParaNaoAceitar = MuralDeParceiros.MotivoParaNaoAceitar(
@@ -1097,7 +1202,7 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AceitarChamado(int duplaId, int candidatoId, bool juntarComInscricaoSolo = false)
+        public async Task<IActionResult> AceitarChamado(int duplaId, int candidatoId)
         {
             var donoId = ObterJogadorIdLogado();
             if (donoId == null) return Forbid();
@@ -1140,16 +1245,24 @@ namespace Padelizou.Controllers
 
             // As MESMAS regras de quem pode entrar numa dupla que o convite por link usa
             // (categoria, sexo da Mista, anti-sandbagging, Ranking RS, inscrição repetida).
-            var impedimento = await MotivoParaNaoSerParceiroAsync(dupla!, torneio!, candidato, juntarComInscricaoSolo);
+            //
+            // `juntarComInscricaoSolo: true`: no mural, quem chamou ESTÁ, quase sempre, na
+            // mesma lista de "procurando parceiro" — o chamado dele é a oferta de juntar, e
+            // aceitar é a resposta. Sem isto a tela devolvia "marque juntar com a inscrição que
+            // já existe" e não tinha caixa nenhuma pra marcar: nada era aceitável ali.
+            // A tela mostra o efeito em cada candidato nessa situação (Views/Duplas/Chamados).
+            var impedimento = await MotivoParaNaoSerParceiroAsync(
+                dupla!, torneio!, candidato, juntarComInscricaoSolo: true);
             if (impedimento != null)
             {
                 TempData["Erro"] = impedimento;
                 return RedirectToAction(nameof(Chamados), new { duplaId });
             }
 
-            await FecharDuplaComAsync(dupla!, torneio!, candidato);
+            var juntou = await FecharDuplaComAsync(dupla!, torneio!, candidato);
 
-            TempData["Sucesso"] = $"Dupla fechada com {candidato.ComoChamar}!";
+            TempData["Sucesso"] = $"Dupla fechada com {candidato.ComoChamar}!"
+                + (juntou > 0 ? " A inscrição sozinha dele(a) saiu — agora é uma só." : "");
             return RedirectToAction("Details", "Torneios", new { id = torneio!.Id });
         }
 
@@ -1223,14 +1336,13 @@ namespace Padelizou.Controllers
         // Sem e-mail (AppSemEmail): é recado social, não pede resposta e é rajada em potencial
         // (uma inscrição concorrida avisa vários de uma vez). Mesma régua do resultado de
         // partida — ver AlcanceDoAviso.
-        private async Task AvisarQueAVagaFoiPreenchidaAsync(Dupla dupla, Torneio torneio, IReadOnlyList<int> candidatos)
+        private async Task AvisarQueAVagaFoiPreenchidaAsync(Torneio torneio, string dono, IReadOnlyList<int> candidatos)
         {
             if (candidatos.Count == 0) return;
 
             try
             {
                 var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
-                var dono = dupla.Jogador1?.ComoChamar ?? "A pessoa";
                 var corpo = MuralDeParceiros.CorpoDaVagaPreenchida(dono, torneio.Nome);
 
                 foreach (var candidatoId in candidatos)
@@ -1242,7 +1354,7 @@ namespace Padelizou.Controllers
             catch (Exception ex)
             {
                 // Aviso é acessório: a dupla já fechou e não pode ser desfeita por causa disso.
-                _logger.LogWarning(ex, "Falha ao avisar quem ficou de fora da dupla {DuplaId}.", dupla.Id);
+                _logger.LogWarning(ex, "Falha ao avisar quem ficou de fora no torneio {TorneioId}.", torneio.Id);
             }
         }
 
@@ -1345,17 +1457,25 @@ namespace Padelizou.Controllers
 
         // Checa se a categoria ou o torneio (somando todas as categorias) já bateram no
         // limite de duplas confirmadas (fora da lista de espera). Null = sem limite configurado.
-        private async Task<bool> CategoriaOuTorneioEstaCheioAsync(Categoria categoria, Torneio torneio)
+        // `ignorarDuplaIds` são as inscrições que saem no mesmo movimento (as sozinhas que a
+        // nova inscrição junta): a vaga delas é a mesma que a nova ocupa, e contá-las duas
+        // vezes mandaria pra fila quem não tirou vaga de ninguém.
+        private async Task<bool> CategoriaOuTorneioEstaCheioAsync(
+            Categoria categoria, Torneio torneio, IReadOnlyList<int>? ignorarDuplaIds = null)
         {
+            var ignoradas = ignorarDuplaIds?.ToList() ?? new List<int>();
+
             if (categoria.LimiteDuplas.HasValue)
             {
-                int naCategoria = await _context.Duplas.CountAsync(d => d.CategoriaId == categoria.Id && !d.EmListaDeEspera);
+                int naCategoria = await _context.Duplas.CountAsync(d => d.CategoriaId == categoria.Id
+                    && !d.EmListaDeEspera && !ignoradas.Contains(d.Id));
                 if (naCategoria >= categoria.LimiteDuplas.Value) return true;
             }
 
             if (torneio.LimiteDuplasTotal.HasValue)
             {
-                int noTorneio = await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == torneio.Id && !d.EmListaDeEspera);
+                int noTorneio = await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == torneio.Id
+                    && !d.EmListaDeEspera && !ignoradas.Contains(d.Id));
                 if (noTorneio >= torneio.LimiteDuplasTotal.Value) return true;
             }
 

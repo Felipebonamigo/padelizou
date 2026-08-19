@@ -1,7 +1,33 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/08/2026** — 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
+> Última atualização: **19/08/2026** — 🤝 **ACEITAR QUEM CHAMOU NO MURAL DEIXOU DE SER UM BECO SEM SAÍDA** — quem estava inscrito sozinho não conseguia fechar dupla com ninguém.
+>
+> 🗣️ **O relato do Gabriel**: ele tocava em **Aceitar** na tela "Quem quer jogar com você" e voltava sempre a mesma faixa vermelha — *"Everson Rocha dos Santos já está inscrito nesta categoria, sozinho, procurando parceiro. Quer juntar? ... Marque 'juntar com a inscrição que já existe' e confirme de novo."* ⚠️ **Essa caixa não existe nessa tela** (nem na do convite por link): ela mora no formulário de inscrição do torneio. A instrução era impossível de cumprir onde a pessoa estava.
+>
+> 🕳️ **E o caso que travava é o CASO COMUM DO MURAL, não a exceção**: os dois lados estão na MESMA lista de "procurando parceiro" da MESMA categoria — é exatamente por isso que um chamou o outro. Ou seja, no mural quase ninguém era aceitável; a porta parecia aberta e não abria pra praticamente nenhum chamado.
+>
+> ✅ **O ACEITE VIROU A RESPOSTA DA PERGUNTA.** Quem chama está oferecendo juntar; quem aceita está dizendo sim. Agora `FecharDuplaComAsync` — o lugar único por onde o convite por link e o chamado do mural fecham dupla — absorve a inscrição sozinha do parceiro no MESMO `SaveChanges` que fecha a dupla. As outras recusas continuam de pé: dupla já fechada na categoria, sexo da Mista/Casais, anti-sandbagging e Ranking RS.
+>
+> 👀 **O EFEITO É DITO ANTES DO CLIQUE, porque ele APAGA a inscrição de alguém.** A lista de chamados marca quem também está inscrito sozinho ("aceitar junta as duas inscrições numa só — a vaga é a mesma, ninguém perde lugar"), a confirmação repete isso, e a tela do convite avisa quem vai perder a própria inscrição solo. Servidor que apaga o que ninguém viu escrito é o que a gente não quis.
+>
+> 💰 **JUNTAR NÃO É "SEGUNDA INSCRIÇÃO" — e isso valia dinheiro.** `QuemJaEstaNoTorneio` passou a aceitar as inscrições que estão SAINDO no mesmo movimento: sem isso, quem juntava ganhava o preço de segunda categoria por causa de uma linha que deixava de existir, e a dupla entrava nos somatórios valendo menos do que custa. Vale nos TRÊS caminhos que juntam (inscrição nova, trocar parceiro e agora o aceite).
+>
+> 🎟️ **"A VAGA É A MESMA, NINGUÉM PERDE LUGAR" agora vale também pra FILA.** Se a inscrição que sai tinha vaga confirmada e a que fica está na lista de espera, quem sobrevive é a vaga confirmada — antes, juntar apagava uma vaga da categoria e ainda deixava a dupla esperando na fila por ela. Na inscrição nova, as sozinhas que vão sair deixaram de contar no limite de vagas.
+>
+> 🔔 **QUEM CHAMOU A INSCRIÇÃO QUE SAIU TAMBÉM É AVISADO** — com o nome do dono DELA ("fulano fechou dupla com outra pessoa"), não o do dono da que ficou, de quem essa pessoa nunca ouviu falar. A linha do chamado morria em cascata no banco, e cascata não avisa ninguém: o silêncio é o que faz a pessoa esperar resposta e não procurar outro parceiro.
+>
+> 🛡️ **LINHA DE TIME NÃO É MAIS "INSCRIÇÃO SOZINHA".** Time é `Dupla` com `NomeTime` e o ORGANIZADOR em `Jogador1Id` — de fora, idêntica a "inscrito sozinho". `InscricaoRepetida` passou a ignorá-la: sem isso, juntar podia APAGAR UM TIME, e o organizador aparecia como já inscrito na categoria.
+>
+> 🩹 **E a tela mentia sobre o próprio botão**: dizia *"recusar é silencioso: quem chamou não recebe aviso nenhum"* — o servidor manda "Não deu dessa vez" desde 17/08/2026. Quem recusava achava que ninguém ficaria sabendo.
+>
+> 🧪 **4.379 testes, 0 falhas (11 novos).** Cobrem o aceite que junta (mural e convite), a tela marcando quem tem inscrição solo, a recusa que continua valendo pra dupla já fechada, o preço que NÃO leva desconto de segunda inscrição, a saída da lista de espera e os dois avisos com o nome certo.
+>
+> ⚠️ **A inscrição que sai leva junto o que estava gravado nela — inclusive `Pago`.** É o mesmo comportamento que juntar já tinha na inscrição nova e no trocar parceiro (nada aqui piorou), mas se a sozinha do parceiro estava paga, esse pagamento some do relatório e o acerto fica com o organizador. Se isso incomodar em torneio pago, é o próximo passo a discutir.
+>
+> ⏭️ **NÃO conferido no navegador** (exige login e banco): o que garante é a suíte.
+>
+> Antes: 📊 **MÉTRICAS GANHA "ACESSOS HOJE" E "PICO DE ACESSOS NO MINUTO"** — e o sistema passou a ter, pela primeira vez, algum rastro de tráfego.
 >
 > 📊 **O PEDIDO DO FELIPE**: duas colunas novas na tela de Métricas, "acessos hoje" e "máximo de acessos simultâneos". ⚠️ **Não era só tela**: até aqui o Padelizou não guardava rastro NENHUM de visita — nem um "último acesso" no `Jogador`, nem log de requisição. As duas perguntas exigiram construir o alicerce primeiro.
 >

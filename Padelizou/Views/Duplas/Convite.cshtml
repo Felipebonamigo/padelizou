@@ -4,6 +4,9 @@
     var torneio = Model.Categoria.Torneio;
     bool souEuMesmo = ViewBag.SouEuMesmo != null && (bool)ViewBag.SouEuMesmo;
     string? impedimento = ViewBag.Impedimento as string;
+    // Você já está inscrito SOZINHO nesta categoria: aceitar junta as duas inscrições — a
+    // sua sai e esta dupla fica valendo. Dito antes do clique, porque apaga uma inscrição.
+    bool juntaMinhaSolo = ViewBag.JuntaMinhaInscricaoSolo != null && (bool)ViewBag.JuntaMinhaInscricaoSolo;
     var token = (string?)ViewBag.Token;
 }
 
@@ -54,6 +57,21 @@
             }
             else
             {
+                @* ⚠️ "Você já está inscrito sozinho aqui" NÃO É IMPEDIMENTO: é justamente a
+                   inscrição que este convite vem substituir. Até 19/08/2026 ela caía no aviso
+                   amarelo acima, com a instrução de marcar "juntar com a inscrição que já
+                   existe" — uma caixa que só existe na tela de inscrição do torneio. Quem
+                   estava procurando parceiro (a pessoa mais provável de receber um convite)
+                   lia uma ordem impossível de cumprir e ficava sem dupla. *@
+                @if (juntaMinhaSolo)
+                {
+                    <div class="alert alert-info text-start">
+                        Você já está inscrito(a) <strong>sozinho(a)</strong> nesta categoria.
+                        Aceitando, as duas inscrições viram uma só: a sua sai e esta dupla fica
+                        valendo — a vaga é a mesma, ninguém perde lugar.
+                    </div>
+                }
+
                 <form asp-action="AceitarConvite" method="post">
                     <input type="hidden" name="token" value="@token" />
                     <button type="submit" class="btn btn-padel btn-lg rounded-pill px-4 w-100">
