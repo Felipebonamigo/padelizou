@@ -483,6 +483,9 @@ namespace Padelizou.Controllers
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
+            // Mesma porta do Details: torneio oculto não mostra classificação pra estranho.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
 
             var todas = await MontarClassificacaoAmericanaAsync(id);
             var daCategoria = todas.FirstOrDefault(c => c.CategoriaId == categoriaId);
@@ -497,6 +500,9 @@ namespace Padelizou.Controllers
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
+            // Mesma porta do Details: torneio oculto não mostra classificação pra estranho.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
 
             // 1. Busca as duplas desta categoria que já têm um Grupo definido
             var duplas = await _context.Duplas

@@ -100,6 +100,10 @@ public static class DuplicacaoDeTorneio
         // Carimbos de coisas que JÁ aconteceram — viajar reenviaria (ou calaria) avisos.
         nameof(Torneio.PerguntaDeNaoPagosEm),
         nameof(Torneio.AvisoDeMvpEnviadoEm),
+        // ⚠️ Este é do tipo que CALA: herdado, a nova edição já nasceria "avisada" e o
+        // "Novo torneio aberto" dela nunca sairia — o circuito que roda todo mês seria
+        // anunciado uma vez só, na primeira edição, e ninguém descobriria por quê.
+        nameof(Torneio.AvisoDeTorneioNovoEm),
         nameof(Torneio.RankingAmericanoPagoEm),
         nameof(Torneio.TaxaExternoPagaEm),
         nameof(Torneio.TaxaExternoNegociadaEm),

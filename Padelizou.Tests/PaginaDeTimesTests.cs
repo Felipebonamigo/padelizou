@@ -18,10 +18,13 @@ public class PaginaDeTimesTests
 {
     // ── Elenco por categoria ──────────────────────────────────────────────────────────
 
-    private sealed record Membro(string Nome, params string[] Categorias);
+    private sealed record Membro(string Nome, params string[] Categorias)
+    {
+        public string? Sexo { get; init; }
+    }
 
     private static List<ElencoPorCategoria.Grupo<Membro>> Agrupar(params Membro[] membros) =>
-        ElencoPorCategoria.Agrupar(membros, m => m.Categorias);
+        ElencoPorCategoria.Agrupar(membros, m => m.Categorias, m => m.Sexo);
 
     [Fact]
     public void Elenco_reparte_o_time_pelas_categorias_na_ordem_das_outras_telas()
@@ -39,14 +42,46 @@ public class PaginaDeTimesTests
     }
 
     [Fact]
-    public void Quem_aceita_duas_categorias_aparece_nas_duas()
+    public void Quem_aceita_duas_categorias_aparece_so_na_mais_forte()
     {
-        // É o ponto da tela: quem procura parceiro na 5ª precisa ver quem joga a 5ª, mesmo que
-        // a pessoa também jogue a 4ª. Mostrá-la só na mais forte a esconderia de metade do time.
-        var grupos = Agrupar(new Membro("Diego", "4ª Categoria Masculina", "5ª Categoria Masculina"));
+        // Antes aparecia nas duas, e quem marcava cinco enchia a lista com o próprio nome
+        // (Felipe, 18/08/2026, olhando o ER Padel). A 5ª não some da vista de quem procura
+        // parceiro: vira etiqueta na linha do Diego, na tela.
+        var grupos = Agrupar(new Membro("Diego", "5ª Categoria Masculina", "4ª Categoria Masculina"));
 
-        Assert.Equal(2, grupos.Count);
-        Assert.All(grupos, g => Assert.Single(g.Membros));
+        Assert.Equal("4ª Masculina", Assert.Single(grupos).Curto);
+    }
+
+    [Fact]
+    public void Mulher_com_categoria_masculina_marcada_aparece_na_escada_dela()
+    {
+        // Caso REAL (Camila, id 276 em prod): 5ª e 6ª Masculina marcadas junto com 2ª, 3ª e 4ª
+        // Feminina. Sem olhar o sexo, "a mais forte" é sempre a masculina — porque a escada
+        // masculina vem primeiro na ordem de tela — e ela apareceria sozinha na 5ª Masculina.
+        var grupos = Agrupar(new Membro("Camila",
+            "5ª Categoria Masculina", "6ª Categoria Masculina",
+            "2ª Categoria Feminina", "3ª Categoria Feminina", "4ª Categoria Feminina")
+        { Sexo = SexoDoJogador.Feminino });
+
+        Assert.Equal("2ª Feminina", Assert.Single(grupos).Curto);
+    }
+
+    [Fact]
+    public void Sem_o_sexo_informado_a_mista_nao_rouba_o_lugar_da_categoria_de_verdade()
+    {
+        // A guarda do `SexoDoJogador.Existe`: Mista e Casais não são de sexo nenhum, então sem
+        // ela o `null` de quem não informou casaria com o `null` delas e ganharia a escolha.
+        var grupos = Agrupar(new Membro("Anônimo", "Categoria Mista A", "3ª Categoria Masculina"));
+
+        Assert.Equal("3ª Masculina", Assert.Single(grupos).Curto);
+    }
+
+    [Fact]
+    public void Quem_so_joga_mista_aparece_na_mista()
+    {
+        var grupos = Agrupar(new Membro("Ana", "Categoria Mista B") { Sexo = SexoDoJogador.Feminino });
+
+        Assert.Equal("Mista B", Assert.Single(grupos).Curto);
     }
 
     [Fact]

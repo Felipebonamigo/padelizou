@@ -116,6 +116,20 @@ public static class FaixasDePadelimetro
         return DaCategoria(nomeCategoria)?.Entrada ?? EntradaNeutra;
     }
 
+    // A folga da HISTERESE de descida (RANKING.md, "Subir e descer de faixa"): só se
+    // volta pra faixa de baixo 50 pontos ABAIXO do piso. É a mesma linha que limita o
+    // ajuste de campanha (CampanhaNoPadelimetro) — a campanha te leva ATÉ a porta, nunca
+    // através dela — e é de onde a trava da fase 3 vai ler a mesma folga.
+    public const int FolgaDeDescida = 50;
+
+    // As duas portas de uma faixa: descer é chegar 50 abaixo do piso; subir é cruzar o
+    // teto. Presas às pontas da régua pra faixa de borda não prometer porta que não existe.
+    public static int LinhaDeDescida(Faixa faixa) =>
+        Math.Max(faixa.Piso - FolgaDeDescida, Padelimetro.Minimo);
+
+    public static int LinhaDeSubida(Faixa faixa) =>
+        Math.Min(faixa.Teto + 1, Padelimetro.Maximo);
+
     // Em que faixa da régua um nível cai (pra pílula "620 · faixa da 4ª").
     public static Faixa DoNivel(int nivel, bool feminina)
     {

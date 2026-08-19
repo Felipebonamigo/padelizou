@@ -41,7 +41,10 @@ public partial class DbPadelContext : DbContext
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
+    public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
+    public DbSet<CadastroDoAluno> CadastrosDeAlunos { get; set; }
+    public DbSet<FaturaDoAluno> FaturasDeAlunos { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -138,6 +141,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<VotoDeMvp> VotosDeMvp { get; set; }
     public DbSet<AvaliacaoDoTorneio> AvaliacoesDeTorneio { get; set; }
     public DbSet<ChamadoDoMural> ChamadosDoMural { get; set; }
+    public DbSet<AcessoAoSite> AcessosAoSite { get; set; }
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -575,6 +579,13 @@ public partial class DbPadelContext : DbContext
             // C# antes de qualquer gravação. O banco segura a segunda.
             entity.HasIndex(a => new { a.TorneioId, a.JogadorId }).IsUnique();
 
+            // O mesmo número da régua de tela e da checagem do serviço
+            // (EnqueteDoTorneio.TamanhoMaximoDoComentario). O Postgres não trunca `varchar` —
+            // ele RECUSA —, então o texto colado de um WhatsApp comprido derrubaria o POST em
+            // 500 se só a tela segurasse (a lição do LimitesDeTexto).
+            entity.Property(a => a.ComentarioClube).HasMaxLength(600);
+            entity.Property(a => a.ComentarioOrganizacao).HasMaxLength(600);
+
             entity.HasOne(a => a.Torneio)
                 .WithMany()
                 .HasForeignKey(a => a.TorneioId)
@@ -587,6 +598,17 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(a => a.JogadorId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        modelBuilder.Entity<FeedbackSite>(entity =>
+        {
+            // A origem é opcional e o vínculo é FRACO de propósito: apagar um torneio não pode
+            // levar junto o que a pessoa achou do Padelizou — o texto continua valendo, só
+            // deixa de ter de onde veio. Por isso SetNull, e não Cascade.
+            entity.HasOne(f => f.Torneio)
+                .WithMany()
+                .HasForeignKey(f => f.TorneioId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<ConfiguracaoDoSistema>(entity =>
         {
             // A chave É a identidade da linha: duas linhas pra mesma chave fariam a leitura
@@ -608,6 +630,16 @@ public partial class DbPadelContext : DbContext
             // O extrato de um jogador se consulta inteiro e em ordem — é o gráfico do perfil.
             entity.HasIndex(h => new { h.JogadorId, h.CriadoEm });
 
+            // UMA linha de campanha por (categoria, jogador) — garantido pelo BANCO.
+            // O guard do AplicarCampanhaAsync é check-then-act: duas finalizações
+            // simultâneas da mesma final (clique + fila offline em paralelo) leem "sem
+            // linhas" as duas e aplicariam em dobro. Com o índice, a segunda estoura no
+            // SaveChanges e cai no try/catch do gancho — e o replay segue funcionando,
+            // porque ele também só cria uma linha por jogador por categoria.
+            entity.HasIndex(h => new { h.CategoriaId, h.JogadorId })
+                .IsUnique()
+                .HasFilter("\"CategoriaId\" IS NOT NULL");
+
             // Jogador Restrict (a linha de Jogador nunca é apagada de verdade — LGPD raspa
             // os dados e mantém a linha); a partida Cascade: sumiu o jogo, sai a linha do
             // extrato, e o replay reacerta o total.
@@ -620,6 +652,16 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(h => h.PartidaId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // A linha de CAMPANHA aponta pra categoria. ClientCascade, e não Cascade: a
+            // categoria já cascateia pra Partida, que cascateia pra cá — um segundo caminho
+            // de cascade no banco é o que motores como o SQL Server recusam. No cliente dá no mesmo (a
+            // categoria só é removível sem inscritos, logo sem campanha), e o replay
+            // reacerta qualquer sobra.
+            entity.HasOne(h => h.Categoria)
+                .WithMany()
+                .HasForeignKey(h => h.CategoriaId)
+                .OnDelete(DeleteBehavior.ClientCascade);
         });
         modelBuilder.Entity<AnotacaoAula>(entity =>
         {
@@ -1101,13 +1143,20 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(a => a.AlunoId)
                 .IsRequired(false)
                 .HasConstraintName("FK__Aula__AlunoId__114A936A");
+
+            // A aula que esta repõe (ver Services/Reposicao). Restrict de propósito: apagar a
+            // aula original com uma reposição já marcada deixaria na agenda uma aula de R$ 0
+            // sem explicação nenhuma. O banco recusa, e o professor apaga a reposição antes.
+            entity.HasOne(a => a.RecuperaAula)
+                .WithMany()
+                .HasForeignKey(a => a.RecuperaAulaId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<LocalAula>(entity =>
         {
             entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoDupla).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoTrio).HasPrecision(18, 2);
             entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
 
             entity.HasOne(l => l.Professor)
@@ -1141,6 +1190,70 @@ public partial class DbPadelContext : DbContext
             entity.HasIndex(e => e.ProfessorId);
         });
 
+        modelBuilder.Entity<CadastroDoAluno>(entity =>
+        {
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.Celular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelNome).HasMaxLength(120);
+            entity.Property(e => e.ResponsavelCelular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelCpf).HasMaxLength(11);
+            entity.Property(e => e.Observacao).HasMaxLength(500);
+
+            // Mesma régua de PrecoDeAluno, e pelos mesmos motivos: a ficha é do PROFESSOR e
+            // não sobrevive à conta dele; o aluno é Restrict porque são dois caminhos até
+            // Jogador, e apagar a conta do aluno não deve levar junto o que o professor
+            // anotou (inclusive quem paga por ele).
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor lê as fichas dele inteiras toda vez que abre o painel ou marca aula.
+            entity.HasIndex(e => e.ProfessorId);
+
+            // Achar a pessoa pelo número que o professor tem na mão — é o cadastro rápido.
+            entity.HasIndex(e => e.Celular);
+        });
+
+        modelBuilder.Entity<FaturaDoAluno>(entity =>
+        {
+            entity.Property(e => e.Valor).HasPrecision(18, 2);
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.PagadorNome).HasMaxLength(120);
+            entity.Property(e => e.PagadorCelular).HasMaxLength(20);
+            entity.Property(e => e.PagadorCpf).HasMaxLength(11);
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // A cobrança no gateway, quando existe. Restrict: apagar um pagamento não pode
+            // deixar a conta do mês dizendo que foi cobrada por algo que não existe mais.
+            entity.HasOne(e => e.Pagamento)
+                .WithMany()
+                .HasForeignKey(e => e.PagamentoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor abre a tela do mês inteira de uma vez, e a competência é sempre
+            // parte da pergunta ("o que eu fechei em abril?").
+            entity.HasIndex(e => new { e.ProfessorId, e.Ano, e.Mes });
+        });
+
         modelBuilder.Entity<PacoteDeAulas>(entity =>
         {
             entity.Property(e => e.Preco).HasPrecision(18, 2);
@@ -1151,6 +1264,24 @@ public partial class DbPadelContext : DbContext
                 .WithMany(l => l.Pacotes)
                 .HasForeignKey(p => p.LocalAulaId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrecoDeTurma>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+
+            // Cascade pelo mesmo motivo do pacote: o preço não existe sem o local. Apagado o
+            // local, a tabela some junto — as aulas que ela precificou ficam, com o valor que
+            // já tinham gravado em Aula.Preco.
+            entity.HasOne(p => p.LocalAula)
+                .WithMany(l => l.PrecosDeTurma)
+                .HasForeignKey(p => p.LocalAulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Um preço por tamanho, por local. Sem isto, salvar a tela duas vezes deixaria
+            // duas linhas dizendo quanto custa o trio — e a leitura escolheria uma delas sem
+            // critério nenhum (ver PrecoDaAula.PorTamanho).
+            entity.HasIndex(e => new { e.LocalAulaId, e.QuantidadeAlunos }).IsUnique();
         });
 
         modelBuilder.Entity<HorarioDisponivel>(entity =>
@@ -1475,6 +1606,14 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.JogadorId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Toda leitura das Métricas filtra por "Quando >= hoje" — sem índice, a tabela cresce
+        // (é registro de tráfego, sem limpeza) e cada visita à tela de Métricas passa a varrer
+        // linha por linha pra achar o corte do dia.
+        modelBuilder.Entity<AcessoAoSite>(entity =>
+        {
+            entity.HasIndex(e => e.Quando);
         });
 
         OnModelCreatingPartial(modelBuilder);

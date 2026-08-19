@@ -20,13 +20,27 @@ namespace padelizou.Controllers
         private readonly ILogger<AulasController> _logger;
 
         private const int DuracaoPadraoMinutos = 60;
-        private const int DiasDeJanelaBusca = 14;
+
+        // Quanto tempo pra frente a busca de aula enxerga. Eram 14 dias, e isso prendia o aluno
+        // ao mês corrente: quem quer marcar "dia 5 do mês que vem" não achava a data porque ela
+        // não existia na resposta — não era limite de tela, era de dados.
+        //
+        // 60 dias cobrem o mês seguinte inteiro a partir de QUALQUER dia do mês (mesmo no dia
+        // 31 ainda sobram 30). A grade do professor é semanal e se repete, então esticar não
+        // inventa horário nenhum: o custo é só tamanho de resposta — uma cidade com 68 horários
+        // em 14 dias fica na casa dos 300, que é JSON de dezenas de KB.
+        private const int DiasDeJanelaBusca = 60;
+
+        // A cobrança da conta do mês pelo app — a mesma peça que já cobra torneio, aula avulsa
+        // e mensalidade, pra taxa e split saírem de um lugar só.
+        private readonly IPagamentoInscricaoService _pagamentos;
 
         public AulasController(
             DbPadelContext context,
             IEmailService emailService,
             IGoogleCalendarService googleCalendarService,
             IPushNotificationService pushService,
+            IPagamentoInscricaoService pagamentos,
             Microsoft.Extensions.Options.IOptions<PlanoProfessorSettings> plano,
             ILogger<AulasController> logger)
         {
@@ -34,6 +48,7 @@ namespace padelizou.Controllers
             _emailService = emailService;
             _googleCalendarService = googleCalendarService;
             _pushService = pushService;
+            _pagamentos = pagamentos;
             _plano = plano.Value;
             _logger = logger;
         }
@@ -73,11 +88,43 @@ namespace padelizou.Controllers
                 .ToListAsync();
             var precoPorChave = precosCombinados.ToLookup(p => PrecoDaAula.Chave(p));
 
+            // O cadastro de cada aluno (celular guardado e quem paga), pela MESMA chave.
+            var cadastros = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+            var cadastroPorChave = CadastrosDeAlunos.PorChave(cadastros);
+
+            // Contas do Padelizou que atendem pelos celulares cadastrados. Uma consulta só, com
+            // os números que interessam — não a base inteira, e não uma ida ao banco por aluno.
+            var celulares = cadastros
+                .Select(f => f.Celular)
+                .Where(c => CadastrosDeAlunos.CelularServeParaAchar(c))
+                .Distinct()
+                .ToList();
+
+            var contasPorCelular = celulares.Count == 0
+                ? new Dictionary<string, (int Id, string Nome)>()
+                : (await _context.Jogadores
+                        .Where(j => j.Celular != null && celulares.Contains(j.Celular) && j.ExcluidoEm == null)
+                        .Select(j => new { j.Id, j.Nome, j.Celular })
+                        .ToListAsync())
+                    .GroupBy(j => j.Celular!)
+                    .ToDictionary(g => g.Key, g => (g.First().Id, g.First().Nome));
+
             var alunos = todasAulas
                 .GroupBy(a => PrecoDaAula.Chave(a))
                 .Select(g =>
                 {
                     var combinado = precoPorChave[g.Key].FirstOrDefault();
+                    cadastroPorChave.TryGetValue(g.Key, out var cadastro);
+
+                    // Só faz sentido sugerir conta pra quem ainda NÃO tem uma: com o vínculo
+                    // já feito, o convite viraria ruído permanente na linha do aluno.
+                    var sugestao = g.First().AlunoId == null && cadastro?.Celular != null
+                                   && contasPorCelular.TryGetValue(cadastro.Celular, out var achada)
+                        ? achada
+                        : ((int Id, string Nome)?)null;
+
                     return new AlunoResumo
                     {
                         Nome = g.First().Aluno?.ComoChamar ?? g.First().NomeAlunoAvulso ?? "Aluno avulso",
@@ -92,6 +139,13 @@ namespace padelizou.Controllers
                         NomeAvulso = g.First().NomeAlunoAvulso,
                         PrecoCombinado = combinado?.Preco,
                         PrecoCombinadoId = combinado?.Id,
+                        CelularCadastrado = cadastro?.Celular,
+                        ResponsavelNome = cadastro?.ResponsavelNome,
+                        ResponsavelCelular = cadastro?.ResponsavelCelular,
+                        ResponsavelCpf = cadastro?.ResponsavelCpf,
+                        Observacao = cadastro?.Observacao,
+                        ContaSugeridaId = sugestao?.Id,
+                        ContaSugeridaNome = sugestao?.Nome,
                     };
                 })
                 .OrderByDescending(a => a.UltimaAula)

@@ -56,6 +56,15 @@ public class AdminHostMiddleware
     // A volta: de dentro do painel, o caminho relativo cairia no 404 do próprio host.
     public static string LinkDoSitePublico => $"https://{SitePublicoHost}";
 
+    // A mesma volta, mas pros links que o painel monta com tag helper (asp-controller/
+    // asp-action): o perfil de um jogador, a página de um torneio. Sem sair do host, esses
+    // links caem no 404 do InvokeAsync aqui embaixo — clicar no nome não abria nada. Devolve
+    // o par pros atributos asp-host/asp-protocol; fora do host só-painel vem nulo, e aí o
+    // tag helper monta o link relativo de sempre (importante no localhost e no dev, onde
+    // apontar pra produção seria pior que o 404).
+    public static (string? Host, string? Protocolo) SaidaPraSitePublico(HttpContext context, bool ehDesenvolvimento)
+        => ServeSoOPainel(context, ehDesenvolvimento) ? (SitePublicoHost, "https") : (null, null);
+
     public async Task InvokeAsync(HttpContext context)
     {
         if (_env.IsDevelopment())

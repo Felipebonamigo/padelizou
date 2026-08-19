@@ -385,25 +385,39 @@
                                     </optgroup>
                                 }
                             }
+                            @* Cadastrar um local novo é uma OPÇÃO DA LISTA, não um campo solto
+                               embaixo dela (Felipe, 18/08/2026): o "Não achou?" ficava sempre
+                               à mostra e parecia um segundo campo a preencher. Quem escolhe
+                               aqui é que vê os campos de nome e cidade.
+
+                               O valor é -1, e não um texto tipo "novo", porque `ClubeId` é int:
+                               texto ali quebra o binding e o formulário volta com erro. -1 cai
+                               no `ClubeId <= 0` que o controller já recusa quando ninguém
+                               escreveu o nome. *@
+                            @if (temClube)
+                            {
+                                <option value="-1">-- Meu clube não está na lista --</option>
+                            }
                         </select>
-                        <input type="text" name="novoClubeNome" id="pdzNovoClube" class="form-control form-control-sm mt-2"
-                               maxlength="80" placeholder="Não achou? Escreva o nome do local" />
-                        @* A cidade do local, perguntada junto com o nome (11/08/2026). É por
-                           ela que o "Novo torneio aberto" sabe pra quem mirar — sem cidade o
-                           aviso cai no plano B (o estado de quem organiza). Opcional de
-                           propósito: campo obrigatório aqui trava a criação do torneio. *@
-                        <div class="d-flex gap-2 mt-2">
-                            <input type="text" name="novoClubeCidade" class="form-control form-control-sm"
-                                   maxlength="80" placeholder="Cidade do local" />
-                            <input type="text" name="novoClubeEstado" class="form-control form-control-sm text-uppercase"
-                                   maxlength="2" placeholder="UF" style="max-width: 80px;" />
+                        @* Sem nenhum clube cadastrado o bloco nasce aberto: não existe opção
+                           pra escolher, e um seletor vazio sozinho travaria a criação. *@
+                        <div id="pdzBlocoClubeNovo" class="@(temClube ? "d-none" : "")">
+                            <input type="text" name="novoClubeNome" id="pdzNovoClube" class="form-control form-control-sm mt-2"
+                                   maxlength="80" placeholder="Escreva o nome do local" />
+                            @* A cidade do local, perguntada junto com o nome (11/08/2026). É por
+                               ela que o "Novo torneio aberto" sabe pra quem mirar — sem cidade o
+                               aviso cai no plano B (o estado de quem organiza). Opcional de
+                               propósito: campo obrigatório aqui trava a criação do torneio. *@
+                            <div class="d-flex gap-2 mt-2">
+                                <input type="text" name="novoClubeCidade" class="form-control form-control-sm"
+                                       maxlength="80" placeholder="Cidade do local" />
+                                <input type="text" name="novoClubeEstado" class="form-control form-control-sm text-uppercase"
+                                       maxlength="2" placeholder="UF" style="max-width: 80px;" />
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                A cidade ajuda a avisar do torneio quem joga na região.
+                            </small>
                         </div>
-                        <small id="pdzAvisoClubeEscrito" class="text-muted d-none mt-1">
-                            <i class="bi bi-arrow-up"></i> Vale o nome que você escreveu — o seletor fica de fora.
-                        </small>
-                        <small class="text-muted d-block mt-1">
-                            A cidade ajuda a avisar do torneio quem joga na região.
-                        </small>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Data de Início</label>
@@ -436,6 +450,13 @@
                                        value="false" id="pdzComHorario" />
                                 <label class="form-check-label" for="pdzComHorario">
                                     <strong>Sim</strong> — quero uma grade com dia e hora de cada jogo.
+                                    @* O medo de quem hesita aqui é ficar preso na grade que o
+                                       sistema montar. Dizer que dá pra mexer, antes de escolher,
+                                       é o que faz a pessoa marcar "sim". (Felipe, 18/08/2026) *@
+                                    <span class="text-muted d-block small">
+                                        Você ainda consegue trocar a quadra e o horário se quiser,
+                                        mas ele tem uma ordem pré-definida.
+                                    </span>
                                 </label>
                             </div>
                         </div>
@@ -920,7 +941,16 @@
                             <label class="form-check-label fw-bold text-muted" for="impSwitch">Permitir Impedimentos de Horário?</label>
                         </div>
                         <div id="turnosImpedimento" class="ps-4" style="display: none;">
-                            <p class="small text-muted mb-2">Quais turnos as duplas podem marcar como impedimento?</p>
+                            @* ⚠️ O organizador escolhe QUAIS turnos ficam disponíveis; a dupla
+                               escolhe UM deles. Sem dizer isso aqui, liberar os três lê como
+                               "a dupla pode ficar fora dos três" — e é o contrário. A trava do
+                               "só um" mora em Services/ImpedimentoUnico, no servidor. *@
+                            <p class="small text-muted mb-1">Quais turnos as duplas podem marcar como impedimento?</p>
+                            <p class="small text-info mb-2">
+                                <i class="bi bi-info-circle"></i>
+                                Estes são os turnos que ficam <strong>disponíveis</strong> — cada dupla escolhe
+                                <strong>apenas um deles</strong>.
+                            </p>
                             @* A quinta só vale pra torneio que COMEÇA na quinta — a linha
                                aparece e some conforme a data escolhida (ver o script no fim
                                da página). Num fim de semana comum, oferecer o turno seria
@@ -957,9 +987,16 @@
                                     <input type="number" name="TaxaPorImpedimento" id="taxaImpedimento"
                                            step="0.01" min="0" class="form-control pdz-dinheiro" placeholder="0,00" />
                                 </div>
+                                @* ⚠️ "Por dupla" não é promessa nova — é o que o código já faz.
+                                   Em Services/PrecoDaInscricao.Total a taxa entra FORA do laço
+                                   que soma pessoa por pessoa, porque o impedimento é da
+                                   INSCRIÇÃO: o que se perde é uma janela da grade, não um
+                                   atleta. Faltava a tela dizer, e sem dizer o organizador
+                                   supõe que multiplica por 2. *@
                                 <small class="text-muted d-block mt-1">
-                                    Cobrado <strong>por impedimento marcado</strong>, somado à inscrição.
-                                    Deixe zerado pra não cobrar nada.
+                                    Cobrado <strong>uma vez por dupla</strong> (não por jogador), somado à
+                                    inscrição. Como cada dupla marca no máximo um impedimento, este é o
+                                    valor máximo que se soma. Deixe zerado pra não cobrar nada.
                                 </small>
                             </div>
                         </div>
@@ -994,14 +1031,25 @@
                             </small>
                         </div>
 
-                        <div id="opcaoOculto" class="ps-4 mt-2" style="display: none;">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" asp-for="Oculto" id="ocultoCheck">
-                                <label class="form-check-label" for="ocultoCheck">
-                                    <i class="bi bi-eye-slash"></i> Ocultar este torneio da listagem pública (só quem tiver o link direto consegue ver)
-                                </label>
-                            </div>
+                        @* ── CRIAR JÁ ESCONDIDO ────────────────────────────────────────────
+                           Saiu de dentro do "torneio restrito" em 18/08/2026 (era o `id
+                           ="opcaoOculto"`, revelado pelo JS junto com o campo da chave). Estar
+                           lá dentro fazia esconder depender de trancar a inscrição — e quem
+                           precisa esconder é justamente o torneio ABERTO que ainda vai ser
+                           divulgado: monta-se hoje, anuncia-se no dia certo. São coisas
+                           diferentes e agora vivem separadas. *@
+                        <div class="form-check form-switch mt-3 border-top pt-3">
+                            <input class="form-check-input" type="checkbox" asp-for="Oculto" id="ocultoCheck"
+                                   style="transform: scale(1.3); margin-right: 10px;">
+                            <label class="form-check-label fw-bold text-muted" for="ocultoCheck">
+                                <i class="bi bi-eye-slash"></i> Criar oculto (ninguém vê até você publicar)
+                            </label>
                         </div>
+                        <small class="text-muted d-block ps-4">
+                            Pra montar o torneio com calma antes de divulgar: ele não aparece na lista, na
+                            página inicial nem no Google, e quem receber o link não consegue abrir. Só você e
+                            os outros organizadores veem. Publicar depois é um botão na página do torneio.
+                        </small>
                     </div>
                 </div>
 
@@ -1449,12 +1497,13 @@
         });
     })();
 
+    // O nome ficou de quando esta função também revelava a caixa "ocultar" — ela não mexe
+    // mais nisso (esconder o torneio deixou de depender do restrito em 18/08/2026). Hoje
+    // cuida só do campo da chave de acesso.
     function toggleOculto() {
         var restrito = document.getElementById('restritoSwitch').checked;
-        document.getElementById('opcaoOculto').style.display = restrito ? 'block' : 'none';
         document.getElementById('campoChaveAcesso').style.display = restrito ? 'block' : 'none';
         if (!restrito) {
-            document.getElementById('ocultoCheck').checked = false;
             // Some da tela E deixa de ir no POST: chave digitada e depois escondida viraria
             // chave de um torneio que não é mais restrito.
             document.getElementById('chaveAcessoEscolhida').value = '';
@@ -1612,29 +1661,42 @@
         montarPreferenciaDeQuadra();
     });
 
-    // Clube: quem escreve o nome manda. Não é escolha da tela, é o que o servidor já faz —
-    // vindo nome escrito, AcharOuCriarClubeAsync sobrepõe o ClubeId que o seletor mandou. Com
-    // os dois preenchidos, a tela mostrava um clube e o torneio nascia em outro.
+    // Clube: cadastrar um local novo é a opção "-1" da lista. Enquanto ela não for escolhida,
+    // os campos de nome/cidade nem aparecem.
     //
-    // O seletor é DESATIVADO, e não zerado: navegador não envia campo desativado (então o
-    // valor antigo não vai escondido no POST, e o `required` dele não trava o envio), e apagar
-    // a escolha faria a pessoa procurar o clube de novo se resolvesse limpar o texto.
-    function pdzClubeEscrito() {
-        var texto = document.getElementById('pdzNovoClube');
+    // Escondido, o bloco também é DESATIVADO — e isso não é enfeite: navegador não envia campo
+    // desativado, e no servidor o nome escrito SOBREPÕE o ClubeId do seletor
+    // (AcharOuCriarClubeAsync). Sem desativar, um nome digitado e depois abandonado faria a
+    // tela mostrar um clube e o torneio nascer em outro. Desativar em vez de apagar guarda o
+    // que a pessoa escreveu, caso ela volte pra opção.
+    function pdzClubeForaDaLista() {
         var lista = document.getElementById('ClubeId');
-        var aviso = document.getElementById('pdzAvisoClubeEscrito');
-        if (!texto || !lista) return;
+        var bloco = document.getElementById('pdzBlocoClubeNovo');
+        var nome = document.getElementById('pdzNovoClube');
+        if (!lista || !bloco) return;
 
-        var escreveu = texto.value.trim() !== '';
-        lista.disabled = escreveu;
-        if (aviso) aviso.classList.toggle('d-none', !escreveu);
+        // Base sem clube nenhum não tem a opção "-1": aí o bloco é o único caminho e fica aberto.
+        var temOpcao = !!lista.querySelector('option[value="-1"]');
+        var aberto = !temOpcao || lista.value === '-1';
+
+        bloco.classList.toggle('d-none', !aberto);
+        bloco.querySelectorAll('input').forEach(function (campo) { campo.disabled = !aberto; });
+        // Aberto, o nome é obrigatório: escolher "não está na lista" e não escrever nada
+        // levaria a uma recusa do servidor com o formulário inteiro pra refazer.
+        if (nome) nome.required = aberto;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        var texto = document.getElementById('pdzNovoClube');
-        if (texto) texto.addEventListener('input', pdzClubeEscrito);
-        // Também na abertura: voltar pra tela (ou uma recusa) pode trazer o campo já escrito.
-        pdzClubeEscrito();
+        var lista = document.getElementById('ClubeId');
+        if (lista) {
+            lista.addEventListener('change', function () {
+                pdzClubeForaDaLista();
+                var nome = document.getElementById('pdzNovoClube');
+                if (nome && !nome.disabled && lista.value === '-1') nome.focus();
+            });
+        }
+        // Também na abertura: uma recusa (ou a cópia de outro torneio) pode voltar já na opção.
+        pdzClubeForaDaLista();
     });
 
     // Torneio por ORDEM esconde tudo que só serve pra montar grade de horário: até quando tem

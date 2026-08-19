@@ -137,6 +137,50 @@
     }
 }
 
+@* ── TORNEIO OCULTO: A FAIXA QUE AVISA ─────────────────────────────────────────────────
+   Quem chega aqui com o torneio oculto já passou pela porta (organizador, admin ou inscrito)
+   — o resto do mundo levou 404 no controller. Mas passar pela porta não é saber que ela
+   existe: sem esta faixa, o organizador vê uma página normal, manda o link no grupo e
+   descobre pelo silêncio que ninguém conseguiu abrir.
+
+   Vem ANTES do nome do torneio de propósito: é a primeira coisa que muda o que ele vai fazer
+   na página. E fala duas línguas — pra quem manda no torneio, com o botão de publicar; pra
+   quem só está inscrito, explicando por que ele consegue ver uma coisa que os amigos não
+   acham. *@
+@if (Model.Oculto)
+{
+    var mandaNoTorneio = ViewBag.PodeGerenciar == true && ViewBag.GestaoSoLeitura != true;
+    <div class="alert @(mandaNoTorneio ? "alert-warning border-warning" : "alert-secondary") d-flex flex-wrap gap-3 align-items-center justify-content-between shadow-sm">
+        <div>
+            <strong><i class="bi bi-eye-slash-fill"></i> Torneio oculto — ninguém de fora está vendo isto</strong>
+            <div class="small mt-1">
+                @if (mandaNoTorneio)
+                {
+                    @Padelizou.Services.VisibilidadeDoTorneio.AvisoDeOculto
+                    <span class="d-block mt-1">@Padelizou.Services.VisibilidadeDoTorneio.ConviteParaPublicar</span>
+                }
+                else
+                {
+                    <text>
+                        Este torneio ainda não foi divulgado: ele não aparece na lista nem no Google, e
+                        quem receber o link não consegue abrir. Você está vendo porque já está inscrito.
+                    </text>
+                }
+            </div>
+        </div>
+        @if (mandaNoTorneio)
+        {
+            <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="ocultar" value="false" />
+                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                    <i class="bi bi-megaphone-fill"></i> Publicar agora
+                </button>
+            </form>
+        }
+    </div>
+}
+
 <!-- Cabeçalho do Torneio -->
 <div class="mb-4">
     <h2 class="fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h2>
@@ -351,8 +395,77 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             <i class="bi bi-chat-square-heart-fill"></i> Como foi o torneio?
         </a>
         <small class="text-muted">
-            Quem jogou dá nota pro clube e pra organização.
+            Quem jogou dá nota pro clube, pra organização e pro Padelizou — e comenta se quiser.
         </small>
+    </div>
+}
+
+@* ── O MURAL: O QUE QUEM JOGOU DISSE ──────────────────────────────────────────────────
+   Só o que está publicado. Assinado entra aqui na hora (a pessoa escolheu isso ao
+   responder); sem identificação, só depois que o organizador ou o clube decidir — e aí
+   sem o nome, porque foi o que foi combinado com quem escreveu.
+
+   ⚠️ O `Autor` chega NULO do serviço quando a resposta é anônima. A view não tem escolha a
+   fazer aqui, e é de propósito: não dá pra "esquecer" de esconder o que não veio. *@
+@{
+    var muralDoTorneio = ViewBag.ComentariosPublicos as List<Padelizou.Services.ComentarioDoTorneio>;
+}
+@if (muralDoTorneio != null && muralDoTorneio.Count > 0)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+        <div class="card-body">
+            <h6 class="fw-bold mb-3" style="color: var(--pdz-ink);">
+                <i class="bi bi-chat-square-quote-fill" style="color: var(--pdz-lima, #A3D827);"></i>
+                O que quem jogou disse
+            </h6>
+
+            @foreach (var c in muralDoTorneio)
+            {
+                <div class="d-flex gap-2 mb-3">
+                    @if (c.Autor != null)
+                    {
+                        <img src="@(string.IsNullOrEmpty(c.FotoDoAutor) ? "/img/default-avatar.png" : c.FotoDoAutor)"
+                             alt="" class="rounded-circle flex-shrink-0"
+                             style="width:40px;height:40px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center bg-light text-muted"
+                             style="width:40px;height:40px;">
+                            <i class="bi bi-person"></i>
+                        </div>
+                    }
+
+                    <div class="flex-grow-1">
+                        <div class="small">
+                            @if (c.Autor != null)
+                            {
+                                <a asp-action="Perfil" asp-controller="Jogadores" asp-route-id="@c.AutorId"
+                                   class="fw-semibold text-decoration-none" style="color: var(--pdz-ink);">@c.Autor</a>
+                            }
+                            else
+                            {
+                                <span class="fw-semibold text-muted">Um jogador do torneio</span>
+                            }
+                            <span class="text-muted">· @c.Quando.ToString("dd/MM/yyyy")</span>
+                        </div>
+
+                        @if (c.SobreOClube != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre o clube:</span> @c.SobreOClube
+                            </div>
+                        }
+                        @if (c.SobreAOrganizacao != null)
+                        {
+                            <div class="small">
+                                <span class="text-muted">Sobre a organização:</span> @c.SobreAOrganizacao
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 }
 
@@ -1518,10 +1631,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <div>
                                 <strong>Torneio restrito</strong> — chave de acesso: <span class="fw-bold fs-5 font-monospace">@Model.ChaveAcesso</span>
                                 <br /><small class="text-muted">Compartilhe essa chave só com quem você quer que consiga se inscrever.</small>
-                                @if (Model.Oculto)
-                                {
-                                    <br /><small class="text-muted"><i class="bi bi-eye-slash"></i> Este torneio também está <strong>oculto</strong> da listagem pública — só quem tem o link direto consegue ver.</small>
-                                }
+                                @* O "e também está oculto" saiu daqui em 18/08/2026: ele dizia
+                                   "só quem tem o link direto consegue ver", que virou mentira
+                                   quando o oculto passou a fechar a página. Quem conta isso
+                                   agora é a faixa no topo, que aparece em torneio restrito ou
+                                   não — dizer a mesma coisa em dois lugares é como um dos dois
+                                   fica pra trás. *@
                             </div>
                         </div>
                     }
@@ -1885,6 +2000,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="small text-muted">A organização</div>
                                     <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaOrganizacao?.ToString("0.0")</div>
                                 </div>
+                                @* A do sistema tem contagem própria (quem respondeu antes de a
+                                   pergunta existir não deu nota nenhuma ao Padelizou), então
+                                   ela pode faltar aqui mesmo com as outras duas na tela. *@
+                                @if (enquete.MediaSistema != null)
+                                {
+                                    <div>
+                                        <div class="small text-muted">O Padelizou</div>
+                                        <div class="fs-5 fw-bold"><i class="bi bi-star-fill text-warning"></i> @enquete.MediaSistema?.ToString("0.0")</div>
+                                    </div>
+                                }
                                 <div class="align-self-end small text-muted">
                                     @enquete.Respostas @(enquete.Respostas == 1 ? "resposta" : "respostas") de quem jogou
                                 </div>
@@ -1895,6 +2020,98 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             <p class="small text-muted mb-0">
                                 @enquete.Respostas @(enquete.Respostas == 1 ? "jogador já respondeu" : "jogadores já responderam") —
                                 a média aparece a partir de @Padelizou.Services.EnqueteDoTorneio.RespostasParaMostrarMedia respostas.
+                            </p>
+                        }
+
+                        @* ── O QUE ESCREVERAM ────────────────────────────────────────────
+                           Tudo que tem texto, publicado ou não — e é o único lugar do sistema
+                           onde o comentário anônimo aparece (sem nome, como foi combinado com
+                           quem escreveu). Publicar põe o texto na página do torneio.
+
+                           ⚠️ Os botões só saem pra quem PODE gravar: o assistente do sistema
+                           abre esta aba em leitura, e o servidor recusaria o POST dele. *@
+                        @{
+                            var comentarios = ViewBag.ComentariosParaModerar
+                                as List<Padelizou.Services.ComentarioDoTorneio>;
+                        }
+                        @if (comentarios != null && comentarios.Count > 0)
+                        {
+                            <hr />
+                            <div class="small fw-bold text-muted text-uppercase mb-2">
+                                O que escreveram
+                                @if (enquete.EsperandoDecisao > 0)
+                                {
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis ms-1">
+                                        @enquete.EsperandoDecisao fora do mural
+                                    </span>
+                                }
+                            </div>
+
+                            @foreach (var c in comentarios)
+                            {
+                                <div class="border rounded-3 p-2 mb-2 bg-white">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        @if (c.Anonimo)
+                                        {
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                                <i class="bi bi-incognito"></i> Sem identificação
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@c.AutorId"
+                                               class="fw-semibold text-decoration-none small" style="color: var(--pdz-ink);">
+                                                @c.Autor
+                                            </a>
+                                        }
+                                        <span class="small text-muted">
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaClube clube ·
+                                            <i class="bi bi-star-fill text-warning"></i> @c.NotaOrganizacao organização
+                                        </span>
+                                        <span class="small text-muted ms-auto">@c.Quando.ToString("dd/MM")</span>
+                                    </div>
+
+                                    @if (c.SobreOClube != null)
+                                    {
+                                        <div class="small mb-1"><strong>Clube:</strong> @c.SobreOClube</div>
+                                    }
+                                    @if (c.SobreAOrganizacao != null)
+                                    {
+                                        <div class="small mb-1"><strong>Organização:</strong> @c.SobreAOrganizacao</div>
+                                    }
+
+                                    <div class="d-flex align-items-center gap-2 mt-2">
+                                        @if (c.Publicado)
+                                        {
+                                            <span class="badge rounded-pill bg-success-subtle text-success-emphasis">
+                                                <i class="bi bi-eye"></i> No mural do torneio
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge rounded-pill bg-light text-muted border">
+                                                <i class="bi bi-eye-slash"></i> Só pra vocês
+                                            </span>
+                                        }
+
+                                        @if (ViewBag.GestaoSoLeitura != true)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="PublicarAvaliacao"
+                                                  asp-route-id="@Model.Id" method="post" class="m-0">
+                                                <input type="hidden" name="avaliacaoId" value="@c.AvaliacaoId" />
+                                                <input type="hidden" name="publicar" value="@((!c.Publicado).ToString().ToLowerInvariant())" />
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-decoration-none">
+                                                    @(c.Publicado ? "Tirar do mural" : "Publicar no mural")
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <p class="small text-muted mb-0">
+                                Comentário sem identificação vai pro mural <strong>sem o nome</strong> de quem
+                                escreveu — é o que foi combinado com a pessoa na hora de responder.
                             </p>
                         }
                     </div>
@@ -2107,6 +2324,51 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                 </div>
             </div>
 
+            @* ── DIVULGAÇÃO: PUBLICAR OU ESCONDER ──────────────────────────────────────
+               ⚠️ FICA FORA do formulário de edição, e isso não é arrumação: `<form>` dentro
+               de `<form>` some com campos no navegador (o de dentro fecha o de fora), e o que
+               sumiria aqui era metade da edição do torneio.
+
+               É também por isso que o interruptor deixou de ser uma caixinha lá dentro: a
+               caixa só valia depois de "Salvar Alterações", junto de mais 40 campos, e vivia
+               escondida dentro da seção do "torneio restrito" — o torneio ABERTO que ainda não
+               foi divulgado, que é o caso comum, não tinha como ficar escondido de jeito
+               nenhum. Aqui é um botão, um clique, e vale na hora. *@
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-uppercase text-muted mb-2">
+                        <i class="bi bi-megaphone"></i> Divulgação
+                    </h6>
+                    @if (Model.Oculto)
+                    {
+                        <p class="small mb-3">@Padelizou.Services.VisibilidadeDoTorneio.AvisoDeOculto</p>
+                        <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="ocultar" value="false" />
+                            <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                                <i class="bi bi-megaphone-fill"></i> Publicar torneio
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="small mb-3">
+                            Este torneio está <strong>visível</strong>: aparece na lista de torneios, na página
+                            inicial e no Google, e quem receber o link consegue abrir e se inscrever.
+                            Escondendo, ele some de tudo isso na hora — só você, os outros organizadores e
+                            quem já está inscrito continuam vendo. Dá pra publicar de novo quando quiser.
+                        </p>
+                        <form asp-controller="Torneios" asp-action="AlternarVisibilidade" method="post" class="mb-0">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="ocultar" value="true" />
+                            <button type="submit" class="btn btn-outline-secondary fw-bold">
+                                <i class="bi bi-eye-slash-fill"></i> Ocultar do público
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
             <!-- EDITAR DADOS DO TORNEIO -->
             <div class="card bg-light border-0 shadow-sm mt-4">
                 <div class="card-body">
@@ -2167,6 +2429,88 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <input type="number" step="0.01" name="precoInscricao" class="form-control"
                                            value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.PrecoInscricao)" required />
                                 </div>
+                                @* A taxa de impedimento passou a ser editável aqui (18/08/2026):
+                                   estava presa na tela de criação, e interruptor que só existe
+                                   no cadastro vira "não dá pra mudar". *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Taxa por impedimento</label>
+                                    <input type="number" step="0.01" min="0" name="taxaPorImpedimento" class="form-control"
+                                           value="@Padelizou.Services.DinheiroNoCampo.Valor(Model.TaxaPorImpedimento)" />
+                                    <small class="text-muted d-block mt-1">
+                                        Uma vez <strong>por dupla</strong>, não por jogador. Zero = não cobra.
+                                    </small>
+                                </div>
+                                @* ── PARIDADE COM A TELA DE CRIAÇÃO ────────────────────────
+                                   Campo que só existe no cadastro vira beco: já aconteceu com a
+                                   forma de recebimento, com reabrir inscrições e com "só
+                                   confirmo depois de pago". As travas de quando PODE mudar
+                                   moram em Services/MudancaDepoisDeAberto. *@
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small">Limite de duplas</label>
+                                    <input type="number" min="0" name="limiteDuplasTotal" class="form-control"
+                                           value="@(Model.LimiteDuplasTotal?.ToString() ?? "")" placeholder="sem limite" />
+                                    <div class="form-check mt-1">
+                                        @* Sinal separado porque "vazio" no número já quer dizer
+                                           "campo não veio" — sem isto não daria pra TIRAR o
+                                           limite depois de posto. *@
+                                        <input class="form-check-input" type="checkbox" name="limiteSemTeto" value="true" id="editSemTeto" />
+                                        <label class="form-check-label small" for="editSemTeto">Sem limite</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="permiteMultiplasCategorias" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="permiteMultiplasCategorias" value="true"
+                                               id="editMultiplasCat" checked="@Model.PermiteMultiplasCategorias" />
+                                        <label class="form-check-label small" for="editMultiplasCat">
+                                            Permitir o mesmo jogador em mais de uma categoria
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="excluirSeNaoPagar" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="excluirSeNaoPagar" value="true"
+                                               id="editExcluirSeNaoPagar" checked="@Model.ExcluirSeNaoPagar" />
+                                        <label class="form-check-label small" for="editExcluirSeNaoPagar">
+                                            Excluir inscrição não paga no prazo
+                                        </label>
+                                    </div>
+                                    @if (Model.Formato == Padelizou.Services.FormatoDoTorneio.Americano
+                                      || Model.Formato == Padelizou.Services.FormatoDoTorneio.AmericanoDeDuplas)
+                                    {
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="pontuaNoRankingAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="pontuaNoRankingAmericano" value="true"
+                                                   id="editPontuaAmericano" checked="@Model.PontuaNoRankingAmericano" />
+                                            <label class="form-check-label small" for="editPontuaAmericano">
+                                                Pontua no ranking de Americano
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input type="hidden" name="desempateAmericano" value="false" />
+                                            <input class="form-check-input" type="checkbox" name="desempateAmericano" value="true"
+                                                   id="editDesempateAmericano" checked="@Model.DesempateAmericano" />
+                                            <label class="form-check-label small" for="editDesempateAmericano">
+                                                Jogo de desempate no Americano
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* ⚠️ O AVISO QUE O FELIPE PEDIU. Cada inscrição guarda o que ELA
+                                   custou (Dupla.ValorInscricao): mudar o valor aqui não reescreve
+                                   nenhuma. Sem dizer isso, o organizador faz uma de duas contas
+                                   erradas — cobra a diferença de quem já pagou, ou conta com um
+                                   dinheiro que não vem. Texto único em AvisoDeMudancaDePreco. *@
+                                @if (Padelizou.Services.AvisoDeMudancaDePreco.Texto(
+                                        ViewBag.InscricoesJaFeitas as int? ?? 0) is string avisoDePreco)
+                                {
+                                    <div class="col-12">
+                                        <div class="alert alert-warning py-2 px-3 small mb-0 d-flex gap-2 align-items-start">
+                                            <i class="bi bi-exclamation-triangle-fill"></i>
+                                            <span>@avisoDePreco</span>
+                                        </div>
+                                    </div>
+                                }
                                 <div class="col-md-3">
                                     <label class="form-label fw-bold small">Qtd. de Quadras</label>
                                     <input type="number" id="editQuantidadeQuadras" name="quantidadeQuadras" class="form-control" value="@Model.QuantidadeQuadras" required oninput="gerarCamposQuadraEdicao()" />
@@ -2594,13 +2938,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         }
                                     </small>
 
-                                    <div class="form-check mt-2">
-                                        <input class="form-check-input" type="checkbox" name="oculto" value="true"
-                                               id="editOcultoCheck" @(Model.Oculto ? "checked" : "")>
-                                        <label class="form-check-label small" for="editOcultoCheck">
-                                            <i class="bi bi-eye-slash"></i> Sumir da listagem pública (só quem tem o link direto acha)
-                                        </label>
-                                    </div>
+                                    @* A caixa "sumir da listagem" morava AQUI e saiu em
+                                       18/08/2026: esconder o torneio virou o botão do bloco
+                                       "Divulgação", logo acima deste formulário. Ela não podia
+                                       ficar por dois motivos — estava presa ao restrito (e
+                                       quem precisa esconder é quase sempre o torneio ABERTO
+                                       que ainda não foi anunciado), e salvar esta edição
+                                       regravava o campo, então mexer no preço publicava o
+                                       torneio sem ninguém pedir. *@
                                 </div>
                             </div>
 

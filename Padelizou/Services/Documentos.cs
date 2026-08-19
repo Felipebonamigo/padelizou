@@ -20,6 +20,22 @@ public static class Documentos
     // Quem grava gente nova usa CpfEhValido (abaixo).
     public static bool CpfTemFormatoValido(string? valor) => SomenteDigitos(valor).Length == 11;
 
+    // O CPF pra APARECER numa tela: •••.456.789-••, só o miolo.
+    //
+    // Nasceu com /Admin/Acesso, onde o admin procura por NOME e recebe uma lista de até dez
+    // pessoas. Ali o CPF serve pra uma coisa só — conferir "é esse mesmo?" — e o miolo já
+    // responde isso. Imprimir os onze dígitos de dez pessoas por busca transformaria uma tela
+    // de suporte num extrator de documentos: quem entrasse ali com má intenção sairia com uma
+    // lista pronta, e ninguém precisa disso pra devolver o acesso de alguém.
+    //
+    // O que não tem 11 dígitos volta como veio: é o CPF "EX000000123" de quem excluiu a conta
+    // (ExclusaoDeConta.CpfDeQuemSaiu), e mascará-lo esconderia justamente o que ele denuncia.
+    public static string CpfMascarado(string? valor)
+    {
+        var cpf = SomenteDigitos(valor);
+        return cpf.Length != 11 ? (valor ?? "") : $"•••.{cpf[3..6]}.{cpf[6..9]}-••";
+    }
+
     // O CPF de verdade, com dígito verificador. Só ter 11 números não prova nada: foi assim
     // que, em 03/08/2026, entrou no torneio real um jogador chamado "." com um CPF inventado.
     // CPF errado é pior do que parece — é por ele que o parceiro sem conta assume o próprio

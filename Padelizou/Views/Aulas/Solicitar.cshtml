@@ -3,6 +3,48 @@
     ViewData["Title"] = "Marcar Aula - Padelizou";
 }
 
+@* O calendário vive só nesta tela, então o estilo mora junto: jogá-lo no site.css espalharia
+   regras que ninguém mais usa por um arquivo que já é grande. *@
+<style>
+    .pdz-cal-grade {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: .25rem;
+        text-align: center;
+    }
+
+    .pdz-cal-dia {
+        border: 1px solid transparent;
+        border-radius: .5rem;
+        padding: .4rem 0;
+        font-size: .9rem;
+        background: none;
+        color: var(--pdz-ink);
+    }
+
+    /* Dia sem vaga: apagado e sem clique. Continua ocupando o lugar dele na semana — é isso
+       que mostra à pessoa que o dia existe, só não tem horário livre. */
+    .pdz-cal-dia:disabled {
+        opacity: .25;
+        cursor: default;
+    }
+
+    .pdz-cal-dia:not(:disabled):hover {
+        border-color: var(--pdz-navy-fixed);
+    }
+
+    .pdz-cal-dia.pdz-cal-escolhido {
+        background: var(--pdz-navy-fixed);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    /* Quadradinho invisível pra alinhar a primeira semana: ela quase nunca começa no domingo. */
+    .pdz-cal-vazio {
+        visibility: hidden;
+    }
+</style>
+
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-7">
@@ -13,7 +55,8 @@
                     <div class="text-center mb-4">
                         <i class="bi bi-calendar-check display-4" style="color: var(--pdz-ink);"></i>
                         <h3 class="fw-bold mt-2" style="color: var(--pdz-ink);">Marcar Aula</h3>
-                        <p class="text-muted">Escolha a cidade, o professor, o local e um horário disponível.</p>
+                        <p class="text-muted">Escolha a cidade e monte seu horário: comece pelo dia, pela hora,
+                            pelo professor ou pelo local — o resto se ajusta ao que está livre.</p>
                     </div>
 
                     @if (TempData["Erro"] != null)
@@ -22,13 +65,41 @@
                     }
 
                     <form asp-controller="Aulas" asp-action="Solicitar" method="post" id="form-solicitar">
+                        @* O que o servidor recebe continua sendo professor + local + horário. Os
+                           seletores daqui são só o caminho até um deles — e agora o caminho pode
+                           começar por qualquer ponta. *@
+                        <input type="hidden" name="professorId" id="hidden-professor-id" value="" />
+                        <input type="hidden" name="localId" id="hidden-local-id" value="" />
+                        <input type="hidden" name="dataHora" id="hidden-data-hora" value="" />
+
+                        @* Estado antes de cidade: com professor em várias UFs, a lista de cidades
+                           vira um paredão onde a pessoa procura a dela. Some quando só existe uma
+                           UF — escolher entre uma opção não é escolha. *@
+                        <div class="mb-3" id="grupo-estado" style="@(Model.Estados.Count > 1 ? "" : "display:none;")">
+                            <label class="form-label fw-bold text-muted small pdz-passo">Estado</label>
+                            <select id="select-estado" class="form-select bg-light">
+                                <option value="">Todos os estados</option>
+                                @foreach (var uf in Model.Estados)
+                                {
+                                    <option value="@uf">@uf</option>
+                                }
+                                @if (Model.TemCidadeSemEstado)
+                                {
+                                    @* Cidade cadastrada sem UF (o campo é opcional pro professor).
+                                       Sem esta opção ela só existiria em "Todos os estados" — e
+                                       quem filtrasse pela própria UF nunca mais a veria. *@
+                                    <option value="-">Sem estado informado</option>
+                                }
+                            </select>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-bold text-muted small pdz-passo">Cidade</label>
                             <select id="select-cidade" name="cidadeId" class="form-select bg-light" required>
                                 <option value="">-- Escolha uma cidade --</option>
                                 @foreach (var cidade in Model.Cidades)
                                 {
-                                    <option value="@cidade.Id">@cidade.Rotulo</option>
+                                    <option value="@cidade.Id" data-uf="@(string.IsNullOrEmpty(cidade.Estado) ? "-" : cidade.Estado)">@cidade.Rotulo</option>
                                 }
                             </select>
                             @if (!Model.Cidades.Any())
@@ -37,49 +108,95 @@
                             }
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small pdz-passo">Professor</label>
-                            <select id="select-professor" name="professorId" class="form-select bg-light" required disabled>
-                                <option value="">-- Escolha uma cidade primeiro --</option>
-                            </select>
-                        </div>
+                        @* O miolo da tela: quatro filtros que se conversam. Cada um mostra só o
+                           que ainda é possível diante dos outros já escolhidos, e quando sobra
+                           uma opção só ela se marca sozinha — quem veio pelo horário não precisa
+                           saber o nome de professor nenhum pra marcar. *@
+                        <div id="bloco-busca" style="display:none;">
+                            @* CALENDÁRIO, não lista de datas: numa lista, "quinta 21/08" e
+                               "quinta 28/08" viram duas linhas quase iguais e a pessoa se perde
+                               em qual semana está. No calendário ela vê a semana inteira de uma
+                               vez, e o dia sem vaga fica apagado — igual ao seletor de data do
+                               celular, que todo mundo já sabe usar.
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-muted small pdz-passo">Local</label>
-                            <select id="select-local" name="localId" class="form-select bg-light" required disabled>
-                                <option value="">-- Escolha um professor primeiro --</option>
-                            </select>
-                        </div>
-
-                        <div id="opcoes-tipo" class="mb-3" style="display:none;">
-                            <label class="form-label fw-bold text-muted small pdz-passo">Tipo de aula</label>
-
-                            <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:var(--pdz-surface-alt); display:none;">
-                                <div class="form-check">
-                                    <input type="radio" class="form-check-input" id="tipo-avulsa" name="tipoAula" value="avulsa" checked />
-                                    <label class="form-check-label" for="tipo-avulsa">Aula avulsa</label>
-                                </div>
-                                <div class="form-check">
-                                    <input type="radio" class="form-check-input" id="tipo-pacote" name="tipoAula" value="pacote" />
-                                    <label class="form-check-label" for="tipo-pacote">
-                                        <span id="info-pacote-texto"></span>
-                                    </label>
-                                </div>
-                                @* O local pode ter vários pacotes (4, 8, 12 aulas). Com um só,
-                                   o seletor some — escolher entre uma opção não é escolha. *@
-                                <div id="escolha-pacote" class="ps-4 mt-1" style="display:none;">
-                                    <select id="select-pacote" class="form-select form-select-sm"></select>
+                               O valor mora num campo escondido: pro resto do script o dia é mais
+                               um filtro, e `.val()` funciona igual no escondido e no <select>. *@
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small pdz-passo">Dia</label>
+                                <input type="hidden" id="select-dia" value="" />
+                                <div class="border rounded p-2" style="background:var(--pdz-surface-alt);">
+                                    @* As setas trocam de MÊS, não de semana: aula pro mês que vem
+                                       é pedido normal, e sem elas a pessoa só enxergava o mês em
+                                       que estava. Cada uma se desliga na ponta da janela — seta
+                                       que não leva a lugar nenhum promete data que não existe. *@
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                id="cal-anterior" aria-label="Mês anterior">‹</button>
+                                        <span class="small fw-bold text-muted" id="cal-mes"></span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                id="cal-proximo" aria-label="Próximo mês">›</button>
+                                    </div>
+                                    <div class="pdz-cal-grade small text-muted mb-1" id="cal-cabecalho"></div>
+                                    <div class="pdz-cal-grade" id="cal-dias"></div>
+                                    <div class="text-center mt-2">
+                                        <button type="button" class="btn btn-sm btn-link p-0 small" id="cal-limpar">Qualquer dia</button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div id="opcao-recorrencia" class="p-2 rounded" style="background:var(--pdz-surface-alt);">
-                                <div class="form-check mb-2">
-                                    <input type="checkbox" class="form-check-input" id="check-recorrente" name="recorrenteCheck" />
-                                    <label class="form-check-label small" for="check-recorrente">Fixar esse horário toda semana</label>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small pdz-passo">Horário</label>
+                                <select id="select-hora" class="form-select bg-light"></select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small pdz-passo">Professor</label>
+                                <select id="select-professor" class="form-select bg-light"></select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small pdz-passo">Local</label>
+                                <select id="select-local" class="form-select bg-light"></select>
+                            </div>
+
+                            @* O que sobrou depois dos filtros. Enquanto a escolha não fecha numa
+                               aula só, é isto que diz o que ainda falta — sem ele a pessoa fica
+                               olhando pro botão desligado sem saber por quê. *@
+                            <div class="alert alert-secondary py-2 small d-flex gap-2 align-items-start" id="resumo-busca">
+                                <i class="bi bi-funnel mt-1"></i>
+                                <span id="resumo-texto"></span>
+                            </div>
+
+                            <div id="opcoes-tipo" class="mb-3" style="display:none;">
+                                <label class="form-label fw-bold text-muted small pdz-passo">Tipo de aula</label>
+
+                                <div id="opcao-pacote" class="p-2 rounded mb-2" style="background:var(--pdz-surface-alt); display:none;">
+                                    <div class="form-check">
+                                        <input type="radio" class="form-check-input" id="tipo-avulsa" name="tipoAula" value="avulsa" checked />
+                                        <label class="form-check-label" for="tipo-avulsa">Aula avulsa</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="radio" class="form-check-input" id="tipo-pacote" name="tipoAula" value="pacote" />
+                                        <label class="form-check-label" for="tipo-pacote">
+                                            <span id="info-pacote-texto"></span>
+                                        </label>
+                                    </div>
+                                    @* O local pode ter vários pacotes (4, 8, 12 aulas). Com um só,
+                                       o seletor some — escolher entre uma opção não é escolha. *@
+                                    <div id="escolha-pacote" class="ps-4 mt-1" style="display:none;">
+                                        <select id="select-pacote" class="form-select form-select-sm"></select>
+                                    </div>
                                 </div>
-                                <div id="campo-semanas" style="display:none;">
-                                    <label class="form-label small text-muted">Repetir por quantas semanas?</label>
-                                    <input type="number" min="2" max="26" value="4" id="input-semanas" class="form-control form-control-sm" style="max-width:120px;" />
+
+                                <div id="opcao-recorrencia" class="p-2 rounded" style="background:var(--pdz-surface-alt);">
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" class="form-check-input" id="check-recorrente" name="recorrenteCheck" />
+                                        <label class="form-check-label small" for="check-recorrente">Fixar esse horário toda semana</label>
+                                    </div>
+                                    <div id="campo-semanas" style="display:none;">
+                                        <label class="form-label small text-muted">Repetir por quantas semanas?</label>
+                                        <input type="number" min="2" max="26" value="4" id="input-semanas" class="form-control form-control-sm" style="max-width:120px;" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -88,13 +205,6 @@
                         <input type="hidden" name="pacoteId" id="hidden-pacote-id" value="" />
                         <input type="hidden" name="recorrente" id="hidden-recorrente" value="false" />
                         <input type="hidden" name="semanasRecorrencia" id="hidden-semanas" value="1" />
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small pdz-passo">Horário disponível</label>
-                            <select id="select-horario" name="dataHora" class="form-select bg-light" required disabled>
-                                <option value="">-- Escolha um local primeiro --</option>
-                            </select>
-                        </div>
 
                         @* Quem chega na quadra. O nome do cadastro pode não ser o nome pelo qual
                            o professor conhece a pessoa, e aula de padel é muitas vezes em dupla
@@ -112,20 +222,20 @@
                         </div>
 
                         @* Quantos vão é o que decide o PREÇO, e não só o treino: o professor
-                           cobra um valor pela quadra com uma pessoa e outro com três. Só
-                           aparecem os tamanhos que ele anunciou — oferecer trio a quem não faz
-                           trio é prometer um preço que não existe. *@
+                           cobra um valor pela quadra com uma pessoa e outro com seis. Só
+                           aparecem os tamanhos que ele anunciou — oferecer sexteto a quem não
+                           faz sexteto é prometer um preço que não existe. O JS liga e desliga
+                           cada botão conforme a tabela do local escolhido. *@
                         <div class="mb-3" id="grupo-quantidade" style="display:none;">
                             <label class="form-label fw-bold text-muted small">Quantos vão jogar</label>
-                            <div class="btn-group w-100" role="group" aria-label="Quantidade de alunos">
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-1" value="1" autocomplete="off" checked />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-1">Só eu</label>
-
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-2" value="2" autocomplete="off" />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-2" id="rotulo-qtd-2">Nós dois</label>
-
-                                <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-3" value="3" autocomplete="off" />
-                                <label class="btn btn-outline-primary" for="aluno-qtd-3" id="rotulo-qtd-3">Nós três</label>
+                            <div class="btn-group w-100 flex-wrap" role="group" aria-label="Quantidade de alunos">
+                                @for (var valor = PrecoDaAula.MinAlunos; valor <= PrecoDaAula.MaxAlunos; valor++)
+                                {
+                                    <input type="radio" class="btn-check" name="quantidadeAlunos" id="aluno-qtd-@valor"
+                                           value="@valor" autocomplete="off" checked="@(valor == 1)" />
+                                    <label class="btn btn-outline-primary" for="aluno-qtd-@valor"
+                                           id="rotulo-qtd-@valor">@PrecoDaAula.RotuloDoAluno(valor)</label>
+                                }
                             </div>
                             <small class="text-muted d-block mt-1" id="aviso-preco-tamanho"></small>
                         </div>
@@ -160,57 +270,44 @@
 @section Scripts {
     <script>
         $(function () {
+            var $estado = $('#select-estado');
             var $cidade = $('#select-cidade');
+            var $dia = $('#select-dia');
+            var $hora = $('#select-hora');
             var $professor = $('#select-professor');
             var $local = $('#select-local');
-            var $horario = $('#select-horario');
+            var $blocoBusca = $('#bloco-busca');
             var $btn = $('#btn-solicitar');
             var $opcoesTipo = $('#opcoes-tipo');
             var $opcaoPacote = $('#opcao-pacote');
             var $infoPacoteTexto = $('#info-pacote-texto');
             var $escolhaPacote = $('#escolha-pacote');
             var $selectPacote = $('#select-pacote');
-            // Os pacotes de cada local, guardados quando a lista de locais é carregada.
-            var pacotesPorLocal = {};
-            // E a tabela de preços por tamanho de aula (1, 2 ou 3 alunos) do mesmo local.
-            var precosPorLocal = {};
-
-            // Mostra só os tamanhos que o professor anunciou naquele local, cada um com o
-            // preço. Oferecer "nós três" a quem não faz trio é prometer um valor que não
-            // existe — e o servidor cobraria outro (ver Services/PrecoDaAula).
-            function atualizarTamanhos(localId) {
-                var precos = precosPorLocal[localId];
-                var $grupo = $('#grupo-quantidade');
-
-                // Sem local escolhido, ou local que só tem o preço individual: o seletor não
-                // tem escolha nenhuma pra oferecer e some.
-                if (!precos || (precos.dupla == null && precos.trio == null)) {
-                    $grupo.hide();
-                    $('#aluno-qtd-1').prop('checked', true);
-                    return;
-                }
-
-                $('#rotulo-qtd-2').toggle(precos.dupla != null).text('Nós dois · R$ ' + emReais(precos.dupla || 0));
-                $('#rotulo-qtd-3').toggle(precos.trio != null).text('Nós três · R$ ' + emReais(precos.trio || 0));
-                $('#aluno-qtd-1').prop('checked', true);
-                $('#aviso-preco-tamanho').text('Aula individual: R$ ' + emReais(precos.individual)
-                    + '. O valor é da aula inteira, dividido entre quem for.');
-                $grupo.show();
-            }
             var $checkRecorrente = $('#check-recorrente');
             var $campoSemanas = $('#campo-semanas');
             var $inputSemanas = $('#input-semanas');
 
-            // toFixed(2) escreve "120.00" — ponto. O resto do site mostra "R$ 120,00" (ToString("C")),
-            // e só estas duas linhas, montadas em JS, fugiam do padrão brasileiro.
+            // A grade da cidade inteira, como veio do servidor. Uma oferta = um horário livre
+            // com professor e local dentro dela. Todo filtro desta tela é uma leitura desta
+            // lista — nada é perguntado ao servidor de novo.
+            var ofertas = [];
+            var professoresPorId = {};
+            var locaisPorId = {};
+            // Trava contra reentrada: atualizar() mexe nos seletores, e mexer nos seletores é o
+            // que chama atualizar().
+            var atualizando = false;
+
+            // toFixed(2) escreve "120.00" — ponto. O resto do site mostra "R$ 120,00"
+            // (ToString("C")), e só estas linhas, montadas em JS, fugiam do padrão brasileiro.
             function emReais(valor) {
                 return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
-            // Os números não ficam escritos no HTML: o passo "Tipo de aula" só aparece depois de
-            // escolher o local, e com número fixo a tela mostrava "1, 2, 3, 5" — parece defeito.
-            // Aqui numeramos o que está VISÍVEL, a cada mudança. Se este script não rodar, os
-            // rótulos continuam legíveis, só sem número — degradar assim é melhor que quebrar.
+            // Os números não ficam escritos no HTML: passos aparecem e somem (o estado some com
+            // uma UF só, o tipo de aula só nasce com o local escolhido), e com número fixo a
+            // tela mostrava "1, 2, 3, 5" — parece defeito. Aqui numeramos o que está VISÍVEL, a
+            // cada mudança. Se este script não rodar, os rótulos continuam legíveis, só sem
+            // número — degradar assim é melhor que quebrar.
             function renumerarPassos() {
                 var n = 0;
                 $('.pdz-passo').each(function () {
@@ -227,85 +324,500 @@
             $('.pdz-passo').each(function () { $(this).data('texto', $.trim($(this).text())); });
             renumerarPassos();
 
-            function resetAPartirDoProfessor() {
-                $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
-                $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
-                $opcoesTipo.hide(); renumerarPassos();
-                $opcaoPacote.hide();
-                $escolhaPacote.hide();
-                $('#hidden-pacote-id').val('');
-                $btn.prop('disabled', true);
-            }
+            // ------------------------------------------------------------------
+            // Estado -> cidade
+            // ------------------------------------------------------------------
+
+            $estado.on('change', function () {
+                var uf = $(this).val();
+                var escolhida = $cidade.val();
+                var aindaVale = false;
+
+                $cidade.find('option[data-uf]').each(function () {
+                    var cabe = !uf || String($(this).data('uf')) === uf;
+                    // `hidden` e `disabled` juntos: o Safari ignora o hidden em <option> e
+                    // mostraria a cidade de outra UF na lista mesmo assim.
+                    $(this).prop('hidden', !cabe).prop('disabled', !cabe);
+                    if (cabe && $(this).val() === escolhida) aindaVale = true;
+                });
+
+                // Trocar de estado com uma cidade de outra UF escolhida deixaria a busca
+                // carregada de uma cidade que nem aparece mais na lista.
+                if (!aindaVale) $cidade.val('').trigger('change');
+            });
 
             $cidade.on('change', function () {
                 var cidadeId = $(this).val();
-                resetAPartirDoProfessor();
+                limparBusca();
 
-                if (!cidadeId) {
-                    $professor.html('<option value="">-- Escolha uma cidade primeiro --</option>').prop('disabled', true);
-                    return;
-                }
+                if (!cidadeId) return;
 
-                $professor.html('<option value="">Carregando...</option>').prop('disabled', true);
+                $blocoBusca.show();
+                renumerarPassos();
+                mostrarCarregando();
 
-                $.getJSON('/Aulas/ObterProfessoresPorCidade', { cidadeId: cidadeId }, function (professores) {
-                    if (!professores.length) {
-                        $professor.html('<option value="">Nenhum professor nessa cidade</option>');
+                $.getJSON('/Aulas/ObterOfertas', { cidadeId: cidadeId }, function (dados) {
+                    ofertas = dados.ofertas || [];
+                    professoresPorId = {};
+                    locaisPorId = {};
+
+                    $.each(dados.professores || [], function (i, p) { professoresPorId[p.id] = p; });
+                    $.each(dados.locais || [], function (i, l) { locaisPorId[l.id] = l; });
+
+                    if (!ofertas.length) {
+                        mostrarVazio('Nenhum horário livre nessa cidade nos próximos dois meses.');
                         return;
                     }
-                    var options = '<option value="">-- Escolha um professor --</option>';
-                    $.each(professores, function (i, p) {
-                        options += '<option value="' + p.id + '">' + p.nome + '</option>';
-                    });
-                    $professor.html(options).prop('disabled', false);
+
+                    atualizar();
+                }).fail(function () {
+                    mostrarVazio('Não deu pra carregar os horários. Tente de novo em instantes.');
                 });
             });
 
-            $professor.on('change', function () {
-                var professorId = $(this).val();
-                resetAPartirDoProfessor();
-
-                if (!professorId) {
-                    $local.html('<option value="">-- Escolha um professor primeiro --</option>').prop('disabled', true);
-                    return;
-                }
-
-                $local.html('<option value="">Carregando...</option>').prop('disabled', true);
-
-                $.getJSON('/Aulas/ObterLocais', { professorId: professorId }, function (locais) {
-                    if (!locais.length) {
-                        $local.html('<option value="">Nenhum local cadastrado para este professor</option>');
-                        return;
-                    }
-                    var options = '<option value="">-- Escolha um local --</option>';
-                    $.each(locais, function (i, l) {
-                        // Os pacotes viajam no próprio <option> como JSON: guardá-los num mapa
-                        // à parte exigiria mantê-lo em sincronia com a lista a cada troca de
-                        // professor, e é justamente aí que uma das duas fica velha.
-                        pacotesPorLocal[l.id] = l.pacotes || [];
-                        // A tabela por tamanho vem junto: é ela que decide quais botões de
-                        // "quantos vão" existem e qual preço mostrar em cada um.
-                        precosPorLocal[l.id] = { individual: l.precoPadrao, dupla: l.precoDupla, trio: l.precoTrio };
-                        options += '<option value="' + l.id + '">'
-                            + l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')</option>';
-                    });
-                    $local.html(options).prop('disabled', false);
-                });
-            });
-
-            $local.on('change', function () {
-                var professorId = $professor.val();
-                var localId = $(this).val();
+            function limparBusca() {
+                ofertas = [];
+                professoresPorId = {};
+                locaisPorId = {};
+                $blocoBusca.hide();
+                $opcoesTipo.hide();
+                $opcaoPacote.hide();
+                $escolhaPacote.hide();
+                $('#grupo-quantidade').hide();
+                $('#hidden-pacote-id').val('');
+                $('#hidden-professor-id, #hidden-local-id, #hidden-data-hora').val('');
+                $dia.val('');
+                // Trocar de cidade recomeça o calendário: o mês guardado era da janela ANTERIOR
+                // e abriria numa data que a cidade nova pode nem ter.
+                mesVisivel = null;
+                ultimoDiaEscolhido = '';
+                $('#cal-dias, #cal-cabecalho').empty();
+                $('#cal-mes').text('');
                 $btn.prop('disabled', true);
-                $opcoesTipo.hide(); renumerarPassos();
+                renumerarPassos();
+            }
+
+            function mostrarCarregando() {
+                var carregando = '<option value="">Carregando...</option>';
+                $hora.add($professor).add($local).html(carregando).prop('disabled', true);
+                $('#resumo-texto').text('Buscando os horários livres da cidade...');
+            }
+
+            function mostrarVazio(mensagem) {
+                var vazio = '<option value="">--</option>';
+                $hora.add($professor).add($local).html(vazio).prop('disabled', true);
+                $('#cal-dias, #cal-cabecalho').empty();
+                $('#cal-mes').text('');
+                $('#resumo-texto').text(mensagem);
+                $btn.prop('disabled', true);
+            }
+
+            // ------------------------------------------------------------------
+            // O filtro cruzado
+            // ------------------------------------------------------------------
+
+            // Cada dimensão é uma leitura da oferta: o dia e a hora saem do próprio texto do
+            // horário ("2026-08-23T09:00:00"), não de um Date — fatiar a string não depende de
+            // fuso nenhum, e o valor volta pro servidor exatamente como veio.
+            //
+            // O dia é o único que não se desenha como <select>: ele vira calendário. O `campo` e
+            // o `.val()` do escondido são iguais aos dos outros, então o motor do filtro não
+            // precisa saber dessa diferença.
+            var dimensoes = {
+                dia: { campo: function (o) { return o.valor.substring(0, 10); }, seletor: null, calendario: true },
+                hora: { campo: function (o) { return o.valor.substring(11, 16); }, seletor: null },
+                professor: { campo: function (o) { return String(o.professorId); }, seletor: null },
+                local: { campo: function (o) { return String(o.localId); }, seletor: null }
+            };
+            dimensoes.dia.seletor = $dia;
+            dimensoes.hora.seletor = $hora;
+            dimensoes.professor.seletor = $professor;
+            dimensoes.local.seletor = $local;
+
+            function escolhas() {
+                return {
+                    dia: $dia.val() || '',
+                    hora: $hora.val() || '',
+                    professor: $professor.val() || '',
+                    local: $local.val() || ''
+                };
+            }
+
+            // As ofertas que sobrevivem aos filtros escolhidos — opcionalmente ignorando um
+            // deles. É o "ignorando" que faz o filtro ser cruzado de verdade: as opções de dia
+            // têm que ser calculadas SEM o dia atual, senão o calendário colapsaria no único dia
+            // já escolhido e a pessoa nunca mais trocaria de dia sem limpar tudo.
+            function filtrar(exceto) {
+                var atual = escolhas();
+
+                return $.grep(ofertas, function (o) {
+                    var ok = true;
+                    $.each(dimensoes, function (nome, dim) {
+                        if (nome === exceto || !atual[nome]) return;
+                        if (dim.campo(o) !== atual[nome]) { ok = false; return false; }
+                    });
+                    return ok;
+                });
+            }
+
+            // "2026-08-23" partido à mão: `new Date('2026-08-23')` é lido como UTC e, no Brasil,
+            // volta um dia — a tela mostraria sábado onde a aula é domingo.
+            function comoData(chave) {
+                var partes = chave.split('-');
+                return new Date(+partes[0], +partes[1] - 1, +partes[2]);
+            }
+
+            function comoChave(data) {
+                var mes = data.getMonth() + 1;
+                var dia = data.getDate();
+                return data.getFullYear() + '-' + (mes < 10 ? '0' : '') + mes + '-' + (dia < 10 ? '0' : '') + dia;
+            }
+
+            function rotuloDoDia(chave) {
+                var data = comoData(chave);
+                var hoje = new Date();
+                var dias = Math.round((data - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / 86400000);
+                var texto = data.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+
+                if (dias === 0) return 'Hoje · ' + texto;
+                if (dias === 1) return 'Amanhã · ' + texto;
+                return texto;
+            }
+
+            function rotuloDe(nome, chave, listaFiltrada) {
+                if (nome === 'dia') return rotuloDoDia(chave);
+
+                if (nome === 'hora') {
+                    // A duração acompanha a hora: com aulas de 1h30 e 2h na mesma grade, só o
+                    // horário de início não diz até quando a pessoa fica na quadra.
+                    var duracoes = {};
+                    $.each(listaFiltrada, function (i, o) {
+                        if (o.valor.substring(11, 16) === chave && o.duracao) duracoes[o.duracao] = true;
+                    });
+                    var lista = $.map(duracoes, function (v, k) { return k; });
+                    return chave + (lista.length === 1 ? ' (' + lista[0] + ')' : '');
+                }
+
+                if (nome === 'professor') {
+                    var p = professoresPorId[chave];
+                    return p ? p.nome : 'Professor';
+                }
+
+                var l = locaisPorId[chave];
+                return l ? l.nome + ' (R$ ' + emReais(l.precoPadrao) + ')' : 'Local';
+            }
+
+            var rotuloVazio = {
+                hora: 'Qualquer horário',
+                professor: 'Qualquer professor',
+                local: 'Qualquer local'
+            };
+
+            var diasDaSemana = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
+            // Qual mês o calendário está mostrando. Fica FORA do desenho porque o desenho roda a
+            // cada mexida em qualquer filtro: guardado dentro, escolher um horário jogaria a
+            // pessoa de volta pro mês de hoje no meio da navegação.
+            var mesVisivel = null;
+
+            // O último dia escolhido, pra saber se a escolha MUDOU. Sem essa memória, cada
+            // redesenho puxaria o calendário de volta pro mês da data escolhida — e virar o mês
+            // com um dia já marcado seria impossível: a seta andava e o desenho desandava.
+            var ultimoDiaEscolhido = '';
+
+            // Os limites da janela do servidor, em chave "aaaa-mm-dd". É o que decide até onde
+            // as setas andam — e o que separa "dia sem vaga" de "dia que a busca nem cobre".
+            function janelaDasOfertas() {
+                var dias = {};
+                $.each(ofertas, function (i, o) { dias[o.valor.substring(0, 10)] = true; });
+                var chaves = $.map(dias, function (v, k) { return k; }).sort();
+                return chaves.length ? { primeiro: chaves[0], ultimo: chaves[chaves.length - 1] } : null;
+            }
+
+            // O primeiro dia do mês de uma chave, como Date — a unidade em que as setas andam.
+            function mesDe(chave) {
+                var d = comoData(chave);
+                return new Date(d.getFullYear(), d.getMonth(), 1);
+            }
+
+            function mesmoMes(a, b) {
+                return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+            }
+
+            // UM mês por vez, como qualquer seletor de data de celular. Antes a tela despejava a
+            // janela inteira numa grade só: com 14 dias dava três semanas e passava; com 60, viram
+            // nove semanas empilhadas, e aí não é mais calendário, é lista com cara de calendário.
+            //
+            // O dia sem vaga aparece APAGADO em vez de sumir — é ele que mostra que a semana
+            // existe e que aquele dia simplesmente não tem horário livre.
+            function desenharCalendario(comVaga, escolhida) {
+                if (!$('#cal-cabecalho').children().length) {
+                    var cabecalho = '';
+                    $.each(diasDaSemana, function (i, d) { cabecalho += '<div>' + d + '</div>'; });
+                    $('#cal-cabecalho').html(cabecalho);
+                }
+
+                var janela = janelaDasOfertas();
+                if (!janela) { $('#cal-dias').empty(); $('#cal-mes').text(''); return; }
+
+                var primeiroMes = mesDe(janela.primeiro);
+                var ultimoMes = mesDe(janela.ultimo);
+
+                // Pular pro mês da data só quando a ESCOLHA muda — não a cada redesenho, senão a
+                // seta não conseguiria sair do mês do dia já marcado.
+                if (escolhida && escolhida !== ultimoDiaEscolhido) mesVisivel = mesDe(escolhida);
+                ultimoDiaEscolhido = escolhida;
+
+                // E se o mês guardado saiu do ar (trocar de cidade encurta a janela), volta pro
+                // começo em vez de desenhar um mês vazio.
+                if (!mesVisivel || mesVisivel < primeiroMes || mesVisivel > ultimoMes) mesVisivel = primeiroMes;
+
+                var comVagaAgora = {};
+                $.each(comVaga, function (i, k) { comVagaAgora[k] = true; });
+
+                var ano = mesVisivel.getFullYear();
+                var mes = mesVisivel.getMonth();
+                var diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+                var html = '';
+                // Quadradinhos invisíveis até o dia 1 cair na coluna certa: mês quase nunca
+                // começa no domingo, e sem eles a grade inteira anda e a pessoa lê o dia da
+                // semana errado — que é justamente o que o calendário veio consertar.
+                for (var vazio = 0; vazio < new Date(ano, mes, 1).getDay(); vazio++) {
+                    html += '<div class="pdz-cal-vazio">&nbsp;</div>';
+                }
+
+                for (var dia = 1; dia <= diasNoMes; dia++) {
+                    var chave = comoChave(new Date(ano, mes, dia));
+                    // Fora da janela da busca (ontem, ou depois do alcance do servidor): fica
+                    // apagado igual, porque pra quem olha é a mesma coisa — não dá pra marcar.
+                    var dentroDaJanela = chave >= janela.primeiro && chave <= janela.ultimo;
+                    var livre = dentroDaJanela && comVagaAgora[chave] === true;
+
+                    html += '<button type="button" class="pdz-cal-dia'
+                        + (chave === escolhida ? ' pdz-cal-escolhido' : '')
+                        + '" data-dia="' + chave + '"'
+                        + (livre ? '' : ' disabled')
+                        + ' title="' + rotuloDoDia(chave) + '">' + dia + '</button>';
+                }
+
+                $('#cal-dias').html(html);
+                $('#cal-mes').text(mesVisivel.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
+
+                // Seta que não leva a lugar nenhum promete data que não existe.
+                $('#cal-anterior').prop('disabled', mesmoMes(mesVisivel, primeiroMes));
+                $('#cal-proximo').prop('disabled', mesmoMes(mesVisivel, ultimoMes));
+            }
+
+            // Andar de mês é só redesenhar: nenhum filtro muda, então a escolha atual continua
+            // de pé e o resumo lá embaixo não pisca.
+            function andarMes(passo) {
+                if (!mesVisivel) return;
+                mesVisivel = new Date(mesVisivel.getFullYear(), mesVisivel.getMonth() + passo, 1);
+                desenharCalendario(diasComVaga(), $dia.val() || '');
+            }
+
+            // Os dias que sobreviveram aos OUTROS filtros — a mesma conta que a varredura faz
+            // pro calendário, isolada aqui porque virar o mês precisa dela sem redesenhar tudo.
+            function diasComVaga() {
+                var vistos = {};
+                var chaves = [];
+                $.each(filtrar('dia'), function (i, o) {
+                    var chave = dimensoes.dia.campo(o);
+                    if (!vistos[chave]) { vistos[chave] = true; chaves.push(chave); }
+                });
+                return chaves.sort();
+            }
+
+            // Redesenha os quatro filtros. Cada um mostra só o que ainda é possível diante dos
+            // OUTROS, e a opção "qualquer" continua ali: escolher o dia não pode ser um caminho
+            // sem volta.
+            //
+            // Repete até parar de mudar (no máximo uma vez por dimensão): marcar sozinho o único
+            // professor que sobrou pode enxugar a lista de dias, que já foi desenhada nesta mesma
+            // passada. Sem repetir, a tela ofereceria um dia que aquele professor não atende — e
+            // a pessoa clicaria pra ouvir "nenhum horário com essa combinação".
+            function atualizar() {
+                if (atualizando) return;
+                atualizando = true;
+
+                for (var passada = 0; passada < 4; passada++) {
+                    if (!umaPassada()) break;
+                }
+
+                atualizando = false;
+                aplicarEscolha(filtrar(null));
+            }
+
+            // Uma varredura pelas quatro dimensões. Devolve se alguma escolha MUDOU — é isso que
+            // decide se vale outra passada.
+            function umaPassada() {
+                var escolhaAnterior = escolhas();
+                var mudou = false;
+
+                $.each(dimensoes, function (nome, dim) {
+                    var possiveis = filtrar(nome);
+                    var vistos = {};
+                    var chaves = [];
+
+                    $.each(possiveis, function (i, o) {
+                        var chave = dim.campo(o);
+                        if (!vistos[chave]) { vistos[chave] = true; chaves.push(chave); }
+                    });
+
+                    // Dia e hora saem em ordem de relógio; professor e local, por nome — a lista
+                    // de ofertas já vem ordenada por data, então só o texto precisa de ordem.
+                    if (nome === 'dia' || nome === 'hora') chaves.sort();
+                    else chaves.sort(function (a, b) {
+                        return rotuloDe(nome, a, possiveis).localeCompare(rotuloDe(nome, b, possiveis), 'pt-BR');
+                    });
+
+                    // Com uma opção só, marcar sozinho: quem escolheu terça às 9h e só tem um
+                    // professor livre não deveria ter que dizer o nome dele pra tela.
+                    //
+                    // ⚠️ O dia fica de fora dessa mordomia: um calendário que se pinta sozinho
+                    // parece que a pessoa escolheu uma data que ela não escolheu. Nos <select> o
+                    // texto marcado fica à vista; um quadradinho aceso no meio do mês, não.
+                    var escolhida = (chaves.length === 1 && !dim.calendario) ? chaves[0]
+                        : ($.inArray(escolhaAnterior[nome], chaves) >= 0 ? escolhaAnterior[nome] : '');
+
+                    dim.seletor.val(escolhida);
+
+                    if (dim.calendario) {
+                        desenharCalendario(chaves, escolhida);
+                    } else {
+                        var html = '<option value="">' + rotuloVazio[nome] + '</option>';
+                        $.each(chaves, function (i, chave) {
+                            html += '<option value="' + chave + '">' + rotuloDe(nome, chave, possiveis) + '</option>';
+                        });
+                        dim.seletor.html(html).val(escolhida).prop('disabled', false);
+                    }
+
+                    if (escolhida !== escolhaAnterior[nome]) mudou = true;
+                });
+
+                return mudou;
+            }
+
+            // O que a escolha atual já fecha. Enquanto sobrar mais de uma aula possível, o botão
+            // fica desligado e o resumo diz o que falta.
+            function aplicarEscolha(sobraram) {
+                var atual = escolhas();
+                // Não é `sobraram.length === 1`: duas regras de grade que se sobrepõem produzem o
+                // mesmo horário duas vezes, e com as quatro escolhas feitas as duas apontam pra
+                // exatamente a mesma aula. Exigir uma só deixaria o botão desligado pra sempre.
+                var fechou = sobraram.length > 0 && atual.dia && atual.hora && atual.professor && atual.local;
+
+                if (fechou) {
+                    var o = sobraram[0];
+                    $('#hidden-professor-id').val(o.professorId);
+                    $('#hidden-local-id').val(o.localId);
+                    $('#hidden-data-hora').val(o.valor);
+                    $('#resumo-texto').html('Tudo certo: <strong>' + rotuloDoDia(atual.dia) + '</strong> às <strong>'
+                        + atual.hora + '</strong> com <strong>' + rotuloDe('professor', atual.professor, sobraram)
+                        + '</strong>, em <strong>' + (locaisPorId[atual.local] || {}).nome + '</strong>.');
+                    prepararLocal(atual.local);
+                    $btn.prop('disabled', false);
+                    return;
+                }
+
+                $('#hidden-professor-id, #hidden-local-id, #hidden-data-hora').val('');
+                $opcoesTipo.hide();
+                $('#grupo-quantidade').hide();
+                $btn.prop('disabled', true);
+                renumerarPassos();
+
+                if (!sobraram.length) {
+                    $('#resumo-texto').text('Nenhum horário livre com essa combinação. Solte um dos filtros.');
+                    return;
+                }
+
+                var faltando = [];
+                if (!atual.dia) faltando.push('o dia');
+                if (!atual.hora) faltando.push('o horário');
+                if (!atual.professor) faltando.push('o professor');
+                if (!atual.local) faltando.push('o local');
+
+                $('#resumo-texto').text(sobraram.length + ' horário(s) livre(s). Falta escolher ' + faltando.join(', ') + '.');
+            }
+
+            $hora.add($professor).add($local).on('change', function () {
+                if (!atualizando) atualizar();
+            });
+
+            // Clicar no dia já escolhido solta o filtro: é o mesmo gesto pra marcar e desmarcar,
+            // e sem ele a pessoa teria que caçar o "Qualquer dia" pra ver a semana toda de novo.
+            $('#cal-dias').on('click', '.pdz-cal-dia', function () {
+                var chave = $(this).data('dia');
+                $dia.val($dia.val() === chave ? '' : chave);
+                atualizar();
+            });
+
+            $('#cal-limpar').on('click', function () {
+                $dia.val('');
+                atualizar();
+            });
+
+            // Virar o mês NÃO mexe em filtro nenhum — é só olhar mais pra frente. Chamar
+            // atualizar() aqui reescreveria os outros seletores à toa e faria o resumo piscar.
+            $('#cal-anterior').on('click', function () { andarMes(-1); });
+            $('#cal-proximo').on('click', function () { andarMes(1); });
+
+            // ------------------------------------------------------------------
+            // O que depende do LOCAL: pacotes, recorrência e preço por tamanho
+            // ------------------------------------------------------------------
+
+            // Mostra só os tamanhos que o professor anunciou naquele local, cada um com o preço.
+            // Oferecer "nós seis" a quem não faz sexteto é prometer um valor que não existe — e
+            // o servidor cobraria outro (ver Services/PrecoDaAula).
+            var ROTULOS_TAMANHO = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Enumerable.Range(PrecoDaAula.MinAlunos, PrecoDaAula.MaxAlunos - PrecoDaAula.MinAlunos + 1)
+                    .ToDictionary(n => n.ToString(), n => PrecoDaAula.RotuloDoAluno(n))));
+
+            function atualizarTamanhos(local) {
+                var $grupo = $('#grupo-quantidade');
+                var turmas = (local && local.precosDeTurma) || [];
+
+                // Individual é sempre a primeira escolha: trocar de local não pode deixar
+                // marcado um tamanho que a quadra nova não faz.
+                $('#aluno-qtd-1').prop('checked', true);
+
+                // Local que só tem o preço individual: o seletor não tem escolha nenhuma pra
+                // oferecer e some.
+                if (turmas.length === 0) {
+                    $grupo.hide();
+                    return;
+                }
+
+                var precoPorTamanho = {};
+                turmas.forEach(function (t) { precoPorTamanho[t.quantidadeAlunos] = t.preco; });
+
+                $('[id^="rotulo-qtd-"]').each(function () {
+                    var tamanho = parseInt(this.id.replace('rotulo-qtd-', ''), 10);
+                    if (tamanho === 1) return;
+
+                    var preco = precoPorTamanho[tamanho];
+                    $(this).toggle(preco != null)
+                           .text(ROTULOS_TAMANHO[tamanho] + ' · R$ ' + emReais(preco || 0));
+                });
+
+                $('#aviso-preco-tamanho').text('Aula individual: R$ ' + emReais(local.precoPadrao)
+                    + '. O valor é da aula inteira, dividido entre quem for.');
+                $grupo.show();
+            }
+
+            function prepararLocal(localId) {
+                var local = locaisPorId[localId];
+
                 $opcaoPacote.hide();
                 $escolhaPacote.hide();
                 $('#hidden-pacote-id').val('');
                 $('input[name="tipoAula"][value="avulsa"]').prop('checked', true);
-                atualizarTamanhos(localId);
+                $('#opcao-recorrencia').show();
+                atualizarTamanhos(local);
 
-                var pacotes = pacotesPorLocal[localId] || [];
-                if (localId && pacotes.length) {
+                var pacotes = (local && local.pacotes) || [];
+                if (pacotes.length) {
                     var opcoes = '';
                     $.each(pacotes, function (i, p) {
                         opcoes += '<option value="' + p.id + '">' + p.quantidadeAulas
@@ -315,8 +827,8 @@
                     $selectPacote.html(opcoes);
                     $('#hidden-pacote-id').val(pacotes[0].id);
 
-                    // Com um pacote só, o texto do rádio já diz tudo e o seletor seria uma
-                    // caixa com uma linha; com dois ou mais, é ele que faz a escolha.
+                    // Com um pacote só, o texto do rádio já diz tudo e o seletor seria uma caixa
+                    // com uma linha; com dois ou mais, é ele que faz a escolha.
                     if (pacotes.length === 1) {
                         $infoPacoteTexto.text('Pacote de ' + pacotes[0].quantidadeAulas + ' aulas por R$ '
                             + emReais(pacotes[0].preco) + ' (aulas semanais, combinado direto com o professor, ex: Pix)');
@@ -328,32 +840,9 @@
                     $opcaoPacote.show();
                 }
 
-                if (!localId) {
-                    $horario.html('<option value="">-- Escolha um local primeiro --</option>').prop('disabled', true);
-                    return;
-                }
-
-                $opcoesTipo.show(); renumerarPassos();
-                $horario.html('<option value="">Carregando...</option>').prop('disabled', true);
-
-                $.getJSON('/Aulas/ObterHorarios', { professorId: professorId, localId: localId }, function (horarios) {
-                    if (!horarios.length) {
-                        $horario.html('<option value="">Nenhum horário disponível nos próximos 14 dias</option>');
-                        return;
-                    }
-                    var options = '<option value="">-- Escolha um horário --</option>';
-                    $.each(horarios, function (i, h) {
-                        var data = new Date(h.valor);
-                        var texto = data.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }) +
-                            ' às ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                            // Quanto tempo o aluno tem que reservar: com aulas de 1h30 e 2h na
-                            // mesma grade, só a hora de início não diz até quando ele fica.
-                            + (h.duracao ? ' (' + h.duracao + ')' : '');
-                        options += '<option value="' + h.valor + '">' + texto + '</option>';
-                    });
-                    $horario.html(options).prop('disabled', false);
-                });
-            });
+                $opcoesTipo.show();
+                renumerarPassos();
+            }
 
             $(document).on('change', 'input[name="tipoAula"]', function () {
                 var ehPacote = $('input[name="tipoAula"]:checked').val() === 'pacote';
@@ -366,10 +855,6 @@
 
             $checkRecorrente.on('change', function () {
                 $campoSemanas.toggle($(this).is(':checked'));
-            });
-
-            $horario.on('change', function () {
-                $btn.prop('disabled', !$(this).val());
             });
 
             $('#form-solicitar').on('submit', function () {

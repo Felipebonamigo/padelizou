@@ -128,11 +128,16 @@ namespace padelizou.Controllers
         // O organizador pede a equipe; aqui é onde a gente olha se dá e responde. O valor
         // sai SÓ nesta resposta: antes de saber quem vai e de onde vem, qualquer preço na
         // tela do organizador seria chute virando promessa.
+        //
+        // 🔒 TELA DE RAIZ (18/08/2026). Não é uma tela "com um valor no meio": ela mostra o
+        // nosso CUSTO e a MARGEM de cada pedido, e quem responde está fechando preço em nome
+        // do Padelizou. Esconder os números deixaria o formulário sem sentido — quem não vê a
+        // margem não tem como cotar —, então a porta inteira é do raiz.
 
         [HttpGet]
         public async Task<IActionResult> RegistroResultados()
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             var pedidos = await _context.SolicitacoesRegistroResultados
@@ -156,7 +161,7 @@ namespace padelizou.Controllers
         public async Task<IActionResult> ResponderRegistroResultados(
             int id, bool temDisponibilidade, int? pessoas, decimal? valor, string? resposta)
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             var pedido = await _context.SolicitacoesRegistroResultados
@@ -212,7 +217,7 @@ namespace padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConcluirRegistroResultados(int id)
         {
-            var admin = await ObterJogadorAdminAsync();
+            var admin = await ObterJogadorAdminRaizAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
 
             var pedido = await _context.SolicitacoesRegistroResultados.FindAsync(id);
@@ -712,6 +717,9 @@ namespace padelizou.Controllers
 
             var feedbacks = await _context.FeedbacksSite
                 .Include(f => f.Jogador)
+                // De onde veio: o rodapé do site não tem torneio, a enquete de fim de torneio
+                // tem. Sem isto o admin lê "faltou aviso da chave" sem saber de qual torneio.
+                .Include(f => f.Torneio)
                 .OrderByDescending(f => f.CriadoEm)
                 .ToListAsync();
 
@@ -826,10 +834,18 @@ namespace padelizou.Controllers
         // Métricas de uso: os números que dizem se o sistema está crescendo e quanto a
         // plataforma já faturou no ano (controle do teto do MEI). CriadoEm nulo = registro
         // anterior a 25/07/2026 (antes da coluna existir) — entra nos totais, não nas séries.
+        //
+        // A tela é MISTA: crescimento é operação e todo admin vê; faturamento é dinheiro e só
+        // o raiz vê (18/08/2026). O corte é na VIEW, pela flag abaixo — o VM continua inteiro
+        // porque as duas contas nascem das mesmas consultas, e partir a consulta em duas seria
+        // criar a segunda cópia da regra do MEI.
         [HttpGet]
         public async Task<IActionResult> Metricas(string? agrupar = null)
         {
-            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            ViewBag.PodeVerDinheiro = PoderesNoSistema.PodeVerDinheiro(admin);
 
             var agora = DateTime.Now;
             var ha7 = agora.AddDays(-7);
@@ -869,6 +885,9 @@ namespace padelizou.Controllers
                     .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioAno)
                     .SumAsync(p => (decimal?)p.Comissao) ?? 0,
                 TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
+
+                AcessosHoje = await MetricasDeAcesso.AcessosHojeAsync(_context, agora.Date),
+                PicoDeAcessosNoMinuto = await MetricasDeAcesso.PicoDeAcessosNoMinutoAsync(_context, agora.Date),
             };
 
             // Estado do backup fora do servidor, lido do mesmo carimbo que o vigia usa. Vem

@@ -29,6 +29,35 @@ public static class PoderesNoSistema
     public static bool PodeEditarTudo(Jogador? jogador) =>
         jogador is { IsAdminRaiz: true } or { IsAdminGeral: true };
 
+    // ── DINHEIRO É SÓ DO RAIZ ──────────────────────────────────────────────────────────
+    //
+    // Terceiro eixo (18/08/2026, decisão do Felipe: "adm não vê nada de financeiro, somente
+    // eu"). `PodeOlharTudo` respondia por duas perguntas diferentes — "enxerga a operação?" e
+    // "enxerga o caixa?" —, e é justamente por elas serem a mesma função que o administrador
+    // nomeado e o assistente liam a receita do MEI, a comissão de cada parceiro, a margem do
+    // registro de resultados e o caixa de qualquer torneio.
+    //
+    // ⚠️ NÃO É "PodeEditarTudo com outro nome": o admin nomeado edita o sistema inteiro e
+    // mesmo assim não vê um real. Quem escrever `PodeEditarTudo` no lugar disto reabre o
+    // buraco pro admin nomeado sem que nenhuma tela pareça diferente.
+    //
+    // ⚠️ Esta função responde por DINHEIRO NOSSO E DE TERCEIROS: receita, comissão, margem,
+    // mensalidade de professor, caixa de torneio e Pix alheio. As duas exceções mora cada uma
+    // na sua função abaixo, e as duas são a mesma ideia — ver o PRÓPRIO dinheiro nunca passou
+    // por aqui: o organizador vê o caixa do torneio dele pelo nível de acesso
+    // (AcessoAoDinheiroDoTorneio), e o parceiro vê o extrato dele pela flag de parceiro.
+    public static bool PodeVerDinheiro(Jogador? jogador) =>
+        jogador is { IsAdminRaiz: true };
+
+    // A MESMA pergunta feita pelo crachá, pra quem só tem o `User` na mão (as views e os
+    // controllers que não buscam o Jogador). Sobrecarga em vez de `claim == "true"` espalhado:
+    // no dia em que a régua mudar, ela muda uma vez.
+    //
+    // ⚠️ O crachá só é reescrito quando a pessoa entra de novo. Serve pra ESCONDER (aba,
+    // cartão, coluna); quem RECUSA a entrada continua sendo a action, que lê o banco.
+    public static bool PodeVerDinheiro(System.Security.Claims.ClaimsPrincipal? usuario) =>
+        usuario?.FindFirst("IsAdminRaiz")?.Value == "true";
+
     // Está olhando de fora: vê tudo e não muda nada. É o que acende a faixa de só-leitura e
     // desliga os formulários na tela.
     //
@@ -58,6 +87,15 @@ public static class PoderesNoSistema
     public static bool PodeVerRelatorioDoRanking(Jogador? jogador) =>
         PodeOlharTudo(jogador) || jogador is { IsParceiroRanking: true };
 
+    // A tela continua aberta pra quem é da casa, mas as COLUNAS DE VALOR não: o relatório
+    // conta quem aderiu, quem foi barrado e quem passou pelo filtro — isso é operação — e
+    // também quanto a parceria rende, que é dinheiro (18/08/2026).
+    //
+    // O parceiro continua vendo os valores porque a conta é DELE: é o extrato do que ele tem
+    // a receber por pessoa casada, e esconder aqui esvaziaria a tela que existe pra ele.
+    public static bool PodeVerValoresDoRankingRs(Jogador? jogador) =>
+        PodeVerDinheiro(jogador) || jogador is { IsParceiroRanking: true };
+
     // Está aqui SÓ por causa do relatório: o painel não existe pra ele. É o que decide se a
     // pessoa cai direto na tela da parceria ao entrar em /Admin, em vez de ser mandada embora.
     //
@@ -77,12 +115,20 @@ public static class PoderesNoSistema
     // que o parceiro vê apenas as próprias linhas é AdminController.Comissoes, que IMPÕE o id
     // da sessão e ignora a query string. Uma checagem de "pode ver a tela" nunca responde
     // "pode ver ESTA linha", e confundir as duas é como se vaza dado em painel filtrado.
+    //
+    // ⚠️ A tela é DINHEIRO inteiro, então quem é da casa entra por `PodeVerDinheiro` — o
+    // administrador nomeado e o assistente não veem a carteira de ninguém (18/08/2026).
     public static bool PodeVerComissoesDeParceiro(Jogador? jogador) =>
-        PodeOlharTudo(jogador) || jogador is { IsParceiroComercial: true };
+        PodeVerDinheiro(jogador) || jogador is { IsParceiroComercial: true };
 
     // Está aqui SÓ por causa do extrato dele: o resto do painel não existe do lado de lá.
-    // Parceiro que também seja admin (o Felipe indicando alguém) NÃO cai nisto — a flag soma,
+    // Parceiro que também seja RAIZ (o Felipe indicando alguém) NÃO cai nisto — a flag soma,
     // não substitui, igual às outras duas.
+    //
+    // ⚠️ Administrador nomeado que também seja parceiro comercial cai aqui SIM, e é o certo:
+    // ele vê o extrato dele porque é o dinheiro DELE, e não o dos outros. O desvio de /Admin
+    // que usa esta função só acontece pra quem não tem painel nenhum (ver Index), então ele
+    // continua caindo no painel normalmente.
     public static bool SoVeAsPropriasComissoes(Jogador? jogador) =>
-        jogador is { IsParceiroComercial: true } && !PodeOlharTudo(jogador);
+        jogador is { IsParceiroComercial: true } && !PodeVerDinheiro(jogador);
 }

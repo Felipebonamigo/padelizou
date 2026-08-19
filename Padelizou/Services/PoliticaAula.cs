@@ -17,6 +17,18 @@ public static class PoliticaAula
     public const string Recusada = "Recusada";
     public const string Faltou = "Faltou";
 
+    // O aluno não vem NESTE dia, a aula é cobrada assim mesmo e ele tem direito a repô-la
+    // outro dia. É o caso do mensalista: quem paga o mês não perde a aula por faltar, e o
+    // professor não perde o dinheiro por ele ter faltado — ver Services/Reposicao.
+    //
+    // Guardado COM ESPAÇO porque o status é impresso cru na agenda e no card do aluno:
+    // "ARecuperar" apareceria assim mesmo, na tela, pro professor e pro aluno.
+    public const string ARecuperar = "A recuperar";
+
+    // "Ativa" é a aula que ainda ocupa o horário do professor. Ficar de fora é justamente o
+    // que faz "vai recuperar" LIBERAR a vaga do dia — o professor encaixa outro aluno ali,
+    // que é o pedido inteiro. Também é o que tira a aula da lista de próximas do aluno: ela
+    // não vai acontecer naquele dia, e prometer que vai seria mentira na tela dele.
     public static bool ContaComoAtiva(string? status) =>
         status == Pendente || status == Confirmada;
 

@@ -6,17 +6,23 @@ namespace Padelizou.Services;
 // Quanto custa uma aula. Já foi uma linha (`local.PrecoPadrao`) até 03/08/2026, quando o
 // primeiro professor de verdade usou o sistema e mostrou que o preço tem duas dimensões:
 //
-//   TAMANHO  — um aluno, dois ou três dividindo a mesma hora de quadra.
+//   TAMANHO  — quantos alunos dividem a mesma hora de quadra.
 //   QUEM     — o aluno antigo que nunca teve reajuste paga o dele.
 //
 // As duas se cruzam, e cruzar sem uma regra escrita é como se cobra errado. A regra:
 // o preço combinado é um acordo com UMA PESSOA, então vale na aula individual dela; a aula
-// em dupla ou trio é da quadra e cobra o valor do tamanho. Em qualquer caso o professor
-// ainda enxerga e edita o valor antes de salvar — isto aqui é a sugestão, não a sentença.
+// em turma é da quadra e cobra o valor do tamanho. Em qualquer caso o professor ainda
+// enxerga e edita o valor antes de salvar — isto aqui é a sugestão, não a sentença.
 public static class PrecoDaAula
 {
     public const int MinAlunos = 1;
-    public const int MaxAlunos = 3;
+
+    // Seis por causa do beach: a turma de sexteto é o formato normal lá, e o teto de três
+    // (que vinha das colunas PrecoDupla/PrecoTrio do local) obrigava o professor a lançar a
+    // aula como trio e corrigir o preço na mão — em toda aula, e esquecendo em uma.
+    // Subir daqui pra frente é só mexer nesta linha: os preços moram em PrecoDeTurma, uma
+    // linha por tamanho, e nada mais conta até três.
+    public const int MaxAlunos = 6;
 
     // O formulário manda o que o usuário mandar (0, 9, vazio virando 0). Fora da faixa vira
     // aula individual em vez de erro: o professor quer marcar a aula, não discutir o campo.
@@ -27,19 +33,64 @@ public static class PrecoDaAula
     {
         2 => "Em dupla",
         3 => "Em trio",
+        4 => "Em quarteto",
+        5 => "Em quinteto",
+        6 => "Em sexteto",
         _ => "Individual",
     };
+
+    // O mesmo tamanho, dito do lado do ALUNO. Ele não marca "em trio", ele marca "nós
+    // três" — e a primeira pessoa da frase é ele. Fica aqui junto do Rotulo do professor
+    // porque são a mesma lista vista dos dois lados: separados, subir o teto acertaria um e
+    // deixaria o outro parado no número antigo.
+    public static string RotuloDoAluno(int quantidadeAlunos) => Tamanho(quantidadeAlunos) switch
+    {
+        2 => "Nós dois",
+        3 => "Nós três",
+        4 => "Nós quatro",
+        5 => "Nós cinco",
+        6 => "Nós seis",
+        _ => "Só eu",
+    };
+
+    // Os tamanhos de turma que existem pra oferecer numa tela (2, 3, ... até o teto). A
+    // individual fica de fora porque ela não é turma: o preço dela é o do local, sempre.
+    public static IEnumerable<int> TamanhosDeTurma =>
+        Enumerable.Range(2, MaxAlunos - 1);
+
+    // A tabela de preços de um local, pronta pra consulta por tamanho. Tamanho repetido não
+    // deveria existir (o índice único no banco impede), mas se existir o último vence em vez
+    // de derrubar a página — mesma escolha de PorAluno, logo abaixo.
+    public static Dictionary<int, decimal> PorTamanho(IEnumerable<PrecoDeTurma>? precos)
+    {
+        var mapa = new Dictionary<int, decimal>();
+        foreach (var preco in precos ?? Enumerable.Empty<PrecoDeTurma>())
+        {
+            mapa[preco.QuantidadeAlunos] = preco.Preco;
+        }
+        return mapa;
+    }
 
     // Preço da tabela do local para um tamanho. Sem preço para o tamanho pedido, cai para o
     // tamanho menor mais próximo que o professor informou — quem preencheu dupla e deixou
     // trio em branco prefere ver o valor da dupla (perto, dá pra ajustar pra cima) do que o
-    // do individual, que cobraria três pessoas pelo preço de uma.
-    public static decimal DoLocal(LocalAula local, int quantidadeAlunos) => Tamanho(quantidadeAlunos) switch
+    // do individual, que cobraria três pessoas pelo preço de uma. Com o teto em seis a queda
+    // é degrau a degrau pelo mesmo motivo: o sexteto de quem só anunciou quarteto vale mais
+    // o valor do quarteto do que o da aula de uma pessoa só.
+    //
+    // ⚠️ Lê `local.PrecosDeTurma`, então quem carrega o local do banco precisa do Include —
+    // sem ele a lista vem vazia e TODA turma sairia pelo preço da individual, calada.
+    public static decimal DoLocal(LocalAula local, int quantidadeAlunos)
     {
-        3 => local.PrecoTrio ?? local.PrecoDupla ?? local.PrecoPadrao,
-        2 => local.PrecoDupla ?? local.PrecoPadrao,
-        _ => local.PrecoPadrao,
-    };
+        var tabela = PorTamanho(local.PrecosDeTurma);
+
+        for (var tamanho = Tamanho(quantidadeAlunos); tamanho >= 2; tamanho--)
+        {
+            if (tabela.TryGetValue(tamanho, out var preco)) return preco;
+        }
+
+        return local.PrecoPadrao;
+    }
 
     // O valor que a tela sugere. `precoCombinado` é o acordo com aquele aluno (null = não
     // tem) e só entra na individual, pelo motivo explicado lá em cima.

@@ -44,6 +44,14 @@
             {
                 <span class="badge bg-danger mb-2">Cancelado</span>
             }
+            @* Mesma ideia do selo acima: este card só chega às mãos de quem organiza (a
+               listagem esconde o oculto de todo mundo), e sem o selo ele fica idêntico a um
+               torneio no ar — o organizador conferiria a lista, veria o torneio lá e concluiria
+               que está divulgado. *@
+            @if (Model.Oculto)
+            {
+                <span class="badge bg-secondary mb-2"><i class="bi bi-eye-slash-fill"></i> Oculto</span>
+            }
             <h5 class="card-title fw-bold" style="color: var(--pdz-ink);">@Model.Nome</h5>
             <p class="card-text small mb-1 fw-semibold" style="color: var(--pdz-ink);">
                 <i class="bi bi-calendar-event"></i> @quando

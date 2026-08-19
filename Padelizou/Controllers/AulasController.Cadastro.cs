@@ -22,6 +22,7 @@ namespace padelizou.Controllers
 
             var locais = await _context.LocaisAula
                 .Include(l => l.Pacotes.OrderBy(p => p.QuantidadeAulas))
+                .Include(l => l.PrecosDeTurma.OrderBy(p => p.QuantidadeAlunos))
                 .Include(l => l.Horarios)
                 .Where(l => l.ProfessorId == professorId)
                 .OrderByDescending(l => l.Ativo)
@@ -43,12 +44,12 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CriarLocal(string nome, string? endereco, decimal precoPadrao,
-            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
+            Dictionary<int, decimal?>? precoTurma, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            _context.LocaisAula.Add(new LocalAula
+            var local = new LocalAula
             {
                 ProfessorId = professorId.Value,
                 Nome = nome,
@@ -56,14 +57,50 @@ namespace padelizou.Controllers
                 // Em branco vira nulo pra tela não ter que checar as duas coisas ao exibir.
                 Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
                 PrecoPadrao = precoPadrao,
-                PrecoDupla = precoDupla > 0 ? precoDupla : null,
-                PrecoTrio = precoTrio > 0 ? precoTrio : null,
                 CustoPorAula = custoPorAula,
                 Ativo = true
-            });
+            };
+
+            AplicarPrecosDeTurma(local, precoTurma);
+
+            _context.LocaisAula.Add(local);
             await _context.SaveChangesAsync();
 
             return RedirectToAction("MeusLocais");
+        }
+
+        // Sincroniza a tabela de turmas do local com o que veio do formulário: preço de
+        // verdade grava (criando ou corrigindo a linha do tamanho), branco ou zero APAGA.
+        //
+        // Apagar é o ponto: sem isso não existiria como o professor dizer "parei de fazer
+        // sexteto" — ele limparia o campo, salvaria, e o tamanho continuaria sendo oferecido
+        // ao aluno pelo valor antigo. Tamanho fora da faixa é ignorado em silêncio; quem
+        // manda 9 alunos é formulário adulterado, não professor.
+        private static void AplicarPrecosDeTurma(LocalAula local, Dictionary<int, decimal?>? precos)
+        {
+            if (precos == null) return;
+
+            foreach (var (tamanho, valor) in precos)
+            {
+                if (tamanho < 2 || tamanho > PrecoDaAula.MaxAlunos) continue;
+
+                var linha = local.PrecosDeTurma.FirstOrDefault(p => p.QuantidadeAlunos == tamanho);
+
+                if (valor is not decimal preco || preco <= 0)
+                {
+                    if (linha != null) local.PrecosDeTurma.Remove(linha);
+                    continue;
+                }
+
+                if (linha == null)
+                {
+                    local.PrecosDeTurma.Add(new PrecoDeTurma { QuantidadeAlunos = tamanho, Preco = preco });
+                }
+                else
+                {
+                    linha.Preco = preco;
+                }
+            }
         }
 
         // Editar a tabela de preços de um local que já existe. Antes só o custo era editável:
@@ -71,20 +108,22 @@ namespace padelizou.Controllers
         // digitação no primeiro cadastro) é coisa que acontece.
         [HttpPost]
         public async Task<IActionResult> AtualizarPrecos(int id, decimal precoPadrao,
-            decimal? precoDupla, decimal? precoTrio, decimal? custoPorAula)
+            Dictionary<int, decimal?>? precoTurma, decimal? custoPorAula)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
 
-            var local = await _context.LocaisAula.FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+            var local = await _context.LocaisAula
+                .Include(l => l.PrecosDeTurma)
+                .FirstOrDefaultAsync(l => l.Id == id && l.ProfessorId == professorId);
+
             if (local != null)
             {
                 // Zero ou negativo anunciaria aula de graça por escorregão de digitação, então
-                // o preço da individual só troca por um valor de verdade. Dupla e trio aceitam
-                // branco: é o jeito de dizer "não faço esse tamanho".
+                // o preço da individual só troca por um valor de verdade. Os tamanhos de turma
+                // aceitam branco: é o jeito de dizer "não faço esse tamanho".
                 if (precoPadrao > 0) local.PrecoPadrao = precoPadrao;
-                local.PrecoDupla = precoDupla > 0 ? precoDupla : null;
-                local.PrecoTrio = precoTrio > 0 ? precoTrio : null;
+                AplicarPrecosDeTurma(local, precoTurma);
                 local.CustoPorAula = custoPorAula;
                 await _context.SaveChangesAsync();
                 TempData["SucessoPacote"] = $"Preços de {local.Nome} atualizados.";
@@ -339,11 +378,93 @@ namespace padelizou.Controllers
                 acordoDoNome.NomeAvulso = null;
             }
 
+            // O cadastro vai junto pelo mesmo motivo, e com mais razão: dentro dele está QUEM
+            // PAGA por esse aluno. Deixá-lo preso ao nome antigo faria a mãe sumir da cobrança
+            // no dia em que o filho criasse conta — e ninguém perceberia até o mês fechar.
+            var cadastros = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+            var cadastroDoNome = CadastrosDeAlunos.Achar(cadastros, null, nome);
+            var jaTinhaCadastroDaConta = CadastrosDeAlunos.Achar(cadastros, conta.Id, null) != null;
+
+            if (cadastroDoNome != null && !jaTinhaCadastroDaConta)
+            {
+                cadastroDoNome.AlunoId = conta.Id;
+                cadastroDoNome.NomeAvulso = null;
+            }
+
             await _context.SaveChangesAsync();
 
             TempData["SucessoPrecoAluno"] =
                 $"Pronto: {aulas.Count} aula(s) de \"{nome}\" agora estão na conta de {conta.ComoChamar}. "
                 + "Ele passa a ver o histórico no app dele.";
+            return RedirectToAction("Dashboard");
+        }
+
+        // ---- A ficha do aluno: celular e QUEM PAGA ----
+        // O responsável existe porque nem sempre o aluno é quem paga (criança, principalmente),
+        // e a cobrança do mês precisa sair no nome de quem paga. Ver Models/CadastroDoAluno.
+        [HttpPost]
+        public async Task<IActionResult> SalvarCadastroDoAluno(int? alunoId, string? nomeAvulso,
+            string? celular, string? responsavelNome, string? responsavelCelular, string? responsavelCpf,
+            string? observacao)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var nome = string.IsNullOrWhiteSpace(nomeAvulso) ? null : nomeAvulso.Trim();
+
+            // Mesma checagem do acordo de preço: tem que ser aluno DESTE professor. Sem ela um
+            // id no formulário criaria ficha (com CPF de terceiro dentro) de quem nunca pisou
+            // na quadra dele.
+            var ehMeuAluno = alunoId is int id
+                ? await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.AlunoId == id)
+                : nome != null
+                  && await _context.Aulas.AnyAsync(a => a.ProfessorId == professorId && a.NomeAlunoAvulso == nome);
+
+            if (!ehMeuAluno)
+            {
+                TempData["ErroPrecoAluno"] = "Não achei esse aluno na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var problema = CadastrosDeAlunos.ProblemaComOResponsavel(responsavelNome, responsavelCpf);
+            if (problema != null)
+            {
+                TempData["ErroPrecoAluno"] = problema;
+                return RedirectToAction("Dashboard");
+            }
+
+            var fichas = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId)
+                .ToListAsync();
+
+            var ficha = CadastrosDeAlunos.Achar(fichas, alunoId, nome);
+            if (ficha == null)
+            {
+                ficha = new CadastroDoAluno
+                {
+                    ProfessorId = professorId.Value,
+                    AlunoId = alunoId,
+                    NomeAvulso = alunoId == null ? nome : null,
+                };
+                _context.CadastrosDeAlunos.Add(ficha);
+            }
+
+            // Aqui o branco APAGA — ao contrário do cadastro rápido. É a tela da ficha: o
+            // professor está olhando os campos preenchidos e decidindo, então limpar o
+            // responsável é a única forma de dizer "voltou a pagar por conta própria".
+            ficha.Celular = CadastrosDeAlunos.CelularNormalizado(celular);
+            ficha.ResponsavelNome = string.IsNullOrWhiteSpace(responsavelNome) ? null : responsavelNome.Trim();
+            ficha.ResponsavelCelular = CadastrosDeAlunos.CelularNormalizado(responsavelCelular);
+            ficha.ResponsavelCpf = Documentos.SomenteDigitosOuNulo(responsavelCpf);
+            ficha.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
+
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoPrecoAluno"] = CadastrosDeAlunos.TemResponsavel(ficha)
+                ? $"Ficha salva. A cobrança deste aluno sai no nome de {ficha.ResponsavelNome}."
+                : "Ficha salva.";
             return RedirectToAction("Dashboard");
         }
 

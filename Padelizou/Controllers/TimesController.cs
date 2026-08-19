@@ -164,7 +164,7 @@ public class TimesController : Controller
 
         // O elenco repartido por categoria sai dos membros JÁ ordenados acima — assim a ordem
         // dentro de cada grupo é a mesma da lista corrida, e não uma segunda regra de ordem.
-        vm.Elenco = ElencoPorCategoria.Agrupar(vm.Membros, m => m.Categorias);
+        vm.Elenco = ElencoPorCategoria.Agrupar(vm.Membros, m => m.Categorias, m => m.Jogador.Sexo);
 
         vm.Presidente = AdministracaoTime.Presidente(vm.Administradores, a => a.ConcedidoEm);
 

@@ -43,7 +43,10 @@ public class PagamentosController : Controller
     {
         var pagamento = await _context.Pagamentos.FindAsync(id);
 
-        bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+        // A fatura de OUTRA pessoa é dinheiro dela: pela casa, só o raiz (18/08/2026). Era o
+        // crachá `IsAdmin`, que inclui o administrador nomeado. O dono da cobrança continua
+        // entrando pelo próprio id, como sempre.
+        bool ehAdmin = PoderesNoSistema.PodeVerDinheiro(User);
         var problema = PixDireto.ProblemaParaVer(pagamento, ObterJogadorIdLogado(), ehAdmin);
         if (problema != null) return NotFound();
 
@@ -69,7 +72,7 @@ public class PagamentosController : Controller
     {
         var pagamento = await _context.Pagamentos.FindAsync(id);
 
-        bool ehAdmin = User.FindFirstValue("IsAdmin") == "true";
+        bool ehAdmin = PoderesNoSistema.PodeVerDinheiro(User);
         if (PixDireto.ProblemaParaVer(pagamento, ObterJogadorIdLogado(), ehAdmin) != null) return NotFound();
 
         var dados = await ChavePixDoPadelizou.LerAsync(_context);

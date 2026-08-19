@@ -2623,6 +2623,19 @@ button, a, input, select { touch-action: manipulation; }
     border: 1px dashed var(--pdz-border);
 }
 
+/* O pontinho de "confirmou presença" no botão de jogador, na tela de registrar jogo.
+   É DESTAQUE, não filtro: quem não confirmou aparece na lista do mesmo jeito, porque quem
+   jogou e esqueceu de tocar em "vou" no app precisa poder ser lançado. */
+.pdz-ponto-confirmado {
+    display: inline-block;
+    width: .45rem;
+    height: .45rem;
+    border-radius: 50%;
+    background: var(--padel-green, #7ac943);
+    margin-right: .35rem;
+    vertical-align: middle;
+}
+
 /* W.O. — a etiqueta que impede o resultado de se passar por jogo jogado. Cor de AVISO e
    não de erro: o resultado vale, o que não houve foi partida. */
 .pdz-jl-wo {

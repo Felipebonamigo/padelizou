@@ -26,6 +26,8 @@ public static class EdicaoDeAula
     {
         PoliticaAula.Realizada => "Essa aula já foi dada — ela já entrou no seu financeiro.",
         PoliticaAula.Faltou => "Essa aula está registrada como falta.",
+        PoliticaAula.ARecuperar => "Essa aula está na fila de reposição — marque a reposição "
+            + "em vez de mudar o horário dela.",
         PoliticaAula.Cancelada => "Essa aula foi cancelada.",
         PoliticaAula.Recusada => "Essa aula foi recusada.",
         _ => "Essa aula não pode mais ser alterada.",

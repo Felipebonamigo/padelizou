@@ -125,16 +125,20 @@
 
            Os nomes das abas ficam escritos no cartão de propósito — sem isso, "onde foi parar
            o Clubes?" viraria uma caça ao tesouro no primeiro dia. *@
-        @foreach (var grupo in Padelizou.Services.PainelAdminAgrupado.Grupos.Where(g => !g.SoRaiz || ehRaiz))
+        @* ⚠️ O cartão abre na primeira aba VISÍVEL, não na primeira da lista: "Parceiros"
+           começa em Comissões, que é do raiz, e o administrador nomeado levaria um Forbid ao
+           clicar no próprio cartão que o painel ofereceu a ele. *@
+        @foreach (var grupo in Padelizou.Services.PainelAdminAgrupado.GruposVisiveis(ehRaiz))
         {
+            var abasDoGrupo = Padelizou.Services.PainelAdminAgrupado.AbasVisiveis(grupo, ehRaiz);
             <div class="col-md-6">
-                <a asp-controller="Admin" asp-action="@grupo.Abas[0].Action" class="text-decoration-none">
+                <a asp-controller="Admin" asp-action="@abasDoGrupo[0].Action" class="text-decoration-none">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body">
                             <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi @grupo.Icone"></i> @grupo.Titulo</h5>
-                            <p class="text-muted small mb-2">@grupo.Descricao</p>
+                            <p class="text-muted small mb-2">@grupo.DescricaoPara(ehRaiz)</p>
                             <div class="d-flex flex-wrap gap-1">
-                                @foreach (var aba in grupo.Abas)
+                                @foreach (var aba in abasDoGrupo)
                                 {
                                     <span class="badge rounded-pill text-bg-light border fw-normal">@aba.Titulo</span>
                                 }
@@ -144,6 +148,18 @@
                 </a>
             </div>
         }
+        @* Sozinho, e não num grupo: um grupo de uma aba só vira um cartão que promete abas e
+           abre numa tela sem nenhuma (tem teste em PainelAdminAgrupadoTests). *@
+        <div class="col-md-6">
+            <a asp-controller="Admin" asp-action="Acesso" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-lock"></i> Acesso do jogador</h5>
+                        <p class="text-muted small mb-0">Chegou um "não consigo entrar"? Procure pelo CPF e veja <strong>por quê</strong> — e o que responder. Só leitura.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
         <div class="col-md-6">
             <a asp-controller="Admin" asp-action="Erros" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100">
@@ -154,16 +170,21 @@
                 </div>
             </a>
         </div>
-        <div class="col-md-6">
-            <a asp-controller="Admin" asp-action="RegistroResultados" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-raised-hand"></i> Registro de resultados</h5>
-                        <p class="text-muted small mb-0">Organizadores pedindo nossa equipe pra lançar os jogos. Confirmar disponibilidade e valor.</p>
+        @* Passou pro bloco do raiz em 18/08/2026: responder um pedido é fechar PREÇO em nome
+           do Padelizou, e a tela mostra o nosso custo e a margem de cada um. *@
+        @if (ehRaiz)
+        {
+            <div class="col-md-6">
+                <a asp-controller="Admin" asp-action="RegistroResultados" class="text-decoration-none">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);"><i class="bi bi-person-raised-hand"></i> Registro de resultados</h5>
+                            <p class="text-muted small mb-0">Organizadores pedindo nossa equipe pra lançar os jogos. Confirmar disponibilidade e valor.</p>
+                        </div>
                     </div>
-                </div>
-            </a>
-        </div>
+                </a>
+            </div>
+        }
         @* Fora do bloco do raiz de propósito: é relatório, não caixa. O card irmão
            (@Padelizou.Services.MarcaDoRanking.Nome, mais abaixo) é o do dinheiro e continua
            só pro raiz — este aqui é o mesmo assunto visto de fora, e é a ÚNICA tela do painel

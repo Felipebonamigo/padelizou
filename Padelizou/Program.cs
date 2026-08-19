@@ -12,6 +12,7 @@ using Padelizou.Services;
 using padelizou.Models;
 using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.RateLimiting;
 
 // No Windows o processo herda a cultura pt-BR do SO, mas no Linux (produção) não há esse
@@ -70,6 +71,11 @@ builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapi
 // 404, que é a resposta honesta enquanto não existe app na Play Store (ver Services/AndroidSettings).
 builder.Services.Configure<AndroidSettings>(builder.Configuration.GetSection("Android"));
 builder.Services.Configure<AsaasSettings>(builder.Configuration.GetSection("Asaas"));
+// Leitura do extrato Pix do Inter, pra confirmar sozinho o que já bate com uma cobrança
+// nossa e sugerir na fila do /Admin/PixDireto o que só bate por CPF. Nasce DESLIGADO até o
+// client_id existir (ver Services/InterPixSettings) — sem ele a conferência manual continua
+// sendo o caminho, exatamente como hoje.
+builder.Services.Configure<InterPixSettings>(builder.Configuration.GetSection("InterPix"));
 // Ranking RS (mundodoatleta.com.br). Nasce DESLIGADO: sem chave configurada, nenhuma inscrição
 // é validada contra o ranking — ver Services/RankingRsSettings.
 builder.Services.Configure<RankingRsSettings>(builder.Configuration.GetSection("RankingRs"));
@@ -195,6 +201,20 @@ builder.Services.AddHttpClient<IAsaasService, AsaasService>(client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("Padelizou");
 });
+// O certificado que autentica no Inter (mTLS) só é carregado quando InterPix está
+// Habilitado E os arquivos existem — sem isso o handler sai sem certificado nenhum, e o
+// InterPixProvedor simplesmente não é chamado (o BackgroundService confere Habilitado antes).
+builder.Services.AddHttpClient<IProvedorDeExtratoPix, InterPixProvedor>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+    {
+        var cfg = sp.GetRequiredService<IOptions<InterPixSettings>>().Value;
+        var handler = new HttpClientHandler();
+        if (cfg.Habilitado && File.Exists(cfg.CertPath) && File.Exists(cfg.KeyPath))
+        {
+            handler.ClientCertificates.Add(X509Certificate2.CreateFromPemFile(cfg.CertPath, cfg.KeyPath));
+        }
+        return handler;
+    });
 // A consulta ao Ranking RS acontece dentro do POST da inscrição. O timeout de verdade é o do
 // RankingRsSettings (o serviço o aplica no construtor); servidor deles pendurado vira
 // "não consultado" e a inscrição segue.
@@ -304,6 +324,7 @@ builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
+builder.Services.AddHostedService<ConciliacaoAutomaticaDoPixBackgroundService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -407,6 +428,11 @@ using (var scope = app.Services.CreateScope())
         //
         // `Codigo` e `Tipo` continuam "CASAL": é por Tipo que as telas agrupam a categoria, e
         // mexer neles quebraria o bloco do coração na criação sem melhorar nada.
+        //
+        // E foi o que aconteceu: a linha antiga "Categoria Casal" (singular) ficou de pé nos
+        // bancos que já rodavam, e a criação de torneio passou a oferecer as duas. Quem desliga
+        // ela é a migração CategoriaCasalDuplicada — NÃO a devolva a esta lista, ou o start
+        // seguinte a recria ligada e a duplicata volta.
         ("Categoria Casais", "CASAL", "Casal", true),
     };
 
@@ -490,7 +516,22 @@ if (!app.Environment.IsDevelopment())
 // caminho de volta — link velho de torneio compartilhado no WhatsApp é o caso mais comum.
 // "ReExecute" reexecuta o pipeline mantendo a URL que a pessoa digitou na barra, em vez de
 // redirecionar: quem chegou por um link errado consegue ver qual era o link errado.
-app.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}");
+//
+// ⚠️ SÓ PARA GET/HEAD, e isso conserta um 400 que enganava o diagnóstico.
+//
+// O ReExecute preserva o MÉTODO. Então um POST que dava erro virava um POST para
+// /Home/NaoEncontrado, esse POST passava pelo filtro global de antiforgery
+// (AutoValidateAntiforgeryTokenAttribute, lá em cima), não tinha token — e o cliente recebia
+// **400** no lugar do status real. Media-se `POST /rota-que-nao-existe` e vinha 400; o
+// webhook de pagamento recusado por token devolvia 400 em vez de 401.
+//
+// O sintoma é pior que o número errado: quem for investigar um dia começa procurando corpo
+// malformado, que é o que 400 quer dizer, quando o problema era rota inexistente ou
+// credencial. Página de erro é para GENTE NAVEGANDO; quem chama por POST é formulário, app
+// ou serviço, e o que serve para eles é o status cru, não uma tela HTML.
+app.UseWhen(
+    ctx => HttpMethods.IsGet(ctx.Request.Method) || HttpMethods.IsHead(ctx.Request.Method),
+    ramo => ramo.UseStatusCodePagesWithReExecute("/Home/NaoEncontrado", "?codigo={0}"));
 
 app.UseHttpsRedirection();
 // MapStaticAssets() (abaixo) só serve os arquivos que já existiam em wwwroot no momento do
@@ -501,6 +542,7 @@ app.UseStaticFiles();
 // Antes do portão de propósito: com o portão religado, o robots.txt precisa continuar
 // legível pros buscadores em vez de virar redirect pra tela de senha.
 app.UseMiddleware<RobotsMiddleware>();
+app.UseMiddleware<RegistroDeAcessoMiddleware>();
 app.UseMiddleware<AcessoAntecipadoMiddleware>();
 app.UseMiddleware<AdminHostMiddleware>();
 app.UseRouting();

@@ -132,12 +132,17 @@ namespace Padelizou.Controllers
                 .Select(o => o.NivelAcesso)
                 .FirstOrDefaultAsync();
 
-            // O assistente do sistema também enxerga o caixa (decisão do Felipe: ele vê TUDO,
-            // financeiro incluído). Aqui a pergunta é só de leitura — quem MEXE em dinheiro
-            // são os POSTs, e nenhum deles passa por esta função.
+            // ⚠️ MUDOU EM 18/08/2026: era `PodeOlharTudo`, e por isso o administrador nomeado e
+            // o assistente liam o caixa de QUALQUER torneio do sistema. Agora é `PodeVerDinheiro`
+            // — só o raiz. Quem organiza continua entrando pelo NÍVEL DE ACESSO, que é a régua
+            // de sempre: o caixa do torneio dele não passa por aqui.
+            //
+            // O que o admin nomeado perde junto: socorrer organizador em questão de dinheiro.
+            // A porta da gestão continua aberta pra ele (PodeOlharAGestaoAsync) — o que some
+            // são os valores dentro dela.
             var quem = await _context.Jogadores.FindAsync(jogadorId);
 
-            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, PoderesNoSistema.PodeOlharTudo(quem));
+            return AcessoAoDinheiroDoTorneio.PodeVer(nivel, PoderesNoSistema.PodeVerDinheiro(quem));
         }
 
         // "Consegue ABRIR a gestão deste torneio?" — separada de EhOrganizadorAsync de
@@ -302,6 +307,17 @@ namespace Padelizou.Controllers
 
             if (torneio == null) return NotFound();
 
+            // ── A PORTA DO TORNEIO OCULTO ──────────────────────────────────────────────
+            // Não é "some da lista": o torneio que ainda não foi divulgado não abre nem com o
+            // link na mão. Os escapes (organizador, admin, inscrito) e o porquê do 404 estão
+            // em Services/VisibilidadeDoTorneio.
+            //
+            // ⚠️ Fica AQUI, logo na entrada, e não junto do `PodeGerenciar` lá embaixo: a
+            // página monta classificação, chaves, histórico e palpite antes daquele ponto, e
+            // recusar depois seria pagar a página inteira pra jogá-la fora.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
+
             // O clube e a cidade dele alimentam a descrição que o Google mostra e a ficha de
             // evento (Services/DadosEstruturados) — é o "em Arena Beira Rio, Porto Alegre" que
             // faz este torneio responder a "torneio de padel em <cidade>".
@@ -442,6 +458,18 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // QUANTAS INSCRIÇÕES JÁ FORAM FEITAS — serve só pra avisar quem vai mexer no preço
+            // na aba "Gerenciar Torneio". Cada inscrição guarda o que ELA custou, então mudar
+            // o valor não reescreve nenhuma; o aviso existe pra isso não ser descoberto no
+            // bolso (ver Services/AvisoDeMudancaDePreco).
+            //
+            // ⚠️ As DUAS tabelas: torneio de chave grava em `Dupla` e Americano em
+            // `InscricaoAmericana`. Contar só uma daria "ninguém inscrito" num Americano
+            // lotado, e o aviso sumiria justamente onde havia mais gente a prejudicar.
+            ViewBag.InscricoesJaFeitas =
+                await _context.Duplas.CountAsync(d => d.Categoria.TorneioId == id)
+                + await _context.InscricoesAmericanas.CountAsync(i => i.Categoria.TorneioId == id);
+
             // Só quem está em TorneioOrganizadores deste torneio pode ver/usar a aba "Gerenciar Torneio"
             var jogadorLogadoId = ObterJogadorIdLogado();
 
@@ -572,6 +600,14 @@ namespace Padelizou.Controllers
                 }
             }
 
+            // O MURAL: o que quem jogou escreveu e está publicado. Só faz sentido em torneio
+            // que acabou — antes disso não existe avaliação nenhuma, e uma consulta a mais em
+            // toda página de torneio aberto seria custo sem resposta.
+            if (torneio.Status == Services.MvpDoTorneio.StatusFinalizado)
+            {
+                ViewBag.ComentariosPublicos = await EnqueteDoTorneio.PublicadosAsync(_context, id);
+            }
+
             // ⚠️ Duas perguntas diferentes: EDITAR (organizador de verdade) e ABRIR A TELA (que
             // o assistente do sistema também pode). A aba de gestão aparece pelos dois, mas em
             // modo leitura ela vem com os formulários desligados — ver PoderesNoSistema.
@@ -608,6 +644,12 @@ namespace Padelizou.Controllers
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
                 // resposta o bastante — a regra mora em EnqueteDoTorneio.MediaVisivel.
                 ViewBag.ResumoDaEnquete = await EnqueteDoTorneio.ResumoAsync(_context, id);
+
+                // O que escreveram, publicado ou não — inclusive o que é anônimo, que só
+                // existe pra estes olhos. ⚠️ Quem PUBLICA não é quem abre a tela: o assistente
+                // do sistema chega até aqui em modo leitura, e o serviço recusa o POST dele.
+                ViewBag.ComentariosParaModerar = await EnqueteDoTorneio.ParaModerarAsync(_context, id);
+
                 ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
                 // Ordenadas por Id, que é a mesma ordem em que o formulário desenha os campos
                 // de nome e a mesma que o POST do Editar usa pra reconciliar. As três ordens
@@ -796,6 +838,10 @@ namespace Padelizou.Controllers
         {
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
+            // Mesma porta do Details: a grade de jogos de um torneio escondido conta o torneio
+            // inteiro (nomes, horários, quadras) pra quem não deveria nem saber que ele existe.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
 
             await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos);
             ViewBag.Torneio = torneio;

@@ -8,6 +8,9 @@
         "Pendente" => "#f0ad4e",
         "Confirmada" => "#2c6fbb",
         "Realizada" => "#2e9e5b",
+        // Roxo, e não o vermelho do resto: "a recuperar" não é aula perdida — é aula que
+        // vai acontecer noutro dia, e ler igual a cancelada é o erro que a cor tem que evitar.
+        PoliticaAula.ARecuperar => "#7a5cbf",
         _ => "#b34a4a",
     };
 
@@ -203,6 +206,72 @@
         </div>
     }
 
+    @* A fila de reposição. Aparece acima do calendário e em qualquer data, porque a aula
+       que ficou devendo é quase sempre de outra semana — deixá-la só no dia em que ela
+       seria devolveria o controle pro WhatsApp, que é de onde ele veio. *@
+    @if (Model.ARecuperar.Any())
+    {
+        <div class="card border-0 shadow-sm mb-3" style="border-left: 5px solid #7a5cbf !important;">
+            <div class="card-body">
+                <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">
+                    <i class="bi bi-arrow-counterclockwise" style="color:#7a5cbf;"></i>
+                    A recuperar (@Model.ARecuperar.Count)
+                </h6>
+                <p class="small text-muted mb-3">
+                    Aulas já cobradas que o aluno vai repor. Escolha o dia e o horário pra encaixar —
+                    a reposição entra na agenda <strong>sem cobrar de novo</strong>.
+                </p>
+
+                @foreach (var aula in Model.ARecuperar)
+                {
+                    <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <strong>@NomeDoAluno(aula)</strong>
+                            <span class="text-muted small">
+                                era @aula.DataHora.ToString("dd/MM/yyyy 'às' HH:mm")
+                                · @aula.LocalAula.Nome · @aula.Preco.ToString("C") cobrado
+                            </span>
+                        </div>
+
+                        <form asp-action="Encaixar" method="post" class="row g-1 align-items-end">
+                            <input type="hidden" name="aulaId" value="@aula.Id" />
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small text-muted mb-0">Quando</label>
+                                <input type="datetime-local" name="dataHora" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label small text-muted mb-0">Onde</label>
+                                <select name="localId" class="form-select form-select-sm" required>
+                                    @foreach (var local in Model.Locais)
+                                    {
+                                        @* O local da aula original já vem escolhido: reposição
+                                           quase sempre é na mesma quadra. *@
+                                        <option value="@local.Id" selected="@(local.Id == aula.LocalAulaId)">@local.Nome</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4 d-flex gap-1">
+                                <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
+                                    <i class="bi bi-calendar-plus"></i> Encaixar
+                                </button>
+                            </div>
+                        </form>
+
+                        @* A outra saída da fila: combinaram que não vai ter reposição. Vira
+                           falta cobrada — o dinheiro já estava contado — e some daqui. *@
+                        <form asp-action="NaoVaiRecuperar" method="post" class="mt-1"
+                              onsubmit="return confirm('Tirar esta aula da fila de reposição? Ela fica registrada como falta cobrada.');">
+                            <input type="hidden" name="aulaId" value="@aula.Id" />
+                            <button type="submit" class="btn btn-sm btn-link text-muted text-decoration-none p-0">
+                                não vai mais recuperar
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
     @* ══ CALENDÁRIO ══════════════════════════════════════════════════════════════════ *@
     @if (Model.Vista == PeriodoAgenda.VistaCalendario)
     {
@@ -384,7 +453,7 @@
 
     @* Legenda: as cores só ajudam se alguém disser o que elas querem dizer. *@
     <div class="d-flex gap-3 flex-wrap mt-3 small text-muted">
-        @foreach (var s in new[] { "Pendente", "Confirmada", "Realizada", "Cancelada" })
+        @foreach (var s in new[] { "Pendente", "Confirmada", "Realizada", PoliticaAula.ARecuperar, "Cancelada" })
         {
             <span><span class="d-inline-block rounded-circle me-1" style="width:10px;height:10px;background:@CorDe(s);"></span>@s</span>
         }
@@ -406,6 +475,10 @@
                 @* Quantos vêm muda o treino e quantas bolas levar — some quando o aluno vem só. *@
                 <p class="mb-1 d-none" id="mAcompanhantesLinha">
                     <i class="bi bi-people-fill"></i> Vem mais gente: <span id="mAcompanhantes"></span>
+                </p>
+                @* Só na aula que repõe outra: é o que explica o R$ 0,00 logo acima. *@
+                <p class="mb-1 d-none small text-muted" id="mReposicaoLinha">
+                    <i class="bi bi-arrow-counterclockwise"></i> <span id="mReposicao"></span> — já cobrada lá.
                 </p>
                 <p class="mb-0"><span class="badge" id="mStatus"></span></p>
                 @* Qual aula está fora do Google — o aviso do topo dá o total, este diz quem. *@
@@ -440,6 +513,15 @@
                     <input type="hidden" name="aulaId" id="mConcluirId" />
                     <input type="hidden" name="novoStatus" value="Realizada" />
                     <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all"></i> Concluir</button>
+                </form>
+                @* "Vai recuperar": o aluno não vem, a aula é cobrada assim mesmo e o horário
+                   fica livre pra outro. Fica ao lado de Cancelar de propósito — é a escolha
+                   que o professor faz no mesmo instante, e sobre o mesmo aluno. *@
+                <form asp-action="MarcarParaRecuperar" method="post" class="d-none" id="fRecuperar">
+                    <input type="hidden" name="aulaId" id="mRecuperarId" />
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-counterclockwise"></i> Vai recuperar
+                    </button>
                 </form>
                 <form asp-action="AtualizarStatus" method="post" class="d-none" id="fCancelar">
                     <input type="hidden" name="aulaId" id="mCancelarId" />
@@ -507,6 +589,11 @@
                     // aula e R$ 110 na outra sem nada na tela explicando a diferença.
                     tamanho = PrecoDaAula.Rotulo(a.QuantidadeAlunos),
                     status = a.Status,
+                    // Por que esta aula custa R$ 0,00. Sem isto, o professor abre a agenda duas
+                    // semanas depois e vê uma aula de graça sem nenhuma explicação na tela.
+                    reposicaoDe = a.RecuperaAula != null
+                        ? Reposicao.EtiquetaDaReposicao(a.RecuperaAula.DataHora)
+                        : null,
                     iso = a.DataHora.ToString("o"),
                     // Só aula de pé se edita — realizada e cancelada já viraram fato (ver
                     // Services/EdicaoDeAula).
@@ -530,7 +617,10 @@
 
             var modalEl = document.getElementById('modalAula');
             var modal = new bootstrap.Modal(modalEl);
-            var cores = { 'Pendente': '#f0ad4e', 'Confirmada': '#2c6fbb', 'Realizada': '#2e9e5b' };
+            var cores = {
+                'Pendente': '#f0ad4e', 'Confirmada': '#2c6fbb', 'Realizada': '#2e9e5b',
+                '@PoliticaAula.ARecuperar': '#7a5cbf'
+            };
 
             function mostrar(id) {
                 var a = porId[id];
@@ -547,6 +637,9 @@
                 document.getElementById('mAcompanhantesLinha').classList.toggle('d-none', !a.acompanhantes);
                 document.getElementById('mAcompanhantes').textContent = a.acompanhantes || '';
 
+                document.getElementById('mReposicaoLinha').classList.toggle('d-none', !a.reposicaoDe);
+                document.getElementById('mReposicao').textContent = a.reposicaoDe || '';
+
                 var badge = document.getElementById('mStatus');
                 badge.textContent = a.status;
                 badge.style.background = cores[a.status] || '#b34a4a';
@@ -561,6 +654,9 @@
                 alterna('fRecusar', 'mRecusarId', a.status === 'Pendente');
                 alterna('fConcluir', 'mConcluirId', a.status === 'Confirmada');
                 alterna('fCancelar', 'mCancelarId', a.status === 'Confirmada');
+                // Mesma janela do Cancelar: é a escolha entre "desmarca e não cobra" e
+                // "não vem, paga e repõe" — as duas sobre uma aula que ainda está de pé.
+                alterna('fRecuperar', 'mRecuperarId', a.status === 'Confirmada');
                 // Apagar vale em qualquer status — o erro de lançamento pode estar em todos.
                 document.getElementById('mExcluirId').value = a.id;
 

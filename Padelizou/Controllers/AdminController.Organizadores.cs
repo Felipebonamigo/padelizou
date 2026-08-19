@@ -185,62 +185,23 @@ namespace padelizou.Controllers
             torneio.AprovadoPorId = admin.Id;
             await _context.SaveChangesAsync();
 
-            // O aviso "novo torneio aberto" mora AQUI, e não na criação: é neste momento que o
-            // torneio passa a existir pra quem está de fora. Só enfileira — a entrega sai pela
-            // FilaDeAvisos, por fora da requisição.
-            //
-            // Torneio oculto/restrito não avisa ninguém: quem escolheu não aparecer na vitrine
-            // não quer um push pra base inteira anunciando o evento dele.
-            if (!torneio.Oculto)
-            {
-                // MIRA POR ESTADO (decisão do Felipe, 10/08/2026). Este é o único aviso do
-                // sistema proporcional ao TAMANHO DA BASE, e anunciar em Porto Alegre um
-                // torneio de São Paulo não serve pra ninguém dos dois lados.
-                //
-                // ⚠️ DUAS PORTAS DE ESCAPE, e as duas existem pra NÃO encolher alcance por
-                // falta de dado — que seria um defeito mudo, do tipo que ninguém reclama
-                // porque ninguém sabe do que deixou de saber:
-                //   • torneio sem UF conhecida (ver UfDoTorneio) → vai pra base inteira;
-                //   • jogador com o estado EM BRANCO → continua recebendo. São 44 das 172
-                //     contas ativas hoje, e o campo nunca foi obrigatório.
-                var ufDoTorneio = await UfDoTorneio.DescobrirAsync(_context, torneio.Id);
+            // O aviso "novo torneio aberto" é disparado AQUI, e não na criação: é neste momento
+            // que o torneio passa a existir pra quem está de fora. A regra inteira (quem recebe,
+            // as três recusas e o carimbo de "uma vez só") mora em Services/AvisoDeTorneioNovo —
+            // saiu deste controller em 18/08/2026, quando o mesmo aviso passou a poder sair
+            // também da PUBLICAÇÃO de um torneio oculto.
+            var aviso = await AvisoDeTorneioNovo.EnviarSePuderAsync(
+                _context, _pushNotificationService, torneio,
+                Url.Action("Details", "Torneios", new { id = torneio.Id }));
 
-                var candidatos = await _context.Jogadores
-                    .Where(j => j.NotificarTorneiosAbertos && j.ExcluidoEm == null)
-                    .Select(j => new { j.Id, j.Estado })
-                    .ToListAsync();
-
-                // ⚠️ O filtro roda EM MEMÓRIA de propósito: `Jogador.Estado` é texto livre
-                // ("RS", "Rs", "rs", "Rio Grande do Sul (RS)") e quem casa isso é o
-                // UnidadeFederativa, que o banco não sabe executar. Comparar direto no SQL
-                // deixaria 39 pessoas do RS de fora — conferido em produção.
-                var elegiveis = candidatos
-                    .Where(j => ufDoTorneio == null || UnidadeFederativa.Combina(j.Estado, ufDoTorneio))
-                    .Select(j => j.Id)
-                    .ToList();
-
-                var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
-                foreach (var jogadorId in elegiveis)
-                {
-                    // ⚠️ SEM E-MAIL desde 09/08/2026, e este é o corte mais pesado do dia:
-                    // eram 87 e-mails numa tacada só — o disparo que queimou a cota do Gmail e
-                    // levou junto 130 e-mails, duas recuperações de senha entre eles. É o único
-                    // aviso do sistema proporcional ao TAMANHO DA BASE, então era ele que
-                    // definia de quanto precisava ser o plano de envio.
-                    //
-                    // ⚠️ O preço disto, de olhos abertos (decisão do Felipe): o anúncio passa a
-                    // alcançar só quem tem o app instalado (4 aparelhos em ~130) mais quem abrir
-                    // a caixa de avisos no site. Se um dia o alcance do torneio novo importar
-                    // mais que a cota, é aqui que se volta — e a alternativa já estudada é mirar
-                    // por estado (`Jogador.Estado`), em vez de reabrir pra base inteira.
-                    await _pushNotificationService.EnviarParaJogadorAsync(
-                        jogadorId, "Novo torneio aberto", torneio.Nome, url,
-                        AlcanceDoAviso.AppSemEmail);
-                }
-            }
-
-            TempData["Sucesso"] = $"\"{torneio.Nome}\" aprovado — já está na listagem"
-                + (torneio.Oculto ? "." : " e o aviso saiu pra quem quer saber de torneio novo.");
+            // ⚠️ A frase muda inteira quando o torneio está OCULTO, e não é firula: aprovado +
+            // oculto NÃO está na listagem (o oculto passou a esconder o torneio de verdade em
+            // 18/08/2026) e o aviso não saiu. Dizer "já está na listagem" aqui seria carimbar
+            // como divulgado um torneio que ninguém consegue ver.
+            TempData["Sucesso"] = torneio.Oculto
+                ? $"\"{torneio.Nome}\" aprovado, mas ele está OCULTO: ninguém de fora vê o torneio "
+                  + "até o organizador publicar. O aviso de torneio novo sai quando ele publicar."
+                : $"\"{torneio.Nome}\" aprovado — já está na listagem." + AvisoDeTorneioNovo.Frase(aviso);
             return RedirectToAction(nameof(TorneiosParaAprovar));
         }
 

@@ -47,6 +47,28 @@ public class InscricaoRepetidaTests
         return dupla;
     }
 
+    // ⚠️ LINHA DE TIME NÃO É INSCRIÇÃO DE JOGADOR. Ela guarda o ORGANIZADOR em Jogador1Id e
+    // nada em Jogador2Id — de fora, é idêntica a "inscrito sozinho, procurando parceiro".
+    // Sem a exceção, o organizador que cadastrou um time apareceria como já inscrito na
+    // categoria, e quem juntasse APAGARIA O TIME junto com a "inscrição sozinha" dele.
+    [Fact]
+    public async Task Linha_de_TIME_nao_conta_como_inscricao_do_organizador()
+    {
+        var (ctx, cat, organizador, _, _) = await MontarAsync();
+        using var _ctx = ctx;
+
+        ctx.Duplas.Add(new Dupla
+        {
+            CategoriaId = cat.Id, Jogador1Id = organizador.Id, NomeTime = "Argentus XP", Codigo = "TIME1",
+        });
+        await ctx.SaveChangesAsync();
+
+        var achados = await InscricaoRepetida.ProcurarAsync(ctx, cat.Id, new[] { organizador.Id });
+
+        Assert.Empty(achados);
+        Assert.Empty(InscricaoRepetida.QuePodemSerJuntadas(achados));
+    }
+
     [Fact]
     public async Task Quem_nao_esta_inscrito_nao_gera_conflito()
     {

@@ -96,6 +96,11 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", new { id = torneioId });
             }
 
+            // Torneio OCULTO: quem não abre a página não se inscreve por ela. Gêmeo da trava
+            // em DuplasController.Create — o organizador que inscreve alguém à mão passa.
+            if (!await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
+                return NotFound();
+
             var jogador = await _context.Jogadores.FirstOrDefaultAsync(j => j.Cpf == cpf);
             if (jogador == null)
             {

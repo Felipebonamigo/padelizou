@@ -50,6 +50,16 @@ public static class CategoriaNaTela
         return (grupo, Nivel(texto), texto);
     }
 
+    // De que escada a categoria é: "Masculino", "Feminino" — ou null pra Mista e Casais, que
+    // não são de um sexo só. Lê o mesmo `Grupo` da ordem, pra não existir uma SEGUNDA regra
+    // dizendo o que é masculina e o que é feminina.
+    public static string? SexoDaEscada(string? nome) => Ordem(nome).Grupo switch
+    {
+        0 => SexoDoJogador.Masculino,
+        1 => SexoDoJogador.Feminino,
+        _ => null,
+    };
+
     // Open é o topo (0); depois 2ª..7ª pelo próprio número; Iniciantes fecha a escada. O que
     // não tem nível — Mista A, Casais — cai num degrau só e se desempata pelo nome, que é o
     // que põe "Mista A" antes de "Mista B".

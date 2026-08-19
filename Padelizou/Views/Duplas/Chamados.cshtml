@@ -5,6 +5,9 @@
     var dupla = (Padelizou.Models.Dupla)ViewBag.Dupla;
     var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
     string? motivoParaNaoAceitar = ViewBag.MotivoParaNaoAceitar as string;
+    // Quem destes está inscrito SOZINHO nesta mesma categoria: aceitar junta as duas
+    // inscrições (a dele sai, a vaga é a mesma). Precisa estar dito antes do clique.
+    var comInscricaoSolo = ViewBag.CandidatosComInscricaoSolo as HashSet<int> ?? new HashSet<int>();
 }
 
 <div class="container mt-4 mb-5" style="max-width: 34rem;">
@@ -80,6 +83,23 @@
                             </a>
                             · chamou @Padelizou.Services.TempoRelativo.Curto(chamado.CriadoEm)
                         </div>
+
+                        @* ⚠️ ELE TAMBÉM ESTÁ INSCRITO SOZINHO AQUI — o caso comum do mural:
+                           os dois estão na mesma lista de "procurando parceiro", e foi por
+                           isso que um chamou o outro. Aceitar junta as duas inscrições, e
+                           dizer isso ANTES do clique é o que faz o efeito não ser surpresa.
+                           (Até 19/08/2026 o servidor RECUSAVA esse aceite pedindo pra marcar
+                           uma caixa que só existe na tela de inscrição — nada era aceitável
+                           por aqui.) *@
+                        @if (comInscricaoSolo.Contains(chamado.CandidatoId))
+                        {
+                            <div class="small mt-1" style="color: var(--pdz-ink);">
+                                <i class="bi bi-arrow-left-right"></i>
+                                Ele(a) também está inscrito(a) sozinho(a) nesta categoria —
+                                aceitar junta as duas inscrições numa só. A vaga é a mesma,
+                                ninguém perde lugar.
+                            </div>
+                        }
                     </div>
 
                     @if (motivoParaNaoAceitar == null)
@@ -89,7 +109,7 @@
                                outros pedidos — é a ação irreversível desta tela. Recusar só
                                apaga uma linha da própria lista. *@
                             <form asp-action="AceitarChamado" method="post"
-                                  data-confirmar="A dupla fecha com @chamado.Candidato.ComoChamar e os outros pedidos somem. Ele(a) é avisado."
+                                  data-confirmar="A dupla fecha com @chamado.Candidato.ComoChamar e os outros pedidos somem. Ele(a) é avisado.@(comInscricaoSolo.Contains(chamado.CandidatoId) ? " A inscrição sozinha dele(a) nesta categoria sai e vira esta — a vaga é a mesma." : "")"
                                   data-confirmar-titulo="Fechar dupla?"
                                   data-confirmar-ok="Fechar dupla">
                                 @Html.AntiForgeryToken()
@@ -120,8 +140,13 @@
 
         @if (motivoParaNaoAceitar == null)
         {
+            @* ⚠️ Este texto dizia "recusar é silencioso: quem chamou não recebe aviso nenhum"
+               — e é o contrário do que o servidor faz desde 17/08/2026 (RecusarChamado manda
+               "Não deu dessa vez"). Tela que descreve errado o efeito do próprio botão faz a
+               pessoa recusar achando que ninguém fica sabendo. *@
             <p class="text-muted small mt-3 mb-0">
-                Recusar é silencioso: quem chamou <strong>não</strong> recebe aviso nenhum.
+                Recusar avisa quem chamou (<em>"não deu dessa vez"</em>) — sem isso a pessoa
+                fica esperando resposta e perde tempo de procurar outro parceiro.
             </p>
         }
     }

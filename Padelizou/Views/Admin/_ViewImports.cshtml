@@ -1,0 +1,8 @@
+@using Padelizou.Middleware
+@inject IWebHostEnvironment Ambiente
+@* Em produção o painel mora num host que só serve /Admin e /Auth (AdminHostMiddleware): todo
+   link daqui pro site público — perfil de jogador, página de torneio — precisa sair do host,
+   senão dá 404 sem sair do lugar. Quem monta esse link chama AdminHostMiddleware.
+   SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment()) e passa o par pros
+   atributos asp-host/asp-protocol; por isso o `using` e o ambiente vivem aqui, e não repetidos
+   view por view. *@

@@ -10,7 +10,13 @@
     // depender de rede, senão na quadra com sinal ruim o campo fica vazio.
     var tabelaDeLocais = Model.ToDictionary(
         l => l.Id,
-        l => new { individual = l.PrecoPadrao, dupla = l.PrecoDupla, trio = l.PrecoTrio });
+        l => new
+        {
+            individual = l.PrecoPadrao,
+            // Mapa tamanho -> preço, e não um campo por tamanho: o teto já subiu uma vez
+            // (de trio pra sexteto, pelo beach) e com campos fixos ele sobe de novo aqui.
+            turmas = PrecoDaAula.PorTamanho(l.PrecosDeTurma),
+        });
 
     // Quem já fez aula com este professor. Vai inteiro pro JS pelo mesmo motivo dos preços:
     // filtrar no navegador funciona com o sinal que a quadra tiver.
@@ -77,14 +83,20 @@
                                valores diferentes e a agenda só sabia de um. *@
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-muted small">Quantos alunos nessa aula</label>
+                                @* Só o NÚMERO em cada botão. Com o teto em seis (turma de beach),
+                                   "Individual / Em dupla / Em trio / Em quarteto / ..." não cabe
+                                   na largura de um celular — e é na beira da quadra que esta tela
+                                   é usada. O nome do tamanho aparece embaixo, no que está marcado. *@
                                 <div class="btn-group w-100" role="group" aria-label="Quantidade de alunos">
-                                    @foreach (var (valor, rotulo) in new[] { (1, "Individual"), (2, "Em dupla"), (3, "Em trio") })
+                                    @for (var valor = PrecoDaAula.MinAlunos; valor <= PrecoDaAula.MaxAlunos; valor++)
                                     {
                                         <input type="radio" class="btn-check" name="quantidadeAlunos" id="qtd-@valor"
                                                value="@valor" autocomplete="off" checked="@(valor == 1)" />
-                                        <label class="btn btn-outline-primary" for="qtd-@valor">@rotulo</label>
+                                        <label class="btn btn-outline-primary" for="qtd-@valor"
+                                               title="@PrecoDaAula.Rotulo(valor)">@valor</label>
                                     }
                                 </div>
+                                <small class="text-muted d-block mt-1" id="rotulo-tamanho">@PrecoDaAula.Rotulo(1)</small>
                             </div>
 
                             <div class="mb-3">
@@ -376,11 +388,19 @@
             // Mesma conta do servidor (Services/PrecoDaAula): sem preço pro tamanho pedido,
             // cai pro tamanho menor mais próximo que o professor informou. Se as duas contas
             // discordarem, o professor vê um valor e salva outro.
+            // Mesma queda degrau a degrau do servidor (Services/PrecoDaAula.DoLocal): sem
+            // preço pro tamanho pedido, vale o maior tamanho MENOR que o professor anunciou.
+            // Divergir daqui faria a tela mostrar um valor e o banco gravar outro.
             function precoDoLocal(local, quantos) {
-                if (quantos === 3) return local.trio ?? local.dupla ?? local.individual;
-                if (quantos === 2) return local.dupla ?? local.individual;
+                for (var t = quantos; t >= 2; t--) {
+                    if (local.turmas && local.turmas[t] != null) return local.turmas[t];
+                }
                 return local.individual;
             }
+
+            var ROTULOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Enumerable.Range(PrecoDaAula.MinAlunos, PrecoDaAula.MaxAlunos - PrecoDaAula.MinAlunos + 1)
+                    .ToDictionary(n => n.ToString(), n => PrecoDaAula.Rotulo(n))));
 
             // O acordo particular vale na aula INDIVIDUAL daquele aluno: o desconto foi dado a
             // uma pessoa, não à quadra inteira. Em dupla ou trio manda o preço do tamanho.
@@ -396,6 +416,12 @@
 
             function atualizarSugestao() {
                 var local = LOCAIS[$selectLocal.val()];
+
+                // Fora do `if` de propósito: o nome do tamanho é do tamanho, não do local —
+                // quem marca "6" antes de escolher a quadra tem que ler "Em sexteto" na hora.
+                $('#rotulo-tamanho').text(
+                    ROTULOS[parseInt($('input[name="quantidadeAlunos"]:checked').val(), 10) || 1] || '');
+
                 if (!local) {
                     $inputPreco.attr('placeholder', '');
                     $avisoCombinado.addClass('d-none');

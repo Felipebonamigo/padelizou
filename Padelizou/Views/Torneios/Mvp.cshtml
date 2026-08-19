@@ -202,15 +202,20 @@
     }
 
     @* ── A ENQUETE: como foi o torneio? ──────────────────────────────────────────────────
-       Pega carona na página do MVP (e no aviso que traz a pessoa até aqui). Duas notas, um
-       toque cada, sem texto — no celular, respondida em cinco segundos. Quem valida é o
-       servidor (Services/EnqueteDoTorneio); esta seção só aparece pra quem PODE responder.
+       Pega carona na página do MVP (e no aviso que traz a pessoa até aqui). Três notas de um
+       toque cada e três textos OPCIONAIS — quem só quer as estrelas responde em cinco
+       segundos, como antes; quem tem algo a dizer escreve. Quem valida é o servidor
+       (Services/EnqueteDoTorneio); esta seção só aparece pra quem PODE responder.
 
        ⚠️ No Americano ela é a ÚNICA coisa da tela — por isso o `mt-3` some quando não há
        cédula acima, senão o cartão nasce descolado do título. *@
     @if (ViewBag.EnqueteAberta == true)
     {
         var minha = ViewBag.MinhaAvaliacao as Padelizou.Models.AvaliacaoDoTorneio;
+        var textoDoSistema = ViewBag.MeuTextoDoSistema as string;
+        var jaEraAnonima = minha?.Anonimo ?? false;
+        var limite = Padelizou.Services.EnqueteDoTorneio.TamanhoMaximoDoComentario;
+
         <div class="card border-0 shadow-sm rounded-4 @(Model.TemVotacao ? "mt-3" : "")">
             <div class="card-body">
                 <h6 class="fw-bold mb-1">
@@ -218,33 +223,85 @@
                     Já que você está aqui: como foi o torneio?
                 </h6>
                 <p class="small text-muted mb-3">
-                    Leva cinco segundos e ajuda quem vai escolher onde jogar.
+                    As estrelas levam cinco segundos e ajudam quem vai escolher onde jogar.
+                    Escrever é opcional.
                     @(minha != null ? " Você já respondeu — dá pra ajustar." : "")
                 </p>
 
                 <form asp-action="AvaliarTorneio" asp-route-id="@Model.TorneioId" method="post">
-                    @foreach (var (campo, rotulo, valorAtual) in new[]
+                    @foreach (var bloco in new[]
                     {
-                        ("notaClube", "O clube (quadras, estrutura)", minha?.NotaClube ?? 0),
-                        ("notaOrganizacao", "A organização do torneio", minha?.NotaOrganizacao ?? 0),
+                        (campo: "notaClube", texto: "comentarioClube",
+                         rotulo: "O clube (quadras, estrutura)",
+                         dica: "Quadras, vestiário, bar, estacionamento…",
+                         nota: minha?.NotaClube ?? 0, escrito: minha?.ComentarioClube),
+                        (campo: "notaOrganizacao", texto: "comentarioOrganizacao",
+                         rotulo: "A organização do torneio",
+                         dica: "Horários, chave, arbitragem, como foi conduzido…",
+                         nota: minha?.NotaOrganizacao ?? 0, escrito: minha?.ComentarioOrganizacao),
+                        (campo: "notaSistema", texto: "comentarioSistema",
+                         rotulo: "O Padelizou (inscrição, chave, avisos)",
+                         dica: "O que funcionou e o que atrapalhou no site ou no app.",
+                         nota: minha?.NotaSistema ?? 0, escrito: textoDoSistema),
                     })
                     {
-                        <label class="form-label fw-semibold small d-block mb-1 mt-2">@rotulo</label>
+                        <label class="form-label fw-semibold small d-block mb-1 mt-3">@bloco.rotulo</label>
                         @* Radios com cara de estrela: um toque dá a nota, e a escala inteira
                            fica à vista — o mesmo arranjo dos botões de nota do Feedback. *@
-                        <div class="d-flex gap-1 pdz-estrelas" data-grupo="@campo">
+                        <div class="d-flex gap-1 pdz-estrelas" data-grupo="@bloco.campo">
                             @for (var n = 1; n <= Padelizou.Services.EnqueteDoTorneio.NotaMaxima; n++)
                             {
-                                <input type="radio" class="btn-check" name="@campo" value="@n"
-                                       id="@(campo)-@n" autocomplete="off"
-                                       checked="@(valorAtual == n)" required />
-                                <label class="btn btn-outline-secondary px-2 py-1" for="@(campo)-@n"
+                                <input type="radio" class="btn-check" name="@bloco.campo" value="@n"
+                                       id="@(bloco.campo)-@n" autocomplete="off"
+                                       checked="@(bloco.nota == n)" required />
+                                <label class="btn btn-outline-secondary px-2 py-1" for="@(bloco.campo)-@n"
                                        title="@n de 5">
                                     <i class="bi bi-star-fill"></i> @n
                                 </label>
                             }
                         </div>
+                        <textarea name="@bloco.texto" class="form-control mt-2" rows="2"
+                                  maxlength="@limite" placeholder="@bloco.dica">@bloco.escrito</textarea>
                     }
+
+                    @* ── COM O SEU NOME OU SEM ELE ────────────────────────────────────────
+                       ⚠️ RADIOS, e não uma caixa de marcar. Caixa desmarcada não vai no POST,
+                       o que obrigaria ao `<input type="hidden">` de acompanhamento — e foi
+                       esse arranjo que, com o escondido na FRENTE, fez o binder ler o primeiro
+                       valor e DESLIGAR a votação de MVP de quem a ligava.
+
+                       E o texto diz o desfecho ANTES de a pessoa escrever, inclusive o de que
+                       um comentário anônimo pode ser publicado sem o nome: descobrir isso
+                       depois seria uma surpresa com o texto dela na tela. *@
+                    <fieldset class="mt-4">
+                        <legend class="form-label fw-semibold small mb-2">
+                            E o que você escreveu, aparece como?
+                        </legend>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="anonimo" value="false"
+                                   id="assinado" checked="@(!jaEraAnonima)" />
+                            <label class="form-check-label" for="assinado">
+                                <strong>Com o meu nome</strong>
+                                <span class="d-block small text-muted">
+                                    Aparece na página do torneio, com sua foto — como um comentário de perfil.
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="anonimo" value="true"
+                                   id="anonimo" checked="@jaEraAnonima" />
+                            <label class="form-check-label" for="anonimo">
+                                <strong>Sem o meu nome</strong>
+                                <span class="d-block small text-muted">
+                                    Chega só pra quem organiza, pro clube e pro Padelizou, e ninguém
+                                    vê quem escreveu. Se acharem que ajuda outros jogadores, podem
+                                    publicar o texto — sempre <strong>sem o seu nome</strong>.
+                                </span>
+                            </label>
+                        </div>
+                    </fieldset>
 
                     <button type="submit" class="btn btn-padel rounded-pill px-4 mt-3">
                         <i class="bi bi-send"></i> @(minha != null ? "Atualizar avaliação" : "Enviar avaliação")
