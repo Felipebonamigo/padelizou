@@ -1,0 +1,111 @@
+# FISCAL.md — Plano para cobrir o Gripo na parte fiscal
+
+> Escrito em 19/08/2026. Estado de partida: cobertura fiscal ZERO por decisão registrada
+> (31/07, "o clube segue emitindo nota pelo que já usa" — `BarController.cs:17-20` e STATUS.md).
+> Este documento é o plano para reverter essa decisão de forma consciente e virar receita.
+
+## A decisão em uma frase
+
+Não construir motor fiscal próprio: contratar uma **API de emissão white-label** (o
+próprio Gripo usa a Focus NFe por trás — está nos termos "tenant-nf" deles), ligar no
+módulo de bar/comanda que **já está pronto em código**, e vender como plano de
+assinatura de clube em dois degraus — **Gestão** (R$ 99) e **Fiscal** (R$ 199–229).
+
+## A régua (o que o Gripo faz)
+
+- NFC-e (bar), NFS-e (serviços) e NF-e integradas ao CNPJ do clube — via Focus NFe.
+- Plano Professional: R$ 219/clube/mês + módulos, com franquia de 100 NFS-e + 500
+  NFC-e/mês; excedente por emissão. Basic tem só NFS-e "parcial".
+- TEF integrado (Stone, Sicredi, Vero, Cielo), totem, cozinha, facial.
+- O que ele NÃO tem: professor, rede de jogadores, torneios como motor — nossa vantagem.
+
+## Provedor de emissão
+
+Critérios, na ordem: preço por nota em multi-CNPJ (taxa fixa por CNPJ mata a margem em
+clube pequeno), NFS-e Padrão Nacional, NFC-e com contingência, sandbox grátis, white-label.
+
+| Provedor | Leitura |
+|---|---|
+| **Nuvem Fiscal** ← começar | Cota única pra todos os docs, multi-CNPJ, tier grátis (~20–50 notas/mês) pra desenvolver e pilotar. Player mais novo: validar SLA na proposta. |
+| **PlugNotas** (Tecnospeed) | Feita pra software house (2.000+), cobra por nota, Padrão Nacional em 2.000+ cidades. Plano B forte / provável escolha na escala. |
+| **Focus NFe** | A engrenagem do Gripo; 3.000+ municípios, município novo por R$ 199 fixo. Modelo por CNPJ tende a custar mais no nosso caso. |
+| eNotas / NFE.io | Fortes em NFS-e de infoproduto; fracas pro PDV de balcão. Descartadas por ora. |
+
+Faixa de mercado apurada (ago/2026, via busca — sites bloqueados no ambiente, **confirmar
+em proposta comercial**): entrada R$ 89–129/mês com 100–250 notas e excedente
+R$ 0,60–0,75; em volume negociado o custo por nota cai pra ~R$ 0,10–0,40.
+
+⚠️ Desenhar a integração atrás de `IEmissorFiscal` própria — trocar de provedor sem
+reescrever o produto.
+
+## Pré-requisitos do clube (não são nossos)
+
+- CNPJ ativo com atividade compatível. Clube MEI na prática não emite NFC-e: o plano
+  Fiscal mira clube ME/Simples — que é quem tem bar de verdade.
+- Certificado digital A1 (e-CNPJ, ~R$ 150–250/ano, custo do clube).
+- Credenciamento NFC-e na SEFAZ do estado + CSC; inscrição municipal pra NFS-e. O
+  contador do clube faz; a gente entrega o passo a passo (1 página por estado, RS primeiro).
+
+## Roadmap em fases
+
+- **Fase 0 — a casa própria (~1 semana + contador).** NFS-e das comissões e mensalidades
+  do PRÓPRIO Padelizou (como MEI sai grátis pelo Emissor Nacional; automatizável depois no
+  webhook `PAYMENT_CONFIRMED`). Contador: plano MEI→ME (a assinatura de clube ACELERA o
+  estouro do teto — consequência desejada do plano, não susto), repasse a parceiros, contrato.
+- **Fase 1 — dados fiscais (~1–2 semanas).** `Clube`: CNPJ, IE, IM, regime, endereço
+  estruturado, certificado A1 cifrado + CSC. `ProdutoBar`: **tipo do item
+  (mercadoria/serviço/locação** — hoje "aluguel de raquete" convive com cerveja e cada um
+  pede documento diferente), NCM, CFOP, CEST, EAN, unidade, origem — com padrões por
+  categoria pra tela não exigir contador. `Comanda`: CPF opcional ("CPF na nota").
+- **Fase 2 — NFS-e dos serviços (~2–3 semanas).** Reserva, aula, mensalidade, no evento de
+  pagamento. Padrão Nacional torna essa a parte mais fácil. Arrumar o lastro que falta:
+  valor no mensalista e na `MensalidadeGrupo`, tomador na reserva de balcão.
+- **Fase 3 — NFC-e do bar (~4–6 semanas).** Emissão no fechamento da comanda (opcional por
+  venda), DANFE-NFC-e térmico/browser com QR, série/numeração por clube, cancelamento
+  fiscal amarrado ao cancelamento de comanda (prazo curto, ~30 min na maioria dos estados),
+  contingência offline. Piloto em 1 clube real no RS antes de abrir estado a estado.
+- **Fase 4 — pacote do contador + billing (~2–3 semanas).** Export mensal por clube (CSV
+  do bar — hoje não existe —, ZIP de XMLs, relatório de notas). **Assinatura de clube não
+  existe no código**: criar recorrência via Asaas, medidor de franquia, bloqueio suave.
+- **Fase 5 — TEF: adiar.** Item mais caro do catálogo do Gripo e o menos pedido em clube
+  pequeno. Reavaliar quando cliente pagante pedir.
+
+## Planos de assinatura
+
+| Plano | Preço | O que tem |
+|---|---|---|
+| Clube Rede (atual) | R$ 0 | Torneios, ranking, reservas, rede — o motor de aquisição segue grátis. |
+| Clube Gestão | R$ 99/mês | Bar completo + financeiro. **Código pronto: é ligar a flag e cobrar.** Margem ~100%. |
+| **Clube Fiscal** | R$ 199–229/mês | Gestão + NFS-e e NFC-e com franquia 100 NFS-e + 400 NFC-e/mês; excedente R$ 0,30/nota. A1 por conta do clube. |
+
+Ancoragem: Gripo Professional R$ 219 + módulos à parte. Nosso Fiscal com o fiscal DENTRO
+e a rede junto é comparável no preço e maior em valor. Não competir baixando o % do
+torneio (decisão já registrada) — competir empacotando o que o Gripo não tem.
+
+## Economia unitária (cenário, validar com proposta)
+
+Assumindo ~250 notas/clube/mês a R$ 0,10–0,40 e plano médio R$ 200: margem bruta ~70–90%.
+15 clubes Fiscal = R$ 3.000/mês. 50 clubes = R$ 10.000/mês e contrato de volume melhor.
+
+⚠️ **Consequência tributária planejada**: 15 clubes = R$ 36 mil/ano de assinatura somados
+à comissão → o teto do MEI (R$ 81 mil) estoura POR DESIGN. Migração pra ME no Simples
+(~6–15,5% conforme anexo/fator R — validar com contador) entra no custo desde o dia 1.
+
+## Riscos
+
+- **É reverter decisão de produto** (31/07: "PDV fiscal é outro produto"). O custo real
+  não é código, é SUPORTE: nota rejeitada na SEFAZ às 21h de sábado vira chamado nosso.
+- NCM/alíquota errados são responsabilidade do contribuinte (clube) — contrato do plano
+  precisa dizer isso com todas as letras (contador/advogado).
+- NFC-e é homologação POR ESTADO: RS primeiro, abrir conforme cliente pagante.
+- LGPD: CPF na nota e A1 armazenado exigem cifra e política de retenção.
+- Valores de mercado não confirmados (sites bloqueados na pesquisa): nada de fixar preço
+  de plano antes das propostas comerciais.
+
+## Próximos 14 dias
+
+1. Decisão do Felipe: reverter (ou não) a decisão de 31/07. Sem isso o resto é gaveta.
+2. Proposta comercial: Nuvem Fiscal, PlugNotas e Focus NFe (multi-CNPJ, volume, white-label, SLA).
+3. Contador: migração MEI→ME, NFS-e das comissões próprias, contrato do plano Fiscal.
+4. Escolher 1 clube piloto no RS (CNPJ ME, bar ativo) e combinar o teste.
+5. Começar a Fase 1 (dados fiscais no cadastro) — não depende de provedor nem de contador.
