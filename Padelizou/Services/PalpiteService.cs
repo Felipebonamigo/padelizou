@@ -20,7 +20,13 @@ public class PalpiteService : IPalpiteService
 
         var partidas = await _context.Partidas
             .Where(p => ids.Contains(p.Id))
-            .Select(p => new { p.Id, p.Dupla1Id, p.Dupla2Id, p.TorneioId, p.Fase })
+            .Select(p => new
+            {
+                p.Id, p.Dupla1Id, p.Dupla2Id, p.TorneioId, p.Fase,
+                // O placar de verdade entra pra tela poder dizer QUEM CRAVOU depois do jogo.
+                p.VencedorId, p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2,
+                p.MotivoDoEncerramento,
+            })
             .ToListAsync();
 
         var votos = await _context.PalpitesPartida
@@ -38,6 +44,8 @@ public class PalpiteService : IPalpiteService
         var torneios = await TorneiosDasPartidasAsync(partidas.Select(p => p.TorneioId));
 
         var resultado = new Dictionary<int, PalpiteResumoVM>();
+        var cravaram = new Dictionary<int, List<int>>();   // partida → jogadores que cravaram
+
         foreach (var p in partidas)
         {
             var votosDaPartida = votos.Where(v => v.PartidaId == p.Id).ToList();
@@ -53,6 +61,21 @@ public class PalpiteService : IPalpiteService
             var formato = FormatoDaPartida.De(
                 p.TorneioId is int t ? torneios.GetValueOrDefault(t) : null, p.Fase);
 
+            var comPlacar = votosDaPartida
+                .Select(v => PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
+                .Where(placar => placar.Existe)
+                .ToList();
+
+            // O placar mais palpitado. ⚠️ A ordenação é TOTAL (votos, depois os dois lados):
+            // com dois placares empatados, uma ordenação parcial faria a frase da tela trocar
+            // sozinha entre dois carregamentos da mesma página.
+            var maisPalpitado = comPlacar
+                .GroupBy(placar => (placar.Lado1, placar.Lado2))
+                .OrderByDescending(g => g.Count())
+                .ThenByDescending(g => g.Key.Lado1)
+                .ThenByDescending(g => g.Key.Lado2)
+                .FirstOrDefault();
+
             resultado[p.Id] = new PalpiteResumoVM
             {
                 PartidaId = p.Id,
@@ -62,9 +85,64 @@ public class PalpiteService : IPalpiteService
                 MeuPlacarLado1 = meuPlacar.Lado1,
                 MeuPlacarLado2 = meuPlacar.Lado2,
                 PlacarEmSets = PlacaresPossiveis.EmSets(formato),
+                PlacaresDoFormato = PlacaresPossiveis.Do(formato),
+                PalpitesComPlacar = comPlacar.Count,
+                PlacarMaisPalpitadoLado1 = maisPalpitado?.Key.Lado1,
+                PlacarMaisPalpitadoLado2 = maisPalpitado?.Key.Lado2,
+                PlacarMaisPalpitadoVotos = maisPalpitado?.Count() ?? 0,
             };
+
+            if (p.VencedorId == null) continue;
+
+            // Quem CRAVOU. A régua é a mesma do ranking — o `PontosDoPalpite` decide, aqui só
+            // se pergunta. Uma segunda definição de "cravou" na tela produziria o pior dos
+            // mundos: o cartão dizendo que alguém cravou e o ranking não pagando os 3 pontos.
+            var quemCravou = votosDaPartida.Where(v => PontosDoPalpite.CravouOPlacar(new PalpiteConferido
+            {
+                DuplaEscolhidaId = v.DuplaEscolhidaId,
+                VencedorId = p.VencedorId,
+                PalpitouLado1 = PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2).Lado1,
+                PalpitouLado2 = PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2).Lado2,
+                PlacarLado1 = v.SetsDupla1 != null ? p.SetsDupla1 : p.GamesDupla1,
+                PlacarLado2 = v.SetsDupla1 != null ? p.SetsDupla2 : p.GamesDupla2,
+                EmSets = v.SetsDupla1 != null && v.SetsDupla2 != null,
+                PorWo = p.MotivoDoEncerramento == EncerramentoPorWo.Motivo,
+            })).Select(v => v.JogadorId).ToList();
+
+            if (quemCravou.Count > 0) cravaram[p.Id] = quemCravou;
         }
+
+        await PreencherQuemCravouAsync(resultado, cravaram);
+
         return resultado;
+    }
+
+    // Os NOMES de quem cravou, numa consulta só — e só quando alguém cravou.
+    //
+    // ⚠️ Separado de propósito: trazer o nome de todo mundo que palpitou junto com os votos
+    // faria a lista de jogos (que chega a 40 partidas numa tela) carregar centenas de nomes
+    // pra usar nenhum. Quem crava é sempre pouca gente, e jogo nenhum finalizado é zero
+    // consulta.
+    private async Task PreencherQuemCravouAsync(
+        Dictionary<int, PalpiteResumoVM> resumos, Dictionary<int, List<int>> cravaram)
+    {
+        if (cravaram.Count == 0) return;
+
+        var jogadorIds = cravaram.Values.SelectMany(v => v).Distinct().ToList();
+
+        var nomes = await _context.Jogadores
+            .AsNoTracking()
+            .Where(j => jogadorIds.Contains(j.Id))
+            .Select(j => new { j.Id, j.Nome, j.Apelido })
+            .ToDictionaryAsync(j => j.Id, j => NomeBonito.ComApelido(j.Nome, j.Apelido));
+
+        foreach (var (partidaId, ids) in cravaram)
+            resumos[partidaId].CravaramOPlacar = ids
+                .Select(id => nomes.GetValueOrDefault(id))
+                .Where(nome => nome != null)
+                .Select(nome => nome!)
+                .OrderBy(nome => nome, StringComparer.OrdinalIgnoreCase)
+                .ToList();
     }
 
     public async Task<PalpiteResumoVM> RegistrarVotoAsync(int partidaId, int jogadorId, int duplaEscolhidaId,

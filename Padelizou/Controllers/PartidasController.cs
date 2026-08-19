@@ -83,7 +83,13 @@ namespace Padelizou.Controllers
                     meuVotoDuplaId = resumo.MeuVotoDuplaId,
                     meuPlacarLado1 = resumo.MeuPlacarLado1,
                     meuPlacarLado2 = resumo.MeuPlacarLado2,
-                    placarEmSets = resumo.PlacarEmSets
+                    placarEmSets = resumo.PlacarEmSets,
+                    // A leitura da galera muda com o meu palpite — se não voltasse aqui, a
+                    // frase "a galera crava 6x4" ficaria congelada na página até o F5.
+                    placarMaisPalpitadoLado1 = resumo.PlacarMaisPalpitadoLado1,
+                    placarMaisPalpitadoLado2 = resumo.PlacarMaisPalpitadoLado2,
+                    placarMaisPalpitadoVotos = resumo.PlacarMaisPalpitadoVotos,
+                    palpitesComPlacar = resumo.PalpitesComPlacar
                 });
             }
             catch (InvalidOperationException ex)

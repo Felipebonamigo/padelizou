@@ -22,6 +22,27 @@ public class PalpiteResumoVM
     public bool PlacarEmSets { get; set; }
 
     public bool PalpiteiOPlacar => MeuPlacarLado1 != null && MeuPlacarLado2 != null;
+
+    // As fichas que a tela oferece: os placares que ESTE formato admite, sempre na ordem
+    // vencedor × perdedor. Vem pronta do serviço porque quem sabe o formato do jogo é ele —
+    // view que pergunta formato é a segunda cópia da regra, e foi assim que o `limiteGames: 9`
+    // cravado no JavaScript sobreviveu tanto tempo.
+    public List<Padelizou.Services.PlacaresPossiveis.Placar> PlacaresDoFormato { get; set; } = new();
+
+    // O placar que a galera mais crava, na orientação do jogo, e quantos palpites são.
+    //
+    // ⚠️ A CONTAGEM anda junto e não é enfeite: "a galera crava 6x4" com 3 de 12 palpites é
+    // uma frase que promete consenso onde não há. Com o número ao lado, quem lê julga sozinho.
+    public int? PlacarMaisPalpitadoLado1 { get; set; }
+    public int? PlacarMaisPalpitadoLado2 { get; set; }
+    public int PlacarMaisPalpitadoVotos { get; set; }
+    public int PalpitesComPlacar { get; set; }
+
+    public bool TemPlacarMaisPalpitado => PlacarMaisPalpitadoLado1 != null && PlacarMaisPalpitadoLado2 != null;
+
+    // Quem CRAVOU o placar, depois que o jogo acabou. Vazio enquanto ele não terminou — e
+    // vazio também quando ninguém acertou, que é o caso comum.
+    public List<string> CravaramOPlacar { get; set; } = new();
 }
 
 // Lista de quem votou em quem, pro botão "ver quem votou" do palpitrômetro.

@@ -357,4 +357,135 @@ public class PalpiteComPlacarTests
         // E agora a tela PODE falar em cravar placar: houve palpite com placar neste torneio.
         Assert.Equal(2, ranking.PalpitesComPlacar);
     }
+
+    // ─────────────────────────── O QUE A TELA MOSTRA ───────────────────────────
+
+    [Fact]
+    public async Task O_placar_mais_palpitado_vem_com_a_CONTAGEM_do_lado()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        // Três palpites de 6x4, um de 6x2 e um SEM placar.
+        for (int i = 1; i <= 3; i++)
+            await servico.RegistrarVotoAsync(partida.Id,
+                (await NovoTorcedorAsync(ctx, $"5552000000{i}")).Id, duplas[0].Id, 6, 4);
+
+        await servico.RegistrarVotoAsync(partida.Id,
+            (await NovoTorcedorAsync(ctx, "55520000004")).Id, duplas[0].Id, 6, 2);
+        await servico.RegistrarVotoAsync(partida.Id,
+            (await NovoTorcedorAsync(ctx, "55520000005")).Id, duplas[1].Id);
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        Assert.Equal(6, resumo.PlacarMaisPalpitadoLado1);
+        Assert.Equal(4, resumo.PlacarMaisPalpitadoLado2);
+        Assert.Equal(3, resumo.PlacarMaisPalpitadoVotos);
+
+        // ⚠️ A contagem é sobre quem PALPITOU PLACAR (4), não sobre quem votou (5): "3 de 5"
+        // faria a frase parecer menos consenso do que é, contando gente que não opinou sobre
+        // placar nenhum.
+        Assert.Equal(4, resumo.PalpitesComPlacar);
+    }
+
+    [Fact]
+    public async Task O_placar_mais_palpitado_sai_na_ORIENTACAO_DO_JOGO()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        // Dois palpites em que quem vence é a DUPLA 2.
+        await servico.RegistrarVotoAsync(partida.Id,
+            (await NovoTorcedorAsync(ctx, "55521000001")).Id, duplas[1].Id, 2, 6);
+        await servico.RegistrarVotoAsync(partida.Id,
+            (await NovoTorcedorAsync(ctx, "55521000002")).Id, duplas[1].Id, 2, 6);
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        // ⚠️ Lado 1 é sempre a Dupla1, na tela e no banco. Sair como "6 x 2" aqui poria o
+        // vencedor do lado errado do cartão — os nomes da tela não trocam de lugar.
+        Assert.Equal(2, resumo.PlacarMaisPalpitadoLado1);
+        Assert.Equal(6, resumo.PlacarMaisPalpitadoLado2);
+    }
+
+    [Fact]
+    public async Task Depois_do_jogo_a_tela_diz_QUEM_CRAVOU()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        var certeiro = new Jogador { Nome = "Ana Certeira", Apelido = "Aninha", Cpf = "55522000001" };
+        var quaseLa = new Jogador { Nome = "Bruno Quase", Cpf = "55522000002" };
+        ctx.Jogadores.AddRange(certeiro, quaseLa);
+        await ctx.SaveChangesAsync();
+
+        await servico.RegistrarVotoAsync(partida.Id, certeiro.Id, duplas[0].Id, 6, 4);
+        await servico.RegistrarVotoAsync(partida.Id, quaseLa.Id, duplas[0].Id, 6, 3);
+
+        partida.GamesDupla1 = 6;
+        partida.GamesDupla2 = 4;
+        partida.VencedorId = duplas[0].Id;
+        partida.Status = "Finalizada";
+        await ctx.SaveChangesAsync();
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+
+        // ⚠️ Quem decide "cravou" é o MESMO PontosDoPalpite do ranking. Uma segunda definição
+        // aqui produziria o pior dos mundos: o cartão anunciando a cravada e o ranking não
+        // pagando os 3 pontos.
+        Assert.Equal(new[] { "Ana Certeira (Aninha)" }, resumo.CravaramOPlacar);
+    }
+
+    [Fact]
+    public async Task Enquanto_o_jogo_NAO_acabou_ninguem_cravou_nada()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (_, partida, duplas) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+        var servico = new PalpiteService(ctx);
+
+        var torcedor = await NovoTorcedorAsync(ctx, "55523000001");
+        await servico.RegistrarVotoAsync(partida.Id, torcedor.Id, duplas[0].Id, 6, 4);
+
+        // A Mesa já marcou 6x4, mas o jogo não terminou: ninguém cravou coisa alguma ainda, e
+        // anunciar cravada com a bola rolando seria dar o jogo por acabado na tela.
+        partida.GamesDupla1 = 6;
+        partida.GamesDupla2 = 4;
+        await ctx.SaveChangesAsync();
+
+        var resumo = (await servico.ObterResumosAsync(new[] { partida.Id }, null))[partida.Id];
+        Assert.Empty(resumo.CravaramOPlacar);
+    }
+
+    [Fact]
+    public async Task As_fichas_do_cartao_saem_do_formato_da_FASE_daquele_jogo()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, partida, _) = await MontarJogoAgendadoAsync(ctx, gamesDosGrupos: 6);
+
+        // A final do mesmo torneio é mais longa — e a fase de cada jogo é que manda.
+        torneio.SetsFaseFinal = 1;
+        torneio.GamesFaseFinal = 9;
+        var final = new Partida
+        {
+            TorneioId = torneio.Id,
+            CategoriaId = partida.CategoriaId,
+            Dupla1Id = partida.Dupla1Id,
+            Dupla2Id = partida.Dupla2Id,
+            Status = "Agendada",
+            Fase = "Final",
+            Codigo = "P2",
+        };
+        ctx.Partidas.Add(final);
+        await ctx.SaveChangesAsync();
+
+        var resumos = await new PalpiteService(ctx).ObterResumosAsync(new[] { partida.Id, final.Id }, null);
+
+        // ⚠️ Os dois jogos são do mesmo torneio e têm fichas DIFERENTES. Uma lista só por
+        // torneio ofereceria 7x5 numa final que vai até 9 — placar que aquele jogo não termina.
+        Assert.Equal("7x5", Placar(resumos[partida.Id].PlacaresDoFormato.Last()));
+        Assert.Equal("9x8", Placar(resumos[final.Id].PlacaresDoFormato.Last()));
+    }
 }

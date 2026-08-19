@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🎯 **O PALPITE PASSOU A ACEITAR PLACAR — E QUEM DECIDE QUAIS PLACARES EXISTEM É O FORMATO DO JOGO** (fase 2 de 4).
+> Última atualização: **19/08/2026** — 🎫 **AS FICHAS DE PLACAR ENTRARAM NO PALPITRÔMETRO — E ELE PASSOU A DIZER O QUE A GALERA CRAVA** (fase 3 de 4).
+>
+> 👆 **O SEGUNDO TOQUE É OPCIONAL, E ISSO É O DESENHO INTEIRO.** Palpitar continua sendo **um toque no nome**; quem quiser dá o segundo e escolhe o placar. Exigir placar pra votar derrubaria a participação — e é a participação que faz a barra do palpitrômetro valer alguma coisa. ⚠️ **As fichas só aparecem DEPOIS do voto**: "6x4" não quer dizer nada antes de se saber de **quem** são os 6.
+>
+> 🔄 **A MESMA FICHA VALE PROS DOIS LADOS, e é o JS que dá dono ao número.** A ficha mostra `vencedor × perdedor`, sem lado; quem votou na Dupla 2 manda o mesmo `6x4` **espelhado** (`placar1=4&placar2=6`), porque o servidor recebe sempre na orientação do JOGO — a mesma das colunas da partida. Duas listas de fichas (uma por lado) seriam o dobro de tela pra dizer a mesma coisa.
+>
+> 👥 **"A GALERA CRAVA 6x4 (3 de 4)"** — a leitura do placar aparece **antes** do jogo, e a **contagem anda junto de propósito**: "a galera crava 6x4" com 3 de 12 promete um consenso que não existe. ⚠️ E o denominador é **quem palpitou placar**, não quem votou: contar gente que não opinou sobre placar faria a frase parecer menos consenso do que é.
+>
+> 🎯 **"CRAVOU O PLACAR: FULANO"** depois que o jogo acaba. ⚠️ **Quem decide "cravou" é o MESMO `PontosDoPalpite` do ranking** — uma segunda definição na tela produziria o pior dos mundos: o cartão anunciando a cravada e o ranking não pagando os 3 pontos.
+>
+> 🧮 **As fichas saem do formato da FASE, jogo a jogo** — grupos até 6 e final até 9 no mesmo torneio dão fichas diferentes, e há teste pra isso: uma lista só por torneio ofereceria `7x5` numa final que vai até 9.
+>
+> ⚡ **Os nomes de quem cravou saem numa consulta só, e só quando alguém cravou** — a lista de jogos chega a 40 partidas numa tela, e trazer o nome de todo mundo que palpitou junto com os votos carregaria centenas de nomes pra usar nenhum.
+>
+> 🧪 **4.410 testes, 0 falhas (5 novos nesta fase).** ✅ **E o JavaScript foi conferido de verdade**, contra um DOM falso no Node (`scratchpad/conferir-js.js`, fora do repositório): 10 conferências, incluindo a que importa — **a mesma ficha 6x4 sai `6,4` pra quem votou na Dupla 1 e `4,6` pra quem votou na Dupla 2**, o destaque da ficha sobrevive ao espelho, e o palpitrômetro **em linha** (que não tem fichas) continua vivo. ✅ **Falsificado**: tirando o espelho, a conferência da Dupla 2 cai sozinha. 📌 De quebra, o espelho errado **não corromperia dado**: o servidor recusa placar que aponta a outra dupla — as duas camadas dizem a mesma coisa.
+>
+> ⚠️ **A TELA AINDA NÃO FOI ABERTA NUM NAVEGADOR** (sem Postgres no ambiente) e **a migration da fase 2 não rodou em banco nenhum**. O que existe é: Razor compilado no build, a lógica de orientação conferida no Node, e a suíte.
+>
+> ⏭️ **Falta a fase 4**: o selo no perfil e a aba no hub do Ranking, que este documento promete desde 12/08 e que não existem no código.
+>
+> Antes, no mesmo dia: 🎯 **O PALPITE PASSOU A ACEITAR PLACAR — E QUEM DECIDE QUAIS PLACARES EXISTEM É O FORMATO DO JOGO** (fase 2 de 4).
 >
 > 🎫 **PALPITAR PLACAR É ESCOLHER, NÃO DIGITAR** (`Services/PlacaresPossiveis`). Dois campos numéricos no celular são dois toques, um teclado por cima da tela e a porta aberta pro "6 x 9" — placar que nenhum jogo termina. A lista de finais possíveis sai do formato da fase: até 6 dá `6x0 · 6x1 · 6x2 · 6x3 · 6x4 · 6x5 · 7x5`, até 9 vai de `9x0` a `9x8` **sem estender** (limite ímpar já embute o tie-break), e a **soma** de 8 dá `8x0 · 7x1 · 6x2 · 5x3` — **sem 4x4**, porque o sistema recusa finalizar partida empatada e palpitar empate seria palpitar um final que ele não deixa gravar. ⚠️ **Quem manda no formato continua sendo `FormatoDaPartida`** — este arquivo pergunta, não sabe. Um teste confere que **todo placar oferecido é um placar que a partida aceita encerrar**: se a lista um dia oferecer algo que a Mesa recusaria, ele cai.
 >
