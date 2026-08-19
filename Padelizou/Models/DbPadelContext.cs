@@ -41,7 +41,10 @@ public partial class DbPadelContext : DbContext
     public DbSet<SolicitacaoRegistroResultados> SolicitacoesRegistroResultados { get; set; }
     public DbSet<LocalAula> LocaisAula { get; set; }
     public DbSet<PacoteDeAulas> PacotesDeAulas { get; set; }
+    public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
+    public DbSet<CadastroDoAluno> CadastrosDeAlunos { get; set; }
+    public DbSet<FaturaDoAluno> FaturasDeAlunos { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
     public DbSet<ProfessorCidade> ProfessorCidades { get; set; }
@@ -1140,13 +1143,20 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(a => a.AlunoId)
                 .IsRequired(false)
                 .HasConstraintName("FK__Aula__AlunoId__114A936A");
+
+            // A aula que esta repõe (ver Services/Reposicao). Restrict de propósito: apagar a
+            // aula original com uma reposição já marcada deixaria na agenda uma aula de R$ 0
+            // sem explicação nenhuma. O banco recusa, e o professor apaga a reposição antes.
+            entity.HasOne(a => a.RecuperaAula)
+                .WithMany()
+                .HasForeignKey(a => a.RecuperaAulaId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<LocalAula>(entity =>
         {
             entity.Property(e => e.PrecoPadrao).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoDupla).HasPrecision(18, 2);
-            entity.Property(e => e.PrecoTrio).HasPrecision(18, 2);
             entity.Property(e => e.CustoPorAula).HasPrecision(18, 2);
 
             entity.HasOne(l => l.Professor)
@@ -1180,6 +1190,70 @@ public partial class DbPadelContext : DbContext
             entity.HasIndex(e => e.ProfessorId);
         });
 
+        modelBuilder.Entity<CadastroDoAluno>(entity =>
+        {
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.Celular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelNome).HasMaxLength(120);
+            entity.Property(e => e.ResponsavelCelular).HasMaxLength(20);
+            entity.Property(e => e.ResponsavelCpf).HasMaxLength(11);
+            entity.Property(e => e.Observacao).HasMaxLength(500);
+
+            // Mesma régua de PrecoDeAluno, e pelos mesmos motivos: a ficha é do PROFESSOR e
+            // não sobrevive à conta dele; o aluno é Restrict porque são dois caminhos até
+            // Jogador, e apagar a conta do aluno não deve levar junto o que o professor
+            // anotou (inclusive quem paga por ele).
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor lê as fichas dele inteiras toda vez que abre o painel ou marca aula.
+            entity.HasIndex(e => e.ProfessorId);
+
+            // Achar a pessoa pelo número que o professor tem na mão — é o cadastro rápido.
+            entity.HasIndex(e => e.Celular);
+        });
+
+        modelBuilder.Entity<FaturaDoAluno>(entity =>
+        {
+            entity.Property(e => e.Valor).HasPrecision(18, 2);
+            entity.Property(e => e.NomeAvulso).HasMaxLength(100);
+            entity.Property(e => e.PagadorNome).HasMaxLength(120);
+            entity.Property(e => e.PagadorCelular).HasMaxLength(20);
+            entity.Property(e => e.PagadorCpf).HasMaxLength(11);
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(e => e.Professor)
+                .WithMany()
+                .HasForeignKey(e => e.ProfessorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Aluno)
+                .WithMany()
+                .HasForeignKey(e => e.AlunoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // A cobrança no gateway, quando existe. Restrict: apagar um pagamento não pode
+            // deixar a conta do mês dizendo que foi cobrada por algo que não existe mais.
+            entity.HasOne(e => e.Pagamento)
+                .WithMany()
+                .HasForeignKey(e => e.PagamentoId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // O professor abre a tela do mês inteira de uma vez, e a competência é sempre
+            // parte da pergunta ("o que eu fechei em abril?").
+            entity.HasIndex(e => new { e.ProfessorId, e.Ano, e.Mes });
+        });
+
         modelBuilder.Entity<PacoteDeAulas>(entity =>
         {
             entity.Property(e => e.Preco).HasPrecision(18, 2);
@@ -1190,6 +1264,24 @@ public partial class DbPadelContext : DbContext
                 .WithMany(l => l.Pacotes)
                 .HasForeignKey(p => p.LocalAulaId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrecoDeTurma>(entity =>
+        {
+            entity.Property(e => e.Preco).HasPrecision(18, 2);
+
+            // Cascade pelo mesmo motivo do pacote: o preço não existe sem o local. Apagado o
+            // local, a tabela some junto — as aulas que ela precificou ficam, com o valor que
+            // já tinham gravado em Aula.Preco.
+            entity.HasOne(p => p.LocalAula)
+                .WithMany(l => l.PrecosDeTurma)
+                .HasForeignKey(p => p.LocalAulaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Um preço por tamanho, por local. Sem isto, salvar a tela duas vezes deixaria
+            // duas linhas dizendo quanto custa o trio — e a leitura escolheria uma delas sem
+            // critério nenhum (ver PrecoDaAula.PorTamanho).
+            entity.HasIndex(e => new { e.LocalAulaId, e.QuantidadeAlunos }).IsUnique();
         });
 
         modelBuilder.Entity<HorarioDisponivel>(entity =>

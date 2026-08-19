@@ -1,7 +1,71 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
+> Última atualização: **19/08/2026** — 🧾 **O PROFESSOR MENSALISTA FECHOU O CICLO: CADASTRO RÁPIDO, RESPONSÁVEL PELA COBRANÇA, FECHAMENTO DO MÊS E COBRANÇA PELO APP.**
+>
+> 🗣️ **Os três últimos pedidos do Rafael**, de uma vez: *"se tem alguma maneira de cadastro rápido preciso também, porque tem muita gente que não manda os dados e me quebra"*; *"nem sempre o aluno é o responsável pelo próprio pagamento (crianças), preciso de um campo de responsável pela cobrança"*; e *"cobramos por mês: fecha as aulas do mês e cobra no mês subsequente"*.
+>
+> 🪪 **`CadastroDoAluno` — o professor passou a saber quem é o aluno.** Até aqui o aluno sem conta era um NOME digitado dentro de cada aula, e o telefone era redigitado a cada marcação: não havia onde guardar nem um celular estável, nem quem paga por ele. ⚠️ **A identidade é a MESMA de `PrecoDeAluno`** (conta quando existe, nome anotado quando não), então a `Aula` não mudou e **nenhuma das oito consultas que agrupam aluno precisou ser reescrita**.
+>
+> ⚡ **O cadastro nasce AO MARCAR A AULA, não numa tela à parte** — o professor já digitou nome e telefone ali, e pedir os mesmos dados noutro lugar é o atrito que faz ele não cadastrar ninguém. 🕳️ **Branco na marcação NUNCA apaga o que já está guardado** (telefone é opcional desde 04/08, e cada marcação sem ele destruiria o cadastro anterior); **na tela do cadastro, ao contrário, o branco apaga** — é a única forma de dizer "voltou a pagar por conta própria". O celular é guardado só com dígitos, senão o mesmo número digitado de três jeitos vira três alunos — e é ele que **fecha o ciclo com a campanha de "se cadastrem certinho"**: quando a pessoa cria conta com aquele número, o painel avisa e oferece juntar o histórico.
+>
+> 🧾 **`FaturaDoAluno` — somar não é cobrar.** O financeiro sabia somar um período qualquer, mas nada dizia "esta conta foi fechada, é deste valor, vence neste dia e ainda não foi paga". A **competência** (o mês das aulas) mora separada do **vencimento** (o mês em que se cobra) — é isso que deixa "fechei abril agora em maio" ser dito sem ambiguidade, e que impede fechar abril duas vezes.
+>
+> 💸 **"QUAIS AULAS ENTRAM" TEM TRÊS RESPOSTAS ERRADAS FÁCEIS, e cada uma custa dinheiro de alguém.** Contar a cancelada cobra o que não foi combinado. Esquecer a falta cobrável perde o dinheiro do mensalista — que é o motivo de ele cobrar por mês. E contar a **reposição** cobra **duas vezes a mesma aula**: ela fica de fora porque o dinheiro dela já entrou na conta do mês da aula original, que foi por isso que ela nasceu sem preço.
+>
+> ❄️ **Quem paga é CONGELADO no fechamento**, copiado do cadastro em vez de lido dele na hora de mostrar: a fatura é um documento, e trocar o responsável em junho não pode reescrever a conta de abril que já foi mandada pra outra pessoa. Três travas: o mês só fecha **depois de acabar** (fechar março no dia 12 geraria conta pela metade), fechar duas vezes não duplica, e o dia de vencimento é preso ao último dia do mês — fevereiro não tem 31.
+>
+> 💳 **A COBRANÇA PELO APP, com split pro professor e a taxa do plano dele** — a mesma régua da aula avulsa, porque duas tabelas discordando é como o professor descobre que pagou mais do que combinou. 🕳️ **A pedra no caminho: QUEM PAGA PODE NÃO TER CONTA NO PADELIZOU** — é o caso normal aqui, a mãe que paga a aula do filho não usa o app, e `Pagamento.JogadorId` exige um `Jogador`. Em vez de afrouxar a tabela do dinheiro, o pagador entra como **pré-cadastro por CPF**, exatamente como o inscrito que o organizador coloca no torneio; ela assume a conta depois com o mesmo CPF e passa a ver o que pagou. Uma cobrança viva por fatura (duas no gateway é o aluno pagando a que achar primeiro), e o vencimento que vai pro gateway é **o combinado no fechamento**, não "amanhã".
+>
+> 📵 **Sem CPF do pagador a tela avisa ANTES de fechar**, e o botão de cobrar nem aparece: o gateway recusa cliente sem documento, e descobrir isso no dia de cobrar é tarde. A conta continua valendo — dar baixa à mão (Pix, dinheiro) segue sendo como a maior parte das aulas é paga hoje.
+>
+> 🖥️ **CONFERIDO NO NAVEGADOR, com servidor de verdade contra o Postgres local** — e foi aí que apareceu **um defeito que os testes não pegavam**: professor que fecha julho no dia 19 de agosto pedindo *"vence dia 10"* recebia uma conta **nascida vencida em 10/08**, vermelha na tela, cobrando atraso de quem nunca teve como pagar. Nos testes a competência é sempre o mês passado e o vencimento caía à frente por sorte do calendário. Agora o dia escolhido **rola pro mês seguinte** (10/09), mês a mês — competência de três meses atrás precisa de mais de um pulo. ✅ Provado no fluxo completo, clicando: marcar sexteto → "vai recuperar" → encaixar a reposição → fechar o mês. **Zero erro de JS** nas cinco telas. ⚠️ O overflow horizontal de ~15px é da **navbar** e aparece igual em `/Torneios` — é anterior a este trabalho.
+>
+> 🧪 **4.452 testes, 0 falhas (47 novos em três blocos).** ✅ **Falsificação em quatro pontos:** deixando o cadastro rápido sobrescrever o celular com branco, cai o teste do "não apaga"; deixando a **reposição entrar na conta**, caem 2 — inclusive o que atravessa a virada do mês (aula original em abril, reposição em maio); tirando a trava de uma cobrança viva por fatura, cai o de emitir duas vezes; e tirando a conferência do dígito do CPF, cai o que prova que `11111111111` não vira conta fantasma no banco. ✅ Migrations aplicadas contra Postgres de verdade.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia: 🔁 **"VAI RECUPERAR": O ALUNO NÃO VEM, A AULA É COBRADA E O HORÁRIO VAGA NA HORA.**
+>
+> 🗣️ **O pedido do Rafael**, sobre o professor João (mensalista, 75 aulas por semana): *"como cobramos mensal, na maior parte das vezes que o aluno falta é cobrado normalmente e ele recupera. Problema é gerenciar isso na agenda — ali nas opções ter algo como 'vai recuperar', e daí sai da agenda do dia, mantém na de cobrança e fica numa lista de pendências para encaixar outro dia."*
+>
+> 🕳️ **O sistema sabia dizer duas coisas sobre quem não vem, e nenhuma era essa.** `Cancelada` some da agenda e **não cobra** — perde o dinheiro do mensalista. `Faltou` + `CobrarMesmoFaltando` cobra, mas **não gera crédito nenhum**: nada lembrava o professor de que ele devia uma aula, e a fila de reposições vivia no WhatsApp dele.
+>
+> ✅ **O status novo é `A recuperar`, e ele faz três coisas de uma vez.** (1) **Sai das ativas** — e é isso, e não uma tela, que **libera o horário**: o professor encaixa outro aluno no mesmo dia, que é o pedido inteiro. (2) **Continua cobrável**, marcando o `CobrarMesmoFaltando` que já existia — reaproveitar é o ponto: previsão, devedores e relatório **não precisaram aprender conceito nenhum** pra continuar certos. (3) **Entra numa fila** na própria agenda, em qualquer data, com o formulário de encaixe do lado.
+>
+> 💸 **A REPOSIÇÃO NASCE COM PREÇO ZERO, E ESSE É O RISCO CENTRAL DA FEATURE.** O dinheiro ficou na aula original, que segue cobrável; dar preço à reposição faria o professor **cobrar duas vezes a mesma aula** — o oposto do combinado com o aluno. Zero **gravado**, e não "excluída das somas": um zero aparece na tela e no relatório, enquanto uma exceção escondida numa consulta é a que ninguém acha no dia em que a conta não fecha. A tela escreve *"Reposição da aula de 05/08 — já cobrada lá"* em cima do R$ 0,00, dos dois lados.
+>
+> 🔗 **A ligação é uma coluna, `Aula.RecuperaAulaId`, com FK pra própria tabela e `Restrict`.** Sem ela, "quem já foi encaixado?" só poderia ser respondido por *"o professor marcou alguma aula pra esse aluno depois?"* — que acerta por acidente e erra em todo aluno que tem aula toda terça. O `Restrict` impede apagar a original deixando na agenda uma aula de R$ 0 órfã.
+>
+> 🚪 **A fila tem DUAS saídas, não uma.** Encaixar (nasce a reposição, o aluno é avisado por push + WhatsApp — dia e hora é pessoal, urgente e acionável) ou **"não vai mais recuperar"**, que devolve a aula pro `Faltou` cobrado: o combinado era cobrar, e foi só a reposição que caiu. Sem a segunda saída, um "vai recuperar" clicado por engano ficaria preso na tela pra sempre.
+>
+> ⚠️ **Duas travas que existem por causa de erro silencioso:** registrar presença numa aula da fila é **recusado** (gravaria `CobrarMesmoFaltando = false` por baixo, e a aula sairia do financeiro calada continuando na fila); e encaixar duas vezes a mesma aula é recusado (dois cliques, ou dois celulares na mesma tela, dariam **duas aulas de graça**).
+>
+> 🎨 **Roxo, não vermelho.** "A recuperar" não é aula perdida — é aula que vai acontecer noutro dia. Ler igual a "Cancelada" faria o aluno achar que perdeu a aula que pagou, e é justamente isso que a cor tem que evitar. O card do aluno diz as duas coisas: *"você vai repor esta aula"* **e** *"ela foi cobrada normalmente"* — dizer só a primeira deixaria a segunda como surpresa.
+>
+> 🧪 **4.404 testes, 0 falhas (19 novos).** ✅ **Falsificação em três pontos, um por decisão que sustenta a feature:** tirando o `CobrarMesmoFaltando`, **5 testes caem**; dando preço à reposição, **2 caem** (inclusive o que prova que o mês não fecha com o dobro daquela aula); fazendo `A recuperar` voltar a contar como ativa, cai o que prova que **o horário vaga pra outro aluno** — o pedido do Rafael, em teste. ✅ Migration aplicada contra o Postgres de verdade: coluna nula, sem `defaultValue`, FK `Restrict` conferida no `\d`.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia: 🏐 **A TURMA DEIXOU DE PARAR NO TRIO: AULA DE ATÉ SEIS ALUNOS, COM PREÇO PRÓPRIO EM CADA TAMANHO.**
+>
+> 🗣️ **O pedido veio do Rafael**, cadastrando o professor João (110 alunos, 75 aulas por semana entre beach, tênis e padel): *"turma de beach pode ser até 6 (sexteto)"*. O sistema ia até três — e o teto não era regra de negócio, era **onde os preços estavam guardados**: duas colunas em `LocalAula`, `PrecoDupla` e `PrecoTrio`. Não havia onde escrever o valor do quarteto, então o professor de beach lançaria o sexteto como trio e corrigiria o preço **na mão, em toda aula** — que é exatamente a dor que o `PrecoDeAluno` nasceu pra matar em 03/08.
+>
+> 🍃 **A PEÇA NOVA: `PrecoDeTurma`, uma linha por tamanho.** Mesma lição que `PacoteDeAulas` já tinha aprendido: com uma coluna por tamanho, esticar o limite é migration nova toda vez — e o `switch` que lê os preços cresce junto, em três telas. Agora subir o teto é **uma linha** (`PrecoDaAula.MaxAlunos`), e nada mais no sistema conta até três. A individual continua fora da tabela, em `LocalAula.PrecoPadrao`: ela é obrigatória (todo local tem preço, nem todo local faz turma), e dar linha a ela criaria dois lugares dizendo quanto custa a mesma coisa.
+>
+> 📉 **A QUEDA VIROU DEGRAU A DEGRAU.** A regra antiga era "sem preço pro tamanho pedido, cai pro menor mais próximo que ele informou". Com teto seis ela vale igual, só que percorrendo: quem anunciou dupla e quarteto e marca um **sexteto** paga o **quarteto**, não o individual. Cair direto pra individual seria o professor dando **cinco lugares de graça** sem perceber.
+>
+> ⚠️ **O SCAFFOLD DO EF GEROU A MIGRATION NA ORDEM QUE APAGAVA OS PREÇOS**: `DropColumn` das duas colunas **antes** do `CreateTable`. Nessa ordem, todo preço de dupla e trio já cadastrado ia embora antes de existir pra onde copiar. Reordenada à mão — cria, **copia**, depois derruba —, e o `Down` faz o inverso. Zero explícito não é copiado: `0` sempre significou "não faço esse tamanho" no cadastro, e copiá-lo anunciaria aula de graça ao aluno.
+>
+> 🔍 **`DoLocal` passou a depender de `Include`**, e isso é armadilha silenciosa: local carregado sem ele chega com a coleção vazia e **toda turma sairia pelo preço da individual, sem erro nenhum**. Os cinco pontos que carregam local pra precificar ganharam o `Include` (as duas pontas de marcar aula — professor e aluno —, a edição, a lista de locais e a grade da cidade), e há teste provando que a coleção ausente não derruba a página.
+>
+> 📱 **Na tela, o botão virou só o NÚMERO.** "Individual / Em dupla / Em trio / Em quarteto / Em quinteto / Em sexteto" não cabe na largura de um celular — e é na beira da quadra que essa tela é usada. O nome do tamanho aparece embaixo, no que estiver marcado. Do lado do aluno os rótulos continuam na primeira pessoa ("Nós seis"), e ele **só enxerga os tamanhos que o professor anunciou**: oferecer sexteto a quem não faz sexteto é prometer um preço que não existe.
+>
+> 🧪 **4.385 testes, 0 falhas (16 novos).** ✅ **Falsificação:** voltando `MaxAlunos` pra 3, **12 testes caem** — inclusive os de ponta a ponta, que marcam uma aula de verdade pelos dois caminhos e conferem o preço gravado no banco. ✅ **Migration conferida contra um Postgres de verdade**, não só lida: com três locais semeados no schema ANTIGO (um com dupla+trio, um só individual, um com zeros), a subida copiou exatamente as duas linhas certas, o índice único recusou o tamanho repetido, e o `Down` devolveu os valores às colunas. ✅ **A ligação do formulário conferida num app mínimo à parte** — `precoTurma[2]=150` chega como dicionário, e campo em branco chega como chave com valor nulo, que é o que faz o professor conseguir **apagar** um tamanho que parou de fazer.
+>
+> ⏭️ **Não publicado ainda.**
+>
+> Antes, no mesmo dia: 🎯 **A CAMPANHA PASSOU A MOVER O PADELÍMETRO — com as portas da faixa como limite.**
 >
 > 🗣️ **Decisão do Felipe**: *"se for eliminado na chave, perde mais pontos; se for campeão, ganha mais pontos"* — pra quem subiu de categoria e não parou em pé PODER VOLTAR à anterior. No Elo puro isso não acontecia em tempo humano: derrota esperada quase não tira ponto (a expectativa desconta o adversário mais forte), e quem subia ficava preso no andar de cima.
 >

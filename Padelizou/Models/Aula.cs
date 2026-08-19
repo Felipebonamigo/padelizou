@@ -76,6 +76,14 @@ public partial class Aula
     // é por aula, e não por local, porque o mesmo aluno ora paga a quadra, ora não.
     public bool AlunoPagaQuadra { get; set; }
 
+    // Esta aula REPÕE outra, que ficou como "A recuperar" (ver Services/Reposicao). Nula na
+    // esmagadora maioria — só a aula de encaixe aponta pra trás.
+    //
+    // A ligação existe pra fila de pendências saber quem já foi encaixado: sem ela, a única
+    // resposta possível seria "o professor marcou alguma aula pra esse aluno depois?", que
+    // acerta por acidente e erra no aluno que tem aula toda terça.
+    public int? RecuperaAulaId { get; set; }
+
     // Quantas horas antes da aula o cancelamento foi feito. Guardado no momento do
     // cancelamento porque a política do professor pode mudar depois — o que valeu
     // pro aluno foi a regra do dia.
@@ -93,4 +101,8 @@ public partial class Aula
 
     [ForeignKey("LocalAulaId")]
     public virtual LocalAula LocalAula { get; set; } = null!;
+
+    // A aula que esta aqui repõe (null quando esta não é reposição de nada).
+    [ForeignKey("RecuperaAulaId")]
+    public virtual Aula? RecuperaAula { get; set; }
 }

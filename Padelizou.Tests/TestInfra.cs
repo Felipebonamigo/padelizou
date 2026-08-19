@@ -193,14 +193,18 @@ public static class TestInfra
 
     // AulasController com as bordas dubladas (e-mail, Google Agenda, push). O `google` é
     // devolvido junto quando quem chama precisa conferir que o evento foi removido da agenda.
+    // `pagamentos` entra de fora porque é quem emite a cobrança da conta do mês: o teste que
+    // quer provar taxa, split ou recusa precisa mandar o dele.
     public static AulasController NovoAulasController(
-        DbPadelContext ctx, int usuarioLogadoId, IGoogleCalendarService? google = null, IPushNotificationService? push = null)
+        DbPadelContext ctx, int usuarioLogadoId, IGoogleCalendarService? google = null,
+        IPushNotificationService? push = null, IPagamentoInscricaoService? pagamentos = null)
     {
         var controller = new AulasController(
             ctx,
             Substitute.For<IEmailService>(),
             google ?? Substitute.For<IGoogleCalendarService>(),
             push ?? Substitute.For<IPushNotificationService>(),
+            pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
             Microsoft.Extensions.Options.Options.Create(new PlanoProfessorSettings()),
             NullLogger<AulasController>.Instance);
 

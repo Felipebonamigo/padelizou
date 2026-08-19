@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260819183703_FaturaMensalDoAluno")]
+    partial class FaturaMensalDoAluno
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1567,9 +1570,6 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CategoriaId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -1592,10 +1592,6 @@ namespace Padelizou.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PartidaId");
-
-                    b.HasIndex("CategoriaId", "JogadorId")
-                        .IsUnique()
-                        .HasFilter("\"CategoriaId\" IS NOT NULL");
 
                     b.HasIndex("JogadorId", "CriadoEm");
 
@@ -4494,11 +4490,6 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.HistoricoDePadelimetro", b =>
                 {
-                    b.HasOne("Padelizou.Models.Categoria", "Categoria")
-                        .WithMany()
-                        .HasForeignKey("CategoriaId")
-                        .OnDelete(DeleteBehavior.ClientCascade);
-
                     b.HasOne("Padelizou.Models.Jogador", "Jogador")
                         .WithMany()
                         .HasForeignKey("JogadorId")
@@ -4509,8 +4500,6 @@ namespace Padelizou.Migrations
                         .WithMany()
                         .HasForeignKey("PartidaId")
                         .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Categoria");
 
                     b.Navigation("Jogador");
 

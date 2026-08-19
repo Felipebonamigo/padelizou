@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260819182032_CadastroDoAlunoEResponsavel")]
+    partial class CadastroDoAlunoEResponsavel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1406,78 +1409,6 @@ namespace Padelizou.Migrations
                     b.ToTable("ErroDoSistema");
                 });
 
-            modelBuilder.Entity("Padelizou.Models.FaturaDoAluno", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("AlunoId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Ano")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("FechadaEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("Mes")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("NomeAvulso")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("PagaEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("PagadorCelular")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("PagadorCpf")
-                        .HasMaxLength(11)
-                        .HasColumnType("character varying(11)");
-
-                    b.Property<string>("PagadorNome")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int?>("PagamentoId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProfessorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("QuantidadeAulas")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("Valor")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("Vencimento")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AlunoId");
-
-                    b.HasIndex("PagamentoId");
-
-                    b.HasIndex("ProfessorId", "Ano", "Mes");
-
-                    b.ToTable("FaturaDoAluno");
-                });
-
             modelBuilder.Entity("Padelizou.Models.FeedbackSite", b =>
                 {
                     b.Property<int>("Id")
@@ -1567,9 +1498,6 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CategoriaId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -1592,10 +1520,6 @@ namespace Padelizou.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PartidaId");
-
-                    b.HasIndex("CategoriaId", "JogadorId")
-                        .IsUnique()
-                        .HasFilter("\"CategoriaId\" IS NOT NULL");
 
                     b.HasIndex("JogadorId", "CriadoEm");
 
@@ -4438,31 +4362,6 @@ namespace Padelizou.Migrations
                     b.Navigation("ParaJogador");
                 });
 
-            modelBuilder.Entity("Padelizou.Models.FaturaDoAluno", b =>
-                {
-                    b.HasOne("Padelizou.Models.Jogador", "Aluno")
-                        .WithMany()
-                        .HasForeignKey("AlunoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Padelizou.Models.Pagamento", "Pagamento")
-                        .WithMany()
-                        .HasForeignKey("PagamentoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Padelizou.Models.Jogador", "Professor")
-                        .WithMany()
-                        .HasForeignKey("ProfessorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Aluno");
-
-                    b.Navigation("Pagamento");
-
-                    b.Navigation("Professor");
-                });
-
             modelBuilder.Entity("Padelizou.Models.FeedbackSite", b =>
                 {
                     b.HasOne("Padelizou.Models.Jogador", "Jogador")
@@ -4494,11 +4393,6 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.HistoricoDePadelimetro", b =>
                 {
-                    b.HasOne("Padelizou.Models.Categoria", "Categoria")
-                        .WithMany()
-                        .HasForeignKey("CategoriaId")
-                        .OnDelete(DeleteBehavior.ClientCascade);
-
                     b.HasOne("Padelizou.Models.Jogador", "Jogador")
                         .WithMany()
                         .HasForeignKey("JogadorId")
@@ -4509,8 +4403,6 @@ namespace Padelizou.Migrations
                         .WithMany()
                         .HasForeignKey("PartidaId")
                         .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Categoria");
 
                     b.Navigation("Jogador");
 

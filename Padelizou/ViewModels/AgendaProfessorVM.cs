@@ -23,6 +23,16 @@ public class AgendaProfessorVM
     // o prazo de responder sem nunca ver.
     public List<Aula> Pendentes { get; set; } = new();
 
+    // A fila de reposição: aulas que o aluno vai recuperar e que ainda não têm dia marcado
+    // (ver Services/Reposicao). Fora da janela pelo mesmo motivo das pendentes — a aula que
+    // ficou devendo é quase sempre de outra semana, e sumiria da tela justamente de quem
+    // precisa encaixá-la.
+    public List<Aula> ARecuperar { get; set; } = new();
+
+    // Os locais ativos do professor, só pro formulário de encaixe. Vem vazio quando não há
+    // fila: é a única coisa na tela que precisa deles.
+    public List<LocalAula> Locais { get; set; } = new();
+
     public bool GoogleConectado { get; set; }
 
     // Quantas aulas futuras confirmadas ainda não têm evento no Google. Só faz sentido com a
