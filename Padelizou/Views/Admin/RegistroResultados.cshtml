@@ -5,6 +5,10 @@
     var solicitantes = ViewBag.Solicitantes as Dictionary<int, string> ?? new();
     var cfg = ViewBag.Config as RegistroResultadosSettings ?? new();
     var abertos = Model.Count(p => p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada);
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -66,7 +70,7 @@
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div>
                         <h5 class="fw-bold mb-1" style="color: var(--pdz-ink);">
-                            <a asp-controller="Torneios" asp-action="Details" asp-route-id="@p.TorneioId"
+                            <a asp-controller="Torneios" asp-action="Details" asp-route-id="@p.TorneioId" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                                class="text-decoration-none" style="color: inherit;">@p.Torneio.Nome</a>
                         </h5>
                         <div class="small text-muted">

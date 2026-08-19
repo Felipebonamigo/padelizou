@@ -6,6 +6,10 @@
 
     var pendentes = linhas.Where(l => l.PagoEm == null && l.AlcancaOPiso).ToList();
     var aReceber = pendentes.Sum(l => l.Valor);
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -66,7 +70,7 @@
             {
                 <tr>
                     <td>
-                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@l.TorneioId"
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@l.TorneioId" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                            class="fw-bold text-decoration-none" style="color: var(--pdz-ink);">@l.Nome</a>
                         <div class="small text-muted">@l.Status</div>
                     </td>

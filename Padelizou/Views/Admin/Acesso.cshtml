@@ -2,6 +2,10 @@
 @model Padelizou.ViewModels.AcessoDoJogadorVM
 @{
     ViewData["Title"] = "Acesso do jogador - Painel Admin - Padelizou";
+    @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
+       público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
+       aí o link sai relativo como sempre. *@
+    var (hostDoSite, protocoloDoSite) = AdminHostMiddleware.SaidaPraSitePublico(ViewContext.HttpContext, Ambiente.IsDevelopment());
 }
 
 <div class="container mt-4 mb-5">
@@ -105,7 +109,7 @@
                             }
                         </div>
                     </div>
-                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id"
+                    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@p.Id" asp-host="@hostDoSite" asp-protocol="@protocoloDoSite"
                        class="btn btn-sm btn-outline-secondary rounded-pill px-3">Abrir perfil</a>
                 </div>
 
