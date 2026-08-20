@@ -294,7 +294,9 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> CheckIn(int id)
         {
-            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            // Marcador entra: "quem já chegou" é a pergunta da mesa, e é o check-in que
+            // alimenta o W.O. decidido com informação em vez de às cegas.
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
@@ -325,7 +327,7 @@ namespace Padelizou.Controllers
             if (dupla == null) return NotFound();
 
             int torneioId = dupla.Categoria.TorneioId;
-            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (!await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             if (!dupla.Categoria.Torneio.UsaCheckIn)
             {

@@ -55,6 +55,14 @@ namespace Padelizou.Controllers
                     .AnyAsync(o => o.TorneioId == partida.TorneioId && o.JogadorId == jogadorId))
                 return true;
 
+            // O MARCADOR do torneio entra aqui: controlar placar é o trabalho dele. É o
+            // espelho de TorneiosController.PodeOperarODiaDeJogoAsync — os dois critérios
+            // precisam andar juntos, senão a Mesa abre e os botões respondem 403 (o mesmo
+            // defeito que o admin já viveu, ver o comentário acima).
+            if (await _context.TorneioMarcadores
+                    .AnyAsync(m => m.TorneioId == partida.TorneioId && m.JogadorId == jogadorId))
+                return true;
+
             return await _context.Jogadores
                 .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Padelizou.Models;
@@ -11,9 +12,11 @@ using Padelizou.Models;
 namespace Padelizou.Migrations
 {
     [DbContext(typeof(DbPadelContext))]
-    partial class DbPadelContextModelSnapshot : ModelSnapshot
+    [Migration("20260820145018_MarcadoresDoTorneio")]
+    partial class MarcadoresDoTorneio
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1860,15 +1863,6 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<DateTime?>("CortesiaConcedidaEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int?>("CortesiaConcedidaPorJogadorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("CortesiaProfessorAte")
-                        .HasColumnType("timestamp without time zone");
-
                     b.Property<string>("Cpf")
                         .IsRequired()
                         .HasMaxLength(11)
@@ -1953,10 +1947,6 @@ namespace Padelizou.Migrations
                     b.Property<string>("MolduraEscolhida")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
-
-                    b.Property<string>("MotivoDaCortesia")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("MotivoDoPedidoDeOrganizador")
                         .HasColumnType("text");

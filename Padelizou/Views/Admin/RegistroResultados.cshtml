@@ -46,23 +46,32 @@
     }
 
     @{
-        var jogosPraSairDoMinimo = RegistroDeResultados.JogosParaSairDoMinimo(cfg.PrecoPorJogo, cfg.ValorMinimo);
+        var pessoasPorTorneio = ViewBag.PessoasInscritas as Dictionary<int, int> ?? new();
+        var inscricoesPraSairDoMinimo = RegistroDeResultados.InscricoesParaSairDoMinimo(
+            cfg.PercentualDasInscricoes, cfg.ValorMinimo);
     }
     <div class="alert alert-light border small">
-        Regra publicada: <strong>@cfg.PrecoPorJogo.ToString("C") por jogo</strong>,
-        mínimo <strong>@cfg.ValorMinimo.ToString("C")</strong> — nosso custo é
-        @cfg.CustoPorJogo.ToString("C") por jogo.
-        <strong>Abaixo de @jogosPraSairDoMinimo jogos todo torneio paga o mínimo</strong>, então é
-        ali que a margem é maior. Clube longe: ajuste o valor na mão.
+        Regra publicada: <strong>mais @cfg.PercentualDasInscricoes.ToString("0.#")% do valor das
+        inscrições</strong> (pessoas × preço, a régua da taxa do Externo),
+        mínimo <strong>@cfg.ValorMinimo.ToString("C")</strong> — nosso custo continua sendo
+        @cfg.CustoPorJogo.ToString("C") <strong>por jogo</strong>.
+        <strong>Abaixo de @inscricoesPraSairDoMinimo.ToString("C") de inscrições todo torneio paga o
+        mínimo</strong>, então é ali que a margem é maior. ⚠️ Inscrição barata com muitos jogos pode
+        não cobrir o custo — a conta de cada card mostra. Clube longe: ajuste o valor na mão.
     </div>
 
     @foreach (var p in Model)
     {
         var jogos = p.JogosPrevistos ?? 0;
         var custo = RegistroDeResultados.CustoEstimado(jogos, cfg.CustoPorJogo);
-        var sugerido = RegistroDeResultados.PrecoSugerido(
-            jogos, p.PrecoPorJogoCotado > 0 ? p.PrecoPorJogoCotado : cfg.PrecoPorJogo,
-            p.ValorMinimoCotado > 0 ? p.ValorMinimoCotado : cfg.ValorMinimo);
+        var pessoasInscritas = pessoasPorTorneio.GetValueOrDefault(p.TorneioId);
+        var minimo = p.ValorMinimoCotado > 0 ? p.ValorMinimoCotado : cfg.ValorMinimo;
+        // A régua que o pedido carrega, nunca a atual: pedido de antes de 20/08/2026 foi
+        // cotado por jogo e continua valendo o que leu na tela.
+        var sugerido = p.PercentualCotado != null
+            ? RegistroDeResultados.PrecoSugerido(
+                pessoasInscritas, p.Torneio.PrecoInscricao, p.PercentualCotado.Value, minimo)
+            : RegistroDeResultados.PrecoSugeridoPorJogo(jogos, p.PrecoPorJogoCotado, minimo);
         var aberto = p.Status == Padelizou.Models.SolicitacaoRegistroResultados.Solicitada;
 
         <div class="card border-0 shadow-sm mb-3">
@@ -99,6 +108,10 @@
                                 @p.PessoasSugeridas pessoa(s) × @p.DiasNaSolicitacao dia(s),
                                 @p.QuadrasNaSolicitacao quadra(s)
                             </div>
+                            <div class="small text-muted">
+                                inscrições até agora: @pessoasInscritas pessoa(s)
+                                × @p.Torneio.PrecoInscricao.ToString("C")
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -117,7 +130,7 @@
                             <div class="fs-5 fw-bold">@sugerido.ToString("C")</div>
                             <div class="small text-muted">
                                 sobra @((sugerido - custo).ToString("C"))
-                                @if (jogos > 0 && jogos < jogosPraSairDoMinimo)
+                                @if (sugerido == minimo)
                                 {
                                     <text> · no mínimo</text>
                                 }

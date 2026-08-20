@@ -39,9 +39,10 @@ public static class RegistroDeResultados
 
     // Quantos jogos o torneio inteiro vai ter — a soma das categorias.
     //
-    // É o número que manda no preço, porque o custo é POR JOGO: quem vai registrar ganha por
-    // jogo lançado. Um Americano de um dia pode ter mais jogos que um torneio de duplas de
-    // três — cobrar por dia erraria os dois.
+    // Desde 20/08/2026 o número manda só no CUSTO, não mais no preço: quem vai registrar
+    // ganha por jogo lançado, então quem responde precisa dele pra saber por quanto não
+    // vale a pena aceitar. Um Americano de um dia pode ter mais jogos que um torneio de
+    // duplas de três — é por isso que o custo nunca foi por dia.
     public static int JogosPrevistos(IEnumerable<int> duplasPorCategoria) =>
         duplasPorCategoria.Where(d => d >= 2).Sum(PrevisaoDoTorneio.TotalDeJogos);
 
@@ -50,15 +51,30 @@ public static class RegistroDeResultados
     public static decimal CustoEstimado(int jogos, decimal custoPorJogo) =>
         Math.Max(0, jogos) * custoPorJogo;
 
-    // O preço pela regra publicada. O mínimo existe porque mandar alguém passar o dia custa
-    // o dia inteiro, tendo 10 ou 40 jogos — sem ele, torneio pequeno sairia no prejuízo.
-    public static decimal PrecoSugerido(int jogos, decimal precoPorJogo, decimal valorMinimo) =>
+    // O preço pela regra publicada (20/08/2026): percentual SOBRE o valor das inscrições,
+    // a mais da taxa da forma de recebimento. Mesma régua da taxa do Externo — pessoas ×
+    // preço por pessoa (Services/TaxaDoTorneioExterno.PessoasInscritas) — de propósito: o
+    // organizador compara com o concorrente em percentual, e duas bases diferentes pra
+    // "valor das inscrições" seria a conta que ninguém confere.
+    //
+    // O mínimo continua: mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40
+    // jogos — sem ele, torneio pequeno (ou gratuito) sairia no prejuízo.
+    public static decimal PrecoSugerido(
+        int pessoasInscritas, decimal precoPorPessoa, decimal percentual, decimal valorMinimo) =>
+        Math.Max(
+            Math.Round(Math.Max(0, pessoasInscritas) * precoPorPessoa * percentual / 100m, 2),
+            valorMinimo);
+
+    // A régua ANTIGA (R$ por jogo), viva só pros pedidos feitos antes de 20/08/2026: a
+    // cotação foi congelada no pedido, e quem pediu por ela continua valendo o que leu.
+    public static decimal PrecoSugeridoPorJogo(int jogos, decimal precoPorJogo, decimal valorMinimo) =>
         Math.Max(Math.Max(0, jogos) * precoPorJogo, valorMinimo);
 
-    // A partir de quantos jogos o preço por jogo passa o mínimo. Abaixo disso todo torneio
-    // paga o mesmo — e quem responde precisa saber disso pra não achar que errou a conta.
-    public static int JogosParaSairDoMinimo(decimal precoPorJogo, decimal valorMinimo) =>
-        precoPorJogo <= 0 ? 0 : (int)Math.Ceiling(valorMinimo / precoPorJogo);
+    // A partir de quanto de inscrição (pessoas × preço) o percentual passa o mínimo. Abaixo
+    // disso todo torneio paga o mesmo — e quem responde precisa saber disso pra não achar
+    // que errou a conta quando dois pedidos diferentes dão o mesmo valor.
+    public static decimal InscricoesParaSairDoMinimo(decimal percentual, decimal valorMinimo) =>
+        percentual <= 0 ? 0 : Math.Round(valorMinimo * 100m / percentual, 2);
 
     public static string? ProblemaParaSolicitar(
         bool servicoHabilitado, bool jaTemSolicitacaoAberta,
@@ -119,8 +135,13 @@ public class RegistroResultadosSettings
     // concorrente paga a quem vai lançar os resultados. Só aparece no painel do admin.
     public decimal CustoPorJogo { get; set; } = 10m;
 
-    // O que cobramos do organizador, por jogo. Margem de R$ 2 sobre o custo.
-    public decimal PrecoPorJogo { get; set; } = 12m;
+    // O que cobramos do organizador: percentual sobre o valor das inscrições (pessoas ×
+    // preço por pessoa), A MAIS da taxa da forma de recebimento. Trocou o R$ 12 por jogo em
+    // 20/08/2026: o concorrente que marca placar cobra percentual, e por jogo a comparação
+    // saía mais cara justamente nos torneios grandes. ⚠️ O custo continua por jogo — em
+    // inscrição barata com muitos jogos o percentual pode não cobrir o custo; o mínimo
+    // segura parte disso, e o resto é decisão de quem responde (o valor é ajustável).
+    public decimal PercentualDasInscricoes { get; set; } = 5m;
 
     // Piso do serviço. Mandar alguém passar o dia custa o dia inteiro, tendo 10 ou 40 jogos.
     // Também é o amortecedor de distância: clube longe encarece, e quem responde ajusta o

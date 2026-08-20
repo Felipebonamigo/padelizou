@@ -21,8 +21,9 @@ namespace Padelizou.Controllers
             // `!`: ação [Authorize], e o cookie sempre carrega o identificador (IdentidadeJogador.ClaimsDe).
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            // SEGURANÇA: Só o Dono do Torneio ou um Ajudante (TorneioOrganizador) pode acessar a Mesa de Controle
-            if (!await EhOrganizadorAsync(id, userId)) return Forbid();
+            // SEGURANÇA: organizador, MARCADOR do torneio ou admin — a Mesa é exatamente o
+            // posto de trabalho do marcador.
+            if (!await PodeOperarODiaDeJogoAsync(id, userId)) return Forbid();
 
             var partidasEmAndamento = await _context.Partidas
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
@@ -53,7 +54,7 @@ namespace Padelizou.Controllers
         {
             var partida = await _context.Partidas.FindAsync(partidaId);
             if (partida == null) return NotFound();
-            if (partida.TorneioId == null || !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (partida.TorneioId == null || !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var resultado = PlacarDaMesa.Aplicar(partida, games1, games2, sets1, sets2,
                 DateTimeOffset.FromUnixTimeMilliseconds(marcadoEm).LocalDateTime);
@@ -103,7 +104,7 @@ namespace Padelizou.Controllers
         public async Task<IActionResult> SalvarPlacaresAoVivo(
             int id, int[] partidaId, int[] games1, int[] games2, string? voltarPara = null)
         {
-            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var torneio = await _context.Torneios.FindAsync(id);
             if (torneio == null) return NotFound();
@@ -222,7 +223,7 @@ namespace Padelizou.Controllers
                 .Include(p => p.Dupla2)
                 .FirstOrDefaultAsync(p => p.Id == partidaId);
 
-            if (partida != null && partida.TorneioId != null && !await EhOrganizadorAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
+            if (partida != null && partida.TorneioId != null && !await PodeOperarODiaDeJogoAsync(partida.TorneioId.Value, ObterJogadorIdLogado() ?? 0))
             {
                 return Forbid();
             }

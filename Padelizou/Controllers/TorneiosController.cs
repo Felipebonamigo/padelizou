@@ -120,6 +120,25 @@ namespace Padelizou.Controllers
                 .AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
         }
 
+        // O MARCADOR opera o dia de jogo: Mesa de Controle, placar, largada, W.O., check-in
+        // e o remendo da grade (trocar quadra/horário, refazer). Organizador e admin passam
+        // junto — quem pode mais pode o menos. O que o marcador NÃO alcança continua atrás
+        // de EhOrganizadorAsync: inscrições, dinheiro, edição, sorteio e comunicado.
+        //
+        // A lista de onde o marcador entra é escrita gate a gate, de propósito (fail-closed):
+        // é a checagem que o inclui, nunca uma linha em TorneioOrganizadores — ver o
+        // comentário em Models/TorneioMarcador.
+        private async Task<bool> PodeOperarODiaDeJogoAsync(int torneioId, int jogadorId)
+        {
+            if (jogadorId <= 0) return false;
+
+            if (await _context.TorneioMarcadores
+                    .AnyAsync(m => m.TorneioId == torneioId && m.JogadorId == jogadorId))
+                return true;
+
+            return await EhOrganizadorAsync(torneioId, jogadorId);
+        }
+
         // Organizar junto não é ver o caixa. Quem CRIOU o torneio (e o admin da plataforma, que
         // precisa disso pra dar suporte) vê dinheiro; quem foi adicionado pra ajudar, não —
         // ver o dinheiro é o único poder que não vem junto (ver AcessoAoDinheiroDoTorneio).
@@ -630,15 +649,28 @@ namespace Padelizou.Controllers
 
             // Pedido de equipe pra registrar os resultados: o mais recente manda na tela.
             ViewBag.RegistroHabilitado = _registro.Habilitado;
+            ViewBag.RegistroPercentual = _registro.PercentualDasInscricoes;
+            ViewBag.RegistroValorMinimo = _registro.ValorMinimo;
             ViewBag.PedidoRegistro = await _context.SolicitacoesRegistroResultados
                 .Where(s => s.TorneioId == id)
                 .OrderByDescending(s => s.SolicitadaEm)
                 .FirstOrDefaultAsync();
+            // O marcador não ganha o painel do organizador — ganha um atalho pro posto dele
+            // (Mesa, jogos, check-in). A flag existe pra tela desenhar esse atalho; cada
+            // ação continua conferindo no servidor.
+            ViewBag.EhMarcador = jogadorLogadoId.HasValue && await _context.TorneioMarcadores
+                .AnyAsync(m => m.TorneioId == id && m.JogadorId == jogadorLogadoId.Value);
+
             if (ViewBag.PodeGerenciar == true)
             {
                 ViewBag.Organizadores = await _context.TorneioOrganizadores
                     .Include(o => o.Jogador)
                     .Where(o => o.TorneioId == id)
+                    .ToListAsync();
+
+                ViewBag.Marcadores = await _context.TorneioMarcadores
+                    .Include(m => m.Jogador)
+                    .Where(m => m.TorneioId == id)
                     .ToListAsync();
 
                 // Como o torneio foi avaliado (enquete pós-torneio). A média só existe com
@@ -1109,7 +1141,10 @@ namespace Padelizou.Controllers
             // Fica FORA do if do Americano de propósito: nasceu lá dentro, quando só o
             // desempate precisava dele, e o resultado era que num torneio de duplas — a
             // maioria — a flag nem existia, e o organizador não via botão nenhum.
-            ViewBag.EhOrganizador = await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0);
+            // O MARCADOR vê os mesmos botões: tudo que esta flag liga na tela de jogos
+            // (colocar no ar, placar, W.O., trocar quadra/horário, refazer grade, salvar em
+            // lote) é exatamente o trabalho dele — e cada POST confere de novo no servidor.
+            ViewBag.EhOrganizador = await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0);
 
             // Torneio por ordem de liberação não tem horário pra recalcular — o servidor já
             // recusava, mas só DEPOIS do clique, e a recusa voltava como faixa vermelha em cima

@@ -29,6 +29,7 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<Aula> Aulas { get; set; }
     public virtual DbSet<CategoriaPadrao> CategoriasPadrao { get; set; }
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
+    public virtual DbSet<TorneioMarcador> TorneioMarcadores { get; set; }
     public DbSet<Clube> Clubes { get; set; }
     public DbSet<Time> Times { get; set; }
     public DbSet<TimeAdministrador> TimeAdministradores { get; set; }
@@ -333,6 +334,17 @@ public partial class DbPadelContext : DbContext
         });
         modelBuilder.Entity<TorneioOrganizador>()
         .HasKey(to => new { to.TorneioId, to.JogadorId });
+        // Mesma chave do organizador: uma linha por (torneio, pessoa). Jogador em Restrict
+        // pelo mesmo motivo das outras tabelas de vínculo — um segundo caminho de cascade a
+        // partir de Jogador é o conflito já visto em JogoSemanal/CandidaturaParceiro.
+        modelBuilder.Entity<TorneioMarcador>(entity =>
+        {
+            entity.HasKey(tm => new { tm.TorneioId, tm.JogadorId });
+            entity.HasOne(tm => tm.Jogador)
+                .WithMany()
+                .HasForeignKey(tm => tm.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Clube>(entity =>
         {
             // Restrict: apagar um Jogador não pode apagar o Clube que ele é dono — força

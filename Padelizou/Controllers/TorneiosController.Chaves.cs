@@ -431,7 +431,10 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RefazerGrade(int id, string? voltarPara = null)
         {
-            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            // Marcador entra: remendar a grade quando o dia atrasa é trabalho da mesa. O
+            // SORTEIO (GerarChaves) continua só de organizador — refazer grade não muda
+            // confronto nenhum, sortear muda o torneio.
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
@@ -531,7 +534,7 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null)
         {
-            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var doTorneio = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
             var jogo = doTorneio.FirstOrDefault(p => p.Id == jogoId);
@@ -574,7 +577,7 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> TrocarHorario(int id, int jogoA, int jogoB, string? voltarPara = null)
         {
-            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
             var a = await _context.Partidas.FindAsync(jogoA);
             var b = await _context.Partidas.FindAsync(jogoB);
