@@ -17,24 +17,53 @@ public class PatrocinadoresDoSiteTests
     }
 
     [Fact]
-    public void Ambiente_de_teste_sem_configuracao_mostra_os_patrocinadores_em_avaliacao()
+    public void Ambiente_de_teste_sem_configuracao_mostra_o_patrocinador_em_avaliacao()
     {
         var settings = new PatrocinadoresSettings();
 
         var exibidos = settings.ParaExibir(ambienteDeTeste: true);
 
-        Assert.Equal(new[] { "Paralelo", "Grand Padel" }, exibidos.Select(p => p.Nome));
-
-        // Cada um resolve o tema escuro do seu jeito, e são jeitos diferentes DE PROPÓSITO:
-        // o Paralelo é preto puro e pode ser invertido; o Grand Padel é colorido e tem arte
-        // branca própria — inverter azul viraria laranja, que não é a marca de ninguém.
-        var paralelo = exibidos[0];
+        var paralelo = Assert.Single(exibidos);
+        Assert.Equal("Paralelo", paralelo.Nome);
+        // Logo preto puro: sem o flag, ele some no tema escuro (ver .pdz-logo-escuro).
         Assert.True(paralelo.LogoEscuro);
-        Assert.Empty(paralelo.ImagemEscura);
+    }
 
-        var grandPadel = exibidos[1];
-        Assert.False(grandPadel.LogoEscuro);
-        Assert.NotEmpty(grandPadel.ImagemEscura);
+    [Fact]
+    public void So_entra_no_embutido_quem_mandou_a_arte()
+    {
+        // A trava do 20/08/2026: um logo recriado à mão entrou aqui pra adiantar o teste de
+        // posicionamento. Arte de marca não se recria — sem o arquivo oficial, o
+        // patrocinador espera do lado de fora. Este teste é o que impede a pressa de
+        // repetir isso: quem for somar um nome aqui vai ter que vir mexer nesta linha.
+        var embutidos = new PatrocinadoresSettings().ParaExibir(ambienteDeTeste: true);
+
+        Assert.Equal(new[] { "Paralelo" }, embutidos.Select(p => p.Nome));
+    }
+
+    [Fact]
+    public void Logo_colorido_troca_de_arquivo_no_tema_escuro_em_vez_de_ser_invertido()
+    {
+        // Os dois caminhos pro fundo escuro existem e são diferentes de propósito: preto
+        // puro o CSS inverte (LogoEscuro), colorido recebe a arte branca oficial da marca
+        // (ImagemEscura) — inverter azul daria laranja, que não é a marca de ninguém.
+        var settings = new PatrocinadoresSettings
+        {
+            Lista =
+            {
+                new Patrocinador
+                {
+                    Nome = "Marca Colorida",
+                    Imagem = "/image/patrocinadores/colorida.webp",
+                    ImagemEscura = "/image/patrocinadores/colorida-branca.webp",
+                },
+            }
+        };
+
+        var exibido = Assert.Single(settings.ParaExibir(ambienteDeTeste: false));
+
+        Assert.Equal("/image/patrocinadores/colorida-branca.webp", exibido.ImagemEscura);
+        Assert.False(exibido.LogoEscuro);
     }
 
     [Fact]

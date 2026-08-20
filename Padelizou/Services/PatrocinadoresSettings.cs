@@ -44,16 +44,14 @@ public class PatrocinadoresSettings
                 Imagem = "/image/patrocinadores/paralelo.webp",
                 LogoEscuro = true,
             },
-            new Patrocinador
-            {
-                Nome = "Grand Padel",
-                Imagem = "/image/patrocinadores/grand-padel.webp",
-                ImagemEscura = "/image/patrocinadores/grand-padel-branco.webp",
-            },
         };
     }
 }
 
+// ⚠️ A ARTE É SEMPRE A QUE O PATROCINADOR MANDOU. Nada de redesenhar "parecido" pra adiantar
+// o teste: logo é identidade registrada, e o dono repara na hora — aconteceu em 20/08/2026,
+// com um logo recriado à mão que não chegou a ser publicado. Sem o arquivo oficial em mãos, o
+// patrocinador simplesmente não entra na lista.
 public class Patrocinador
 {
     // Vai no alt e no title do logo — é o nome que o leitor de tela fala.
@@ -73,9 +71,10 @@ public class Patrocinador
     // contraste imperfeito.
     public bool LogoEscuro { get; set; }
 
-    // Versão do logo pra FUNDO ESCURO (caso do Grand Padel, azul com arte branca própria):
-    // no tema escuro entra esta imagem no lugar da de cima. É o caminho certo pra logo
-    // colorido — quem tem versão branca oficial não precisa (nem pode) ser invertido.
-    // Preenchida, ela ganha do LogoEscuro. Vazia = a mesma imagem serve nos dois temas.
+    // Versão do logo pra FUNDO ESCURO: no tema escuro entra esta imagem no lugar da de cima.
+    // É o caminho certo pra logo COLORIDO, que o LogoEscuro não atende — inverter azul dá
+    // laranja, e marca alheia não se recolore. Quase toda marca tem a versão branca no
+    // manual dela; é essa que se pede. Preenchida, ganha do LogoEscuro. Vazia = a mesma
+    // imagem serve nos dois temas.
     public string ImagemEscura { get; set; } = "";
 }
