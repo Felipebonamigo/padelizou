@@ -512,14 +512,25 @@
                    os dois <img> saem juntos e o CSS mostra um por tema (.pdz-so-no-claro /
                    .pdz-so-no-escuro). Logo preto sem versão escura é invertido pelo
                    .pdz-logo-escuro — ver Services/PatrocinadoresSettings. *@
-                void LogoDoPatrocinador(Padelizou.Services.Patrocinador p)
+                @* async porque o asp-append-version abaixo é um tag helper, e o Razor só os
+                   executa dentro de método que devolve Task. *@
+                async Task LogoDoPatrocinador(Padelizou.Services.Patrocinador p)
                 {
                     var temVersaoEscura = !string.IsNullOrWhiteSpace(p.ImagemEscura);
+                    @* Carimbo de versão no endereço da imagem: o nome do arquivo de um
+                       patrocinador é ESTÁVEL (grand-padel.webp), mas a arte dentro dele muda
+                       quando a marca manda uma versão nova — e sem o carimbo quem já visitou
+                       o site continua vendo a antiga, guardada no navegador. Só pra caminho
+                       local: patrocinador que um dia aponte pra uma URL de fora não passa
+                       pelo nosso wwwroot, e o carimbo não teria arquivo pra medir. *@
+                    var carimbarVersao = p.Imagem.StartsWith('/');
                     <img src="@p.Imagem" alt="@p.Nome" title="@p.Nome" loading="lazy"
+                         asp-append-version="@carimbarVersao"
                          class="@(temVersaoEscura ? "pdz-so-no-claro" : p.LogoEscuro ? "pdz-logo-escuro" : "")" />
                     if (temVersaoEscura)
                     {
                         <img src="@p.ImagemEscura" alt="@p.Nome" title="@p.Nome" loading="lazy"
+                             asp-append-version="@p.ImagemEscura.StartsWith('/')"
                              class="pdz-so-no-escuro" />
                     }
                 }
@@ -533,12 +544,12 @@
                         @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
                         {
                             <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener" title="@patrocinador.Nome">
-                                @{ LogoDoPatrocinador(patrocinador); }
+                                @{ await LogoDoPatrocinador(patrocinador); }
                             </a>
                         }
                         else
                         {
-                            LogoDoPatrocinador(patrocinador);
+                            await LogoDoPatrocinador(patrocinador);
                         }
                     }
                 </div>

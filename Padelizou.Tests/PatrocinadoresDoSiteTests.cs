@@ -17,28 +17,37 @@ public class PatrocinadoresDoSiteTests
     }
 
     [Fact]
-    public void Ambiente_de_teste_sem_configuracao_mostra_o_patrocinador_em_avaliacao()
+    public void Ambiente_de_teste_sem_configuracao_mostra_os_patrocinadores_em_avaliacao()
     {
         var settings = new PatrocinadoresSettings();
 
         var exibidos = settings.ParaExibir(ambienteDeTeste: true);
 
-        var paralelo = Assert.Single(exibidos);
-        Assert.Equal("Paralelo", paralelo.Nome);
-        // Logo preto puro: sem o flag, ele some no tema escuro (ver .pdz-logo-escuro).
+        Assert.Equal(new[] { "Paralelo", "Grand Padel" }, exibidos.Select(p => p.Nome));
+
+        // Cada um resolve o fundo escuro por um caminho, e são caminhos diferentes DE
+        // PROPÓSITO: o Paralelo é preto puro e o CSS inverte; o Grand Padel é colorido e
+        // tem negativa branca no kit da marca — inverter azul daria laranja.
+        var paralelo = exibidos[0];
         Assert.True(paralelo.LogoEscuro);
+        Assert.Empty(paralelo.ImagemEscura);
+
+        var grandPadel = exibidos[1];
+        Assert.False(grandPadel.LogoEscuro);
+        Assert.NotEmpty(grandPadel.ImagemEscura);
     }
 
     [Fact]
     public void So_entra_no_embutido_quem_mandou_a_arte()
     {
         // A trava do 20/08/2026: um logo recriado à mão entrou aqui pra adiantar o teste de
-        // posicionamento. Arte de marca não se recria — sem o arquivo oficial, o
-        // patrocinador espera do lado de fora. Este teste é o que impede a pressa de
-        // repetir isso: quem for somar um nome aqui vai ter que vir mexer nesta linha.
+        // posicionamento, e o Felipe reparou na hora. Arte de marca não se recria — sem o
+        // arquivo oficial, o patrocinador espera do lado de fora. (O Grand Padel voltou no
+        // mesmo dia, agora com o kit que a marca mandou.) Esta lista é a trava: quem somar
+        // um nome aqui vai ter que vir mexer nela, e lembrar da regra ao fazer isso.
         var embutidos = new PatrocinadoresSettings().ParaExibir(ambienteDeTeste: true);
 
-        Assert.Equal(new[] { "Paralelo" }, embutidos.Select(p => p.Nome));
+        Assert.Equal(new[] { "Paralelo", "Grand Padel" }, embutidos.Select(p => p.Nome));
     }
 
     [Fact]
