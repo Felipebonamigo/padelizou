@@ -611,7 +611,7 @@
                 }
                 else
                 {
-                    <span class="text-muted">Ainda sem nível comprovado (é preciso chegar a uma final de torneio).</span>
+                    <span class="text-muted">Nenhuma categoria comprovada ainda.</span>
                 }
             </div>
             <i class="bi bi-bar-chart-steps fs-2 text-primary opacity-50"></i>
@@ -619,6 +619,16 @@
         @if (categoriaPrevista != null)
         {
             <small class="text-muted mt-1"><i class="bi bi-info-circle"></i> Já comprovou esse nível — o ideal é não se inscrever em categorias mais fracas que esta.</small>
+        }
+        else
+        {
+            @* O texto antigo dizia "ainda sem nível comprovado", e isso soava como "você não tem
+               nível" bem embaixo do Padelímetro, que é justamente o nível. São coisas diferentes:
+               o Padelímetro mede todo jogo; esta categoria só existe pra impedir quem já ganhou
+               em cima de descer pra uma categoria mais fraca. Não ter é o estado normal. *@
+            <small class="text-muted mt-1"><i class="bi bi-info-circle"></i>
+                Aparece quando você chega a uma final. Não é o seu nível@(Model.jogador.Padelimetro is int ? " — esse é o Padelímetro, ali em cima" : ""): serve só pra evitar que alguém dispute uma categoria abaixo do que já venceu.
+            </small>
         }
     </div>
 
