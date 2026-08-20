@@ -41,6 +41,21 @@ public static class MetricasDeAcesso
             .Max(g => g.Count());
     }
 
+    // O PRIMEIRO acesso já registrado — o começo da medição. Null = nunca registrou nada.
+    //
+    // Serve pra separar "ninguém entrou" de "ainda não contávamos". A tabela da tela de
+    // métricas mostra 14 dias, e o registro de acessos só nasceu em 18/08/2026: sem esta
+    // fronteira, os doze dias anteriores apareceriam como zero, que é uma afirmação falsa
+    // sobre o passado. Sai da própria tabela em vez de uma data fixa no código porque assim
+    // continua certo em dev, em base restaurada de backup e se um dia a tabela for limpa.
+    public static async Task<DateTime?> PrimeiroAcessoAsync(DbPadelContext context) =>
+        await context.AcessosAoSite.OrderBy(a => a.Quando).Select(a => (DateTime?)a.Quando).FirstOrDefaultAsync();
+
+    // Os acessos da série inteira, crus, pro controller fatiar junto com cadastros e
+    // inscrições. Mesma escolha de sempre nesta tela: agrupa em memória.
+    public static async Task<List<DateTime>> DesdeAsync(DbPadelContext context, DateTime inicio) =>
+        await context.AcessosAoSite.Where(a => a.Quando >= inicio).Select(a => a.Quando).ToListAsync();
+
     // Grava UM acesso. Sem tentar deduplicar por pessoa — reload da mesma página conta de
     // novo, porque a pergunta é tráfego, não visitante único.
     public static async Task RegistrarAsync(DbPadelContext context)

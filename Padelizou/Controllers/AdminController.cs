@@ -933,10 +933,17 @@ namespace padelizou.Controllers
             var pagamentos = await _context.Pagamentos
                 .Where(p => p.Status == "Confirmado" && p.ConfirmadoEm >= inicioSerie)
                 .Select(p => new { Data = p.ConfirmadoEm!.Value, p.Valor }).ToListAsync();
+            var acessos = await MetricasDeAcesso.DesdeAsync(_context, inicioSerie);
+
+            // Onde a medição de tráfego começa. Fatia que termina antes disso não recebe zero,
+            // recebe null — ver FaixaMetricaVM.Acessos.
+            var primeiroAcesso = await MetricasDeAcesso.PrimeiroAcessoAsync(_context);
+            vm.AcessosDesde = primeiroAcesso;
 
             foreach (var inicio in faixas)
             {
                 var fim = FaixasDeMetricas.ProximaFaixa(agrupamento, inicio);
+                bool jaSeContava = primeiroAcesso != null && primeiroAcesso < fim;
                 vm.Faixas.Add(new FaixaMetricaVM
                 {
                     Inicio = inicio,
@@ -945,6 +952,8 @@ namespace padelizou.Controllers
                     Inscricoes = inscricoes.Count(d => d >= inicio && d < fim),
                     Pagamentos = pagamentos.Count(p => p.Data >= inicio && p.Data < fim),
                     Valor = pagamentos.Where(p => p.Data >= inicio && p.Data < fim).Sum(p => p.Valor),
+                    Acessos = jaSeContava ? acessos.Count(d => d >= inicio && d < fim) : null,
+                    AcessosParciais = primeiroAcesso != null && primeiroAcesso >= inicio && primeiroAcesso < fim,
                 });
             }
 

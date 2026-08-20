@@ -182,11 +182,14 @@
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-1">
                     <thead>
-                        @* No celular sai a contagem de pagamentos: o valor arrecadado já conta
-                           a mesma história e é o que se olha. Com as cinco, a tabela pedia
-                           359px numa tela de 294. *@
+                        @* No celular saem Inscrições e a CONTAGEM de pagamentos: o valor
+                           arrecadado já conta a mesma história e é o que se olha. Com todas,
+                           a tabela pedia 359px numa tela de 294.
+                           Acessos fica visível no celular — é a primeira pergunta do funil
+                           (quanta gente chegou) e a coluna mais estreita das que sobraram. *@
                         <tr class="text-muted small">
                             <th>Período</th>
+                            <th class="text-end">Acessos</th>
                             <th class="text-end">Cadastros</th>
                             <th class="text-end d-none d-sm-table-cell">Inscrições</th>
                             @if (podeVerDinheiro)
@@ -201,6 +204,26 @@
                         {
                             <tr>
                                 <td class="text-capitalize">@f.Rotulo</td>
+                                @* "·" quando ainda não se contava, "—" quando se contava e deu
+                                   zero. Ver FaixaMetricaVM.Acessos: são afirmações diferentes. *@
+                                <td class="text-end">
+                                    @if (f.Acessos == null)
+                                    {
+                                        <span class="text-muted" title="Antes do registro de acessos começar">·</span>
+                                    }
+                                    else if (f.Acessos == 0)
+                                    {
+                                        <text>—</text>
+                                    }
+                                    else
+                                    {
+                                        @f.Acessos
+                                        @if (f.AcessosParciais)
+                                        {
+                                            <span class="text-muted" title="Período incompleto: a medição começou no meio dele">*</span>
+                                        }
+                                    }
+                                </td>
                                 <td class="text-end">@(f.Cadastros > 0 ? f.Cadastros.ToString() : "—")</td>
                                 <td class="text-end d-none d-sm-table-cell">@(f.Inscricoes > 0 ? f.Inscricoes.ToString() : "—")</td>
                                 @if (podeVerDinheiro)
@@ -215,6 +238,14 @@
             </div>
             <div class="small text-muted">
                 Cadastros e inscrições anteriores a 25/07/2026 não têm data registrada — entram nos totais, mas não na série.
+                @if (Model.AcessosDesde is DateTime desde)
+                {
+                    <text>Acessos só passaram a ser contados em @desde.ToString("dd/MM/yyyy 'às' HH:mm"): antes disso a coluna fica em <span class="text-muted">·</span>, que é "não se media", e não zero. O <span class="text-muted">*</span> marca o período em que a medição começou pela metade.</text>
+                }
+                else
+                {
+                    <text>Nenhum acesso registrado ainda.</text>
+                }
             </div>
         </div>
     </div>
