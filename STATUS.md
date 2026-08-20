@@ -13,7 +13,9 @@
 >
 > 🧷 **Detalhes que fecham o desenho**: organizador não vira marcador (já pode tudo isso — o adicionar é no-op); clique duplo no adicionar não estoura a chave composta; remover fecha a porta na hora. Migration `MarcadoresDoTorneio`: tabela nova com PK (torneio, jogador), `Jogador` em `Restrict` (o conflito de múltiplos caminhos de cascade já visto em JogoSemanal), `Torneio` em cascade — apagou o torneio, os marcadores vão junto.
 >
-> 🧪 **4.595 testes, 0 falhas (10 novos em `MarcadorDoTorneioTests`)**: marcador coloca no ar, salva placar e abre a Mesa; NÃO sorteia (num torneio ainda por sortear — no já sorteado o status devolve NotFound antes da porta), NÃO vê financeiro, NÃO adiciona ninguém; o ciclo adicionar→remover mata o acesso na hora; e jogador comum continua barrado — a porta nova não afrouxou a antiga. ⚠️ **Pendência: commitado, não publicado** — falta build + deploy.
+> 🧪 **4.595 testes, 0 falhas (10 novos em `MarcadorDoTorneioTests`)**: marcador coloca no ar, salva placar e abre a Mesa; NÃO sorteia (num torneio ainda por sortear — no já sorteado o status devolve NotFound antes da porta), NÃO vê financeiro, NÃO adiciona ninguém; o ciclo adicionar→remover mata o acesso na hora; e jogador comum continua barrado — a porta nova não afrouxou a antiga.
+>
+> ✅ **PUBLICADO EM PRODUÇÃO em 20/08/2026, na `build-634-c45d024`** (PR #17, os dois blocos do dia juntos) — job `deploy → prod` verde, e verde aqui é o healthcheck do deploy.sh passando (falha dá rollback sozinho e o job fica vermelho). ⚠️ **O `deploy → dev` FALHOU, e não foi este trabalho: o secret `VPS_SSH_KEY` chega VAZIO no environment `dev`** (`Load key: error in libcrypto` → `Permission denied`; o deploy de dev de 19/08 às 21:59 já tinha caído igual). Corrigir em Settings → Environments → dev, criando `VPS_SSH_KEY` (e de preferência `VPS_KNOWN_HOSTS`) — até lá o dev segue na build antiga. 📌 **E o prod publicou SEM pedir aprovação**: o environment `prod` não tem required reviewers configurado — o comentário do deploy.yml promete uma trava que hoje não existe; se a aprovação obrigatória é desejada, é ligar lá no mesmo lugar.
 >
 > Antes, no mesmo dia: 💸 **O PACOTE "NÓS REGISTRAMOS OS RESULTADOS" TROCOU O PREÇO: SAIU O R$ 12 POR JOGO, ENTROU MAIS 5% DO VALOR DAS INSCRIÇÕES.**
 >
@@ -27,7 +29,7 @@
 >
 > 🖥️ **Nas telas do organizador** a regra virou "mais 5% do valor das inscrições (além da taxa da forma de recebimento), mínimo R$ 500", e a estimativa da criação passou a sair de pessoas × preço: as PESSOAS vêm do servidor (`PrevisaoDoTorneio.Tela.Pessoas` — só o Americano individual inscreve pessoa a pessoa; nos demais o número digitado é de duplas e dupla = 2), e mudar o preço da inscrição atualiza a estimativa na hora, porque o preço não dispara a previsão do servidor.
 >
-> 🧪 **4.585 testes, 0 falhas.** A seção de dinheiro dos `RegistroDeResultadosTests` foi reescrita na régua nova — incluindo o teste que DOCUMENTA o risco (percentual e custo andam soltos) e o do pedido antigo valendo o que leu. ⚠️ **Pendência: commitado, não publicado** — falta build + deploy.
+> 🧪 **4.585 testes, 0 falhas.** A seção de dinheiro dos `RegistroDeResultadosTests` foi reescrita na régua nova — incluindo o teste que DOCUMENTA o risco (percentual e custo andam soltos) e o do pedido antigo valendo o que leu. ✅ **PUBLICADO EM PRODUÇÃO em 20/08/2026, na `build-634-c45d024`** (PR #17, junto do marcador — detalhes e a pendência do dev no bloco de cima). ⚠️ Lembrete de produção: se o appsettings do VPS tiver `RegistroResultados:PrecoPorJogo`, a chave morreu — a nova é `RegistroResultados:PercentualDasInscricoes` (padrão 5; sem a chave, o padrão já vale).
 >
 > Antes, na véspera (19/08): 🧾 **O PROFESSOR MENSALISTA FECHOU O CICLO: CADASTRO RÁPIDO, RESPONSÁVEL PELA COBRANÇA, FECHAMENTO DO MÊS E COBRANÇA PELO APP.**
 >
