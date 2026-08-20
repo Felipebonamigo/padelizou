@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/08/2026** — 💸 **O PACOTE "NÓS REGISTRAMOS OS RESULTADOS" TROCOU O PREÇO: SAIU O R$ 12 POR JOGO, ENTROU MAIS 5% DO VALOR DAS INSCRIÇÕES.**
+> Última atualização: **20/08/2026** — 🧑‍⚖️ **NASCEU O MARCADOR DO TORNEIO: A PESSOA DA MESA, ADICIONADA EM "GERENCIAR TORNEIO", SÓ COM A OPERAÇÃO DO DIA DE JOGO.**
+>
+> 🗣️ **Decisão do Felipe** (20/08): *"vamos implementar os marcadores de torneio... ter um campo igual os de administradores/organizadores do torneio, esses marcadores serão adicionados e eles terão acesso a parte de marcação"*. É a peça de gente do plano contra o concorrente que põe mesário: o organizador escala quem for cuidar da mesa sem entregar o torneio inteiro.
+>
+> 🚪 **O que o marcador ALCANÇA** (a lista é escrita gate a gate, fail-closed): Mesa de Controle, placar (tela cheia, em lote e sincronização offline), colocar no ar / voltar pra agendado, finalizar, W.O., reabrir, **check-in** e o **remendo da grade** — trocar quadra, trocar horário e refazer grade. O que ele NÃO alcança continua atrás de `EhOrganizadorAsync`: inscrições, dinheiro, edição, **sorteio** (refazer grade não muda confronto; sortear muda o torneio), comunicado e adicionar gente — marcador não repassa a chave da mesa.
+>
+> 🗄️ **Tabela PRÓPRIA (`TorneioMarcador`), e NÃO um `NivelAcesso` em `TorneioOrganizador` — essa é a decisão de segurança do bloco**: toda checagem de organizador no sistema pergunta "existe linha em TorneioOrganizadores?" sem olhar o nível, e um marcador naquela tabela viraria organizador em TUDO de uma vez, calado. A régua nova é `PodeOperarODiaDeJogoAsync` (marcador OU organizador OU admin — quem pode mais pode o menos), com o espelho em `PartidasController.PodeControlarPlacarAsync` — os dois critérios andam juntos, senão a Mesa abre e os botões respondem 403 (o defeito que o admin já viveu em 31/07).
+>
+> 🖥️ **Na tela**: card "Marcadores deste Torneio" no painel do organizador, abaixo dos organizadores, com a mesma busca (`_BuscaOrganizador` no modo genérico), aviso do que o papel dá e NÃO dá, e **remover** — marcador é papel de UM evento, o mesário do sábado não fica com a chave pra sempre (organizador segue sem remoção, como era). Pro marcador, uma **faixa-atalho na página do torneio** (Mesa de Controle · Jogos · Check-in) — ele não tem o painel do organizador, e sem ela o posto de trabalho não teria porta. Na tela de jogos, a flag que liga os botões passou pela régua nova — tudo que ela liga ali é trabalho de mesa, e cada POST confere de novo no servidor.
+>
+> 🧷 **Detalhes que fecham o desenho**: organizador não vira marcador (já pode tudo isso — o adicionar é no-op); clique duplo no adicionar não estoura a chave composta; remover fecha a porta na hora. Migration `MarcadoresDoTorneio`: tabela nova com PK (torneio, jogador), `Jogador` em `Restrict` (o conflito de múltiplos caminhos de cascade já visto em JogoSemanal), `Torneio` em cascade — apagou o torneio, os marcadores vão junto.
+>
+> 🧪 **4.595 testes, 0 falhas (10 novos em `MarcadorDoTorneioTests`)**: marcador coloca no ar, salva placar e abre a Mesa; NÃO sorteia (num torneio ainda por sortear — no já sorteado o status devolve NotFound antes da porta), NÃO vê financeiro, NÃO adiciona ninguém; o ciclo adicionar→remover mata o acesso na hora; e jogador comum continua barrado — a porta nova não afrouxou a antiga. ⚠️ **Pendência: commitado, não publicado** — falta build + deploy.
+>
+> Antes, no mesmo dia: 💸 **O PACOTE "NÓS REGISTRAMOS OS RESULTADOS" TROCOU O PREÇO: SAIU O R$ 12 POR JOGO, ENTROU MAIS 5% DO VALOR DAS INSCRIÇÕES.**
 >
 > 🗣️ **Decisão do Felipe** (20/08): *"no lugar de 12 reais por jogo, ser mais 5% do valor das inscrições"* — primeiro passo da resposta ao concorrente regional (**Quanto Tá**: 12% das inscrições, pagamento por fora, com equipe DELES marcando o placar e chamando os próximos pra quadra). Em percentual a comparação do organizador é imediata: 5% da forma de recebimento + 5% do pacote = **10%, abaixo dos 12% dele**. Pela régua antiga, por jogo, o pacote sozinho já passava o concorrente inteiro justamente no torneio grande (60 duplas ≈ 100 jogos × R$ 12 = R$ 1.200, contra R$ 1.080 dos 12% num torneio de R$ 9.000). ⚠️ **As outras regras ficaram pra validação do Felipe**: piso menor, a "mesa assistida" (1 fiscal + atletas lançando) e um possível por-jogo só pra Americano são decisões em aberto.
 >

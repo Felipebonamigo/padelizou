@@ -996,6 +996,60 @@ namespace Padelizou.Controllers
 
             return RedirectToAction("Details", new { id = torneioId });
         }
+
+        // ── Marcadores do torneio ─────────────────────────────────────────────────────────
+        // Quem ADICIONA marcador é organizador (mesma porta do AdicionarOrganizador); o
+        // marcador em si não adiciona ninguém. Papel e limites em Models/TorneioMarcador.
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarMarcador(int torneioId, int jogadorId)
+        {
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // Organizador virar marcador seria só ruído: ele já pode tudo que o marcador
+            // pode. E o Any antes do Add é o que faz o clique duplo não estourar na chave
+            // composta (torneio, jogador).
+            var jaEhMarcador = await _context.TorneioMarcadores
+                .AnyAsync(m => m.TorneioId == torneioId && m.JogadorId == jogadorId);
+
+            if (!jaEhMarcador && !await EhOrganizadorAsync(torneioId, jogadorId))
+            {
+                _context.TorneioMarcadores.Add(new TorneioMarcador
+                {
+                    TorneioId = torneioId,
+                    JogadorId = jogadorId,
+                });
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = "Marcador adicionado: ele já pode abrir a Mesa de Controle e marcar os jogos.";
+            }
+
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        // Marcador é papel de UM evento — a pessoa que ajudou neste fim de semana não fica
+        // com a chave da mesa pra sempre. Por isso remover existe desde o primeiro dia
+        // (organizador não tem remoção; marcador roda por torneio).
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverMarcador(int torneioId, int jogadorId)
+        {
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var marcador = await _context.TorneioMarcadores
+                .FirstOrDefaultAsync(m => m.TorneioId == torneioId && m.JogadorId == jogadorId);
+
+            if (marcador != null)
+            {
+                _context.TorneioMarcadores.Remove(marcador);
+                await _context.SaveChangesAsync();
+                TempData["Sucesso"] = "Marcador removido.";
+            }
+
+            return RedirectToAction("Details", new { id = torneioId });
+        }
         // Aba "Gerenciar Torneio": edita os dados do torneio já criado (inclusive trocar a capa)
         [HttpPost]
         [Authorize]

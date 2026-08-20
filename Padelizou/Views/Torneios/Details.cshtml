@@ -643,6 +643,32 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <div class="alert alert-danger">@TempData["Erro"]</div>
 }
 
+@* O ATALHO DO MARCADOR. Ele não tem o painel do organizador — sem esta faixa, o posto de
+   trabalho dele (a Mesa de Controle) não teria porta nenhuma na página do torneio. Cada
+   botão confere de novo no servidor (PodeOperarODiaDeJogoAsync). *@
+@if (ViewBag.EhMarcador == true)
+{
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+        <i class="bi bi-clipboard-check fs-4"></i>
+        <div class="me-auto">
+            <strong>Você é marcador deste torneio.</strong>
+            <span class="d-block small">Placar, largada dos jogos, W.O., check-in e trocas de quadra e horário.</span>
+        </div>
+        <a asp-action="MesaControle" asp-route-id="@Model.Id" class="btn btn-sm btn-primary rounded-pill">
+            <i class="bi bi-display"></i> Mesa de Controle
+        </a>
+        <a asp-action="Jogos" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill">
+            <i class="bi bi-list-ol"></i> Jogos
+        </a>
+        @if (Model.UsaCheckIn)
+        {
+            <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill">
+                <i class="bi bi-person-check"></i> Check-in
+            </a>
+        }
+    </div>
+}
+
 @* Convite de parceiro recém-gerado. O link fica em cartaz numa caixa de texto selecionável
    em vez de só num botão "copiar": em celular antigo o clipboard falha calado, e aí a pessoa
    ainda consegue selecionar e copiar à mão. *@
@@ -2321,6 +2347,67 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     @{ ViewData["BuscaOrgTorneioId"] = Model.Id; }
                     <partial name="_BuscaOrganizador" />
                     @{ ViewData["BuscaOrgTorneioId"] = null; }
+                </div>
+            </div>
+
+            <!-- MARCADORES DO TORNEIO -->
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3">Marcadores deste Torneio</h6>
+
+                    @* O aviso segue a mesma regra do card de cima: fica onde se decide. A
+                       diferença que importa é o que o marcador NÃO ganha. *@
+                    <div class="alert alert-info d-flex align-items-start gap-2 py-2 small mb-3">
+                        <i class="bi bi-info-circle-fill"></i>
+                        <div>
+                            O marcador cuida da mesa no dia de jogo: <strong>placar, começar jogos,
+                            W.O., check-in e trocas de quadra e horário</strong>. Ele não vê
+                            inscrições, dinheiro nem configuração do torneio — e dá pra remover
+                            quando o evento acabar.
+                        </div>
+                    </div>
+
+                    @{ var marcadores = (ViewBag.Marcadores as List<Padelizou.Models.TorneioMarcador>) ?? new(); }
+                    @if (marcadores.Count == 0)
+                    {
+                        <p class="small text-muted mb-3">Nenhum marcador ainda.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush mb-3">
+                            @foreach (var marc in marcadores)
+                            {
+                                <li class="list-group-item bg-transparent d-flex align-items-center gap-2 px-0">
+                                    <img src="@(string.IsNullOrEmpty(marc.Jogador.FotoPerfil) ? "/img/default-avatar.png" : marc.Jogador.FotoPerfil)"
+                                         class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
+                                    <span class="fw-bold">@marc.Jogador.ComoChamar</span>
+                                    <span class="badge bg-info ms-2">Marcador</span>
+                                    <form asp-action="RemoverMarcador" method="post" class="ms-auto"
+                                          onsubmit="return confirm('Remover este marcador? Ele perde o acesso à mesa na hora.');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="torneioId" value="@Model.Id" />
+                                        <input type="hidden" name="jogadorId" value="@marc.JogadorId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Remover marcador">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <label class="form-label fw-bold small">Adicionar marcador</label>
+                    @{
+                        ViewData["BuscaOrgActionUrl"] = "/Torneios/AdicionarMarcador";
+                        ViewData["BuscaOrgExtraFieldName"] = "torneioId";
+                        ViewData["BuscaOrgExtraFieldValue"] = Model.Id;
+                    }
+                    <partial name="_BuscaOrganizador" />
+                    @{
+                        ViewData["BuscaOrgActionUrl"] = null;
+                        ViewData["BuscaOrgExtraFieldName"] = null;
+                        ViewData["BuscaOrgExtraFieldValue"] = null;
+                    }
                 </div>
             </div>
 
