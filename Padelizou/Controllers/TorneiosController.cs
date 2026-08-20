@@ -630,6 +630,8 @@ namespace Padelizou.Controllers
 
             // Pedido de equipe pra registrar os resultados: o mais recente manda na tela.
             ViewBag.RegistroHabilitado = _registro.Habilitado;
+            ViewBag.RegistroPercentual = _registro.PercentualDasInscricoes;
+            ViewBag.RegistroValorMinimo = _registro.ValorMinimo;
             ViewBag.PedidoRegistro = await _context.SolicitacoesRegistroResultados
                 .Where(s => s.TorneioId == id)
                 .OrderByDescending(s => s.SolicitadaEm)

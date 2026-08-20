@@ -30,13 +30,18 @@ public class SolicitacaoRegistroResultados
     public int DiasNaSolicitacao { get; set; }
     public int PessoasSugeridas { get; set; }
 
-    // Quantos jogos o torneio devia ter quando o pedido foi feito. É o que manda no preço,
-    // porque o custo é por jogo. Fica NULO enquanto ninguém se inscreveu — aí a tela mostra
-    // só a regra ("R$ 12 por jogo, mínimo R$ 500") em vez de um total inventado.
+    // Quantos jogos o torneio devia ter quando o pedido foi feito. Manda no CUSTO, porque
+    // quem registra ganha por jogo. Fica NULO enquanto ninguém se inscreveu — aí a tela
+    // mostra só a regra em vez de um total inventado.
     public int? JogosPrevistos { get; set; }
 
-    // A regra vigente no dia do pedido, congelada aqui. Se amanhã o preço por jogo mudar,
-    // quem pediu ontem continua valendo pelo que leu na tela.
+    // A regra vigente no dia do pedido, congelada aqui. Se amanhã o percentual mudar, quem
+    // pediu ontem continua valendo pelo que leu na tela.
+    //
+    // Desde 20/08/2026 a regra é PERCENTUAL sobre o valor das inscrições (a mais da taxa da
+    // forma de recebimento). Pedido antigo foi cotado por jogo: nele o percentual é nulo e
+    // `PrecoPorJogoCotado` > 0 — as telas leem a régua que o pedido carrega, nunca a atual.
+    public decimal? PercentualCotado { get; set; }
     public decimal PrecoPorJogoCotado { get; set; }
     public decimal ValorMinimoCotado { get; set; }
 

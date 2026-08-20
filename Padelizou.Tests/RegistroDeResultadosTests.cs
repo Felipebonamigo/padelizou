@@ -65,7 +65,7 @@ public class RegistroDeResultadosTests
         Assert.Equal(1, dias);
     }
 
-    // ── Dinheiro: o custo é por JOGO ──────────────────────────────────────────────────
+    // ── Dinheiro: o preço é PERCENTUAL das inscrições, o custo continua por JOGO ─────
 
     [Fact]
     public void Jogos_do_torneio_e_a_soma_das_categorias()
@@ -85,26 +85,28 @@ public class RegistroDeResultadosTests
     [Fact]
     public void Custo_e_dez_reais_por_jogo_independente_dos_dias()
     {
-        // A mudança que importa: um Americano de UM dia pode ter mais jogos que um torneio
-        // de duplas de três. Cobrar por dia erraria os dois.
+        // O custo não mudou com a régua nova de preço: quem registra ganha por jogo, e um
+        // Americano de UM dia pode ter mais jogos que um torneio de duplas de três.
         Assert.Equal(760m, RegistroDeResultados.CustoEstimado(76, 10m));
         Assert.Equal(0m, RegistroDeResultados.CustoEstimado(0, 10m));
     }
 
     [Fact]
-    public void Preco_segue_a_regra_por_jogo_quando_o_torneio_e_grande()
+    public void Preco_e_percentual_das_inscricoes_quando_o_torneio_e_grande()
     {
-        // 76 jogos × R$ 12 = R$ 912, bem acima do mínimo.
-        Assert.Equal(912m, RegistroDeResultados.PrecoSugerido(76, 12m, 500m));
+        // 120 pessoas × R$ 150 = R$ 18.000 de inscrições; 5% dá R$ 900, bem acima do mínimo.
+        Assert.Equal(900m, RegistroDeResultados.PrecoSugerido(120, 150m, 5m, 500m));
     }
 
     [Fact]
-    public void Torneio_pequeno_paga_o_minimo()
+    public void Torneio_pequeno_ou_gratuito_paga_o_minimo()
     {
-        // 20 jogos × R$ 12 = R$ 240, mas mandar alguém passar o dia custa o dia inteiro.
-        // Sem o mínimo, torneio pequeno sairia no prejuízo.
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(20, 12m, 500m));
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(0, 12m, 500m));
+        // 32 pessoas × R$ 100 × 5% = R$ 160, mas mandar alguém passar o dia custa o dia
+        // inteiro. Sem o mínimo, torneio pequeno — e o gratuito, cujo percentual dá ZERO —
+        // sairia no prejuízo.
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(32, 100m, 5m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(0, 150m, 5m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(64, 0m, 5m, 500m));
     }
 
     [Fact]
@@ -112,24 +114,34 @@ public class RegistroDeResultadosTests
     {
         // Quem responde precisa saber que abaixo disso todo torneio paga igual — senão acha
         // que a conta está errada quando dois pedidos diferentes dão o mesmo valor.
-        var corte = RegistroDeResultados.JogosParaSairDoMinimo(12m, 500m);
+        var corte = RegistroDeResultados.InscricoesParaSairDoMinimo(5m, 500m);
 
-        Assert.Equal(42, corte);
-        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(corte - 1, 12m, 500m));
-        Assert.True(RegistroDeResultados.PrecoSugerido(corte, 12m, 500m) > 500m);
+        Assert.Equal(10_000m, corte);
+        // No corte exato o percentual EMPATA com o mínimo; um degrau acima, passa.
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugerido(100, 100m, 5m, 500m));
+        Assert.True(RegistroDeResultados.PrecoSugerido(101, 100m, 5m, 500m) > 500m);
     }
 
     [Fact]
-    public void Acima_do_minimo_a_margem_e_sempre_a_mesma_fatia()
+    public void Percentual_e_custo_andam_soltos_e_a_conta_do_admin_precisa_mostrar_isso()
     {
-        // R$ 12 cobrado, R$ 10 de custo: sobra 1/6 do preço, seja o torneio médio ou grande.
-        foreach (var jogos in new[] { 50, 76, 126 })
-        {
-            var preco = RegistroDeResultados.PrecoSugerido(jogos, 12m, 500m);
-            var custo = RegistroDeResultados.CustoEstimado(jogos, 10m);
+        // O risco aceito da régua nova (20/08/2026): o preço segue as inscrições e o custo
+        // segue os jogos. Inscrição barata com muitos jogos fica ABAIXO do custo — é o
+        // painel do admin (que vê custo e sobra) quem segura, ajustando o valor na mão.
+        var preco = RegistroDeResultados.PrecoSugerido(64, 50m, 5m, 500m);   // R$ 3.200 → mínimo
+        var custo = RegistroDeResultados.CustoEstimado(60, 10m);             // 60 jogos
 
-            Assert.Equal(jogos * 2m, preco - custo);
-        }
+        Assert.Equal(500m, preco);
+        Assert.True(custo > preco);
+    }
+
+    [Fact]
+    public void Pedido_antigo_cotado_por_jogo_continua_valendo_o_que_leu()
+    {
+        // A cotação congela no pedido: quem pediu na regra do R$ 12 por jogo (antes de
+        // 20/08/2026) não é recalculado pela régua nova.
+        Assert.Equal(912m, RegistroDeResultados.PrecoSugeridoPorJogo(76, 12m, 500m));
+        Assert.Equal(500m, RegistroDeResultados.PrecoSugeridoPorJogo(20, 12m, 500m));
     }
 
     // ── Quem pode pedir ───────────────────────────────────────────────────────────────

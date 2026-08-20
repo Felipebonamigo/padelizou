@@ -46,7 +46,7 @@ namespace Padelizou.Controllers
             // desligado, pra não receber pedido que já se sabe que vai virar "sem equipe".
             ViewBag.RegistroHabilitado = _registro.Habilitado;
             ViewBag.RegistroQuadrasPorPessoa = _registro.QuadrasPorPessoa;
-            ViewBag.RegistroPrecoPorJogo = _registro.PrecoPorJogo;
+            ViewBag.RegistroPercentual = _registro.PercentualDasInscricoes;
             ViewBag.RegistroValorMinimo = _registro.ValorMinimo;
 
             // Sem um Torneio no View(), asp-for não teria de onde tirar valor e os campos
@@ -244,7 +244,7 @@ namespace Padelizou.Controllers
                 DiasNaSolicitacao = dias,
                 PessoasSugeridas = pessoas,
                 JogosPrevistos = jogos > 0 ? jogos : null,
-                PrecoPorJogoCotado = _registro.PrecoPorJogo,
+                PercentualCotado = _registro.PercentualDasInscricoes,
                 ValorMinimoCotado = _registro.ValorMinimo,
                 Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim(),
                 SolicitadoPorId = ObterJogadorIdLogado() ?? 0,

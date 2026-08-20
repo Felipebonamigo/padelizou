@@ -118,6 +118,9 @@ public static class PrevisaoDoTorneio
         public string? PorQueNaoFecha { get; init; }
         public ResumoDaConta? Resumo { get; init; }
         public int TotalDeJogos { get; init; }
+        // Quantas PESSOAS o número esperado representa (dupla = 2). É a base da estimativa
+        // do pacote de registro de resultados, que cobra percentual sobre pessoas × preço.
+        public int Pessoas { get; init; }
         public DateTime? Comeca { get; init; }
         public DateTime? Termina { get; init; }
         public int Dias { get; init; }
@@ -208,6 +211,9 @@ public static class PrevisaoDoTorneio
             TemConta = true,
             Resumo = resumo,
             TotalDeJogos = total,
+            // Só o Americano individual inscreve pessoa a pessoa; nos demais o número é de
+            // duplas e a inscrição cobra por pessoa (dupla paga o dobro).
+            Pessoas = formato == FormatoDoTorneio.Americano ? numero : numero * 2,
             Comeca = inicio,
             Termina = ultimo.Value.AddMinutes(duracaoMinutos),
             Dias = DiasOcupados(inicio, ultimo.Value),

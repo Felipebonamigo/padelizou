@@ -152,6 +152,25 @@ namespace padelizou.Controllers
                 .Where(j => ids.Contains(j.Id))
                 .ToDictionaryAsync(j => j.Id, j => j.Nome);
 
+            // A base do preço (20/08/2026): pessoas inscritas AGORA × preço por pessoa, na
+            // MESMA régua da taxa do Externo (chave direta e lista de espera fora) — o
+            // organizador compara as duas contas, e duas bases diferentes seria a diferença
+            // que ninguém explica. Ao vivo, e não congelada no pedido, porque a inscrição
+            // cresce até o fechamento e o valor se combina aqui, na resposta.
+            var torneioIds = pedidos.Select(p => p.TorneioId).Distinct().ToList();
+            var duplasPorTorneio = (await _context.Duplas
+                    .Where(d => torneioIds.Contains(d.Categoria.TorneioId) && !d.Categoria.ChaveDireta)
+                    .Select(d => new { d.Categoria.TorneioId, Dupla = d })
+                    .ToListAsync())
+                .ToLookup(x => x.TorneioId, x => x.Dupla);
+            var americanasPorTorneio = (await _context.InscricoesAmericanas
+                    .Where(i => torneioIds.Contains(i.Categoria.TorneioId))
+                    .Select(i => new { i.Categoria.TorneioId, Inscricao = i })
+                    .ToListAsync())
+                .ToLookup(x => x.TorneioId, x => x.Inscricao);
+            ViewBag.PessoasInscritas = torneioIds.ToDictionary(id => id, id =>
+                TaxaDoTorneioExterno.PessoasInscritas(duplasPorTorneio[id], americanasPorTorneio[id]));
+
             ViewBag.Config = _registro;
             return View(pedidos);
         }

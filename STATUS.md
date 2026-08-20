@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **19/08/2026** — 🧾 **O PROFESSOR MENSALISTA FECHOU O CICLO: CADASTRO RÁPIDO, RESPONSÁVEL PELA COBRANÇA, FECHAMENTO DO MÊS E COBRANÇA PELO APP.**
+> Última atualização: **20/08/2026** — 💸 **O PACOTE "NÓS REGISTRAMOS OS RESULTADOS" TROCOU O PREÇO: SAIU O R$ 12 POR JOGO, ENTROU MAIS 5% DO VALOR DAS INSCRIÇÕES.**
+>
+> 🗣️ **Decisão do Felipe** (20/08): *"no lugar de 12 reais por jogo, ser mais 5% do valor das inscrições"* — primeiro passo da resposta ao concorrente regional (**Quanto Tá**: 12% das inscrições, pagamento por fora, com equipe DELES marcando o placar e chamando os próximos pra quadra). Em percentual a comparação do organizador é imediata: 5% da forma de recebimento + 5% do pacote = **10%, abaixo dos 12% dele**. Pela régua antiga, por jogo, o pacote sozinho já passava o concorrente inteiro justamente no torneio grande (60 duplas ≈ 100 jogos × R$ 12 = R$ 1.200, contra R$ 1.080 dos 12% num torneio de R$ 9.000). ⚠️ **As outras regras ficaram pra validação do Felipe**: piso menor, a "mesa assistida" (1 fiscal + atletas lançando) e um possível por-jogo só pra Americano são decisões em aberto.
+>
+> 💰 **A regra nova**: mais 5% do valor das inscrições, **além** da taxa da forma de recebimento, **mínimo de R$ 500 mantido**. A base é a MESMA régua da taxa do Externo — pessoas × preço por pessoa, via `TaxaDoTorneioExterno.PessoasInscritas` (dupla completa = 2, chave direta e lista de espera fora) — de propósito: o organizador compara as duas contas, e duas bases diferentes pra "valor das inscrições" seria a diferença que ninguém explica. O número vive em `RegistroResultadosSettings.PercentualDasInscricoes` (sobrescrevível por appsettings, como o resto).
+>
+> ❄️ **A cotação continua congelando no pedido** — coluna nova `PercentualCotado` (migration `PercentualDoRegistroDeResultados`, só adiciona coluna nula). **Pedido antigo não é recalculado**: nele o percentual é nulo e vale o `PrecoPorJogoCotado` que o organizador leu na tela (`PrecoSugeridoPorJogo` existe só pra isso). As três telas — criação, página do torneio e painel do admin — leem a régua que o pedido carrega, nunca a atual.
+>
+> ⚠️ **O RISCO ACEITO, escrito no código e no painel: o preço passou a seguir as inscrições, mas o CUSTO continua seguindo os jogos (R$ 10/jogo).** Inscrição barata com muitos jogos pode ficar abaixo do custo — o mínimo segura parte disso, e o resto é o admin raiz, que continua vendo custo e sobra de cada pedido e ajusta o valor combinado na mão (o campo já vem preenchido pela regra). O painel agora mostra a base AO VIVO ("inscrições até agora: X pessoa(s) × R$ Y" — ao vivo, e não congelada, porque a inscrição cresce até o fechamento e o valor se combina na resposta) e avisa que **abaixo de R$ 10.000 de inscrições todo torneio paga o mínimo**.
+>
+> 🖥️ **Nas telas do organizador** a regra virou "mais 5% do valor das inscrições (além da taxa da forma de recebimento), mínimo R$ 500", e a estimativa da criação passou a sair de pessoas × preço: as PESSOAS vêm do servidor (`PrevisaoDoTorneio.Tela.Pessoas` — só o Americano individual inscreve pessoa a pessoa; nos demais o número digitado é de duplas e dupla = 2), e mudar o preço da inscrição atualiza a estimativa na hora, porque o preço não dispara a previsão do servidor.
+>
+> 🧪 **4.585 testes, 0 falhas.** A seção de dinheiro dos `RegistroDeResultadosTests` foi reescrita na régua nova — incluindo o teste que DOCUMENTA o risco (percentual e custo andam soltos) e o do pedido antigo valendo o que leu. ⚠️ **Pendência: commitado, não publicado** — falta build + deploy.
+>
+> Antes, na véspera (19/08): 🧾 **O PROFESSOR MENSALISTA FECHOU O CICLO: CADASTRO RÁPIDO, RESPONSÁVEL PELA COBRANÇA, FECHAMENTO DO MÊS E COBRANÇA PELO APP.**
 >
 > 🗣️ **Os três últimos pedidos do Rafael**, de uma vez: *"se tem alguma maneira de cadastro rápido preciso também, porque tem muita gente que não manda os dados e me quebra"*; *"nem sempre o aluno é o responsável pelo próprio pagamento (crianças), preciso de um campo de responsável pela cobrança"*; e *"cobramos por mês: fecha as aulas do mês e cobra no mês subsequente"*.
 >
