@@ -183,6 +183,11 @@ namespace Padelizou.Controllers
                 _context.InscricoesAmericanas.Add(inscricaoCriada);
                 await _context.SaveChangesAsync();
 
+                // Inscreveu, seguiu — mesma chamada da porta da dupla (DuplasController) e
+                // da porta paga (PagamentoInscricaoService). ⚠️ São as três portas: sumir
+                // esta linha deixa o americano inteiro fora do seguir automático, sem erro.
+                await _avisoDeInscricao.SeguirAsync(torneioId, new[] { jogador.Id });
+
                 await NotificarSeguidoresDeInscricaoAsync(torneioId, new[] { jogador.Id });
 
                 // O "Apitouuuu!" pra quem SEGUE ESTE TORNEIO — a mesma chamada da inscrição em

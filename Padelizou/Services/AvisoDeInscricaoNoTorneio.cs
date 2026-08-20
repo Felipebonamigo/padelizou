@@ -37,11 +37,14 @@ public static class TextoDoApito
     }
 }
 
-// Avisa quem SEGUE o torneio que entrou gente nova. Existe como serviço, e não como método
-// de controller, por um motivo específico deste projeto: a inscrição tem DUAS portas — dupla
-// (DuplasController) e individual/americano (TorneiosController.Inscricoes) — e regra de
-// torneio duplicada é a causa histórica dos defeitos graves daqui. O gancho de seguidores de
-// PESSOA já vive nas duas cópias; este nasce com uma implementação só.
+// Avisa quem SEGUE o torneio que entrou gente nova — e, desde 20/08/2026, é também quem
+// FAZ a inscrição seguir o torneio sozinha (ver SeguirAsync). Existe como serviço, e não
+// como método de controller, por um motivo específico deste projeto: a inscrição tem TRÊS
+// portas — dupla (DuplasController), individual/americano (TorneiosController.Inscricoes)
+// e a do pagamento obrigatório, onde a inscrição nasce no webhook
+// (PagamentoInscricaoService.EfetivarTorneioAsync) — e regra de torneio duplicada é a
+// causa histórica dos defeitos graves daqui. O gancho de seguidores de PESSOA já vive
+// espalhado nas cópias; este nasce com uma implementação só.
 public class AvisoDeInscricaoNoTorneio
 {
     private readonly DbPadelContext _context;
@@ -51,6 +54,37 @@ public class AvisoDeInscricaoNoTorneio
     {
         _context = context;
         _push = push;
+    }
+
+    // Inscreveu, seguiu (Felipe, 20/08/2026): quem entra na chave é exatamente quem quer
+    // saber quem mais entra — e quase ninguém achava o botão. Seguir deixou de ser convite
+    // e virou consequência da inscrição; o botão na tela do torneio continua existindo,
+    // agora como porta de SAÍDA (e de volta) pra quem não quiser os avisos.
+    //
+    // Idempotente de propósito: a mesma pessoa se inscreve em duas categorias do mesmo
+    // torneio, e a segunda inscrição não pode nem duplicar a linha nem estourar na chave
+    // composta (TorneioId + JogadorId). Efeito colateral assumido: quem deixou de seguir e
+    // se inscreve DE NOVO volta a seguir — inscrição nova é interesse novo, e a porta de
+    // saída continua a um clique.
+    //
+    // Lista de espera TAMBÉM segue, ao contrário do apito: o apito anuncia vaga ocupada, e
+    // seguir é assinatura — quem espera vaga é quem mais quer os avisos quando ela abrir.
+    public async Task SeguirAsync(int torneioId, IEnumerable<int> jogadorIds)
+    {
+        var ids = jogadorIds.Distinct().ToList();
+
+        var jaSeguem = await _context.SeguidoresTorneio
+            .Where(s => s.TorneioId == torneioId && ids.Contains(s.JogadorId))
+            .Select(s => s.JogadorId)
+            .ToListAsync();
+
+        var novos = ids.Except(jaSeguem).ToList();
+        if (novos.Count == 0) return;
+
+        foreach (var jogadorId in novos)
+            _context.SeguidoresTorneio.Add(new SeguidorTorneio { TorneioId = torneioId, JogadorId = jogadorId });
+
+        await _context.SaveChangesAsync();
     }
 
     // `recemInscritos` são os ids de quem ACABOU de entrar. Eles saem da lista de destinatários

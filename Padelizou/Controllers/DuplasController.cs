@@ -535,6 +535,11 @@ namespace Padelizou.Controllers
                 ? new[] { jogador1.Id }
                 : new[] { jogador1.Id, jogador2.Id };
 
+            // Inscreveu, seguiu — regra única pras TRÊS portas de inscrição, implementada
+            // uma vez só (ver AvisoDeInscricaoNoTorneio.SeguirAsync). Antes do apito, mas a
+            // ordem não cria eco: quem acabou de entrar sai da lista do próprio apito.
+            await _avisoDeInscricao.SeguirAsync(torneioId, inscritos);
+
             await NotificarSeguidoresDeInscricaoAsync(torneioId, inscritos);
             await NotificarInscricaoConfirmadaAsync(torneio, categoria.Nome, inscritos, emListaDeEspera);
 

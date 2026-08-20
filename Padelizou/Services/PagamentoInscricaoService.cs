@@ -141,6 +141,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     private readonly PlanoProfessorSettings _plano;
     private readonly ILogger<PagamentoInscricaoService> _logger;
     private readonly IPushNotificationService _push;
+    private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
 
     public PagamentoInscricaoService(DbPadelContext context, IAsaasService asaas,
         IOptions<AsaasSettings> settings, ILogger<PagamentoInscricaoService> logger,
@@ -154,6 +155,9 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         _plano = plano.Value;
         _logger = logger;
         _push = push;
+        // Montado aqui em vez de injetado: ele é só (contexto + push), que já estão na mão —
+        // e alargar este construtor tocaria cada teste que monta o serviço.
+        _avisoDeInscricao = new AvisoDeInscricaoNoTorneio(context, push);
     }
 
     // Quem recebe é quem criou o torneio. Se por algum motivo não houver "Criador" gravado,
@@ -1417,6 +1421,43 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 // Push é acessório — a inscrição já está paga e criada, não pode falhar por isso.
                 _logger.LogWarning(ex, "Falha ao notificar inscrição do jogador {JogadorId}.", jogadorId);
             }
+        }
+
+        // Inscreveu, seguiu + o "Apitouuuu!" pros seguidores — esta é a TERCEIRA porta de
+        // inscrição, a do pagamento obrigatório, onde a inscrição nasce aqui no webhook.
+        // Até 20/08/2026 ela ficava fora das duas coisas: o torneio que cobrava na entrada
+        // era justamente o que nunca apitava, e ninguém percebia porque nada dava erro.
+        //
+        // No try porque o dinheiro já entrou e a inscrição já existe: seguir e apitar são
+        // acessórios, e acessório não derruba webhook de pagamento (o gateway reenvia e a
+        // inscrição duplicaria).
+        try
+        {
+            await _avisoDeInscricao.SeguirAsync(torneio.Id, inscritos);
+
+            // Lista de espera não apita — ainda não é vaga na chave, mesma régua das
+            // outras duas portas.
+            if (!emListaDeEspera)
+            {
+                var nomesPorId = await _context.Jogadores
+                    .Where(j => inscritos.Contains(j.Id))
+                    .ToDictionaryAsync(j => j.Id, j => j.Nome);
+
+                // Na ordem da inscrição (jogador 1, jogador 2) — o texto do apito chama o
+                // primeiro nome de dono da dupla.
+                var nomes = inscritos
+                    .Where(nomesPorId.ContainsKey)
+                    .Select(id => nomesPorId[id])
+                    .ToList();
+
+                await _avisoDeInscricao.NotificarAsync(torneio.Id, categoria.Nome, nomes,
+                    inscritos, $"/Torneios/Details/{torneio.Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Falha ao seguir/apitar a inscrição paga do torneio {TorneioId}.", torneio.Id);
         }
     }
 

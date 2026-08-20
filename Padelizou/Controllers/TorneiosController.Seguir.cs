@@ -11,6 +11,10 @@ namespace Padelizou.Controllers
     // É irmão do seguir-jogador e responde outra pergunta. Lá se acompanha uma PESSOA ("me
     // avise quando o Lucas entrar num torneio"); aqui se acompanha um TORNEIO — quem já se
     // inscreveu quer ver a chave encher pra saber contra quem vai jogar.
+    //
+    // Desde 20/08/2026 a inscrição já segue SOZINHA (AvisoDeInscricaoNoTorneio.SeguirAsync,
+    // chamado nas três portas de inscrição). Estas ações viraram a porta de saída — e de
+    // volta, pra quem desligou e mudou de ideia ou se inscreveu antes da regra existir.
     public partial class TorneiosController
     {
         // ⚠️ POST, nunca GET. Seguir grava, e coisa que grava por GET é ligada sem querer por

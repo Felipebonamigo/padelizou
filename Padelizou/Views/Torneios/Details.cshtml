@@ -489,10 +489,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 }
 
 @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
-   "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
-   (decisão do Felipe, 10/08/2026): é quem se inscreveu que fica olhando a chave encher
-   pra saber contra quem vai jogar. Pra quem só passou na página, o mesmo aviso é ruído —
-   e cada seguidor a mais multiplica uma rajada que num torneio grande já é grande.
+   "Me avise a cada inscrição nova nesta chave." Desde 20/08/2026 quem se inscreve já
+   segue SOZINHO (AvisoDeInscricaoNoTorneio.SeguirAsync) — este bloco virou a porta de
+   saída, e de volta pra quem desligou ou se inscreveu antes da regra. Continua aparecendo
+   só pra quem JÁ ESTÁ INSCRITO (decisão do Felipe, 10/08/2026): pra quem só passou na
+   página, o mesmo aviso é ruído — e cada seguidor a mais multiplica uma rajada que num
+   torneio grande já é grande.
 
    ⚠️ A tela esconde, mas quem RECUSA é o servidor (TorneiosController.Seguir): botão
    escondido nunca foi trava. *@

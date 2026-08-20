@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Padelizou.Models;
 using Padelizou.Services;
+using System.Text.Json;
 
 namespace Padelizou.Tests;
 
@@ -121,20 +124,143 @@ public class SeguirTorneioTests
         Assert.Equal("Carlos inscrito no torneio Copa.", TextoDoApito.Corpo(new[] { "Carlos" }, "Copa", ""));
     }
 
-    // ⚠️ A GUARDA DA REGRA DUPLICADA. A inscrição tem duas portas e este projeto já sangrou
-    // por consertar só uma delas. Se alguém apagar a chamada de um dos lados, metade das
-    // inscrições para de apitar — e nada na tela denuncia.
+    // ── INSCREVEU, SEGUIU ────────────────────────────────────────────────────────────────
+    // Desde 20/08/2026 a inscrição segue o torneio sozinha (pedido do Felipe): quem entra
+    // na chave é quem quer saber quem mais entra, e quase ninguém achava o botão.
+
     [Fact]
-    public void As_DUAS_portas_de_inscricao_chamam_o_apito()
+    public async Task Quem_se_inscreve_passa_a_seguir_o_torneio_sozinho()
+    {
+        var (ctx, _, aviso) = Montar();
+
+        await aviso.SeguirAsync(7, new[] { 10, 20 });
+
+        var seguidores = ctx.SeguidoresTorneio
+            .Where(s => s.TorneioId == 7)
+            .Select(s => s.JogadorId)
+            .OrderBy(id => id)
+            .ToList();
+        Assert.Equal(new[] { 10, 20 }, seguidores);
+    }
+
+    // Segunda categoria no mesmo torneio, clique repetido, id duplicado na mesma dupla:
+    // nada disso pode virar segunda linha nem exceção na chave composta.
+    [Fact]
+    public async Task Seguir_de_novo_nao_duplica_nem_estoura()
+    {
+        var (ctx, _, aviso) = Montar();
+        Segue(ctx, 10); // já seguia — clicou no botão, ou é a segunda categoria
+
+        await aviso.SeguirAsync(7, new[] { 10, 10, 20 });
+
+        Assert.Equal(2, ctx.SeguidoresTorneio.Count(s => s.TorneioId == 7));
+    }
+
+    // O caminho INTEIRO por uma das portas de verdade: o POST de inscrição do americano
+    // termina com o jogador seguindo o torneio, sem clicar em nada.
+    [Fact]
+    public async Task A_inscricao_individual_ja_sai_seguindo_o_torneio()
+    {
+        var ctx = TestInfra.NovoContexto();
+        var torneio = new Torneio
+        {
+            Nome = "Americano de teste", Codigo = "AMT", Status = "Inscrições Abertas",
+            Formato = "Americano", DataInicio = new DateTime(2026, 8, 20, 19, 0, 0),
+        };
+        ctx.Torneios.Add(torneio);
+        var categoria = new Categoria { Nome = "Geral", Codigo = "GER", Torneio = torneio };
+        ctx.Categorias.Add(categoria);
+        var jogador = new Jogador { Nome = "Fulano Beltrano", Cpf = "52998224725" };
+        ctx.Jogadores.Add(jogador);
+        ctx.SaveChanges();
+
+        var controller = TestInfra.NovoTorneiosController(ctx, jogador.Id);
+        await controller.InscreverIndividual(torneio.Id, categoria.Id, jogador.Nome, jogador.Cpf);
+
+        Assert.True(ctx.SeguidoresTorneio.Any(s => s.TorneioId == torneio.Id && s.JogadorId == jogador.Id),
+            "A inscrição individual foi criada mas o jogador NÃO ficou seguindo o torneio.");
+    }
+
+    // A TERCEIRA porta: torneio com pagamento obrigatório, onde a inscrição nasce no
+    // webhook. Até 20/08/2026 ela ficava fora do apito E do seguir — o torneio que cobrava
+    // na entrada era justamente o que nunca apitava.
+    [Fact]
+    public async Task A_inscricao_paga_que_nasce_no_webhook_segue_e_apita()
+    {
+        var (ctx, push, _) = Montar();
+        ctx.Categorias.Add(new Categoria { Id = 70, TorneioId = 7, Nome = "Open", Codigo = "OP" });
+        ctx.Jogadores.AddRange(
+            new Jogador { Id = 1, Nome = "Ana", Cpf = "52998224725" },
+            new Jogador { Id = 2, Nome = "Bia", Cpf = "11144477735" });
+        Segue(ctx, 100); // quem já seguia é quem tem que ouvir o apito
+
+        var pagamento = new Pagamento
+        {
+            Tipo = "TorneioDupla",
+            TorneioId = 7,
+            JogadorId = 1,
+            Valor = 200m,
+            DadosInscricao = JsonSerializer.Serialize(
+                new DadosInscricaoTorneio(7, 70, 1, 2, false, false, false, false)),
+        };
+        ctx.Pagamentos.Add(pagamento);
+        ctx.SaveChanges();
+
+        var servico = new PagamentoInscricaoService(
+            ctx, Substitute.For<IAsaasService>(), Options.Create(new AsaasSettings()),
+            NullLogger<PagamentoInscricaoService>.Instance, push,
+            Options.Create(new TaxasExibicao()), Options.Create(new PlanoProfessorSettings()));
+
+        await servico.EfetivarAsync(pagamento);
+
+        Assert.True(ctx.SeguidoresTorneio.Any(s => s.TorneioId == 7 && s.JogadorId == 1),
+            "A inscrição paga nasceu no webhook mas o jogador 1 não ficou seguindo o torneio.");
+        Assert.True(ctx.SeguidoresTorneio.Any(s => s.TorneioId == 7 && s.JogadorId == 2),
+            "A inscrição paga nasceu no webhook mas o jogador 2 não ficou seguindo o torneio.");
+
+        await push.Received(1).EnviarParaJogadorAsync(100, TextoDoApito.Titulo,
+            "Dupla Ana e Bia inscrita no torneio Copa da Grade. Na categoria Open.",
+            "/Torneios/Details/7", AlcanceDoAviso.AppSemEmail);
+    }
+
+    // ⚠️ A GUARDA DA REGRA DUPLICADA, versão do seguir: a regra é uma implementação só
+    // (SeguirAsync), mas a CHAMADA precisa existir em cada porta. Sumir uma delas deixa
+    // aquela porta fora do seguir automático — e nada na tela denuncia.
+    [Fact]
+    public void As_TRES_portas_de_inscricao_seguem_o_torneio_sozinhas()
     {
         var dupla = Arquivo(Path.Combine("Controllers", "DuplasController.cs"));
         var individual = Arquivo(Path.Combine("Controllers", "TorneiosController.Inscricoes.cs"));
+        var paga = Arquivo(Path.Combine("Services", "PagamentoInscricaoService.cs"));
+
+        Assert.True(dupla.Contains("_avisoDeInscricao.SeguirAsync("),
+            "A inscrição em DUPLA parou de seguir o torneio sozinha.");
+        Assert.True(individual.Contains("_avisoDeInscricao.SeguirAsync("),
+            "A inscrição INDIVIDUAL (americano) parou de seguir o torneio sozinha.");
+        Assert.True(paga.Contains("_avisoDeInscricao.SeguirAsync("),
+            "A inscrição PAGA (a que nasce no webhook do pagamento obrigatório) parou de "
+            + "seguir o torneio sozinha.");
+    }
+
+    // ⚠️ A GUARDA DA REGRA DUPLICADA. A inscrição tem TRÊS portas e este projeto já sangrou
+    // por consertar só uma delas. Se alguém apagar a chamada de um dos lados, parte das
+    // inscrições para de apitar — e nada na tela denuncia. A terceira porta (inscrição paga,
+    // que nasce no webhook) ficou muda até 20/08/2026 exatamente por não estar nesta lista.
+    [Fact]
+    public void As_TRES_portas_de_inscricao_chamam_o_apito()
+    {
+        var dupla = Arquivo(Path.Combine("Controllers", "DuplasController.cs"));
+        var individual = Arquivo(Path.Combine("Controllers", "TorneiosController.Inscricoes.cs"));
+        var paga = Arquivo(Path.Combine("Services", "PagamentoInscricaoService.cs"));
 
         Assert.True(dupla.Contains("_avisoDeInscricao.NotificarAsync("),
             "A inscrição em DUPLA parou de avisar quem segue o torneio.");
         Assert.True(individual.Contains("_avisoDeInscricao.NotificarAsync("),
             "A inscrição INDIVIDUAL (americano) parou de avisar quem segue o torneio — "
             + "metade das inscrições passa calada e nada na tela denuncia.");
+        Assert.True(paga.Contains("_avisoDeInscricao.NotificarAsync("),
+            "A inscrição PAGA (webhook do pagamento obrigatório) parou de avisar quem segue "
+            + "o torneio — o torneio que cobra na entrada volta a ser o que nunca apita.");
     }
 
     // Seguir GRAVA, e o que grava não pode ser alcançável por GET: link é pré-carregado por
