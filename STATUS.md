@@ -1,7 +1,31 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/08/2026** — 🧑‍⚖️ **NASCEU O MARCADOR DO TORNEIO: A PESSOA DA MESA, ADICIONADA EM "GERENCIAR TORNEIO", SÓ COM A OPERAÇÃO DO DIA DE JOGO.**
+> Última atualização: **20/08/2026** — 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
+>
+> 🗣️ **O relato veio com print:** *"aqui está confuso, para registrar o jogo, lá em cima tem uma data e abaixo outra"*. E estava mesmo — resumo em **26 ago.**, aviso amarelo falando do jogo de **26/08** e o campo **Data do jogo** já em **19 de ago.**: três lugares falando de data e nenhuma pista de qual seria gravada.
+>
+> 🧊 **A causa: o resumo e o aviso saíam prontos do servidor e ficavam CONGELADOS.** Os dois eram escritos no Razor a partir de `DataSugerida`, e só o campo respondia ao toque. Quem obedecia o aviso — *"toque em Alterar e corrija a data"* — criava a contradição com as próprias mãos.
+>
+> ⚠️ **E ela custa mais caro do que parece: o ranking DA SEMANA é fatiado por data** (`DataJogo > início && <= fim`). Diante de duas datas, a leitura natural é "vale o de cima" — a pessoa desfaz a correção e a partida cai na semana seguinte, onde some do quadro sem erro nenhum. É o estrago exato que aquele aviso existe pra evitar.
+>
+> 📅 **A regra agora cabe numa frase: O CAMPO É A DATA.** Texto de data nenhum vem mais do servidor. O resumo virou a **cara FECHADA do painel** — os dois nunca dividem a tela — e o painel ganhou um **Pronto**, já que o "Alterar" some junto com o resumo. O aviso se recalcula a cada mudança do campo e **troca de texto conforme o estado**: mandar "toque em Alterar" com o campo aberto na frente da pessoa é mandá-la procurar um botão que não está mais lá.
+>
+> 🎯 **Data sugerida no futuro já abre o painel.** Placar de jogo que ainda não aconteceu não existe, então quem está ali jogou noutro dia: a correção vira um toque em vez de dois — e o resumo nem chega a aparecer, que era o que fazia parecer haver duas datas concorrendo.
+>
+> 🏟️ **O nome do clube seguia o mesmo caminho errado** (vinha do servidor e congelava enquanto o seletor logo abaixo já mostrava outro local). Agora sai da opção escolhida, e a consulta que só servia pra isso saiu do controller.
+>
+> ⚠️ **A comparação com "hoje" é de TEXTO `aaaa-mm-dd`, com hoje montado peça por peça no fuso do celular.** `new Date('2026-08-26')` é lido como UTC: no Brasil vira dia 25 às 21h, e o "amanhã" da pessoa passaria por hoje. O aviso apareceria — ou sumiria — um dia fora do lugar, e um dia fora do lugar é a semana errada no ranking.
+>
+> 🧪 **4.613 testes, 0 falhas (5 novos).** São guardas de ligação: quebram se voltar a existir data escrita pelo servidor fora do campo, se o resumo voltar a conviver com o painel aberto, ou se a comparação com hoje passar por UTC.
+>
+> ✅ **PUBLICADO em 20/08/2026, na `build-636-e416e82`** — só em **prod**. **Sem migration**: o banco não mudou.
+>
+> ⚠️ **NÃO CONFERIDO NO NAVEGADOR, e a nota de 19/08 vale igual: workflow verde não prova que subiu** (o `deploy.sh` monta a versão ao lado). O servidor respondeu `==> Feito. build-636-e416e82 no ar em prod` e o healthcheck passou — senão o próprio script teria dado rollback —, mas a política de rede da sessão bloqueia `padelizou.com.br` com 403 no CONNECT. **A prova barata, sem login:** abrir `/js/registrar-jogo-da-panelinha.js` em produção e procurar `pdzMontarDataDoJogo`.
+>
+> 🕳️ **A PENDÊNCIA DE INFRA DE 19/08 CONTINUA DE PÉ:** o deploy pro **dev** morreu de novo em 9s, com `SSH_KEY` vazio (`error in libcrypto` → `Permission denied`). O `VPS_HOST` já aparece preenchido no environment `dev`, então falta copiar **`VPS_SSH_KEY` e `VPS_KNOWN_HOSTS`**. Até lá o dev só é publicável por SSH na mão.
+>
+> Antes, no mesmo dia: 🧑‍⚖️ **NASCEU O MARCADOR DO TORNEIO: A PESSOA DA MESA, ADICIONADA EM "GERENCIAR TORNEIO", SÓ COM A OPERAÇÃO DO DIA DE JOGO.**
 >
 > 🗣️ **Decisão do Felipe** (20/08): *"vamos implementar os marcadores de torneio... ter um campo igual os de administradores/organizadores do torneio, esses marcadores serão adicionados e eles terão acesso a parte de marcação"*. É a peça de gente do plano contra o concorrente que põe mesário: o organizador escala quem for cuidar da mesa sem entregar o torneio inteiro.
 >
