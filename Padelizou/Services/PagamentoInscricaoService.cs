@@ -1166,6 +1166,15 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         professor.AssinaturaProfessorPagaAte =
             PlanoDoProfessor.NovaDataPagaAte(professor.AssinaturaProfessorPagaAte, DateTime.Now, dados.Ciclo);
 
+        // ⚠️ QUEM PAGOU A ASSINATURA É ASSINANTE — e esta linha faltava (achado em 20/08/2026).
+        // `SituacaoDe` começa perguntando `PlanoProfessor == "Assinante"`: sem ela, quem paga sem
+        // nunca ter aberto o /PlanoProfessor fica com "pago até" no futuro e plano NULO, cai no
+        // ramo final como "teste vencido sem escolha" e CONTINUA PAGANDO 10% POR AULA depois de
+        // ter pago a mensalidade — e os avisos dele também calam. O caminho que chega aqui nesse
+        // estado é o registro manual do admin (AdminController.RegistrarPagamento), que grava a
+        // data e não encosta no plano; pela tela do professor ele já escolheu antes de pagar.
+        professor.PlanoProfessor = PlanoDoProfessor.Assinante;
+
         // ⚠️ Zera os avisos de vencimento: a vigência é outra, então o ciclo de lembretes
         // recomeça. Sem esta linha o professor seria avisado UMA VEZ NA VIDA — no vencimento
         // seguinte o estágio gravado já seria maior que o devido e nada mais sairia.
