@@ -766,8 +766,26 @@
         ctx.font = '14px Sora, sans-serif';
         ctx.fillText('Feito no Simulador de Uniformes', canvas.width / 2, canvas.height - 18);
 
+        var nomeArquivo = 'uniforme-' + estado.modelo + '.png';
+        // Publicado no claude.ai, o download passa pelo visualizador da página;
+        // aberto como arquivo/site comum, o link de sempre resolve.
+        if (window.claude && window.claude.use) {
+          return new Promise(function (resolve, reject) {
+            canvas.toBlob(function (blob) {
+              if (blob) resolve(blob); else reject(new Error('canvas vazio'));
+            }, 'image/png');
+          }).then(function (blob) {
+            return window.claude.use('downloads').then(function (downloads) {
+              if (!downloads) throw new Error('indisponivel');
+              return downloads.save({ filename: nomeArquivo, data: blob });
+            });
+          }).catch(function (err) {
+            if (err && err.code === 'declined') return; // a pessoa desistiu: tudo bem
+            throw err;
+          });
+        }
         var a = document.createElement('a');
-        a.download = 'uniforme-' + estado.modelo + '.png';
+        a.download = nomeArquivo;
         a.href = canvas.toDataURL('image/png');
         document.body.appendChild(a);
         a.click();
