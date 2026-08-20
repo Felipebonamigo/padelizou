@@ -284,10 +284,12 @@ namespace padelizou.Controllers
             // O local já vem escolhido no clube fixo do grupo — quem jogou fora do de sempre
             // troca ali mesmo, sem precisar mexer nas configurações da panelinha.
             ViewBag.CatalogoClubes = await _context.Clubes.ParaEscolher().ToListAsync();
+            // ⚠️ SÓ O ID. O nome do clube ia junto pra escrever a linha de resumo no servidor,
+            // e era ele que congelava ali enquanto o seletor abaixo já mostrava outro local —
+            // a mesma contradição das duas datas. Quem desenha o resumo agora é o JS, lendo a
+            // opção escolhida no próprio seletor, que é o que vai ser gravado.
             ViewBag.ClubeDoGrupoId = await _context.GruposPrivados
                 .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
-            ViewBag.NomeDoClubeDoGrupo = await _context.GruposPrivados
-                .Where(g => g.Id == grupoId).Select(g => g.Clube!.Nome).FirstOrDefaultAsync();
 
             // QUEM CONFIRMOU naquela data — só pra DESTACAR, nunca pra filtrar.
             //
