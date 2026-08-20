@@ -4,7 +4,6 @@
     int grupoId = ViewBag.GrupoId;
     var catalogoClubes = (List<Clube>)ViewBag.CatalogoClubes;
     int? clubeDoGrupoId = ViewBag.ClubeDoGrupoId;
-    var nomeDoClubeDoGrupo = ViewBag.NomeDoClubeDoGrupo as string;
 
     var convidados = ViewBag.Convidados as HashSet<int> ?? new HashSet<int>();
     var confirmados = ViewBag.Confirmados as HashSet<int> ?? new HashSet<int>();
@@ -54,19 +53,24 @@
                         <input type="hidden" name="voltarParaSemana" value="@voltarParaSemana.Value.ToString("s")" />
                     }
 
-                    <div class="card border-0 shadow-sm mb-3">
+                    @* ⚠️ UMA DATA NA TELA, E ELA É SEMPRE A DO CAMPO.
+
+                       Até 20/08/2026 esta linha de resumo e o aviso amarelo eram desenhados pelo
+                       servidor a partir de `dataSugerida` e ficavam CONGELADOS ali. Quem fazia
+                       exatamente o que o aviso mandava — tocar em "Alterar" e corrigir a data —
+                       terminava com a tela se contradizendo: em cima "26 ago." e o aviso do jogo
+                       de 26/08, embaixo o campo já em 19/08. Duas datas ao mesmo tempo e nenhuma
+                       pista de qual seria gravada (relato de usuário, com print).
+
+                       Agora o campo `dataJogo` é a única fonte: o resumo é a versão FECHADA do
+                       painel (os dois nunca aparecem juntos) e o aviso se recalcula a cada
+                       mudança. Quem desenha os dois é o JS, a partir do campo — ver
+                       wwwroot/js/registrar-jogo-da-panelinha.js. Texto de data nenhum é
+                       escrito aqui, senão volta a existir uma segunda data pra discordar. *@
+                    <div class="card border-0 shadow-sm mb-3 d-none" id="pdzResumoDataLocal">
                         <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center gap-2">
-                            <span class="fw-bold">
-                                @dataSugerida.ToString("dd MMM")
-                                @if (!string.IsNullOrEmpty(nomeDoClubeDoGrupo))
-                                {
-                                    <span class="text-body-secondary fw-normal"> · @nomeDoClubeDoGrupo</span>
-                                }
-                            </span>
-                            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0"
-                                    onclick="document.getElementById('pdzOndeEQuando').classList.toggle('d-none')">
-                                Alterar
-                            </button>
+                            <span class="fw-bold"><span id="pdzResumoData"></span><span class="text-body-secondary fw-normal" id="pdzResumoLocal"></span></span>
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="pdzBtnAlterar">Alterar</button>
                         </div>
                     </div>
 
@@ -75,19 +79,15 @@
                        ainda não aconteceu — e a data errada joga a partida pra semana
                        seguinte no ranking, onde ela some sem erro nenhum. Aviso que só
                        aparece depois de clicar em "Alterar" não avisa ninguém. *@
-                    @if (dataSugerida.Date > DateTime.Today)
-                    {
-                        <div class="alert alert-warning py-2 px-3 small">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            Esse é o jogo marcado pra <strong>@dataSugerida.ToString("dd/MM")</strong>, que ainda não chegou.
-                            Se o placar é de um jogo que já aconteceu, toque em <strong>Alterar</strong> e corrija a data.
-                        </div>
-                    }
+                    <div class="alert alert-warning py-2 px-3 small d-none" id="pdzAvisoDataFutura">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span id="pdzAvisoDataFuturaTexto"></span>
+                    </div>
 
                     <div id="pdzOndeEQuando" class="card border-0 shadow-sm mb-3 d-none">
                         <div class="card-body">
-                            <label class="form-label fw-bold text-body-secondary small">Data do jogo</label>
-                            <input type="date" name="dataJogo" class="form-control mb-3" required value="@dataSugerida.ToString("yyyy-MM-dd")" />
+                            <label class="form-label fw-bold text-body-secondary small" for="pdzDataJogo">Data do jogo</label>
+                            <input type="date" name="dataJogo" id="pdzDataJogo" class="form-control mb-3" required value="@dataSugerida.ToString("yyyy-MM-dd")" />
 
                             <label class="form-label fw-bold text-body-secondary small">Onde jogaram</label>
                             <select name="clubeId" id="selectClube" class="form-select">
@@ -111,6 +111,12 @@
                             <div class="mt-2 d-flex gap-2">
                                 <input type="text" id="novoClubeCidade" maxlength="80" class="form-control form-control-sm" placeholder="Cidade do local (opcional)" />
                                 <input type="text" id="novoClubeEstado" maxlength="2" class="form-control form-control-sm text-uppercase" placeholder="UF" style="max-width: 80px;" />
+                            </div>
+
+                            @* Com o painel aberto o resumo some, e com ele o "Alterar" — sem esta
+                               saída a pessoa fica sem como fechar o que abriu. *@
+                            <div class="mt-3 text-end">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="pdzFecharOndeEQuando">Pronto</button>
                             </div>
                         </div>
                     </div>
@@ -234,5 +240,9 @@
                 maximo = Padelizou.Services.ConvidadoNoJogo.MaximoPorJogo,
                 rotulo = Padelizou.Services.ConvidadoNoJogo.Rotulo,
             })));
+
+        @* A data e o local se desenham a partir do CAMPO, não do servidor — ver o porquê no
+           topo da seção em registrar-jogo-da-panelinha.js. *@
+        pdzMontarDataDoJogo();
     </script>
 }

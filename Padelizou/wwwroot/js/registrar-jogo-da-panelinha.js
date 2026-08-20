@@ -226,3 +226,102 @@ function pdzMontarRegistroDeJogo(jogadores, convidado) {
 
     desenhar();
 }
+
+
+// ── A DATA DO JOGO: UMA SÓ NA TELA ──────────────────────────────────────────────────────
+//
+// 20/08/2026, print de usuário: "aqui está confuso, para registrar o jogo, lá em cima tem uma
+// data e abaixo outra". E estava mesmo. A linha de resumo ("26 ago. · Paladino") e o aviso
+// amarelo ("o jogo marcado pra 26/08, que ainda não chegou") saíam prontos do servidor e
+// NUNCA mais mudavam. Quem obedecia o aviso e corrigia a data no campo — pra 19/08, o dia em
+// que de fato jogou — ficava olhando pra três coisas: resumo em 26, aviso em 26, campo em 19.
+//
+// ⚠️ Não é só feio: a data é o que fatia o ranking DA SEMANA. Diante da contradição, a leitura
+// natural é "o de cima é o que vale" — e aí a pessoa desiste da correção e grava o jogo na
+// semana errada, que é exatamente o estrago que o aviso existe pra evitar.
+//
+// A regra agora é uma frase: O CAMPO É A DATA. O resumo é a cara FECHADA do painel (os dois
+// nunca dividem a tela) e o aviso é recalculado a cada mudança do campo. Nenhum texto de data
+// vem do servidor — se viesse, seria a segunda data, e a segunda é sempre a que fica pra trás.
+function pdzMontarDataDoJogo() {
+    var campo = document.getElementById('pdzDataJogo');
+    // Com menos de 4 pessoas a tela mostra só o recado e nenhum formulário — não há campo
+    // nenhum pra ler, e desenhar resumo de uma data que não existe é como quebrar aqui.
+    if (!campo) return;
+
+    var clubes = document.getElementById('selectClube');
+    var resumo = document.getElementById('pdzResumoDataLocal');
+    var resumoData = document.getElementById('pdzResumoData');
+    var resumoLocal = document.getElementById('pdzResumoLocal');
+    var painel = document.getElementById('pdzOndeEQuando');
+    var aviso = document.getElementById('pdzAvisoDataFutura');
+    var avisoTexto = document.getElementById('pdzAvisoDataFuturaTexto');
+
+    function doisDigitos(n) { return (n < 10 ? '0' : '') + n; }
+
+    // ⚠️ COMPARAÇÃO DE TEXTO 'aaaa-mm-dd', e hoje montado peça por peça no fuso do celular.
+    // `new Date('2026-08-26')` é lido como UTC: no Brasil vira 25 às 21h, e o "amanhã" da
+    // pessoa passaria por hoje — o aviso apareceria (ou sumiria) um dia fora do lugar.
+    function hoje() {
+        var d = new Date();
+        return d.getFullYear() + '-' + doisDigitos(d.getMonth() + 1) + '-' + doisDigitos(d.getDate());
+    }
+
+    function noFuturo() { return campo.value !== '' && campo.value > hoje(); }
+    function aberto() { return !painel.classList.contains('d-none'); }
+    function pedacos() { return campo.value.split('-'); }
+
+    function diaEMes() {
+        var p = pedacos();
+        return p[2] + '/' + p[1];
+    }
+
+    function porExtenso() {
+        var p = pedacos();
+        return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    }
+
+    function desenhar() {
+        var editando = aberto();
+
+        resumo.classList.toggle('d-none', editando || !campo.value);
+        if (!editando && campo.value) {
+            resumoData.textContent = porExtenso();
+            var op = clubes && clubes.selectedIndex >= 0 ? clubes.options[clubes.selectedIndex] : null;
+            resumoLocal.textContent = op && op.value ? ' \u00b7 ' + op.text : '';
+        }
+
+        aviso.classList.toggle('d-none', !noFuturo());
+        if (noFuturo()) {
+            // O jeito de corrigir muda com o estado: mandar "toque em Alterar" com o campo já
+            // aberto na frente da pessoa é mandá-la procurar um botão que não está mais lá.
+            avisoTexto.innerHTML = editando
+                ? 'A data escolhida, <strong>' + diaEMes() + '</strong>, ainda não chegou. '
+                  + 'Se o placar é de um jogo que já aconteceu, corrija a data abaixo.'
+                : 'Esse é o jogo marcado pra <strong>' + diaEMes() + '</strong>, que ainda não chegou. '
+                  + 'Se o placar é de um jogo que já aconteceu, toque em <strong>Alterar</strong> e corrija a data.';
+        }
+    }
+
+    document.getElementById('pdzBtnAlterar').onclick = function () {
+        painel.classList.remove('d-none');
+        desenhar();
+    };
+    document.getElementById('pdzFecharOndeEQuando').onclick = function () {
+        painel.classList.add('d-none');
+        desenhar();
+    };
+
+    // `change` é o que o seletor nativo do celular dispara ao confirmar; `input` cobre quem
+    // digita a data no teclado, pra o aviso não ficar um passo atrás do que está escrito.
+    campo.onchange = desenhar;
+    campo.oninput = desenhar;
+    if (clubes) clubes.onchange = desenhar;
+
+    // DATA SUGERIDA NO FUTURO É DATA QUE PEDE CORREÇÃO: o placar de um jogo que ainda não
+    // aconteceu não existe, então quem está aqui jogou noutro dia. Abrir o painel de saída põe
+    // o campo debaixo do aviso — a correção vira um toque em vez de dois — e tira o resumo da
+    // tela, que é o que fazia parecer haver duas datas concorrendo.
+    if (noFuturo()) painel.classList.remove('d-none');
+    desenhar();
+}
