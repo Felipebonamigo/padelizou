@@ -66,6 +66,9 @@ builder.Services.Configure<SiteSettings>(builder.Configuration.GetSection("Site"
 // Quem restringe é o dev, com `Entrega__SoPara__0=...` no systemd — ver Services/EntregaSettings
 // pro porquê de o padrão ser o envio e não o silêncio.
 builder.Services.Configure<EntregaSettings>(builder.Configuration.GetSection("Entrega"));
+// O irmão do de cima, na outra direção: quem pode ENTRAR neste ambiente. Também nasce sem
+// restrição — lista vazia = qualquer conta entra, que é a produção. Ver Services/EntradaSettings.
+builder.Services.Configure<EntradaSettings>(builder.Configuration.GetSection("Entrada"));
 builder.Services.Configure<VapidSettings>(builder.Configuration.GetSection("Vapid"));
 // Nasce DESLIGADO: sem impressão digital configurada o /.well-known/assetlinks.json responde
 // 404, que é a resposta honesta enquanto não existe app na Play Store (ver Services/AndroidSettings).
@@ -177,6 +180,7 @@ builder.Services.AddRateLimiter(options =>
 // vez no log — não a cada e-mail. Fica antes do EmailService de propósito: os três canais
 // dependem dele, e é ele que mantém o dev mudo pra quem não está ensaiando.
 builder.Services.AddSingleton<PorteiroDaSaida>();
+builder.Services.AddSingleton<PorteiroDaEntrada>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IGoogleCalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IEstatisticasService, EstatisticasService>();
@@ -368,6 +372,7 @@ var app = builder.Build();
 // apareceria nunca num ambiente que passou a semana sem gerar aviso. Um ambiente que engole
 // mensagem tem que dizer isso na PRIMEIRA tela do log, ao lado de quem sobe.
 app.Services.GetRequiredService<PorteiroDaSaida>();
+app.Services.GetRequiredService<PorteiroDaEntrada>();
 
 // Garante que o catálogo fixo de categorias existe no banco (idempotente, casa pelo Nome — é o
 // que decide se aparece duplicado pro usuário; Codigo é só um identificador interno, sem

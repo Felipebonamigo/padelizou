@@ -138,7 +138,7 @@ public class AcessoAntecipadoTests
         // Portão "virgem": ninguém mexeu no botão do painel, então vale o que a configuração
         // diz — que é o cenário de todos os testes deste arquivo. Ver Services/PortaoDeAcesso.
         await middleware.InvokeAsync(ctx, Options.Create(settings), TestInfra.NovoContexto(),
-            new PortaoDeAcesso());
+            new PortaoDeAcesso(), PorteiroDeTeste.Entrada());
 
         return (passou, ctx.Response.Headers.Location.ToString() is { Length: > 0 } d ? d : null);
     }

@@ -217,6 +217,6 @@ public class AvisoPorWhatsAppTests
             avisos ?? new FilaDeAvisos(NullLogger<FilaDeAvisos>.Instance),
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
-            PorteiroDeTeste.Com(),
+            PorteiroDeTeste.Saida(),
             NullLogger<PushNotificationService>.Instance);
 }
