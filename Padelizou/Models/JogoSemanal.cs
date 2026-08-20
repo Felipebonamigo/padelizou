@@ -15,10 +15,17 @@ public partial class JogoSemanal
     // e é este campo que permite ranking/estatística por clube.
     public int? ClubeId { get; set; }
 
-    public int Dupla1Jogador1Id { get; set; }
-    public int Dupla1Jogador2Id { get; set; }
-    public int Dupla2Jogador1Id { get; set; }
-    public int Dupla2Jogador2Id { get; set; }
+    // ⚠️ NULO = CONVIDADO SEM NOME (20/08/2026): tinha alguém nessa vaga e o sistema não sabe
+    // quem. Não é "vaga vazia" — um jogo de padel tem sempre quatro pessoas na quadra.
+    //
+    // Só DOIS lugares escrevem estas colunas: GruposController.RegistrarJogo (POST) e
+    // GruposController.EditarJogo (POST). Os dois traduzem o sentinela do formulário pra cá com
+    // Services/ConvidadoNoJogo — se nascer um terceiro escritor, este comentário deixou de valer.
+    // O teto de convidados por jogo mora lá, junto com o porquê de ele ser 2.
+    public int? Dupla1Jogador1Id { get; set; }
+    public int? Dupla1Jogador2Id { get; set; }
+    public int? Dupla2Jogador1Id { get; set; }
+    public int? Dupla2Jogador2Id { get; set; }
 
     // ⚠️ NULO = jogo registrado SEM placar, e isso é normal desde 18/08/2026: registrar um
     // jogo de panelinha passou a exigir só as duplas e quem venceu. Os dois andam juntos —
@@ -43,17 +50,22 @@ public partial class JogoSemanal
     [ForeignKey("ClubeId")]
     public virtual Clube? Clube { get; set; }
 
+    // ⚠️ AS QUATRO NAVEGAÇÕES SÃO OPCIONAIS junto com os ids, e isso não é só coerência de tipo:
+    // enquanto eram obrigatórias, todo `.Include()` delas virava INNER JOIN e o jogo com
+    // convidado SUMIRIA da lista inteira, sem erro nenhum. Opcional vira LEFT JOIN, que é o
+    // certo. Quem lê o nome usa Services/ConvidadoNoJogo.NomeNaTela — nunca `?.Nome ?? "..."`,
+    // que confundiria "é convidado" com "esqueci o Include".
     [ForeignKey("Dupla1Jogador1Id")]
-    public virtual Jogador Dupla1Jogador1 { get; set; } = null!;
+    public virtual Jogador? Dupla1Jogador1 { get; set; }
 
     [ForeignKey("Dupla1Jogador2Id")]
-    public virtual Jogador Dupla1Jogador2 { get; set; } = null!;
+    public virtual Jogador? Dupla1Jogador2 { get; set; }
 
     [ForeignKey("Dupla2Jogador1Id")]
-    public virtual Jogador Dupla2Jogador1 { get; set; } = null!;
+    public virtual Jogador? Dupla2Jogador1 { get; set; }
 
     [ForeignKey("Dupla2Jogador2Id")]
-    public virtual Jogador Dupla2Jogador2 { get; set; } = null!;
+    public virtual Jogador? Dupla2Jogador2 { get; set; }
 
     [ForeignKey("RegistradoPorId")]
     public virtual Jogador RegistradoPor { get; set; } = null!;

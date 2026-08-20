@@ -144,16 +144,25 @@
                         </div>
                     </div>
 
-                    @* "Jogou alguém de fora?" — o pedido era um "+ Outro jogador" aqui mesmo.
-                       ⚠️ Não dá pra escolher um estranho DIRETO nesta tela: o POST confere os
-                       quatro ids contra quem é do grupo ou foi convidado, e essa trava existe
-                       porque sem ela um formulário montado à mão injetaria qualquer pessoa no
-                       ranking da panelinha. O caminho certo é o convite, que cria o avulso —
-                       e aí ele aparece nos botões aqui, junto com os outros. *@
+                    @* AS DUAS PORTAS PRA QUEM É DE FORA — e elas NÃO são redundantes.
+
+                       O botão "+ Convidado" (desenhado pelo JS junto dos nomes, desde 20/08/2026)
+                       resolve A NOITE: o primo do Rafael tapou o buraco, não tem conta, e sem essa
+                       vaga o resultado da partida simplesmente não é lançado. Ele é anônimo — não
+                       pontua e não vira histórico de ninguém.
+
+                       O convite abaixo resolve A PESSOA: serve pra quem JÁ usa o Padelizou, e é só
+                       por ele que o jogo entra no perfil e no ranking de quem jogou.
+
+                       ⚠️ POR ISSO O AVISO AO LADO DO BOTÃO NÃO É ENFEITE: "+ Convidado" custa um
+                       toque e o convite custa dois minutos. Sem dizer no ponto do clique o que se
+                       perde, todo mundo aperta o botão — inclusive pra gente que TEM conta — e o
+                       histórico da panelinha vira uma fileira de anônimos. O texto mora no JS,
+                       junto do botão, porque é lá que ele é lido. *@
                     <div class="text-center mb-3">
                         <a asp-action="Convidar" asp-route-grupoId="@grupoId" asp-route-data="@dataSugerida.ToString("s")"
                            class="btn btn-sm btn-link text-body-secondary text-decoration-none">
-                            + Jogou alguém de fora? Convide pra este jogo
+                            + Jogou alguém de fora que já usa o Padelizou? Convide pra este jogo
                         </a>
                     </div>
 
@@ -211,12 +220,19 @@
     <script src="~/js/adicionar-local.js" asp-append-version="true"></script>
     <script src="~/js/registrar-jogo-da-panelinha.js" asp-append-version="true"></script>
     <script>
+        @* ⚠️ O SENTINELA E O TETO VÊM DO SERVIDOR, não escritos à mão no JS. São a MESMA régua
+           que os dois POSTs conferem (Services/ConvidadoNoJogo): um número digitado aqui seria a
+           segunda cópia, e a segunda cópia é sempre a que fica pra trás. *@
         pdzMontarRegistroDeJogo(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(
             ordenados.Select(m => new {
                 id = m.Id,
                 nome = Padelizou.Services.NomeBonito.Curto(m.Nome),
                 confirmado = confirmados.Contains(m.Id),
                 convidado = convidados.Contains(m.Id),
-            }))));
+            }))), @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                noFio = Padelizou.Services.ConvidadoNoJogo.NoFio,
+                maximo = Padelizou.Services.ConvidadoNoJogo.MaximoPorJogo,
+                rotulo = Padelizou.Services.ConvidadoNoJogo.Rotulo,
+            })));
     </script>
 }

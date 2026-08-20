@@ -43,8 +43,17 @@ public static class PontuacaoDaPanelinha
         return pontos;
     }
 
-    private static void Somar(Dictionary<int, int> dict, int id, int pts)
+    // ⚠️ NULO = CONVIDADO SEM NOME, E ELE NÃO PONTUA. É a mesma regra de 13/08/2026 que já valia
+    // pro avulso com conta (ver GruposController.ParticipantesParaResultadoAsync), levada ao
+    // limite lógico: sem identidade não há ranking possível. Os outros três recebem inteiro.
+    //
+    // ⚠️ NUNCA `?? 0` AQUI. Zero é um id válido de dicionário: os pontos de TODOS os convidados
+    // de TODAS as panelinhas cairiam na mesma chave 0. Não vazaria pro ranking (nenhum
+    // JogadorGrupo.JogadorId é 0), mas envenenaria qualquer leitura futura de `Totais` — e
+    // ninguém acharia a causa, porque a soma continua "batendo" com ela mesma.
+    private static void Somar(Dictionary<int, int> dict, int? id, int pts)
     {
-        dict[id] = dict.GetValueOrDefault(id) + pts;
+        if (id == null) return;
+        dict[id.Value] = dict.GetValueOrDefault(id.Value) + pts;
     }
 }

@@ -1,0 +1,18 @@
+@model Padelizou.ViewModels.NomeNoJogoDaPanelinha
+
+@* Um nome dentro de um jogo de panelinha. Partial e não quatro `@if` copiados na tabela: a
+   regra "convidado não tem link" ia nascer em quatro lugares, e a quarta cópia é sempre a que
+   fica pra trás.
+
+   ⚠️ QUEM DECIDE É O ID, não a navegação — ver o comentário do ViewModel. Sem `<a>` no
+   convidado porque `asp-route-id` vazio geraria um link pra /Jogadores/Perfil sem id, que dá
+   "não encontrado" na cara de quem clicar. *@
+@if (Model.Id is int jogadorId)
+{
+    <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogadorId"
+       class="text-decoration-none" style="color:inherit;">@Model.Texto</a>
+}
+else
+{
+    <span class="text-body-secondary">@Model.Texto</span>
+}

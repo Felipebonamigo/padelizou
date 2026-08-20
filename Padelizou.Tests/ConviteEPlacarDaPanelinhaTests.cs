@@ -362,10 +362,14 @@ public class ConviteEPlacarDaPanelinhaTests
         ctx.JogadoresGrupo.Remove(saiu);
         await ctx.SaveChangesAsync();
 
+        // ⚠️ `ParaOFio` porque o formulário fala em `int` e o banco em `int?` desde 20/08/2026 (a
+        // vaga do convidado sem nome — ver Services/ConvidadoNoJogo). Reenviar os ids do jogo é
+        // exatamente o que a tela faz ao corrigir só o placar, e é essa tradução que ela aplica.
         var controller = Controller(ctx, membros[0].Id);
         await controller.EditarJogo(
             jogo.Id, jogo.DataJogo,
-            jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id,
+            ConvidadoNoJogo.ParaOFio(jogo.Dupla1Jogador1Id), ConvidadoNoJogo.ParaOFio(jogo.Dupla1Jogador2Id),
+            ConvidadoNoJogo.ParaOFio(jogo.Dupla2Jogador1Id), ConvidadoNoJogo.ParaOFio(jogo.Dupla2Jogador2Id),
             1, 6, 2, clubeId: null);
 
         Assert.Equal(2, (await ctx.JogosSemanais.SingleAsync()).GamesDupla2);

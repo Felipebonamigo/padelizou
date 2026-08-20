@@ -325,12 +325,30 @@ namespace padelizou.Controllers
                 return RedirectToAction("RegistrarJogo", new { grupoId, data = dataJogo });
             }
 
+            // O SENTINELA DO FORMULÁRIO VIRA NULO AQUI, e só aqui. Ver Services/ConvidadoNoJogo:
+            // -1 é "convidado sem nome"; o ZERO que o binder produz pra campo faltando continua
+            // sendo zero, e continua caindo no porteiro logo abaixo.
+            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id }
+                .Select(ConvidadoNoJogo.DoFio)
+                .ToArray();
+
+            if (ConvidadoNoJogo.MotivoParaNaoSalvar(escolhidos[0], escolhidos[1], escolhidos[2], escolhidos[3]) is { } convidadosDemais)
+            {
+                TempData["Erro"] = convidadosDemais;
+                return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
+            }
+
             // A LISTA DA TELA NÃO É A TRAVA. Ela some de vista, o POST não: sem conferir aqui,
             // um id qualquer entraria no placar do grupo — e no recálculo do ranking — por um
             // formulário montado à mão.
+            //
+            // ⚠️ Nulo não se confere contra lista nenhuma — é a vaga de quem o sistema não
+            // conhece, e conferir "o convidado é do grupo?" não quer dizer nada. Quem TEM id
+            // continua tendo que ser membro ou convidado, e o zero do binder continua sendo
+            // recusado aqui: é o que separa "veio um convidado" de "o formulário chegou pela
+            // metade".
             var podemJogar = (await ParticipantesParaResultadoAsync(grupoId)).Select(j => j.Id).ToHashSet();
-            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id };
-            if (escolhidos.Any(j => !podemJogar.Contains(j)))
+            if (escolhidos.Any(id => id != null && !podemJogar.Contains(id.Value)))
             {
                 TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
                 // A recusa devolve o formulário no MESMO contexto — voltar pro "hoje" faria a
@@ -348,10 +366,13 @@ namespace padelizou.Controllers
                 GrupoId = grupoId,
                 DataJogo = dataJogo,
                 ClubeId = clubeId,
-                Dupla1Jogador1Id = dupla1Jogador1Id,
-                Dupla1Jogador2Id = dupla1Jogador2Id,
-                Dupla2Jogador1Id = dupla2Jogador1Id,
-                Dupla2Jogador2Id = dupla2Jogador2Id,
+                // ⚠️ `escolhidos`, NÃO os parâmetros crus: estes ainda valem -1 pro convidado, e
+                // `int` cabe em `int?` por conversão implícita — o compilador não avisaria nada
+                // e o banco receberia -1, que viola a FK. Fail-closed, mas caro de descobrir.
+                Dupla1Jogador1Id = escolhidos[0],
+                Dupla1Jogador2Id = escolhidos[1],
+                Dupla2Jogador1Id = escolhidos[2],
+                Dupla2Jogador2Id = escolhidos[3],
                 RegistradoPorId = userId
             };
             ResultadoDoJogoSemanal.Aplicar(jogo, vencedorLado, gamesDupla1, gamesDupla2);
@@ -389,8 +410,18 @@ namespace padelizou.Controllers
             // ⚠️ QUEM JOGOU MAS NÃO É MAIS MEMBRO PRECISA ESTAR NA LISTA. Sem isso o <select>
             // abre sem a opção da pessoa, o navegador seleciona o primeiro nome da lista e
             // salvar a correção de UM PLACAR trocaria calado quem jogou a partida.
+            //
+            // ⚠️ A VAGA DO CONVIDADO (nulo) SAI ANTES DA CONTA. Sem o `id != null`, o nulo entra
+            // em `faltantes` e a consulta vira `WHERE Id IN (…, NULL)` — que no Postgres não casa
+            // nada e não dá erro: some calada, e ninguém descobre pelo teste (o InMemory nem faz
+            // SQL). Convidado não tem linha em Jogador pra buscar; é essa a questão.
             var idsNoJogo = new[] { jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id };
-            var faltantes = idsNoJogo.Where(id => membros.All(m => m.Id != id)).Distinct().ToList();
+            var faltantes = idsNoJogo
+                .Where(id => id != null)
+                .Select(id => id!.Value)
+                .Where(id => membros.All(m => m.Id != id))
+                .Distinct()
+                .ToList();
             if (faltantes.Count > 0)
             {
                 membros.AddRange(await _context.Jogadores.Where(j => faltantes.Contains(j.Id)).ToListAsync());
@@ -429,16 +460,30 @@ namespace padelizou.Controllers
                 return RedirectToAction("EditarJogo", new { id });
             }
 
+            // ⚠️ O TETO DE CONVIDADOS É CONFERIDO AQUI TAMBÉM, e não por simetria decorativa:
+            // esta é a SEGUNDA cópia da régua. Ensinar só o registrar faria o Corrigir recusar
+            // exatamente o jogo que o Registrar acabou de aceitar. O número mora num lugar só —
+            // Services/ConvidadoNoJogo.
+            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id }
+                .Select(ConvidadoNoJogo.DoFio)
+                .ToArray();
+
+            if (ConvidadoNoJogo.MotivoParaNaoSalvar(escolhidos[0], escolhidos[1], escolhidos[2], escolhidos[3]) is { } convidadosDemais)
+            {
+                TempData["Erro"] = convidadosDemais;
+                return RedirectToAction("EditarJogo", new { id });
+            }
+
             // Mesma conferência do registro — mais quem JÁ ESTAVA no jogo. Sem essa segunda
             // parte, corrigir só o placar de uma partida antiga seria recusado porque um dos
             // quatro saiu da panelinha desde então.
             var podemJogar = (await ParticipantesParaResultadoAsync(jogo.GrupoId)).Select(j => j.Id).ToHashSet();
             foreach (var jaEstava in new[] { jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador2Id, jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador2Id })
             {
-                podemJogar.Add(jaEstava);
+                // A vaga do convidado não vira item de lista: não há id pra liberar.
+                if (jaEstava != null) podemJogar.Add(jaEstava.Value);
             }
-            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id };
-            if (escolhidos.Any(j => !podemJogar.Contains(j)))
+            if (escolhidos.Any(id => id != null && !podemJogar.Contains(id.Value)))
             {
                 TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
                 return RedirectToAction("EditarJogo", new { id });
@@ -449,10 +494,11 @@ namespace padelizou.Controllers
             // ficaria com o fantasma que este método existe pra evitar.
             jogo.DataJogo = dataJogo;
             jogo.ClubeId = clubeId;
-            jogo.Dupla1Jogador1Id = dupla1Jogador1Id;
-            jogo.Dupla1Jogador2Id = dupla1Jogador2Id;
-            jogo.Dupla2Jogador1Id = dupla2Jogador1Id;
-            jogo.Dupla2Jogador2Id = dupla2Jogador2Id;
+            // `escolhidos`, e não os parâmetros crus — ver o mesmo cuidado no POST do registrar.
+            jogo.Dupla1Jogador1Id = escolhidos[0];
+            jogo.Dupla1Jogador2Id = escolhidos[1];
+            jogo.Dupla2Jogador1Id = escolhidos[2];
+            jogo.Dupla2Jogador2Id = escolhidos[3];
             ResultadoDoJogoSemanal.Aplicar(jogo, vencedorLado, gamesDupla1, gamesDupla2);
             await _context.SaveChangesAsync();
 
@@ -653,12 +699,21 @@ namespace padelizou.Controllers
             var vezesJuntos = new Dictionary<(int, int), int>();
             foreach (var j in jogos)
             {
-                foreach (var par in new[]
+                foreach (var (a, b) in new[]
                 {
-                    SorteioDeDuplas.Chave(j.Dupla1Jogador1Id, j.Dupla1Jogador2Id),
-                    SorteioDeDuplas.Chave(j.Dupla2Jogador1Id, j.Dupla2Jogador2Id),
+                    (j.Dupla1Jogador1Id, j.Dupla1Jogador2Id),
+                    (j.Dupla2Jogador1Id, j.Dupla2Jogador2Id),
                 })
                 {
+                    // ⚠️ DUPLA COM CONVIDADO NÃO ENTRA NO HISTÓRICO DE PARCERIAS — descartar, e
+                    // NUNCA `?? 0`. Com zero, todo par com convidado viraria (0, Fulano) e dois
+                    // convidados virariam o par (0, 0): o motor de "não repetir dupla" passaria a
+                    // fugir de parcerias que nunca existiram, uma vez por convidado dentro da
+                    // janela de 8 semanas. E o efeito é INVISÍVEL — isto é um sorteio, ninguém
+                    // consegue provar na tela que ele saiu errado.
+                    if (a == null || b == null) continue;
+
+                    var par = SorteioDeDuplas.Chave(a.Value, b.Value);
                     vezesJuntos[par] = vezesJuntos.GetValueOrDefault(par) + 1;
                 }
             }
@@ -931,6 +986,12 @@ namespace padelizou.Controllers
         // `RecalcularPontuacaoAsync` escreve em `JogadorGrupo`, que só existe pra membro. Os
         // pontos DELE se perdem; os dos outros três saem certos. Convidado é quem tapa buraco
         // numa noite — subir no ranking interno por isso passaria na frente de mensalista.
+        //
+        // ⚠️ DESDE 20/08/2026 EXISTEM DOIS SENTIDOS DE "CONVIDADO" NESTA TELA, e confundi-los é
+        // fácil: (1) o AVULSO COM CONTA, que é o desta lista — `ConfirmacaoSessao.Avulso`,
+        // aparece nos botões, é rastreável, tem perfil; e (2) a VAGA SEM NOME, que é NULO no
+        // JogoSemanal e não aparece em lista nenhuma, porque não é ninguém. Este método responde
+        // só pelo primeiro. O segundo mora em Services/ConvidadoNoJogo e não passa por aqui.
         private async Task<List<Jogador>> ParticipantesParaResultadoAsync(int grupoId)
         {
             var membros = await _context.JogadoresGrupo
@@ -993,6 +1054,12 @@ namespace padelizou.Controllers
         //
         // O administrador do sistema entra como chave-mestra, igual ao resto do app
         // (`PodeEditarTudo` vira a credencial `IsAdmin`; ver Services/PoderesNoSistema).
+        //
+        // ⚠️ NÃO MUDA COM O CONVIDADO SEM NOME (20/08/2026), e não é esquecimento: `int? == int`
+        // dá `false` no nulo, que é o certo — convidado não tem conta pra ser `userId`. E o jogo
+        // nunca fica órfão de quem pode corrigi-lo: o teto de 2 convidados
+        // (Services/ConvidadoNoJogo) garante SEMPRE dois identificados na quadra, mais quem
+        // registrou (`RegistradoPorId` continua obrigatório e é sempre membro) e o administrador.
         private bool PodeMexerNoJogo(GrupoPrivado grupo, JogoSemanal jogo, int userId) =>
             grupo.AdministradorId == userId
             || jogo.RegistradoPorId == userId

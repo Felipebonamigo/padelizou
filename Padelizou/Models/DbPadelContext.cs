@@ -1525,6 +1525,10 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(e => e.ClubeId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // ⚠️ RESTRICT CONTINUA, mesmo com as quatro FKs anuláveis desde 20/08/2026 (a vaga
+            // do convidado sem nome). NÃO trocar por SetNull "já que agora dá": apagar um
+            // Jogador viraria em "Convidado" todos os jogos dele, retroativamente — reescrever o
+            // passado em silêncio. Quem sai da base é anonimizado, não deletado (ExclusaoDeConta).
             entity.HasOne(e => e.Dupla1Jogador1).WithMany().HasForeignKey(e => e.Dupla1Jogador1Id).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Dupla1Jogador2).WithMany().HasForeignKey(e => e.Dupla1Jogador2Id).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Dupla2Jogador1).WithMany().HasForeignKey(e => e.Dupla2Jogador1Id).OnDelete(DeleteBehavior.Restrict);

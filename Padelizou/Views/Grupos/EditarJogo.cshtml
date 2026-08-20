@@ -9,6 +9,19 @@
     // quem corrige um placar antigo não entende por que há um nome ali que não é do grupo.
     var convidados = ViewBag.Convidados as HashSet<int> ?? new HashSet<int>();
     Func<Jogador, string> rotulo = j => convidados.Contains(j.Id) ? $"{j.Nome} (convidado)" : j.Nome;
+
+    // ⚠️ ESTE É O OUTRO "CONVIDADO" — a VAGA SEM NOME (id nulo), não o avulso com conta do
+    // `rotulo` acima. Ver Services/ConvidadoNoJogo. Ela precisa existir como <option> nos quatro
+    // selects: sem ela, um id nulo não casa com opção nenhuma, o navegador seleciona o PRIMEIRO
+    // NOME DA LISTA, e quem abriu "Corrigir" só pra arrumar um 6x4 salva um jogador que não jogou
+    // — calado. É exatamente o bug que o comentário de GruposController.EditarJogo (GET) diz ter
+    // consertado pra quem saiu do grupo, ressuscitado por outra porta.
+    //
+    // ⚠️ E O VALUE É -1, NUNCA "". Com "" o `required` do navegador trataria a opção como "não
+    // escolhi" e BLOQUEARIA o submit: um jogo com convidado nunca mais poderia ser corrigido, por
+    // uma falha 100% no navegador que teste nenhum enxerga.
+    var vagaDeConvidado = Padelizou.Services.ConvidadoNoJogo.NoFio;
+    var rotuloDoConvidado = Padelizou.Services.ConvidadoNoJogo.Rotulo;
 }
 
 <div class="container mt-5">
@@ -65,6 +78,7 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-muted small">Dupla 1 - Jogador 1</label>
                                 <select name="dupla1Jogador1Id" class="form-select bg-light" required>
+                                    <option value="@vagaDeConvidado" selected="@(Model.Dupla1Jogador1Id == null)">@rotuloDoConvidado</option>
                                     @foreach (var m in membros)
                                     {
                                         <option value="@m.Id" selected="@(Model.Dupla1Jogador1Id == m.Id)">@rotulo(m)</option>
@@ -74,6 +88,7 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-muted small">Dupla 1 - Jogador 2</label>
                                 <select name="dupla1Jogador2Id" class="form-select bg-light" required>
+                                    <option value="@vagaDeConvidado" selected="@(Model.Dupla1Jogador2Id == null)">@rotuloDoConvidado</option>
                                     @foreach (var m in membros)
                                     {
                                         <option value="@m.Id" selected="@(Model.Dupla1Jogador2Id == m.Id)">@rotulo(m)</option>
@@ -86,6 +101,7 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-muted small">Dupla 2 - Jogador 1</label>
                                 <select name="dupla2Jogador1Id" class="form-select bg-light" required>
+                                    <option value="@vagaDeConvidado" selected="@(Model.Dupla2Jogador1Id == null)">@rotuloDoConvidado</option>
                                     @foreach (var m in membros)
                                     {
                                         <option value="@m.Id" selected="@(Model.Dupla2Jogador1Id == m.Id)">@rotulo(m)</option>
@@ -95,6 +111,7 @@
                             <div class="col-6">
                                 <label class="form-label fw-bold text-muted small">Dupla 2 - Jogador 2</label>
                                 <select name="dupla2Jogador2Id" class="form-select bg-light" required>
+                                    <option value="@vagaDeConvidado" selected="@(Model.Dupla2Jogador2Id == null)">@rotuloDoConvidado</option>
                                     @foreach (var m in membros)
                                     {
                                         <option value="@m.Id" selected="@(Model.Dupla2Jogador2Id == m.Id)">@rotulo(m)</option>

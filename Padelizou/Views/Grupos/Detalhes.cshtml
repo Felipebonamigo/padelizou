@@ -245,9 +245,13 @@
                         <tr>
                             <td>@jogo.DataJogo.ToString("dd/MM/yyyy")</td>
                             <td class="text-muted small">@(jogo.Clube?.Nome ?? "—")</td>
+                            @* A vaga do convidado sem nome (id nulo) aparece como "Convidado",
+                               sem link — ver Views/Shared/_NomeNoJogoDaPanelinha. Esta é a única
+                               tela onde o jogo fica pra sempre, então é aqui que a diferença
+                               entre "gente" e "vaga" precisa estar visível. *@
                             <td class="@(jogo.VencedorLado == 1 ? "fw-bold text-success" : "")">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla1Jogador1.ComoChamar</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla1Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla1Jogador2.ComoChamar</a>
+                                <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador1Id, jogo.Dupla1Jogador1))' /> /
+                                <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla1Jogador2Id, jogo.Dupla1Jogador2))' />
                             </td>
                             @* Placar virou opcional (18/08/2026): jogo lançado só com o
                                vencedor mostra um traço, e NÃO "0 x 0" — que leria como um
@@ -256,8 +260,8 @@
                                 @(Padelizou.Services.ResultadoDoJogoSemanal.Placar(jogo) ?? "—")
                             </td>
                             <td class="@(jogo.VencedorLado == 2 ? "fw-bold text-success" : "")">
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador1Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador1.ComoChamar</a> /
-                                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@jogo.Dupla2Jogador2Id" class="text-decoration-none" style="color:inherit;">@jogo.Dupla2Jogador2.ComoChamar</a>
+                                <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla2Jogador1Id, jogo.Dupla2Jogador1))' /> /
+                                <partial name="_NomeNoJogoDaPanelinha" model='@(new Padelizou.ViewModels.NomeNoJogoDaPanelinha(jogo.Dupla2Jogador2Id, jogo.Dupla2Jogador2))' />
                             </td>
                             @* Quem pode corrigir vem PRONTO do controller (`PodeMexerNoJogo`), pra
                                não existir uma segunda cópia da regra aqui dentro.
