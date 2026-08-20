@@ -239,6 +239,11 @@ a:hover { color: var(--pdz-lime-600); }
    aqui ele vira branco. Vale SÓ pra quem se declarou monocromático — inverter logo colorido
    destruiria a cor da marca. */
 [data-bs-theme="dark"] .pdz-patrocinio img.pdz-logo-escuro { filter: invert(1); }
+/* Patrocinador com arte própria pra fundo escuro (Patrocinador.ImagemEscura): os dois <img>
+   estão no HTML e cada tema mostra o seu — é troca de ARQUIVO, não de filtro, porque logo
+   colorido tem versão branca oficial e é ela que a marca quer ver. */
+[data-bs-theme="dark"] .pdz-patrocinio img.pdz-so-no-claro { display: none; }
+:root:not([data-bs-theme="dark"]) .pdz-patrocinio img.pdz-so-no-escuro { display: none; }
 
 /* =========================================================
    NAVBAR

@@ -17,16 +17,24 @@ public class PatrocinadoresDoSiteTests
     }
 
     [Fact]
-    public void Ambiente_de_teste_sem_configuracao_mostra_o_patrocinador_em_avaliacao()
+    public void Ambiente_de_teste_sem_configuracao_mostra_os_patrocinadores_em_avaliacao()
     {
         var settings = new PatrocinadoresSettings();
 
         var exibidos = settings.ParaExibir(ambienteDeTeste: true);
 
-        var paralelo = Assert.Single(exibidos);
-        Assert.Equal("Paralelo", paralelo.Nome);
-        // Logo preto puro: sem o flag, ele some no tema escuro (ver .pdz-logo-escuro).
+        Assert.Equal(new[] { "Paralelo", "Grand Padel" }, exibidos.Select(p => p.Nome));
+
+        // Cada um resolve o tema escuro do seu jeito, e são jeitos diferentes DE PROPÓSITO:
+        // o Paralelo é preto puro e pode ser invertido; o Grand Padel é colorido e tem arte
+        // branca própria — inverter azul viraria laranja, que não é a marca de ninguém.
+        var paralelo = exibidos[0];
         Assert.True(paralelo.LogoEscuro);
+        Assert.Empty(paralelo.ImagemEscura);
+
+        var grandPadel = exibidos[1];
+        Assert.False(grandPadel.LogoEscuro);
+        Assert.NotEmpty(grandPadel.ImagemEscura);
     }
 
     [Fact]

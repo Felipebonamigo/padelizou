@@ -508,6 +508,21 @@
             }
             @if (patrocinadores.Count > 0)
             {
+                @* Cada patrocinador pode ter versão própria pro tema escuro (ImagemEscura):
+                   os dois <img> saem juntos e o CSS mostra um por tema (.pdz-so-no-claro /
+                   .pdz-so-no-escuro). Logo preto sem versão escura é invertido pelo
+                   .pdz-logo-escuro — ver Services/PatrocinadoresSettings. *@
+                void LogoDoPatrocinador(Padelizou.Services.Patrocinador p)
+                {
+                    var temVersaoEscura = !string.IsNullOrWhiteSpace(p.ImagemEscura);
+                    <img src="@p.Imagem" alt="@p.Nome" title="@p.Nome" loading="lazy"
+                         class="@(temVersaoEscura ? "pdz-so-no-claro" : p.LogoEscuro ? "pdz-logo-escuro" : "")" />
+                    if (temVersaoEscura)
+                    {
+                        <img src="@p.ImagemEscura" alt="@p.Nome" title="@p.Nome" loading="lazy"
+                             class="pdz-so-no-escuro" />
+                    }
+                }
                 <div class="pdz-patrocinio">
                     <span class="pdz-patrocinio-rotulo">Patrocínio</span>
                     @foreach (var patrocinador in patrocinadores)
@@ -518,14 +533,12 @@
                         @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
                         {
                             <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener" title="@patrocinador.Nome">
-                                <img src="@patrocinador.Imagem" alt="@patrocinador.Nome"
-                                     class="@(patrocinador.LogoEscuro ? "pdz-logo-escuro" : "")" loading="lazy" />
+                                @{ LogoDoPatrocinador(patrocinador); }
                             </a>
                         }
                         else
                         {
-                            <img src="@patrocinador.Imagem" alt="@patrocinador.Nome" title="@patrocinador.Nome"
-                                 class="@(patrocinador.LogoEscuro ? "pdz-logo-escuro" : "")" loading="lazy" />
+                            LogoDoPatrocinador(patrocinador);
                         }
                     }
                 </div>

@@ -43,7 +43,13 @@ public class PatrocinadoresSettings
                 Nome = "Paralelo",
                 Imagem = "/image/patrocinadores/paralelo.webp",
                 LogoEscuro = true,
-            }
+            },
+            new Patrocinador
+            {
+                Nome = "Grand Padel",
+                Imagem = "/image/patrocinadores/grand-padel.webp",
+                ImagemEscura = "/image/patrocinadores/grand-padel-branco.webp",
+            },
         };
     }
 }
@@ -66,4 +72,10 @@ public class Patrocinador
     // site.css). Logo COLORIDO fica false — inverter cor de marca alheia é pior que o
     // contraste imperfeito.
     public bool LogoEscuro { get; set; }
+
+    // Versão do logo pra FUNDO ESCURO (caso do Grand Padel, azul com arte branca própria):
+    // no tema escuro entra esta imagem no lugar da de cima. É o caminho certo pra logo
+    // colorido — quem tem versão branca oficial não precisa (nem pode) ser invertido.
+    // Preenchida, ela ganha do LogoEscuro. Vazia = a mesma imagem serve nos dois temas.
+    public string ImagemEscura { get; set; } = "";
 }
