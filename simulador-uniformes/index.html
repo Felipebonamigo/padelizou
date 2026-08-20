@@ -307,22 +307,23 @@
   var WHATSAPP_NUMERO = '';
 
   /* ============================================================
-     GEOMETRIA — todos os traçados da camisa, desenhados uma vez.
-     Frente e costas usam o MESMO corpo; muda a gola e o que vai
-     escrito. Assim um ajuste no desenho vale pras duas vistas.
+     GEOMETRIA — silhueta natural: ombros caídos, mangas pra
+     baixo, caimento na barra. Frente e costas usam o MESMO corpo.
      ============================================================ */
-  var CORPO = 'M150,74 C178,60 262,60 290,74 L322,96 C316,124 310,150 308,178 ' +
-              'C304,270 306,370 312,442 C282,458 158,458 128,442 ' +
-              'C134,370 136,270 132,178 C130,150 124,124 118,96 Z';
-  var MANGA_E = 'M118,96 C100,106 80,120 62,140 C52,158 44,176 40,194 L116,236 ' +
-                'C124,216 128,198 132,178 C130,150 124,124 118,96 Z';
-  var MANGA_D = 'M322,96 C340,106 360,120 378,140 C388,158 396,176 400,194 L324,236 ' +
-                'C316,216 312,198 308,178 C310,150 316,124 322,96 Z';
-  var PUNHO_E = 'M46,175 L122,217 L116,236 L40,194 Z';
-  var PUNHO_D = 'M394,175 L318,217 L324,236 L400,194 Z';
-  var GOLA_CARECA = 'M156,72 C190,58 250,58 284,72 C262,94 178,94 156,72 Z';
-  var GOLA_V = 'M156,72 C190,58 250,58 284,72 L233,96 L220,128 L207,96 Z';
-  var GOLA_COSTAS = 'M156,72 C190,58 250,58 284,72 C258,82 182,82 156,72 Z';
+  var CORPO = 'M152,84 C176,72 264,72 288,84 L312,102 ' +
+              'C310,130 306,158 302,186 C298,220 296,260 296,310 ' +
+              'C296,360 298,410 300,436 C288,450 268,456 220,456 ' +
+              'C172,456 152,450 140,436 C142,410 144,360 144,310 ' +
+              'C144,260 142,220 138,186 C134,158 130,130 128,102 Z';
+  var MANGA_E = 'M128,102 C112,112 96,128 84,148 C74,166 68,186 66,204 L118,232 ' +
+                'C128,218 134,204 138,186 C134,158 130,130 128,102 Z';
+  var MANGA_D = 'M312,102 C328,112 344,128 356,148 C366,166 372,186 374,204 L322,232 ' +
+                'C312,218 306,204 302,186 C306,158 310,130 312,102 Z';
+  var PUNHO_E = 'M68,190 L120,218 L118,232 L66,204 Z';
+  var PUNHO_D = 'M372,190 L320,218 L322,232 L374,204 Z';
+  var GOLA_CARECA = 'M156,80 C188,66 252,66 284,80 C260,98 180,98 156,80 Z';
+  var GOLA_V = 'M156,80 C188,66 252,66 284,80 L234,100 L220,132 L206,100 Z';
+  var GOLA_COSTAS = 'M156,80 C188,66 252,66 284,80 C256,90 184,90 156,80 Z';
 
   var MODELOS = [
     { id: 'classico', nome: 'Clássico' },
@@ -348,7 +349,7 @@
     { nome: 'Grená',    c: { corpo: '#801434', detalhe: '#0f2b5b', mangas: '#0f2b5b', gola: '#e8c15a', numero: '#ffffff' } }
   ];
 
-  var LARGURA_NOME = 176; // largura útil do tronco na altura do nome (unidades do viewBox)
+  var LARGURA_NOME = 150; // largura útil do tronco na altura do nome (unidades do viewBox)
 
   var estado = {
     modelo: 'faixa',
@@ -363,8 +364,10 @@
   var seq = 0;
 
   /* ============================================================
-     A CAMISA EM SVG — uma função gera qualquer vista (frente,
-     costas ou miniatura), sempre com a mesma geometria.
+     A CAMISA EM SVG — a cor de cada região é chapada, e o que dá
+     cara de tecido é a CAMADA DE SOMBREADO por cima: luz, dobras,
+     costuras e textura em cinza, multiplicadas sobre qualquer cor
+     (a mesma técnica dos simuladores com foto, sem a foto).
      ============================================================ */
   function svgUniforme(vista, thumbModelo) {
     var id = 'u' + (++seq);
@@ -376,7 +379,42 @@
             'xmlns="http://www.w3.org/2000/svg" ' +
             (ehThumb ? 'aria-hidden="true" role="presentation"'
                      : 'role="img" aria-label="Camisa, vista ' + vista + '"') + '>';
-    s += '<defs><clipPath id="' + id + '-clip"><path d="' + CORPO + '"/></clipPath></defs>';
+
+    s += '<defs>' +
+      '<clipPath id="' + id + '-cb"><path d="' + CORPO + '"/></clipPath>' +
+      '<clipPath id="' + id + '-tudo"><path d="' + CORPO + '"/><path d="' + MANGA_E + '"/><path d="' + MANGA_D + '"/></clipPath>' +
+      // luz geral: mais clara em cima, sombra crescendo pra barra
+      '<linearGradient id="' + id + '-gv" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f4f4f4"/>' +
+        '<stop offset="1" stop-color="#dedede"/></linearGradient>' +
+      // laterais do tronco escurecem: o cilindro do corpo
+      '<linearGradient id="' + id + '-gl" x1="0" y1="0" x2="1" y2="0">' +
+        '<stop offset="0" stop-color="#ababab"/><stop offset=".16" stop-color="#eeeeee"/>' +
+        '<stop offset=".45" stop-color="#ffffff"/><stop offset=".8" stop-color="#e6e6e6"/>' +
+        '<stop offset="1" stop-color="#bdbdbd"/></linearGradient>' +
+      // cada manga é um cilindro com a luz vindo da esquerda
+      '<linearGradient id="' + id + '-me" gradientUnits="userSpaceOnUse" x1="64" y1="140" x2="146" y2="176">' +
+        '<stop offset="0" stop-color="#a8a8a8"/><stop offset=".4" stop-color="#f0f0f0"/>' +
+        '<stop offset=".75" stop-color="#ffffff"/><stop offset="1" stop-color="#cfcfcf"/></linearGradient>' +
+      '<linearGradient id="' + id + '-md" gradientUnits="userSpaceOnUse" x1="376" y1="140" x2="294" y2="176">' +
+        '<stop offset="0" stop-color="#9e9e9e"/><stop offset=".4" stop-color="#e8e8e8"/>' +
+        '<stop offset=".75" stop-color="#fbfbfb"/><stop offset="1" stop-color="#cccccc"/></linearGradient>' +
+      '<radialGradient id="' + id + '-ax"><stop offset="0" stop-color="#000000" stop-opacity=".30"/>' +
+        '<stop offset="1" stop-color="#000000" stop-opacity="0"/></radialGradient>' +
+      '<radialGradient id="' + id + '-peito" cx=".5" cy=".3" r=".6">' +
+        '<stop offset="0" stop-color="#ffffff" stop-opacity=".5"/>' +
+        '<stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>' +
+      '<filter id="' + id + '-b4" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>' +
+      '<filter id="' + id + '-b8" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8"/></filter>' +
+      // grão de tecido: ruído fino, quase imperceptível — mas faz falta
+      '<filter id="' + id + '-tex" x="0%" y="0%" width="100%" height="100%">' +
+        '<feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" result="n"/>' +
+        '<feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0.3 0.3 0 0" result="a"/>' +
+        '<feComposite in="a" in2="SourceGraphic" operator="in"/></filter>' +
+      '</defs>';
+
+    // sombra de chão: a peça flutua como num estúdio de produto
+    s += '<ellipse cx="220" cy="468" rx="138" ry="11" fill="#0c1118" opacity=".14" filter="url(#' + id + '-b8)"/>';
 
     // mangas e punhos (atrás do corpo)
     s += '<path data-reg="mangas" d="' + MANGA_E + '"/>';
@@ -388,23 +426,20 @@
     s += '<path data-reg="corpo" d="' + CORPO + '"/>';
 
     // desenhos de cada modelo, recortados pelo corpo
-    s += '<g clip-path="url(#' + id + '-clip)">';
+    s += '<g clip-path="url(#' + id + '-cb)">';
     s += '<g class="ov ov-classico">' +
-         '<rect data-reg="detalhe" x="124" y="50" width="16" height="420"/>' +
-         '<rect data-reg="detalhe" x="300" y="50" width="16" height="420"/>' +
+         '<rect data-reg="detalhe" x="138" y="60" width="14" height="410"/>' +
+         '<rect data-reg="detalhe" x="288" y="60" width="14" height="410"/>' +
          '</g>';
     s += '<g class="ov ov-faixa">' +
-         (ehFrente || ehThumb ? '<path data-reg="detalhe" d="M96,118 L344,238 L344,302 L96,182 Z"/>' : '') +
+         (ehFrente || ehThumb ? '<path data-reg="detalhe" d="M92,124 L348,244 L348,308 L92,188 Z"/>' : '') +
          '</g>';
     s += '<g class="ov ov-listras">';
-    [108, 156, 204, 252, 300].forEach(function (x) {
-      s += '<rect data-reg="detalhe" x="' + x + '" y="50" width="32" height="420"/>';
+    [110, 156, 202, 248, 294].forEach(function (x) {
+      s += '<rect data-reg="detalhe" x="' + x + '" y="60" width="30" height="410"/>';
     });
     s += '</g>';
-    s += '<g class="ov ov-central"><rect data-reg="detalhe" x="186" y="50" width="68" height="420"/></g>';
-    // sombra e luz — o toque que tira a cara de "desenho chapado"
-    s += '<rect x="124" y="50" width="22" height="420" fill="#000" opacity=".05"/>';
-    s += '<rect x="296" y="50" width="20" height="420" fill="#fff" opacity=".08"/>';
+    s += '<g class="ov ov-central"><rect data-reg="detalhe" x="184" y="60" width="72" height="410"/></g>';
     s += '</g>';
 
     // gola
@@ -415,24 +450,66 @@
       s += '<path data-reg="gola" d="' + GOLA_COSTAS + '"/>';
     }
 
+    /* -------- SOMBREADO: transforma o chapado em tecido -------- */
+    s += '<g clip-path="url(#' + id + '-tudo)" style="mix-blend-mode:multiply">';
+    s += '<rect x="20" y="30" width="400" height="450" fill="url(#' + id + '-gv)"/>';
+    s += '<path d="' + CORPO + '" fill="url(#' + id + '-gl)"/>';
+    s += '<path d="' + MANGA_E + '" fill="url(#' + id + '-me)"/>';
+    s += '<path d="' + MANGA_D + '" fill="url(#' + id + '-md)"/>';
+    // axilas
+    s += '<ellipse cx="146" cy="198" rx="28" ry="18" fill="url(#' + id + '-ax)"/>';
+    s += '<ellipse cx="294" cy="198" rx="28" ry="18" fill="url(#' + id + '-ax)"/>';
+    // sombra sob a gola
+    s += '<path d="M158,86 C190,72 250,72 282,86 C256,100 184,100 158,86 Z" fill="#000000" opacity=".22" filter="url(#' + id + '-b4)"/>';
+    // rugas suaves do caimento
+    s += '<g fill="none" stroke="#8f8f8f" stroke-linecap="round" opacity=".30" filter="url(#' + id + '-b4)">' +
+         '<path d="M150,252 C178,262 200,260 214,252" stroke-width="5"/>' +
+         '<path d="M292,274 C268,284 246,283 230,276" stroke-width="5"/>' +
+         '<path d="M148,332 C176,342 198,340 212,332" stroke-width="4"/>' +
+         '<path d="M294,356 C268,366 248,364 232,356" stroke-width="4"/>' +
+         '<path d="M154,416 C192,428 250,428 288,416" stroke-width="5"/>' +
+         '<path d="M96,160 C104,176 110,190 112,202" stroke-width="4"/>' +
+         '<path d="M344,160 C336,176 330,190 328,202" stroke-width="4"/>' +
+         '</g>';
+    // costuras: cava, laterais e barra
+    s += '<g fill="none" stroke="#000000" opacity=".14">' +
+         '<path d="M138,186 C134,158 130,130 128,102" stroke-width="1.6"/>' +
+         '<path d="M302,186 C306,158 310,130 312,102" stroke-width="1.6"/>' +
+         '<path d="M144,444 C182,454 258,454 296,444" stroke-width="1.4" stroke-dasharray="4 3"/>' +
+         '<path d="M74,196 L114,218" stroke-width="1.2" stroke-dasharray="3 3"/>' +
+         '<path d="M366,196 L326,218" stroke-width="1.2" stroke-dasharray="3 3"/>' +
+         '</g>';
+    s += '</g>';
+
+    // brilho: luz batendo no peito e nos ombros
+    s += '<g clip-path="url(#' + id + '-tudo)" style="mix-blend-mode:screen">' +
+         '<path d="' + CORPO + '" fill="url(#' + id + '-peito)" opacity=".55"/>' +
+         '<path d="M140,108 C160,96 180,90 196,88" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" opacity=".12" filter="url(#' + id + '-b4)"/>' +
+         '<path d="M300,108 C280,96 260,90 244,88" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" opacity=".08" filter="url(#' + id + '-b4)"/>' +
+         '</g>';
+
+    // grão do tecido
+    s += '<g clip-path="url(#' + id + '-tudo)" style="mix-blend-mode:multiply" opacity=".16">' +
+         '<rect x="20" y="30" width="400" height="450" fill="#ffffff" filter="url(#' + id + '-tex)"/></g>';
+
     // frente: escudo + numerinho no peito · costas: nome + numerão
     if (ehFrente && !ehThumb) {
       s += '<g class="escudo-slot">' +
            '<g class="escudo-default">' +
-             '<path d="M272,126 l20,8 v18 c0,15 -9,25 -20,29 c-11,-4 -20,-14 -20,-29 v-18 Z" ' +
+             '<path d="M268,128 l19,8 v17 c0,14 -8,24 -19,28 c-11,-4 -19,-14 -19,-28 v-17 Z" ' +
                  'fill="#ffffff" fill-opacity=".92" stroke="#00000022" stroke-width="2"/>' +
-             '<circle cx="272" cy="150" r="8" data-reg="detalhe"/>' +
+             '<circle cx="268" cy="151" r="7" data-reg="detalhe"/>' +
            '</g>' +
-           '<image class="escudo-img" x="248" y="124" width="48" height="52" ' +
+           '<image class="escudo-img" x="245" y="126" width="46" height="50" ' +
                  'preserveAspectRatio="xMidYMid meet" style="display:none"/>' +
            '</g>';
-      s += '<text class="txt num-frente" data-reg="numero" x="168" y="166" font-size="30" stroke-width="2" text-anchor="middle">10</text>';
+      s += '<text class="txt num-frente" data-reg="numero" x="172" y="166" font-size="28" stroke-width="2" text-anchor="middle">10</text>';
     }
     if (!ehFrente && !ehThumb) {
       s += '<text class="txt nome-costas" data-reg="numero" x="220" y="152" font-size="26" ' +
            'letter-spacing="4" stroke-width="2" text-anchor="middle">SILVA</text>';
-      s += '<text class="txt num-costas" data-reg="numero" x="220" y="312" font-size="140" stroke-width="6" ' +
-           'text-anchor="middle">10</text>';
+      s += '<text class="txt num-costas" data-reg="numero" x="220" y="308" font-size="126" ' +
+           'stroke-width="6" text-anchor="middle">10</text>';
     }
 
     s += '</svg>';
@@ -708,8 +785,8 @@
     }
     if (vista === 'frente') {
       if (estado.numero) {
-        ctx.font = (30 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
-        escreve(estado.numero, px(168), py(166), 2 * escala);
+        ctx.font = (28 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
+        escreve(estado.numero, px(172), py(166), 2 * escala);
       }
     } else {
       if (estado.nome) {
@@ -724,8 +801,8 @@
         }
       }
       if (estado.numero) {
-        ctx.font = (140 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
-        escreve(estado.numero, px(220), py(312), 6 * escala);
+        ctx.font = (126 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
+        escreve(estado.numero, px(220), py(308), 6 * escala, LARGURA_NOME * escala);
       }
     }
   }
