@@ -112,6 +112,17 @@ public class PlanoProfessorController : Controller
             return RedirectToAction("Index");
         }
 
+        // ⚠️ QUEM ESTÁ EM CORTESIA NÃO GERA COBRANÇA. A trava de cima NÃO pega este caso: dar
+        // cortesia convive com `PlanoProfessor == "Assinante"`, e aí o botão de pagar estaria
+        // destravado. Um parceiro de permuta pagando R$ 499,90 sem precisar é o pior desfecho
+        // possível deste desenho, e desfazer isso é estorno — a mão do Felipe, não a do sistema.
+        if (PlanoDoProfessor.EmCortesia(eu, DateTime.Now))
+        {
+            TempData["Erro"] = $"Seu plano já está garantido até {eu.CortesiaProfessorAte:dd/MM/yyyy} "
+                             + "por cortesia do Padelizou — não precisa pagar nada agora.";
+            return RedirectToAction("Index");
+        }
+
         var cicloEscolhido = PlanoDoProfessor.CicloValido(ciclo);
         var valorPedido = PlanoDoProfessor.ValorDo(cicloEscolhido, _cfg);
 

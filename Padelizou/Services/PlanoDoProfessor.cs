@@ -63,11 +63,40 @@ public static class PlanoDoProfessor
 
     public enum Situacao
     {
-        EmTeste,               // 15 dias com condições de assinante, sem mensalidade
-        AssinanteEmDia,        // mensalidade quitada (ou dentro da carência)
-        AssinanteEmAtraso,     // assinou mas não pagou: taxa de avulso até quitar
-        Avulso,                // escolheu ficar sem mensalidade
-        TesteVencidoSemEscolha // acabou o teste e não escolheu: tratado como avulso
+        EmTeste,                // 15 dias com condições de assinante, sem mensalidade
+        AssinanteEmDia,         // mensalidade quitada (ou dentro da carência)
+        AssinanteEmAtraso,      // assinou mas não pagou: taxa de avulso até quitar
+        Avulso,                 // escolheu ficar sem mensalidade
+        TesteVencidoSemEscolha, // acabou o teste e não escolheu: tratado como avulso
+        Cortesia                // condições de assinante por combinação nossa, sem dinheiro
+    }
+
+    // ⚠️ DIA DE CALENDÁRIO E SEM CARÊNCIA, ao contrário da assinatura paga. Os 7 dias de
+    // `DiasDeCarencia` existem pra quem esqueceu o boleto no feriado — cortesia não tem boleto.
+    // E "vale até 20/08" vale o dia 20 INTEIRO: comparar com a hora faria a cortesia morrer à
+    // meia-noite e um minuto do dia que a tela promete.
+    public static bool EmCortesia(Jogador professor, DateTime agora) =>
+        professor.CortesiaProfessorAte != null
+        && agora.Date <= professor.CortesiaProfessorAte.Value.Date;
+
+    public const int MesesMaximosDeCortesia = 24;
+
+    // O que impede de gravar uma cortesia. Mora aqui, e não no controller, pelo mesmo motivo de
+    // FinanceiroDoPadelizou.ProblemaParaRegistrar existir: é regra, não tela.
+    public static string? ProblemaParaDarCortesia(DateTime? ate, string? motivo, DateTime agora)
+    {
+        if (ate == null)
+            return "Escolha até quando vale a cortesia.";
+        if (ate.Value.Date < agora.Date)
+            return "A cortesia não pode terminar no passado.";
+        // ⚠️ Um `<input type="date">` aceita o ano 20270 num dedo torto, e isso seria
+        // "assinante em dia pra sempre" — sem nada na tela denunciando.
+        if (ate.Value.Date > agora.Date.AddMonths(MesesMaximosDeCortesia))
+            return $"A cortesia vale no máximo {MesesMaximosDeCortesia} meses de cada vez.";
+        if (string.IsNullOrWhiteSpace(motivo))
+            return "Diga o motivo da cortesia — \"permuta de serviços\", por exemplo. "
+                 + "Daqui a um ano é isso que decide se renova.";
+        return null;
     }
 
     public static bool EmTeste(Jogador professor, DateTime agora, PlanoProfessorSettings cfg) =>
@@ -77,7 +106,25 @@ public static class PlanoDoProfessor
     public static DateTime? FimDoTeste(Jogador professor, PlanoProfessorSettings cfg) =>
         professor.TesteProfessorInicio?.AddDays(cfg.DiasDeTeste);
 
+    // ⚠️ A CORTESIA É PISO, NÃO TETO — e a ordem destas três linhas é a decisão inteira.
+    //
+    // Ela GANHA de tudo que deixaria o professor na taxa cheia (avulso escolhido por ele, teste
+    // vencido, assinante em atraso): é pra isso que a cortesia existe. Mas PERDE do assinante
+    // pagante em dia, por dois motivos que só aparecem meses depois:
+    //   1. O clique dele em "Ficar no Avulso" na tela dele não pode apagar o presente que a
+    //      gente deu — e não apaga, porque a cortesia continua vencendo o Avulso.
+    //   2. O contador "assinantes em dia" do /Admin/Professores é lido como proxy de RECEITA.
+    //      Se a cortesia ganhasse do pagante, um assinante que paga sumiria do verde e iria pro
+    //      azul — o dinheiro dele continuaria em "Já pagou" e a conta pararia de fechar.
     public static Situacao SituacaoDe(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
+    {
+        var dele = SemCortesia(professor, agora, cfg);
+        if (dele == Situacao.AssinanteEmDia) return dele;
+        return EmCortesia(professor, agora) ? Situacao.Cortesia : dele;
+    }
+
+    // A situação que o professor teria por conta própria, ignorando qualquer cortesia.
+    private static Situacao SemCortesia(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
     {
         if (professor.PlanoProfessor == Assinante)
         {
@@ -97,9 +144,13 @@ public static class PlanoDoProfessor
         return EmTeste(professor, agora, cfg) ? Situacao.EmTeste : Situacao.TesteVencidoSemEscolha;
     }
 
-    // Tem direito à taxa menor AGORA? (teste correndo ou mensalidade em dia)
+    // Tem direito à taxa menor AGORA? (teste correndo, mensalidade em dia ou cortesia)
+    //
+    // ⚠️ ESTA LINHA É A COBRANÇA INTEIRA. Acrescentar `Cortesia` aqui é o que faz a aula do
+    // professor de cortesia sair a 3%/6% em vez de 10% — CobrancaDaAula, JogoAulaController,
+    // PagamentoInscricaoService e AulasController todos passam por aqui e não mudam uma letra.
     public static bool CondicoesDeAssinante(Jogador professor, DateTime agora, PlanoProfessorSettings cfg) =>
-        SituacaoDe(professor, agora, cfg) is Situacao.EmTeste or Situacao.AssinanteEmDia;
+        SituacaoDe(professor, agora, cfg) is Situacao.EmTeste or Situacao.AssinanteEmDia or Situacao.Cortesia;
 
     // O que a cobrança da aula trava no gateway e que taxa fica — o par nasce junto, igual
     // ao CobrancaDoTorneio, porque taxa e forma não podem se contradizer.

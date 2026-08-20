@@ -13,7 +13,20 @@
     if (!tabela) return;
 
     var corpo = tabela.querySelector('tbody');
-    var linhas = Array.prototype.slice.call(corpo.querySelectorAll('tr'));
+
+    // ⚠️ `tr:not([data-dono])` — A LINHA DA CAIXA DE ASSINATURA NÃO É UM PROFESSOR (20/08/2026).
+    // Ela é uma <tr> de um <td colspan> só, escondida embaixo de cada professor. Com um
+    // `querySelectorAll('tr')` cru ela entraria aqui e três coisas quebravam de uma vez:
+    // `comparar` faria `children[indice].getAttribute` numa célula que não existe (TypeError, e
+    // a ordenação inteira morre CALADA), a contagem passaria a dizer "26 professores" onde há
+    // 13, e o filtro esconderia a linha do professor deixando a caixa dele aberta na tela.
+    var linhas = Array.prototype.slice.call(corpo.querySelectorAll('tr:not([data-dono])'));
+
+    // A caixa de um professor, pra ela viajar junto com a linha dele ao ordenar e ao filtrar.
+    function caixaDe(tr) {
+        var id = tr.getAttribute('data-id');
+        return id ? corpo.querySelector('tr[data-dono="' + id + '"]') : null;
+    }
 
     var campoNome = document.getElementById('filtro-nome');
     var campoSituacao = document.getElementById('filtro-situacao');
@@ -58,7 +71,13 @@
         }
 
         var ordenadas = linhas.slice().sort(function (a, b) { return comparar(a, b, indice, tipo); });
-        ordenadas.forEach(function (tr) { corpo.appendChild(tr); });
+        // A caixa vai junto, logo atrás do dono — senão ordenar deixaria a caixa de um
+        // professor embaixo da linha de outro.
+        ordenadas.forEach(function (tr) {
+            corpo.appendChild(tr);
+            var caixa = caixaDe(tr);
+            if (caixa) corpo.appendChild(caixa);
+        });
 
         tabela.querySelectorAll('th .pdz-seta').forEach(function (s) { s.textContent = ''; });
         th.querySelector('.pdz-seta').textContent = descendente ? '▼' : '▲';
@@ -78,6 +97,10 @@
 
             var mostrar = casaNome && casaSituacao && casaPagante;
             tr.classList.toggle('d-none', !mostrar);
+            // Some junto com o dono: uma caixa aberta cujo professor foi filtrado ficaria
+            // flutuando na tela, sem nome nenhum em cima.
+            var caixa = caixaDe(tr);
+            if (caixa) caixa.classList.toggle('d-none', !mostrar);
             if (mostrar) visiveis++;
         });
 
@@ -97,6 +120,19 @@
     if (campoNome) campoNome.addEventListener('input', filtrar);
     if (campoSituacao) campoSituacao.addEventListener('change', filtrar);
     if (campoPagantes) campoPagantes.addEventListener('change', filtrar);
+
+    // Atalhos "+6 meses" / "+1 ano": só PREENCHEM o campo de data, no navegador. O POST recebe
+    // sempre uma data absoluta — ver o comentário na view sobre por que não existe "meses" no
+    // servidor.
+    document.querySelectorAll('.pdz-atalho-cortesia').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var campo = document.getElementById(b.getAttribute('data-alvo'));
+            if (!campo) return;
+            var d = new Date();
+            d.setMonth(d.getMonth() + parseInt(b.getAttribute('data-meses'), 10));
+            campo.value = d.toISOString().slice(0, 10);
+        });
+    });
 
     filtrar();
 })();

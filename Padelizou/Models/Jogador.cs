@@ -364,6 +364,35 @@ public partial class Jogador
     // migration só pra trocar palavra, e o comentário aqui é mais barato que o downtime.
     public int? UltimoLembreteDeAssinatura { get; set; }
 
+    // ---- Cortesia do plano (20/08/2026, pedido do Felipe: permuta com o professor) ----
+    //
+    // ⚠️ ISTO NÃO É "PAGOU" — é "tem direito sem pagar". São duas perguntas diferentes, e por
+    // isso são duas colunas: `AssinaturaProfessorPagaAte` responde ATÉ QUANDO ELE PAGOU e é a
+    // contraprova de que existiu dinheiro (tem UM escritor só: a confirmação de pagamento);
+    // esta aqui responde ATÉ QUANDO ELE TEM DIREITO por combinação nossa. Escrever a cortesia
+    // naquela coluna faria a tela do admin dizer "Pago até 20/08/2027" pra quem nunca pagou —
+    // mentira visível até pra quem nem enxerga a coluna de dinheiro.
+    //
+    // Nulo = sem cortesia. A vigência é dia de calendário, sem carência: cortesia não tem
+    // boleto pra esquecer no feriado. Ver Services/PlanoDoProfessor.EmCortesia.
+    public DateTime? CortesiaProfessorAte { get; set; }
+
+    // Por que a cortesia foi dada. OBRIGATÓRIO ao conceder: não existe tabela de auditoria no
+    // projeto, e daqui a um ano ninguém lembra permuta de quê — que é justamente o que decide
+    // se renova.
+    [StringLength(200)]
+    public string? MotivoDaCortesia { get; set; }
+
+    // ⚠️ `int?`, e sem FK nem navegação de propósito. Coluna nova nasce com defaultValue ZERO,
+    // e zero aqui seria "concedida pelo jogador 0" pra base inteira. A FK seria auto-referência
+    // em Jogador (arrasta cascade) e a navegação obrigatória viraria INNER JOIN silencioso.
+    public int? CortesiaConcedidaPorJogadorId { get; set; }
+
+    // ⚠️ NÃO é zerado ao tirar a cortesia — é o carimbo de "este professor já passou por aqui",
+    // e é ele que impede alguém que teve cortesia retirada de reaparecer como
+    // "nunca abriu o plano" (ver ProfessoresNoAdmin.NuncaViuOPlano).
+    public DateTime? CortesiaConcedidaEm { get; set; }
+
     // ---- Padelímetro (Services/Padelimetro + RANKING.md) ----
     // O nível de habilidade, 0–1000. Nulo = nunca teve partida contada — o número NASCE
     // na primeira partida de torneio, com o valor de entrada da categoria em que ela foi

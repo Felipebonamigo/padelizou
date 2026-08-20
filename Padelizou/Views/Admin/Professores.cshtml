@@ -19,15 +19,24 @@
 
     // O selo acompanha o que a situação significa PRA NÓS: verde é quem paga, vermelho é quem
     // parou de pagar, cinza é quem escolheu não pagar — não são todos "avisos".
+    @* ⚠️ A CORTESIA PRECISA DE COR PRÓPRIA. Sem esta linha o `_ =>` a pinta de AMARELO — a cor
+       de "teste vencido, sem escolha", que é o balde de quem a gente perdeu. Azul porque verde
+       é de quem paga, e a tela já ensinou isso pra quem olha. *@
     Func<string, string> corDoSelo = s => s switch
     {
         "Assinante em dia" => "bg-success",
         "Assinante em atraso" => "bg-danger",
         "Em teste" => "bg-info text-dark",
         "Avulso" => "bg-secondary",
+        ProfessoresNoAdmin.RotuloDeCortesia => "bg-primary",
         ProfessoresNoAdmin.NuncaAbriuOPlano => "bg-light text-dark border",
         _ => "bg-warning text-dark",
     };
+
+    // Quantos dias antes do fim da cortesia a tela começa a avisar o Felipe. Quem tem decisão a
+    // tomar quando uma permuta acaba é o dono, não o parceiro — por isso é linha de tela e não
+    // notificação nova.
+    const int DiasParaAvisarQueACortesiaVence = 30;
     @* Este host serve só /Admin e /Auth (AdminHostMiddleware): link relativo pro site
        público morre em 404 aqui mesmo, e o clique não abre nada. Fora do painel vem nulo, e
        aí o link sai relativo como sempre. *@
@@ -37,6 +46,25 @@
 <div class="container mt-4 mb-5">
     @* As telas irmãs deste assunto. A lista mora em Services/PainelAdminAgrupado. *@
     <partial name="_AbasDoPainel" />
+
+    @* ⚠️ ESTA TELA NUNCA TEVE FORMULÁRIO, e por isso nunca teve onde mostrar recado. O _Layout
+       só renderiza TempData["ErroImagem"]. Sem este bloco, os POSTs de cortesia gravam,
+       redirecionam, e a tela recarrega IDÊNTICA — sucesso e erro de validação caindo no vazio,
+       e quem apertou sem saber se funcionou. Mesmo padrão de Views/Admin/Times.cshtml. *@
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Sucesso"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            @TempData["Erro"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+    }
 
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
@@ -108,6 +136,9 @@
             <span><span class="badge bg-success">@resumo.AssinantesEmDia</span> assinantes em dia</span>
             <span><span class="badge bg-danger">@resumo.AssinantesEmAtraso</span> em atraso</span>
             <span><span class="badge bg-info text-dark">@resumo.EmTeste</span> em teste</span>
+            @* Visível pra todos, como os outros seis: saber quem está em cortesia é OPERAÇÃO
+               (decide a taxa da aula dele). O que some pra quem não é raiz é o valor. *@
+            <span><span class="badge bg-primary">@resumo.EmCortesia</span> em cortesia</span>
             <span><span class="badge bg-secondary">@resumo.Avulsos</span> avulsos</span>
             <span><span class="badge bg-warning text-dark">@resumo.SemEscolha</span> teste vencido sem escolher</span>
             @* Separado do de cima: um desistiu depois de ver o plano, o outro nunca chegou na
@@ -236,12 +267,20 @@
                                 <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Aulas <span class="pdz-seta"></span></th>
                                 <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Última aula <span class="pdz-seta"></span></th>
                                 <th role="button" data-coluna="@(col++)" data-tipo="numero" class="text-end">Desde <span class="pdz-seta"></span></th>
+                                @* ⚠️ SEM `data-coluna` e SEM `col++`: não é ordenável, e por ser
+                                   a última não desloca o índice de ninguém. Um `col++` aqui
+                                   faria o clique em "Desde" ordenar pela coluna do lado. *@
+                                @if (podeVerDinheiro)
+                                {
+                                    <th class="text-end"></th>
+                                }
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var p in Model)
                             {
-                                <tr data-procurar="@($"{p.Nome} {p.Email}".ToLowerInvariant())"
+                                <tr data-id="@p.Id"
+                                    data-procurar="@($"{p.Nome} {p.Email}".ToLowerInvariant())"
                                     data-situacao="@p.Situacao"
                                     data-pagante="@(p.QuantidadeDePagamentos > 0 ? "1" : "0")">
                                     <td data-ordem="@p.Nome.ToLowerInvariant()">
@@ -258,6 +297,25 @@
                                         {
                                             <div class="text-muted" style="font-size: .75rem;">
                                                 até @p.FimDoTeste.Value.ToString("dd/MM")
+                                            </div>
+                                        }
+                                        @* ⚠️ O AVISO DE QUE A PERMUTA VAI ACABAR MORA AQUI, e não
+                                           num push: quem tem decisão a tomar quando ela vence é o
+                                           dono, não o parceiro — e ele abre esta tela toda semana. *@
+                                        @if (p.Situacao == ProfessoresNoAdmin.RotuloDeCortesia && p.CortesiaAte != null)
+                                        {
+                                            var faltam = (p.CortesiaAte.Value.Date - DateTime.Today).Days;
+                                            var acabando = faltam <= DiasParaAvisarQueACortesiaVence;
+                                            <div class="@(acabando ? "text-warning fw-semibold" : "text-muted")" style="font-size: .75rem;">
+                                                até @p.CortesiaAte.Value.ToString("dd/MM/yyyy")
+                                                @if (acabando)
+                                                {
+                                                    <text>(@(faltam <= 0 ? "vence hoje" : faltam == 1 ? "vence amanhã" : $"vence em {faltam} dias"))</text>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(p.MotivoDaCortesia))
+                                                {
+                                                    <text> · @p.MotivoDaCortesia</text>
+                                                }
                                             </div>
                                         }
                                     </td>
@@ -296,7 +354,135 @@
                                     <td class="text-end text-muted" data-ordem="@(p.Desde?.ToString("yyyyMMdd") ?? "")">
                                         @(p.Desde?.ToString("dd/MM/yy") ?? "—")
                                     </td>
+                                    @if (podeVerDinheiro)
+                                    {
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                                                    data-bs-toggle="collapse" data-bs-target="#assinatura_@p.Id"
+                                                    aria-expanded="false" aria-controls="assinatura_@p.Id">
+                                                <i class="bi bi-pencil"></i> Assinatura
+                                            </button>
+                                        </td>
+                                    }
                                 </tr>
+
+                                @* ⚠️ A LINHA EXTRA NÃO É UM PROFESSOR — ela tem `data-dono`, e é
+                                   por esse atributo que o JS de ordenar/filtrar/contar a ignora.
+                                   Sem isso, a ordenação lê `children[indice]` numa <tr> de um
+                                   <td colspan> só, estoura, e a tabela inteira para de ordenar em
+                                   silêncio — além de a contagem passar a dizer 26 onde há 13. *@
+                                @if (podeVerDinheiro)
+                                {
+                                    <tr data-dono="@p.Id" class="collapse" id="assinatura_@p.Id">
+                                        <td colspan="8" class="bg-body-secondary">
+                                            <div class="p-2">
+                                                <div class="small text-muted mb-3">
+                                                    <strong>@p.Nome</strong> — hoje: @p.Situacao.
+                                                    @if (p.CortesiaConcedidaEm != null)
+                                                    {
+                                                        <text>
+                                                            Cortesia @(p.CortesiaAte != null ? $"até {p.CortesiaAte:dd/MM/yyyy}" : "(encerrada)")
+                                                            @if (!string.IsNullOrWhiteSpace(p.MotivoDaCortesia))
+                                                            {
+                                                                <text> · @p.MotivoDaCortesia</text>
+                                                            }
+                                                            @if (!string.IsNullOrWhiteSpace(p.CortesiaConcedidaPor))
+                                                            {
+                                                                <text> · dada por @p.CortesiaConcedidaPor</text>
+                                                            }
+                                                            em @p.CortesiaConcedidaEm.Value.ToString("dd/MM/yyyy").
+                                                        </text>
+                                                    }
+                                                </div>
+
+                                                <div class="row g-3">
+                                                    @* ── Cortesia ──────────────────────────── *@
+                                                    <div class="col-lg-7">
+                                                        <form asp-action="DefinirCortesiaDoProfessor" method="post" class="border rounded p-3 h-100">
+                                                            <input type="hidden" name="professorId" value="@p.Id" />
+                                                            <div class="fw-bold small mb-1">Cortesia</div>
+                                                            <div class="text-muted mb-2" style="font-size: .75rem;">
+                                                                Plano de Assinante garantido por nós, <strong>sem entrar dinheiro</strong>.
+                                                            </div>
+                                                            <div class="row g-2">
+                                                                <div class="col-sm-5">
+                                                                    <label class="form-label small mb-1" for="ate_@p.Id">Vale até</label>
+                                                                    @* A DATA é a verdade; os atalhos só preenchem este campo. Não
+                                                                       existe parâmetro "meses" no POST de propósito: com ele, o
+                                                                       segundo clique de sempre daria dois anos, e "estende do fim
+                                                                       × conta de hoje" viraria a segunda cópia de NovaDataPagaAte.
+                                                                       Com data absoluta, salvar dez vezes dá a mesma data. *@
+                                                                    <input type="date" class="form-control form-control-sm" id="ate_@p.Id"
+                                                                           name="ate" value="@p.CortesiaAte?.ToString("yyyy-MM-dd")" />
+                                                                    <div class="mt-1">
+                                                                        <button type="button" class="btn btn-sm btn-link p-0 pdz-atalho-cortesia"
+                                                                                data-alvo="ate_@p.Id" data-meses="6" style="font-size: .75rem;">+6 meses</button>
+                                                                        <button type="button" class="btn btn-sm btn-link p-0 ms-2 pdz-atalho-cortesia"
+                                                                                data-alvo="ate_@p.Id" data-meses="12" style="font-size: .75rem;">+1 ano</button>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-sm-7">
+                                                                    <label class="form-label small mb-1" for="motivo_@p.Id">Motivo</label>
+                                                                    <input type="text" class="form-control form-control-sm" id="motivo_@p.Id"
+                                                                           name="motivo" maxlength="200" value="@p.MotivoDaCortesia"
+                                                                           placeholder="permuta de serviços" />
+                                                                    <div class="mt-2 d-flex gap-2">
+                                                                        <button type="submit" class="btn btn-sm btn-padel">Salvar cortesia</button>
+                                                                        @* ⚠️ SÓ `formaction`, NUNCA junto de `asp-action`: o Razor
+                                                                           recusa os dois no mesmo <button> e a tela inteira vira
+                                                                           erro 500 — e só DEPOIS de existir uma cortesia, porque é
+                                                                           o que faz este botão nascer. Teste unitário não vê. *@
+                                                                        @if (p.CortesiaAte != null)
+                                                                        {
+                                                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                                                    formaction="@Url.Action("TirarCortesiaDoProfessor")">
+                                                                                Tirar cortesia
+                                                                            </button>
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+
+                                                    @* ── Assinou ou não ────────────────────── *@
+                                                    <div class="col-lg-5">
+                                                        <form asp-action="DefinirPlanoDoProfessor" method="post" class="border rounded p-3 h-100">
+                                                            <input type="hidden" name="professorId" value="@p.Id" />
+                                                            <div class="fw-bold small mb-1">Assinou ou não</div>
+                                                            <div class="text-muted mb-2" style="font-size: .75rem;">
+                                                                O plano que <strong>ele</strong> escolheu.
+                                                            </div>
+                                                            @foreach (var (valor, rotulo) in new[] {
+                                                                (PlanoDoProfessor.Assinante, "Assinante"),
+                                                                (PlanoDoProfessor.Avulso, "Avulso"),
+                                                                ("", "Ainda não escolheu") })
+                                                            {
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="radio" name="plano"
+                                                                           id="plano_@(p.Id)_@(valor.Length == 0 ? "nada" : valor)"
+                                                                           value="@valor" checked="@((p.PlanoEscolhido ?? "") == valor)" />
+                                                                    <label class="form-check-label small" for="plano_@(p.Id)_@(valor.Length == 0 ? "nada" : valor)">@rotulo</label>
+                                                                </div>
+                                                            }
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary mt-2">Salvar</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+
+                                                @* A porta do dinheiro é OUTRA, e o link existe pra ninguém usar a caixa
+                                                   acima como se fosse ela. Link e não cópia do formulário: aquele casa a
+                                                   pessoa por texto, e professor sem e-mail casaria com outro, calado. *@
+                                                <div class="small text-muted mt-3">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    Nada aqui é dinheiro: o caixa não muda e <strong>Pago até</strong> continua
+                                                    como está. Dinheiro que entrou de verdade se registra em
+                                                    <a asp-action="Financeiro">Financeiro → Registrar pagamento</a>.
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
                             }
                         </tbody>
                     </table>

@@ -70,6 +70,21 @@
                         </div>
                     </div>
                     break;
+                @* ⚠️ NUNCA "mensalidade QUITADA" aqui, que é o texto do caso acima: não houve
+                   mensalidade, houve permuta. Dizer "quitada" seria mentir todo dia pra
+                   contraparte do negócio — e ela sabe que não pagou nada. *@
+                case PlanoDoProfessor.Situacao.Cortesia:
+                    <div class="alert alert-primary d-flex align-items-center gap-2">
+                        <i class="bi bi-gift-fill fs-4"></i>
+                        <div>
+                            <strong>Plano garantido pelo Padelizou</strong> — condições de Assinante até
+                            <strong>@Model.CortesiaProfessorAte!.Value.ToString("dd/MM/yyyy")</strong>,
+                            <strong>sem mensalidade</strong>.
+                            Taxa por aula: @cfg.PercentualAssinantePix.ToString("0.#")% no Pix,
+                            @cfg.PercentualAssinanteCartao.ToString("0.#")% no cartão.
+                        </div>
+                    </div>
+                    break;
                 case PlanoDoProfessor.Situacao.AssinanteEmAtraso:
                     <div class="alert alert-warning d-flex align-items-center gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-4"></i>
@@ -147,7 +162,22 @@
                                     Previsível: mês cheio não aumenta a mordida</li>
                             </ul>
                             <div class="mt-auto">
-                                @if (Model.PlanoProfessor != PlanoDoProfessor.Assinante)
+                                @* ⚠️ EM CORTESIA, NENHUM BOTÃO DE PAGAR — e este ramo tem que vir
+                                   PRIMEIRO. Hoje os botões só somem quando há cobrança em aberto,
+                                   NUNCA por ele já estar em dia: sem este `if`, o parceiro de
+                                   permuta vê "Pagar 12 meses (R$ 499,90)" na tela e pode pagar
+                                   uma coisa que já é dele. O POST também trava (PagarMensalidade),
+                                   mas oferecer e recusar depois é pior que não oferecer. *@
+                                @if (situacao == PlanoDoProfessor.Situacao.Cortesia)
+                                {
+                                    <div class="alert alert-primary mb-0 small">
+                                        <i class="bi bi-gift-fill"></i>
+                                        Está por nossa conta até
+                                        <strong>@Model.CortesiaProfessorAte!.Value.ToString("dd/MM/yyyy")</strong>
+                                        — não precisa pagar nada.
+                                    </div>
+                                }
+                                else if (Model.PlanoProfessor != PlanoDoProfessor.Assinante)
                                 {
                                     <form asp-action="Escolher" method="post">
                                         @Html.AntiForgeryToken()

@@ -38,17 +38,28 @@ public static class ProfessoresNoAdmin
     // "nunca viu".
     public const string NuncaAbriuOPlano = "Nunca abriu o plano";
 
+    // ⚠️ `CortesiaConcedidaEm` — o CARIMBO, e não `CortesiaProfessorAte`, que é a data. Tirar a
+    // cortesia zera só a data; sem esta quarta ponta, quem teve cortesia retirada reapareceria
+    // como "nunca chegou ao plano". E pior: quem GANHOU cortesia sem nunca ter aberto a tela
+    // cairia aqui e o rótulo "Cortesia" seria engolido antes de chegar na tela.
     public static bool NuncaViuOPlano(Jogador professor) =>
         professor.TesteProfessorInicio == null
         && professor.PlanoProfessor == null
-        && professor.AssinaturaProfessorPagaAte == null;
+        && professor.AssinaturaProfessorPagaAte == null
+        && professor.CortesiaConcedidaEm == null;
 
+    public const string RotuloDeCortesia = "Cortesia";
+
+    // ⚠️ O `_ =>` DEVOLVE "Teste vencido, sem escolha". Esquecer a linha da Cortesia faria o
+    // professor de permuta aparecer com esse rótulo, cair no balde amarelo do resumo — e
+    // COMPILAR SEM UM AVISO. Por isso ela é explícita, e não fica por conta do default.
     public static string RotuloDaSituacao(PlanoDoProfessor.Situacao situacao) => situacao switch
     {
         PlanoDoProfessor.Situacao.EmTeste => "Em teste",
         PlanoDoProfessor.Situacao.AssinanteEmDia => "Assinante em dia",
         PlanoDoProfessor.Situacao.AssinanteEmAtraso => "Assinante em atraso",
         PlanoDoProfessor.Situacao.Avulso => "Avulso",
+        PlanoDoProfessor.Situacao.Cortesia => RotuloDeCortesia,
         _ => "Teste vencido, sem escolha",
     };
 
@@ -61,7 +72,10 @@ public static class ProfessoresNoAdmin
         IEnumerable<Pagamento> assinaturasConfirmadas,
         IEnumerable<Aula> aulas,
         DateTime agora,
-        PlanoProfessorSettings cfg)
+        PlanoProfessorSettings cfg,
+        // Id -> nome de quem concedeu a cortesia. Dicionário e não navegação: a FK seria
+        // auto-referência em Jogador, e um Include de navegação obrigatória vira INNER JOIN.
+        IReadOnlyDictionary<int, string>? nomeDeQuemDeuCortesia = null)
     {
         var porProfessor = assinaturasConfirmadas
             .GroupBy(p => p.JogadorId)
@@ -98,7 +112,13 @@ public static class ProfessoresNoAdmin
                     pagamentos.Select(QuandoEntrou).DefaultIfEmpty(null).Max(),
                     suasAulas.Count,
                     suasAulas.Count(a => a.DataHora >= inicioDaJanela && a.DataHora <= fimDaJanela),
-                    suasAulas.Select(a => (DateTime?)a.DataHora).DefaultIfEmpty(null).Max());
+                    suasAulas.Select(a => (DateTime?)a.DataHora).DefaultIfEmpty(null).Max(),
+                    prof.CortesiaProfessorAte,
+                    prof.MotivoDaCortesia,
+                    prof.CortesiaConcedidaEm,
+                    prof.CortesiaConcedidaPorJogadorId is int quemDeu
+                        ? nomeDeQuemDeuCortesia?.GetValueOrDefault(quemDeu)
+                        : null);
             })
             // Quem move dinheiro primeiro, depois quem move aula, depois o resto em ordem de
             // nome: a tela existe pra achar quem importa, e ordem alfabética pura enterraria
@@ -133,7 +153,10 @@ public static class ProfessoresNoAdmin
             ReceitaTotal: lista.Sum(p => p.TotalPago),
             ReceitaNoMes: meses
                 .Where(m => m.Ano == agora.Year && m.Mes == agora.Month)
-                .Sum(m => m.Valor));
+                .Sum(m => m.Valor),
+            // ⚠️ NENHUM número de dinheiro acima muda com a cortesia, e isso é o desenho, não
+            // sorte: cortesia não cria `Pagamento`, e todo valor desta tela sai de `Pagamento`.
+            EmCortesia: lista.Count(p => p.Situacao == RotuloDeCortesia));
     }
 
     // Quanto entrou por mês, do mais recente pro mais antigo.

@@ -77,16 +77,20 @@ public class AvisosDoPlanoDoProfessorBackgroundService : BackgroundService
         // O filtro que o banco sabe fazer: professor que JÁ ENTROU no plano de algum jeito —
         // abriu a tela (e o relógio do teste começou) ou tem mensalidade paga alguma vez.
         //
-        // ⚠️ As duas pontas do OU são necessárias. Sem `TesteProfessorInicio` some quem está no
-        // teste, que é metade do serviço; e sem `AssinaturaProfessorPagaAte` some quem foi pago
+        // ⚠️ As TRÊS pontas do OU são necessárias. Sem `TesteProfessorInicio` some quem está no
+        // teste, que é metade do serviço; sem `AssinaturaProfessorPagaAte` some quem foi pago
         // à MÃO pelo admin sem nunca ter aberto a tela — o RegistrarPagamento grava o "pago
-        // até" e não encosta no relógio do teste.
+        // até" e não encosta no relógio do teste; e sem `CortesiaProfessorAte` (20/08/2026) some
+        // quem ganhou cortesia sem nunca ter aberto o /PlanoProfessor: ele não receberia o aviso
+        // de que a cortesia acabou e a taxa dele subiu — nem no dia, nem nunca.
         //
         // O resto da régua (qual mundo, estágio, janela, o que já foi enviado) roda em memória,
         // sobre um punhado de linhas — são os professores, não a base inteira.
         var professores = await context.Jogadores
             .Where(j => j.IsProfessor
-                     && (j.TesteProfessorInicio != null || j.AssinaturaProfessorPagaAte != null))
+                     && (j.TesteProfessorInicio != null
+                      || j.AssinaturaProfessorPagaAte != null
+                      || j.CortesiaProfessorAte != null))
             .ToListAsync(stoppingToken);
 
         int avisados = 0;

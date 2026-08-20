@@ -28,7 +28,17 @@ public record ProfessorNoAdmin(
     // Uso de verdade: é o que separa "cadastrou e sumiu" de "está tocando aulas aqui".
     int AulasNoTotal,
     int AulasNosUltimos30Dias,
-    DateTime? UltimaAulaEm);
+    DateTime? UltimaAulaEm,
+
+    // ---- Cortesia (permuta e afins) ----
+    // ⚠️ SEPARADA DE `AssinaturaPagaAte` de propósito: aquela é a contraprova de que existiu
+    // DINHEIRO, esta é "tem direito por combinação nossa". Juntar as duas faria a coluna
+    // "Pago até" mentir sobre quem nunca pagou. Os três últimos campos existem porque não há
+    // tabela de auditoria no projeto — o rastro é esta linha.
+    DateTime? CortesiaAte = null,
+    string? MotivoDaCortesia = null,
+    DateTime? CortesiaConcedidaEm = null,
+    string? CortesiaConcedidaPor = null);
 
 // Uma linha do "quanto entrou por mês". `Professores` conta gente distinta, e não cobranças:
 // duas mensalidades do mesmo professor no mesmo mês são um cliente, não dois.
@@ -53,4 +63,7 @@ public record ResumoDeProfessores(
     int NuncaAbriramOPlano,
     int JaPagaramAlgumaVez,
     decimal ReceitaTotal,
-    decimal ReceitaNoMes);
+    decimal ReceitaNoMes,
+    // ⚠️ Contador PRÓPRIO, que nunca sai de `AssinantesEmDia`: aquele número é lido como proxy
+    // de receita, e cortesia não é receita. Ver a regra do piso em PlanoDoProfessor.SituacaoDe.
+    int EmCortesia = 0);
