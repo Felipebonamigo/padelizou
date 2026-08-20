@@ -121,33 +121,28 @@
                         </div>
                     </div>
 
-                    @* ══ 2. AS DUPLAS ═══════════════════════════════════════════════════
-                       Os quatro <select> viraram toque no nome. Os ids reais viajam em
-                       hidden inputs — o JS só pinta e preenche. *@
-                    <input type="hidden" name="dupla1Jogador1Id" id="pdzD1J1" />
-                    <input type="hidden" name="dupla1Jogador2Id" id="pdzD1J2" />
-                    <input type="hidden" name="dupla2Jogador1Id" id="pdzD2J1" />
-                    <input type="hidden" name="dupla2Jogador2Id" id="pdzD2J2" />
-                    <input type="hidden" name="vencedorLado" id="pdzVencedor" value="" />
+                    @* ══ 2. OS JOGOS DO DIA ═════════════════════════════════════════════
 
-                    <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="fw-bold mb-0">Dupla 1</h6>
-                                <span class="small text-body-secondary" id="pdzDica1">Escolha 2 jogadores</span>
-                            </div>
-                            <div id="pdzTimes1" class="d-flex flex-wrap gap-2"></div>
-                        </div>
-                    </div>
+                       ⚠️ TODO BLOCO SAI DO MESMO <template>, INCLUSIVE O PRIMEIRO. A tentação
+                       era deixar o jogo 1 escrito aqui e clonar só os seguintes — e aí bastava
+                       alguém arrumar um rótulo num lugar pro jogo 2 ficar diferente do jogo 1.
+                       Como a tela inteira já é montada pelo JS (os quatro <select> viraram toque
+                       no nome em 18/08/2026), nada se perde em desenhar o primeiro por lá também.
 
-                    <div class="card border-0 shadow-sm mb-3" id="pdzCardDupla2">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="fw-bold mb-0">Dupla 2</h6>
-                                <span class="small text-body-secondary" id="pdzDica2">Escolha 2 jogadores</span>
-                            </div>
-                            <div id="pdzTimes2" class="d-flex flex-wrap gap-2"></div>
-                        </div>
+                       Os ids reais viajam em hidden inputs; o NOME de cada um é dado pelo JS na
+                       hora de numerar os blocos — jogo 1 usa os nomes soltos de sempre
+                       (dupla1Jogador1Id, vencedorLado...) e os seguintes vão em
+                       maisResultados[i]. Ver o porquê da assimetria em GruposController. *@
+                    <div id="pdzJogos"></div>
+
+                    <div class="text-center mb-3">
+                        @* Um dia de panelinha tem vários jogos, e não necessariamente com as
+                           mesmas duplas — cada bloco escolhe os seus quatro. Data e local são do
+                           DIA e ficam lá em cima, uma vez só. *@
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" id="pdzMaisUmJogo">
+                            <i class="bi bi-plus-lg"></i> Adicionar outro jogo deste dia
+                        </button>
+                        <div class="small text-body-secondary mt-2 d-none" id="pdzTetoDeJogos"></div>
                     </div>
 
                     @* AS DUAS PORTAS PRA QUEM É DE FORA — e elas NÃO são redundantes.
@@ -172,46 +167,85 @@
                         </a>
                     </div>
 
-                    @* ══ 3. QUEM GANHOU ══════════════════════════════════════════════════ *@
-                    <div class="card border-0 shadow-sm mb-3 d-none" id="pdzCardVencedor">
-                        <div class="card-body">
-                            <h6 class="fw-bold mb-3">Quem ganhou?</h6>
-                            <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-success text-start pdz-btn-vencedor" data-lado="1" id="pdzBtnVenc1"></button>
-                                <div class="text-center small text-body-secondary">×</div>
-                                <button type="button" class="btn btn-outline-success text-start pdz-btn-vencedor" data-lado="2" id="pdzBtnVenc2"></button>
-                            </div>
-                            @* Empate existe na pontuação da panelinha (2 pontos pra cada) e
-                               sumiria numa tela de dois botões. Fica discreto: é raro, mas
-                               quem empatou não pode ficar sem caminho. *@
-                            <div class="text-center mt-2">
-                                <button type="button" class="btn btn-sm btn-link text-body-secondary text-decoration-none pdz-btn-vencedor" data-lado="0">
-                                    Empatou
+                    @* ══ O MOLDE DE UM JOGO ══════════════════════════════════════════════ *@
+                    <template id="pdzModeloJogo">
+                        <div class="pdz-jogo">
+                            @* Só aparece quando há mais de um jogo na tela: com um só, "Jogo 1"
+                               é ruído — a tela inteira já é sobre ele. *@
+                            <div class="d-flex justify-content-between align-items-center mb-2 d-none pdz-jogo-cabecalho">
+                                <h6 class="fw-bold mb-0 pdz-jogo-titulo"></h6>
+                                <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none p-0 pdz-jogo-remover">
+                                    remover
                                 </button>
                             </div>
-                        </div>
-                    </div>
 
-                    @* ══ 4. PLACAR OPCIONAL ══════════════════════════════════════════════ *@
-                    <div class="card border-0 shadow-sm mb-3 d-none" id="pdzCardPlacar">
-                        <div class="card-body">
-                            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="pdzAbrirPlacar"
-                                    onclick="document.getElementById('pdzPlacar').classList.remove('d-none'); this.classList.add('d-none');">
-                                + Adicionar placar <span class="text-body-secondary">(opcional)</span>
-                            </button>
-                            <div id="pdzPlacar" class="d-none row align-items-center g-2">
-                                <div class="col-5">
-                                    <label class="form-label small text-body-secondary mb-1" id="pdzRotuloGames1">Games Dupla 1</label>
-                                    <input type="number" name="gamesDupla1" class="form-control" min="0" inputmode="numeric" />
+                            <input type="hidden" class="pdz-c-d1j1" />
+                            <input type="hidden" class="pdz-c-d1j2" />
+                            <input type="hidden" class="pdz-c-d2j1" />
+                            <input type="hidden" class="pdz-c-d2j2" />
+                            <input type="hidden" class="pdz-c-venc" value="" />
+
+                            <div class="card border-0 shadow-sm mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="fw-bold mb-0">Dupla 1</h6>
+                                        <span class="small text-body-secondary pdz-dica1">Escolha 2 jogadores</span>
+                                    </div>
+                                    <div class="pdz-times1 d-flex flex-wrap gap-2"></div>
                                 </div>
-                                <div class="col-2 text-center fw-bold text-body-secondary">x</div>
-                                <div class="col-5">
-                                    <label class="form-label small text-body-secondary mb-1" id="pdzRotuloGames2">Games Dupla 2</label>
-                                    <input type="number" name="gamesDupla2" class="form-control" min="0" inputmode="numeric" />
+                            </div>
+
+                            <div class="card border-0 shadow-sm mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="fw-bold mb-0">Dupla 2</h6>
+                                        <span class="small text-body-secondary pdz-dica2">Escolha 2 jogadores</span>
+                                    </div>
+                                    <div class="pdz-times2 d-flex flex-wrap gap-2"></div>
+                                </div>
+                            </div>
+
+                            @* ── QUEM GANHOU ── *@
+                            <div class="card border-0 shadow-sm mb-3 d-none pdz-card-vencedor">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3">Quem ganhou?</h6>
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-outline-success text-start pdz-btn-vencedor pdz-btn-venc1" data-lado="1"></button>
+                                        <div class="text-center small text-body-secondary">×</div>
+                                        <button type="button" class="btn btn-outline-success text-start pdz-btn-vencedor pdz-btn-venc2" data-lado="2"></button>
+                                    </div>
+                                    @* Empate existe na pontuação da panelinha (2 pontos pra cada) e
+                                       sumiria numa tela de dois botões. Fica discreto: é raro, mas
+                                       quem empatou não pode ficar sem caminho. *@
+                                    <div class="text-center mt-2">
+                                        <button type="button" class="btn btn-sm btn-link text-body-secondary text-decoration-none pdz-btn-vencedor" data-lado="0">
+                                            Empatou
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* ── PLACAR OPCIONAL ── *@
+                            <div class="card border-0 shadow-sm mb-3 d-none pdz-card-placar">
+                                <div class="card-body">
+                                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 pdz-abrir-placar">
+                                        + Adicionar placar <span class="text-body-secondary">(opcional)</span>
+                                    </button>
+                                    <div class="d-none row align-items-center g-2 pdz-placar">
+                                        <div class="col-5">
+                                            <label class="form-label small text-body-secondary mb-1 pdz-rotulo-games1">Games Dupla 1</label>
+                                            <input type="number" class="form-control pdz-c-g1" min="0" inputmode="numeric" />
+                                        </div>
+                                        <div class="col-2 text-center fw-bold text-body-secondary">x</div>
+                                        <div class="col-5">
+                                            <label class="form-label small text-body-secondary mb-1 pdz-rotulo-games2">Games Dupla 2</label>
+                                            <input type="number" class="form-control pdz-c-g2" min="0" inputmode="numeric" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </template>
 
                     <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill" id="pdzSalvar" disabled>
                         Salvar resultado
@@ -239,7 +273,7 @@
                 noFio = Padelizou.Services.ConvidadoNoJogo.NoFio,
                 maximo = Padelizou.Services.ConvidadoNoJogo.MaximoPorJogo,
                 rotulo = Padelizou.Services.ConvidadoNoJogo.Rotulo,
-            })));
+            })), @Padelizou.Services.ResultadoDoJogoSemanal.MaximoPorLancamento);
 
         @* A data e o local se desenham a partir do CAMPO, não do servidor — ver o porquê no
            topo da seção em registrar-jogo-da-panelinha.js. *@
