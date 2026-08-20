@@ -37,6 +37,26 @@ public static class TextoDoApito
     }
 }
 
+// O texto das últimas vagas, puro. Nulo pra qualquer contagem que não seja um dos DOIS
+// limiares — é o nulo que faz o aviso disparar só no cruzamento exato (3 e 1), e não a cada
+// inscrição de uma categoria quase cheia.
+public static class TextoDasVagas
+{
+    public static TextoDoAviso? Do(int restantes, string categoria, string torneio)
+    {
+        var onde = string.IsNullOrWhiteSpace(categoria)
+            ? $"no torneio {torneio}"
+            : $"na {categoria} do {torneio}";
+
+        return restantes switch
+        {
+            1 => new("Última vaga! ⏳", $"Ficou só 1 vaga {onde}. Quem quer entrar, é agora."),
+            3 => new("As vagas estão acabando", $"Restam 3 vagas {onde}."),
+            _ => null,
+        };
+    }
+}
+
 // Avisa quem SEGUE o torneio que entrou gente nova — e, desde 20/08/2026, é também quem
 // FAZ a inscrição seguir o torneio sozinha (ver SeguirAsync). Existe como serviço, e não
 // como método de controller, por um motivo específico deste projeto: a inscrição tem TRÊS
@@ -90,7 +110,10 @@ public class AvisoDeInscricaoNoTorneio
     // `recemInscritos` são os ids de quem ACABOU de entrar. Eles saem da lista de destinatários
     // mesmo que sigam o torneio: a pessoa não precisa de notificação pra saber que ela mesma
     // se inscreveu, e receber isso é o tipo de aviso que ensina a ignorar o canal.
-    public async Task NotificarAsync(int torneioId, string categoria,
+    //
+    // `categoriaId` (e não só o nome) desde 20/08/2026: é dele que sai a conta das ÚLTIMAS
+    // VAGAS — o aviso de urgência que aproveita a mesma passada da inscrição.
+    public async Task NotificarAsync(int torneioId, int categoriaId,
         IReadOnlyList<string> nomesInscritos, IEnumerable<int> recemInscritos, string? url)
     {
         var torneio = await _context.Torneios
@@ -99,6 +122,11 @@ public class AvisoDeInscricaoNoTorneio
             .FirstOrDefaultAsync();
 
         if (torneio == null) return;
+
+        var categoria = await _context.Categorias
+            .Where(c => c.Id == categoriaId)
+            .Select(c => new { c.Nome, c.LimiteDuplas })
+            .FirstOrDefaultAsync();
 
         var excluir = recemInscritos.ToHashSet();
 
@@ -109,7 +137,7 @@ public class AvisoDeInscricaoNoTorneio
 
         if (seguidores.Count == 0) return;
 
-        var corpo = TextoDoApito.Corpo(nomesInscritos, torneio.Nome, categoria);
+        var corpo = TextoDoApito.Corpo(nomesInscritos, torneio.Nome, categoria?.Nome ?? "");
 
         // ⚠️ SEM E-MAIL, e a decisão é do mesmo tipo que tirou o resultado de partida do
         // e-mail em 09/08: isto é RAJADA (um torneio de 46 duplas dispara 46 avisos por
@@ -117,6 +145,54 @@ public class AvisoDeInscricaoNoTorneio
         // marcar o remetente como lixo — e aí ela perde junto o aviso de que a chave saiu.
         foreach (var jogadorId in seguidores)
             await _push.EnviarParaJogadorAsync(jogadorId, TextoDoApito.Titulo, corpo, url,
+                AlcanceDoAviso.AppSemEmail);
+
+        await AvisarUltimasVagasAsync(torneioId, categoriaId, categoria?.Nome ?? "",
+            categoria?.LimiteDuplas, torneio.Nome, url);
+    }
+
+    // AS ÚLTIMAS VAGAS: quando a inscrição que acabou de entrar deixa a categoria com
+    // exatamente 3 (ou 1) vagas, quem segue o torneio e AINDA NÃO ESTÁ nessa categoria ouve
+    // a urgência. O disparo no cruzamento exato dispensa marcador de "já avisei": a contagem
+    // só passa por cada limiar uma vez descendo — e se alguém desistir e a vaga reabrir,
+    // avisar de novo no próximo cruzamento é notícia verdadeira, não repetição.
+    private async Task AvisarUltimasVagasAsync(int torneioId, int categoriaId, string categoria,
+        int? limiteDuplas, string torneio, string? url)
+    {
+        if (limiteDuplas == null) return;
+
+        // As DUAS portas contam (dupla e americano) — em cada categoria só uma delas tem
+        // linhas, mas perguntar só a uma é o defeito clássico deste projeto.
+        int ocupadas = await _context.Duplas
+                           .CountAsync(d => d.CategoriaId == categoriaId && !d.EmListaDeEspera)
+                       + await _context.InscricoesAmericanas
+                           .CountAsync(i => i.CategoriaId == categoriaId && !i.EmListaDeEspera);
+
+        var texto = TextoDasVagas.Do(limiteDuplas.Value - ocupadas, categoria, torneio);
+        if (texto == null) return;
+
+        // Quem já está NESTA categoria não precisa de urgência — a vaga dele já era. Lista de
+        // espera idem: ele já fez a parte dele, avisá-lo só esfregaria a fila.
+        var jaNaCategoria = (await _context.Duplas
+                .Where(d => d.CategoriaId == categoriaId)
+                .Select(d => new { d.Jogador1Id, d.Jogador2Id })
+                .ToListAsync())
+            .SelectMany(d => new[] { (int?)d.Jogador1Id, d.Jogador2Id })
+            .Where(id => id != null)
+            .Select(id => id!.Value)
+            .Concat(await _context.InscricoesAmericanas
+                .Where(i => i.CategoriaId == categoriaId)
+                .Select(i => i.JogadorId)
+                .ToListAsync())
+            .ToHashSet();
+
+        var interessados = await _context.SeguidoresTorneio
+            .Where(s => s.TorneioId == torneioId && !jaNaCategoria.Contains(s.JogadorId))
+            .Select(s => s.JogadorId)
+            .ToListAsync();
+
+        foreach (var jogadorId in interessados)
+            await _push.EnviarParaJogadorAsync(jogadorId, texto.Titulo, texto.Corpo, url,
                 AlcanceDoAviso.AppSemEmail);
     }
 }

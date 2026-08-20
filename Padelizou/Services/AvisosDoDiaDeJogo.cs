@@ -57,8 +57,14 @@ public static class AvisosDoDiaDeJogo
 
     // "Chaves publicadas": o valor está em dizer QUANDO a pessoa joga, não que existe uma
     // tabela em algum lugar. Sem horário, o aviso genérico ainda serve de chamado.
+    //
+    // O convite ao PALPITRÔMETRO pega carona aqui de propósito (20/08/2026): as chaves
+    // publicadas são o instante em que os jogos viram "Agendada" — o único estado que aceita
+    // palpite — e um segundo push só pra convidar seria a rajada dobrada que ensina a
+    // desligar o canal.
     public static string CorpoDasChaves(DateTime? primeiroJogo) =>
         primeiroJogo == null
-            ? "As chaves saíram. Veja contra quem você joga."
-            : $"Seu primeiro jogo é {primeiroJogo.Value:dd/MM} às {primeiroJogo.Value:HH:mm}.";
+            ? "As chaves saíram. Veja contra quem você joga — e deixe seu palpite. 🎯"
+            : $"Seu primeiro jogo é {primeiroJogo.Value:dd/MM} às {primeiroJogo.Value:HH:mm}. "
+              + "O Palpitrômetro já está aberto. 🎯";
 }

@@ -29,6 +29,13 @@ public class EncerramentoDaPartida
     private readonly IPushNotificationService _push;
     private readonly ILogger<EncerramentoDaPartida> _logger;
 
+    // Os avisos-satélite do fim de jogo, montados aqui como o _robo: são só (contexto +
+    // push), e alargar o construtor tocaria cada teste que monta o encerramento.
+    private readonly AnuncioDoConfronto _confrontos;
+    private readonly AnuncioDosCampeoes _campeoes;
+    private readonly AvisoDePalpiteConferido _palpitesConferidos;
+    private readonly AvisoDeMarcoPessoal _marcos;
+
     public EncerramentoDaPartida(DbPadelContext context, IPadelimetroService padelimetro,
         IPushNotificationService push, ILogger<EncerramentoDaPartida> logger)
     {
@@ -37,6 +44,10 @@ public class EncerramentoDaPartida
         _padelimetro = padelimetro;
         _push = push;
         _logger = logger;
+        _confrontos = new AnuncioDoConfronto(context, push);
+        _campeoes = new AnuncioDosCampeoes(context, push);
+        _palpitesConferidos = new AvisoDePalpiteConferido(context, push);
+        _marcos = new AvisoDeMarcoPessoal(context, push);
     }
 
     // Os endereços que o push leva. Vêm de fora porque quem sabe montar rota é o controller;
@@ -93,15 +104,27 @@ public class EncerramentoDaPartida
         // 2. OS ROBÔS. A fase de grupos existe em duas grafias ("Fase de Grupos" nos seeds
         //    antigos, "Grupo A/B/..." no GerarChaves) — o gatilho aceita as duas, senão o
         //    mata-mata nunca é gerado.
+        //
+        // ⚠️ ANTES deles, uma foto do que já existia: se a categoria coroa DENTRO deste
+        // encerramento (final, desempate, líder do Americano), é a diferença entre a foto e o
+        // depois que dispara o "Título decidido!" pros seguidores — e é o que impede a
+        // correção de placar de reanunciar um campeão antigo.
+        bool jaTinhaCampeao = partida.TorneioId != null && await _context.Duplas.AnyAsync(d =>
+            d.CategoriaId == partida.CategoriaId && d.UltimaFase == CampeoesDoTorneio.FaseDeCampeao);
+
+        // Os confrontos que os robôs CRIAREM nesta passada — é deles que sai a chamada da
+        // próxima fase, lá embaixo nos avisos.
+        var confrontosNovos = new List<Partida>();
+
         if (partida.TorneioId is int torneioId)
         {
             if (FasesTorneio.EhFaseDeGrupos(partida.Fase))
             {
-                await _robo.MontarMataMataDosGruposAsync(partida.CategoriaId, torneioId);
+                confrontosNovos = await _robo.MontarMataMataDosGruposAsync(partida.CategoriaId, torneioId);
             }
             else if (ChaveamentoMataMata.ProximaFase(partida.Fase) != null)
             {
-                await _robo.AvancarFaseAsync(partida.CategoriaId, torneioId, partida.Fase);
+                confrontosNovos = await _robo.AvancarFaseAsync(partida.CategoriaId, torneioId, partida.Fase);
             }
             else if (partida.Fase.StartsWith("Americano"))
             {
@@ -137,6 +160,61 @@ public class EncerramentoDaPartida
         await NotificarResultadoAsync(partida, vencedorId, perdedorId, links.DoTorneio);
 
         if (acabouDeTerminar) await AvisarProximoDaQuadraAsync(partida, links.DaListaDeJogos);
+
+        // 4. OS SATÉLITES do fim de jogo — cada um em try/catch próprio pela regra deste
+        //    arquivo: o placar já está salvo e a chave já andou; push é acessório e não pode
+        //    travar a Mesa no meio do torneio.
+
+        // A CHAMADA DA PRÓXIMA FASE: os confrontos que os robôs criaram agora. Sai também em
+        // correção de placar, e está certo assim: se a correção fez a fase fechar, o confronto
+        // é novo de verdade — e os robôs nunca criam a mesma fase duas vezes.
+        try
+        {
+            await _confrontos.AnunciarAsync(confrontosNovos, links.DoTorneio);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao anunciar os confrontos novos após a partida {PartidaId}.", partida.Id);
+        }
+
+        // "TÍTULO DECIDIDO!" pros seguidores do torneio — só quando a coroação aconteceu
+        // NESTA passada (a foto de antes dos robôs decide).
+        if (!jaTinhaCampeao && partida.TorneioId is int torneioDoTitulo)
+        {
+            try
+            {
+                await _campeoes.AnunciarSeCoroouAsync(partida.CategoriaId, torneioDoTitulo, links.DoTorneio);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao anunciar os campeões da categoria {CategoriaId}.", partida.CategoriaId);
+            }
+        }
+
+        // PALPITE CONFERIDO e MARCO PESSOAL: só quando o jogo ACABOU agora. Correção de
+        // placar não repete festa — o total revisitaria o mesmo número e o palpiteiro
+        // receberia o mesmo "+1" duas vezes.
+        if (acabouDeTerminar)
+        {
+            try
+            {
+                await _palpitesConferidos.ConferirAsync(partida,
+                    partida.TorneioId is int t ? $"/Torneios/Palpiteiros/{t}" : null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao conferir os palpites da partida {PartidaId}.", partida.Id);
+            }
+
+            try
+            {
+                await _marcos.ConferirAsync(partida);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao conferir marcos pessoais da partida {PartidaId}.", partida.Id);
+            }
+        }
     }
 
     private async Task CoroarCampeaoAsync(Partida partida, int vencedorId, int torneioId)
@@ -228,13 +306,30 @@ public class EncerramentoDaPartida
             var idsPerdedores = new[] { perdedora.Jogador1Id, perdedora.Jogador2Id }
                 .Where(id => id != null).Select(id => id!.Value).ToArray();
 
+            // O QUANTO O JOGO MEXEU NO PADELÍMETRO de cada um, colado no aviso de resultado —
+            // e não num push próprio: seria o segundo aviso pra mesma pessoa no mesmo
+            // segundo, e rajada dobrada é o que ensina a desligar o canal. O extrato já foi
+            // escrito pelo passo 1; jogo que não conta (W.O., restrito, time) não tem linha e
+            // o sufixo simplesmente não aparece.
+            var extrato = (await _context.HistoricosDePadelimetro
+                    .Where(h => h.PartidaId == partida.Id)
+                    .Select(h => new { h.JogadorId, h.NivelAntes, h.Delta })
+                    .ToListAsync())
+                .GroupBy(h => h.JogadorId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            string Padelimetro(int jogadorId) =>
+                extrato.TryGetValue(jogadorId, out var linha) && linha.Delta != 0
+                    ? $" Padelímetro: {linha.NivelAntes + linha.Delta} ({(linha.Delta > 0 ? "+" : "")}{linha.Delta})."
+                    : "";
+
             foreach (var id in idsVencedores)
             {
                 await _push.EnviarParaJogadorAsync(id,
                     ehFinal ? "🏆 Campeões!" : "Vitória!",
-                    ehFinal
+                    (ehFinal
                         ? $"Vocês venceram a final{ondeFoi}!"
-                        : $"Vocês venceram {Nomes(perdedora)} ({placar}){ondeFoi}.",
+                        : $"Vocês venceram {Nomes(perdedora)} ({placar}){ondeFoi}.") + Padelimetro(id),
                     url, AlcanceDoAviso.AppSemEmail);
             }
 
@@ -242,7 +337,7 @@ public class EncerramentoDaPartida
             {
                 await _push.EnviarParaJogadorAsync(id,
                     "Resultado do seu jogo",
-                    $"{Nomes(vencedora)} venceu ({placar}){ondeFoi}.",
+                    $"{Nomes(vencedora)} venceu ({placar}){ondeFoi}." + Padelimetro(id),
                     url, AlcanceDoAviso.AppSemEmail);
             }
 

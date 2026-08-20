@@ -13,6 +13,16 @@ namespace Padelizou.Services;
 //
 // ⚠️ QUEM DECIDE É ESTE ARQUIVO, e não quem chama. Os dois gatilhos entregam o torneio e
 // perguntam "dá pra avisar?"; as três recusas (não aprovado, oculto, já avisado) moram aqui.
+// O texto de quem JÁ JOGOU a série, puro. É o anúncio de maior conversão que existe: a pessoa
+// não está sendo apresentada a um torneio — está sendo chamada de volta pro dela.
+public static class TextoDaVoltaDaSerie
+{
+    public const string Titulo = "Ele voltou! 🎾";
+
+    public static string Corpo(string torneio) =>
+        $"Abriu a nova edição do {torneio} — o torneio que você jogou. Garanta sua vaga.";
+}
+
 public static class AvisoDeTorneioNovo
 {
     // O que aconteceu, pra tela poder dizer a verdade em vez de prometer um push que não saiu.
@@ -53,9 +63,20 @@ public static class AvisoDeTorneioNovo
         // "rs", "Rio Grande do Sul (RS)") e quem casa isso é o UnidadeFederativa, que o banco
         // não sabe executar. Comparar direto no SQL deixaria 39 pessoas do RS de fora —
         // conferido em produção.
+        //
+        // A VOLTA DA SÉRIE (20/08/2026): quem jogou uma edição anterior deste torneio sai do
+        // anúncio genérico e recebe o pessoal ("o torneio que você jogou está de volta") —
+        // e recebe MESMO morando em outro estado: o vínculo com a série vale mais que a UF.
+        // A preferência NotificarTorneiosAbertos vale pros dois: os `candidatos` já vêm
+        // filtrados por ela, e veterano só é avisado se estiver entre eles.
+        var veteranos = (await VeteranosDaSerieAsync(ctx, torneio))
+            .Intersect(candidatos.Select(j => j.Id))
+            .ToHashSet();
+
         var elegiveis = candidatos
             .Where(j => ufDoTorneio == null || UnidadeFederativa.Combina(j.Estado, ufDoTorneio))
             .Select(j => j.Id)
+            .Where(id => !veteranos.Contains(id))
             .ToList();
 
         // ⚠️ O CARIMBO VEM ANTES DO ENVIO, e é gravado MESMO quando não há ninguém elegível.
@@ -64,6 +85,12 @@ public static class AvisoDeTorneioNovo
         // novo que não há quem avisar.
         torneio.AvisoDeTorneioNovoEm = DateTime.Now;
         await ctx.SaveChangesAsync();
+
+        foreach (var jogadorId in veteranos)
+        {
+            await push.EnviarParaJogadorAsync(jogadorId, TextoDaVoltaDaSerie.Titulo,
+                TextoDaVoltaDaSerie.Corpo(torneio.Nome), url, AlcanceDoAviso.AppSemEmail);
+        }
 
         foreach (var jogadorId in elegiveis)
         {
@@ -79,7 +106,38 @@ public static class AvisoDeTorneioNovo
                 jogadorId, "Novo torneio aberto", torneio.Nome, url, AlcanceDoAviso.AppSemEmail);
         }
 
-        return new Resultado(true, elegiveis.Count);
+        return new Resultado(true, elegiveis.Count + veteranos.Count);
+    }
+
+    // Quem JOGOU (se inscreveu em) qualquer OUTRA edição da série deste torneio. A série é a
+    // do DuplicacaoDeTorneio: toda edição aponta pro torneio-raiz, então "as outras edições"
+    // é uma consulta só. Torneio fora de série devolve vazio sem tocar nas inscrições.
+    private static async Task<HashSet<int>> VeteranosDaSerieAsync(DbPadelContext ctx, Torneio torneio)
+    {
+        int raiz = DuplicacaoDeTorneio.RaizDaSerie(torneio);
+
+        var edicoesAnteriores = await ctx.Torneios
+            .Where(t => t.Id != torneio.Id && (t.Id == raiz || t.TorneioOrigemId == raiz))
+            .Select(t => t.Id)
+            .ToListAsync();
+        if (edicoesAnteriores.Count == 0) return new HashSet<int>();
+
+        // As DUAS portas de inscrição, como sempre. Linha de TIME fica fora — o Jogador1
+        // dela é o organizador que cadastrou o time, não quem jogou.
+        var deDupla = (await ctx.Duplas
+                .Where(d => d.NomeTime == null && edicoesAnteriores.Contains(d.Categoria.TorneioId))
+                .Select(d => new { d.Jogador1Id, d.Jogador2Id })
+                .ToListAsync())
+            .SelectMany(d => new[] { (int?)d.Jogador1Id, d.Jogador2Id })
+            .Where(id => id != null)
+            .Select(id => id!.Value);
+
+        var deAmericano = await ctx.InscricoesAmericanas
+            .Where(i => edicoesAnteriores.Contains(i.Categoria.TorneioId))
+            .Select(i => i.JogadorId)
+            .ToListAsync();
+
+        return deDupla.Concat(deAmericano).ToHashSet();
     }
 
     // A frase que o admin/organizador lê depois de aprovar ou publicar. Fica aqui porque as

@@ -556,7 +556,7 @@ namespace Padelizou.Controllers
                     ? new[] { jogador1.Nome }
                     : new[] { jogador1.Nome, jogador2.Nome };
 
-                await _avisoDeInscricao.NotificarAsync(torneioId, categoria.Nome, nomes, inscritos,
+                await _avisoDeInscricao.NotificarAsync(torneioId, categoria.Id, nomes, inscritos,
                     Url.Action("Details", "Torneios", new { id = torneioId }));
             }
 

@@ -26,6 +26,14 @@ public static class AvisoDoDesafio
             $"{dupla} chamou pra jogar {categoria} no {clube}, {quando:dd/MM 'às' HH'h'mm}. "
             + "Você tem 48h pra responder.");
 
+    // A variante de quem TEM o cinturão: o mesmo desafio, mas com o que está em jogo no
+    // título. Mesmo canal do Recebido — é o mesmo evento, com o mesmo prazo e a mesma ação;
+    // só o texto sabe que este jogo vale o reinado.
+    public static TextoDoAviso RecebidoPeloCinturao(string dupla, string categoria, string clube, DateTime quando) =>
+        new("Seu reinado está em risco! 🥊",
+            $"{dupla} vieram atrás do cinturão da {categoria}: {clube}, {quando:dd/MM 'às' HH'h'mm}. "
+            + "Vocês têm 48h pra responder — e 3 desafios sem resposta custam o cinturão.");
+
     // ⚠️ Plural: o sujeito é uma DUPLA. "Ana e Bruno topou" foi o que saiu na primeira
     // conferência — o nome vem de DuplaNaTela e são sempre duas pessoas.
     public static TextoDoAviso Aceito(string dupla, string clube, DateTime quando) =>
@@ -120,4 +128,12 @@ public static class AvisoDoDesafio
             $"O cinturão da {categoria} passou adiante: foram {Cinturao.NaoAtendidosQueCustamOCinturao} "
             + $"desafios recusados ou sem resposta em {Cinturao.JanelaDaDefesa.Days} dias. "
             + "Aceite um desafio pra retomar.");
+
+    // O ANÚNCIO PRA CATEGORIA quando o cinturão troca de mão (20/08/2026) — quem joga os
+    // desafios daquela categoria fica sabendo que tem alvo novo. Um texto só pros três
+    // caminhos (vago, tomado na quadra, herdado por omissão): pra quem lê de fora, a notícia
+    // é a mesma — o cinturão tem donos novos, e dá pra desafiá-los.
+    public static TextoDoAviso CinturaoTemNovosDonos(string categoria, string dupla) =>
+        new("O cinturão mudou de mão! 🥊",
+            $"{dupla} agora são os donos do cinturão da {categoria}. Quer tomar? Desafie.");
 }

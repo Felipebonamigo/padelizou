@@ -197,12 +197,7 @@ namespace Padelizou.Controllers
                 // Lista de espera fica de fora aqui também: ainda não é vaga na chave.
                 if (!emListaDeEspera)
                 {
-                    var categoriaDaInscricao = await _context.Categorias
-                        .Where(c => c.Id == categoriaId)
-                        .Select(c => c.Nome)
-                        .FirstOrDefaultAsync() ?? "";
-
-                    await _avisoDeInscricao.NotificarAsync(torneioId, categoriaDaInscricao,
+                    await _avisoDeInscricao.NotificarAsync(torneioId, categoriaId,
                         new[] { jogador.Nome }, new[] { jogador.Id },
                         Url.Action("Details", "Torneios", new { id = torneioId }));
                 }

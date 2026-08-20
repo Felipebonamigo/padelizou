@@ -1450,7 +1450,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                     .Select(id => nomesPorId[id])
                     .ToList();
 
-                await _avisoDeInscricao.NotificarAsync(torneio.Id, categoria.Nome, nomes,
+                await _avisoDeInscricao.NotificarAsync(torneio.Id, categoria.Id, nomes,
                     inscritos, $"/Torneios/Details/{torneio.Id}");
             }
         }

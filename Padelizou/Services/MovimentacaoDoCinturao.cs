@@ -130,11 +130,52 @@ public class MovimentacaoDoCinturao
             await _push.EnviarParaJogadorAsync(id, ganhou.Titulo, ganhou.Corpo,
                 "/Desafios/Ranking", AlcanceDoAviso.AppSemEmail);
 
-        if (antigo == null || !tomou) return;
+        if (antigo != null && tomou)
+        {
+            var perdeu = AvisoDoDesafio.CinturaoPerdido(categoria);
+            foreach (var id in antigo.Donos)
+                await _push.EnviarParaJogadorAsync(id, perdeu.Titulo, perdeu.Corpo,
+                    "/Desafios/Ranking", AlcanceDoAviso.AppSemEmail);
+        }
 
-        var perdeu = AvisoDoDesafio.CinturaoPerdido(categoria);
-        foreach (var id in antigo.Donos)
-            await _push.EnviarParaJogadorAsync(id, perdeu.Titulo, perdeu.Corpo,
+        await AvisarACategoriaAsync(categoriaPadraoId, categoria, novosDonos, antigo, cancelationToken);
+    }
+
+    // O ANÚNCIO PRA CATEGORIA (20/08/2026): cinturão que troca de mão em silêncio é cinturão
+    // que ninguém corre atrás. Quem já jogou (ou propôs) desafio naquela categoria fica
+    // sabendo que o alvo mudou — os donos novos e antigos ficam de fora, que os avisos deles
+    // acabaram de sair aí em cima.
+    //
+    // ⚠️ A audiência são os PARTICIPANTES dos desafios da categoria, e não a base inteira:
+    // broadcast pra quem nunca jogou um desafio é exatamente o spam que o comentário lá de
+    // cima promete não ligar.
+    private async Task AvisarACategoriaAsync(int categoriaPadraoId, string categoria,
+        int[] novosDonos, ReinadoNoCinturao? antigo, CancellationToken cancelationToken)
+    {
+        var deFora = novosDonos.Concat(antigo?.Donos ?? Array.Empty<int>()).ToHashSet();
+
+        var participantes = (await _context.Desafios
+                .Where(d => d.CategoriaPadraoId == categoriaPadraoId)
+                .Select(d => new { d.DesafianteJogador1Id, d.DesafianteJogador2Id,
+                                   d.DesafiadoJogador1Id, d.DesafiadoJogador2Id })
+                .ToListAsync(cancelationToken))
+            .SelectMany(d => new[] { d.DesafianteJogador1Id, d.DesafianteJogador2Id,
+                                     d.DesafiadoJogador1Id, d.DesafiadoJogador2Id })
+            .Distinct()
+            .Where(id => !deFora.Contains(id))
+            .ToList();
+
+        if (participantes.Count == 0) return;
+
+        var nomes = await _context.Jogadores
+            .Where(j => novosDonos.Contains(j.Id))
+            .Select(j => new { j.Nome, j.Apelido })
+            .ToListAsync(cancelationToken);
+        var dupla = string.Join(" e ", nomes.Select(n => NomeBonito.ComApelido(n.Nome, n.Apelido)));
+
+        var texto = AvisoDoDesafio.CinturaoTemNovosDonos(categoria, dupla);
+        foreach (var id in participantes)
+            await _push.EnviarParaJogadorAsync(id, texto.Titulo, texto.Corpo,
                 "/Desafios/Ranking", AlcanceDoAviso.AppSemEmail);
     }
 
@@ -157,5 +198,10 @@ public class MovimentacaoDoCinturao
         foreach (var id in antigo.Donos)
             await _push.EnviarParaJogadorAsync(id, perdeu.Titulo, perdeu.Corpo,
                 "/Desafios/Ranking", AlcanceDoAviso.SoApp);
+
+        // A categoria fica sabendo também — a troca por omissão é a mais invisível de todas
+        // (ninguém entrou em quadra), e é justamente a que mais precisa de anúncio.
+        await AvisarACategoriaAsync(antigo.CategoriaPadraoId, categoria,
+            novo.Donos.ToArray(), antigo, cancelationToken);
     }
 }

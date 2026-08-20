@@ -32,14 +32,20 @@ public class RoboDoChaveamento
     // ===================================================================================
     // ROBÔ 1: FIM DA FASE DE GRUPOS → primeira rodada do mata-mata
     // ===================================================================================
-    public async Task MontarMataMataDosGruposAsync(int categoriaId, int? torneioId)
+    //
+    // Devolve as partidas que CRIOU (vazio quando não criou nada) — é o que permite ao
+    // encerramento anunciar os confrontos novos (AnuncioDoConfronto) sem uma segunda
+    // consulta adivinhando o que o robô fez.
+    public async Task<List<Partida>> MontarMataMataDosGruposAsync(int categoriaId, int? torneioId)
     {
+        var nada = new List<Partida>();
+
         var categoria = await _context.Categorias
             .Include(c => c.GruposTorneio)
                 .ThenInclude(g => g.Duplas)
             .FirstOrDefaultAsync(c => c.Id == categoriaId);
 
-        if (categoria == null) return;
+        if (categoria == null) return nada;
 
         // ⚠️ A FASE DE GRUPOS PRECISA TER ACABADO — e quem confere é o robô, não quem chama.
         //
@@ -52,7 +58,7 @@ public class RoboDoChaveamento
             p.CategoriaId == categoriaId
             && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo "))
             && p.Status != "Finalizada");
-        if (aindaTemJogoDeGrupo) return;
+        if (aindaTemJogoDeGrupo) return nada;
 
         var partidasFinalizadas = await _context.Partidas
             .Where(p => p.CategoriaId == categoriaId
@@ -63,7 +69,7 @@ public class RoboDoChaveamento
         // Evita gerar a chave duas vezes (ex: dois finalizamentos quase simultâneos).
         bool mataMataJaGerado = await _context.Partidas.AnyAsync(p =>
             p.CategoriaId == categoriaId && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")));
-        if (mataMataJaGerado) return;
+        if (mataMataJaGerado) return nada;
 
         var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
 
@@ -82,7 +88,7 @@ public class RoboDoChaveamento
         //    partida aqui — é a ausência dela que o robô de avanço lê depois
         //    (Services/AvancoDaChave) pra somá-los aos vencedores.
         var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(classificados, classificamPorGrupo);
-        if (confrontos.Count == 0) return;
+        if (confrontos.Count == 0) return nada;
 
         var jogosDoMataMata = confrontos
             .Select(confronto => new Partida
@@ -102,20 +108,27 @@ public class RoboDoChaveamento
 
         _context.Partidas.AddRange(jogosDoMataMata);
         await _context.SaveChangesAsync();
+
+        return jogosDoMataMata;
     }
 
     // ===================================================================================
     // ROBÔ 2: PROGRESSÃO — Primeira Rodada → Oitavas → Quartas → Semifinal → Final
     // ===================================================================================
-    public async Task AvancarFaseAsync(int categoriaId, int? torneioId, string faseConcluida)
+    //
+    // Também devolve as partidas criadas (vazio quando a fase ainda não fechou) — mesmo
+    // motivo do robô 1: o anúncio dos confrontos novos sai de quem os criou.
+    public async Task<List<Partida>> AvancarFaseAsync(int categoriaId, int? torneioId, string faseConcluida)
     {
+        var nada = new List<Partida>();
+
         // Fase que não encadeia (grupos, Americano, Final) para aqui.
-        if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return;
+        if (ChaveamentoMataMata.ProximaFase(faseConcluida) == null) return nada;
 
         // Vencedores da fase + quem passou direto (bye), com a fase completa conferida lá
         // dentro. Vazio = ainda tem jogo pendente. Ver Services/AvancoDaChave.
         var avancam = await AvancoDaChave.QuemAvancaAsync(_context, categoriaId, faseConcluida);
-        if (avancam.Count < 2) return;
+        if (avancam.Count < 2) return nada;
 
         // Com bye o quadro encolhe mais devagar: a primeira rodada de uma chave de 24 entrega
         // 16 (8 vencedores + 8 byes), que são Oitavas — e não as Quartas que o encadeamento
@@ -123,7 +136,7 @@ public class RoboDoChaveamento
         var proximaFase = ChaveamentoMataMata.NomeFase(avancam.Count);
 
         // Nunca gera a próxima fase em duplicidade (dois finalizamentos quase simultâneos).
-        if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return;
+        if (await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId && p.Fase == proximaFase)) return nada;
 
         var novos = ChaveamentoMataMata.ParearVencedores(avancam)
             // Codigo é obrigatório no banco (NOT NULL) — sem ele o INSERT do robô falha.
@@ -143,6 +156,8 @@ public class RoboDoChaveamento
 
         _context.Partidas.AddRange(novos);
         await _context.SaveChangesAsync();
+
+        return novos;
     }
 
     // ===================================================================================

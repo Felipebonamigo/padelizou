@@ -21,6 +21,9 @@ public class SeguirTorneioTests
     {
         var ctx = TestInfra.NovoContexto();
         ctx.Torneios.Add(new Torneio { Id = 7, Nome = "Copa da Grade", Codigo = "TEST-APITO" });
+        // O apito agora recebe o ID da categoria (é dele que sai o nome e a conta das vagas).
+        ctx.Categorias.Add(new Categoria { Id = 701, TorneioId = 7, Nome = "Open Masculino", Codigo = "OM" });
+        ctx.Categorias.Add(new Categoria { Id = 702, TorneioId = 7, Nome = "Open", Codigo = "OPN" });
         ctx.SaveChanges();
 
         var push = Substitute.For<IPushNotificationService>();
@@ -40,7 +43,7 @@ public class SeguirTorneioTests
         var (ctx, push, aviso) = Montar();
         Segue(ctx, 100);
 
-        await aviso.NotificarAsync(7, "Open Masculino", new[] { "Ana", "Bia" }, new[] { 1, 2 }, "/Torneios/Details/7");
+        await aviso.NotificarAsync(7, 701, new[] { "Ana", "Bia" }, new[] { 1, 2 }, "/Torneios/Details/7");
 
         await push.Received(1).EnviarParaJogadorAsync(100, TextoDoApito.Titulo,
             "Dupla Ana e Bia inscrita no torneio Copa da Grade. Na categoria Open Masculino.",
@@ -56,7 +59,7 @@ public class SeguirTorneioTests
         var (ctx, push, aviso) = Montar();
         Segue(ctx, 100);
 
-        await aviso.NotificarAsync(7, "Open", new[] { "Ana" }, new[] { 1 }, null);
+        await aviso.NotificarAsync(7, 702, new[] { "Ana" }, new[] { 1 }, null);
 
         await push.Received(1).EnviarParaJogadorAsync(
             Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),
@@ -72,7 +75,7 @@ public class SeguirTorneioTests
         Segue(ctx, 100, 200);
 
         // 100 é seguidor E acabou de entrar; 200 só segue.
-        await aviso.NotificarAsync(7, "Open", new[] { "Ana", "Bia" }, new[] { 100, 55 }, null);
+        await aviso.NotificarAsync(7, 702, new[] { "Ana", "Bia" }, new[] { 100, 55 }, null);
 
         await push.DidNotReceive().EnviarParaJogadorAsync(100, Arg.Any<string>(), Arg.Any<string>(),
             Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
@@ -85,7 +88,7 @@ public class SeguirTorneioTests
     {
         var (ctx, push, aviso) = Montar();
 
-        await aviso.NotificarAsync(7, "Open", new[] { "Ana" }, new[] { 1 }, null);
+        await aviso.NotificarAsync(7, 702, new[] { "Ana" }, new[] { 1 }, null);
 
         await push.DidNotReceive().EnviarParaJogadorAsync(Arg.Any<int>(), Arg.Any<string>(),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
@@ -99,7 +102,7 @@ public class SeguirTorneioTests
         ctx.SeguidoresTorneio.Add(new SeguidorTorneio { TorneioId = 99, JogadorId = 100 });
         ctx.SaveChanges();
 
-        await aviso.NotificarAsync(7, "Open", new[] { "Ana" }, new[] { 1 }, null);
+        await aviso.NotificarAsync(7, 702, new[] { "Ana" }, new[] { 1 }, null);
 
         await push.DidNotReceive().EnviarParaJogadorAsync(Arg.Any<int>(), Arg.Any<string>(),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());

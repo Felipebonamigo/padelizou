@@ -328,6 +328,10 @@ builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
 builder.Services.AddHostedService<AlertaMeiBackgroundService>();
 builder.Services.AddHostedService<ConciliacaoAutomaticaDoPixBackgroundService>();
+// Toda segunda ao meio-dia, o apanhado dos torneios anunciados na semana que ainda têm
+// inscrições abertas — a repescagem do "Novo torneio aberto" avulso. Ver
+// Services/ResumoSemanalDeTorneiosBackgroundService.
+builder.Services.AddHostedService<ResumoSemanalDeTorneiosBackgroundService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

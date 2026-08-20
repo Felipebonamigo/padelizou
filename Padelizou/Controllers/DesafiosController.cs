@@ -498,7 +498,19 @@ public class DesafiosController : Controller
         var minhaDupla = DuplaNaTela.Nome(meu.Jogador1, meu.Jogador2);
         var categoriaNome = categorias.First(c => c.Id == categoriaPadraoId).Nome;
         var clubeNome = clubes.First(c => c.Id == clubeId).Nome;
-        var aviso = AvisoDoDesafio.Recebido(minhaDupla, categoriaNome, clubeNome, dataHora);
+
+        // A dupla desafiada TEM o cinturão desta categoria? Então o aviso muda de tom: não é
+        // "um desafio chegou", é "seu reinado está em risco" — mesma comparação por chave do
+        // Cinturao.Efeito, feita aqui só pra escolher o texto.
+        var dono = await _context.ReinadosNoCinturao.FirstOrDefaultAsync(r =>
+            r.CategoriaPadraoId == categoriaPadraoId && r.TerminouEm == null);
+        bool peloCinturao = dono != null
+            && ChaveDaDupla.De(dono.Jogador1Id, dono.Jogador2Id)
+               == ChaveDaDupla.De(desafio.DesafiadoJogador1Id, desafio.DesafiadoJogador2Id);
+
+        var aviso = peloCinturao
+            ? AvisoDoDesafio.RecebidoPeloCinturao(minhaDupla, categoriaNome, clubeNome, dataHora)
+            : AvisoDoDesafio.Recebido(minhaDupla, categoriaNome, clubeNome, dataHora);
 
         // O ÚNICO aviso destes que vai pro WhatsApp: é pessoal, morre em 48h e a pessoa tem
         // que fazer alguma coisa por causa dele — os três critérios do AlcanceDoAviso.
