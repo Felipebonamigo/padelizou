@@ -313,49 +313,93 @@ namespace padelizou.Controllers
         public async Task<IActionResult> RegistrarJogo(
             int grupoId, DateTime dataJogo,
             int dupla1Jogador1Id, int dupla1Jogador2Id, int dupla2Jogador1Id, int dupla2Jogador2Id,
-            int vencedorLado, int? gamesDupla1, int? gamesDupla2, int? clubeId, DateTime? voltarParaSemana = null)
+            int vencedorLado, int? gamesDupla1, int? gamesDupla2, int? clubeId, DateTime? voltarParaSemana = null,
+            // OS JOGOS SEGUINTES DO MESMO DIA — cada um com OS SEUS quatro jogadores.
+            //
+            // O primeiro resultado continua chegando solto (dupla1Jogador1Id, vencedorLado...)
+            // porque sempre chegou assim, e reescrever os sete parâmetros em lista só pra ficar
+            // simétrico mexeria em dezesseis testes que hoje protegem o caminho de um jogo só.
+            // A assimetria morre três linhas abaixo: daqui pra frente é UMA lista, com UMA
+            // validação e UM laço de gravação. O que não pode existir é uma segunda regra pro
+            // jogo 2.
+            List<ResultadoLancado>? maisResultados = null)
         {
             var userId = ObterUserId();
             var souMembro = await _context.JogadoresGrupo.AnyAsync(jg => jg.GrupoId == grupoId && jg.JogadorId == userId);
             if (!souMembro) return RedirectToAction("Index");
 
-            // O vencedor é o fato; o placar é detalhe opcional. A régua é a mesma do editar —
-            // ver Services/ResultadoDoJogoSemanal, e o porquê de ela existir separada.
-            if (ResultadoDoJogoSemanal.MotivoParaNaoSalvar(vencedorLado, gamesDupla1, gamesDupla2) is { } problema)
+            // O primeiro jogo e os seguintes viram uma lista só, na ordem em que a tela mostra.
+            var resultados = new List<ResultadoLancado>
             {
-                TempData["Erro"] = problema;
+                new()
+                {
+                    Dupla1Jogador1Id = dupla1Jogador1Id, Dupla1Jogador2Id = dupla1Jogador2Id,
+                    Dupla2Jogador1Id = dupla2Jogador1Id, Dupla2Jogador2Id = dupla2Jogador2Id,
+                    VencedorLado = vencedorLado, GamesDupla1 = gamesDupla1, GamesDupla2 = gamesDupla2,
+                },
+            };
+            resultados.AddRange(maisResultados ?? Enumerable.Empty<ResultadoLancado>());
+
+            if (resultados.Count > ResultadoDoJogoSemanal.MaximoPorLancamento)
+            {
+                TempData["Erro"] = $"Dá pra lançar até {ResultadoDoJogoSemanal.MaximoPorLancamento} jogos de uma vez. Salve estes e comece outro lançamento.";
                 return RedirectToAction("RegistrarJogo", new { grupoId, data = dataJogo });
-            }
-
-            // O SENTINELA DO FORMULÁRIO VIRA NULO AQUI, e só aqui. Ver Services/ConvidadoNoJogo:
-            // -1 é "convidado sem nome"; o ZERO que o binder produz pra campo faltando continua
-            // sendo zero, e continua caindo no porteiro logo abaixo.
-            var escolhidos = new[] { dupla1Jogador1Id, dupla1Jogador2Id, dupla2Jogador1Id, dupla2Jogador2Id }
-                .Select(ConvidadoNoJogo.DoFio)
-                .ToArray();
-
-            if (ConvidadoNoJogo.MotivoParaNaoSalvar(escolhidos[0], escolhidos[1], escolhidos[2], escolhidos[3]) is { } convidadosDemais)
-            {
-                TempData["Erro"] = convidadosDemais;
-                return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
             }
 
             // A LISTA DA TELA NÃO É A TRAVA. Ela some de vista, o POST não: sem conferir aqui,
             // um id qualquer entraria no placar do grupo — e no recálculo do ranking — por um
             // formulário montado à mão.
-            //
-            // ⚠️ Nulo não se confere contra lista nenhuma — é a vaga de quem o sistema não
-            // conhece, e conferir "o convidado é do grupo?" não quer dizer nada. Quem TEM id
-            // continua tendo que ser membro ou convidado, e o zero do binder continua sendo
-            // recusado aqui: é o que separa "veio um convidado" de "o formulário chegou pela
-            // metade".
             var podemJogar = (await ParticipantesParaResultadoAsync(grupoId)).Select(j => j.Id).ToHashSet();
-            if (escolhidos.Any(id => id != null && !podemJogar.Contains(id.Value)))
+
+            // ⚠️ TUDO É CONFERIDO ANTES DE QUALQUER COISA SER GRAVADA. Validar dentro do laço de
+            // gravação deixaria o jogo 1 salvo e o jogo 2 recusado — e a recusa é um
+            // RedirectToAction, ou seja formulário novo em branco: a pessoa não saberia o que
+            // entrou e relançaria os dois, duplicando o primeiro. Ou entram todos, ou nenhum.
+            var quartetos = new List<int?[]>();
+            for (int i = 0; i < resultados.Count; i++)
             {
-                TempData["Erro"] = "Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.";
-                // A recusa devolve o formulário no MESMO contexto — voltar pro "hoje" faria a
-                // pessoa perder a data que ela estava lançando junto com o erro.
-                return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
+                var r = resultados[i];
+                // Com mais de um jogo na tela, "marque quem venceu" não diz qual deles.
+                string Onde(string problema) => resultados.Count > 1 ? $"Jogo {i + 1}: {problema}" : problema;
+
+                // O vencedor é o fato; o placar é detalhe opcional. A régua é a mesma do editar —
+                // ver Services/ResultadoDoJogoSemanal, e o porquê de ela existir separada.
+                if (ResultadoDoJogoSemanal.MotivoParaNaoSalvar(r.VencedorLado, r.GamesDupla1, r.GamesDupla2) is { } problema)
+                {
+                    TempData["Erro"] = Onde(problema);
+                    return RedirectToAction("RegistrarJogo", new { grupoId, data = dataJogo });
+                }
+
+                // O SENTINELA DO FORMULÁRIO VIRA NULO AQUI, e só aqui. Ver Services/ConvidadoNoJogo:
+                // -1 é "convidado sem nome"; o ZERO que o binder produz pra campo faltando continua
+                // sendo zero, e continua caindo nos porteiros logo abaixo.
+                var escolhidos = new[] { r.Dupla1Jogador1Id, r.Dupla1Jogador2Id, r.Dupla2Jogador1Id, r.Dupla2Jogador2Id }
+                    .Select(ConvidadoNoJogo.DoFio)
+                    .ToArray();
+
+                // ⚠️ O TETO DE CONVIDADOS É POR JOGO, e é por isso que ele mora dentro do laço:
+                // uma noite de cinco jogos pode ter um convidado em cada um sem que nenhum jogo
+                // vire uma partida de anônimos.
+                if (ConvidadoNoJogo.MotivoParaNaoSalvar(escolhidos[0], escolhidos[1], escolhidos[2], escolhidos[3]) is { } convidadosDemais)
+                {
+                    TempData["Erro"] = Onde(convidadosDemais);
+                    return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
+                }
+
+                // ⚠️ Nulo não se confere contra lista nenhuma — é a vaga de quem o sistema não
+                // conhece, e conferir "o convidado é do grupo?" não quer dizer nada. Quem TEM id
+                // continua tendo que ser membro ou convidado, e o zero do binder continua sendo
+                // recusado aqui: é o que separa "veio um convidado" de "o formulário chegou pela
+                // metade".
+                if (escolhidos.Any(id => id != null && !podemJogar.Contains(id.Value)))
+                {
+                    TempData["Erro"] = Onde("Um dos jogadores escolhidos não é da panelinha nem foi convidado pra um jogo dela.");
+                    // A recusa devolve o formulário no MESMO contexto — voltar pro "hoje" faria a
+                    // pessoa perder a data que ela estava lançando junto com o erro.
+                    return RedirectToAction("RegistrarJogo", new { grupoId, data = voltarParaSemana });
+                }
+
+                quartetos.Add(escolhidos);
             }
 
             // Sem escolha na tela, cai no clube fixo do grupo: o jogo da panelinha é quase
@@ -363,27 +407,39 @@ namespace padelizou.Controllers
             clubeId ??= await _context.GruposPrivados
                 .Where(g => g.Id == grupoId).Select(g => g.ClubeId).FirstOrDefaultAsync();
 
-            var jogo = new JogoSemanal
+            // Uma LINHA por resultado: pra pontuação da panelinha, dois sets entre os mesmos
+            // quatro são dois jogos (ver Services/ResultadoDoJogoSemanal).
+            for (int i = 0; i < resultados.Count; i++)
             {
-                GrupoId = grupoId,
-                DataJogo = dataJogo,
-                ClubeId = clubeId,
-                // ⚠️ `escolhidos`, NÃO os parâmetros crus: estes ainda valem -1 pro convidado, e
-                // `int` cabe em `int?` por conversão implícita — o compilador não avisaria nada
-                // e o banco receberia -1, que viola a FK. Fail-closed, mas caro de descobrir.
-                Dupla1Jogador1Id = escolhidos[0],
-                Dupla1Jogador2Id = escolhidos[1],
-                Dupla2Jogador1Id = escolhidos[2],
-                Dupla2Jogador2Id = escolhidos[3],
-                RegistradoPorId = userId
-            };
-            ResultadoDoJogoSemanal.Aplicar(jogo, vencedorLado, gamesDupla1, gamesDupla2);
-            _context.JogosSemanais.Add(jogo);
+                var r = resultados[i];
+                var escolhidos = quartetos[i];
+                var jogo = new JogoSemanal
+                {
+                    GrupoId = grupoId,
+                    DataJogo = dataJogo,
+                    ClubeId = clubeId,
+                    // ⚠️ `quartetos`, NÃO os campos crus de `r`: estes ainda valem -1 pro convidado,
+                    // e `int` cabe em `int?` por conversão implícita — o compilador não avisaria
+                    // nada e o banco receberia -1, que viola a FK. Fail-closed, mas caro de
+                    // descobrir.
+                    Dupla1Jogador1Id = escolhidos[0],
+                    Dupla1Jogador2Id = escolhidos[1],
+                    Dupla2Jogador1Id = escolhidos[2],
+                    Dupla2Jogador2Id = escolhidos[3],
+                    RegistradoPorId = userId
+                };
+                ResultadoDoJogoSemanal.Aplicar(jogo, r.VencedorLado, r.GamesDupla1, r.GamesDupla2);
+                _context.JogosSemanais.Add(jogo);
+            }
             await _context.SaveChangesAsync();
 
+            // UM recálculo pro lançamento inteiro, não um por jogo: o resultado é o mesmo e a
+            // conta varre o grupo todo de cada vez.
             await RecalcularPontuacaoAsync(grupoId);
 
-            TempData["Sucesso"] = "Jogo registrado! Ranking atualizado.";
+            TempData["Sucesso"] = resultados.Count > 1
+                ? $"{resultados.Count} jogos registrados! Ranking atualizado."
+                : "Jogo registrado! Ranking atualizado.";
 
             // Volta pra onde a pessoa estava. Quem clicou na tela da semana quer ver o ranking
             // DAQUELA semana mudar — ser cuspido no ranking geral esconde justamente o efeito

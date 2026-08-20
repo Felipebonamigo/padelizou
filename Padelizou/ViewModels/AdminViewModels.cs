@@ -29,6 +29,9 @@ public class MetricasAdminVM
     // ⚠️ NÃO é presença ("gente online agora"): é o minuto mais cheio do dia, sem WebSocket
     // pra saber quantas abas estão abertas. Ver o porquê em MetricasDeAcesso.
     public int PicoDeAcessosNoMinuto { get; set; }
+    // Quando o registro de acessos começou. Null = nunca registrou nada. A tabela usa isto pra
+    // avisar por que as linhas mais antigas não têm número — elas são anteriores à medição.
+    public DateTime? AcessosDesde { get; set; }
 
     // MEI — comissão da plataforma no ano corrente contra o teto anual
     public decimal ComissaoAno { get; set; }
@@ -69,6 +72,16 @@ public class FaixaMetricaVM
     public int Inscricoes { get; set; }
     public int Pagamentos { get; set; }
     public decimal Valor { get; set; }
+
+    // NULL NÃO É ZERO AQUI. Null = a fatia inteira é anterior ao primeiro acesso registrado,
+    // ou seja, ninguém estava contando — a tela mostra "·" e não "—". Zero é uma afirmação
+    // sobre o tráfego; null é a ausência de afirmação. (Registro nasceu em 18/08/2026.)
+    public int? Acessos { get; set; }
+
+    // A fatia em que a medição COMEÇOU: tem número, mas só da parte do período em que já se
+    // contava. Sem isto, o dia que começou às 20h29 seria comparado de igual pra igual com um
+    // dia inteiro e leria como queda de tráfego.
+    public bool AcessosParciais { get; set; }
 }
 
 // Painel "Jogadores por região" — de onde vem quem se cadastra, e em que ritmo cada lugar

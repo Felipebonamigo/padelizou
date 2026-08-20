@@ -23,6 +23,13 @@ public static class ResultadoDoJogoSemanal
     public const int Dupla1 = 1;
     public const int Dupla2 = 2;
 
+    // Quantos jogos cabem num lançamento só (o primeiro mais os que forem sendo somados).
+    // A panelinha joga dois, três sets seguidos com os mesmos quatro; vinte é folga larga
+    // pra isso e continua sendo um teto — sem ele, um POST montado à mão criaria linhas de
+    // ranking sem fim. Vai pra tela pelo servidor: número escrito à mão no JS seria a
+    // segunda cópia da régua, e a segunda é sempre a que fica pra trás.
+    public const int MaximoPorLancamento = 20;
+
     // O vencedor DEDUZIDO do placar — o que a propriedade calculada fazia antes.
     //
     // Continua existindo por dois motivos: é a régua do backfill da migração (todo jogo antigo
@@ -83,4 +90,30 @@ public static class ResultadoDoJogoSemanal
         jogo.GamesDupla1 == null || jogo.GamesDupla2 == null
             ? null
             : $"{jogo.GamesDupla1} x {jogo.GamesDupla2}";
+}
+
+// UM resultado vindo do formulário de registrar jogo.
+//
+// Existe por causa do pedido do Felipe (20/08/2026): "quando elas jogam mais de um jogo, tem
+// como anotar aqui?". Não tinha — a tela gravava um jogo e voltava pro ranking, e o segundo
+// set exigia refazer data e os quatro nomes.
+//
+// Cada resultado vira uma LINHA de JogoSemanal, e não uma coluna a mais no mesmo jogo: pra
+// pontuação da panelinha, dois sets entre os mesmos quatro são dois jogos — é assim que ela
+// já contava quando a pessoa lançava um de cada vez, e mudar isso mexeria no ranking de todo
+// mundo pra resolver um problema de digitação.
+public class ResultadoLancado
+{
+    // Cada jogo tem OS SEUS quatro. Num dia de panelinha a mesma gente troca de par entre uma
+    // partida e outra — foi a segunda metade do pedido ("permita que marquem mais jogos e, se
+    // quiserem, mudando as duplas também"). Repetir os quatro por jogo é o preço de não
+    // amarrar todos ao primeiro; o que é do DIA (data e local) continua vindo uma vez só.
+    public int Dupla1Jogador1Id { get; set; }
+    public int Dupla1Jogador2Id { get; set; }
+    public int Dupla2Jogador1Id { get; set; }
+    public int Dupla2Jogador2Id { get; set; }
+
+    public int VencedorLado { get; set; }
+    public int? GamesDupla1 { get; set; }
+    public int? GamesDupla2 { get; set; }
 }
