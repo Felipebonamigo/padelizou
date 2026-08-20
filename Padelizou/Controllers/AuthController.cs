@@ -25,10 +25,12 @@ namespace padelizou.Controllers
         private readonly SuporteSettings _suporte;
         private readonly TravaDeEntrada _trava;
         private readonly IConsultaDeCep _cep;
+        private readonly PorteiroDaEntrada _porteiroDaEntrada;
 
-        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte, TravaDeEntrada trava, IConsultaDeCep cep)
+        public AuthController(DbPadelContext context, IWebHostEnvironment env, IPasswordHasher<Jogador> passwordHasher, IEstatisticasService estatisticas, IEmailService email, ILogger<AuthController> logger, IOptions<SuporteSettings> suporte, TravaDeEntrada trava, IConsultaDeCep cep, PorteiroDaEntrada porteiroDaEntrada)
         {
             _cep = cep;
+            _porteiroDaEntrada = porteiroDaEntrada;
             _context = context;
             _env = env;
             _passwordHasher = passwordHasher;
@@ -290,6 +292,21 @@ namespace padelizou.Controllers
             {
                 _trava.RegistrarFalha(email, DateTime.Now);
                 ViewBag.Erro = "Login ou senha incorretos.";
+                return View();
+            }
+
+            // A senha estava certa — e mesmo assim esta conta pode não ser DESTE ambiente.
+            //
+            // Fica DEPOIS da conferência da senha de propósito: antes dela, a tela responderia
+            // "esta conta não entra aqui" pra quem só digitou um e-mail, e viraria uma máquina
+            // de descobrir quem tem acesso ao ambiente sem precisar de senha nenhuma.
+            //
+            // Não zera a trava de força-bruta junto: quem não entra aqui não tem por que
+            // ganhar tentativas de volta.
+            if (!_porteiroDaEntrada.PodeEntrar(jogador))
+            {
+                _logger.LogWarning("Entrada restrita: {Identificador} tem a senha certa, mas não está em Entrada:SoEstas.", email);
+                ViewBag.Erro = "Este é um ambiente restrito, e esta conta não tem acesso a ele.";
                 return View();
             }
 

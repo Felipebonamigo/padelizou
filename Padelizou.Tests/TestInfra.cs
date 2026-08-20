@@ -50,7 +50,8 @@ public static class TestInfra
     // link" e "não mandou nada" são desfechos DIFERENTES que terminam na mesma tela, e sem
     // enxergar o dublê o teste não distingue os dois.
     public static AuthController NovoAuthController(DbPadelContext ctx, int usuarioLogadoId = 0,
-        TravaDeEntrada? trava = null, IConsultaDeCep? cep = null, IEmailService? email = null)
+        TravaDeEntrada? trava = null, IConsultaDeCep? cep = null, IEmailService? email = null,
+        PorteiroDaEntrada? porteiroDaEntrada = null)
     {
         var controller = new AuthController(
             ctx,
@@ -61,7 +62,8 @@ public static class TestInfra
             NullLogger<AuthController>.Instance,
             Microsoft.Extensions.Options.Options.Create(new SuporteSettings()),
             trava ?? new TravaDeEntrada(),
-            cep ?? CepQueNaoResponde());
+            cep ?? CepQueNaoResponde(),
+            porteiroDaEntrada ?? PorteiroDeTeste.Entrada());
 
         controller.ControllerContext = new ControllerContext
         {

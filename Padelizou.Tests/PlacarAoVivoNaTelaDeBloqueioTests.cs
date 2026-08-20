@@ -301,7 +301,7 @@ public class PlacarAoVivoNaTelaDeBloqueioTests
             new FilaDeWhatsApp(NullLogger<FilaDeWhatsApp>.Instance),
             fila, email,
             Options.Create(new SiteSettings { Url = "https://padelizou.com.br" }),
-            PorteiroDeTeste.Com(),
+            PorteiroDeTeste.Saida(),
             NullLogger<PushNotificationService>.Instance);
 
         await servico.EnviarPlacarAoVivoAsync(7, "Placar ao vivo", "4 x 3", "/x", "partida-1");

@@ -89,7 +89,7 @@ public class ConsentimentoDoWhatsAppTests
             fila,
             Substitute.For<IEmailService>(),
             Options.Create(new SiteSettings()),
-            PorteiroDeTeste.Com(),
+            PorteiroDeTeste.Saida(),
             NullLogger<PushNotificationService>.Instance);
 
         await new DesfazerOptInHerdado(ctx, servico).RodarAsync();

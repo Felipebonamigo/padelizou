@@ -27,7 +27,7 @@ public class PorteiroDaSaidaTests
         // ⚠️ O TESTE MAIS IMPORTANTE DO ARQUIVO. É o estado da produção, e é o estado de
         // qualquer ambiente que suba sem a chave. Se um dia esta linha virar vermelha, o
         // sistema inteiro parou de mandar e-mail sem ninguém ter pedido isso.
-        var porteiro = PorteiroDeTeste.Com();
+        var porteiro = PorteiroDeTeste.Saida();
 
         Assert.False(porteiro.Restringindo);
         Assert.True(porteiro.PodeSair("qualquer.um@gmail.com"));
@@ -41,7 +41,7 @@ public class PorteiroDaSaidaTests
     [Fact]
     public void Com_lista_so_passa_quem_esta_nela()
     {
-        var porteiro = PorteiroDeTeste.Com(Ensaiando, CelularDoEnsaio);
+        var porteiro = PorteiroDeTeste.Saida(Ensaiando, CelularDoEnsaio);
 
         Assert.True(porteiro.Restringindo);
         Assert.True(porteiro.PodeSair(Ensaiando));
@@ -58,8 +58,8 @@ public class PorteiroDaSaidaTests
     {
         // A lista é escrita à mão no systemd, no meio de um deploy. Um espaço colado sem
         // querer não pode ser a diferença entre receber o ensaio e ficar sem prova nenhuma.
-        Assert.True(PorteiroDeTeste.Com(Ensaiando).PodeSair(comoChegou));
-        Assert.True(PorteiroDeTeste.Com(comoChegou).PodeSair(Ensaiando));
+        Assert.True(PorteiroDeTeste.Saida(Ensaiando).PodeSair(comoChegou));
+        Assert.True(PorteiroDeTeste.Saida(comoChegou).PodeSair(Ensaiando));
     }
 
     [Theory]
@@ -70,8 +70,8 @@ public class PorteiroDaSaidaTests
     {
         // Mesmo normalizador que o canal usa pra falar com a Meta: o cadastro guarda
         // DDD+número, mas o que alguém cola na configuração vem de onde vier.
-        Assert.True(PorteiroDeTeste.Com(CelularDoEnsaio).PodeSair(comoChegou));
-        Assert.True(PorteiroDeTeste.Com(comoChegou).PodeSair(CelularDoEnsaio));
+        Assert.True(PorteiroDeTeste.Saida(CelularDoEnsaio).PodeSair(comoChegou));
+        Assert.True(PorteiroDeTeste.Saida(comoChegou).PodeSair(CelularDoEnsaio));
     }
 
     [Theory]
@@ -84,7 +84,7 @@ public class PorteiroDaSaidaTests
         // Aqui a dúvida se resolve pro lado de não incomodar ninguém — o contrário do padrão
         // da lista vazia, e pelo mesmo motivo: lá o risco era calar a produção, aqui é
         // escrever pra um desconhecido.
-        Assert.False(PorteiroDeTeste.Com(Ensaiando).PodeSair(destino));
+        Assert.False(PorteiroDeTeste.Saida(Ensaiando).PodeSair(destino));
     }
 
     [Fact]
@@ -92,11 +92,11 @@ public class PorteiroDaSaidaTests
     {
         // O aparelho não tem endereço que uma pessoa reconheça; quem tem é o dono dele. E a
         // lista é escrita com o que estava à mão — às vezes o e-mail, às vezes o número.
-        var soPeloEmail = PorteiroDeTeste.Com(Ensaiando);
+        var soPeloEmail = PorteiroDeTeste.Saida(Ensaiando);
         Assert.True(soPeloEmail.PodeSairParaAlgum(Ensaiando, "51977776666"));
         Assert.True(soPeloEmail.PodeSairParaAlgum(null, Ensaiando));
 
-        var soPeloCelular = PorteiroDeTeste.Com(CelularDoEnsaio);
+        var soPeloCelular = PorteiroDeTeste.Saida(CelularDoEnsaio);
         Assert.True(soPeloCelular.PodeSairParaAlgum("outro@gmail.com", CelularDoEnsaio));
 
         Assert.False(soPeloEmail.PodeSairParaAlgum("outro@gmail.com", "51977776666"));
@@ -108,7 +108,7 @@ public class PorteiroDaSaidaTests
     {
         // Metade da base não tem celular no cadastro. Em produção isso não pode virar
         // "então não recebe push".
-        Assert.True(PorteiroDeTeste.Com().PodeSairParaAlgum(null, null));
+        Assert.True(PorteiroDeTeste.Saida().PodeSairParaAlgum(null, null));
     }
 
     // ── Os canais de verdade ────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ public class PorteiroDaSaidaTests
     {
         // O canal está DE PÉ e configurado: o que barra é a pessoa, não o provedor. Sem
         // porteiro, esta mensagem chegaria no celular de gente de verdade.
-        var canal = NovoCanalDeWhatsApp(PorteiroDeTeste.Com(CelularDoEnsaio));
+        var canal = NovoCanalDeWhatsApp(PorteiroDeTeste.Saida(CelularDoEnsaio));
 
         Assert.False(await canal.EnviarAsync("51977776666", "seu jogo é o próximo"));
     }
@@ -130,7 +130,7 @@ public class PorteiroDaSaidaTests
         // gasta cota) e não é falha (não pode acender o alarme de "o provedor caiu") — senão
         // uma noite de ensaio no dev abriria chamado de infraestrutura que não existe.
         var volume = new VolumeDoEmail();
-        var email = NovoEmailService(volume, PorteiroDeTeste.Com(Ensaiando));
+        var email = NovoEmailService(volume, PorteiroDeTeste.Saida(Ensaiando));
 
         await email.EnviarAsync("jogador.de.verdade@gmail.com", "Jogador", "Chaves saíram", "<p>oi</p>");
 
@@ -158,7 +158,7 @@ public class PorteiroDaSaidaTests
         });
         await ctx.SaveChangesAsync();
 
-        var resultado = await NovoServicoDeAvisos(ctx, PorteiroDeTeste.Com(Ensaiando))
+        var resultado = await NovoServicoDeAvisos(ctx, PorteiroDeTeste.Saida(Ensaiando))
             .EnviarTesteAsync(1, porPush: true, porWhatsApp: false, "Teste", "corpo");
 
         Assert.Equal(ResultadoDoCanal.SaidaRestritaNesteAmbiente, resultado.Push);
@@ -179,7 +179,7 @@ public class PorteiroDaSaidaTests
         });
         await ctx.SaveChangesAsync();
 
-        await NovoServicoDeAvisos(ctx, PorteiroDeTeste.Com(Ensaiando))
+        await NovoServicoDeAvisos(ctx, PorteiroDeTeste.Saida(Ensaiando))
             .EntregarAgoraAsync(new AvisoPendente(1, "As chaves saíram", "seu jogo é 14h", "/torneio/1",
                 AlcanceDoAviso.AppEWhatsApp));
 
@@ -194,7 +194,7 @@ public class PorteiroDaSaidaTests
         // precisa receber os avisos do próprio ensaio, senão a metade do sistema que só existe
         // no celular fica sem prova nenhuma.
         var volume = new VolumeDoEmail();
-        var email = NovoEmailService(volume, PorteiroDeTeste.Com(Ensaiando), host: "127.0.0.1", porta: 1);
+        var email = NovoEmailService(volume, PorteiroDeTeste.Saida(Ensaiando), host: "127.0.0.1", porta: 1);
 
         await email.EnviarAsync(Ensaiando, "Felipe", "Chaves saíram", "<p>oi</p>");
 

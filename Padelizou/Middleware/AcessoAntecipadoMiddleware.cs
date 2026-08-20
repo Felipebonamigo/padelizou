@@ -62,7 +62,7 @@ public class AcessoAntecipadoMiddleware
     }
 
     public async Task InvokeAsync(HttpContext context, IOptions<AcessoAntecipadoSettings> options,
-        DbPadelContext db, PortaoDeAcesso portao)
+        DbPadelContext db, PortaoDeAcesso portao, PorteiroDaEntrada porteiroDaEntrada)
     {
         // No subdomínio admin (admin.padelizou.com.br) esse gate nem entra em ação — nem a
         // senha compartilhada, nem o auto-login de demonstração como Felipe. Ele existe pra
@@ -76,6 +76,39 @@ public class AcessoAntecipadoMiddleware
         }
 
         var settings = options.Value;
+
+        // ── ENTRADA RESTRITA ────────────────────────────────────────────────────────────────
+        // Ambiente que só aceita uma lista de contas — o dev, que roda com o banco copiado da
+        // produção (ver Services/EntradaSettings). Cookie de quem não está na lista é DESFEITO
+        // aqui, não apenas ignorado: a sessão dura 90 dias e sobreviveria a qualquer trava que
+        // só olhasse o momento do login.
+        //
+        // ⚠️ VEM ANTES DO PORTÃO, de propósito. O portão tem um botão que o desliga pelo
+        // painel, e desligá-lo não pode abrir o ambiente inteiro: "você tem a senha
+        // compartilhada?" e "este ambiente é seu?" são duas perguntas independentes.
+        //
+        // ⚠️ E está atrás do `Restringindo` justamente pra a PRODUÇÃO não pagar por isto: com a
+        // lista vazia nada aqui roda — nem a autenticação manual, nem a ida ao banco.
+        if (porteiroDaEntrada.Restringindo && !EhCaminhoLiberado(context.Request.Path))
+        {
+            var entrando = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            if (entrando.Succeeded)
+            {
+                context.User = entrando.Principal!;
+
+                var idTexto = entrando.Principal!.FindFirstValue(ClaimTypes.NameIdentifier);
+                var dono = int.TryParse(idTexto, out var id)
+                    ? await db.Jogadores.FirstOrDefaultAsync(j => j.Id == id)
+                    : null;
+
+                if (!porteiroDaEntrada.PodeEntrar(dono))
+                {
+                    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    context.Response.Redirect("/AcessoAntecipado/Entrar");
+                    return;
+                }
+            }
+        }
 
         // O botão do admin manda; na falta dele, o padrão do systemd (ver Services/PortaoDeAcesso).
         if (!portao.EstaHabilitado(settings) || EhCaminhoLiberado(context.Request.Path))
