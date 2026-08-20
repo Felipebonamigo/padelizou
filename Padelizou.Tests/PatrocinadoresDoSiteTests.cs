@@ -38,6 +38,16 @@ public class PatrocinadoresDoSiteTests
     }
 
     [Fact]
+    public void Cada_patrocinador_do_embutido_leva_pro_site_dele()
+    {
+        // O clique é parte do que se vende: quem paga pra aparecer espera receber a visita,
+        // e logo sem link é só enfeite. Some calado se alguém mexer na lista sem o endereço.
+        var embutidos = new PatrocinadoresSettings().ParaExibir(ambienteDeTeste: true);
+
+        Assert.All(embutidos, p => Assert.StartsWith("https://", p.Link));
+    }
+
+    [Fact]
     public void So_entra_no_embutido_quem_mandou_a_arte()
     {
         // A trava do 20/08/2026: um logo recriado à mão entrou aqui pra adiantar o teste de

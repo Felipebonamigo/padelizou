@@ -535,23 +535,30 @@
                     }
                 }
                 <div class="pdz-patrocinio">
+                    @* O rótulo fica ACIMA dos logos, e não ao lado: em linha, ele era só mais
+                       um item da fileira e disputava a largura com as marcas — no celular
+                       roubava metade da linha e empurrava o segundo logo pra baixo. Em cima,
+                       ele apresenta a fileira inteira e some do caminho. *@
                     <span class="pdz-patrocinio-rotulo">Patrocínio</span>
-                    @foreach (var patrocinador in patrocinadores)
-                    {
-                        @* rel="sponsored": é o rótulo que o Google exige em link pago — sem
-                           ele, patrocínio vira "compra de link" e o site é quem paga a multa
-                           de ranqueamento. *@
-                        @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
+                    <div class="pdz-patrocinio-marcas">
+                        @foreach (var patrocinador in patrocinadores)
                         {
-                            <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener" title="@patrocinador.Nome">
-                                @{ await LogoDoPatrocinador(patrocinador); }
-                            </a>
+                            @* rel="sponsored": é o rótulo que o Google exige em link pago — sem
+                               ele, patrocínio vira "compra de link" e o site é quem paga a multa
+                               de ranqueamento. *@
+                            @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
+                            {
+                                <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener"
+                                   title="Visitar o site do @patrocinador.Nome">
+                                    @{ await LogoDoPatrocinador(patrocinador); }
+                                </a>
+                            }
+                            else
+                            {
+                                await LogoDoPatrocinador(patrocinador);
+                            }
                         }
-                        else
-                        {
-                            await LogoDoPatrocinador(patrocinador);
-                        }
-                    }
+                    </div>
                 </div>
             }
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">

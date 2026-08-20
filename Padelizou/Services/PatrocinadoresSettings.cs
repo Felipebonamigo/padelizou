@@ -42,6 +42,7 @@ public class PatrocinadoresSettings
             {
                 Nome = "Paralelo",
                 Imagem = "/image/patrocinadores/paralelo.webp",
+                Link = "https://www.paraleloesporte.com.br/",
                 LogoEscuro = true,
             },
             // Arte oficial que o Grand Padel mandou (kit da marca, variantes RGB Pos-Neg-Mon):
@@ -51,6 +52,7 @@ public class PatrocinadoresSettings
                 Nome = "Grand Padel",
                 Imagem = "/image/patrocinadores/grand-padel.webp",
                 ImagemEscura = "/image/patrocinadores/grand-padel-branco.webp",
+                Link = "https://www.grandpadel.com.br/",
             },
         };
     }

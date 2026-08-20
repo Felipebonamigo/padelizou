@@ -213,13 +213,31 @@ a:hover { color: var(--pdz-lime-600); }
    sem gritar mais que o próprio site; volta a 100% sob o mouse. */
 .pdz-patrocinio {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: .75rem 1.75rem;
+    gap: .5rem;
     padding-bottom: 1rem;
     margin-bottom: 1rem;
     border-bottom: 1px solid var(--pdz-border);
+}
+/* A fileira das marcas, embaixo do rótulo. É ela que quebra linha quando os logos não
+   couberem — o rótulo fica fora da conta, e por isso a quebra acontece ENTRE marcas, e
+   não separando o "Patrocínio" do primeiro logo. */
+.pdz-patrocinio-marcas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    /* Menor que o respiro que se vê: o padding dos links (abaixo) completa a conta. */
+    gap: .25rem .95rem;
+}
+/* O logo virou link, e dedo não acerta um alvo de 26px de altura — a régua usual é ~44.
+   O padding leva a área de toque até lá SEM mudar o desenho: o que ele soma de fora, o
+   gap acima desconta, então a fileira continua com o mesmo espaçamento de antes. */
+.pdz-patrocinio a {
+    display: inline-flex;
+    align-items: center;
+    padding: .5rem .4rem;
 }
 .pdz-patrocinio-rotulo {
     font-size: .72rem;
