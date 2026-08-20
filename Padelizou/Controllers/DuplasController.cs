@@ -609,7 +609,11 @@ namespace Padelizou.Controllers
         [Authorize]
         public async Task<IActionResult> TrocarParceiro(int duplaId, string cpfNovoParceiro, string? nomeNovoParceiro,
             // "Ele já está inscrito sozinho — pode juntar." Marcado na tela depois do aviso.
-            bool juntarComInscricaoSolo = false)
+            bool juntarComInscricaoSolo = false,
+            // Parceiro escolhido pelo NOME, na lista de sugestões. Mesma porta que a inscrição
+            // já tinha (Create.jogador2Id): quem define o parceiro depois sabe o nome dele, não
+            // o CPF — e o organizador, corrigindo a inscrição de outra pessoa, muito menos.
+            int? novoParceiroId = null)
         {
             var jogadorLogadoId = ObterJogadorIdLogado();
             if (jogadorLogadoId == null) return Forbid();
@@ -645,6 +649,31 @@ namespace Padelizou.Controllers
             {
                 TempData["Erro"] = "O parceiro só pode ser alterado enquanto as inscrições estão abertas. Fale com o organizador.";
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
+            // ESCOLHIDO PELA LISTA DE NOMES. Preenche cpf/nome AQUI, antes de tudo, pelo mesmo
+            // motivo de Create: daqui pra baixo continua sendo a troca por CPF de sempre — o
+            // "não pode ser você mesmo", o "já é o parceiro desta inscrição", o
+            // MotivoParaNaoSerParceiroAsync e o juntar com a inscrição solo. Um caminho
+            // paralelo teria que repetir os quatro, e é assim que dois fluxos divergem.
+            //
+            // A busca por nome devolve só Id, nome e foto (Services/BuscaJogador) — CPF de
+            // terceiro não sai do servidor. Quem completa o resto é o cadastro, pelo Id.
+            if (novoParceiroId is int idEscolhido)
+            {
+                var escolhido = await _context.Jogadores
+                    .Where(j => j.Id == idEscolhido)
+                    .Select(j => new { j.Cpf, j.Nome })
+                    .FirstOrDefaultAsync();
+
+                if (escolhido == null)
+                {
+                    TempData["Erro"] = "Não encontrei esse parceiro. Escolha de novo na lista ou informe o CPF.";
+                    return RedirectToAction("Details", "Torneios", new { id = torneioId });
+                }
+
+                cpfNovoParceiro = escolhido.Cpf;
+                nomeNovoParceiro = escolhido.Nome;
             }
 
             var cpf = Documentos.SomenteDigitos(cpfNovoParceiro ?? "");

@@ -1084,14 +1084,42 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                       class="border rounded p-2 pdz-form-parceiro"
                                                       data-categoria="@dupla.CategoriaId">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                    <div class="row g-2 align-items-center">
-                                                        <div class="col-12">
-                                                            <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
-                                                                   placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+
+                                                    @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
+                                                       motivo: ninguém sabe o CPF do parceiro de cabeça — o
+                                                       organizador, corrigindo a inscrição de outra pessoa,
+                                                       menos ainda. Aqui os seletores são CLASSES e não ids
+                                                       porque esta caixa se repete uma vez por dupla na
+                                                       página; id repetido faria a lista de uma abrir dentro
+                                                       da outra. *@
+                                                    <div class="position-relative mb-2 pdz-bp-caixa">
+                                                        <input type="text" class="form-control form-control-sm pdz-bp-campo"
+                                                               placeholder="Procure pelo nome ou apelido"
+                                                               autocomplete="off" spellcheck="false" />
+                                                        <div class="small text-muted mt-1 pdz-bp-dica">
+                                                            Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
                                                         </div>
-                                                        <div class="col-12">
-                                                            <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
-                                                                   placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                        <input type="hidden" name="novoParceiroId" class="pdz-bp-id" />
+                                                        <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista pdz-bp-lista"></div>
+                                                    </div>
+
+                                                    <div class="alert alert-success py-2 px-3 d-none d-flex justify-content-between align-items-center pdz-bp-escolhido">
+                                                        <span><i class="bi bi-check-circle-fill"></i> <strong class="pdz-bp-escolhido-nome"></strong></span>
+                                                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 pdz-bp-trocar">trocar</button>
+                                                    </div>
+
+                                                    <div class="row g-2 align-items-center">
+                                                        <div class="col-12 pdz-bp-por-cpf">
+                                                            <div class="row g-2">
+                                                                <div class="col-12">
+                                                                    <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
+                                                                           placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+                                                                </div>
+                                                                <div class="col-12">
+                                                                    <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
+                                                                           placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div class="col-12">
                                                             <button type="submit" class="btn btn-sm btn-padel w-100">
@@ -3732,14 +3760,42 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                   class="bg-white border rounded p-2 pdz-form-parceiro"
                                                   data-categoria="@dupla.CategoriaId">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
-                                                <div class="row g-2 align-items-center">
-                                                    <div class="col-md-4">
-                                                        <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
-                                                               placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+
+                                                @* ACHAR PELO NOME. Igual ao da inscrição, e pelo mesmo
+                                                   motivo: ninguém sabe o CPF do parceiro de cabeça — o
+                                                   organizador, corrigindo a inscrição de outra pessoa,
+                                                   menos ainda. Aqui os seletores são CLASSES e não ids
+                                                   porque esta caixa se repete uma vez por dupla na
+                                                   página; id repetido faria a lista de uma abrir dentro
+                                                   da outra. *@
+                                                <div class="position-relative mb-2 pdz-bp-caixa">
+                                                    <input type="text" class="form-control form-control-sm pdz-bp-campo"
+                                                           placeholder="Procure pelo nome ou apelido"
+                                                           autocomplete="off" spellcheck="false" />
+                                                    <div class="small text-muted mt-1 pdz-bp-dica">
+                                                        Digite 3 letras e escolha na lista. Não achou? Preencha o CPF abaixo.
                                                     </div>
-                                                    <div class="col-md-5">
-                                                        <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
-                                                               placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                    <input type="hidden" name="novoParceiroId" class="pdz-bp-id" />
+                                                    <div class="list-group position-absolute w-100 shadow d-none pdz-busca-lista pdz-bp-lista"></div>
+                                                </div>
+
+                                                <div class="alert alert-success py-2 px-3 d-none d-flex justify-content-between align-items-center pdz-bp-escolhido">
+                                                    <span><i class="bi bi-check-circle-fill"></i> <strong class="pdz-bp-escolhido-nome"></strong></span>
+                                                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 pdz-bp-trocar">trocar</button>
+                                                </div>
+
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-md-9 pdz-bp-por-cpf">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-5">
+                                                                <input type="text" name="cpfNovoParceiro" class="form-control form-control-sm"
+                                                                       placeholder="CPF do parceiro" data-mascara="cpf" inputmode="numeric" required />
+                                                            </div>
+                                                            <div class="col-md-7">
+                                                                <input type="text" name="nomeNovoParceiro" class="form-control form-control-sm"
+                                                                       placeholder="Nome (só se ainda não tiver cadastro)" />
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <div class="col-md-3">
                                                         <button type="submit" class="btn btn-sm btn-padel w-100">
@@ -4741,18 +4797,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     // 14/08/2026). Copiar o bloco e trocar os ids seria a segunda cópia da mesma regra: o
     // dia em que a busca mudasse — outro endpoint, outro mínimo de letras, outro jeito de
     // esconder o CPF — um dos dois lados ficaria pra trás, e ninguém repara logo.
+    // Cada campo pode vir como id (quando é único na página) ou já como elemento — os
+    // formulários de parceiro se repetem uma vez por dupla, e ali não há id que preste.
+    function pdzEl(x) { return typeof x === 'string' ? document.getElementById(x) : (x || null); }
+
     function pdzLigarBuscaPorNome(ids) {
-        var campo = document.getElementById(ids.campo);
+        var campo = pdzEl(ids.campo);
         if (!campo) return;
 
-        var lista = document.getElementById(ids.lista);
-        var idOculto = document.getElementById(ids.idOculto);
-        var escolhido = document.getElementById(ids.escolhido);
-        var escolhidoNome = document.getElementById(ids.escolhidoNome);
-        var trocar = document.getElementById(ids.trocar);
-        var porCpf = document.getElementById(ids.porCpf);
-        var dica = document.getElementById(ids.dica);
-        var caixa = document.getElementById(ids.caixa);
+        var lista = pdzEl(ids.lista);
+        var idOculto = pdzEl(ids.idOculto);
+        var escolhido = pdzEl(ids.escolhido);
+        var escolhidoNome = pdzEl(ids.escolhidoNome);
+        var trocar = pdzEl(ids.trocar);
+        var porCpf = pdzEl(ids.porCpf);
+        var dica = pdzEl(ids.dica);
+        var caixa = pdzEl(ids.caixa);
         var url = '@Url.Action("BuscarJogadorParaOrganizador", "Torneios")';
         var timer = null;
 
@@ -4786,6 +4846,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             dica.classList.add('d-none');
             mostrarCamposDeCpf(false);
             fecharLista();
+            if (ids.aoEscolher) ids.aoEscolher(jogador);
         }
 
         trocar.addEventListener('click', function () {
@@ -4796,6 +4857,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             campo.value = '';
             mostrarCamposDeCpf(true);
             campo.focus();
+            if (ids.aoLimpar) ids.aoLimpar();
         });
 
         campo.addEventListener('input', function () {
@@ -4806,7 +4868,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
             // Espera a digitação parar: sem isso são cinco consultas pra escrever "Felipe".
             timer = setTimeout(function () {
-                fetch(url + '?termo=' + encodeURIComponent(termo))
+                fetch(url + '?termo=' + encodeURIComponent(termo) + (ids.extra || ''))
                     .then(function (r) { return r.ok ? r.json() : []; })
                     .then(function (achados) {
                         lista.innerHTML = '';
@@ -4855,6 +4917,63 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         caixa: 'pdzBuscaParceiro', campo: 'pdzParceiroNome', lista: 'pdzParceiroLista', idOculto: 'pdzParceiroId',
         escolhido: 'pdzParceiroEscolhido', escolhidoNome: 'pdzParceiroEscolhidoNome',
         trocar: 'pdzParceiroTrocar', porCpf: 'pdzCamposPorCpf', dica: 'pdzParceiroDica',
+    });
+
+    // ── Definir/trocar parceiro pelo NOME, e não só por CPF ─────────────────────────────
+    //
+    // Pedido do Felipe (20/08/2026), olhando o painel do organizador: o campo de nome que
+    // existia ali era só pra CADASTRAR quem ainda não tem conta — digitar "andre" nele não
+    // sugeria ninguém. Agora sugere, com a MESMA função da aba Inscreva-se: um formulário
+    // por dupla, todos ligados por classe.
+    //
+    // ⚠️ A CAIXA "JUNTAR" PRECISA VIR JUNTO. Quem a fazia aparecer era o CPF digitado; sem
+    // isto, escolher pelo nome alguém já inscrito sozinho levava à recusa do servidor
+    // mandando marcar uma caixa que nunca apareceu na tela — exatamente o beco sem saída que
+    // o bloco "Definir por CPF também sabe juntar inscrições" existiu pra fechar. Por isso a
+    // busca leva a categoria e a resposta traz `jaInscritoSozinho`.
+    document.querySelectorAll('.pdz-form-parceiro').forEach(function (form) {
+        var campo = form.querySelector('.pdz-bp-campo');
+        if (!campo) return;
+
+        var duplaId = form.querySelector('input[name="duplaId"]');
+        var juntarCaixa = form.querySelector('.pdz-juntar-caixa');
+        var juntarQuem = form.querySelector('.pdz-juntar-quem');
+        var juntarCheck = juntarCaixa ? juntarCaixa.querySelector('input[type="checkbox"]') : null;
+
+        function esconderJuntar() {
+            if (!juntarCaixa || !juntarCheck) return;
+            juntarCaixa.classList.add('d-none');
+            juntarCheck.checked = false;
+            if (juntarQuem) juntarQuem.textContent = '';
+        }
+
+        pdzLigarBuscaPorNome({
+            caixa: form.querySelector('.pdz-bp-caixa'),
+            campo: campo,
+            lista: form.querySelector('.pdz-bp-lista'),
+            idOculto: form.querySelector('.pdz-bp-id'),
+            escolhido: form.querySelector('.pdz-bp-escolhido'),
+            escolhidoNome: form.querySelector('.pdz-bp-escolhido-nome'),
+            trocar: form.querySelector('.pdz-bp-trocar'),
+            porCpf: form.querySelector('.pdz-bp-por-cpf'),
+            dica: form.querySelector('.pdz-bp-dica'),
+            extra: '&categoriaId=' + (form.dataset.categoria || '')
+                 + (duplaId ? '&ignorarDuplaId=' + duplaId.value : ''),
+            aoEscolher: function (j) {
+                if (!juntarCaixa || !juntarCheck) return;
+                if (!j.jaInscritoSozinho) { esconderJuntar(); return; }
+
+                if (juntarQuem) {
+                    juntarQuem.textContent = 'A inscrição sozinha de ' + (j.exibicao || j.nome)
+                        + ' sai e a dupla fica valendo — a vaga é a mesma, ninguém perde lugar.';
+                }
+                juntarCaixa.classList.remove('d-none');
+                // Já marcada, pelo mesmo motivo do caminho por CPF: quem escolheu alguém
+                // inscrito sozinho está justamente tentando juntar os dois.
+                juntarCheck.checked = true;
+            },
+            aoLimpar: esconderJuntar,
+        });
     });
 
     // "Ainda não tenho parceiro": esconde os campos do jogador 2. O required precisa sair

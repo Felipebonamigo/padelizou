@@ -763,13 +763,34 @@ namespace Padelizou.Controllers
         // Autocomplete pra achar quem vai organizar o torneio. Usa a mesma busca do resto
         // do sistema (nome, apelido ou CPF completo, sem diferenciar maiúsculas) — antes
         // aqui era CPF parcial + login exato em maiúsculas, uma terceira regra própria.
+        //
+        // `categoriaId` é opcional e serve a UMA coisa: dizer quais dos achados já estão
+        // inscritos SOZINHOS ali. Sem isso, escolher o parceiro pelo nome caía no mesmo beco
+        // sem saída que o caminho por CPF já teve — o servidor recusa mandando marcar "juntar
+        // com a inscrição que já existe", e a caixa nunca tinha aparecido, porque quem a fazia
+        // aparecer era o CPF digitado. `ignorarDuplaId` é a dupla sendo editada: ela não pode
+        // se acusar de já existir.
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> BuscarJogadorParaOrganizador(string termo)
+        public async Task<IActionResult> BuscarJogadorParaOrganizador(
+            string termo, int? categoriaId = null, int? ignorarDuplaId = null)
         {
             if (string.IsNullOrWhiteSpace(termo) || termo.Trim().Length < 3) return Json(Array.Empty<object>());
 
             var achados = await BuscaJogador.BuscarAsync(_context, termo, limite: 8);
+
+            // Uma consulta pros oito achados de uma vez, não uma por linha.
+            var inscritosSozinhos = new Dictionary<int, string>();
+            if (categoriaId is int cat && achados.Count > 0)
+            {
+                var repetidas = await InscricaoRepetida.ProcurarAsync(
+                    _context, cat, achados.Select(j => j.Id), ignorarDuplaId);
+
+                foreach (var r in InscricaoRepetida.QuePodemSerJuntadas(repetidas))
+                {
+                    inscritosSozinhos[r.JogadorId] = r.NomeJogador;
+                }
+            }
 
             return Json(achados.Select(j => new
             {
@@ -780,6 +801,8 @@ namespace Padelizou.Controllers
                 apelido = j.Apelido ?? "",
                 // A tela mostra uma linha só: o apelido quando existir, senão o nome.
                 exibicao = j.ComoChamar,
+                // Ele já está inscrito sozinho nesta categoria? A tela oferece juntar.
+                jaInscritoSozinho = inscritosSozinhos.ContainsKey(j.Id),
             }));
         }
 

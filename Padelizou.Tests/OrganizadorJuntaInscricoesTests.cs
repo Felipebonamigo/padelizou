@@ -205,4 +205,91 @@ public class OrganizadorJuntaInscricoesTests
         Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
         Assert.NotNull(controller.TempData["Erro"]);
     }
+
+    // ---- Definir o parceiro pelo NOME (pedido do Felipe, 20/08/2026) ----
+    //
+    // O painel do organizador só aceitava CPF. Agora a lista de sugestões manda o Id, e o
+    // servidor resolve o resto — ninguém precisa saber o documento de terceiro.
+
+    [Fact]
+    public async Task Escolhido_pelo_nome_vira_parceiro_sem_ninguem_digitar_CPF()
+    {
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var controller = Controller(ctx, organizador.Id);
+        // CPF vazio de propósito: é assim que a tela envia quando a escolha veio da lista.
+        await controller.TrocarParceiro(duplaDoAnderson.Id, "", null, novoParceiroId: gabriel.Id);
+
+        Assert.Equal(gabriel.Id, (await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.Null(controller.TempData["Erro"]);
+    }
+
+    // ⚠️ O PONTO DA IMPLEMENTAÇÃO: escolher pelo Id preenche o CPF lá em cima e segue pelo
+    // MESMO caminho de sempre. Se abrisse um atalho paralelo, a checagem de inscrição
+    // repetida ficaria de fora e o caminho novo recriaria o bug que o antigo já resolve.
+    [Fact]
+    public async Task Pelo_nome_a_recusa_de_inscricao_repetida_continua_valendo()
+    {
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        Sozinho(ctx, cat, gabriel);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, "", null, novoParceiroId: gabriel.Id);
+
+        Assert.Equal(2, await ctx.Duplas.CountAsync());
+        var erro = controller.TempData["Erro"] as string;
+        Assert.NotNull(erro);
+        Assert.Contains("juntar com a inscrição que já existe", erro);
+    }
+
+    [Fact]
+    public async Task Pelo_nome_com_a_caixa_marcada_junta_as_duas_inscricoes()
+    {
+        var (ctx, _t, cat, organizador, anderson, gabriel) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+        Sozinho(ctx, cat, gabriel);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, "", null,
+            juntarComInscricaoSolo: true, novoParceiroId: gabriel.Id);
+
+        var duplas = await ctx.Duplas.ToListAsync();
+        Assert.Single(duplas);
+        Assert.Equal(gabriel.Id, duplas[0].Jogador2Id);
+    }
+
+    [Fact]
+    public async Task Id_que_nao_existe_e_recusado_sem_mexer_na_dupla()
+    {
+        var (ctx, _t, cat, organizador, anderson, _g) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, "", null, novoParceiroId: 987654);
+
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.NotNull(controller.TempData["Erro"] as string);
+    }
+
+    // Escolher a si mesmo pela lista tem que doer igual a digitar o próprio CPF — a recusa
+    // mora depois da resolução do Id, e é justamente isso que este teste protege.
+    [Fact]
+    public async Task Pelo_nome_ninguem_vira_parceiro_de_si_mesmo()
+    {
+        var (ctx, _t, cat, organizador, anderson, _g) = await MontarAsync();
+        using var _ = ctx;
+        var duplaDoAnderson = Sozinho(ctx, cat, anderson);
+
+        var controller = Controller(ctx, organizador.Id);
+        await controller.TrocarParceiro(duplaDoAnderson.Id, "", null, novoParceiroId: anderson.Id);
+
+        Assert.Null((await ctx.Duplas.FirstAsync(d => d.Id == duplaDoAnderson.Id)).Jogador2Id);
+        Assert.Contains("você mesmo", controller.TempData["Erro"] as string ?? "");
+    }
 }
