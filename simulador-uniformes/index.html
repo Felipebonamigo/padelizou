@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Uniformes — Protótipo</title>
+<meta name="description" content="Monte o uniforme do seu time: escolha o modelo, as cores, o escudo, nome e número — e veja o resultado na hora.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     SIMULADOR DE UNIFORMES — protótipo 100% estático.
+     Um arquivo só: a camisa é SVG desenhado à mão, as cores são
+     variáveis CSS, e trocar cor é trocar uma variável. Sem
+     servidor, sem banco, sem biblioteca — abre em qualquer lugar.
+     ============================================================ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --fundo: #eef0f3;
+    --cartao: #ffffff;
+    --tinta: #10151c;
+    --tinta-2: #5b6470;
+    --borda: #e2e6ea;
+    --realce: #0e7a37;
+    --whatsapp: #0f8040;
+    --raio: 16px;
+  }
+
+  body {
+    font-family: 'Sora', system-ui, sans-serif;
+    background: var(--fundo);
+    color: var(--tinta);
+    min-height: 100vh;
+  }
+
+  /* ---------- topo ---------- */
+  header {
+    background: linear-gradient(135deg, #0c1118 0%, #16202c 70%, #1b2a1f 100%);
+    color: #fff;
+    padding: 28px 20px 30px;
+  }
+  .topo-conteudo { max-width: 1120px; margin: 0 auto; }
+  .marca {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 800; letter-spacing: .5px; font-size: 14px;
+    text-transform: uppercase; color: #9fe8b7;
+  }
+  .marca .bola { font-size: 18px; }
+  header h1 { font-size: clamp(24px, 4vw, 38px); font-weight: 800; margin-top: 10px; line-height: 1.15; }
+  header p.sub { margin-top: 8px; color: #b9c2cc; font-size: 15px; max-width: 560px; }
+  .selo {
+    display: inline-block; margin-top: 14px; font-size: 12px; font-weight: 600;
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    padding: 5px 12px; border-radius: 999px; color: #d7dde3;
+  }
+
+  /* ---------- layout ---------- */
+  main { max-width: 1120px; margin: 26px auto 60px; padding: 0 20px; display: grid; grid-template-columns: 1fr 360px; gap: 22px; }
+
+  .cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); }
+
+  /* ---------- palco (as duas camisas) ---------- */
+  .palco { padding: 26px 18px 20px; display: flex; flex-direction: column; justify-content: center; }
+  .vistas { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .vista { flex: 1 1 260px; max-width: 350px; text-align: center; }
+  .vista svg { width: 100%; height: auto; display: block; }
+  .vista figcaption {
+    font-size: 12px; font-weight: 800; letter-spacing: 3px; color: var(--tinta-2);
+    text-transform: uppercase; margin-top: 2px;
+  }
+  .palco-nota { text-align: center; font-size: 12.5px; color: var(--tinta-2); margin-top: 16px; }
+
+  /* ---------- painel de controles ---------- */
+  .painel { padding: 20px; display: flex; flex-direction: column; gap: 22px; align-self: start; }
+  .grupo h2 {
+    font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--tinta-2); margin-bottom: 10px;
+  }
+
+  /* modelos (miniaturas vivas: seguem as cores escolhidas) */
+  .modelos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .modelo-btn {
+    border: 2px solid var(--borda); border-radius: 12px; background: #f7f8fa;
+    padding: 6px 4px 4px; cursor: pointer; transition: border-color .15s, transform .1s;
+  }
+  .modelo-btn:hover { transform: translateY(-1px); }
+  .modelo-btn.ativo { border-color: var(--realce); background: #f0faf3; }
+  .modelo-btn svg { width: 100%; height: auto; display: block; }
+  .modelo-btn span { display: block; font-size: 10.5px; font-weight: 600; color: var(--tinta-2); margin-top: 2px; }
+  .modelo-btn.ativo span { color: var(--realce); }
+
+  /* gola */
+  .pilulas { display: flex; gap: 8px; }
+  .pilula {
+    flex: 1; border: 2px solid var(--borda); background: #f7f8fa; border-radius: 999px;
+    padding: 8px 0; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--tinta-2);
+    cursor: pointer; transition: border-color .15s;
+  }
+  .pilula.ativo { border-color: var(--realce); color: var(--realce); background: #f0faf3; }
+  .pilula.ativo::after { content: " ✓"; }
+  .modelo-btn.ativo span::after { content: " ✓"; }
+
+  /* cores */
+  .cores { display: flex; flex-direction: column; gap: 8px; }
+  .cor-linha {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--borda); border-radius: 10px; padding: 7px 10px; background: #fafbfc;
+    cursor: pointer;
+  }
+  .cor-linha span { font-size: 13px; font-weight: 600; }
+  .cor-linha input[type="color"] {
+    width: 52px; height: 34px; border: none; border-radius: 8px; background: none; cursor: pointer; padding: 0;
+  }
+  .cor-linha input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  .cor-linha input[type="color"]::-webkit-color-swatch { border: 1px solid #c9cfd6; border-radius: 6px; }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .preset {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--borda); background: #fafbfc; border-radius: 999px;
+    padding: 8px 12px 8px 8px; font-family: inherit; font-size: 12px; font-weight: 600;
+    color: var(--tinta-2); cursor: pointer;
+  }
+  .preset:hover { border-color: #b9c2cc; }
+  .preset .amostras { display: inline-flex; margin-right: 4px; }
+  .preset .amostras i {
+    width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #fff; margin-right: -5px; display: inline-block;
+  }
+
+  /* escudo */
+  .escudo-controles { display: flex; gap: 8px; align-items: center; }
+  .btn-suave {
+    border: 1px solid var(--borda); background: #fafbfc; border-radius: 10px;
+    padding: 9px 14px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--tinta);
+    cursor: pointer;
+  }
+  .btn-suave:hover { border-color: #b9c2cc; }
+  #remover-escudo { color: #b3261e; }
+  #remover-escudo[hidden] { display: none; }
+
+  /* nome e número */
+  .campos { display: grid; grid-template-columns: 1fr 84px; gap: 8px; }
+  .campos label { display: block; font-size: 11px; font-weight: 700; color: var(--tinta-2); margin-bottom: 4px; }
+  .campos input {
+    width: 100%; border: 1px solid var(--borda); border-radius: 10px; padding: 9px 10px;
+    font-family: inherit; font-size: 14px; font-weight: 600; text-transform: uppercase;
+  }
+  .campos input:focus { outline: 2px solid var(--realce); border-color: transparent; }
+
+  /* ações */
+  .acoes { display: flex; flex-direction: column; gap: 9px; }
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: 12px; padding: 13px 16px;
+    font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+    text-decoration: none; transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .btn-whats { background: var(--whatsapp); color: #fff; }
+  .btn-baixar { background: #10151c; color: #fff; }
+  .acoes .dica { font-size: 11.5px; color: var(--tinta-2); text-align: center; }
+
+  footer { text-align: center; padding: 0 20px 40px; color: var(--tinta-2); font-size: 12.5px; }
+  footer strong { color: var(--tinta); }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    /* a camisa fica visível enquanto a pessoa mexe nos controles */
+    .palco { position: sticky; top: 0; z-index: 5; padding: 10px 8px 8px;
+             box-shadow: 0 10px 22px rgba(16, 21, 28, .14); }
+    .vistas { flex-wrap: nowrap; gap: 4px; }
+    .vista { flex: 1 1 0; max-width: none; }
+    .vista figcaption { font-size: 10px; letter-spacing: 2px; }
+    .palco-nota { display: none; }
+  }
+
+  /* ============================================================
+     A CAMISA — as regiões pegam a cor das variáveis abaixo.
+     Trocar uma variável repinta as duas vistas e as miniaturas.
+     ============================================================ */
+  #app {
+    --c-corpo: #d6121f;
+    --c-detalhe: #121212;
+    --c-mangas: #121212;
+    --c-gola: #f5f5f5;
+    --c-numero: #ffffff;
+  }
+  .uni [data-reg="corpo"]   { fill: var(--c-corpo); }
+  .uni [data-reg="detalhe"] { fill: var(--c-detalhe); }
+  .uni [data-reg="mangas"]  { fill: var(--c-mangas); }
+  .uni [data-reg="gola"]    { fill: var(--c-gola); }
+  .uni [data-reg="numero"]  { fill: var(--c-numero); }
+  .uni text { font-family: 'Archivo Black', 'Arial Black', sans-serif;
+              paint-order: stroke; stroke: var(--c-numero-borda, transparent); stroke-linejoin: round; }
+
+  /* modelos: cada grupo .ov-* só aparece no modelo certo */
+  .uni .ov { display: none; }
+  #app[data-modelo="classico"] .uni:not(.thumb) .ov-classico { display: block; }
+  #app[data-modelo="faixa"]    .uni:not(.thumb) .ov-faixa    { display: block; }
+  #app[data-modelo="listras"]  .uni:not(.thumb) .ov-listras  { display: block; }
+  #app[data-modelo="central"]  .uni:not(.thumb) .ov-central  { display: block; }
+  .thumb-classico .ov-classico { display: block !important; }
+  .thumb-faixa    .ov-faixa    { display: block !important; }
+  .thumb-listras  .ov-listras  { display: block !important; }
+  .thumb-central  .ov-central  { display: block !important; }
+
+  /* golas */
+  .uni .gola-careca, .uni .gola-v { display: none; }
+  #app[data-gola="careca"] .uni:not(.thumb) .gola-careca { display: block; }
+  #app[data-gola="v"]      .uni:not(.thumb) .gola-v      { display: block; }
+  .thumb .gola-careca { display: block !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topo-conteudo">
+    <span class="marca"><span class="bola">⚽</span> Simulador de Uniformes</span>
+    <h1>Monte o uniforme do seu time</h1>
+    <p class="sub">Escolha o modelo, pinte cada parte, suba o escudo e veja o resultado na hora — frente e costas.</p>
+    <span class="selo">Protótipo funcional · 100% no navegador · sem custo de servidor</span>
+  </div>
+</header>
+
+<div id="app" data-modelo="faixa" data-gola="careca">
+<main>
+
+  <!-- ===================== PALCO ===================== -->
+  <section class="cartao palco">
+    <div class="vistas">
+      <figure class="vista" id="vista-frente"><figcaption>Frente</figcaption></figure>
+      <figure class="vista" id="vista-costas"><figcaption>Costas</figcaption></figure>
+    </div>
+    <p class="palco-nota">Imagem ilustrativa. A arte final de impressão é gerada pela confecção a partir destas escolhas.</p>
+  </section>
+
+  <!-- ===================== PAINEL ===================== -->
+  <aside class="cartao painel">
+
+    <div class="grupo">
+      <h2>1 · Modelo</h2>
+      <div class="modelos" id="modelos"></div>
+    </div>
+
+    <div class="grupo">
+      <h2>2 · Gola</h2>
+      <div class="pilulas">
+        <button class="pilula" data-gola="careca" aria-pressed="false">Careca</button>
+        <button class="pilula" data-gola="v" aria-pressed="false">Gola V</button>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h2>3 · Cores</h2>
+      <div class="cores" id="cores"></div>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="grupo">
+      <h2>4 · Escudo do time</h2>
+      <div class="escudo-controles">
+        <button class="btn-suave" id="subir-escudo">Enviar escudo (PNG/JPG)</button>
+        <button class="btn-suave" id="remover-escudo" hidden>Remover</button>
+        <input type="file" id="arquivo-escudo" accept="image/*" hidden>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h2>5 · Nome e número</h2>
+      <div class="campos">
+        <div>
+          <label for="campo-nome">Nome nas costas</label>
+          <input id="campo-nome" maxlength="14" value="SILVA" autocomplete="off">
+        </div>
+        <div>
+          <label for="campo-numero">Número</label>
+          <input id="campo-numero" maxlength="2" value="10" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <div class="grupo acoes">
+      <a class="btn btn-whats" id="btn-whats" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4 0-.5.2-.8l.4-.5c.1-.2.1-.3 0-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1.1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.2.7 3 .6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.5-.3Z"/></svg>
+        Pedir orçamento no WhatsApp
+      </a>
+      <button class="btn btn-baixar" id="btn-baixar">Baixar imagem (PNG)</button>
+      <p class="dica">A imagem sai com frente e costas lado a lado — pronta pra anexar na conversa.</p>
+    </div>
+
+  </aside>
+</main>
+</div>
+
+<footer>
+  <p><strong>Protótipo de demonstração.</strong> Arte 100% em SVG desenhada em código — sem modelos 3D, sem banco de dados, sem mensalidade de hospedagem.</p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Número do WhatsApp da confecção, com DDI e DDD (ex.: '5551999998888').
+     Vazio = abre o WhatsApp deixando a pessoa escolher o contato. */
+  var WHATSAPP_NUMERO = '';
+
+  /* ============================================================
+     GEOMETRIA — todos os traçados da camisa, desenhados uma vez.
+     Frente e costas usam o MESMO corpo; muda a gola e o que vai
+     escrito. Assim um ajuste no desenho vale pras duas vistas.
+     ============================================================ */
+  var CORPO = 'M150,74 C178,60 262,60 290,74 L322,96 C316,124 310,150 308,178 ' +
+              'C304,270 306,370 312,442 C282,458 158,458 128,442 ' +
+              'C134,370 136,270 132,178 C130,150 124,124 118,96 Z';
+  var MANGA_E = 'M118,96 C100,106 80,120 62,140 C52,158 44,176 40,194 L116,236 ' +
+                'C124,216 128,198 132,178 C130,150 124,124 118,96 Z';
+  var MANGA_D = 'M322,96 C340,106 360,120 378,140 C388,158 396,176 400,194 L324,236 ' +
+                'C316,216 312,198 308,178 C310,150 316,124 322,96 Z';
+  var PUNHO_E = 'M46,175 L122,217 L116,236 L40,194 Z';
+  var PUNHO_D = 'M394,175 L318,217 L324,236 L400,194 Z';
+  var GOLA_CARECA = 'M156,72 C190,58 250,58 284,72 C262,94 178,94 156,72 Z';
+  var GOLA_V = 'M156,72 C190,58 250,58 284,72 L233,96 L220,128 L207,96 Z';
+  var GOLA_COSTAS = 'M156,72 C190,58 250,58 284,72 C258,82 182,82 156,72 Z';
+
+  var MODELOS = [
+    { id: 'classico', nome: 'Clássico' },
+    { id: 'faixa',    nome: 'Faixa'    },
+    { id: 'listras',  nome: 'Listras'  },
+    { id: 'central',  nome: 'Central'  }
+  ];
+
+  var REGIOES = [
+    { id: 'corpo',   nome: 'Corpo'          },
+    { id: 'detalhe', nome: 'Detalhe'        },
+    { id: 'mangas',  nome: 'Mangas'         },
+    { id: 'gola',    nome: 'Gola e punhos'  },
+    { id: 'numero',  nome: 'Nome e número'  }
+  ];
+
+  var PRESETS = [
+    { nome: 'Rubro',    c: { corpo: '#d6121f', detalhe: '#121212', mangas: '#121212', gola: '#f5f5f5', numero: '#ffffff' } },
+    { nome: 'Alvinegro',c: { corpo: '#ffffff', detalhe: '#141414', mangas: '#141414', gola: '#141414', numero: '#141414' } },
+    { nome: 'Tricolor', c: { corpo: '#ffffff', detalhe: '#c8102e', mangas: '#1d1d1b', gola: '#c8102e', numero: '#1d1d1b' } },
+    { nome: 'Verdão',   c: { corpo: '#0b6e3a', detalhe: '#ffffff', mangas: '#0b6e3a', gola: '#ffffff', numero: '#ffffff' } },
+    { nome: 'Royal',    c: { corpo: '#1e3a8a', detalhe: '#facc15', mangas: '#1e3a8a', gola: '#facc15', numero: '#ffffff' } },
+    { nome: 'Grená',    c: { corpo: '#801434', detalhe: '#0f2b5b', mangas: '#0f2b5b', gola: '#e8c15a', numero: '#ffffff' } }
+  ];
+
+  var LARGURA_NOME = 176; // largura útil do tronco na altura do nome (unidades do viewBox)
+
+  var estado = {
+    modelo: 'faixa',
+    gola: 'careca',
+    cores: { corpo: '#d6121f', detalhe: '#121212', mangas: '#121212', gola: '#f5f5f5', numero: '#ffffff' },
+    escudo: null,   // dataURL da imagem enviada
+    nome: 'SILVA',
+    numero: '10'
+  };
+
+  var app = document.getElementById('app');
+  var seq = 0;
+
+  /* ============================================================
+     A CAMISA EM SVG — uma função gera qualquer vista (frente,
+     costas ou miniatura), sempre com a mesma geometria.
+     ============================================================ */
+  function svgUniforme(vista, thumbModelo) {
+    var id = 'u' + (++seq);
+    var ehFrente = vista === 'frente';
+    var ehThumb = !!thumbModelo;
+    var cls = 'uni' + (ehThumb ? ' thumb thumb-' + thumbModelo : '');
+
+    var s = '<svg viewBox="20 30 400 450" class="' + cls + '" data-vista="' + vista + '" ' +
+            'xmlns="http://www.w3.org/2000/svg" ' +
+            (ehThumb ? 'aria-hidden="true" role="presentation"'
+                     : 'role="img" aria-label="Camisa, vista ' + vista + '"') + '>';
+    s += '<defs><clipPath id="' + id + '-clip"><path d="' + CORPO + '"/></clipPath></defs>';
+
+    // mangas e punhos (atrás do corpo)
+    s += '<path data-reg="mangas" d="' + MANGA_E + '"/>';
+    s += '<path data-reg="mangas" d="' + MANGA_D + '"/>';
+    s += '<path data-reg="gola" d="' + PUNHO_E + '"/>';
+    s += '<path data-reg="gola" d="' + PUNHO_D + '"/>';
+
+    // corpo
+    s += '<path data-reg="corpo" d="' + CORPO + '"/>';
+
+    // desenhos de cada modelo, recortados pelo corpo
+    s += '<g clip-path="url(#' + id + '-clip)">';
+    s += '<g class="ov ov-classico">' +
+         '<rect data-reg="detalhe" x="124" y="50" width="16" height="420"/>' +
+         '<rect data-reg="detalhe" x="300" y="50" width="16" height="420"/>' +
+         '</g>';
+    s += '<g class="ov ov-faixa">' +
+         (ehFrente || ehThumb ? '<path data-reg="detalhe" d="M96,118 L344,238 L344,302 L96,182 Z"/>' : '') +
+         '</g>';
+    s += '<g class="ov ov-listras">';
+    [108, 156, 204, 252, 300].forEach(function (x) {
+      s += '<rect data-reg="detalhe" x="' + x + '" y="50" width="32" height="420"/>';
+    });
+    s += '</g>';
+    s += '<g class="ov ov-central"><rect data-reg="detalhe" x="186" y="50" width="68" height="420"/></g>';
+    // sombra e luz — o toque que tira a cara de "desenho chapado"
+    s += '<rect x="124" y="50" width="22" height="420" fill="#000" opacity=".05"/>';
+    s += '<rect x="296" y="50" width="20" height="420" fill="#fff" opacity=".08"/>';
+    s += '</g>';
+
+    // gola
+    if (ehFrente || ehThumb) {
+      s += '<path class="gola-careca" data-reg="gola" d="' + GOLA_CARECA + '"/>';
+      s += '<path class="gola-v" data-reg="gola" d="' + GOLA_V + '"/>';
+    } else {
+      s += '<path data-reg="gola" d="' + GOLA_COSTAS + '"/>';
+    }
+
+    // frente: escudo + numerinho no peito · costas: nome + numerão
+    if (ehFrente && !ehThumb) {
+      s += '<g class="escudo-slot">' +
+           '<g class="escudo-default">' +
+             '<path d="M272,126 l20,8 v18 c0,15 -9,25 -20,29 c-11,-4 -20,-14 -20,-29 v-18 Z" ' +
+                 'fill="#ffffff" fill-opacity=".92" stroke="#00000022" stroke-width="2"/>' +
+             '<circle cx="272" cy="150" r="8" data-reg="detalhe"/>' +
+           '</g>' +
+           '<image class="escudo-img" x="248" y="124" width="48" height="52" ' +
+                 'preserveAspectRatio="xMidYMid meet" style="display:none"/>' +
+           '</g>';
+      s += '<text class="txt num-frente" data-reg="numero" x="168" y="166" font-size="30" stroke-width="2" text-anchor="middle">10</text>';
+    }
+    if (!ehFrente && !ehThumb) {
+      s += '<text class="txt nome-costas" data-reg="numero" x="220" y="152" font-size="26" ' +
+           'letter-spacing="4" stroke-width="2" text-anchor="middle">SILVA</text>';
+      s += '<text class="txt num-costas" data-reg="numero" x="220" y="312" font-size="140" stroke-width="6" ' +
+           'text-anchor="middle">10</text>';
+    }
+
+    s += '</svg>';
+    return s;
+  }
+
+  /* ============================================================
+     MONTAGEM DA TELA
+     ============================================================ */
+  var vistaFrente = document.getElementById('vista-frente');
+  var vistaCostas = document.getElementById('vista-costas');
+  vistaFrente.insertAdjacentHTML('afterbegin', svgUniforme('frente'));
+  vistaCostas.insertAdjacentHTML('afterbegin', svgUniforme('costas'));
+
+  // miniaturas de modelo — seguem as cores escolhidas, ao vivo
+  var caixaModelos = document.getElementById('modelos');
+  MODELOS.forEach(function (m) {
+    var b = document.createElement('button');
+    b.className = 'modelo-btn';
+    b.dataset.modelo = m.id;
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = svgUniforme('frente', m.id) + '<span>' + m.nome + '</span>';
+    b.addEventListener('click', function () {
+      estado.modelo = m.id;
+      aplicar();
+    });
+    caixaModelos.appendChild(b);
+  });
+
+  // gola
+  var botoesGola = document.querySelectorAll('.pilula[data-gola]');
+  botoesGola.forEach(function (b) {
+    b.addEventListener('click', function () {
+      estado.gola = b.dataset.gola;
+      aplicar();
+    });
+  });
+
+  // cores
+  var caixaCores = document.getElementById('cores');
+  var inputsCor = {};
+  REGIOES.forEach(function (r) {
+    var linha = document.createElement('label');
+    linha.className = 'cor-linha';
+    linha.innerHTML = '<span>' + r.nome + '</span>' +
+                      '<input type="color" id="cor-' + r.id + '" value="' + estado.cores[r.id] + '">';
+    caixaCores.appendChild(linha);
+    var input = linha.querySelector('input');
+    inputsCor[r.id] = input;
+    input.addEventListener('input', function () {
+      estado.cores[r.id] = input.value;
+      aplicar();
+    });
+  });
+
+  // combinações prontas
+  var caixaPresets = document.getElementById('presets');
+  PRESETS.forEach(function (p) {
+    var b = document.createElement('button');
+    b.className = 'preset';
+    b.innerHTML = '<span class="amostras">' +
+      '<i style="background:' + p.c.corpo + '"></i>' +
+      '<i style="background:' + p.c.detalhe + '"></i>' +
+      '<i style="background:' + p.c.gola + '"></i>' +
+      '</span>' + p.nome;
+    b.addEventListener('click', function () {
+      Object.keys(p.c).forEach(function (k) {
+        estado.cores[k] = p.c[k];
+        inputsCor[k].value = p.c[k];
+      });
+      aplicar();
+    });
+    caixaPresets.appendChild(b);
+  });
+
+  // escudo
+  var inputArquivo = document.getElementById('arquivo-escudo');
+  var btnSubir = document.getElementById('subir-escudo');
+  var btnRemover = document.getElementById('remover-escudo');
+  btnSubir.addEventListener('click', function () { inputArquivo.click(); });
+  btnRemover.addEventListener('click', function () {
+    estado.escudo = null;
+    inputArquivo.value = '';
+    aplicar();
+  });
+  inputArquivo.addEventListener('change', function () {
+    var arquivo = inputArquivo.files && inputArquivo.files[0];
+    if (!arquivo) return;
+    var leitor = new FileReader();
+    leitor.onerror = function () { alert('Não consegui ler esse arquivo. Tente um PNG ou JPG.'); };
+    leitor.onload = function () {
+      // só aceita depois de comprovar que a imagem abre — senão o "ícone
+      // de imagem quebrada" iria parar no peito da camisa e no PNG baixado
+      var teste = new Image();
+      teste.onload = function () { estado.escudo = leitor.result; aplicar(); };
+      teste.onerror = function () {
+        inputArquivo.value = '';
+        alert('Essa imagem não abriu por aqui. Tente um PNG ou JPG comum.');
+      };
+      teste.src = leitor.result;
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+
+  // nome e número
+  var campoNome = document.getElementById('campo-nome');
+  var campoNumero = document.getElementById('campo-numero');
+  campoNome.addEventListener('input', function () {
+    estado.nome = campoNome.value.toUpperCase();
+    aplicar();
+  });
+  campoNumero.addEventListener('input', function () {
+    estado.numero = campoNumero.value.replace(/\D/g, '').slice(0, 2);
+    campoNumero.value = estado.numero;
+    aplicar();
+  });
+
+  /* ============================================================
+     APLICAR O ESTADO — um lugar só repinta tudo.
+     ============================================================ */
+  /* contorno que contrasta com a cor escolhida pro nome/número */
+  function corDaBorda(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    var lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+    return lum > 150 ? '#1a1a1a' : '#ffffff';
+  }
+
+  function aplicar() {
+    app.dataset.modelo = estado.modelo;
+    app.dataset.gola = estado.gola;
+
+    REGIOES.forEach(function (r) {
+      app.style.setProperty('--c-' + r.id, estado.cores[r.id]);
+    });
+    app.style.setProperty('--c-numero-borda', corDaBorda(estado.cores.numero));
+
+    document.querySelectorAll('.modelo-btn').forEach(function (b) {
+      var ativo = b.dataset.modelo === estado.modelo;
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-pressed', String(ativo));
+    });
+    botoesGola.forEach(function (b) {
+      var ativo = b.dataset.gola === estado.gola;
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-pressed', String(ativo));
+    });
+
+    var num = estado.numero || '';
+    var nome = estado.nome || '';
+    document.querySelectorAll('.num-frente, .num-costas').forEach(function (t) { t.textContent = num; });
+    document.querySelectorAll('.nome-costas').forEach(function (t) {
+      t.textContent = nome;
+      t.removeAttribute('textLength');
+      if (nome && t.getComputedTextLength && t.getComputedTextLength() > LARGURA_NOME) {
+        t.setAttribute('textLength', LARGURA_NOME);
+        t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      }
+    });
+
+    var slot = document.querySelector('.escudo-slot');
+    if (slot) {
+      var img = slot.querySelector('.escudo-img');
+      var padrao = slot.querySelector('.escudo-default');
+      if (estado.escudo) {
+        img.setAttribute('href', estado.escudo);
+        img.style.display = '';
+        padrao.style.display = 'none';
+        btnRemover.hidden = false;
+      } else {
+        img.style.display = 'none';
+        padrao.style.display = '';
+        btnRemover.hidden = true;
+      }
+    }
+
+    atualizarWhatsApp();
+  }
+
+  /* ============================================================
+     WHATSAPP — o "carrinho" deste protótipo é uma mensagem.
+     ============================================================ */
+  function nomeModelo(id) {
+    for (var i = 0; i < MODELOS.length; i++) if (MODELOS[i].id === id) return MODELOS[i].nome;
+    return id;
+  }
+
+  function atualizarWhatsApp() {
+    var linhas = [
+      'Olá! Quero um orçamento de uniforme. Montei assim no simulador:',
+      '',
+      '• Modelo: ' + nomeModelo(estado.modelo) + ' (gola ' + (estado.gola === 'v' ? 'V' : 'careca') + ')',
+      '• Cor do corpo: ' + estado.cores.corpo,
+      '• Cor do detalhe: ' + estado.cores.detalhe,
+      '• Cor das mangas: ' + estado.cores.mangas,
+      '• Gola e punhos: ' + estado.cores.gola,
+      '• Nome e número: ' + (estado.nome || '—') + ' ' + (estado.numero || ''),
+      '',
+      'Vou anexar a imagem do uniforme aqui na conversa.'
+    ];
+    var texto = encodeURIComponent(linhas.join('\n'));
+    var url = WHATSAPP_NUMERO
+      ? 'https://wa.me/' + WHATSAPP_NUMERO + '?text=' + texto
+      : 'https://wa.me/?text=' + texto;
+    document.getElementById('btn-whats').href = url;
+  }
+
+  /* ============================================================
+     EXPORTAR PNG — frente e costas lado a lado, em alta.
+     O SVG vai pro canvas com as cores gravadas nos atributos
+     (variável CSS não viaja na serialização) e o nome/número são
+     escritos por cima com a fonte da página, que já carregou.
+     ============================================================ */
+  function svgParaImagem(svgOriginal) {
+    var clone = svgOriginal.cloneNode(true);
+    clone.querySelectorAll('[data-reg]').forEach(function (el) {
+      el.setAttribute('fill', estado.cores[el.getAttribute('data-reg')]);
+    });
+    // o que estiver escondido (gola errada, modelos não escolhidos) sai do clone
+    clone.querySelectorAll('.ov').forEach(function (g) {
+      if (!g.classList.contains('ov-' + estado.modelo)) g.remove();
+    });
+    clone.querySelectorAll('.gola-careca, .gola-v').forEach(function (g) {
+      var quero = estado.gola === 'v' ? 'gola-v' : 'gola-careca';
+      if (!g.classList.contains(quero)) g.remove();
+    });
+    // textos saem: são redesenhados no canvas com a fonte certa
+    clone.querySelectorAll('text').forEach(function (t) { t.remove(); });
+    // escudo: mantém só o que está visível
+    var padrao = clone.querySelector('.escudo-default');
+    var img = clone.querySelector('.escudo-img');
+    if (estado.escudo) { if (padrao) padrao.remove(); }
+    else if (img) { img.remove(); }
+
+    clone.setAttribute('width', '400');
+    clone.setAttribute('height', '450');
+    var xml = new XMLSerializer().serializeToString(clone);
+    var url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+    return new Promise(function (resolve, reject) {
+      var imagem = new Image();
+      imagem.onload = function () { resolve(imagem); };
+      imagem.onerror = reject;
+      imagem.src = url;
+    });
+  }
+
+  function desenharTextos(ctx, vista, x0, y0, escala) {
+    // converte coordenadas do viewBox (20,30 → 440x495) pra posição no canvas
+    function px(x) { return x0 + (x - 20) * escala; }
+    function py(y) { return y0 + (y - 30) * escala; }
+    ctx.fillStyle = estado.cores.numero;
+    ctx.strokeStyle = corDaBorda(estado.cores.numero);
+    ctx.lineJoin = 'round';
+    ctx.textAlign = 'center';
+    function escreve(texto, x, y, borda, maxLarg) {
+      ctx.lineWidth = borda;
+      if (maxLarg) { ctx.strokeText(texto, x, y, maxLarg); ctx.fillText(texto, x, y, maxLarg); }
+      else { ctx.strokeText(texto, x, y); ctx.fillText(texto, x, y); }
+    }
+    // navegador sem ctx.letterSpacing: espaça letra por letra na mão,
+    // pro PNG sair igual ao que a tela mostrou
+    function escreveEspacado(texto, x, y, borda, esp, maxLarg) {
+      var larguras = [], total = 0;
+      for (var i = 0; i < texto.length; i++) {
+        var w = ctx.measureText(texto[i]).width;
+        larguras.push(w); total += w;
+      }
+      total += esp * (texto.length - 1);
+      if (maxLarg && total > maxLarg) { escreve(texto, x, y, borda, maxLarg); return; }
+      var cx = x - total / 2, alinh = ctx.textAlign;
+      ctx.textAlign = 'left';
+      for (var j = 0; j < texto.length; j++) { escreve(texto[j], cx, y, borda); cx += larguras[j] + esp; }
+      ctx.textAlign = alinh;
+    }
+    if (vista === 'frente') {
+      if (estado.numero) {
+        ctx.font = (30 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
+        escreve(estado.numero, px(168), py(166), 2 * escala);
+      }
+    } else {
+      if (estado.nome) {
+        ctx.font = (26 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
+        var maxNome = LARGURA_NOME * escala;
+        if ('letterSpacing' in ctx) {
+          ctx.letterSpacing = (4 * escala) + 'px';
+          escreve(estado.nome, px(220), py(152), 2 * escala, maxNome);
+          ctx.letterSpacing = '0px';
+        } else {
+          escreveEspacado(estado.nome, px(220), py(152), 2 * escala, 4 * escala, maxNome);
+        }
+      }
+      if (estado.numero) {
+        ctx.font = (140 * escala) + 'px "Archivo Black", "Arial Black", sans-serif';
+        escreve(estado.numero, px(220), py(312), 6 * escala);
+      }
+    }
+  }
+
+  document.getElementById('btn-baixar').addEventListener('click', function () {
+    var botao = this;
+    botao.disabled = true;
+    botao.textContent = 'Gerando…';
+
+    var svgF = document.querySelector('#vista-frente svg');
+    var svgC = document.querySelector('#vista-costas svg');
+    var escala = 1.6;
+    var larguraVista = 400 * escala, alturaVista = 450 * escala;
+    var margem = 60, vao = 40;
+    var canvas = document.createElement('canvas');
+    canvas.width = margem * 2 + larguraVista * 2 + vao;
+    canvas.height = margem * 2 + alturaVista + 70;
+    var ctx = canvas.getContext('2d');
+
+    var pronto = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    pronto
+      .then(function () { return Promise.all([svgParaImagem(svgF), svgParaImagem(svgC)]); })
+      .then(function (imagens) {
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        var xF = margem, xC = margem + larguraVista + vao, y = margem;
+        ctx.drawImage(imagens[0], xF, y, larguraVista, alturaVista);
+        ctx.drawImage(imagens[1], xC, y, larguraVista, alturaVista);
+        desenharTextos(ctx, 'frente', xF, y, escala);
+        desenharTextos(ctx, 'costas', xC, y, escala);
+
+        ctx.fillStyle = '#5b6470';
+        ctx.textAlign = 'center';
+        ctx.font = '600 20px Sora, sans-serif';
+        ctx.fillText('FRENTE', xF + larguraVista / 2, y + alturaVista + 34);
+        ctx.fillText('COSTAS', xC + larguraVista / 2, y + alturaVista + 34);
+        ctx.font = '14px Sora, sans-serif';
+        ctx.fillText('Feito no Simulador de Uniformes', canvas.width / 2, canvas.height - 18);
+
+        var a = document.createElement('a');
+        a.download = 'uniforme-' + estado.modelo + '.png';
+        a.href = canvas.toDataURL('image/png');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })
+      .catch(function () {
+        alert('Não consegui gerar a imagem neste navegador. Tire um print da tela — funciona igual!');
+      })
+      .then(function () {
+        botao.disabled = false;
+        botao.textContent = 'Baixar imagem (PNG)';
+      });
+  });
+
+  aplicar();
+  // a fonte chega depois do primeiro desenho; re-mede o encaixe do nome
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { aplicar(); });
+})();
+</script>
+</body>
+</html>
