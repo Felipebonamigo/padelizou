@@ -438,11 +438,15 @@ namespace Padelizou.Controllers
 
         // Mesmo evento que o da desistência com pagamento, e por isso o mesmo alcance: a
         // vaga abrir por estorno ou por desistência direta é diferença nossa, não de quem
-        // estava na fila esperando.
+        // estava na fila esperando. ⚠️ O gêmeo mora em PagamentoInscricaoService — mexeu
+        // aqui, mexe lá.
+        //
+        // Fora do WhatsApp desde 21/08/2026, com o resto da família de torneio (ver
+        // Services/EncerramentoDaPartida).
         private async Task AvisarPromocaoAsync(IEnumerable<int> promovidos, Torneio torneio) =>
             await AvisarAsync(promovidos, "Abriu vaga — vocês estão dentro!",
                 $"Alguém desistiu de {torneio.Nome} e vocês saíram da lista de espera. Boa sorte!",
-                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+                torneio.Id, AlcanceDoAviso.SoApp);
 
         // Push falha calado (quem não instalou o app não recebe nada), então o aviso que
         // importa vai também por e-mail — é o que a maioria tem.
@@ -673,11 +677,13 @@ namespace Padelizou.Controllers
             torneio.CanceladoEm = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            // Cancelamento é o aviso mais caro de não chegar: a pessoa sai de casa e vai pra
-            // quadra. Por isso vale WhatsApp, como a promoção da lista de espera.
+            // Cancelamento é o aviso mais caro de NÃO chegar: a pessoa sai de casa e vai pra
+            // quadra à toa. Mesmo assim saiu do WhatsApp em 21/08/2026, com o resto da família
+            // de torneio (ver Services/EncerramentoDaPartida) — o e-mail continua indo, e é ele
+            // que alcança quem não instalou o app.
             await AvisarAsync(inscritos, "Torneio cancelado",
                 CancelamentoDoTorneio.RecadoParaInscritos(torneio.Nome, torneio.MotivoCancelamento),
-                torneio.Id, AlcanceDoAviso.AppEWhatsApp);
+                torneio.Id, AlcanceDoAviso.SoApp);
 
             TempData["Sucesso"] = $"Torneio cancelado. {inscritos.Count} inscrito(s) avisado(s). "
                 + "Ele sai da listagem, mas continua na sua lista de torneios — e quem pagou "
