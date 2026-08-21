@@ -1618,7 +1618,7 @@ Dump completo antes em `/opt/padelizou-shared/backup-prod-antes-limpeza-20260728
 
 ## ✅ Feito
 
-### 21/08/2026 — 🏟️ Torneio em MAIS DE UM CLUBE (build-657, no dev)
+### 21/08/2026 — 🏟️ Torneio em MAIS DE UM CLUBE (build-657, **em produção**)
 
 Pedido do Felipe, tirado do **Dez E Batata**: eles dividem o torneio em dois clubes e põem
 cada categoria inteira num deles, pra ninguém passar o fim de semana indo e voltando.
