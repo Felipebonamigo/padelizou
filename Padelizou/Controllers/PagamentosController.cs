@@ -403,7 +403,12 @@ public class PagamentosController : Controller
         var eu = await _context.Jogadores.FindAsync(meuId);
         if (pagamento.RecebedorId != meuId && eu?.IsAdminRaiz != true) return Forbid();
 
-        if (pagamento.Status is not ("Confirmado" or "Pendente"))
+        // "AguardandoEstorno" — achado de 21/08/2026: PagamentoInscricaoService.EfetivarMarcacaoAsync
+        // grava este status quando o webhook confirma o pagamento mas a quadra JÁ foi tomada por
+        // outra marcação enquanto a cobrança estava pendente (dinheiro entrou, serviço não pôde
+        // ser entregue). Até então nenhuma tela lia o status e este método o recusava — beco sem
+        // saída: o dinheiro ficava preso, sem ninguém conseguir devolvê-lo pela tela.
+        if (pagamento.Status is not ("Confirmado" or "Pendente" or "AguardandoEstorno"))
         {
             TempData["Erro"] = "Esta cobrança não pode ser estornada.";
             return RedirectToAction(nameof(Meus));
@@ -415,10 +420,16 @@ public class PagamentosController : Controller
             return RedirectToAction(nameof(Meus));
         }
 
-        bool jaFoiPaga = pagamento.Status == "Confirmado";
+        bool jaFoiPaga = pagamento.Status is "Confirmado" or "AguardandoEstorno";
 
         // Devolver exatamente o que resta é o estorno de sempre: cai no caminho total, que
         // desfaz a inscrição. Só é "parcial" o que deixa dinheiro na cobrança.
+        //
+        // ⚠️ "AguardandoEstorno" NUNCA é parcial, mesmo se alguém digitar um valor no campo: o
+        // serviço que a cobrança pagava não pôde ser entregue nenhum pouco (a quadra já estava
+        // tomada), então não existe "sobra" nenhuma pra deixar de pé. Isso sai de graça daqui:
+        // EstornoParcial.DisponivelParaEstorno só devolve valor > 0 quando Status == "Confirmado",
+        // então EhTotal fecha em TRUE pra qualquer `pedido` quando o status é este.
         bool parcial = valor is { } pedido && jaFoiPaga && !EstornoParcial.EhTotal(pagamento, pedido);
 
         if (parcial)

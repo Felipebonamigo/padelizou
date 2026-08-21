@@ -69,16 +69,22 @@ public static class ComissaoDoParceiro
     public static int ClienteDoPagamento(Pagamento p) => p.RecebedorId ?? p.JogadorId;
 
     // O estorno tem que derrubar a comissão junto, senão o parceiro é pago por uma venda que
-    // foi desfeita. Parcial reduz na proporção do que voltou.
+    // foi desfeita.
+    //
+    // ⚠️ NÃO recalcula a proporção aqui — p.Comissao JÁ VEM LÍQUIDA. Services/EstornoParcial.
+    // Aplicar reduz Valor, Comissao e ValorEstornado JUNTOS, na mesma chamada (é o único lugar
+    // do sistema que muda os três — grep confirma). Até 21/08/2026 este método recalculava
+    // `p.Comissao * ((p.Valor - p.ValorEstornado) / p.Valor)` por cima de um p.Comissao que já
+    // tinha passado por essa mesma conta: um estorno de 30% descontava a comissão duas vezes
+    // (a segunda vez pela proporção ERRADA, porque p.Valor pós-estorno já é o valor NOVO, não
+    // o original), e um estorno de 50%+ zerava a comissão por inteiro mesmo quando a venda
+    // continuava valendo mais da metade. Ver ComissaoDoParceiroTests para os números.
     public static decimal ComissaoLiquida(Pagamento p)
     {
         if (p.Status != StatusQueConta) return 0m;
         if (p.Valor <= 0) return 0m;
 
-        var sobrou = p.Valor - p.ValorEstornado;
-        if (sobrou <= 0) return 0m;
-
-        return Math.Round(p.Comissao * (sobrou / p.Valor), 2);
+        return p.Comissao;
     }
 
     public record Parcela(Pagamento Pagamento, decimal Percentual, decimal Valor, string Motivo);
