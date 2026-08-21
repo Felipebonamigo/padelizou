@@ -1,7 +1,27 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **20/08/2026** — 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
+> Última atualização: **21/08/2026** — 🔑 **A SENHA GANHOU DUAS TELAS: A PESSOA TROCA A DELA SEM PRECISAR ESQUECÊ-LA, E O SUPORTE DEFINE UMA NOVA SEM ABRIR O BANCO.**
+>
+> 🗣️ **Pedido do Felipe** (21/08), olhando a ficha do Anderson Virgili em `/Admin/Acesso`: *"mude o login do Virgili para AndersonVirgili e crie uma pagina para alterar senha"*. As duas coisas eram o mesmo buraco visto de dois lados — **login e senha nasciam no cadastro e não tinham por onde mudar depois**.
+>
+> 🚪 **O que existia era só REDEFINIR, e ele passa por um e-mail.** Quem queria outra senha (trocou por precaução, emprestou o celular, desconfia que alguém viu) tinha que **mentir pro próprio site** dizendo que esqueceu, esperar o link de uma hora e abrir a caixa de entrada. E quem **tem senha e não tem e-mail** — o "beco sem saída" que a própria `/Admin/Acesso` descreve desde que nasceu — não conseguia de jeito nenhum: aquele caminho inteiro depende de um destinatário.
+>
+> 👤 **Tela 1, do jogador: `Perfil → Alterar senha`.** Senha atual + a nova, digitada duas vezes. **A senha atual é a trava, e é o mesmo desenho de "Excluir conta"**: sem ela, um celular destravado esquecido na mesa do clube troca a senha de alguém em dois toques — e quem trocou vira o dono, porque o dono de verdade perde justamente o que usava pra entrar. Não sai e-mail e não se gera token: a prova de que é a pessoa é a senha que ela digitou ali. Conta **sem senha nenhuma** (pré-cadastro reivindicado sem senha, modo demonstração) cai na mesma tela pra **criar a primeira** — pedir a "senha atual" de quem nunca teve uma seria um campo impossível de preencher.
+>
+> 🛠️ **Tela 2, do admin: `/Admin/Acesso` deixou de ser só-leitura — em DOIS campos, e o e-mail não é um deles.** A regra que segurava a tela continua de pé pro e-mail: **quem controla o e-mail pede quantos "esqueci minha senha" quiser, pra sempre, e o dono nunca fica sabendo**. Login e senha são o oposto disso: o login não é segredo (trocá-lo não abre porta nenhuma — a senha segue a mesma), e a senha nova é **barulhenta** — a antiga morre na hora, a pessoa recebe push de "sua senha foi alterada" e descobre no primeiro login. É a saída do beco sem saída, sem passar pelo caminho silencioso.
+>
+> ⚠️ **A trava de ESCALADA DE PODER, e ela não era hipotética: definir a senha de uma conta é ENTRAR nela.** Sem a linha nova, um administrador **nomeado** definiria a senha do administrador **raiz** e entraria como ele — e o raiz é quem vê o dinheiro, justamente o que o nomeado não pode ver (`PoderesNoSistema.PodeVerDinheiro`). O mesmo valia pro assistente: só-leitura vira escrita total pela conta do outro. Agora **só o raiz define a senha de quem administra**; pra jogador comum, os dois admins atendem.
+>
+> 🧷 **As outras três portas que a edição não abre**: **conta excluída** não recebe senha nem login de volta (a anonimização da LGPD apagou os dois a pedido dela); **pré-cadastro não ganha senha por aqui** — a conta existe porque um organizador digitou o CPF numa inscrição, e a pessoa **nunca aceitou os termos**, então o caminho dela continua sendo se cadastrar com o mesmo CPF; e o login novo passa pela **mesma régua do cadastro** (4 a 30 caracteres, e conferido contra login **e e-mail** de todo mundo — a entrada aceita os dois no mesmo campo, e um repetido deixa DUAS pessoas sem entrar, que é o caso que o índice único do banco não pega).
+>
+> 🧪 **4.730 testes, 0 falhas (35 novos).** Entre eles, os que seguram o desenho: senha atual errada ou em branco não troca nada; a troca mata o link de recuperação pendente; o nomeado não define a senha do raiz nem do assistente; e um teste lê o código do controller pra falhar no dia em que alguém acrescentar o campo de e-mail por conveniência. `AuthController.AlterarSenha` entrou no vigia de rate limiting (`TravaDeEntradaTests`) com a justificativa escrita — conferir senha é onde se adivinha senha.
+>
+> 🕳️ **O que isto NÃO faz, escrito no código:** derrubar sessão aberta. O cookie não guarda senha e o sistema não tem carimbo de segurança — quem já estiver logado naquela conta continua logado até o cookie vencer. Trocar a senha fecha a porta da frente; não expulsa quem já está dentro.
+>
+> ⏳ **Não publicado.** Sem migration: o banco não mudou. **O login do Virgili se troca na tela** — `/Admin/Acesso`, procurar por `virgili`, campo **Login** → `AndersonVirgili` → **Trocar**.
+>
+> Antes, na véspera (20/08): 🗓️ **UMA DATA NA TELA DE REGISTRAR JOGO: A LINHA DE CIMA DIZIA 26/08 E O CAMPO, LOGO ABAIXO, 19/08.**
 >
 > 🗣️ **O relato veio com print:** *"aqui está confuso, para registrar o jogo, lá em cima tem uma data e abaixo outra"*. E estava mesmo — resumo em **26 ago.**, aviso amarelo falando do jogo de **26/08** e o campo **Data do jogo** já em **19 de ago.**: três lugares falando de data e nenhuma pista de qual seria gravada.
 >

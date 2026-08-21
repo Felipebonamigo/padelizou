@@ -19,6 +19,15 @@
         </p>
     </div>
 
+    @if (TempData["Sucesso"] != null)
+    {
+        <div class="alert alert-success">@TempData["Sucesso"]</div>
+    }
+    @if (TempData["Erro"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Erro"]</div>
+    }
+
     @* ── A BUSCA ──────────────────────────────────────────────────────────────────────── *@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
@@ -210,7 +219,7 @@
                 </div>
                 @* A senha em si não aparece aqui, e não é omissão: o banco guarda só o hash
                    (IPasswordHasher, PBKDF2 com sal). Nem esta tela, nem um SELECT, nem ninguém
-                   lê a senha de volta — o único caminho é a pessoa definir uma nova. *@
+                   lê a senha de volta — o único caminho é definir uma nova, no cartão abaixo. *@
                 <div class="small text-muted mt-2">
                     <i class="bi bi-shield-lock"></i>
                     A senha não aparece em lugar nenhum do sistema: o banco guarda só o hash dela.
@@ -218,5 +227,104 @@
                 </div>
             </div>
         </div>
+
+        @* ── AS DUAS EDIÇÕES ──────────────────────────────────────────────────────────────
+           Ficam num cartão SEPARADO, embaixo, e não junto dos dados: o de cima é consulta —
+           o que o admin lê pra responder no WhatsApp — e este aqui MEXE na conta de outra
+           pessoa. Misturar os dois é como um clique de rotina acaba caindo na linha errada.
+
+           ⚠️ O e-mail NÃO tem formulário aqui, de propósito: quem controla o e-mail pede
+           quantos "esqueci minha senha" quiser, pra sempre, e o dono nunca fica sabendo. Ver
+           o cabeçalho de Controllers/AdminController.Acesso.cs. *@
+        @if (!p.Excluido && ViewBag.PodeEditar == true)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-1" style="color: var(--pdz-ink);">Mexer nesta conta</h6>
+                    <p class="text-muted small">
+                        Confirme por outro canal que você está falando com a pessoa certa antes.
+                        O e-mail não se altera por aqui — trocar o e-mail de uma conta é entregar
+                        a conta, e calado.
+                    </p>
+
+                    <div class="row g-4">
+                        @* ── LOGIN ─────────────────────────────────────────────────────── *@
+                        <div class="col-12 col-lg-6">
+                            <form asp-controller="Admin" asp-action="TrocarLoginDoJogador" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="jogadorId" value="@p.Id" />
+
+                                <label class="form-label fw-bold text-muted mb-1">Login</label>
+                                <div class="input-group">
+                                    <input type="text" name="login" class="form-control"
+                                           value="@p.Login" required
+                                           minlength="@IdentidadeJogador.TamanhoMinimoDoLogin"
+                                           maxlength="@LimitesDeTexto.LoginDeJogador"
+                                           autocomplete="off" spellcheck="false" />
+                                    <button type="submit" class="btn btn-outline-primary px-3">Trocar</button>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    De @IdentidadeJogador.TamanhoMinimoDoLogin a @LimitesDeTexto.LoginDeJogador
+                                    caracteres. Não pode repetir o login <strong>nem o e-mail</strong> de
+                                    outra conta: a entrada aceita os dois no mesmo campo, e um repetido
+                                    deixaria as duas contas sem entrar.
+                                </small>
+                                <small class="text-muted d-block mt-1">
+                                    Trocar o login <strong>não</strong> muda a senha, e o e-mail e o CPF
+                                    continuam servindo pra entrar.
+                                </small>
+                            </form>
+                        </div>
+
+                        @* ── SENHA ─────────────────────────────────────────────────────── *@
+                        <div class="col-12 col-lg-6">
+                            @if (Model.Situacao == SituacaoDeAcesso.PreCadastro)
+                            {
+                                @* Pré-cadastro não recebe senha daqui, e o motivo é o aviso amarelo
+                                   lá em cima: a conta é de alguém que nunca esteve no site e nunca
+                                   aceitou os termos. Some o formulário em vez de deixá-lo recusar
+                                   no POST — botão que só serve pra dizer não é armadilha. *@
+                                <label class="form-label fw-bold text-muted mb-1">Senha</label>
+                                <div class="alert alert-secondary small mb-0">
+                                    Esta conta nunca teve senha. Não é aqui que ela ganha uma: o
+                                    caminho é <strong>a pessoa se cadastrar com o mesmo CPF</strong> —
+                                    aí ela escolhe a própria senha, aceita os termos e o histórico de
+                                    torneios vem junto.
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-controller="Admin" asp-action="DefinirSenhaDoJogador" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="jogadorId" value="@p.Id" />
+
+                                    <label class="form-label fw-bold text-muted mb-1">Definir uma senha nova</label>
+                                    @* Campo À VISTA, não mascarado: esta senha vai ser DITADA pra
+                                       pessoa daqui a dez segundos, então esconder do próprio admin
+                                       o que ele digitou não guarda segredo nenhum — só cria o erro
+                                       de digitação que ninguém consegue enxergar, e que vira "a
+                                       senha que você me passou não funciona". *@
+                                    <div class="input-group">
+                                        <input type="text" name="senha" class="form-control" required
+                                               minlength="6" autocomplete="off" spellcheck="false"
+                                               placeholder="senha temporária" />
+                                        <button type="submit" class="btn btn-outline-danger px-3">Definir</button>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        Pelo menos 6 caracteres. Aparece à vista porque você vai passá-la
+                                        pra pessoa — e senha com erro de digitação é um chamado a mais.
+                                    </small>
+                                    <small class="text-muted d-block mt-1">
+                                        A senha antiga para de funcionar na hora, e a pessoa recebe um
+                                        aviso no app. Peça que ela troque em <strong>Perfil &rarr; Alterar
+                                        senha</strong>: senha que passou por terceiro deixou de ser secreta.
+                                    </small>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     }
 </div>

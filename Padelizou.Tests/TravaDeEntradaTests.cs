@@ -158,8 +158,9 @@ public class TravaDeEntradaTests
 
     // Quem carrega janela do rate limiter, e por quê. Mudar esta lista é decisão de segurança.
     //
-    // Quase todas são por IP: são ações ANÔNIMAS, e antes de alguém entrar não há conta pra
-    // particionar. A exceção é a consulta de CPF, que exige login — ver o porquê logo abaixo.
+    // Quase todas são por IP: quase todas são ações ANÔNIMAS, e antes de alguém entrar não há
+    // conta pra particionar. Duas exigem login e mesmo assim carregam janela — a consulta de
+    // CPF, por CONTA, e a troca de senha, por IP; ver o porquê de cada uma logo abaixo.
     private static readonly Dictionary<string, string> AcoesComJanela = new()
     {
         ["AcessoAntecipadoController.Entrar"] =
@@ -168,6 +169,11 @@ public class TravaDeEntradaTests
             "Cada POST dispara um e-mail; sem trava vira máquina de inundar caixa de entrada.",
         ["AuthController.RedefinirSenha"] =
             "Recebe token de recuperação; a trava encarece chutar tokens.",
+        ["AuthController.AlterarSenha"] =
+            "Confere a senha ATUAL de quem já está logado, e conferir senha é onde se ADIVINHA " +
+            "senha. A sessão aberta não é prova de que quem está no teclado é o dono da conta — " +
+            "é justamente o celular destravado esquecido na mesa que este campo existe pra " +
+            "barrar. Por IP, como a redefinição: a partição por conta já vem do login exigido.",
         ["AuthController.Cadastro"] =
             "Cria conta; sem trava um robô enche o banco de conta falsa. Janela própria e " +
             "mais larga (PoliticaCadastro): formulário longo erra legitimamente várias vezes.",

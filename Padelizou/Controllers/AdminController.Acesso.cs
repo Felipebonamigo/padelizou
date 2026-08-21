@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Padelizou.Models;
 using Padelizou.Services;
 using Padelizou.ViewModels;
 
@@ -11,14 +13,25 @@ namespace padelizou.Controllers
     // produção. Nenhuma tela do painel mostrava contato — a busca de /Admin/Organizadores acha
     // pelo CPF, mas imprime só o nome.
     //
-    // ⚠️ SÓ LEITURA, e isso é uma escolha, não uma etapa que faltou. Uma tela de suporte que
-    // também EDITA a conta alheia é a tela que, num dia corrido, troca o e-mail da pessoa
-    // errada — e trocar o e-mail de uma conta é entregar a conta. O único desfecho que ainda
-    // precisa de mão (o beco sem saída de quem tem senha e não tem e-mail) está escrito na tela
-    // com todas as letras, pra ser feito de olho aberto.
+    // ⚠️ DUAS EDIÇÕES, E O E-MAIL NÃO É UMA DELAS (21/08/2026).
     //
-    // De quebra, ser só-leitura mantém de graça a premissa do assistente do sistema: ele vê o
-    // painel inteiro e não muda nada, e a trava é o VERBO HTTP (ver ObterJogadorAdminAsync).
+    // A tela nasceu SÓ-LEITURA de propósito, e a regra que a mantinha assim continua de pé pro
+    // e-mail: trocar o e-mail de uma conta é ENTREGAR a conta, calado — quem controla o e-mail
+    // pede quantos "esqueci minha senha" quiser, pra sempre, e o dono nunca fica sabendo. Esse
+    // campo segue sem formulário nenhum aqui.
+    //
+    // O que passou a ser editável são o LOGIN e a SENHA, e os dois são o oposto disso:
+    //
+    //   · o login não é segredo — é o apelido com que a pessoa se identifica na entrada, e
+    //     trocá-lo não abre porta nenhuma (a senha continua sendo a mesma);
+    //   · a senha nova é BARULHENTA: no instante em que é definida, a antiga para de funcionar,
+    //     e o dono descobre no primeiro login. É o contrário de um desvio silencioso.
+    //
+    // De quebra, a senha aqui é a única saída do beco sem saída que a própria tela descreve —
+    // tem senha, não tem e-mail, e "esqueci minha senha" não tem pra onde mandar link.
+    //
+    // A premissa do assistente do sistema (vê o painel inteiro e não muda nada) continua valendo
+    // de graça: a trava é o VERBO HTTP, e ObterJogadorAdminAsync só devolve o assistente em GET.
     public partial class AdminController
     {
         // Quantas pessoas a busca por nome devolve antes de virar uma lista que ninguém lê.
@@ -27,7 +40,14 @@ namespace padelizou.Controllers
         [HttpGet]
         public async Task<IActionResult> Acesso(string? busca, int? jogadorId)
         {
-            if (await ObterJogadorAdminAsync() == null) return RedirectToAction("Perfil", "Auth");
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return RedirectToAction("Perfil", "Auth");
+
+            // Quem só OLHA não vê os formulários. A recusa de verdade continua sendo o POST
+            // (ObterJogadorAdminAsync devolve o assistente apenas em GET) — isto aqui é pra não
+            // oferecer ao assistente um botão que só serve pra dizer não. Sai do BANCO, e não da
+            // claim: o crachá no cookie só é reescrito quando a pessoa entra de novo.
+            ViewBag.PodeEditar = PoderesNoSistema.PodeEditarTudo(admin);
 
             var vm = new AcessoDoJogadorVM
             {
@@ -55,6 +75,156 @@ namespace padelizou.Controllers
             else vm.Candidatos = achados;
 
             return View(vm);
+        }
+
+        // ── AS DUAS EDIÇÕES ───────────────────────────────────────────────────────────────
+        //
+        // Voltar pra ficha da pessoa, e não pra busca: o admin está no meio de um atendimento,
+        // e cair na tela vazia obrigaria a procurar de novo pra conferir o que acabou de fazer.
+        // Vai por `jogadorId` porque o termo que ele digitou pode ter sido o LOGIN — o antigo,
+        // que a troca acabou de apagar, e que não acharia mais ninguém.
+        private IActionResult VoltarParaFicha(int jogadorId, string? erro = null)
+        {
+            if (erro != null) TempData["Erro"] = erro;
+            return RedirectToAction(nameof(Acesso), new { jogadorId });
+        }
+
+        // TROCAR O LOGIN de outra pessoa.
+        //
+        // O login é o identificador que ela digita na entrada e que os organizadores usam pra
+        // achá-la. Ele nasce no cadastro e, até aqui, era PERMANENTE: nenhuma tela do sistema
+        // gravava `Jogador.Login` depois — nem a de Editar Perfil. Quem escolheu às pressas, ou
+        // digitou o nome do time em vez do próprio nome, ficava com aquilo pra sempre.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> TrocarLoginDoJogador(int jogadorId, string? login)
+        {
+            if (await ObterJogadorAdminAsync() == null) return Forbid();
+
+            var alvo = await _context.Jogadores.FindAsync(jogadorId);
+            if (alvo == null) return NotFound();
+
+            // Conta excluída (LGPD) é anonimizada: nome, CPF, e-mail e login saíram a pedido
+            // dela (ver ExclusaoDeConta.Anonimizar). Escrever um login aqui seria repor um
+            // identificador em quem pediu pra deixar de ser identificável.
+            if (alvo.Excluido)
+                return VoltarParaFicha(jogadorId, "Essa conta foi excluída a pedido da pessoa (LGPD). "
+                    + "Os identificadores dela foram apagados e não voltam.");
+
+            login = (login ?? "").Trim();
+
+            // A MESMA régua do cadastro, e não uma cópia parecida: mínimo de 4 e máximo de 30
+            // (a coluna é varchar(30), e o Postgres RECUSA o que passa disso — não corta).
+            if (IdentidadeJogador.ValidarLogin(login) is { } problema)
+                return VoltarParaFicha(jogadorId, problema);
+
+            // ⚠️ Contra os DOIS campos, e-mail e login (ver IdentidadeJogador): a entrada aceita
+            // um ou outro na mesma consulta, então um login igual ao e-mail de outra pessoa
+            // deixaria as duas contas ambíguas — e a vítima sem entrar e sem recuperar a senha.
+            // Sem esta linha, o índice único do banco ainda seguraria metade dos casos, e a
+            // outra metade (login = e-mail alheio) passaria direto.
+            if (await IdentidadeJogador.EmUsoAsync(_context, login, alvo.Id))
+                return VoltarParaFicha(jogadorId, $"Já existe outra conta atendendo por \"{login}\" "
+                    + "(como login ou como e-mail). Escolha outro.");
+
+            var anterior = string.IsNullOrWhiteSpace(alvo.Login) ? "(nenhum)" : alvo.Login;
+            alvo.Login = login;
+            await _context.SaveChangesAsync();
+
+            // O login ANTIGO vai na confirmação de propósito: é o que o admin precisa pra
+            // explicar a mudança pra pessoa — e pra desfazer, se trocou a conta errada.
+            TempData["Sucesso"] = $"Login de {NomeBonito.Formatar(alvo.Nome)}: {anterior} → {login}. "
+                + "A senha continua a mesma, e o e-mail e o CPF também servem pra entrar.";
+            return VoltarParaFicha(jogadorId);
+        }
+
+        // DEFINIR UMA SENHA NOVA pra outra pessoa.
+        //
+        // É a saída do beco sem saída que esta tela descreve desde que nasceu: tem senha, não
+        // tem e-mail, e "esqueci minha senha" não tem destinatário. Até aqui a única saída era
+        // gravar um e-mail na conta alheia — que é justamente o caminho SILENCIOSO que a tela
+        // se recusa a abrir. Definir uma senha temporária é o caminho barulhento: a senha antiga
+        // morre na hora, e o dono descobre no primeiro login.
+        //
+        // A senha não é "consultada" nem "recuperada" — nem aqui, nem em lugar nenhum. O banco
+        // guarda só o hash (PBKDF2 com sal, via IPasswordHasher). O que existe é definir uma nova.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DefinirSenhaDoJogador(
+            int jogadorId, string? senha, [FromServices] IPasswordHasher<Jogador> hasher)
+        {
+            var admin = await ObterJogadorAdminAsync();
+            if (admin == null) return Forbid();
+
+            var alvo = await _context.Jogadores.FindAsync(jogadorId);
+            if (alvo == null) return NotFound();
+
+            // ⚠️ ESTA É A TRAVA QUE IMPEDE ESCALAR PODER, e ela não é hipotética: definir a senha
+            // de uma conta é ENTRAR nela. Sem esta linha, um administrador NOMEADO definiria a
+            // senha do administrador RAIZ e entraria como ele — e o raiz é quem vê o dinheiro
+            // (ver PoderesNoSistema.PodeVerDinheiro), justamente o que o nomeado não pode ver.
+            // O mesmo vale pro assistente: só-leitura vira escrita total pela conta do outro.
+            //
+            // O raiz não cai aqui, e a própria conta também não: ninguém escala pra si mesmo.
+            if (!admin.IsAdminRaiz && alvo.Id != admin.Id && PoderesNoSistema.PodeOlharTudo(alvo))
+                return VoltarParaFicha(jogadorId,
+                    "Essa conta administra o Padelizou. Só o administrador raiz define a senha dela.");
+
+            if (alvo.Excluido)
+                return VoltarParaFicha(jogadorId, "Essa conta foi excluída a pedido da pessoa (LGPD). "
+                    + "Não há acesso a devolver: se ela quiser voltar, é conta nova.");
+
+            // ⚠️ PRÉ-CADASTRO NÃO, e isso é o contrário de uma limitação: a conta existe porque
+            // um ORGANIZADOR digitou o CPF dela numa inscrição — ela nunca esteve aqui, nunca
+            // escolheu login e NUNCA ACEITOU OS TERMOS (o registro do aceite nasce no cadastro,
+            // ver Jogador.TermosAceitosEm). Dar uma senha aqui fabricaria uma conta de gente que
+            // não pediu conta nenhuma, e a LGPD põe em nós o ônus de provar o consentimento.
+            // O caminho dela é o Cadastro com o mesmo CPF, que reivindica esta linha e traz o
+            // histórico junto — é o que a própria tela já manda responder.
+            if (alvo.EhPreCadastro)
+                return VoltarParaFicha(jogadorId, "Essa conta nunca teve senha (pré-cadastro). "
+                    + "O caminho dela é se cadastrar com o mesmo CPF — aí ela escolhe a própria "
+                    + "senha e o histórico vem junto.");
+
+            // A MESMA régua mínima da redefinição e do cadastro (ver RecuperacaoSenha).
+            if (RecuperacaoSenha.ProblemaComASenha(senha) is { } problema)
+                return VoltarParaFicha(jogadorId, problema);
+
+            alvo.SenhaHash = hasher.HashPassword(alvo, senha!);
+
+            // Mata qualquer link de "esqueci minha senha" que estivesse de pé nessa conta: se o
+            // atendimento chegou até aqui, aquele link ou não chegou ou não era pra ela.
+            //
+            // ⚠️ O QUE ISTO **NÃO** FAZ: derrubar sessão aberta. O cookie de autenticação não
+            // guarda senha nenhuma (ver IdentidadeJogador.ClaimsDe) e o sistema não tem carimbo
+            // de segurança pra invalidá-lo, então quem já estiver logado nessa conta — noutro
+            // aparelho, ou um invasor — continua logado até o cookie vencer. Trocar a senha
+            // fecha a porta da frente; não expulsa quem já está dentro.
+            RecuperacaoSenha.Consumir(alvo);
+            await _context.SaveChangesAsync();
+
+            // Avisa a pessoa que a senha DELA mudou, e por quem. É o que sustenta a decisão de
+            // deixar isto ser feito daqui: a troca só é aceitável enquanto for barulhenta. Falha
+            // de push não derruba a operação — ela já foi gravada, e a pessoa está no WhatsApp.
+            try
+            {
+                await _pushNotificationService.EnviarParaJogadorAsync(alvo.Id,
+                    "Sua senha do Padelizou foi alterada",
+                    "O suporte definiu uma senha nova pra sua conta. Se não foi você que pediu, "
+                    + "fale com a gente agora.",
+                    Url.Action("AlterarSenha", "Auth"));
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Falha ao avisar o jogador {JogadorId} da senha definida pelo admin.", alvo.Id);
+            }
+
+            _logger?.LogWarning("Admin {AdminId} definiu a senha do jogador {JogadorId}.", admin.Id, alvo.Id);
+
+            TempData["Sucesso"] = $"Senha de {NomeBonito.Formatar(alvo.Nome)} definida. "
+                + "Mande a senha pra ela e peça que troque em Perfil → Alterar senha: "
+                + "senha que passou por terceiro deixou de ser secreta.";
+            return VoltarParaFicha(jogadorId);
         }
     }
 }

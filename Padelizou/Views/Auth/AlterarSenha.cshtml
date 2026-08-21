@@ -1,0 +1,97 @@
+@{
+    ViewData["Title"] = "Alterar senha - Padelizou";
+    // Conta sem senha chega aqui pra CRIAR a primeira (pré-cadastro reivindicado sem senha,
+    // modo demonstração). A tela inteira muda de nome: pedir a "senha atual" de quem nunca
+    // teve uma é um campo impossível de preencher.
+    var temSenha = ViewBag.TemSenha == null || (bool)ViewBag.TemSenha;
+    var titulo = temSenha ? "Alterar senha" : "Criar uma senha";
+}
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        @* Mesma largura fixa das outras telas de conta — ver .pdz-auth-col no site.css. *@
+        <div class="col-12 pdz-auth-col">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-sm-5">
+                    <a asp-action="Perfil" class="small text-decoration-none">&larr; Voltar ao perfil</a>
+                    <h3 class="fw-bold mb-3 mt-2" style="color: var(--pdz-ink);">@titulo</h3>
+
+                    @if (ViewBag.Erro != null)
+                    {
+                        <div class="alert alert-danger">@ViewBag.Erro</div>
+                    }
+
+                    @if (!temSenha)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>Sua conta ainda não tem senha.</strong>
+                            <p class="mb-0 mt-1 small">
+                                Defina uma agora — é ela que vai te deixar entrar da próxima vez,
+                                pelo seu login, e-mail ou CPF.
+                            </p>
+                        </div>
+                    }
+
+                    <form asp-action="AlterarSenha" method="post">
+                        @Html.AntiForgeryToken()
+
+                        @if (temSenha)
+                        {
+                            <label class="form-label fw-bold text-muted">Senha atual</label>
+                            <div class="input-group">
+                                <input type="password" name="senhaAtual" class="form-control form-control-lg" required
+                                       autocomplete="current-password" autofocus placeholder="••••••••" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="pdzAlternarSenha(this)" tabindex="-1">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            @* Por que a senha atual é pedida, dito na tela: sem esta linha o campo
+                               parece burocracia, e burocracia é o que as pessoas pedem pra tirar. *@
+                            <small class="text-muted d-block mt-1">
+                                É o que garante que é você — e não alguém que pegou seu celular destravado.
+                            </small>
+
+                            <p class="small mb-0 mt-2">
+                                <a asp-action="EsqueciSenha">Não lembro da minha senha atual</a>
+                            </p>
+
+                            <hr class="my-4" />
+                        }
+
+                        <label class="form-label fw-bold text-muted">Nova senha</label>
+                        <div class="input-group">
+                            <input type="password" name="senha" class="form-control form-control-lg" required
+                                   minlength="6" autocomplete="new-password" placeholder="••••••••"
+                                   autofocus="@(temSenha ? null : "autofocus")" />
+                            <button type="button" class="btn btn-outline-secondary" onclick="pdzAlternarSenha(this)" tabindex="-1">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-1">Pelo menos 6 caracteres.</small>
+
+                        <label class="form-label fw-bold text-muted mt-3">Repita a nova senha</label>
+                        <div class="input-group">
+                            <input type="password" name="confirmacao" class="form-control form-control-lg" required
+                                   minlength="6" autocomplete="new-password" placeholder="••••••••" />
+                            <button type="button" class="btn btn-outline-secondary" onclick="pdzAlternarSenha(this)" tabindex="-1">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+
+                        <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-4">
+                            @(temSenha ? "Salvar nova senha" : "Criar senha")
+                        </button>
+                    </form>
+
+                    @* A troca não desloga: o cookie não guarda senha nenhuma. Dizer isso evita
+                       a dúvida de "será que continuo logado nos outros aparelhos?". *@
+                    <p class="text-muted small mb-0 mt-3">
+                        <i class="bi bi-shield-lock"></i>
+                        Você continua conectado aqui. Nos outros aparelhos, a senha nova só é
+                        pedida no próximo login.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -265,6 +265,81 @@ namespace padelizou.Controllers
             return jogador != null && RecuperacaoSenha.TokenValido(jogador, token, DateTime.Now) ? jogador : null;
         }
 
+        // ── TROCAR A SENHA ESTANDO DENTRO ──────────────────────────────────────────────────
+        //
+        // A tela que faltava. O sistema só sabia REDEFINIR: o caminho da senha nova passava por
+        // dizer que a esqueceu, esperar um e-mail e abrir um link — e quem NÃO esqueceu (trocou
+        // por precaução, emprestou o celular, desconfia que alguém viu) tinha que fingir que
+        // esqueceu pra conseguir. Pior: quem tem senha e não tem e-mail não conseguia de jeito
+        // nenhum, porque aquele caminho inteiro depende de um destinatário.
+        //
+        // ⚠️ Ela NÃO manda e-mail e NÃO gera token — a prova de que é a pessoa é a senha ATUAL,
+        // digitada aqui. É o mesmo desenho de ExcluirConta, e pelo mesmo motivo: sem isso, um
+        // celular destravado esquecido na mesa do clube troca a senha de alguém em dois toques,
+        // e quem trocou passa a ser o dono da conta.
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> AlterarSenha()
+        {
+            var jogador = await _context.Jogadores.FindAsync(
+                int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+            if (jogador == null) return NotFound();
+
+            ViewBag.TemSenha = !string.IsNullOrEmpty(jogador.SenhaHash);
+            return View();
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        // Janela por IP, a mesma da redefinição: aqui também se ADIVINHA senha (a atual), e a
+        // sessão aberta não é prova de que quem está no teclado é o dono da conta.
+        [EnableRateLimiting(TravaDeEntrada.PoliticaPorIp)]
+        public async Task<IActionResult> AlterarSenha(string? senhaAtual, string? senha, string? confirmacao)
+        {
+            var jogador = await _context.Jogadores.FindAsync(
+                int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+            if (jogador == null) return NotFound();
+
+            // Conta SEM senha existe e chega logada: é o pré-cadastro reivindicado sem senha e
+            // o modo demonstração (ver AcessoAntecipadoMiddleware). Pedir a "senha atual" de
+            // quem nunca teve uma seria um campo impossível de preencher — aqui a tela DEFINE
+            // a primeira, exatamente como o cadastro faria.
+            var temSenha = !string.IsNullOrEmpty(jogador.SenhaHash);
+            ViewBag.TemSenha = temSenha;
+
+            IActionResult Recusar(string erro)
+            {
+                ViewBag.Erro = erro;
+                return View();
+            }
+
+            if (temSenha &&
+                _passwordHasher.VerifyHashedPassword(jogador, jogador.SenhaHash!, senhaAtual ?? "")
+                    == PasswordVerificationResult.Failed)
+            {
+                return Recusar("A senha atual está incorreta.");
+            }
+
+            if (TrocaDeSenha.Problema(senha, confirmacao) is { } problema) return Recusar(problema);
+
+            jogador.SenhaHash = _passwordHasher.HashPassword(jogador, senha!);
+
+            // ⚠️ Mata o link de "esqueci minha senha" que estiver de pé. Quem troca a senha
+            // muitas vezes está justamente reagindo a uma desconfiança — deixar vivo um link
+            // pedido minutos antes seria manter aberta a porta que ela veio fechar.
+            RecuperacaoSenha.Consumir(jogador);
+            await _context.SaveChangesAsync();
+
+            // O cookie não guarda senha (ver IdentidadeJogador.ClaimsDe), então a sessão desta
+            // pessoa segue valendo e ela NÃO é deslogada — trocar a senha e cair na tela de
+            // entrar pareceria que a troca deu errado.
+            TempData["Sucesso"] = temSenha
+                ? "Senha alterada! Use a nova da próxima vez que entrar."
+                : "Senha criada! Agora dá pra entrar com ela.";
+            return RedirectToAction(nameof(Perfil));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Login(string email, string senha, string? returnUrl = null)
         {
